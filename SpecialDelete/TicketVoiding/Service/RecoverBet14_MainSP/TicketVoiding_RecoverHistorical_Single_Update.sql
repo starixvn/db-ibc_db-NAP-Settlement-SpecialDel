@@ -41,9 +41,6 @@ BEGIN
 			,@SB_Error			BIT
 
 			,@avaiableProcess	BIT
-			,@isExistFM			BIT
-			,@isExistFM2		BIT = 0
-			,@isExistMatch		BIT
 			,@AffectedList		VARCHAR(MAX)
 			,@SiteDBGroupID     SMALLINT = 0
 			,@TransInfo			VARBINARY(MAX)
@@ -55,7 +52,6 @@ BEGIN
 	
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	
-
 	CREATE TABLE #tblTransInfo (
 		grouptransid	BIGINT
 		,transid		BIGINT PRIMARY KEY
@@ -183,8 +179,8 @@ BEGIN
 		,oddsid				INT
 		,winlostdate		SMALLDATETIME
 	)
+
 	CREATE TABLE #tblMatch (matchid INT)
-	CREATE TABLE #tblMatchProcess (MatchId INT, KeyID TINYINT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90200
@@ -312,13 +308,13 @@ BEGIN
 	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
 	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
 
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate = @BeingMovebetDate)
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate <= @BeingMovebetDate)
 	BEGIN	
 		DELETE 
 		FROM #tmpTransId
 			OUTPUT	DELETED.matchid, DELETED.TransId
 			INTO  @tblTransId_MoveBet (Matchid, TransId)
-		WHERE eventdate = @BeingMovebetDate
+		WHERE eventdate <= @BeingMovebetDate
 
 		SET @ErrCode = 99 
 		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
@@ -386,28 +382,6 @@ BEGIN
 		SET @ErrCode = 100
 		SET @ErrMsg = @ErrMsg + 'IP and UserID must be inputted.'
 		
-		RETURN
-	END
-	INSERT INTO #tblMatchProcess(matchid, KeyID)
-	SELECT	MatchId, KeyId
-	FROM	#tmpTransId
-	GROUP BY MatchId, KeyId
-	
-	SELECT	@isExistFM = CASE WHEN KeyID = 6 THEN 1 ELSE 0 END
-			,@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
-			, @isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
-	FROM	#tblMatchProcess
-
-	EXEC dbo.NAP_Admin_CheckingProcess
-		 @isExistFM = @isExistFM
-		, @isExistMatch	= @isExistMatch
-		, @isExistFM2 = @isExistFM2
-		, @avaiableProcess = @avaiableProcess OUTPUT
-		, @ErrCode = @ErrCode OUTPUT
-		, @ErrMsg = @ErrMsg OUTPUT
-		
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN		
 		RETURN
 	END
 
@@ -725,36 +699,17 @@ BEGIN
 		FOR XML PATH('r'), ROOT('root'), TYPE
 	) AS VARCHAR(MAX))
 
-	IF @ErrCode <> 0
-	BEGIN
-		------ release data of TempVariableNumBer table
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch		= @isExistMatch
-			, @isExistFM 		= @isExistFM
-			, @isExistFM2		= @isExistFM2
-			, @IsReleased		= 1	
-	END
-	ELSE
-	BEGIN
-		-- release data of TempVariableNumBer table
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch		= @isExistMatch
-			, @isExistFM 		= @isExistFM
-			, @isExistFM2		= @isExistFM2
-			, @IsReleased		= 1	
-
-		BEGIN TRY
-			-- update summary ticket
-			EXEC dbo.TicketVoiding_Admin_Bet14_19999 
-				@AffectedList = @AffectedList
-				,@IsSiteDB = @IsSiteDB
-				,@Action = 'Recover_14'
-		END TRY
-		BEGIN CATCH
-			SELECT	@ErrCode = 100
-					,@ErrMsg = ERROR_PROCEDURE () + ERROR_MESSAGE()
-		END CATCH
-	END
+	-- update summary ticket
+	BEGIN TRY
+		EXEC dbo.TicketVoiding_Admin_Bet14_19999 
+			@AffectedList = @AffectedList
+			,@IsSiteDB = @IsSiteDB
+			,@Action = 'Recover_14'
+	END TRY
+	BEGIN CATCH
+		SELECT	@ErrCode = 100
+				,@ErrMsg = ERROR_PROCEDURE () + ERROR_MESSAGE()
+	END CATCH
 
 	-- Write Log
 	SET @EndTime = GETDATE()
@@ -771,7 +726,6 @@ BEGIN
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 
 	DROP TABLE #tblMatch
-	DROP TABLE #tblMatchProcess
 	DROP TABLE #tmpTransId
 	DROP TABLE #tblTransInfo
 END

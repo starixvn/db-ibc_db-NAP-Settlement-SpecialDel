@@ -40,9 +40,6 @@ BEGIN
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
 			,@AffectedList		VARCHAR(MAX)
-			,@moveBetDay		SMALLDATETIME
-			,@FromDate			DATETIME    
-			,@ToDate			DATETIME
 			,@avaiableProcess BIT
 			,@SiteDBGroupID		SMALLINT = 0
 			,@CustIds			VARCHAR(MAX)
@@ -53,12 +50,6 @@ BEGIN
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 		SET @IsSiteDB = 1
-
-	--Get Movebetdate
-	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @moveBetDay OUTPUT
-	
-	SELECT @FromDate	= DATEADD(d, -6, GETDATE())
-		, @ToDate 		= @moveBetDay
 		
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
@@ -209,13 +200,13 @@ BEGIN
 	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
 	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
 
-	IF @IssueTypeId IN (13) AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE WinlostDate = @BeingMovebetDate)
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE WinlostDate <= @BeingMovebetDate)
 	BEGIN	
 		DELETE 
 		FROM #tmpTransId
 			OUTPUT	@MatchId, DELETED.TransId
 			INTO  @tblTransId_MoveBet (Matchid, TransId)
-		WHERE WinlostDate = @BeingMovebetDate
+		WHERE WinlostDate <= @BeingMovebetDate
 
 		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
 									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
@@ -227,17 +218,6 @@ BEGIN
 												)ts	 (TransIds)
 								FOR XML PATH('r'), ROOT('root')
 								) AS VARCHAR(MAX))
-	END
-	
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@IsExistParlay = 1
-		, @avaiableProcess = @avaiableProcess OUTPUT
-		, @ErrCode = @ErrCode OUTPUT
-		, @ErrMsg = @ErrMsg OUTPUT
-		
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN		
-		RETURN
 	END
 
 	INSERT INTO @BalanceInfoBeforeUpd (CustId, MatchId, WinlostDate, Winlost, aWinlost, mWinlost, sWinlost, playerComm, Comm, aComm, sComm, stake, actual_stake, balance)
@@ -362,33 +342,17 @@ BEGIN
 			FOR XML PATH('r'), ROOT('root'), TYPE
 		) AS VARCHAR(MAX))
 
-	IF @ErrCode <> 0
-	BEGIN
-		------ release data of TempVariableNumBer table
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@IsExistParlay = 1
-			,@IsReleased = 1	
-	END
-	ELSE
-	BEGIN
-	
-		-- release data of TempVariableNumBer table
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@IsExistParlay = 1
-			,@IsReleased = 1	
-
-		BEGIN TRY
-			-- update summary ticket
-			EXEC dbo.TicketVoiding_Admin_Bet14_19999 
+	-- update summary ticket
+	BEGIN TRY
+		EXEC dbo.TicketVoiding_Admin_Bet14_19999 
 				@AffectedList = @AffectedList
 				,@IsSiteDB = @IsSiteDB
 				,@Action = 'Recover_14'
-		END TRY
-		BEGIN CATCH
-			SELECT 	@ErrCode = 100
-					,@ErrMsg = ERROR_PROCEDURE () + ERROR_MESSAGE()
-		END CATCH
-	END
+	END TRY
+	BEGIN CATCH
+		SELECT 	@ErrCode = 100
+				,@ErrMsg = ERROR_PROCEDURE () + ERROR_MESSAGE()
+	END CATCH
 
 	-- Write Log
 	SET @EndTime = GETDATE()

@@ -29,6 +29,7 @@ AS
 		- 20230309@July: Update number ErrCode [Redmine: #180625]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20230623@Max: [TVS] Enhance void 14 by Username Feature name [Redmine: #190028]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's explanation:	
 		
@@ -192,13 +193,13 @@ BEGIN
 	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
 	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
 
-	IF @IssueTypeId IN (13) AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate = @BeingMovebetDate)
+	IF @IssueTypeId IN (13) AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate <= @BeingMovebetDate)
 	BEGIN	
 		DELETE 
 		FROM #tmpTransId
 			OUTPUT	DELETED.matchid, DELETED.TransId
 			INTO  @tblTransId_MoveBet (Matchid, TransId)
-		WHERE eventdate = @BeingMovebetDate
+		WHERE eventdate <= @BeingMovebetDate
 
 		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
 									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
