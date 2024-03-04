@@ -16,9 +16,6 @@ AS
 BEGIN  
 	SET NOCOUNT ON  
 
-	IF NOT EXISTS (SELECT TOP 1 1 FROM sys.objects WHERE name = @TableName + '_BK')
-	RETURN
-
 	DECLARE @Decompress_JsonInfo NVARCHAR(MAX)
 			,@MaxArchiveValue	 VARCHAR(100)
 
@@ -26,8 +23,6 @@ BEGIN
 
 	SET @Decompress_JsonInfo = CAST(DECOMPRESS(@JsonInfo) AS NVARCHAR(MAX))
 
-	BEGIN TRY
-	BEGIN TRANSACTION
 		INSERT INTO @ArchiveData  ( ProviderExternalId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate )
 		SELECT id, m , s, rs, h, a, cd
 		FROM OPENJSON(@Decompress_JsonInfo)
@@ -58,14 +53,10 @@ BEGIN
 			,ArchiveTime = GETDATE()
 		WHERE ArchiveName = @TableName
 	
-	COMMIT TRANSACTION				
-	END TRY
-	BEGIN CATCH
+
 		SELECT @ErrCode  = @@ERROR
 				,@ErrMsg =  CAST(ERROR_MESSAGE() AS NVARCHAR(500) )
-		ROLLBACK TRANSACTION
-		RETURN
-	END CATCH
+
 
 END  
 GO
