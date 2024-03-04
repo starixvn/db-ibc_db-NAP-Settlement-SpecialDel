@@ -52,10 +52,11 @@ BEGIN
 		SET ArchiveValue =  @MaxArchiveValue
 			,ArchiveTime = GETDATE()
 		WHERE ArchiveName = @TableName
-	
+
 
 		SELECT @ErrCode  = @@ERROR
 				,@ErrMsg =  CAST(ERROR_MESSAGE() AS NVARCHAR(500) )
+
 
 
 END  
