@@ -14,7 +14,10 @@ CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Service_Upd]
 	@IsSentEmail					BIT = NULL,
 	@IsRunExternalService			BIT = NULL,
 	@VoidResults					XML = NULL,
-	@MessageIdSpecial				INT = NULL
+	@MessageIdSpecial				INT = NULL,
+	@IsDeletedMessage				BIT = NULL,
+	@IsDeletedVoidedTransaction		BIT	= NULL,
+	@IsDeletedzzzBettrans			BIT = NULL
 )
 AS
 /*	Created by: 20200212@Max
@@ -27,6 +30,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230103@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		
 	Param's explanation:
 	- @UpdateType:
@@ -60,6 +64,9 @@ BEGIN
 			,IsSentEmail = ISNULL(@IsSentEmail, IsSentEmail)
 			,IsRunExternalService = ISNULL(@IsRunExternalService, IsRunExternalService)
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
+			,IsDeletedMessage = ISNULL(@IsDeletedMessage, IsDeletedMessage)
+			,IsDeletedVoidedTransaction = ISNULL(@IsDeletedVoidedTransaction, IsDeletedVoidedTransaction)
+			,IsDeletedzzzBettrans = ISNULL(@IsDeletedzzzBettrans, IsDeletedzzzBettrans)
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 6
@@ -76,6 +83,9 @@ BEGIN
 			,IsSentEmail = @IsSentEmail
 			,IsRunExternalService = @IsRunExternalService
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
+			,IsDeletedMessage = @IsDeletedMessage
+			,IsDeletedVoidedTransaction = @IsDeletedVoidedTransaction
+			,IsDeletedzzzBettrans = @IsDeletedzzzBettrans
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 7

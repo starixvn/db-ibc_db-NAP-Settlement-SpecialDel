@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Archive_Select]
 	,@MatchId		INT				= NULL
 	,@IsExcludeTest BIT				= 1
 	,@Status		INT				= 0
-	,@IssueTypeId	VARCHAR(100)	= NULL
+	,@IssueTypeId	VARCHAR(MAX)	= NULL
 	,@SubIssueType  VARCHAR(MAX)	= NULL
 	,@RequestId		INT				= NULL
 	,@CreatedBy		INT				= 0
@@ -42,6 +42,7 @@ AS
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
+		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's explanation:	
 		@Status: 
@@ -64,9 +65,9 @@ BEGIN
 		RequestId			INT
 		,VoidingHistoryId	INT
 		,VoidedBy			INT
-		,TotalVoidedSingle	INT
-		,TotalVoidedParlay	INT
-		,TotalCancelCashOut INT
+		,TotalSingleProcessed	INT
+		,TotalParlayProcessed	INT
+		,TotalCancelCashOutProcessed INT
 		,MatchId			INT
 		,IssueTypeId		INT
 	)
@@ -90,9 +91,6 @@ BEGIN
 		,TransIds		VARCHAR(MAX)
 		,IssueTypeId	TINYINT
 		,LastVoidedBy	INT
-		,TotalVoidedSingle	INT
-		,TotalVoidedParlay	INT
-		,TotalCancelCashOut INT
 		,VoidFromTime	DATETIME
 		,VoidToTime		DATETIME
 		,FromWinlostDate DATETIME
@@ -100,6 +98,11 @@ BEGIN
 		,TotalUserName	INT
 		,WrongScores	VARCHAR(MAX)
 		,FilterBy		TINYINT
+		,ProductIds		VARCHAR(50)
+		,TotalSingleProcessed	INT
+		,TotalParlayProcessed	INT
+		,TotalCancelCashOutProcessed INT
+		,TotalResettleProcessed INT
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 
@@ -130,7 +133,7 @@ BEGIN
 
 							END
 	-----------------------------GET eventdate of match---------------------------------------------
-	IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20)))
+	IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20,22)))
 	BEGIN
 		IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 										LEFT JOIN @tmpRequest r 
@@ -198,7 +201,7 @@ BEGIN
 
 	IF @FilteredBy = 1
 	BEGIN
-	INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy)
+	INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -207,11 +210,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId IN (13,17) THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId IN (3,19,21) THEN NULL ELSE rd.TransIds END
@@ -224,6 +227,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId = 3 AND rd.FilterBy = 2 THEN  SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6)
 					ELSE STUFF(w.scores,1,1,'') END AS WrongScores
 				,rd.FilterBy
+				,rd.ProductIds
 		FROM dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -249,7 +253,7 @@ BEGIN
 		FROM	dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 		WHERE	rd.MatchId = @MatchId
 
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -258,11 +262,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId IN (13,17) THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId IN (3,19,21) THEN NULL ELSE rd.TransIds END
@@ -275,6 +279,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId = 3 AND rd.FilterBy = 2 THEN  SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6)
 					ELSE STUFF(w.scores,1,1,'') END AS WrongScores
 				,rd.FilterBy
+				,rd.ProductIds
 		FROM	@tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
@@ -301,7 +306,7 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -310,11 +315,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId IN (13,17) THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId IN (3,19,21) THEN NULL ELSE rd.TransIds END
@@ -327,6 +332,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId = 3 AND rd.FilterBy = 2 THEN  SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6)
 					ELSE STUFF(w.scores,1,1,'') END AS WrongScores
 				,rd.FilterBy
+				,rd.ProductIds
 		FROM	dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -378,13 +384,13 @@ BEGIN
 			WHERE	vh.RequestId = t.RequestId
 			ORDER BY vh.VoidingHistoryId DESC
 		) vh
-		
+	
 	-- single ticket	
 	UPDATE vh 
-		SET TotalVoidedSingle = t.TotalVoidedSingle
+		SET TotalSingleProcessed = t.TotalSingleProcessed
 			,MatchId = t.matchid
-			,TotalVoidedParlay = t.TotalVoidedParlay
-			,TotalCancelCashOut = t.TotalCancelCashOut
+			,TotalParlayProcessed = t.TotalParlayProcessed
+			,TotalCancelCashOutProcessed = t.TotalCancelCashOutProcessed
 	FROM @tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
@@ -393,10 +399,10 @@ BEGIN
 							WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 							WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799) THEN 1
 						ELSE 0 END
-					) AS TotalVoidedSingle
-					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
+					) AS TotalSingleProcessed
+					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
 					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
-					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
+					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
@@ -406,12 +412,12 @@ BEGIN
 	
 	--parlay
 	UPDATE vh
-		SET TotalVoidedParlay = t.TotalVoidedParlay
+		SET TotalParlayProcessed = t.TotalParlayProcessed
 			,MatchId = t.matchid
 	FROM	@tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
-					,COUNT(1) AS TotalVoidedParlay
+					,COUNT(1) AS TotalParlayProcessed
 					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END AS matchid
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm_bk zm WITH(NOLOCK)
@@ -421,19 +427,39 @@ BEGIN
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 
 	UPDATE t 
-		SET TotalVoidedSingle = ISNULL(vh.TotalVoidedSingle,0)
-			,TotalVoidedParlay = ISNULL(vh.TotalVoidedParlay,0)
-			,TotalCancelCashOut = ISNULL(vh.TotalCancelCashOut,0)
+		SET TotalSingleProcessed = ISNULL(vh.TotalSingleProcessed,0)
+			,TotalParlayProcessed = ISNULL(vh.TotalParlayProcessed,0)
+			,TotalCancelCashOutProcessed = ISNULL(vh.TotalCancelCashOutProcessed,0)
 	FROM	#tmpResult t
 		CROSS APPLY (
-			SELECT	SUM(vh.TotalVoidedSingle) AS TotalVoidedSingle
-					,SUM(vh.TotalVoidedParlay) AS TotalVoidedParlay
-					,SUM(vh.TotalCancelCashOut) AS TotalCancelCashOut
+			SELECT	SUM(vh.TotalSingleProcessed) AS TotalSingleProcessed
+					,SUM(vh.TotalParlayProcessed) AS TotalParlayProcessed
+					,SUM(vh.TotalCancelCashOutProcessed) AS TotalCancelCashOutProcessed
 			FROM	@tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
 		) vh
 
-	--Return Data
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchVoidingHistory WHERE IssueTypeId = 22) --Recover Ticket
+	BEGIN
+		UPDATE t 
+			SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)
+				,TotalParlayProcessed = ISNULL(rt.TotalParlayProcessed,0)
+				,TotalResettleProcessed = ISNULL(rt.TotalResettleProcessed,0)
+		FROM	#tmpResult t
+			OUTER APPLY (SELECT 
+							SUM(CASE WHEN s.IsProcessed = 3 THEN 1 ELSE 0 END) AS TotalResettleProcessed
+						   ,SUM(CASE WHEN s.MatchId NOT IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						   ,SUM(CASE WHEN s.MatchId IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
+						LEFT JOIN dbo.zzzbettrans_bk z ON s.transid = z.transid
+					WHERE s.RequestId = t.RequestId
+						AND s.IsProcessed IS NOT NULL
+						AND z.transid IS NULL
+				)rt	
+		WHERE t.IssueTypeId = 22 
+	END
+	/*****************Return table **************************/
+	-- 1. Return infor table
 	SELECT	t.RequestId
 			,t.SubIssueTypeId
 			,t.MatchId
@@ -450,11 +476,8 @@ BEGIN
 			,t.DecidedBy
 			,v.Username AS LastPerformedBy
 			,ch.Username AS CheckedBy
-			,t.TotalVoidedSingle
-			,t.TotalVoidedParlay
-			,t.TotalCancelCashOut
 			,CASE WHEN t.IssueTypeId IN (11,15,17,20) THEN LEN(ISNULL(ts.TransIds,'')) - LEN(REPLACE(ISNULL(ts.TransIds,''), ',', ''))  ELSE 0 END AS TotalSingle
-			,CASE WHEN t.IssueTypeId IN (17) THEN LEN(ISNULL(p.TransIds,'')) - LEN(REPLACE(ISNULL(p.TransIds,''), ',', ''))  ELSE 0 END AS TotalParlay
+			,CASE WHEN t.IssueTypeId IN (17) THEN p.TotalParlay ELSE 0 END AS TotalParlay
 			,CASE WHEN t.IssueTypeId IN (11,15,20) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds
 			,t.IssueTypeId
 			,CASE WHEN f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN ''
@@ -471,6 +494,11 @@ BEGIN
 			,t.WrongScores
 			,mr.SettlementStatus
 			,CASE WHEN t.IssueTypeId IN (1,10,3,8,9) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
+			,CASE WHEN CHARINDEX('1',t.ProductIds) > 0 THEN 'Sportsbook' ELSE NULL END AS Products -- Apply issuetype Recover Ticket
+			,t.TotalSingleProcessed
+			,t.TotalParlayProcessed
+			,t.TotalCancelCashOutProcessed
+			,t.TotalResettleProcessed 
 	FROM	#tmpResult t
 		LEFT JOIN bodb02.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
@@ -486,12 +514,11 @@ BEGIN
 								 ELSE 0 END
 					FOR XML PATH('')
 				)ts	 (TransIds)
-		OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+		OUTER APPLY (SELECT COUNT(1) AS TotalParlay
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId AND t.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799)
-					FOR XML PATH('')
-				)p	 (TransIds)
-				---Case Failed
+				)p	
+		---Case Failed
 		OUTER APPLY ( 
 					SELECT DISTINCT RequestId, vh.StatusId
 					FROM dbo.TicketVoiding_VoidingHistory_bk vh WITH(NOLOCK) 
@@ -544,7 +571,7 @@ BEGIN
 			END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
 	
-	--Support get calculate time 
+	-- 2. Support get calculate time 
 	SET @RequestInfoGetCalcTimes = COMPRESS((SELECT RequestId AS 'req'
 		  ,Sporttype AS 's'
 		  ,MatchId AS 'mid'

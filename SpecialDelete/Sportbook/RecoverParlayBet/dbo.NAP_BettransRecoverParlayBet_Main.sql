@@ -32,6 +32,7 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's Explanation:			
 		- @BetType: 'all': All
@@ -286,7 +287,7 @@ BEGIN
 		SET status = 'running'
 			,statusID = 0
 			,ruben = 0
-			,modds = 0
+			--,modds = 0
 			,winlost = 0
 			,awinlost = 0
 			,mwinlost = 0
@@ -299,11 +300,11 @@ BEGIN
 			,creator = b.custid
 			,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(2,'recover',b.ExtraInfo,NULL, b.bettype)
 			,FcUpdateTime = SYSDATETIME()
-		OUTPUT deleted.matchid, deleted.TransId, inserted.status, inserted.statusID, inserted.ruben, inserted.modds
+		OUTPUT deleted.matchid, deleted.TransId, inserted.status, inserted.statusID, inserted.ruben
 			, inserted.winlost, inserted.awinlost, inserted.mwinlost, inserted.swinlost
 			, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm
 			, inserted.statuswinlost, inserted.creator, inserted.ExtraInfo, inserted.FcUpdateTime
-		INTO @tmpTransInfo(matchid, transid, status, statusID, ruben, modds, winlost, aWinLost, mWinLost, sWinLost
+		INTO @tmpTransInfo(matchid, transid, status, statusID, ruben, winlost, aWinLost, mWinLost, sWinLost
 							,PlayerComm, Comm, aComm, sComm, statuswinlost, creator, ExtraInfo, FcUpdateTime)
 		FROM dbo.bettrans b
 			INNER JOIN #tblRecoverBet t ON b.transid = t.transid
@@ -328,7 +329,6 @@ BEGIN
 					    , STATUS AS 's'
 						, statusID AS 'sid'
 						, ruben AS 'r'
-					    , modds AS 'm'
 					    , winlost AS 'w'
 						, awinlost AS 'aw'
 						, mwinlost AS 'mw'

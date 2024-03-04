@@ -23,6 +23,7 @@ AS
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's explanation:
 		
@@ -56,6 +57,7 @@ BEGIN
 	CREATE TABLE #CancelCashOutTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
 	--Void14 (Abnormal Account only)
 	CREATE TABLE #SingleTickets_14 (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
+	CREATE TABLE #ParlayTickets_14 (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
 
 	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
@@ -199,7 +201,18 @@ BEGIN
 				,b.winlostdate
 				,b.statusID
 			FROM #tmpInputTransId t
-				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype NOT IN (9,29,2799)
+
+			INSERT INTO #ParlayTickets_14 (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
+			SELECT t.TransId
+				,t.RequestId
+				,t.MatchId
+				,t.IssueTypeId
+				,b.transdate
+				,b.winlostdate
+				,b.statusID
+			FROM #tmpInputTransId t
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (9,29,2799)
 		END
 	END
 	IF @IssueTypeId IN (19,21) --ReducedOver Cricket, Not Participate
@@ -244,6 +257,7 @@ BEGIN
 	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #CancelCashOutTickets --CancelCO
 
 	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId FROM #SingleTickets_14 --Single_14Void
+	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId FROM #ParlayTickets_14 --Parlay_14Void
 
 	DROP TABLE #tmpInputTransId
 	DROP TABLE #tmpTransIds
@@ -253,6 +267,7 @@ BEGIN
 	DROP TABLE #ParlayTickets_ReSettle
 	DROP TABLE #CancelCashOutTickets
 	DROP TABLE #SingleTickets_14
+	DROP TABLE #ParlayTickets_14
 END		
 GO
 

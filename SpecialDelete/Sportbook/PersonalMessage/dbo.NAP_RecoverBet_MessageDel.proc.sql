@@ -10,12 +10,13 @@ AS
 		- 20160609@Bobby.Nguyen: #59171 - Implement remove message function when recovering multiple tickets
 		- 20181221@Kathy: get messageid of voided transaction from new table [Redmine:#101231]
 		- 20220727@Max: [TVS] Changes of TVS for increasing length of transid [Redmine: #175648]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @tmpInputTransId TABLE (TransId VARCHAR(20))
+	DECLARE @tmpInputTransId TABLE (TransId VARCHAR(MAX))
 
 	CREATE TABLE #tempTransId (transid VARCHAR(20), messageId INT, rankIdx INT IDENTITY(1,1))
 	CREATE TABLE #tempMsgTarget (MsgTargetId INT, MessageId INT, BettransId VARCHAR(MAX))
@@ -29,7 +30,7 @@ BEGIN
 	INSERT INTO #tempTransId (transid, messageId)
 	SELECT	t.TransId, vt.messageId
 	FROM	@tmpInputTransId t
-		LEFT JOIN DBTXN.bodb02.dbo.TicketVoiding_VoidedTransaction vt WITH(NOLOCK)
+		LEFT JOIN DBCTG.bodb02.dbo.TicketVoiding_VoidedTransaction vt WITH(NOLOCK)
 			ON t.transid = vt.TransId
 
 	--Gather MsgTargetId need to update
@@ -44,22 +45,6 @@ BEGIN
 					AND CHARINDEX(t.transid, mt.BettransId) > 0
 		) mt
 	WHERE	t.messageId IS NOT NULL
-	
-	 -- in case of voiding ticket by script, cannot find the transid in table VoidedTransaction
-	IF EXISTS (SELECT TOP 1 1 FROM #tempTransId WHERE messageId IS NULL) 
-	BEGIN
-		INSERT INTO #tempMsgTarget (MsgTargetId, MessageId, BetTransId)
-		SELECT DISTINCT t.MsgTargetId, t.MessageId, t.BetTransId
-		FROM #tempTransId temp
-			CROSS APPLY (
-				SELECT MsgTargetId, msg.MessageId, msg.BetTransId
-				FROM dbo.MsgTarget msg WITH(NOLOCK)
-				WHERE msg.isDeleted = 0
-					AND CHARINDEX(temp.transid, msg.BettransId) > 0
-		) AS t
-		WHERE	temp.messageId IS NULL
-
-	END
 	
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tempMsgTarget)
 		RETURN

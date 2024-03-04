@@ -16,6 +16,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Select]
 	,@WrongOddsInfo       VARCHAR(MAX) = NULL
 	,@ReducedOverInfo	  VARCHAR(MAX) = NULL
 	,@NotParticipateInfo  VARCHAR(MAX) = NULL
+	,@RecoverTicketInfo   VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -29,6 +30,7 @@ AS
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
+		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's explanation:	
 		
@@ -148,6 +150,13 @@ BEGIN
 	END
 	/*-----------------*/
 
+	/*---Recover Ticket---*/
+	IF @IssueTypeId = 22
+	BEGIN
+		EXEC dbo.TicketVoiding_TransInfo_RT_Select
+			@RecoverTicketInfo = @RecoverTicketInfo
+	END
+	/*-----------------*/
 END
 
 GO

@@ -10,7 +10,8 @@ AS
 		- 20201203@Charles: Optimize Voiding Workflow [Redmine: #145719]
 		- 20230103@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
-		
+		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
+
 	Param's explanation:	
 	
 */
@@ -19,6 +20,7 @@ BEGIN
 	
 	DECLARE  @xmlVoidData		XML
 			,@VoidingHistoryId  INT
+			,@SingleTransIds	VARCHAR(MAX) = NULL
 
 	CREATE TABLE #tmpVoidingHistory(
 		VoidingHistoryId INT
@@ -71,6 +73,18 @@ BEGIN
 		INNER JOIN #tmpVoidingHistory t ON t.RequestId = vh.RequestId AND t.BroadcastSessionId = vh.BroadcastSessionId
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tmpVoidingHistory t WHERE t.VoidingHistoryId = vh.VoidingHistoryId)
 
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpVoidingHistory vh
+							  INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON vh.RequestId = r.RequestId
+							  WHERE r.IssueTypeId = 22 --Recover Ticket
+			)
+	BEGIN
+		SET @SingleTransIds =  STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
+									  FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
+										INNER JOIN #tmpVoidingHistory vh ON s.RequestId = vh.RequestId
+									  WHERE s.IssueTypeId = 22
+									  FOR XML PATH ('')),1,1,'')
+	END
+
 	WHILE (1=1)
 	BEGIN
 		UPDATE TOP(1) t
@@ -119,6 +133,7 @@ BEGIN
 		OPTION (OPTIMIZE FOR (@xmlVoidData = NULL ))
 	END
 
+	/*****************Return table **************************/
 	SELECT 
 		 VoidingHistoryId 
 		,IssueTypeId 
@@ -146,6 +161,7 @@ BEGIN
 		,IsHasSettledTicket 
 		,TotalTicket
 		,IsRunAutoAfterVoid
+		,@SingleTransIds AS SingleTransIds
 	FROM #tmpVoidData
 
 	DROP TABLE #tmpVoidingHistory

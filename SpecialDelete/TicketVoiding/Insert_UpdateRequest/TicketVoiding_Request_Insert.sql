@@ -29,6 +29,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@ReducedOverInfo		VARCHAR(MAX)  = NULL
 	,@NotParticipateInfo	VARCHAR(MAX)  = NULL
 	,@DuplicateTicketsInfo	VARCHAR(MAX)  = NULL
+	,@RecoverTicketInfo		VARCHAR(MAX) = NULL
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
 	,@RequestId				INT			  = 0 OUTPUT
 AS
@@ -64,6 +65,7 @@ AS
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
+		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -240,7 +242,7 @@ BEGIN
 				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END
-	ELSE IF @IssueTypeId IN (20)
+	ELSE IF @IssueTypeId IN (20) --Duplicate Ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RequestDetail_DT_Update
 				 @RequestId		 = @RequestId		
@@ -261,6 +263,17 @@ BEGIN
 				,@IP			 = @IP			
 				,@ActionId		 = @ActionId		
 				,@ReducedOverInfo = @NotParticipateInfo
+				,@TransInfoJson	 = @TransInfoJson			
+				,@IsEditRequest	 = @IsEditRequest
+	END
+	ELSE IF @IssueTypeId IN (22) --Recover Ticket
+	BEGIN
+		EXEC dbo.TicketVoiding_RequestDetail_RT_Update
+				 @RequestId		 = @RequestId		
+				,@IssueTypeId	 = @IssueTypeId	
+				,@UserId		 = @UserId		
+				,@IP			 = @IP			
+				,@RecoverTicketInfo = @RecoverTicketInfo
 				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END
