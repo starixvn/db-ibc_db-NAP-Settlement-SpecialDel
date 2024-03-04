@@ -23,6 +23,7 @@ AS
 	
 	Revisions: 
 		- 20231227@Max: Create new SP [Redmine: #196020]
+		- 20240304@Max: Set LogActionId [Redmine: #196020]
 
 	Param's explanation:
 		
@@ -100,7 +101,11 @@ BEGIN
 	)								
 											
 	DECLARE @tblBeforeBalance	TABLE (custid INT, balance MONEY)
-	DECLARE @tblAfterBalance	TABLE (custid INT, balance MONEY)		
+	DECLARE @tblAfterBalance	TABLE (custid INT, balance MONEY)	
+	
+	SET @StartTime = GETDATE()
+	SET @LogActionId = 90201
+	SET @SB_Error = 0
 	
 	BEGIN TRY
 		INSERT INTO @tblTransIds (transid)
