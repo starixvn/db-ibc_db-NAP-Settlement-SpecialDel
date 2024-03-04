@@ -23,6 +23,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
+		- 20240201@Aries: Enhance diff balance for Number Game [Redmine:#200328]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -157,6 +158,9 @@ BEGIN
 			   ,@action				 = 'CAL'
 			   ,@strTransIds		 = @strTransIds
 			   ,@Is3rd				 = 1
+			   ,@IsCalculateBalance	 = 1
+			   ,@CWLBettype			 = 81
+			   ,@BalanceType		 = 4
 	END
 
 	WHILE (@TotalTransMaxPO > 0)

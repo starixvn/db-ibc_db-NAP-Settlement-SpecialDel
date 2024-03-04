@@ -15,6 +15,7 @@ AS
 		- 20181203@Helen: Remove execution on LAS + Apply Service Broker for Other Sports - [Redmine:101611]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20240201@Aries: Enhance diff balance for Number Game [Redmine:#200328]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -68,6 +69,9 @@ BEGIN
 			   ,@action				 = 'REFUND'
 			   ,@strTransIds		 = @strTransIds
 			   ,@Is3rd				 = 1
+			   ,@IsCalculateBalance	 = 1
+			   ,@CWLBettype			 = 81
+			   ,@BalanceType		 = 4
 	END
 	
 	DROP TABLE #TempData_NG_Refund
