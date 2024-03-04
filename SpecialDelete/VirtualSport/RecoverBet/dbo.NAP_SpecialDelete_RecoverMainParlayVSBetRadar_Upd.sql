@@ -428,7 +428,7 @@ BEGIN
 				FROM #MatchInfo
 				WHERE RowNum = @i
 			
-				EXEC [dbo].[TicketVoiding_ReCalculate_MainParlayVS_Update]
+				EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update]
 					 @MatchId			= @matchId
 					,@strRefnos 		= @strRefnos
 					,@matchdate			= @matchdate

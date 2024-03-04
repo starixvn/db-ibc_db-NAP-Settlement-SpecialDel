@@ -470,7 +470,7 @@ BEGIN
 		END
 		
 		--> Check Concurrency				
-		SELECT @isExistMatch	  = MAX(CASE WHEN TicketType IN (1, 2, 4) THEN 1 ELSE 0 END)
+		SELECT @isExistMatch	  = MAX(CASE WHEN TicketType IN (1, 2, 4, 5) THEN 1 ELSE 0 END)
 			 , @IsExistVS		  = MAX(CASE WHEN TicketType = 3 THEN 1 ELSE 0 END)			 
 			 , @IsExistVSBetradar = MAX(CASE WHEN TicketType = 1 THEN 1 ELSE 0 END)
 			 , @IsExistVS3		  = MAX(CASE WHEN TicketType = 4 THEN 1 ELSE 0 END)
@@ -482,7 +482,7 @@ BEGIN
 		SELECT DISTINCT 
 				matchid
 			  , CASE 
-					WHEN TicketType IN (1, 2, 4) THEN 1 -- VS Betradar, Inspired VS 180, VS 3(Leap Gaming)	
+					WHEN TicketType IN (1, 2, 4, 5) THEN 1 -- VS Betradar, Inspired VS 180, VS3(Leap Gaming), VS4(Edge Gaming) 
 					ELSE 4 -- Inspired VS 181
 				END AS KeyId
 		FROM #RecoverBet
@@ -736,7 +736,7 @@ BEGIN
 			WHERE b.TicketType IN (4, 5)
 
 			INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID,OddsType )  
-			SELECT Id, ISNULL(Home,''), ISNULL(Away,''), sp.BetType, sp.BetID, sp.pfID , sp.OddsType
+			SELECT DISTINCT Id, ISNULL(Home,''), ISNULL(Away,''), sp.BetType, sp.BetID, sp.pfID , sp.OddsType
 			FROM (
 				SELECT '00' AS Id, m.finalhomescore AS Home, m.finalawayscore AS Away
 				FROM @tmpMatchId t
