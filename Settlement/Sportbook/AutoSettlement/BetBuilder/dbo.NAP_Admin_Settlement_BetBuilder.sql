@@ -26,6 +26,7 @@ AS
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20231101@Kathy: fix log [Redmine:#192311]
+		- 20230131@Kathy: Support update statuswinlost for voiding ticket [Redmine:#200440]
 
 	Param's Explanation:
 		@Action : CAL, UNDO, 
@@ -172,7 +173,7 @@ BEGIN
 	  	WHERE b.matchID = @MatchID
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	  		AND b.Bettype = @Bettype
-	  		AND b.statusID NOT IN (101,102) --VOID, REJECT
+	  		AND b.statusID NOT IN (101) -- REJECT
 	  		AND 1 = CASE WHEN mk.Result = 'REFUND' AND b.statusID = 103 THEN 0
 	  					 WHEN mk.Result IS NULL AND b.statusID = 0 THEN 0
 	  					 ELSE 1 END
@@ -199,7 +200,7 @@ BEGIN
 	  	WHERE b.matchID = @MatchID
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	  		AND b.Bettype = @Bettype
-	  		AND	b.statusID NOT IN (102, 101, 0, 1)--VOID, REJECT, RUNNING
+	  		AND	b.statusID NOT IN (101, 0, 1)--REJECT, RUNNING
 	  		AND m.Result IS NULL
 	  		
 	  	SELECT @TotalAccount = (SELECT COUNT(DISTINCT custID) FROM #tblTransIDUndo)

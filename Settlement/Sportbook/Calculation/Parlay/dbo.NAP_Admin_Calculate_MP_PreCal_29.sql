@@ -39,6 +39,8 @@ AS
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
 		- 20231017@Kathy: Cast all modds values return from CASE WHEN expression to DECIMAL(38,20) to avoid CONVERT_IMPLICIT with wrong datatype  [Redmine:#191873]
 		- 20231213@Kathy:  Update wrong winlostdate when Re-calculate change score for case LOSE [Redmine:#198190]
+		- 20231229@Kathy: insert duplicate betparlayresult - force index [Redmine:#198835]
+		- 20230131@Kathy: Support generate BetParlayDetail/BetParlayResult for voiding ticket [Redmine:#200440]
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -203,7 +205,7 @@ BEGIN
 				,ISNULL(oddsspread, 0), actual_stake, betteam, BetSiteID
 		FROM	dbo.bettrans WITH(NOLOCK, INDEX = PK_bettrans)
 		WHERE	transid IN (SELECT transid FROM @transIDs)
-				AND statusID NOT IN (101, 102) --('VOID','REJECT')	
+				AND statusID <> 101 --('REJECT')	
 		
 		-- Remove duplicate transid if page split occurs
 		;WITH cteDuplicateTransId
@@ -316,8 +318,9 @@ BEGIN
 			,0, 0, 0, 0, 0, 0
 			,0, 0, 0, 0
 		FROM #temp_bettrans b
-			INNER JOIN dbo.BetParlayDetail r WITH (NOLOCK) ON b.refno = r.refno
+			INNER LOOP JOIN dbo.BetParlayDetail r WITH (NOLOCK) ON b.refno = r.refno
 		WHERE b.insertedResult = 0 -- only insert the row not yet insert to that table
+		OPTION (FORCE ORDER)
 		
 	END
 	-----------------------
