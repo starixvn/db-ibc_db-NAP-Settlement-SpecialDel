@@ -41,7 +41,7 @@ BEGIN
 		INSERT INTO ProviderExternalResultDetail_BK( ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
 		SELECT ProviderExternalId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
 		FROM @ArchiveData
-		WHERE ProviderExternalId > @MaxCurrentValue
+		WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
 	END
 
 	ELSE IF @TableName = 'ProviderExternalResultDetailES'
@@ -51,7 +51,7 @@ BEGIN
 		INSERT INTO ProviderExternalResultDetailES_BK (ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
 		SELECT ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
 		FROM @ArchiveData
-		WHERE ProviderExternalId > @MaxCurrentValue
+		WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
 	END
 
 	ELSE IF @TableName = 'ProviderExternalResultDetailOS'
@@ -61,7 +61,7 @@ BEGIN
 		INSERT INTO ProviderExternalResultDetailOS_BK (ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
 		SELECT ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
 		FROM @ArchiveData
-		WHERE ProviderExternalId > @MaxCurrentValue
+		WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
 	END
 
 	IF CAST(@MaxArchiveValue AS INT) > @MaxCurrentValue
