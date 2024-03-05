@@ -62,7 +62,7 @@ BEGIN
 			WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
 		END
 
-		IF CAST(@MaxArchiveValue AS INT) > @MaxCurrentValue
+		IF CAST(@MaxArchiveValue AS INT) > ISNULL(@MaxCurrentValue,0)
 		BEGIN
 			UPDATE Settlement_ArchiveSetting WITH(ROWLOCK,UPDLOCK)
 			SET ArchiveValue =  @MaxArchiveValue
