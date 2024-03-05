@@ -18,6 +18,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@AutoType				TINYINT		= 0
 	,@DeterminedType		TINYINT		= 0
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
+	,@IsPingoal			BIT				= 0
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -83,6 +84,7 @@ AS
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
+		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -884,7 +886,7 @@ BEGIN
 		END	
 
 		--Auto payout exept Pingoal
-		IF @IsAuto = 1 AND @HasAutoPayout = 1 AND @Action LIKE 'CAL%'
+		IF @IsAuto = 1 AND @HasAutoPayout = 1 AND @Action LIKE 'CAL%' AND @IsPingoal = 0
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 			  @MatchId 			 = @matchid

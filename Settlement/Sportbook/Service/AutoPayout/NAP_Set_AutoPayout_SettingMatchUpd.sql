@@ -27,6 +27,7 @@ AS
 		- 20240125@Aries: Tennis - Don't turn off AUTO setting when change setting to DIRECT & vice versa on Match  [Redmine: #200259]
 		- 20240110@Louisa: Allow update Auto Payout when match completed [Redmine:#198710]
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
+		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -63,7 +64,7 @@ BEGIN
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
 
-	SELECT @HasAP2 = IIF(AP_Group IS NOT NULL,1,0)
+	SELECT @HasAP2 = IIF(AP_Group IS NOT NULL OR Setting & 8 = 8,1,0)
 	FROM SettlementResultTableSetting WITH(NOLOCK) 
 	WHERE sporttype = @Sporttype
 	

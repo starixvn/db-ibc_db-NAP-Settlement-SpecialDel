@@ -28,6 +28,7 @@ AS
 		- 20240108@Aries: Don't update the same setting for league & corresponding running match  [Redmine: #199495]
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
+		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 
 	Param's Explanation:
 		- @IsApplyAll: 0: only update on league
@@ -70,7 +71,7 @@ BEGIN
 	FROM	dbo.League l WITH(NOLOCK) 
 	WHERE	leagueid = @LeagueId
 
-	SELECT @HasAP2 = IIF(AP_Group IS NOT NULL,1,0)
+	SELECT @HasAP2 = IIF(AP_Group IS NOT NULL OR Setting & 8 = 8,1,0)
 	FROM SettlementResultTableSetting WITH(NOLOCK) 
 	WHERE sporttype = @Sporttype
 		

@@ -18,6 +18,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@AutoType			TINYINT			= 0
 	,@DeterminedType	TINYINT			= 0
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
+	,@IsPingoal			BIT				= 0
 AS
 /*	Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -55,6 +56,7 @@ AS
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240328@Louisa: fix issue Auto ES cannot pass data into queue single [Redmine: #203079]
+		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -125,14 +127,13 @@ BEGIN
 																	ELSE '' END
 															+ ', @AutoType = ' + CONVERT(VARCHAR(5), @AutoType) 
 															+ IIF(@AutoSourceInfo IS NOT NULL,', @AutoSourceInfo =  ''' + @AutoSourceInfo + '''','') 
+															+ ', @IsPingoal = ' + CONVERT(NVARCHAR(1), @IsPingoal)
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 		
 
 	IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- For testing on UAT -- UAT1 -->UAT9
-		OR (@IsAuto = 1 AND @sporttype = 1 AND @LeagueGroupId = 113 ) -- product PinGoal
-		OR (@IsAuto = 1 AND @sporttype = 43 AND @LeagueGroupId IN (151,215) ) --PinGoal, RedCat
-		OR (@IsAuto = 1 AND @sporttype = 2 AND @LeagueGroupId = 122 ) --PinGoal
+		OR @IsPingoal = 1 -- Soccer ,Esport RedCat, Basketball   PinGoal
 	BEGIN
 		BEGIN TRY
 			EXEC sys.sp_executesql @sqlCommand

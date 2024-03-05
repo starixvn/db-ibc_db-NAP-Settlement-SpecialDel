@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_FantasyMatchSel]
 	 @matchid INT
 AS
@@ -13,6 +13,7 @@ AS
 		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 		- 20221122@Louisa: Add Fantasy league 125351 [Redmine:#180306]
 		- 20230829@Aries: Enhance Detecting Fantasy Soccer Matches [Redmine:#193124]
+		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -92,20 +93,33 @@ BEGIN
 
 	SELECT @fantasyh AS fantasyHomeTeam, @fantasya AS fantasyAwayTeam
 
-	SELECT   matchid		 
-			, matchcode
-			, kickofftime		 
-			, eventstatus	 
-			, betstatus		 
-			, SettlementStatus
-			, homeid		 
-			, awayid		 
-			, hthomescore	 
-			, htawayscore	 
-			, finalhomescore 
-			, finalawayscore 
-			, IsDeleted
-	FROM @tmpRelatedMatchInfo
+	SELECT    tmp.matchid		 
+			, tmp.matchcode
+			, tmp.kickofftime		 
+			, tmp.eventstatus	 
+			, tmp.betstatus		 
+			, tmp.SettlementStatus
+			, tmp.homeid		 
+			, tmp.awayid		 
+			, tmp.hthomescore	 
+			, tmp.htawayscore	 
+			, tmp.finalhomescore 
+			, tmp.finalawayscore 
+			, tmp.IsDeleted
+			, r.FTResultStatusID
+			, r.FTSettlementStatusID
+			, r.HTResultStatusID
+			, r.HTSettlementStatusID
+	FROM @tmpRelatedMatchInfo AS tmp
+		OUTER APPLY(SELECT   MAX(IIF(rd.ResourceId = '00',rd.ResultStatusID,0)) AS FTResultStatusID
+							,MAX(IIF(rd.ResourceId = '00',rd.SettlementStatusID,0)) AS FTSettlementStatusID
+							,MAX(IIF(rd.ResourceId = '01',rd.ResultStatusID,0)) AS HTResultStatusID
+							,MAX(IIF(rd.ResourceId = '01',rd.SettlementStatusID,0)) AS HTSettlementStatusID
+					FROM dbo.ResultDetail AS rd WITH(NOLOCK) 
+					WHERE rd.matchid = tmp.matchid
+						AND rd.ResourceId IN ('00','01')
+					GROUP BY rd.matchid
+		) AS r
 
 END
 GO
