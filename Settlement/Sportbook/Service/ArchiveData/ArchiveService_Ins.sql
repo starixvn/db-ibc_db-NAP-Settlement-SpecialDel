@@ -16,9 +16,6 @@ AS
 BEGIN  
 	SET NOCOUNT ON  
 
-	IF NOT EXISTS (SELECT TOP 1 1 FROM sys.objects WHERE name = @TableName + '_BK')
-	RETURN
-
 	DECLARE @Decompress_JsonInfo NVARCHAR(MAX)
 			,@MaxArchiveValue	 VARCHAR(100)
 			,@MaxCurrentValue	 INT
@@ -27,50 +24,59 @@ BEGIN
 
 	SET @Decompress_JsonInfo = CAST(DECOMPRESS(@JsonInfo) AS NVARCHAR(MAX))
 
-	INSERT INTO @ArchiveData  ( ProviderExternalId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate )
-	SELECT id, m , s, rs, h, a, cd
-	FROM OPENJSON(@Decompress_JsonInfo)
-	WITH ( id BIGINT, m INT, s SMALLINT, rs VARCHAR(20), h VARCHAR(50), a VARCHAR(50), cd DATETIME )
+	BEGIN TRY
+		INSERT INTO @ArchiveData  ( ProviderExternalId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate )
+		SELECT id, m , s, rs, h, a, cd
+		FROM OPENJSON(@Decompress_JsonInfo)
+		WITH ( id BIGINT, m INT, s SMALLINT, rs VARCHAR(20), h VARCHAR(50), a VARCHAR(50), cd DATETIME )
 
-	SELECT @MaxArchiveValue = (SELECT CONVERT(VARCHAR(50), MAX(ProviderExternalId) ) FROM @ArchiveData	)
+		SELECT @MaxArchiveValue = (SELECT CONVERT(VARCHAR(50), MAX(ProviderExternalId) ) FROM @ArchiveData	)
 
-	IF @TableName = 'ProviderExternalResultDetail'
-	BEGIN
-		SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetail_BK WITH(ROWLOCK) )
+		IF @TableName = 'ProviderExternalResultDetail'
+		BEGIN
+			SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetail_BK WITH(ROWLOCK) )
 
-		INSERT INTO ProviderExternalResultDetail_BK( ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
-		SELECT ProviderExternalId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
-		FROM @ArchiveData
-		WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
-	END
+			INSERT INTO ProviderExternalResultDetail_BK( ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
+			SELECT ProviderExternalId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
+			FROM @ArchiveData
+			WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
+		END
 
-	ELSE IF @TableName = 'ProviderExternalResultDetailES'
-	BEGIN
-		SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetailES_BK WITH(ROWLOCK) )
+		ELSE IF @TableName = 'ProviderExternalResultDetailES'
+		BEGIN
+			SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetailES_BK WITH(ROWLOCK) )
 
-		INSERT INTO ProviderExternalResultDetailES_BK (ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
-		SELECT ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
-		FROM @ArchiveData
-		WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
-	END
+			INSERT INTO ProviderExternalResultDetailES_BK (ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
+			SELECT ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
+			FROM @ArchiveData
+			WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
+		END
 
-	ELSE IF @TableName = 'ProviderExternalResultDetailOS'
-	BEGIN
-		SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetailOS_BK WITH(ROWLOCK) )
+		ELSE IF @TableName = 'ProviderExternalResultDetailOS'
+		BEGIN
+			SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetailOS_BK WITH(ROWLOCK) )
 
-		INSERT INTO ProviderExternalResultDetailOS_BK (ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
-		SELECT ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
-		FROM @ArchiveData
-		WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
-	END
+			INSERT INTO ProviderExternalResultDetailOS_BK (ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
+			SELECT ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
+			FROM @ArchiveData
+			WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
+		END
 
-	IF CAST(@MaxArchiveValue AS INT) > @MaxCurrentValue
-	BEGIN
-		UPDATE Settlement_ArchiveSetting WITH(ROWLOCK,UPDLOCK)
-		SET ArchiveValue =  @MaxArchiveValue
-			,ArchiveTime = GETDATE()
-		WHERE ArchiveName = @TableName
-	END
+		IF CAST(@MaxArchiveValue AS INT) > @MaxCurrentValue
+		BEGIN
+			UPDATE Settlement_ArchiveSetting WITH(ROWLOCK,UPDLOCK)
+			SET ArchiveValue =  @MaxArchiveValue
+				,ArchiveTime = GETDATE()
+			WHERE ArchiveName = @TableName
+		END
+
+	END TRY
+	BEGIN CATCH
+		SELECT @ErrCode  = @@ERROR
+				,@ErrMsg =  CAST(ERROR_MESSAGE() AS NVARCHAR(500) )
+
+
+	END CATCH
 
 END  
 GO
