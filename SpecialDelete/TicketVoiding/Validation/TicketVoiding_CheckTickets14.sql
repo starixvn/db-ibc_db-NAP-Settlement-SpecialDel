@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
 	 @TransIds			VARCHAR(MAX) = NULL
 	,@TransInfoJson		VARCHAR(MAX) = NULL
-	,@IsVoidAllArchivedTicket	BIT = 0
+	,@IsVoidAllArchivedTickets	BIT = 0
 )
 AS
 /*  
@@ -146,7 +146,7 @@ BEGIN
 										WHERE NOT EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE transid = t.transid)
 										FOR XML PATH('')), 1, 1, ''), '')
 
-	IF @IsVoidAllArchivedTicket = 0 AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate <= @before_movebetday)
+	IF @IsVoidAllArchivedTickets = 0 AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate <= @before_movebetday)
 	BEGIN
 		DELETE 
 		FROM #validTransId
