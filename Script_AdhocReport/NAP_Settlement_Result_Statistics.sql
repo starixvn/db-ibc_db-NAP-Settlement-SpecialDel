@@ -34,27 +34,27 @@ BEGIN
 
     */
 
-	DECLARE  @maxEventDate14 DATETIME
-			,@maxEventDateBK DATETIME
+	DECLARE  @BalanceUpDay	 SMALLDATETIME
+			,@MoveBetsDay	 SMALLDATETIME
 			,@IsActive		 BIT = 0
 			,@Is14			 BIT = 0
 			,@IsBK			 BIT = 0
+	
+	EXEC dbo.NAP_Admin_GetMovebetDate @MovebetDate = @MoveBetsDay OUTPUT
+	EXEC dbo.NAP_Admin_GetBalanceUpDate @BalanceUpDate = @BalanceUpDay OUTPUT
 
     DROP TABLE IF EXISTS  #tmp_matchInfo
 
     CREATE TABLE #tmp_matchInfo ( MatchId INT, eventdate DATETIME, leaguename  NVARCHAR(1000), GameSession TINYINT, HomeName NVARCHAR(200), AwayName  NVARCHAR(200) )
     CREATE CLUSTERED INDEX IDX_tmp_matchInfo ON #tmp_matchInfo (MatchID)
 
-	SELECT @maxEventDate14 = MAX(EventDate) FROM dbo.match14 m WITH(NOLOCK)
-	SELECT @maxEventDateBK = MAX(EventDate) FROM bodb_archive.dbo.match_bk m WITH(NOLOCK)
-
-	IF @toDate > @maxEventDate14
+	IF @toDate > @MoveBetsDay
 	SET @IsActive = 1
 
-	IF @fromDate <= @maxEventDate14 AND @toDate > @maxEventDateBK
+	IF @fromDate <= @MoveBetsDay AND @toDate >= @BalanceUpDay
 	SET @Is14 = 1
 
-	IF @fromDate < @maxEventDateBK
+	IF @fromDate < @BalanceUpDay
 	SET @IsBK = 1
 
 	IF @IsActive = 1
