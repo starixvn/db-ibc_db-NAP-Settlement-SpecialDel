@@ -14,6 +14,12 @@
 USE bodb_CustomerLog_Archive
 GO
 
+
+--update all
+UPDATE Settlement_ArchiveSetting WITH(ROWLOCK,UPDLOCK)
+SET ArchiveValue =  '0'
+GO
+
 TRUNCATE TABLE ProviderExternalResultDetail_BK
 GO
 TRUNCATE TABLE ProviderExternalResultDetailES_BK
@@ -22,8 +28,5 @@ TRUNCATE TABLE ProviderExternalResultDetailOS_BK
 GO
 
 
---update all
-UPDATE Settlement_ArchiveSetting WITH(ROWLOCK,UPDLOCK)
-SET ArchiveValue =  '0'
 
 
