@@ -1,1 +1,2 @@
-Common SP\SiteDB\Service\dbo.SiteDB_NAP_SettlementService_CalculationLogIns.sql
+Settlement\Sportbook\dbo.NAP_Admin_MatchInfoUpd.sql
+Settlement\Sportbook\AutoSettlement\dbo.NAP_Admin_Settlement_Auto_1s_Push.sql

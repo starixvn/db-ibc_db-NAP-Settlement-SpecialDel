@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_1s]
   @Command                      VARCHAR(100) 
  ,@MatchID                      INT
@@ -38,6 +38,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
         - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+        - 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
 
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
@@ -192,10 +193,17 @@ BEGIN
                 ,OtherInfo          = NULL 
                 ,ResultStatusID     = 0     -- Initial 
                 ,SettlementStatusID = 0     -- Initial
+                ,ResultSetting      = ISNULL(ResultSetting,0) & (~6) 
                 ,LastModifyBy       = @Creator 
                 ,LastModifyDate     = GETDATE() 
         WHERE   MatchID = @MatchID
                 AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
+
+        DELETE 
+		FROM dbo.ProviderExternalResultDetail 
+		WHERE MatchId = @MatchId 
+			AND SourceId = 99
+            AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
     END
     /* END - @Command = 'NAP_Admin_Settlement_Auto_1s-UNDO' */
     ELSE IF @Command ='NAP_Admin_Settlement_Auto_1s-REFUND'
@@ -206,6 +214,7 @@ BEGIN
                 UPDATE SET
                      TARGET.ResultStatusID      = 5
                     ,TARGET.SettlementStatusID  = CASE WHEN SOURCE.IsDetermined = 1 THEN 7 ELSE 1 END
+                    ,TARGET.ResultSetting       = ISNULL(TARGET.ResultSetting,0) & (~6) 
 					,TARGET.HomeValue           = CASE WHEN @IsMatchPenalty = 0 THEN TARGET.HomeValue
 														ELSE 
 															CASE WHEN (SOURCE.IsDetermined = 1 OR SOURCE.ResourceID LIKE '38[12]0[12345]') THEN SOURCE.HomeValue 
@@ -229,6 +238,7 @@ BEGIN
                         ,OtherInfo 
                         ,ResultStatusID
                         ,SettlementStatusID
+                        ,ResultSetting   
                         ,CreateBy
                         ,CreateDate
                         ,LastModifyBy
@@ -242,11 +252,18 @@ BEGIN
                         ,NULL 
                         ,5 -- Manual Settlement 
                         ,CASE WHEN SOURCE.IsDetermined = 1 THEN 7 ELSE 1 END -- Refund
+                        ,0
                         ,@Creator
                         ,GETDATE()
                         ,@Creator
                         ,GETDATE()
                     );      
+
+        DELETE 
+		FROM dbo.ProviderExternalResultDetail 
+		WHERE MatchId = @MatchId 
+			AND SourceId = 99
+            AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
     END 
     /* END - @Command = 'NAP_Admin_Settlement_Auto_1s-REFUND' */
     ELSE IF @Command = 'NAP_Admin_Settlement_1-CAL'
