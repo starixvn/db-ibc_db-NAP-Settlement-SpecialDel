@@ -1,18 +1,20 @@
-------- compare parlay: matchid 29 sitedb with dbtrans
 
 --run on SiteDB
 
 use bodb02
 go
 
+declare @sitedbgrupid	smallint = 2
+		,@matchid		int		 = 70051001 ---if main Parlay, pass matchid = 29
+
 ;with cte as
 (	select  winlostdate
 			,recommend
-			, CHECKSUM_AGG(CHECKSUM( [status],[statusid] )) AS TotalCheckSumAgg
+			,CHECKSUM_AGG(CHECKSUM( [status],[statusid] )) AS TotalCheckSumAgg
 	from bettrans b with (nolock)
-	where matchid = 29 
-	and b.statusID not in (0,1) 
-	and winlostdate in ('2024-03-06','2024-03-07') 
+	where matchid = @matchid
+		and b.statusID not in (0,1) 
+		and winlostdate in ('2024-03-06','2024-03-07') 
 	group by winlostdate,recommend
 ) 
 ,ctg as
@@ -20,9 +22,10 @@ go
 		,recommend
 		, CHECKSUM_AGG(CHECKSUM(  [status],[statusid]  )) AS TotalCheckSumAgg
 	from dbctg.bodb02.dbo.bettrans b with (nolock)
-	where matchid = 29 and b.statusID not in (0,1) 
+	where matchid = @matchid
+		and b.statusID not in (0,1) 
 	and  winlostdate in ('2024-03-06','2024-03-07') 
-	and SiteDBGroupID = 2
+	and SiteDBGroupID = @sitedbgrupid
 	group by winlostdate,recommend
 )
 select top 10 t1.*, t2.*
