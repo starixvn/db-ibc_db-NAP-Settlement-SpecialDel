@@ -382,7 +382,7 @@ BEGIN
 							, @ErrCode = @ErrCode OUTPUT
 							, @ErrMsg = @ErrMsg OUTPUT
 				END
-				IF @IsExistsVS4 = 4
+				IF @IsExistsVS4 = 1
 				BEGIN
 					EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update] 
 							  @mode = 'RECOVER'
@@ -411,7 +411,7 @@ BEGIN
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg			= @ErrMsg OUTPUT		
 		END
-		IF @IsExistsVS4 = 4
+		IF @IsExistsVS4 = 1
 		BEGIN
 			EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update]
 					 @MatchId			= @matchId
@@ -595,6 +595,11 @@ BEGIN
 				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
 	END CATCH		
 	
+	DROP TABLE #tblMatchParlayProcess
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #tblTransIds
+	DROP TABLE #RecoverBet
+
 	SET NOCOUNT OFF		
 END
 GO

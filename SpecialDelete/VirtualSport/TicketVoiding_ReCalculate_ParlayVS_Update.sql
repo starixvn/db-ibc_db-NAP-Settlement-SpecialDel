@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update] 		
+ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update] 		
 	 @matchid		INT				= 0
 	,@strRefnos		VARCHAR(MAX)	= NULL
 	,@matchdate 	SMALLDATETIME 	= NULL
@@ -44,8 +44,10 @@ BEGIN
 			,@batchPO				SMALLINT = 500
 			,@TransInfoMaxPO		VARCHAR(MAX)
 			,@Action			    VARCHAR(10) = 'CAL'
-			,@sporttype				SMALLINT
+			,@sporttype				SMALLINT = 188
 	
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
 	DECLARE @_xml XML
 	DECLARE @subtable TABLE(
 		transid 		BIGINT
@@ -56,15 +58,13 @@ BEGIN
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
 	CREATE TABLE #tblTicketInfos (matchid INT, transid BIGINT)
 
-	SELECT @sporttype = m.sporttype FROM match m WITH(NOLOCK) WHERE m.matchid = @matchid
-
 	DECLARE @MainTickets	TABLE (	recommend  INT, matchid INT, custid INT, bettype SMALLINT, transid BIGINT
 								,winlost MONEY, awinlost MONEY, mwinlost MONEY, swinlost MONEY
 								,playercomm MONEY, comm  MONEY, acomm MONEY, scomm MONEY
 								,statusid TINYINT, modds SMALLMONEY, actual_stake MONEY, winlostdate SMALLDATETIME
 								,actualPO MONEY
 							  )
-	DECLARE @tmpResult TABLE (HomeValue VARCHAR(20), AwayValue VARCHAR(20), BetType SMALLINT, BetID BIGINT, pfID SMALLINT)
+	DECLARE @tmpSelectedResources TABLE (HomeValue VARCHAR(20), AwayValue VARCHAR(20), BetType SMALLINT, BetID BIGINT, pfID SMALLINT)
 	
 	DECLARE @tmpTransMPO TABLE (custid INT, winlost MONEY, actualPO MONEY, transdate DATETIME, bettype SMALLINT, transid BIGINT)
 	DECLARE @tmpTransMPOBatch TABLE (TransID BIGINT,custid INT, actualPO MONEY, MaxWinLimit MONEY, winlost MONEY,transdate DATETIME, bettype SMALLINT)
@@ -139,8 +139,10 @@ BEGIN
 		FROM @xmlTicket.nodes('/root/r') as [T](C) --T: table, C: column
 		OPTION (OPTIMIZE FOR (@xmlTicket = NULL ))
 
+		SET @matchid = (SELECT DISTINCT matchid FROM #tblTicketInfos)
+
 		---get result, bettype, fomular
-		INSERT INTO @tmpResult (HomeValue, AwayValue, BetType, BetID, pfID )
+		INSERT INTO @tmpSelectedResources (HomeValue, AwayValue, BetType, BetID, pfID )
 		SELECT ISNULL(Home,''), ISNULL(Away,''), sp.BetType, sp.BetID, sp.pfID
 			FROM (
 				SELECT '00' AS Id, m.finalhomescore AS Home, m.finalawayscore AS Away
@@ -172,7 +174,7 @@ BEGIN
 					END AS statusID
 		FROM dbo.bettransm bm WITH(ROWLOCK)
 		CROSS APPLY (	SELECT	TOP 1 r.pfID, r.HomeValue, r.AwayValue
-						FROM @tmpResult r
+						FROM @tmpSelectedResources r
 						WHERE r.BetType = bm.bettype
 							AND (r.BetID = 0 OR r.BetID = bm.betcheck)
 					)sr
@@ -544,7 +546,9 @@ BEGIN
 		END CATCH
 	END
 
+	DROP TABLE #tblTicketInfos
+	DROP TABLE #tmpsubTransID
 	DROP TABLE #tempMainParlay
 	DROP TABLE #tempMainParlay_Pre
-
+	
 END
