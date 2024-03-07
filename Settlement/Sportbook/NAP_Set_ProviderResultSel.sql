@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet " viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROC [dbo].[NAP_Set_ProviderResultSel]
 	 @MatchID				INT 
 	,@ResourceIDs			VARCHAR(MAX)
@@ -12,11 +12,12 @@ AS
     
     Revisions:            
 		- 20240122@Aries: Provider Result Log [Redmine:#199100]
+		- 20240307@Aries: Enhance the Provider Result Logs Phase 2 [Redmine: #201480]
 */
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #Data(ResourceId VARCHAR(20),SourceId SMALLINT,SourceName VARCHAR(50), HomeValue VARCHAR(50),AwayValue VARCHAR(50),OtherInfo VARCHAR(50),CreateDate DATETIME,AutoPayoutStatus TINYINT, RankNo INT)		
+	CREATE TABLE #Data(ResourceId VARCHAR(20),SourceId SMALLINT,SourceName VARCHAR(50), HomeValue VARCHAR(50),AwayValue VARCHAR(50),OtherInfo VARCHAR(50),CreateDate DATETIME,AutoPayoutStatus TINYINT, Remark VARCHAR(1000), RankNo INT)		
 	CREATE TABLE #ResourceInfo(ResourceId VARCHAR(20) PRIMARY KEY,OrdNo SMALLINT)		
 
 	DECLARE @tmpResourceID			TABLE (ResourceID VARCHAR(20))
@@ -112,12 +113,13 @@ BEGIN
 
 	IF @Sporttype = 1
 	BEGIN
-		INSERT INTO #Data(ResourceId,HomeValue,AwayValue,CreateDate,AutoPayoutStatus,RankNo)
+		INSERT INTO #Data(ResourceId,HomeValue,AwayValue,CreateDate,AutoPayoutStatus,Remark,RankNo)
 		SELECT IIF(ap.CalculationType = 1,'01','00') AS ResourceId
 			  ,ap.HomeValue
 			  ,ap.AwayValue
 			  ,ap.CreatedDate
 			  ,ap.StatusId
+			  ,ap.Remark
 			  ,1 AS RankNo
 		FROM  AutoPayoutResult AS ap WITH(NOLOCK)
 			LEFT JOIN  @tmpResourceID AS r ON (ap.CalculationType = 1 AND r.ResourceID = '01') OR (ap.CalculationType = 2 AND r.ResourceID = '00')
@@ -127,15 +129,34 @@ BEGIN
 						 WHEN r.ResourceID IS NOT NULL		THEN 1
 						 ELSE 0
 					END 
+
+		INSERT INTO #Data(ResourceId, SourceId,SourceName,HomeValue,AwayValue,CreateDate,RankNo)
+		SELECT IIF(pr.TypeId = 1,'01','00') AS ResourceId
+			  ,pr.SourceId
+			  ,p.SourceName
+			  ,pr.HomeValue
+			  ,pr.AwayValue
+			  ,pr.CreatedDate AS CreateDate
+			  ,ROW_NUMBER() OVER (PARTITION BY pr.SourceId,pr.TypeId ORDER BY pr.CreatedDate DESC) AS RankNo
+		FROM ProviderResultDetail AS pr WITH(NOLOCK)
+			INNER JOIN  ProviderInfo AS p WITH(NOLOCK) ON p.SourceId = pr.SourceId
+			INNER JOIN  @tmpSourceID AS tp ON tp.SourceId = pr.SourceId
+			LEFT JOIN  @tmpResourceID AS r ON (pr.TypeId = 1 AND r.ResourceID = '01') OR (pr.TypeId = 2 AND r.ResourceID = '00')
+		WHERE pr.MatchId = @MatchID
+			AND 1 = CASE WHEN ISNULL(@ResourceIDs,'') = ''	THEN 1
+						 WHEN r.ResourceID IS NOT NULL		THEN 1
+						 ELSE 0
+					END
 	END
 	ELSE
 	BEGIN
-		INSERT INTO #Data(ResourceId,HomeValue,AwayValue,CreateDate,AutoPayoutStatus,RankNo)
+		INSERT INTO #Data(ResourceId,HomeValue,AwayValue,CreateDate,AutoPayoutStatus,Remark,RankNo)
 		SELECT ap.ResourceId
 			  ,ap.HomeValue
 			  ,ap.AwayValue
 			  ,ap.CreatedDate
 			  ,ap.StatusId
+			  ,ap.Remark
 			  ,1 AS RankNo
 		FROM  AutoPayoutResultOS AS ap WITH(NOLOCK)
 			LEFT JOIN  @tmpResourceID AS r ON r.ResourceID = ap.ResourceID
@@ -154,6 +175,7 @@ BEGIN
 		  ,d.OtherInfo
 		  ,d.CreateDate
 		  ,d.AutoPayoutStatus 
+		  ,d.Remark
 		  ,tbl.OrdNo
 	FROM #Data AS d
 		OUTER APPLY(

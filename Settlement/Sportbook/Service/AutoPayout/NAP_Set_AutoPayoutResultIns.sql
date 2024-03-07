@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns
 	@MatchId 		INT
 	, @SourceId 	TINYINT
@@ -9,6 +9,7 @@ ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns
 	, @InstantKey		INT = NULL
 	, @IsInstCalculated		BIT = 0
 	, @ChildMatchType	TINYINT = 0
+	, @Remark			VARCHAR(1000) = NULL
 	, @ErrCode 		INT = 0 OUTPUT
 	, @ErrMsg NVARCHAR(200) = '' OUTPUT
 	
@@ -25,6 +26,7 @@ AS
 		- 20191225@Max: Instant Settlement for Corner Bettype - Status Instant Calculation [Redmine:#124951]
 		- 20230214@Aries: Apply Settlement by Profile for Remaining Sports - Prepare data for table tennis [Redmine: #182677]
 		- 20230407@Aries: Apply Settlement by Profile for Remaining Sports - Remove code [Redmine: #182677]
+		- 20240307@Aries: Enhance the Provider Result Logs Phase 2 [Redmine: #201480]
 
 		
 	Param's Explanation:
@@ -115,12 +117,13 @@ BEGIN
 		UPDATE dbo.AutoPayoutResult WITH(ROWLOCK,UPDLOCK)
 		SET StatusId = @StatusId
 		  , ModifiedDate = GETDATE()
+		  ,	Remark = @Remark
 		WHERE AutoPayoutResultId = @AutoPayoutResultId
 	END
 	ELSE
 	BEGIN
-		INSERT INTO dbo.AutoPayoutResult (MatchId, SourceId, CalculationType, HomeValue, AwayValue, StatusId, TryCount, CreatedDate, ModifiedDate)
-		VALUES(@MatchId, @SourceId, @TypeId, @HomeValue, @AwayValue, @StatusId, 0, GETDATE(), GETDATE())
+		INSERT INTO dbo.AutoPayoutResult (MatchId, SourceId, CalculationType, HomeValue, AwayValue, StatusId, TryCount, CreatedDate, ModifiedDate,Remark)
+		VALUES(@MatchId, @SourceId, @TypeId, @HomeValue, @AwayValue, @StatusId, 0, GETDATE(), GETDATE(),@Remark)
 	END
 	
 	IF (@TypeId IN (101, 102) ) AND @StatusId IN (1,2) --Update IsConfirmed when: Manual/Auto Settle process

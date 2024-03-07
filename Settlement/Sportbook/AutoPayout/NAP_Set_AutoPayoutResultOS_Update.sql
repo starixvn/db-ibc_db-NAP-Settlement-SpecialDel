@@ -1,10 +1,11 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultOS_Update
 	@MatchId 				INT
 	, @SelectedResources 	VARCHAR(MAX) = ''
 	, @StatusId 			TINYINT
 	, @UserId				INT	= 0
 	, @SourceID				TINYINT = 0
+	, @Remark				VARCHAR(1000) = NULL
 	, @ErrCode 				INT = 0 OUTPUT
 	, @ErrMsg				NVARCHAR(200) = '' OUTPUT
 	
@@ -17,6 +18,7 @@ AS
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
+		- 20240307@Aries: Enhance the Provider Result Logs Phase 2 [Redmine: #201480]
 
 	Param's Explanation:
 		@SelectedResources= '<Resources>
@@ -76,9 +78,10 @@ BEGIN
 			UPDATE SET StatusId		  = @StatusId
 						,ModifiedBy	  = @UserId
 						,ModifiedDate = GETDATE()
+						,Remark		  = ISNULL(@Remark,Remark)
 		WHEN NOT MATCHED BY TARGET THEN
-			INSERT ( MatchId, ResourceId, HomeValue, AwayValue, StatusId, CreatedBy, ModifiedBy, CreatedDate, ModifiedDate,SourceID)
-			VALUES (@MatchId, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @StatusId, @UserId, @UserId, GETDATE(), GETDATE(),@SourceID);
+			INSERT ( MatchId, ResourceId, HomeValue, AwayValue, StatusId, CreatedBy, ModifiedBy, CreatedDate, ModifiedDate,SourceID,Remark)
+			VALUES (@MatchId, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @StatusId, @UserId, @UserId, GETDATE(), GETDATE(),@SourceID,@Remark);
 	END
 
 	IF ISNULL(@@ERROR,0) > 0
