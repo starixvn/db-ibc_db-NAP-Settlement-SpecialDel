@@ -19,6 +19,7 @@ AS
 		- 20230425@July: [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
 		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
+		- 20240305@Max: [TVS] Abnormal Account - Void full range of archived tickets [Redmine: #201130]
 
 	Param's explanation:	
 		- @AbnormalAccounts: <roor><r @UserNames = 'abc,xyz' @ProductIds="1,2" @StatusIds="112,111" @FromDate="" @ToDate=""/></root>
@@ -71,6 +72,7 @@ BEGIN
 			,@IsSaba			BIT = 0
 			,@FromWinlostDate_14 DATETIME = NULL
 			,@ToWinlostDate_14  DATETIME = NULL
+			,@IsVoidAllArchivedTickets	BIT = 0
 
 	SET @AbnormalAccountInfoXML = CONVERT(XML, @AbnormalAccounts)
 	SELECT @UserNames = t.c.value('@Usernames','NVARCHAR(MAX)') 
@@ -78,6 +80,7 @@ BEGIN
 			,@StatusIds = t.c.value('@StatusIds','VARCHAR(50)')
 			,@FromDate = t.c.value('@FromDate','DATETIME')
 			,@ToDate = NULLIF(t.c.value('@ToDate','DATETIME'), '')
+			,@IsVoidAllArchivedTickets = t.c.value('@IsVoidAllArchivedTickets','BIT')
 	FROM @AbnormalAccountInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AbnormalAccountInfoXML = NULL))	
 
@@ -93,7 +96,11 @@ BEGIN
 		SET @ToDate = @maxdate
 	END
 
-	IF @FromWinlostDate_14 IS NOT NULL 
+	IF @IsVoidAllArchivedTickets = 1
+	BEGIN
+		SET @FromWinlostDate_14 = (SELECT MIN(winlostdate) FROM dbo.bettrans14 WITH (NOLOCK))
+	END
+	ELSE IF @FromWinlostDate_14 IS NOT NULL 
 	BEGIN
 		IF @ToDate < @movebetdate
 			SET @ToWinlostDate_14 = @ToDate
