@@ -284,7 +284,7 @@ BEGIN
 		IF @IsExistsVS4 = 1
 		BEGIN
 			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-			SELECT @MatchId, refno
+			SELECT 10449, refno
 			FROM #RecoverBet
 			WHERE bettype = 10449
 		END

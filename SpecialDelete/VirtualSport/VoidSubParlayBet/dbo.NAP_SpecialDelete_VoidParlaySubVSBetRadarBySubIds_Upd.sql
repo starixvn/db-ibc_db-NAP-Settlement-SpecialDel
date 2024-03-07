@@ -358,8 +358,9 @@ BEGIN
 		IF @IsExistsVS4 = 1
 		BEGIN
 			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-			SELECT @MatchId, refno
-			FROM #tmpBetDelete
+			SELECT DISTINCT matchid, bm.refno
+			FROM #tmpBettransm bm
+				INNER JOIN #tmpBetDelete b ON b.RefNo = bm.refno
 			WHERE SportType = 188
 		END
 
