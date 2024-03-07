@@ -358,10 +358,9 @@ BEGIN
 		IF @IsExistsVS4 = 1
 		BEGIN
 			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-			SELECT DISTINCT matchid, bm.refno
+			SELECT DISTINCT bm.matchid, bm.refno
 			FROM #tmpBettransm bm
-				INNER JOIN #tmpBetDelete b ON b.RefNo = bm.refno
-			WHERE SportType = 188
+				INNER JOIN #tmpBetDelete b ON b.RefNo = bm.refno AND b.SportType = 188
 		END
 
 		EXEC [dbo].[NAP_Admin_CheckingProcess]
@@ -394,7 +393,7 @@ BEGIN
 				) AS VARCHAR(MAX)) AS RefNos
 			, SportType
 		FROM #tmpBetDelete	bd
-		GROUP BY bd.SubMatchid, bd.SubMatchdate
+		GROUP BY bd.SubMatchid, bd.SubMatchdate, bd.SportType
 		
 		SET @countmatch = @@ROWCOUNT		
 
