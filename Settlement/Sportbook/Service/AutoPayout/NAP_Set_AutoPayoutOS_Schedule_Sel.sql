@@ -26,6 +26,7 @@ AS
 		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
 		- 20230724@Louisa: Enhance for Tennis - exclude Auto for match has confirm score is 0-0 [Redmine:#189433]
 		- 20240301@Aries: Direct payout run before waiting time [Redmine:#201698]
+		- 20240308@Aries: Direct Ice Hockey [Redmine:#201129]
 
 	Param's Explanation:
 		- @AutoSetting: 
@@ -57,19 +58,21 @@ BEGIN
 	FROM dbo.SettlementResultTableSetting r (NOLOCK)
 	WHERE r.Sporttype = @Sporttype
 
-	IF OBJECT_ID('tempdb..#MatchInfo') IS NOT NULL
-		DROP TABLE #MatchInfo
-
-	CREATE TABLE #MatchInfo (
-		MatchId			INT
-		,leagueid		INT
+	DECLARE  @MatchInfo TABLE(
+		 MatchId			INT
+		,leagueid			INT
+		,betstatus			NVARCHAR(100)
+		,ChildMatchType		TINYINT
+		,SubType			SMALLINT
 		,SettlementStatus	TINYINT
 		,ResourceId			VARCHAR(20)
 		,RelateResources	VARCHAR(20)
-		,HomeValue		VARCHAR(50)
-		,AwayValue		VARCHAR(50)
-		,StatusId		TINYINT
-		,Ranking		INT
+		,HomeValue			VARCHAR(50)
+		,AwayValue			VARCHAR(50)
+		,finalhomescore		INT
+		,finalawayscore		INT
+		,StatusId			TINYINT
+		,Ranking			INT
 	)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
@@ -87,14 +90,14 @@ BEGIN
 			, ResourceId
 			, HomeValue
 			, AwayValue
-		FROM #MatchInfo m
+		FROM @MatchInfo m
 
 		RETURN
 	END
 	
 	IF @Sporttype =  50
 	BEGIN
-		INSERT INTO #MatchInfo  ( MatchId, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
+		INSERT INTO @MatchInfo  ( MatchId, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
 		SELECT m.matchid
 				, m.leagueid
 				, m.SettlementStatus
@@ -216,7 +219,7 @@ BEGIN
 	BEGIN
 		IF @ResultTable = 1 AND @MatchType = 2
 		BEGIN
-			INSERT INTO #MatchInfo  ( MatchId, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
+			INSERT INTO @MatchInfo  ( MatchId, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
 			SELECT m.matchid
 					, m.leagueid
 					, m.SettlementStatus
@@ -258,7 +261,7 @@ BEGIN
 		END
 		ELSE IF @ResultTable = 2
 		BEGIN
-			INSERT INTO #MatchInfo  ( MatchId, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
+			INSERT INTO @MatchInfo  ( MatchId, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
 			SELECT m.matchid
 					, m.leagueid
 					, m.SettlementStatus
@@ -300,7 +303,7 @@ BEGIN
 			IF @Sporttype IN (6,9)
 			BEGIN
 				UPDATE m SET RelateResources = '01' + SUBSTRING(  CAST(BetID AS VARCHAR(10)), 2, 2)
-				FROM #MatchInfo m
+				FROM @MatchInfo m
 				CROSS APPLY (	SELECT TOP 1 sp.BetID
 								FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 								WHERE sp.SportType = @Sporttype 
@@ -311,14 +314,14 @@ BEGIN
 
 				;WITH cte_RelateResources ( MatchId, ResourceId) AS
 				(	SELECT  r.MatchId, cte.ResourceId
-					FROM #MatchInfo cte
+					FROM @MatchInfo cte
 						INNER JOIN  dbo.ResultDetailOS r WITH(NOLOCK) 
 							ON cte.MatchId = r.MatchID
 								AND cte.RelateResources = r.ResourceID
 					WHERE r.ResultStatusID IN (2,5) AND r.SettlementStatusID <> 1
 				)
 				DELETE m 
-				FROM #MatchInfo m
+				FROM @MatchInfo m
 					LEFT JOIN cte_RelateResources cte
 						ON cte.MatchId = m.MatchId
 							AND cte.ResourceId = m.ResourceId
@@ -328,11 +331,61 @@ BEGIN
 			END
 
 		END
+		ELSE IF @ResultTable = 0  -- Ice Hockey
+		BEGIN
+			DECLARE	  @currentdate	DATETIME
+					 ,@fromdate		DATETIME
+					 ,@todate		DATETIME
+					 ,@checktime	DATETIME
+			
+			SET @currentdate = CAST(GETDATE() AS DATE)
+			SELECT	@fromdate = DATEADD(DAY,-1,@currentdate)
+				   ,@todate = DATEADD(DAY,1,@currentdate)
+				   ,@checktime = DATEADD(HOUR, 3, GETDATE())
+
+			INSERT INTO @MatchInfo  ( MatchId, leagueid,ChildMatchType,SubType, SettlementStatus, finalhomescore, finalawayscore,betstatus)
+			SELECT m.matchid AS MatchId
+				, l.leagueid
+				, m.ChildMatchType
+				, mr.SubType
+				, m.SettlementStatus
+				, m.finalhomescore
+				, m.finalawayscore
+				, m.betstatus
+			FROM dbo.match m WITH(NOLOCK)
+				INNER JOIN dbo.match_remark mr WITH(NOLOCK) ON	m.matchid = mr.matchid
+				INNER JOIN dbo.League l WITH(NOLOCK) ON	m.leagueid = l.leagueid
+				OUTER APPLY (
+					SELECT TOP 1 1 AS IsExistAP 
+					FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
+					WHERE os.MatchId = m.matchid 
+						AND os.ResourceId = '00'
+						AND ISNULL(os.SourceID,0) = 0
+				)rs
+			WHERE	m.eventstatus = 'running' 
+					AND m.sporttype = @Sporttype
+					AND m.eventdate BETWEEN @fromdate AND @todate 
+					AND GlobalShowTime <= @checktime
+					AND l.LeagueGroupID = 42
+					AND 1 = CASE WHEN m.ChildMatchType = 18 AND mr.SubType = 31000 THEN 1
+								 WHEN m.ChildMatchType = 19 AND mr.SubType = 31010 THEN 1
+								 WHEN m.ChildMatchType = 20 AND mr.SubType = 31020 THEN 1
+								 WHEN m.ChildMatchType = 23 AND mr.SubType = 31040 THEN 1
+								 WHEN m.ChildMatchType = 24 AND mr.SubType = 31050 THEN 1
+								 ELSE 0
+							 END
+
+					AND mr.ConfirmFT > 0
+					AND m.finalhomescore IS NOT NULL 
+					AND m.finalawayscore IS NOT NULL
+					AND ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) & 16 = 16
+					AND rs.IsExistAP IS NULL
+		END
 	END 
 
 	IF EXISTS (SELECT 1 FROM @tmpLatestResult)
 	BEGIN
-		INSERT INTO #MatchInfo ( matchid, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
+		INSERT INTO @MatchInfo ( matchid, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
 		SELECT r.matchid, r.leagueid, r.SettlementStatus, r.ResourceId, r.HomeValue, r.AwayValue				
 		FROM @tmpLatestResult r
 			OUTER APPLY (	SELECT	TOP 1 os.MatchId
@@ -349,11 +402,16 @@ BEGIN
 	SELECT MatchId
 		, @Sporttype AS SportType
 		, LeagueId
+		, ChildMatchType
+		, SubType
 		, SettlementStatus
+		, finalhomescore
+		, finalawayscore
+		, betstatus
 		, ResourceId
 		, HomeValue
 		, AwayValue
-	FROM #MatchInfo m
+	FROM @MatchInfo m
 
 END
 GO
