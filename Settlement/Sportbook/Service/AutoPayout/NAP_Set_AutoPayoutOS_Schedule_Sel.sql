@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_admin" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_AutoPayoutOS_Schedule_Sel
 	@Sporttype SMALLINT = 0
 	,@AutoSetting TINYINT  = 1
