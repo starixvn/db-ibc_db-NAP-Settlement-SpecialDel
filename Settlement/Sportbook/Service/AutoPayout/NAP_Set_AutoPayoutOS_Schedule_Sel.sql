@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="wsv_admin" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_AutoPayoutOS_Schedule_Sel
 	@Sporttype SMALLINT = 0
 	,@AutoSetting TINYINT  = 1
@@ -333,15 +333,15 @@ BEGIN
 		END
 		ELSE IF @ResultTable = 0  -- Ice Hockey
 		BEGIN
-			DECLARE	  @currentdate	DATETIME
-					 ,@fromdate		DATETIME
-					 ,@todate		DATETIME
-					 ,@checktime	DATETIME
+			DECLARE	  @currentdate		DATETIME
+					 ,@fromdate			DATETIME
+					 ,@todate			DATETIME
+					 ,@checktimeGST		DATETIME
 			
 			SET @currentdate = CAST(GETDATE() AS DATE)
 			SELECT	@fromdate = DATEADD(DAY,-1,@currentdate)
 				   ,@todate = DATEADD(DAY,1,@currentdate)
-				   ,@checktime = DATEADD(HOUR, 3, GETDATE())
+				   ,@checktimeGST = DATEADD(HOUR, 3, GETDATE())
 
 			INSERT INTO @MatchInfo  ( MatchId, leagueid,ChildMatchType,SubType, SettlementStatus, finalhomescore, finalawayscore,betstatus)
 			SELECT m.matchid AS MatchId
@@ -365,13 +365,14 @@ BEGIN
 			WHERE	m.eventstatus = 'running' 
 					AND m.sporttype = @Sporttype
 					AND m.eventdate BETWEEN @fromdate AND @todate 
-					AND GlobalShowTime <= @checktime
+					AND GlobalShowTime <= @checktimeGST
 					AND l.LeagueGroupID = 42
 					AND 1 = CASE WHEN m.ChildMatchType = 18 AND mr.SubType = 31000 THEN 1
 								 WHEN m.ChildMatchType = 19 AND mr.SubType = 31010 THEN 1
 								 WHEN m.ChildMatchType = 20 AND mr.SubType = 31020 THEN 1
 								 WHEN m.ChildMatchType = 23 AND mr.SubType = 31040 THEN 1
 								 WHEN m.ChildMatchType = 24 AND mr.SubType = 31050 THEN 1
+								 WHEN m.ParentID IS NULL THEN 1
 								 ELSE 0
 							 END
 
