@@ -174,6 +174,7 @@ BEGIN
 	IF @IsVoidAllArchivedTickets = 1
 	BEGIN
 		SET @FromWinlostDate_14 = (SELECT MIN(winlostdate) FROM #tmpTransInfo)
+		SET @ToWinlostDate_14 = @ToDate
 	END
 	ELSE IF @FromWinlostDate_14 IS NOT NULL 
 	BEGIN
