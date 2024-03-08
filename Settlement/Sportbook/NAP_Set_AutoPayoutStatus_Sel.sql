@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_AutoPayoutStatus_Sel] 
 	@MatchIds	VARCHAR(MAX)
 AS
@@ -9,17 +9,19 @@ AS
 	
 	Revision:
 		- 20231229@Aries: Enhancement of Auto Settlement [Redmine:#199004]
+		- 20240308@Aries: Direct Ice Hockey [Redmine:#201836]
 	Param's explanation:  
 		
 */
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #tmpMatch (MatchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),Sporttype INT, ResultTable TINYINT,AutoPayoutStatus SMALLINT, HasAutoPayoutFail BIT, InstantStatus SMALLINT, HasInstantFail BIT)
+	CREATE TABLE #tmpMatch (MatchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON), Sporttype INT,eventstatus	NVARCHAR(100), ResultTable TINYINT,AutoPayoutStatus SMALLINT, HasAutoPayoutFail BIT, InstantStatus SMALLINT, HasInstantFail BIT)
 
-	INSERT INTO #tmpMatch(MatchId,Sporttype,ResultTable)
+	INSERT INTO #tmpMatch(MatchId,Sporttype,eventstatus,ResultTable)
 	SELECT m.MatchId
 		  ,m.Sporttype
+		  ,m.eventstatus
 		  ,t.ResultTable
 	FROM STRING_SPLIT(@MatchIds, ',') AS f
 		INNER JOIN dbo.match AS m WITH (NOLOCK)  ON f.[value] = m.MatchId
@@ -101,6 +103,22 @@ BEGIN
 					AND a.StatusId != 3
 			) AS ap
 		WHERE m.Sporttype != 1 
+	END
+
+	IF EXISTS(SELECT TOP 1 1 FROM  #tmpMatch WHERE Sporttype != 1 AND ResultTable = 0)
+	BEGIN
+		UPDATE  m
+		SET  m.HasAutoPayoutFail = 1
+		FROM #tmpMatch AS m
+		WHERE	m.Sporttype != 1 AND  m.ResultTable = 0  AND m.eventstatus != 'completed' AND
+			 EXISTS(SELECT TOP 1 1 
+					 FROM dbo.AutoPayoutResultOS AS a WITH(NOLOCK)  
+					 WHERE a.matchid = m.matchid 
+						AND a.StatusId = 3
+						AND ISNULL(a.SourceID,0) = 0
+						AND a.ResourceID  = '00'
+				)
+
 	END
 
 	IF EXISTS(SELECT TOP 1 1 FROM  #tmpMatch WHERE Sporttype != 1 AND ResultTable = 1)
