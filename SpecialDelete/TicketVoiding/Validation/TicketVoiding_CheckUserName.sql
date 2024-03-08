@@ -175,7 +175,7 @@ BEGIN
 	BEGIN
 		SET @FromWinlostDate_14 = (SELECT MIN(winlostdate) FROM #tmpTransInfo)
 
-		SELECT @FromWinlostDate_14 = CASE WHEN @FromWinlostDate_14 <= @FromDate THEN @FromDate ELSE NULL END
+		SELECT @FromWinlostDate_14 = CASE WHEN @FromWinlostDate_14 <= @FromDate THEN @FromDate ELSE @FromWinlostDate_14 END
 		SET @ToWinlostDate_14 = @ToDate
 	END
 	ELSE IF @FromWinlostDate_14 IS NOT NULL 
