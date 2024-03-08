@@ -24,6 +24,7 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
+		- 20240315@July: [TVS] Abnormal Bet - Support void System Parlay tickets [Redmine: #196462]
 		- 20240327@Max: [CTS] - [TVS] - Missing Void Info - Not auto-mark PA [Redmine: #201993]
 
 	Param's explanation:
@@ -43,7 +44,6 @@ BEGIN
 			,@OldSubIssueTypeId  SMALLINT
 			,@OldMatchId		 INT
 			,@OldTransIds 		 VARCHAR(MAX) = NULL
-			,@RequestDetailId	 INT
 			,@row_count			 INT = 0
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
@@ -57,7 +57,6 @@ BEGIN
 	  ,transid			BIGINT
 	  ,custid			INT	
       ,bettype			SMALLINT
-	  ,betteam			NVARCHAR(10)
       ,betid			BIGINT
 	  ,IsMixParlay		BIT
 	  ,SiteDBGroupID	SMALLINT
@@ -67,14 +66,13 @@ BEGIN
 		  ,transid 
 		  ,custid	
 		  ,bettype
-		  ,betteam
 		  ,betid
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT mid ,t ,c ,btype ,bteam ,bid ,isP ,sitedb
+	SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb
 	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,isP BIT ,sitedb SMALLINT
+	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
 	) tbl
 
 	-- get match info
@@ -119,7 +117,6 @@ BEGIN
 			, @SubIssueTypeId
 			, CASE WHEN @IssueTypeId = 11 THEN @FilterBy ELSE NULL END
 
-		SET @RequestDetailId = SCOPE_IDENTITY()
 	END
 	ELSE
 	BEGIN
@@ -137,7 +134,6 @@ BEGIN
 				,RequestType = CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
 				,@OldSubIssueTypeId = SubIssueTypeId
 				,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
-				,@RequestDetailId =Id
 		WHERE	RequestId = @RequestId
 	END
 	
@@ -148,16 +144,10 @@ BEGIN
 	END
 
 	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID)
-	SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, t.transid, @MatchId, @RequestDetailId AS RequestDetailId, tmp.bettype, tmp.betid, tmp.custid, tmp.SiteDBGroupID
-	FROM #transIdTemp t
-		CROSS APPLY (
-					SELECT b.bettype, b.betid, b.custid, b.SiteDBGroupID
-					FROM #tmpTransInfo b
-					WHERE b.matchid = @MatchId
-						AND t.transid = b.transid
-						AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
-									 WHEN @FilterBy = 1 AND b.betteam = '1' THEN 1 ELSE 0 END
-					)tmp
+	SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, s.transid, @MatchId, rd.Id AS RequestDetailId, s.bettype, s.betid, s.custid, s.SiteDBGroupID
+	FROM #tmpTransInfo s
+		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+				ON rd.RequestId = @RequestId AND s.MatchId = rd.MatchId
 
 	SET @row_count = @@ROWCOUNT
 

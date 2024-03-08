@@ -56,6 +56,7 @@ AS
 		- 20231206@July: [TVS] Update message template when Pool House bet types are affected [Redmine: #196467]
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240307@July: [TVS] Abnormal Bet - Support void System Parlay tickets [Redmine: #196462]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's explanation:	
@@ -384,7 +385,7 @@ BEGIN
 				,b.statusID AS mainstatusid
 				,b.actual_stake AS ActualStake
 				,b.matchid
-				,CASE WHEN @IssueTypeId IN (11,20) AND @FilterBy = 1 THEN 1 ELSE 0 END AS IsMixParlay
+				,CASE WHEN @IssueTypeId IN (11,20) AND @FilterBy IS NOT NULL THEN 1 ELSE 0 END AS IsMixParlay
 				,b.winlostdate
 				,b.SiteDBGroupID
 				,b.statuswinlost
