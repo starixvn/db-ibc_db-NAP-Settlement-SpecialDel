@@ -62,6 +62,7 @@ AS
 			- 20231219@Louisa: RedCat88 [Redmine:#198365]
 			- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 			- 20231229@Aries: Enhancement of Auto Settlement [Redmine:#199004]
+			- 20240311@Helen: SP Tuning [Redmine:#202131]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -520,8 +521,8 @@ BEGIN
 		BEGIN
 			SELECT @strMatchIds = ''
 				  ,@strResourceId = ''
-
-			SELECT @strMatchIds		= @strMatchIds + CAST(MatchId AS VARCHAR(20)) + ','
+			
+			SELECT @strMatchIds	= STRING_AGG(CONVERT(VARCHAR(MAX),MatchId), ',')
 			FROM #tmpMatchIds m 
 			WHERE  m.ResultTable > 0
 
@@ -534,8 +535,7 @@ BEGIN
 
 			IF @strResourceId != '' AND  @strMatchIds != ''
 			BEGIN
-				SELECT @strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1) 
-					  ,@strResourceId = LEFT(@strResourceId, LEN(@strResourceId) - 1)  
+				SELECT @strResourceId = LEFT(@strResourceId, LEN(@strResourceId) - 1)  
 			
 				SET	@remoteQuery = 	N'SELECT r.MatchId, r.ResourceId 
 										FROM 
@@ -554,12 +554,13 @@ BEGIN
 											WHERE r.SettlementStatusID = 0
 												AND r.ResultStatusID = 3
 											) r 
-										WHERE r.MatchId IN ('+@strMatchIds+')'
+										WHERE
+										EXISTS (SELECT TOP 1 1 FROM STRING_SPLIT('''+@strMatchIds+''', '','') f WHERE f.Value = r.MatchId) '
+										
 										+ CASE  WHEN @IsOverEarly = 1 AND @IsMainOver = 1 THEN ''
-												WHEN @IsOverEarly = 1				  THEN 'AND r.ResourceId NOT IN ('+@strResourceId+')'
+												WHEN @IsOverEarly = 1 THEN 'AND r.ResourceId NOT IN ('+@strResourceId+')'
 												ELSE ' AND r.ResourceId IN ('+@strResourceId+') '
 											END
-
 				INSERT INTO #ConfirmedResources ( MatchId, ResourceId )
 				EXECUTE	sys.sp_executesql @remoteQuery
 			END
