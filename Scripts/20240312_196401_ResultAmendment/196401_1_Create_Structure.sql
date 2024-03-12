@@ -26,10 +26,12 @@ CREATE TABLE dbo.SettlementResultHistory
 	,ActionType		TINYINT			NOT NULL
 	,ResultType     TINYINT			NOT NULL
 	,Sporttype      SMALLINT		NOT NULL
-	,CreatedDate    DATETIME		NOT NULL
-	,ModifiedDate   DATETIME		NOT NULL
+	,CreatedDate    DATETIME		DEFAULT GETDATE()
+	,ModifiedDate   DATETIME		DEFAULT GETDATE()
 	,StatusID       TINYINT			
 	,ExtraInfo      VARCHAR(MAX)
+	,RepUpdateTime  DATETIME2(7)	DEFAULT SYSDATETIME()
+	,IsDeleted		BIT				DEFAULT 0
 ) ON DATA
 GO
 
@@ -45,6 +47,8 @@ CREATE INDEX IDX_SettlementResultHistory_CreatedDate ON dbo.SettlementResultHist
 GO
 CREATE INDEX IDX_SettlementResultHistory_StatusID ON dbo.SettlementResultHistory(StatusID)
 GO
+CREATE INDEX IX_RepUpdateTime ON dbo.SettlementResultHistory(RepUpdateTime)
+GO
 -------------------------------------------------------------------------
 
 CREATE TABLE dbo.SettlementResultHistory_TicketDetails
@@ -54,6 +58,8 @@ CREATE TABLE dbo.SettlementResultHistory_TicketDetails
 	,Transid			BIGINT	    NOT NULL
 	,ExtraInfo_Before	VARCHAR(MAX)
 	,ExtraInfo_After	VARCHAR(MAX)
+	,RepUpdateTime		DATETIME2(7)	DEFAULT SYSDATETIME()
+	,IsDeleted			BIT				DEFAULT 0
 ) ON DATA
 GO
 
@@ -64,7 +70,8 @@ PRIMARY KEY CLUSTERED
 	SessionID,Transid ASC
 ) ON DATA
 GO
-
+CREATE INDEX IX_RepUpdateTime ON dbo.SettlementResultHistory_TicketDetails(RepUpdateTime)
+GO
 -------------------------------------------------------------------------
 IF OBJECT_ID('BalanceNegative') IS NOT NULL
 	AND NOT EXISTS(	SELECT TOP 1 1 FROM sys.columns c 

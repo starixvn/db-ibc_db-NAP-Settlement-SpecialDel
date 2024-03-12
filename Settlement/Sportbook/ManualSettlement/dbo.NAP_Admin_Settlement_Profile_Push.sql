@@ -169,7 +169,8 @@ BEGIN
 		IF @sportType = 50 
 		BEGIN
 			UPDATE SettlementResultHistory  WITH(UPDLOCK, ROWLOCK)
-			SET StatusID = 100
+			SET  StatusID = 100
+				,RepUpdateTime = SYSDATETIME()
 			WHERE Matchid = @MatchId
 				AND SessionId = @BroadcastSessionId
 				AND StatusID IS NULL

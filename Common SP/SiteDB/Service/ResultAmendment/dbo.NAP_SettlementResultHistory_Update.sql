@@ -27,6 +27,7 @@ BEGIN
 						   WHEN @StatusID < 0 AND h.StatusID = 100 THEN 1
 					  END 
 		,h.ModifiedDate = GETDATE()
+		,h.RepUpdateTime = SYSDATETIME()
 	FROM SettlementResultHistory AS h WITH(UPDLOCK, ROWLOCK)
 	WHERE h.matchId = @MatchId
 		AND h.SessionID IN (SELECT t.SessionID FROM @tmlSession AS t)
