@@ -23,6 +23,7 @@ AS
 		- 20220808@July: Create new SP - Split code issuetype Abnormal bet & AB(real member) [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240327@Max: [CTS] - [TVS] - Missing Void Info - Not auto-mark PA [Redmine: #201993]
 
 	Param's explanation:
@@ -82,6 +83,15 @@ BEGIN
 			,@AwayId = awayid
 	FROM	dbo.match WITH(NOLOCK)
 	WHERE	matchid = @MatchId
+
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.match14 m WITH (NOLOCK) WHERE m.matchid = @MatchId)
+	BEGIN
+		SELECT	@LeagueId = leagueid
+			,@HomeId = homeid
+			,@AwayId = awayid
+	FROM	dbo.match14 WITH(NOLOCK)
+	WHERE	matchid = @MatchId
+	END
 
 	INSERT INTO #transIdTemp (transid)
 	SELECT DISTINCT value 

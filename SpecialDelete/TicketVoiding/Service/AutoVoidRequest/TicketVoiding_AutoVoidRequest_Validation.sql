@@ -25,6 +25,7 @@ AS
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 
 	Param's explanation:
 		
@@ -107,6 +108,32 @@ BEGIN
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 	
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpInputTransId t
+					INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId)
+		BEGIN
+			INSERT INTO #SingleTickets_14 (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
+			SELECT t.TransId
+				,t.RequestId
+				,t.MatchId
+				,t.IssueTypeId
+				,b.transdate
+				,b.winlostdate
+				,b.statusID
+			FROM #tmpInputTransId t
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype NOT IN (9,29,2799)
+
+			INSERT INTO #ParlayTickets_14 (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
+			SELECT t.TransId
+				,t.RequestId
+				,t.MatchId
+				,t.IssueTypeId
+				,b.transdate
+				,b.winlostdate
+				,b.statusID
+			FROM #tmpInputTransId t
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (9,29,2799)
+		END
+		
 		IF EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds WHERE statuswinlost IS NOT NULL)
 		BEGIN
 			INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType)

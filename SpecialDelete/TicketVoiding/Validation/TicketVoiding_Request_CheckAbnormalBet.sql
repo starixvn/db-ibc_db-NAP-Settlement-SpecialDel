@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@IsRemoveCustomerClass4K	BIT = 0
 	,@TransInfoJson				VARCHAR(MAX) = NULL
 	,@IsAddSettledTickets		BIT = 0
+	,@IsVoidAllArchivedTickets	BIT = 0
 )
 AS
 /*  
@@ -62,6 +63,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -399,6 +401,14 @@ BEGIN
 		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
 		FROM dbo.match m WITH(NOLOCK) 
 		WHERE matchid = @MatchId
+
+		IF @IsVoidAllArchivedTickets = 1
+		BEGIN
+			INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode)
+			SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
+			FROM dbo.match14 m WITH(NOLOCK) 
+			WHERE matchid = @MatchId
+		END
 	END
 	ELSE IF @FilterBy =1
 	BEGIN
@@ -452,7 +462,9 @@ BEGIN
 	WHERE 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
 			       WHEN @FilterBy = 1 AND b.bettype = 29 THEN 1
 				   ELSE 0 END
-		AND b.IsMoved14 = 0
+		AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.IsMoved14 = 0 THEN 1
+					WHEN @IsVoidAllArchivedTickets = 1 THEN 1
+				ELSE 0 END
 
 	-- get unsuppored transid
 	INSERT #UnsupportedTransids (transid)
@@ -520,7 +532,8 @@ BEGIN
 		OUTER APPLY (
 		SELECT TOP 1 IsMoved14
 		FROM #tmpTransInfo
-		WHERE transid = temp.transid AND IsMoved14 = 1
+		WHERE transid = temp.transid 
+			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 THEN 1 ELSE 0 END
 		) bm
 		OUTER APPLY (
 		SELECT transid
@@ -654,6 +667,11 @@ BEGIN
 		FROM #validTransId t
 			OUTER APPLY ( 	SELECT GlobalShowTime, livehomescore, liveawayscore, sporttype    
 							FROM dbo.match WITH (NOLOCK)
+							WHERE matchid = @MatchId
+							
+							UNION 
+							SELECT GlobalShowTime, livehomescore, liveawayscore, sporttype    
+							FROM dbo.match14 WITH (NOLOCK)
 							WHERE matchid = @MatchId
 						) m
 

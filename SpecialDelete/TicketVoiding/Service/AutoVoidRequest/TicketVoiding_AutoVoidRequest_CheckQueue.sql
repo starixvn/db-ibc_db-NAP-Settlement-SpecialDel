@@ -17,6 +17,7 @@ AS
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 
 	Param's explanation:
 	 Note : Call for ActionId IN (1,9) -- Auto void winning, VoidResultKeyed
@@ -72,6 +73,12 @@ BEGIN
 		UNION ALL
 		SELECT DISTINCT t.RequestId, t.VoidActionId
 		FROM #tmpInputTransId t 
+			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE b.statuswinlost IS NOT NULL
+		
+		UNION ALL
+		SELECT DISTINCT t.RequestId, t.VoidActionId
+		FROM #tmpInputTransId t 
 			INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.IsMixParlay = 1
 			AND t.IssueTypeId IN (19,21) 
@@ -82,6 +89,13 @@ BEGIN
 	SELECT t.RequestId, t.TransId
 	FROM #tmpInputTransId t 
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+	WHERE b.statusID IN (101, 102, 103) 
+		AND t.IsMixParlay = 0
+		AND t.IsCricket = 0
+	UNION ALL
+	SELECT t.RequestId, t.TransId
+	FROM #tmpInputTransId t 
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
 	WHERE b.statusID IN (101, 102, 103) 
 		AND t.IsMixParlay = 0
 		AND t.IsCricket = 0
