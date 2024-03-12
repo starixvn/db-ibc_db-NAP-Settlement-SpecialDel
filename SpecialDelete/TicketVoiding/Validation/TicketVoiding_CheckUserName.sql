@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 	,@FromDate			DATETIME     = NULL
     ,@ToDate			DATETIME     = NULL
 	,@TransInfoJson		VARCHAR(MAX) = NULL
+	,@IsVoidAllArchivedTickets	BIT = 0
 )
 AS
 /*
@@ -40,6 +41,7 @@ AS
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 		- 20231208@Max: [TVS] Abnormal Account - Add confirmation popup before saving request for auto void actions [Redmine: #198164]
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
+		- 20240305@Max: [TVS] Abnormal Account - Void full range of archived tickets [Redmine: #201130]
 
 	Param's Explanation:
 */
@@ -169,7 +171,14 @@ BEGIN
 		SET @ToDate = @maxdate
 	END
 	
-	IF @FromWinlostDate_14 IS NOT NULL 
+	IF @IsVoidAllArchivedTickets = 1
+	BEGIN
+		SET @FromWinlostDate_14 = (SELECT MIN(winlostdate) FROM #tmpTransInfo)
+
+		SELECT @FromWinlostDate_14 = CASE WHEN @FromWinlostDate_14 <= @FromDate THEN @FromDate ELSE @FromWinlostDate_14 END
+		SET @ToWinlostDate_14 = @ToDate
+	END
+	ELSE IF @FromWinlostDate_14 IS NOT NULL 
 	BEGIN
 		IF @ToDate < @movebetdate
 			SET @ToWinlostDate_14 = @ToDate
