@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
 	 @TransIds			VARCHAR(MAX) = NULL
 	,@TransInfoJson		VARCHAR(MAX) = NULL
+	,@IsVoidAllArchivedTickets	BIT = 0
 )
 AS
 /*  
@@ -19,6 +20,7 @@ AS
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240102@July: [TVS] Recover Ticket - Combine table result return [Redmine: #196020]
+		- 20240304@Max: [TVS] Archived Ticket - Void full range of archived tickets [Redmine: #201448]
 		
 	Param's Explanation:
 */
@@ -144,7 +146,7 @@ BEGIN
 										WHERE NOT EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE transid = t.transid)
 										FOR XML PATH('')), 1, 1, ''), '')
 
-	IF EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate <= @before_movebetday)
+	IF @IsVoidAllArchivedTickets = 0 AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate <= @before_movebetday)
 	BEGIN
 		DELETE 
 		FROM #validTransId
