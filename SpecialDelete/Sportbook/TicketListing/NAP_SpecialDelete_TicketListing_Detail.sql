@@ -88,6 +88,7 @@ AS;
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		- 20240123@July: Separate groups to view data of some special sites (special 777 site) [Redmine: #198089]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -127,6 +128,7 @@ AS;
 						OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
 						OddsId="8518"			-- Default : "All" ; Format : 8518,8519,...
 						Transdesc = '100001'	-- Default : "All" ; Format : 100001,100002,... (PlayerId - [Team].[TeamID])
+						VirtualHead ="1"		-- Default : "All" ; Format : Single Number
 			/>
 		<BetTypes/>'
     - @SingleOrSubParlay: 
@@ -296,7 +298,8 @@ BEGIN
 		Goal			VARCHAR(10),
 		OddsSpread		VARCHAR(500),
 		OddsId			VARCHAR(1000),
-		Transdesc		NVARCHAR(2000)
+		Transdesc		NVARCHAR(2000),
+		VirtualHead		VARCHAR(500)
 	)
 	CREATE TABLE #tblBetType_Detail
 	(
@@ -311,7 +314,9 @@ BEGIN
 		Goal			BIGINT,
 		OddsSpread		MONEY,
 		OddsId			INT,
-		Transdesc		NVARCHAR(2000)
+		Transdesc		NVARCHAR(2000),
+		VirtualHead		SMALLMONEY,
+		Hdp1_tmp		SMALLMONEY
 	)
 	
 	CREATE TABLE  #tmpSelectionType (Selectiontype INT PRIMARY KEY)
@@ -336,7 +341,7 @@ BEGIN
 	END
 	
 	-- Parse xml @BetTeams
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead)
 	SELECT t.c.value('@Id','SMALLINT') AS Id
 			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam			-- check columns : betteam		 ; multi-choice	 
 			, t.c.value('@Set','VARCHAR(500)') AS [Set]					-- check columns : betid		 ; single-choice + multi-choice
@@ -349,10 +354,11 @@ BEGIN
 			, t.c.value('@OddsSpread', 'VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single-choice + multi-choice
 			, t.c.value('@OddsId','VARCHAR(1000)') AS OddsId			-- check columns : OddsId		 ; single-choice + multi-choice
 			, t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc		-- check columns : Transdesc	 ; single-choice + multi-choice
+			, t.c.value('@VirtualHead','NVARCHAR(500)') AS VirtualHead	-- check columns : hdp1 OR hdp2	 ; single-choice
 	FROM @BetTeams.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTeams = NULL))
 
-	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
+	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead)
 	SELECT cte.Id
 			, CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -370,6 +376,7 @@ BEGIN
 			, cte.OddsSpread
 			, cte.OddsId
 			, cte.Transdesc
+			, cte.VirtualHead
 	FROM (
 		SELECT cte.Id
 				, bt.value AS BetTeam 
@@ -390,6 +397,8 @@ BEGIN
 						ELSE osid.value END AS INT) AS OddsId
 				, CAST(CASE WHEN td.value = 'ALL' THEN NULL
 						ELSE td.value END AS NVARCHAR(2000)) AS Transdesc
+				, CAST(CASE WHEN cte.VirtualHead = 'ALL' THEN @ValueDefault 
+						ELSE cte.VirtualHead END AS SMALLMONEY) AS VirtualHead	
 		FROM #tblBetType cte
 				CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
 				CROSS APPLY STRING_SPLIT(cte.[Set], ',') se
@@ -560,6 +569,7 @@ BEGIN
 			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
 		END
 		
+
 		IF @BetTeams IS NOT NULL
 		BEGIN
 			DELETE b
@@ -594,10 +604,55 @@ BEGIN
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 				WHERE tp.Id = b.FilterBettype AND (tp.Game = 'All' OR (tp.Game LIKE '>%' AND b.FilterGame > RIGHT(tp.Game, 2)) OR (b.FilterGame = tp.Game)))
 
-			DELETE b
-			FROM  #SpecialDeleteBets b
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-				WHERE tp.Id = b.FilterBettype AND (tp.[Value] = 9999 OR b.FilterValue = tp.[Value] ))
+			IF @SportType NOT IN (50) --NOT Cricket
+			BEGIN
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.[Value] = 9999 OR b.FilterValue = tp.[Value] ))
+
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp1 = 9999 OR b.FilterHdp1 = tp.ValueHdp1 ))
+
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.FilterHdp2 = tp.ValueHdp2 ))
+
+			END
+			ELSE --Cricket
+			BEGIN
+				--Note: Value of Cricket => hdp1 value
+				UPDATE #tblBetType_Detail 
+				SET Hdp1_tmp = CASE WHEN [Value] <> @ValueDefault THEN [Value] 
+									WHEN ValueHdp1 <> @ValueDefault THEN ValueHdp1 
+									ELSE @ValueDefault END
+			
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE b.FilterBetTeam NOT IN ('y')
+					AND NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+									WHERE tp.Id = b.FilterBettype 
+									AND 1 = CASE WHEN tp.Hdp1_tmp = @ValueDefault AND tp.VirtualHead = @ValueDefault THEN 1
+												 WHEN tp.Hdp1_tmp <> @ValueDefault AND tp.VirtualHead = @ValueDefault AND b.FilterHdp1 = tp.Hdp1_tmp THEN 1
+												 WHEN tp.Hdp1_tmp <> @ValueDefault AND tp.VirtualHead <> @ValueDefault AND (b.FilterHdp1 = tp.Hdp1_tmp OR b.FilterHdp1 >= tp.VirtualHead) THEN 1
+												 WHEN tp.Hdp1_tmp = @ValueDefault AND tp.VirtualHead <> @ValueDefault AND b.FilterHdp1 >= tp.VirtualHead THEN 1
+												 ELSE 0 END)
+			
+				--Group bettypes: xxx Fancy (Yes/No value case 'y')
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE b.FilterBetTeam IN ('y')
+					AND NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+									WHERE tp.Id = b.FilterBettype
+									AND 1 = CASE WHEN tp.ValueHdp2 = @ValueDefault AND tp.VirtualHead = @ValueDefault THEN 1
+												 WHEN tp.ValueHdp2 <> @ValueDefault AND tp.VirtualHead = @ValueDefault AND b.FilterHdp2 = tp.ValueHdp2 THEN 1
+												 WHEN tp.ValueHdp2 <> @ValueDefault AND tp.VirtualHead <> @ValueDefault AND (b.FilterHdp2 = tp.ValueHdp2 OR b.FilterHdp2 >= tp.VirtualHead) THEN 1
+												 WHEN tp.ValueHdp2 = @ValueDefault AND tp.VirtualHead <> @ValueDefault AND b.FilterHdp2 >= tp.VirtualHead THEN 1
+												 ELSE 0 END)
+			END
 
 			DELETE b
 			FROM  #SpecialDeleteBets b
@@ -608,16 +663,6 @@ BEGIN
 			FROM  #SpecialDeleteBets b
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 				WHERE tp.Id = b.FilterBettype AND (tp.BetOption = 'All' OR b.FilterBetOption = tp.BetOption ))
-
-			DELETE b
-			FROM  #SpecialDeleteBets b
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-				WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp1 = 9999 OR b.FilterHdp1 = tp.ValueHdp1 ))
-
-			DELETE b
-			FROM  #SpecialDeleteBets b
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-				WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.FilterHdp2 = tp.ValueHdp2 ))
 
 			DELETE b
 			FROM  #SpecialDeleteBets b
@@ -774,10 +819,55 @@ BEGIN
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 				WHERE tp.Id = b.FilterBettype AND (tp.Game = 'All' OR (tp.Game LIKE '>%' AND b.FilterGame > RIGHT(tp.Game, 2)) OR (b.FilterGame = tp.Game)))
 
-			DELETE b
-			FROM  #SpecialDeleteBets b
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-				WHERE tp.Id = b.FilterBettype AND (tp.[Value] = 9999 OR b.FilterValue = tp.[Value] ))
+			IF @SportType NOT IN (50) --NOT Cricket
+			BEGIN
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.[Value] = 9999 OR b.FilterValue = tp.[Value] ))
+
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp1 = 9999 OR b.FilterHdp1 = tp.ValueHdp1 ))
+
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.FilterHdp2 = tp.ValueHdp2 ))
+
+			END
+			ELSE --Cricket
+			BEGIN
+				--Note: Value of Cricket => hdp1 value
+				UPDATE #tblBetType_Detail 
+				SET Hdp1_tmp = CASE WHEN [Value] <> @ValueDefault THEN [Value] 
+									WHEN ValueHdp1 <> @ValueDefault THEN ValueHdp1 
+									ELSE @ValueDefault END
+			
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE b.FilterBetTeam NOT IN ('y')
+					AND NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+									WHERE tp.Id = b.FilterBettype 
+									AND 1 = CASE WHEN tp.Hdp1_tmp = @ValueDefault AND tp.VirtualHead = @ValueDefault THEN 1
+												 WHEN tp.Hdp1_tmp <> @ValueDefault AND tp.VirtualHead = @ValueDefault AND b.FilterHdp1 = tp.Hdp1_tmp THEN 1
+												 WHEN tp.Hdp1_tmp <> @ValueDefault AND tp.VirtualHead <> @ValueDefault AND (b.FilterHdp1 = tp.Hdp1_tmp OR b.FilterHdp1 >= tp.VirtualHead) THEN 1
+												 WHEN tp.Hdp1_tmp = @ValueDefault AND tp.VirtualHead <> @ValueDefault AND b.FilterHdp1 >= tp.VirtualHead THEN 1
+												 ELSE 0 END)
+			
+				--Group bettypes: xxx Fancy (Yes/No value case 'y')
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE b.FilterBetTeam IN ('y')
+					AND NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+									WHERE tp.Id = b.FilterBettype
+									AND 1 = CASE WHEN tp.ValueHdp2 = @ValueDefault AND tp.VirtualHead = @ValueDefault THEN 1
+												 WHEN tp.ValueHdp2 <> @ValueDefault AND tp.VirtualHead = @ValueDefault AND b.FilterHdp2 = tp.ValueHdp2 THEN 1
+												 WHEN tp.ValueHdp2 <> @ValueDefault AND tp.VirtualHead <> @ValueDefault AND (b.FilterHdp2 = tp.ValueHdp2 OR b.FilterHdp2 >= tp.VirtualHead) THEN 1
+												 WHEN tp.ValueHdp2 = @ValueDefault AND tp.VirtualHead <> @ValueDefault AND b.FilterHdp2 >= tp.VirtualHead THEN 1
+												 ELSE 0 END)
+			END
 
 			DELETE b
 			FROM  #SpecialDeleteBets b
@@ -788,16 +878,6 @@ BEGIN
 			FROM  #SpecialDeleteBets b
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 				WHERE tp.Id = b.FilterBettype AND (tp.BetOption = 'All' OR b.FilterBetOption = tp.BetOption ))
-
-			DELETE b
-			FROM  #SpecialDeleteBets b
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-				WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp1 = 9999 OR b.FilterHdp1 = tp.ValueHdp1 ))
-
-			DELETE b
-			FROM  #SpecialDeleteBets b
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-				WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.FilterHdp2 = tp.ValueHdp2 ))
 
 			DELETE b
 			FROM  #SpecialDeleteBets b
