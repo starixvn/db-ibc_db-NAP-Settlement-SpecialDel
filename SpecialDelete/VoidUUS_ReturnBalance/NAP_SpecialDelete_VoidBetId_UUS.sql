@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetId_UUS]
 (
 	@TransIds			VARCHAR(MAX)

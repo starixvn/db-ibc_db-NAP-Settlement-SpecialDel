@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_Email_RecoveredTicket_Select](
 	 @SingleTransIds			VARCHAR(MAX) = NULL
 	,@IsITSupport				BIT = 0
@@ -13,6 +13,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Email_RecoveredTicket_Select](
 	
 	Revisions: 
 		- 20240102@July: Create new SP [Redmine:#196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		
 	Param's explanation:	
 		

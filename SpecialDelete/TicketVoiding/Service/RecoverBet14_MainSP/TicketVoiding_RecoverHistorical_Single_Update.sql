@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.TicketVoiding_RecoverHistorical_Single_Update
 (
 	@RequestId			INT
@@ -28,6 +28,7 @@ AS
 		- 20210514@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 	Param's explanation:	
 		
 */

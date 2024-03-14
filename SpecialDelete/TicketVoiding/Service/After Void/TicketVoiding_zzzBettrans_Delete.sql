@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_zzzBettrans_Delete]
 (
 	 @TransIds		VARCHAR(MAX) = ''
@@ -12,6 +12,7 @@ AS
 	
 	Revisions: 
 		- 20231227@Max: Create new SP [Redmine: #196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:
 		@Type: 

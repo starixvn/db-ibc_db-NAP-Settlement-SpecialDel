@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverVSBetRadar_Upd] 
 	@TicketType					VARCHAR(100),
 	@Type						VARCHAR(100)	= NULL,
@@ -17,6 +17,7 @@ AS
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]	
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
+		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's Explanation:			
 		- @TicketType:		

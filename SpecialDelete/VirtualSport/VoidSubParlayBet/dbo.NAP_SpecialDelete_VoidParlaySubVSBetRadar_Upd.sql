@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadar_Upd] 
 	@SearchBy				VARCHAR(100),
 	@MatchId				INT = NULL,	
@@ -22,6 +22,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 		- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
+		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's Explanation:
 		- @SearchBy:		
