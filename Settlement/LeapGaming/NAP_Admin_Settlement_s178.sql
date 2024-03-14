@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE  NAP_Admin_Settlement_s178
 	@AdminId			INT		
 	,@MatchId			INT
@@ -18,6 +18,7 @@ AS
 		- 20230704@Louisa:  Virtual Leap Gaming - VS3 - sporttype 178 [Redmine:#189854]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20231002@Louisa: Integrate new sporttype 179, new bettype for sporttype 178 [Redmine:#194655]
+		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
 	
 	Param's Explanation:
 		@Action - CAL
@@ -39,24 +40,26 @@ BEGIN
 			,@ActionId				INT
 			,@batchCount			INT = 2000
 			,@strTransIds			VARCHAR(MAX)  
+			,@strRefnos				VARCHAR(MAX) = ''
 			,@procName				SYSNAME
 			,@remark				VARCHAR(200)
 			,@IsCentral				BIT
 			,@handle				INT
+			,@matchdate 			SMALLDATETIME
+			,@sporttype				TINYINT
 			,@SiteDBGroupId			SMALLINT
 			,@TransInfoMaxPO		VARCHAR(MAX)
 			,@TotalTransMaxPO		INT = 0
 			,@batchPO				SMALLINT = 500
-			,@sporttype				TINYINT
+			,@ResourcesJson			VARCHAR(MAX) = ''
 	
 	DECLARE @tmpMaxWinLimit	TABLE( CustId INT, MaxWinLimit MONEY)
-	DECLARE @tmpTransIDMaxPO TABLE (TransID BIGINT
-		,custid INT, actualPO MONEY, winlost MONEY
-		,transdate DATETIME, bettype SMALLINT
-	)
+	DECLARE @tmpTransIDMaxPO TABLE (TransID BIGINT, custid INT, actualPO MONEY, winlost MONEY, transdate DATETIME, bettype SMALLINT )
+
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, winlost MONEY, actualPO MONEY, IsApplyMaxPO BIT) 
-	DECLARE @tmpSelectedResources TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
-								  BetType SMALLINT,OddsType SMALLINT,  BetID BIGINT, pfID SMALLINT ,PRIMARY KEY (BetType,BetID))
+	DECLARE @tmpSelectedResources TABLE ( ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
+										  BetType SMALLINT,OddsType SMALLINT,  BetID BIGINT, pfID SMALLINT ,PRIMARY KEY (BetType,BetID)
+										  )
 
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT
 		,custid INT, currency TINYINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
@@ -67,21 +70,26 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-	SELECT @sporttype = m.sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+	SELECT @sporttype	= m.sporttype 
+		  ,@matchdate	= CAST(eventdate AS DATE)
+	FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK) 
+	WHERE m.matchid = @MatchId
 
-	SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
-
-	SELECT @ActionID  = CASE @Action
-							WHEN 'CAL'      THEN 81043
-							WHEN 'REFUND'   THEN 81044
+	SELECT @ActionID  = CASE @Action WHEN 'CAL' THEN CASE WHEN @sporttype IN (178, 179) THEN 81043
+														 WHEN @sporttype = 188 THEN 81050
+														 END
+									WHEN 'REFUND' THEN CASE WHEN @sporttype IN (178, 179) THEN  81044
+															WHEN @sporttype = 188 THEN 81051
+															END
 						END
 			,@StartTime	= CURRENT_TIMESTAMP
+			,@procName	= OBJECT_NAME(@@PROCID)
+			,@SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
 
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT	@matchid AS matchid, 1 AS KeyID
-	----------------------------------------------------------------------------------------------	
 	
-	--check settlement process
+	---- lock match single
 	EXEC dbo.NAP_Admin_CheckingProcess
 		  @isExistMatch			= 1
 		  , @SPName				= @procName
@@ -95,17 +103,18 @@ BEGIN
 				,@ErrMsg	
 		RETURN
 	END	
+	----/ end check lock match single
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 
-	INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID,OddsType )  
+	INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, OddsType )  
 	SELECT Id, ISNULL(Home,''), ISNULL(Away,''), sp.BetType, sp.BetID, sp.pfID , sp.OddsType
 	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 														,Home VARCHAR(50)
 														,Away VARCHAR(50)
 										) AS tbl
 		INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
-		ON	sp.ResourceID = tbl.Id
+			ON	sp.ResourceID = tbl.Id
 	WHERE sp.SportType = @sporttype
 
 	EXEC sp_xml_removedocument @handle
@@ -310,6 +319,32 @@ BEGIN
 			SELECT	 @ErrCode = ERROR_NUMBER()
 					,@ErrMsg = ERROR_MESSAGE()				
 		END CATCH
+	END
+
+
+	IF EXISTS ( SELECT TOP 1 1
+				FROM dbo.bettransm bm WITH(ROWLOCK)
+				WHERE matchid = @matchid
+					AND statusID NOT IN(1, 101)
+					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+				)
+	BEGIN
+		SELECT @ResourcesJson = CONVERT(VARCHAR(MAX), ( SELECT r.HomeValue AS 'h', r.AwayValue AS 'a', r.pfID AS 'pfid', r.BetType AS 'bt', r.BetID AS 'bid'
+															FROM @tmpSelectedResources r
+															FOR JSON AUTO
+														)
+										)
+
+		EXEC dbo.NAP_Admin_Settlement_MP_VS
+			@AdminId			= @AdminId
+			,@MatchId			= @MatchId
+			,@SportType			= @sporttype
+			,@ResourcesJson		= @ResourcesJson
+			,@Action			= @Action
+			,@ActionID			= @ActionID
+			,@MatchDate			= @MatchDate
+			,@ErrCode			= @ErrCode	OUTPUT
+			,@ErrMsg			= @ErrMsg	OUTPUT
 	END
 
 END

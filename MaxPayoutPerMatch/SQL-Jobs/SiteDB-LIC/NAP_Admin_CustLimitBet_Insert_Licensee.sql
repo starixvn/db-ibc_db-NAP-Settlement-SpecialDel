@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSID-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBSID-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Insert_Licensee]
 (
 	@MatchId INT
@@ -16,6 +16,7 @@ AS
     DB: DBSID/bodb02
     Revisions:
 		- 20230712@Max: Clone from DBTRANS - [Redmine: #181595]
+		- 20240118@Louisa: Support Max Payout for VS4 [Redmine:#199700]
 
 	Param's explanation:	
 		
@@ -157,8 +158,8 @@ BEGIN
 		BEGIN
 			DELETE t
 			FROM #CustLimitBet_tmp t
-			WHERE (t.sporttype > 99  AND t.sporttype NOT IN (164,178,179,180,186) AND t.sporttype NOT BETWEEN 190 AND 197)
-				OR (t.bettype IN(29, 2799) OR (t.bettype BETWEEN 801 AND 806))
+			WHERE (t.sporttype > 99  AND t.sporttype NOT IN (164,178,179,180,186,188) AND t.sporttype NOT BETWEEN 190 AND 197)
+				OR (t.bettype IN(29, 2799, 10449) OR (t.bettype BETWEEN 801 AND 806))
 		END
 	END
 

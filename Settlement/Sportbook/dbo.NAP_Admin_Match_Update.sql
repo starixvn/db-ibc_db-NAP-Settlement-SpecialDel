@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
 (
     @Command                    VARCHAR(100),
@@ -75,6 +75,7 @@ AS
         - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230704@Louisa:  Integrate Virtual Leap Gaming - VS3 [Redmine:#189854]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
+		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
 
     Parameters Explanation:
 		 @SelectedResources = <Resources>
@@ -425,7 +426,7 @@ BEGIN
 									ELSE ''
 								END
 
-			IF @sporttype = 180
+			IF @sporttype IN (180,188)
 				SELECT	@fthome = 0
 						,@ftaway = 0
 			ELSE IF @Sporttype BETWEEN 190 AND 197
@@ -444,7 +445,7 @@ BEGIN
 				,htawayscore	= COALESCE(@htaway, htawayscore)
                 ,changetime     = GETDATE()
                 ,settletime     = GETDATE()
-				,multiple		= CASE WHEN @Sporttype BETWEEN 190 AND 197 THEN 1 ELSE multiple END
+				,multiple		= CASE WHEN @Sporttype BETWEEN 190 AND 197 OR @Sporttype = 188 THEN 1 ELSE multiple END
         WHERE   matchid = @matchid
     END
 

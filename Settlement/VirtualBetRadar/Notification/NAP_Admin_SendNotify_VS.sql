@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_SendNotify_VS
 	@MatchId			INT 
 AS
@@ -8,13 +8,29 @@ AS
 	
 	Revisions:
 		- 20231215@Louisa: Initialize
- 
+		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine:#199700]
 */
 BEGIN
 	
 	DECLARE  @totalTicket		INT
+			,@SportType			TINYINT
+			,@MatchIDMainParlay	INT = 0
+			,@BettypeMainParlay	SMALLINT = 0
+
+	SELECT @sporttype = m.sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+
+	IF  @SportType = 188
+	BEGIN
+		SET @MatchIDMainParlay = 10449
+		SET @BettypeMainParlay = @MatchIDMainParlay
+	END
+
+	IF @sportType BETWEEN 190 AND 199
+	BEGIN
+		SET @MatchIDMainParlay = 2799
+		SET @BettypeMainParlay = @MatchIDMainParlay
+	END
  
-	
 	DECLARE @betTicket	TABLE
 	(
 		TransID 		BIGINT
@@ -72,10 +88,10 @@ BEGIN
 			ON b.refno = r.refno
 		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON b.custid		= c.custid
-	WHERE matchid		= 2799
+	WHERE matchid		= @MatchIDMainParlay
 		AND b.statusId	NOT IN (101, 102)
 		AND b.custid  = r.custid
-		AND b.bettype = 2799
+		AND b.bettype = @BettypeMainParlay
 		
 	SET @totalTicket = (SELECT COUNT(1) FROM @betTicket)
 

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_05] 
 	 @IgnoreList VARCHAR(200)
 	,@updatetype 	TINYINT = 1  -- 1, 2, 3, 4
@@ -30,6 +30,7 @@ AS
 		- 20221109@Louisa: log more inf into [SiteDB_SettlementService_CalculationLog] for virtual sport [Redmine:#178694]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230908@Louisa: Apply Company Max Payout for Non-sports [Redmine:#193259]
+		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
 		
 	Param: 
 		+ @updatetype: 
@@ -530,7 +531,7 @@ BEGIN
 
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
 				@SystemName = 'Settlement' 
-				,@FunctionName = 'CalculateVSBetRadar'
+				,@FunctionName = 'CalculateVS'
 				,@TableName = 'bettransm'
 				,@MatchId = @MatchId
 				,@TransInfoJson = @TransInfoJson
@@ -540,7 +541,7 @@ BEGIN
 		END
 
 	END
-	ELSE IF @updatetype = 6 --update bettrans for recover single + main parlay VS Betradar in special delete
+	ELSE IF @updatetype = 6 --update bettrans for recover single + main parlay VS Betradar, VS4 in special delete
 	BEGIN
 		;WITH sourceData AS (
 			SELECT	
@@ -582,11 +583,11 @@ BEGIN
 				FOR JSON AUTO
 			)
 
-			SET @TicketType = CASE WHEN @MatchId = 2799 THEN 'p' ELSE 's' END
+			SET @TicketType = CASE WHEN @MatchId IN (2799, 10449) THEN 'p' ELSE 's' END
 			
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
 				@SystemName = 'Settlement' 
-				,@FunctionName = 'RecoverVSBetRadar'
+				,@FunctionName = 'RecoverVS'
 				,@TableName = 'bettrans'
 				,@MatchId = @MatchId
 				,@TransInfoJson = @TransInfoJson
