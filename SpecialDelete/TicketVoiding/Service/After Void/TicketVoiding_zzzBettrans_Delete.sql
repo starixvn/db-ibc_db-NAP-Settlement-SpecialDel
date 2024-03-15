@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_zzzBettrans_Delete]
 (
 	 @TransIds		VARCHAR(MAX) = ''
@@ -12,6 +12,7 @@ AS
 	
 	Revisions: 
 		- 20231227@Max: Create new SP [Redmine: #196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:
 		@Type: 
@@ -84,7 +85,7 @@ BEGIN
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
 					SELECT 'TVS'
-						, CASE WHEN @MatchId NOT IN (9,29,2799) THEN 'RecoverSingleBet' ELSE 'RecoverMainParlayBet' END
+						, CASE WHEN @MatchId NOT IN (9,29,2799,10449) THEN 'RecoverSingleBet' ELSE 'RecoverMainParlayBet' END
 						, 'zzzbettrans', 'D', @matchid, @TransInfo, 's'
 				END
 

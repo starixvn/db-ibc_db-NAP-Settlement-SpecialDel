@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadar_Sel]
 	@SearchBy		 VARCHAR(100),
 	@MatchId		 INT = 0,
@@ -16,6 +16,7 @@ AS
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]	
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]		
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's Explanation:			
 		- @SearchBy:		

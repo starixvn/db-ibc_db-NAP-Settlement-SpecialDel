@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.TicketVoiding_RecoverHistorical_Single_Update
 (
 	@RequestId			INT
@@ -28,6 +28,7 @@ AS
 		- 20210514@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 	Param's explanation:	
 		
 */
@@ -237,7 +238,7 @@ BEGIN
 	END	
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE	b
 		SET eventdate 	= m.eventdate
@@ -245,7 +246,7 @@ BEGIN
 		FROM	#tmpTransId b
 			INNER JOIN dbo.match14 m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
-		WHERE bettype NOT IN (9, 29, 2799)		
+		WHERE bettype NOT IN (9, 29, 2799, 10449)		
 	END
 	
 	-- -- UPDATE eventtype = 2 [Outright ticket]
@@ -285,11 +286,11 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
-	IF EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (9,29,2799))
+	IF EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (9,29,2799, 10449))
 	BEGIN
 		UPDATE #tmpTransId
 		SET eventdate = winlostdate
-		WHERE bettype IN (9,29,2799)	
+		WHERE bettype IN (9,29,2799, 10449)	
 	END
 
 	UPDATE t 
@@ -318,11 +319,11 @@ BEGIN
 
 		SET @ErrCode = 99 
 		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
-									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
+									  , CASE WHEN t.MatchId IN (9,29,2799, 10449) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
 								FROM @tblTransId_MoveBet t
 									OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 													FROM @tblTransId_MoveBet s
-													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799)
+													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799, 10449)
 													FOR XML PATH('')
 												)ts	 (TransIds)
 								FOR XML PATH('r'), ROOT('root')

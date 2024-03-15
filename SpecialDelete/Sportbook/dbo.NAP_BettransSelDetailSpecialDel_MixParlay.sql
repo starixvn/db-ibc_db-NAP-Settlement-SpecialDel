@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelDetailSpecialDel_MixParlay]  
 	@Refno BIGINT
 AS  
@@ -19,6 +19,7 @@ AS
 		- 20201105@Charles:  LSports Integration Football & Baseball [Redmine: #144544]
 		- 20210315@July: Integrate Cricket AIO - [Redmine: #150075]
 		- 20220816@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20240304@July: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's Explanation:
 			
@@ -107,7 +108,9 @@ BEGIN
 			ON	b.matchid=m.matchid
 				AND refno=@refno										
 	WHERE	(m.sporttype BETWEEN 1 AND 99
-			OR m.sporttype BETWEEN 190 AND 199)
+			OR m.sporttype BETWEEN 190 AND 199
+			OR m.sporttype = 188 --VS4
+			)
 			AND b.SiteDBGroupID = @SiteDBGroupID
 	ORDER BY CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END
 		
@@ -170,7 +173,9 @@ BEGIN
 				ON	b.matchid=m.matchid
 					AND refno=@refno								
 		WHERE	(m.sporttype BETWEEN 1 AND 99
-				OR m.sporttype BETWEEN 190 AND 199)
+				OR m.sporttype BETWEEN 190 AND 199
+				OR m.sporttype = 188 --VS4
+				)
 			AND b.SiteDBGroupID = @SiteDBGroupID
 		ORDER BY CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END
 	END	

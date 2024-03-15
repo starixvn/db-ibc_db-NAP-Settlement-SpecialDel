@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_SingleType_Update]
 	@RequestId			INT
 	,@MatchId			INT
@@ -56,6 +56,7 @@ AS
 		- 20230707@July: Remove unnecessary code [Redmine: #190859]
 		- 20230712@Max: Scale out credit - Fix issue child match cricket [Redmine: #181595]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -95,6 +96,8 @@ BEGIN
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
 			,@IsExistVS3 				BIT = 0
+			,@IsExistParlayVS4 			BIT = 0
+			,@IsExistVS4 				BIT = 0
 			,@avaiableProcessRefNo		BIT
 			,@ErrCodeRefNo				BIT = 0
 			,@ErrMsgRefNo				VARCHAR(300) = '' 
@@ -205,7 +208,7 @@ BEGIN
 	END
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
@@ -215,7 +218,7 @@ BEGIN
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
 		
-		WHERE bettype NOT IN (9, 29, 2799)
+		WHERE bettype NOT IN (9, 29, 2799, 10449)
 			
 	END
 	
@@ -258,17 +261,17 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
-	IF EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (9,29,2799))
+	IF EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (9,29,2799,10449))
 	BEGIN
 		UPDATE #tmpTransId
 		SET eventdate = winlostdate
-		WHERE bettype IN (9,29,2799)	
+		WHERE bettype IN (9,29,2799,10449)	
 	END
 
 	-- remove un-supported sports & bettype
 	DELETE bd
 	FROM #tmpTransId bd
-	WHERE bettype NOT IN (9, 29, 2799)
+	WHERE bettype NOT IN (9, 29, 2799, 10449)
 		AND (
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
@@ -286,11 +289,11 @@ BEGIN
 		WHERE eventdate <= @Movebetdate
 
 		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
-									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
+									  , CASE WHEN t.MatchId IN (9,29,2799,10449) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
 								FROM @tblTransId_MoveBet t
 									OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 													FROM @tblTransId_MoveBet s
-													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799)
+													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799,10449)
 													FOR XML PATH('')
 												)ts	 (TransIds)
 								FOR XML PATH('r'), ROOT('root')
@@ -305,7 +308,7 @@ BEGIN
 		RETURN
 	END
 
-	IF @MatchId IN (9,29)
+	IF @MatchId IN (9,29,10449)
 	BEGIN
 		SET @isExistParlay = 1
 
@@ -335,6 +338,8 @@ BEGIN
 				,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 				,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 				,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
+				,@IsExistParlayVS4			= MAX (CASE WHEN bettype = 10449 THEN 1 ELSE 0 END)
+				,@IsExistVS4				= MAX (CASE WHEN sporttype = 188 THEN 1 ELSE 0 END)
 		FROM	#tmpTransId b
 			OUTER APPLY (
 						SELECT GroupId
@@ -349,7 +354,7 @@ BEGIN
 		INSERT INTO #tblMatchProcess(matchid, KeyID)
 		SELECT DISTINCT matchid
 			, CASE 
-				WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
+				WHEN Bettype NOT IN (9, 29, 2799, 10449, 10, 38) 
 						AND Bettype NOT BETWEEN 801 AND 899
 						AND f.GroupId IS NULL
 						AND Bettype NOT IN (1231,1232,1233)
@@ -385,14 +390,15 @@ BEGIN
 			RETURN;
 		END
 
-		IF @isExistParlay = 1
+		IF @isExistParlay = 1 OR @IsExistParlayVS4 = 1
 		BEGIN
 			-- Apply new way to lock parlay tickets	
 			IF @totalMainParlay <= @ThreadHold
 			BEGIN
 				-- checking Refno parlay proccess
 				EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno	= 1
+					@IsLockingByRefno	= @isExistParlay
+					,@IsLockingByRefnoVS		= @IsExistParlayVS4
 					,@spName			= @spName
 					,@Session			= @Session
 					,@avaiableProcess 	= @avaiableProcessRefNo OUTPUT
@@ -408,6 +414,7 @@ BEGIN
 			BEGIN
 				EXEC dbo.NAP_Admin_CheckingProcess
 					@isExistParlay 			= @isExistParlay
+					, @IsLockingByRefnoVS		= @IsExistParlayVS4
 					,@avaiableProcess 		= @avaiableProcess OUTPUT
 					,@ErrCode				= @ErrCode OUTPUT
 					,@ErrMsg				= @ErrMsg OUTPUT
@@ -450,7 +457,7 @@ BEGIN
 						 ELSE 0 END
 
 	--Get data before update
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
 	BEGIN
 		INSERT INTO #balanceGameBefore(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -471,6 +478,7 @@ BEGIN
 			OR b.bettype BETWEEN 1201 AND 1299
 			OR b.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
+			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -650,7 +658,7 @@ BEGIN
 	END
 
 	--Get data after update
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
 	BEGIN
 		INSERT INTO #balanceGameAfter(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -671,6 +679,7 @@ BEGIN
 			OR tmp.Bettype BETWEEN 1201 AND 1299
 			OR tmp.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
+			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -731,7 +740,7 @@ BEGIN
 		INNER JOIN #tmpTransId b ON c.TransID = b.transid AND c.MatchID = b.matchid
 	WHERE b.betdaqid = -2 
 
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
 	BEGIN	
 		CREATE TABLE #balanceGameChange (
 			custid 			INT
@@ -790,13 +799,14 @@ BEGIN
 		DROP TABLE #balanceGameChange
 	END
 
-	IF @isExistParlay = 1
+	IF @isExistParlay = 1 OR @IsExistParlayVS4 = 1
 	BEGIN
 		IF @totalMainParlay <= @ThreadHold
 		BEGIN
 			------ releasing Refno parlay proccess
 			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno = 1
+				@IsLockingByRefno = @isExistParlay
+				,@IsLockingByRefnoVS		= @IsExistParlayVS4
 				,@Session	= @Session
 				,@IsReleased = 1	
 		END
@@ -804,6 +814,7 @@ BEGIN
 		BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess
 				@isExistParlay 				= @isExistParlay
+				,@IsLockingByRefnoVS		= @IsExistParlayVS4
 				, @IsReleased				= 1
 		END
 	END
@@ -838,7 +849,7 @@ BEGIN
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = c.site
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
-				WHERE b.MainMatchId = @MatchId AND b.sporttype = @sporttype AND b.bettype NOT IN (9,29,2799)
+				WHERE b.MainMatchId = @MatchId AND b.sporttype = @sporttype AND b.bettype NOT IN (9,29,2799,10449)
 				FOR XML PATH('r'), ROOT('root')
 			)
 

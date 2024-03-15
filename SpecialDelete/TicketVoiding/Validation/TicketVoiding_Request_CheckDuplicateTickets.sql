@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckDuplicateTickets]
 (
 	 @TransIds					VARCHAR(MAX) = NULL
@@ -19,6 +19,7 @@ AS
 		- 20230907@Max: [TVS] Support void duplicated tickets that have the same transdate [Redmine: #193671]
 		- 20231031@Max: [TVS] - Hot fix - Duplicate ticket missing void parlay virtual sport [Redmine: #196241]
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:
 */
@@ -56,7 +57,7 @@ BEGIN
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
-	WHERE pt.ProductID IN (1, 3, 5, 27, 77) -- SB, NG, VS, VS2, VS3
+	WHERE pt.ProductID IN (1, 3, 5, 27, 77, 83) -- SB, NG, VS, VS2, VS3, VS4
 		AND pt.BetType NOT IN (10)
 		AND pt.SubProduct NOT IN ('MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
@@ -192,7 +193,7 @@ BEGIN
 			SELECT DISTINCT b.matchid
 			FROM #tmpTransInfo b
 				INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
-			WHERE b.bettype IN (9,29,2799)
+			WHERE b.bettype IN (9,29,2799,10449)
 
 			SELECT TOP 1 @SiteDBGroupId = b.SiteDBGroupID
 			FROM #tmpTransInfo AS b WITH (NOLOCK)
@@ -200,7 +201,7 @@ BEGIN
 			WHERE (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
 							WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
 							ELSE 0 END) 
-				AND b.bettype IN (9,29,2799)
+				AND b.bettype IN (9,29,2799,10449)
 		END
 	END
 	ELSE
@@ -209,21 +210,21 @@ BEGIN
 			,@ActionId = 4
 			,@IsAutoAddRequest = 1
 
-		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9,29,10,2799))
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9,29,10,2799,10449))
 		BEGIN
 			INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode)
 			SELECT DISTINCT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
 			FROM #tmpTransInfo t
 				INNER JOIN dbo.match m WITH(NOLOCK) ON t.matchid = m.matchid
-			WHERE bettype NOT IN (9,29,10,2799)
+			WHERE bettype NOT IN (9,29,10,2799,10449)
 		END
 
-		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype IN (9,29,2799))
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype IN (9,29,2799,10449))
 		BEGIN	
 			INSERT INTO @tmpMatchId (MatchId)
 			SELECT DISTINCT b.matchid
 			FROM #tmpTransInfo b
-			WHERE bettype IN (9,29,2799)
+			WHERE bettype IN (9,29,2799,10449)
 		END
 	END
 	 
@@ -262,7 +263,7 @@ BEGIN
 			,b.custid
 			,b.matchid
 			,b.betteam
-			,CASE WHEN b.bettype IN (9,29,2799) THEN 1 ELSE NULL END
+			,CASE WHEN b.bettype IN (9,29,2799,10449) THEN 1 ELSE NULL END
 			,CASE WHEN @TransIds IS NULL THEN 1 ELSE 0 END
 			,b.odds
 			,b.stake
@@ -277,8 +278,8 @@ BEGIN
 	FROM #tmpTransInfo b
 	WHERE b.IsMoved14 = 0
 		AND 1 = CASE WHEN @IsAutoAddRequest = 1 THEN 1
-					WHEN @FilterBy IS NULL AND b.bettype NOT IN (9,29,2799) THEN 1
-			       WHEN @FilterBy = 1 AND b.bettype IN (9,29,2799) THEN 1
+					WHEN @FilterBy IS NULL AND b.bettype NOT IN (9,29,2799,10449) THEN 1
+			       WHEN @FilterBy = 1 AND b.bettype IN (9,29,2799,10449) THEN 1
 				   ELSE 0 END
 		AND 1 = CASE WHEN @SiteDBGroupId IS NULL THEN 1
 					WHEN @SiteDBGroupId IS NOT NULL AND b.SiteDBGroupID = @SiteDBGroupId THEN 1
@@ -316,7 +317,7 @@ BEGIN
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE 1 = CASE WHEN bt.bettype IS NULL AND t.bettype NOT IN (9,29,2799) THEN 1
+	WHERE 1 = CASE WHEN bt.bettype IS NULL AND t.bettype NOT IN (9,29,2799,10449) THEN 1
 				   ELSE 0 END
 
 	SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
@@ -387,7 +388,7 @@ BEGIN
 
 	SELECT @DifferentMatchTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 										FROM #validTransId AS v
-										WHERE v.isInMatch = 0 AND @MatchId NOT IN (0,29,9,2799)
+										WHERE v.isInMatch = 0 AND @MatchId NOT IN (0,29,9,2799,10449)
 										FOR XML PATH('')), 1, 1, '')
 										, '')
 	IF @ActionId <> 2
@@ -486,7 +487,7 @@ BEGIN
 	--Remove unsupport mark product
 	BEGIN
 		DELETE t FROM @tmpMarkTransId t 
-		WHERE 1 = CASE WHEN t.bettype NOT IN (9,29,2799) AND NOT EXISTS (
+		WHERE 1 = CASE WHEN t.bettype NOT IN (9,29,2799,10449) AND NOT EXISTS (
 						SELECT TOP 1 1
 						FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 						WHERE pt.ProductID = 1 -- Sportsbook

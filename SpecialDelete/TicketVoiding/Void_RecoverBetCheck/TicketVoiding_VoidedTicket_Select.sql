@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket_Select]
 ( 
 	@VoidingHistoryIds VARCHAR(MAX) =''
@@ -30,6 +30,7 @@ AS;
 		- 20230529@July: Support case Cricket main in table match -> child in table match14 [Redmine: #188153]
 		- 20230530@July: Return column IsCredit send ticket Letstalk [Redmine: #188152]
 		- 20231113@Max: [TVS] Bet list on Delete Bet Check display WRONG HDP value for sub parlay ticket [Redmine: #196755]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:	
 		
@@ -242,7 +243,7 @@ BEGIN
 	--@IsMovebet = 0
 	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch 
 				 WHERE (SettlementStatus IS NOT NULL 
-						OR (SettlementStatus IS NULL AND matchid IN (9,29,2799))
+						OR (SettlementStatus IS NULL AND matchid IN (9,29,2799,10449))
 						OR (SettlementStatus IS NULL AND IsOutright = 1))
 			)
 	BEGIN
@@ -453,7 +454,7 @@ BEGIN
 	END
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -468,7 +469,7 @@ BEGIN
 		FROM #tmpTicket d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799)
+		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -521,12 +522,12 @@ BEGIN
 	END
 
 	-- UPDATE IsMixParlay
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE t
 			SET IsMixParlay = 1
 		FROM #tmpTicket t
-		WHERE t.bettype IN (9, 29, 2799)
+		WHERE t.bettype IN (9, 29, 2799, 10449)
 	END
 
 	-- Update IsMarked

@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_ExcelOic]
 	@MatchId					INT,
 	@LicenseeName				VARCHAR(MAX)	= 'ALL',
@@ -59,6 +59,7 @@ AS
 		- 20230831@Max: [TVS] Integrate 4 new bet types of Basketball [Redmine: #192608]
 		- 20231213@July: Ticket Listing - Support more Advanced Mode controls for some sports [Redmine: #193777]
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
+		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -591,8 +592,8 @@ BEGIN
 		END																								  
 	END
 
-    -- System parlay Virtual Sports 2799
-    IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype =2799)
+    -- System parlay Virtual Sports
+    IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype IN (2799, 10449))
 	BEGIN
 		INSERT INTO #SpecialDeleteBets (transid, CustId, Recommend, LicenseeName)	
 		SELECT	b.transid,
@@ -606,8 +607,8 @@ BEGIN
 			INNER JOIN @tmpLicenseeName s ON dc.site = s.LicenseeName
 		WHERE b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
-			AND b.bettype = 2799
-			AND b.matchid = 2799
+			AND b.bettype IN (2799, 10449)
+			AND b.matchid IN (2799, 10449)
 			AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END

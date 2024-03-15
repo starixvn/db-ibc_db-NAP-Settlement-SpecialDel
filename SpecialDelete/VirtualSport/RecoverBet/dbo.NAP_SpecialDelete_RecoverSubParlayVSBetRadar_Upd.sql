@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSubParlayVSBetRadar_Upd] 
 	@MatchId					INT,		
 	@TransIds					VARCHAR(MAX),
@@ -20,6 +20,7 @@ AS
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -50,8 +51,10 @@ BEGIN
 		  , @NegativeBalanceUsers		VARCHAR(MAX)	= '' 
 		  , @ErrMsg						NVARCHAR(200)	= ''
 		  , @ErrCode					INT				= 0	
-		  , @SiteDBGroupID		SMALLINT
+		  , @SiteDBGroupID				SMALLINT
 		  , @transInfo					VARBINARY(MAX) 
+		  , @IsExistsVS2				BIT = 0
+		  , @IsExistsVS4				BIT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT)
@@ -108,7 +111,8 @@ BEGIN
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	
-	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)		
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	
 	DECLARE @beforeUpd TVP_BalanceChange
 		  , @afterUpd  TVP_BalanceChange
@@ -256,9 +260,8 @@ BEGIN
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 			AND bm.matchid = @MatchId	
 			AND bm.winlostdate >= @before_yesterday
-			AND m.sporttype BETWEEN 190 AND 199
-			AND b.bettype = 2799
-			AND b.matchid = 2799
+			AND b.bettype IN (2799, 10449)
+			AND b.matchid IN (2799, 10449)
 			AND bm.statusid = 102
 			AND b.statusID NOT IN (101, 102) -- reject, void
 			AND b.SiteDBGroupID = @SiteDBGroupID
@@ -274,12 +277,24 @@ BEGIN
 
 			RETURN
 		END
-			
+
 		--> Check Concurrency
-		SET @IsExistParlayVSBetradar = 1
+		
+		SELECT @IsExistsVS2 = CASE WHEN b.SportType BETWEEN 190 AND 199 THEN 1 ELSE 0 END
+			  ,@IsExistsVS4 = CASE WHEN b.SportType = 188 THEN 1 ELSE 0 END
+		FROM #RecoverBet b
+
+		IF @IsExistsVS4 = 1
+		BEGIN
+			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+			SELECT @MatchId, refno
+			FROM #RecoverBet
+			WHERE SportType = 188
+		END
 				
 		EXEC dbo.NAP_Admin_CheckingProcess
-			  @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar				
+			  @IsExistParlayVSBetradar	= @IsExistsVS2		
+			, @IsLockingByRefnoVS		= @IsExistsVS4
 			, @spName					= @spName
 			, @avaiableProcess 			= @avaiableProcess OUTPUT
 			, @ErrCode					= @ErrCode OUTPUT
@@ -324,15 +339,15 @@ BEGIN
 				
 			EXEC dbo.Bet_ExecRep_05 
 					@IgnoreList 	= @IgnoreList
-				, @updatetype 	= 5
-				, @_sXML 		= @_sXML
+				  , @updatetype 	= 5
+				  , @_sXML 			= @_sXML
 		END
 		ELSE
 		BEGIN
 			--> Update Bettransm to running
 			SET @_xml = (
 				SELECT 
-						SubTransId '@t' -- transid
+					 SubTransId '@t' -- transid
 					,NULL '@d' -- winlostdate
 					,NULL '@w' -- statuswinlost
 					,0 '@s' -- statusID
@@ -353,17 +368,28 @@ BEGIN
 				--> re-cal sub
 				SET @_xml = (
 					SELECT Matchid '@m' 
-							, SubTransId '@t'
+						 , SubTransId '@t'
 					FROM #RecoverBet						
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				) 
 				SELECT @TicketInfos_Recal = CONVERT(VARCHAR(MAX), @_xml)
 				
-				EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay] 
-						@mode = 'RECOVER'
-						, @TicketInfos = @TicketInfos_Recal
-						, @ErrCode = @ErrCode OUTPUT
-						, @ErrMsg = @ErrMsg OUTPUT
+				IF @IsExistsVS2 = 1
+				BEGIN
+					EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay] 
+							@mode = 'RECOVER'
+							, @TicketInfos = @TicketInfos_Recal
+							, @ErrCode = @ErrCode OUTPUT
+							, @ErrMsg = @ErrMsg OUTPUT
+				END
+				IF @IsExistsVS4 = 1
+				BEGIN
+					EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update] 
+							  @mode = 'RECOVER'
+							, @TicketInfos = @TicketInfos_Recal
+							, @ErrCode = @ErrCode OUTPUT
+							, @ErrMsg = @ErrMsg OUTPUT
+				END
 			END					
 		END							
 			
@@ -373,16 +399,29 @@ BEGIN
 			FROM #RecoverBet				
 			FOR XML PATH('r'), ROOT('root'), TYPE
 		) AS VARCHAR(MAX))	
-						
-		EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay_Main]
-			 @MatchId			= @matchId
-			,@strRefnos 		= @strRefnos
-			,@matchdate			= @matchdate
-			,@IsBalance			= 0
-			,@CWLBettype		= 1201
-			,@ErrCode			= @ErrCode OUTPUT
-			,@ErrMsg			= @ErrMsg OUTPUT															
-			
+		
+		IF @IsExistsVS2 = 1
+		BEGIN				
+			EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay_Main]
+				 @MatchId			= @matchId
+				,@strRefnos 		= @strRefnos
+				,@matchdate			= @matchdate
+				,@IsBalance			= 0
+				,@CWLBettype		= 1201
+				,@ErrCode			= @ErrCode OUTPUT
+				,@ErrMsg			= @ErrMsg OUTPUT		
+		END
+		IF @IsExistsVS4 = 1
+		BEGIN
+			EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update]
+					 @MatchId			= @matchId
+					,@strRefnos 		= @strRefnos
+					,@matchdate			= @matchdate
+					,@IsBalance			= 0
+					,@CWLBettype		= 1201
+					,@ErrCode			= @ErrCode OUTPUT
+					,@ErrMsg			= @ErrMsg OUTPUT
+		END
 		--> Capture balance after update	
 		INSERT INTO @afterUpd(custid, balance, balanceType)
 		SELECT	b.custid
@@ -423,7 +462,8 @@ BEGIN
 			
 		--> Release Concurrency process
 		EXEC dbo.NAP_Admin_CheckingProcess
-				@IsExistParlayVSBetradar	= 1				
+				@IsExistParlayVSBetradar	= @IsExistsVS2
+			, @IsLockingByRefnoVS		= @IsExistsVS4
 			, @IsReleased				= 1	
 			
 		--> Build list of customer name with negative balance
@@ -545,7 +585,8 @@ BEGIN
 		IF @avaiableProcess = 1
 			--> Release Concurrency process
 			EXEC dbo.NAP_Admin_CheckingProcess
-				  @IsExistParlayVSBetradar	= 1				
+				  @IsExistParlayVSBetradar	= @IsExistsVS2
+				, @IsLockingByRefnoVS		= @IsExistsVS4
 				, @IsReleased				= 1	
 
 		SELECT @ErrCode AS ErrorCode
@@ -554,6 +595,11 @@ BEGIN
 				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
 	END CATCH		
 	
+	DROP TABLE #tblMatchParlayProcess
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #tblTransIds
+	DROP TABLE #RecoverBet
+
 	SET NOCOUNT OFF		
 END
 GO

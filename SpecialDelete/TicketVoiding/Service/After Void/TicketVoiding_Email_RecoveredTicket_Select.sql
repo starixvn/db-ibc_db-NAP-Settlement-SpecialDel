@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_Email_RecoveredTicket_Select](
 	 @SingleTransIds			VARCHAR(MAX) = NULL
 	,@IsITSupport				BIT = 0
@@ -13,6 +13,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Email_RecoveredTicket_Select](
 	
 	Revisions: 
 		- 20240102@July: Create new SP [Redmine:#196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		
 	Param's explanation:	
 		
@@ -351,7 +352,7 @@ BEGIN
 	END
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE t
 		SET matchcode 	= m.matchcode
@@ -369,7 +370,7 @@ BEGIN
 			ON	t.matchid = m.matchid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
 			ON	m.leagueid = l.leagueid
-		WHERE t.bettype NOT IN (9, 29, 2799)
+		WHERE t.bettype NOT IN (9, 29, 2799, 10449)
 	END
 
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -412,7 +413,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMove14 = 1)
 	BEGIN
 		-- UPDATE eventtype = 1
-		IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799)))
+		IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
 		BEGIN
 			UPDATE t
 			SET matchcode 	= m.matchcode
@@ -428,7 +429,7 @@ BEGIN
 			FROM #TVSTicketBets t
 				INNER JOIN dbo.match14 m WITH (NOLOCK) 
 				ON	t.matchid = m.matchid
-			WHERE t.bettype NOT IN (9, 29, 2799)
+			WHERE t.bettype NOT IN (9, 29, 2799, 10449)
 		END
 
 		-- UPDATE eventtype = 2 [Outright bettype]

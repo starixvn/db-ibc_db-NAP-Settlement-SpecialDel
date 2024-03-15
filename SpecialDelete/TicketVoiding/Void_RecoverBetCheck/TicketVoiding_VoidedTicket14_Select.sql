@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket14_Select]
 ( 
 	@VoidingHistoryIds VARCHAR(MAX) =''
@@ -13,6 +13,7 @@ AS;
 		- 20211126@July: Create new SP [Redmine:#140180]
 		- 20220820@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		
 	Param's explanation:	
 		
@@ -153,7 +154,7 @@ BEGIN
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE t
 		SET  matchcode 	= m.matchcode
@@ -166,7 +167,7 @@ BEGIN
 		FROM #tmpTicket t
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
 			ON	t.matchid = m.matchid
-		WHERE t.bettype NOT IN (9, 29, 2799)
+		WHERE t.bettype NOT IN (9, 29, 2799, 10449)
 	END
 	-- UPDATE eventtype = 2 [Outright bettype]
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (10)))
@@ -203,12 +204,12 @@ BEGIN
 		WHERE t.bettype IN (1231,1232,1233,1237,1238)
 	END
 	-- UPDATE IsMixParlay
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE t
 		SET IsMixParlay = 1
 		FROM #tmpTicket t
-		WHERE t.bettype IN (9, 29, 2799)
+		WHERE t.bettype IN (9, 29, 2799, 10449)
 	END
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN

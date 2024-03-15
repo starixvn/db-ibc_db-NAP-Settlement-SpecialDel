@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
 (
 	@MatchId				INT,	
@@ -135,6 +135,7 @@ AS
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -585,7 +586,7 @@ BEGIN
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT DISTINCT b.matchid
 			, CASE 
-				WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
+				WHEN Bettype NOT IN (9, 29, 2799, 10449, 10, 38) 
 						AND Bettype NOT BETWEEN 801 AND 899
 						AND f.GroupId IS NULL
 						AND Bettype NOT IN (1231,1232,1233)
@@ -1317,7 +1318,7 @@ BEGIN
 	END	
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE d
 		SET eventstatus = ISNULL(m.eventstatus,'')
@@ -1325,7 +1326,7 @@ BEGIN
 		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799)
+		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -1908,7 +1909,7 @@ BEGIN
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 						INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = c.site
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
-					WHERE bettype NOT IN (29,2799)
+					WHERE bettype NOT IN (29,2799, 10449)
 					FOR XML PATH('r'), ROOT('root')
 				)
 

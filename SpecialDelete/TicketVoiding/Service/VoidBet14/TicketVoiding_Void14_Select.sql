@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Void14_Select] 
 (
     @RequestId			INT = NULL
@@ -18,6 +18,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		
 	Param's explanation:	
 		
@@ -279,7 +280,7 @@ BEGIN
 
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -292,7 +293,7 @@ BEGIN
 		FROM #TVSTicketBets d
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799)
+		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -340,18 +341,18 @@ BEGIN
 	END
 
 	-- UPDATE IsMixParlay = 1 [MixParlay bettype]
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE d
 		SET IsMixParlay = 1
 		FROM #TVSTicketBets d
-		WHERE d.bettype IN (9, 29, 2799)
+		WHERE d.bettype IN (9, 29, 2799, 10449)
 	END
 
 	--- Remove invalid sporttype
 	DELETE 
 	FROM #TVSTicketBets
-	WHERE bettype NOT IN (9, 29, 2799)
+	WHERE bettype NOT IN (9, 29, 2799, 10449)
 		AND (
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/

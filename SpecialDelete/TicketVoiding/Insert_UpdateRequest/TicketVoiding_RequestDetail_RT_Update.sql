@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_RT_Update]
 (
 	@RequestId				INT
@@ -17,6 +17,7 @@ AS
 	
 	Revisions: 
 		- 20240102@July: Create new SP [Redmine:#196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		
 	Param's explanation:	
 		
@@ -97,7 +98,7 @@ BEGIN
 		WHERE RequestId = @RequestId
 	END
 
-	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE MatchId IN (9,29,2799)) --parlay
+	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE MatchId IN (9,29,2799, 10449)) --parlay
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
 		SELECT DISTINCT @RequestId
@@ -106,7 +107,7 @@ BEGIN
 				, 0
 				, 0
 		FROM #tmpMatch
-		WHERE matchid IN (9,29,2799)
+		WHERE matchid IN (9,29,2799, 10449)
 	END
 		
 	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE IsOutright = 0 AND IsMoved14 = 0) --match
