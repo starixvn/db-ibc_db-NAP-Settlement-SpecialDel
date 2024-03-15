@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_VS_TicketInfo_Sel
 	@MatchId		INT  = 0 
    ,@TransIDs		VARCHAR(MAX) = '' 
@@ -10,6 +10,7 @@ AS
 
 	Revisions:  
 		- 20231016@Aries: Created [Redmine:#195333]
+		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
 		
 	Param explanation:  
 		- @MatchId: Get list ticket running, won, lose, draw
@@ -20,7 +21,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE  @Sporttype			INT
-	DECLARE  @parlayBettype		SMALLINT = 2799
+	DECLARE  @parlayBettype		SMALLINT
 	DECLARE  @tmpBettype 		TABLE (bettype SMALLINT)
 	DECLARE  @IsCentral			BIT = 0
 
@@ -36,13 +37,37 @@ BEGIN
 	FROM dbo.match m WITH(NOLOCK) 
 	WHERE m.matchid = @MatchId
 
-	IF @Sporttype IN (178,179) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
+	SELECT @parlayBettype  = CASE WHEN @Sporttype = 188 THEN 10449
+								WHEN @Sporttype IN (190,191,192,194,195,196,197,193) THEN 2799
+						  ELSE 0
+						  END
+
+	IF @Sporttype IN (178,179, 188) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
 	BEGIN
+		IF @Sporttype =  188
+		BEGIN
+			INSERT INTO #tmpRefno (refno,statusID)
+			SELECT bm.refno, bm.statusID
+			FROM dbo.bettransm AS bm WITH(ROWLOCK)
+			WHERE matchid = @matchid
+				AND bm.statusID IN (0,111,112,113)
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+		END
+
 		SELECT b.transid,b.statusID
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 		WHERE b.matchid = @MatchId
 			AND b.StatusID IN (0,111,112,113)
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		
+		UNION ALL
+		SELECT p.transid,r.statusID
+		FROM dbo.bettrans AS p WITH(NOLOCK)
+			INNER JOIN #tmpRefno AS r ON r.refno = p.refno
+		WHERE p.matchid = @parlayBettype
+			AND p.bettype = @parlayBettype
+			AND p.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE p.SiteDBGroupID END
+
 		RETURN
 	END
 	ELSE IF @Sporttype IN (180,186) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''

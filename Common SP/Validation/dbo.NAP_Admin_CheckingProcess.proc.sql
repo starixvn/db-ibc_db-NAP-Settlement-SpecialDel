@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_CheckingProcess]
 	@IsExistParlay 				BIT = 0
 	, @IsExistOutright 			BIT = 0
@@ -16,7 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CheckingProcess]
 	, @spName					VARCHAR(500) = ''
 	, @session					NVARCHAR(50) = ''
 	, @IsLockingByRefno			BIT = 0
-
+	, @IsLockingByRefnoVS		BIT = 0
 	, @AvaiableProcess			BIT = 0 OUTPUT
 	, @ErrCode					INT = 0 OUTPUT
 	, @ErrMsg					NVARCHAR(200) = '' OUTPUT
@@ -38,7 +38,8 @@ AS
 	- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 	- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 	- 20210828@Helen: Hotfix - keyvalue2 issue [Redmine:#160889]
-	
+	- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
+
  Param's Explanation:   
  
  Dependences:
@@ -255,7 +256,7 @@ BEGIN
 					
 					UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)  
 					SET VValue 			= '0'  
-					WHERE VName 		= 'isCalculatingParlayVSBetradar' 
+					WHERE VName 		= 'isCalculatingParlayVSBetradar'
 					AND @IsExistParlayVSBetradar 	= 1
 									
 					UPDATE dbo.systemSettings WITH (ROWLOCK, UPDLOCK)
@@ -364,6 +365,25 @@ BEGIN
 							,@avaiableProcess = 0
 				END
 		END
+
+		IF @IsLockingByRefnoVS = 1
+		BEGIN
+			BEGIN TRY
+					INSERT INTO dbo.ParlayLocking(MatchId, Refno, SPName)
+					SELECT DISTINCT tp.MatchId, tp.Refno, @spName			
+					FROM	#tblMatchParlayProcess tp 
+			
+					SET @AvaiableProcess = 1
+			END TRY
+			BEGIN CATCH
+				SET @AvaiableProcess = 0
+
+				SELECT	@ErrCode = 1000000
+								,@ErrMsg	= 'Another parlay settlement is in progress or some parlay tickets are being voided, please wait a few seconds until the on-going process has finished and try again.'
+								,@avaiableProcess = 0
+			END CATCH
+
+		END
 	END
 
 	-- releasing process
@@ -416,6 +436,21 @@ BEGIN
 						ON	pl.matchid = tp.matchid 
 							AND pl.refno = tp.refno
 							AND pl.session = @session
+
+				IF @@ROWCOUNT < 2000
+					BREAK
+			END		
+		END
+
+		IF @IsLockingByRefnoVS = 1
+		BEGIN
+			WHILE (1=1)
+			BEGIN
+				DELETE TOP (2000) pl
+				FROM dbo.ParlayLocking pl
+					INNER JOIN #tblMatchParlayProcess tp
+						ON	pl.matchid = tp.matchid 
+							AND pl.refno = tp.refno
 
 				IF @@ROWCOUNT < 2000
 					BREAK
