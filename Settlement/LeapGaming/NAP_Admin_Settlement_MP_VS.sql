@@ -199,6 +199,7 @@ BEGIN
 			BREAK
 
 			SET @strSubParlay = CAST((SELECT transid '@t'
+										,@matchdate '@d'
 										,statuswinlost '@w'
 										,statusID '@s'				
 									 FROM @subtable
