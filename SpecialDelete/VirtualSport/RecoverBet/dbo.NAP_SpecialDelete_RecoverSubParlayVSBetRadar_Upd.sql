@@ -21,6 +21,7 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240315@July: Fix null winlostdate follow settle [Redmine: #200087]
 		
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -386,6 +387,7 @@ BEGIN
 				BEGIN
 					EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update] 
 							  @mode = 'RECOVER'
+							, @matchdate = @matchdate
 							, @TicketInfos = @TicketInfos_Recal
 							, @ErrCode = @ErrCode OUTPUT
 							, @ErrMsg = @ErrMsg OUTPUT

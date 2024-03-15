@@ -18,10 +18,12 @@ AS
 
 	Revisions:  				
 		- 20240220@July: Create new SP - Support re-cal sub & main parlay  [Redmine: #200087]
+		- 20240315@July: Fix null winlostdate follow settle [Redmine: #200087]
 
 	Param's Explanation:				
 		- @strRefnos : Refno Maintransids.
 		@Mode : RECOVER : Re-settle sub parlay ticket by list ticket
+		(*) Depend on SP of settlement : NAP_Admin_Settlement_MP_VS
 */
 BEGIN
 	SET NOCOUNT ON
@@ -196,6 +198,7 @@ BEGIN
 				IF @@ROWCOUNT = 0 BREAK
 			
 				SET @strSubParlay = CAST((SELECT transid '@t'
+										,@matchdate '@d'
 										,statuswinlost '@w'
 										,statusID '@s'				
 									 FROM @subtable
