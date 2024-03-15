@@ -2,7 +2,7 @@
 
 /*
 	Created: 20240114@Louisa
-	Task: Migrate Data for table balance [Redmine: #201044]
+	Task: Migrate Data for table transfer [Redmine: #201044]
 	DB: DBSIC/bodb02 
 
 */
@@ -101,23 +101,6 @@ BEGIN
 				AND cc.roleid = 2
 	WHERE c.roleid = 3
 
-	/* check data
-		SELECT count(1)
-		from bettrans b with (nolock)
-			inner join #tmp_Cust c ON c.CustID = b.custid
-		WHERE c.roleid = 1 and b.SiteDBGroupID = 3
-
-		SELECT count(1)
-		from bettrans b with (nolock)
-			inner join #tmp_Cust c ON c.CustID = b.recommend
-		WHERE c.roleid = 2 and b.SiteDBGroupID = 3
-
-		SELECT count(1)
-		from bettrans b with (nolock)
-			inner join #tmp_Cust_RecommendList_roleid_3 c ON c.recommend = b.recommend
-		where  b.SiteDBGroupID = 3
-
-	*/
 END
 
 

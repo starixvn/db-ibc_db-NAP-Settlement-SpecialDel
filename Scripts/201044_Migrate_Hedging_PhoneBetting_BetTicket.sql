@@ -244,6 +244,8 @@ END
 
 ----------------TRANSLOG-----------------------------------
 
+---Note : inhouse replication rep data translog by tstamp
+
 ----UPDATE translog, roleid = 1
 BEGIN
 	TRUNCATE TABLE #tmp_bettrans
@@ -269,7 +271,6 @@ BEGIN
 		SET b.recommend = t.recommend_NEW
 			,b.mrecommend = t.mrecommend_New
 			,b.srecommend = t.srecommend_New
-			,b.RepUpdateTime = SYSDATETIME()
 		FROM dbo.translog b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_bettrans t ON b.translogid = t.TransId
 		WHERE t.ID BETWEEN @StartRow11 AND @StopRow11
@@ -309,7 +310,6 @@ BEGIN
 		UPDATE TOP(1000) b
 		SET b.mrecommend = t.mrecommend_New
 			,b.srecommend = t.srecommend_New
-			,b.RepUpdateTime = SYSDATETIME()
 		FROM dbo.translog b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_bettrans t ON b.translogid = t.TransId
 		WHERE t.ID BETWEEN @StartRow12 AND @StopRow12
@@ -347,7 +347,6 @@ DECLARE @Threshold13 INT  = 1000
 	BEGIN		
 		UPDATE TOP(1000) b
 		SET b.srecommend = t.srecommend_New
-			,b.RepUpdateTime = SYSDATETIME()
 		FROM dbo.translog b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_bettrans t ON b.translogid = t.TransId
 		WHERE t.ID BETWEEN @StartRow13 AND @StopRow13
