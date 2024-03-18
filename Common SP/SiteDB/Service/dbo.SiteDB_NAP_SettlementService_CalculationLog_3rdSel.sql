@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSIG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLog_3rdSel]
 	@batch INT
 AS
@@ -9,6 +9,7 @@ AS
 	Revisions:
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
+		- 20240318@Kathy: Missing LogId [Redmine:#202516]
 
 	Param's Explanation:  
 		   
@@ -33,6 +34,7 @@ BEGIN
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting		BIT = 0
 			,@LogDate		DATETIME2
+			,@maxLogId		BIGINT
 	
 	DECLARE @tmpInsertedLogIds TABLE ( LogId BIGINT )
 
@@ -65,18 +67,27 @@ BEGIN
 	
 	IF @LastStatusId = 2 OR @LastLogId = 0 ---the last time is done successfully or the first time running 
 	BEGIN
-		SET @LogDate = DATEADD(SECOND, -1, SYSDATETIME())
+		SET @LogDate = DATEADD(MILLISECOND, -1000, SYSDATETIME())
 		
+		SELECT @maxLogId = MAX(t.LogId)
+		FROM (
+			SELECT	TOP (@batch) l.LogId
+			FROM	dbo.SiteDB_SettlementService_CalculationLog_3rd l WITH(NOLOCK, INDEX = CIX_SiteDB_SettlementService_CalculationLog_3rd)
+			WHERE	LogId > @LastLogId
+				AND LogDate <= @LogDate
+			ORDER BY LogId
+		) t
+
 		INSERT INTO dbo.SiteDB_SettlementService_LastLog_3rd(LogId,StatusId,Starttime)		
 		OUTPUT INSERTED.LogId
 		INTO @tmpInsertedLogIds (LogId)
-		SELECT	TOP (@batch) l.LogId, 1, SYSDATETIME() AS Starttime
-		FROM	dbo.SiteDB_SettlementService_CalculationLog_3rd l WITH(NOLOCK)
+		SELECT	l.LogId, 1, SYSDATETIME() AS Starttime
+		FROM	dbo.SiteDB_SettlementService_CalculationLog_3rd l WITH(NOLOCK, INDEX = CIX_SiteDB_SettlementService_CalculationLog_3rd)
 		WHERE	LogId > @LastLogId
-			AND LogDate <= @LogDate
+			AND LogId <= @maxLogId
 		ORDER BY LogId
 
-		SELECT	TOP (@batch) l.LogId				
+		SELECT	l.LogId				
 				,l.TransInfoJson
 				,l.TableName
 				,l.MatchId
@@ -84,7 +95,7 @@ BEGIN
 				,l.SettlementAction
 				,l.TicketType
 				
-		FROM	dbo.SiteDB_SettlementService_CalculationLog_3rd l WITH(NOLOCK)
+		FROM	dbo.SiteDB_SettlementService_CalculationLog_3rd l WITH(NOLOCK,INDEX = CIX_SiteDB_SettlementService_CalculationLog_3rd)
 			INNER JOIN @tmpInsertedLogIds tmp ON l.LogId = tmp.LogId
 		ORDER BY LogId
 
