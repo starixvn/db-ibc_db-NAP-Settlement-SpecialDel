@@ -49,26 +49,26 @@ BEGIN
 		UNION SELECT 'ISN'		, NULL		, 'SH-RMB'
 		UNION SELECT 'STELIM'	, NULL		, 'SH-RMB'
 	
-		UNION SELECT 'wsrmb'	, 'MV-RMB'	, 'SV-RMB'
-		UNION SELECT '8RM'		, 'MV-RM'	, 'SV-RM'
-		UNION SELECT '8RM8801'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT '8RM8802'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT '8RM8803'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT '8RM8804'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT '8RM8805'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT '8RM8806'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT '8RM8807'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT '8RM8808'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT '8RM8809'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT '8RM8810'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT '8RMTest01', 'MV-RM'	, 'SV-RM'
-		UNION SELECT 'BARM'		, 'MV-RM'	, 'SV-RM'
-		UNION SELECT 'BARM002'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT 'MMRWC22'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT 'PHIRM'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT 'WCBill'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT 'WINRM'	, 'MV-RM'	, 'SV-RM'
-		UNION SELECT 'wsrm'		, 'MV-RM'	, 'SV-RM'
+		UNION SELECT 'wsrmb'		, 'MS-RMB' 	, 'SS-RMB'
+		UNION SELECT '8RM'			, 'MS-RM'	, 'SS-RM'
+		UNION SELECT '8RM8801'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT '8RM8802'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT '8RM8803'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT '8RM8804'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT '8RM8805'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT '8RM8806'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT '8RM8807'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT '8RM8808'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT '8RM8809'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT '8RM8810'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT '8RMTest01'	, 'MS-RM'	, 'SS-RM'
+		UNION SELECT 'BARM'			, 'MS-RM'	, 'SS-RM'
+		UNION SELECT 'BARM002'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT 'MMRWC22'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT 'PHIRM'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT 'WCBill'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT 'WINRM'		, 'MS-RM'	, 'SS-RM'
+		UNION SELECT 'wsrm'			, 'MS-RM'	, 'SS-RM'
 	)
 	UPDATE c
 	SET c.srecommend_New = s.custid,
@@ -117,7 +117,7 @@ BEGIN
 		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
 	WHERE c.roleid = 1
 		AND f.WinlostDate > XXX  ------@MoveBetsDay
-		AND f.Bettype IN (19999, 20000)
+		AND f.Bettype > 20000
 	
 	DECLARE @Threshold1 INT  = 1000
 		,@StartRow1 INT = 1, @StopRow1 INT = 0, @MaxRow1  INT = 0
@@ -160,7 +160,7 @@ BEGIN
 		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
 	WHERE c.roleid = 2
 		AND f.WinlostDate > XXXXX ---@MoveBetsDay
-		AND f.Bettype IN (19999, 20000)
+		AND f.Bettype > 20000
 	
 	DECLARE @Threshold2 INT  = 1000
 		,@StartRow2 INT = 1, @StopRow2 INT = 0, @MaxRow2  INT = 0
@@ -201,7 +201,7 @@ BEGIN
 	FROM dbo.Transfer f WITH(NOLOCK)
 		INNER JOIN #tmp_Cust_RecommendList_roleid_3 c ON c.recommend = f.recommend
 	WHERE f.WinlostDate > XXXX ---@MoveBetsDay
-		AND f.Bettype IN (19999, 20000)
+		AND f.Bettype > 20000
 
 	DECLARE @Threshold3 INT  = 1000
 			,@StartRow3 INT = 1, @StopRow3 INT = 0, @MaxRow3  INT = 0
@@ -246,7 +246,7 @@ BEGIN
 		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
 	WHERE c.roleid = 1
 		AND f.WinlostDate > XXX ----@MoveBetsDay
-		AND f.Bettype IN (19999, 20000)
+		AND f.Bettype > 20000
 	
 	DECLARE @Threshold11 INT  = 1000
 		,@StartRow11 INT = 1, @StopRow11 INT = 0, @MaxRow11  INT = 0
@@ -289,7 +289,7 @@ BEGIN
 		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
 	WHERE c.roleid = 2
 		AND f.WinlostDate > XXX ----@MoveBetsDay
-		AND f.Bettype IN (19999, 20000)
+		AND f.Bettype > 20000
 	
 	DECLARE @Threshold22 INT  = 1000
 		,@StartRow22 INT = 1, @StopRow22 INT = 0, @MaxRow22  INT = 0
@@ -330,7 +330,7 @@ BEGIN
 	FROM dbo.transfer_coll f WITH(NOLOCK)
 		INNER JOIN #tmp_Cust_RecommendList_roleid_3 c ON c.recommend = f.recommend
 	WHERE f.WinlostDate > XXX---@MoveBetsDay
-		AND f.Bettype IN (19999, 20000)
+		AND f.Bettype > 20000
 
 	DECLARE @Threshold33 INT  = 1000
 			,@StartRow33 INT = 1, @StopRow33 INT = 0, @MaxRow33  INT = 0
