@@ -12,11 +12,12 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_MP_VS
 AS
 /*	
 	Created: 20240118@Louisa
-	Task: VS4-Cock Fighting Redmine: #199700
+	Task: VS4-Cock Fighting [Redmine: #199700]
 	DB: DBPRO/bodb02
 	
 	Revisions:
 		- 20240118@Louisa: Initial
+		- 20240315@Louisa: Fix null winlostdate [Redmine: #199700]
 		
 	Param's Explanation:
  
@@ -199,6 +200,7 @@ BEGIN
 			BREAK
 
 			SET @strSubParlay = CAST((SELECT transid '@t'
+										,@matchdate '@d'
 										,statuswinlost '@w'
 										,statusID '@s'				
 									 FROM @subtable
