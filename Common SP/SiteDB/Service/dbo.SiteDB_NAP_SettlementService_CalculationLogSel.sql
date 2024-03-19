@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSIG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogSel]
 	@batch INT
 AS
@@ -13,6 +13,7 @@ AS
 		- 20221025@Louisa: Use JSon log format for soccer [Redmine:#179449]
 		- 20221101@Louisa: allow run parallell [Redmine#]
 		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
+		- 20240318@Kathy: Missing LogId [Redmine:#202516]
 
 	Param's Explanation:  
 		   
@@ -39,7 +40,9 @@ BEGIN
 			,@procName		SYSNAME	= OBJECT_NAME(@@procid)
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting		BIT = 0
-	
+			,@currentSysdatetime DATETIME2
+			,@maxLogId		BIGINT
+
 	DECLARE @tmpInsertedLogIds TABLE ( LogId BIGINT )
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
@@ -70,19 +73,31 @@ BEGIN
 	FROM	dbo.SiteDB_SettlementService_LastLog WITH(NOLOCK)
 	ORDER BY LogId DESC
 	
-	IF @LastStatusId = 2 OR @LastLogId IS NULL ---the last time is done successfully or the first time running 
+	SET @LastLogId = ISNULL(@LastLogId,0)
+
+	IF @LastStatusId = 2 OR @LastLogId = 0 ---the last time is done successfully or the first time running 
 	BEGIN
+		SET @currentSysdatetime = SYSDATETIME()
+
+		SELECT @maxLogId = MAX(t.LogId)
+		FROM (
+			SELECT	TOP (@batch) l.LogId
+			FROM	dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK, INDEX = CIX_SiteDB_SettlementService_CalculationLog)
+			WHERE	LogId > @LastLogId
+				AND DATEDIFF(MILLISECOND, LogDate, @currentSysdatetime ) >= 1000
+			ORDER BY LogId
+		) t
 
 		INSERT INTO dbo.SiteDB_SettlementService_LastLog(LogId,StatusId,Starttime)		
 		OUTPUT INSERTED.LogId
 		INTO @tmpInsertedLogIds (LogId)
-		SELECT	TOP (@batch) l.LogId, 1, SYSDATETIME() AS Starttime
-		FROM	dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
-		WHERE	LogId > ISNULL(@LastLogId,0)
-			AND DATEDIFF(SECOND, LogDate, GETDATE() ) >= 1
+		SELECT	l.LogId, 1, SYSDATETIME()
+		FROM	dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK, INDEX = CIX_SiteDB_SettlementService_CalculationLog)
+		WHERE	LogId > @LastLogId
+				AND LogId <= @maxLogId
 		ORDER BY LogId
 
-		SELECT	TOP (@batch) l.LogId
+		SELECT	l.LogId
 				,l.TransInfo
 				,l.TransInfoJson
 				,l.TableName
@@ -92,7 +107,7 @@ BEGIN
 				,l.TicketType
 				,l.SessionId
 				,ISNULL(l.IsParallel,0) AS IsParallel
-		FROM	dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
+		FROM	dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK, INDEX = CIX_SiteDB_SettlementService_CalculationLog)
 			INNER JOIN @tmpInsertedLogIds tmp ON l.LogId = tmp.LogId
 		ORDER BY LogId
 
