@@ -1,5 +1,5 @@
 /*<info serverAlias="DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogIns] 	
+ALTER PROCEDURE dbo.SiteDB_NAP_SettlementService_CalculationLogIns
 	@SystemName			VARCHAR(50) = NULL
 	,@FunctionName		VARCHAR(50) = NULL
 	,@TableName		VARCHAR(128)
@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogIns]
 	,@TicketType VARCHAR(1) = NULL
 	,@SessionId BIGINT = 0
 	,@IsParallel BIT = 0
+	,@BroadcastSessionId	VARCHAR(50)	= NULL
 AS
 /*
 	Created by: 20221026@Kathy
@@ -19,6 +20,7 @@ AS
 	Revisions:
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		
 	Param's Explanation:  
 		   
@@ -26,8 +28,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TransInfoJson, SettlementAction, TicketType, SessionId, IsParallel)
-	VALUES (@SystemName, @FunctionName, @TableName, @Action, @matchid, @transInfo, COMPRESS(@TransInfoJson), @SettlementAction, @TicketType, @SessionId, @IsParallel)	
+	INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TransInfoJson, SettlementAction, TicketType, SessionId, IsParallel,BroadcastSessionId)
+	VALUES (@SystemName, @FunctionName, @TableName, @Action, @matchid, @transInfo, COMPRESS(@TransInfoJson), @SettlementAction, @TicketType, @SessionId, @IsParallel,@BroadcastSessionId)	
 
 END
 GO

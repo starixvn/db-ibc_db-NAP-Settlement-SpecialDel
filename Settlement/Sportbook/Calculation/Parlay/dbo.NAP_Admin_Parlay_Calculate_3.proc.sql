@@ -1,9 +1,10 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Parlay_Calculate_3]
 	@matchid 		INT
 	,@matchdate		SMALLDATETIME
     ,@Action		VARCHAR(10)
 	,@strTransIds 	VARCHAR(MAX) = NULL
+	,@BroadcastSessionId	VARCHAR(50)	= NULL
 AS
 /*    
 	Creator: 20161205@Bobby
@@ -22,6 +23,7 @@ AS
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
     Param's Explanation:
         
@@ -38,7 +40,7 @@ BEGIN
 			,@cntBetParlayDetailUpd INT = 0
 
 	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
-	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT)		
+	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT)		
 	
 	SET @xmlParlayTicket = CONVERT(XML, @strTransIds)
 	SET @FunctionName = CASE  
@@ -111,7 +113,9 @@ BEGIN
 				,inserted.winlostdate
 				,inserted.status
 				,inserted.ruben
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status, ruben)
+				,deleted.statusid	
+				,inserted.bettype
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status, ruben,bef_statusid,bettype)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -183,7 +187,9 @@ BEGIN
 				,inserted.winlostdate
 				,inserted.status
 				,inserted.ruben
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben)
+				,deleted.statusid	
+				,INSERTED.bettype
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -225,7 +231,9 @@ BEGIN
 				,inserted.winlostdate
 				,inserted.status
 				,inserted.ruben
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben)
+				,deleted.statusid
+				,INSERTED.bettype
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid        
@@ -251,6 +259,9 @@ BEGIN
 					,StatusID AS 'sid' 
 					,winlostdate AS 'wld'
 					,ruben AS 'r' -- ruben	
+					,bef_statusid AS 'bef_sid' 
+					,refno AS 'rf' 
+					,bettype AS 'bt' 
 			FROM	#parlayOutput
 			FOR JSON AUTO
 		)
@@ -264,6 +275,7 @@ BEGIN
 				,@TransInfoJson = @transinfoJson
 				,@SettlementAction = @SettlementAction
 				,@TicketType = 'p'
+				,@BroadcastSessionId = @BroadcastSessionId
 			
 		SET @transinfoJson = (
 			SELECT	transId AS 't'							

@@ -82,6 +82,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@ErrMessage					VARCHAR(300) = '' OUTPUT
 	,@ErrCode						INT			 = 0  OUTPUT
     ,@IsCalculateBalance			BIT			= 0
+    ,@BroadcastSessionId	        VARCHAR(50)	= NULL
 AS
 /*
     Created: Viet
@@ -165,6 +166,7 @@ AS
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
         - 20230516@Aries: Replicate to SubDB is not correctly [Redmine:#188298]
         - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
+        - 20231214@Aries: Result Amendment [Redmine: #196401]
 
     Param's Explanation:
         @action             @mode
@@ -324,7 +326,7 @@ BEGIN
 			+ CASE WHEN @EventDate IS NULL THEN '' ELSE ',@EventDate = ' + '''' + CONVERT(VARCHAR(20),@EventDate) + '''' END
 			+ CASE WHEN @Deadheat IS NULL THEN '' ELSE ',@Deadheat = ' + CONVERT(VARCHAR(50),@Deadheat) END
 			+ CASE WHEN @Status IS NULL THEN '' ELSE ',@Status = ' + '''' + @Status + '''' END
-			
+			+ CASE WHEN @BroadcastSessionId IS NULL THEN '' ELSE ',@BroadcastSessionId = ' + '''' + @BroadcastSessionId + '''' END
             + ',@CalledByBrokerService = 1'
 
 			EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
@@ -387,6 +389,7 @@ BEGIN
 						  ,@matchid				= @matchid
 						  ,@ActionId			= @ActionId
 						  ,@IsCalculateBalance	= @IsCalculateBalance
+                          ,@BroadcastSessionId  = @BroadcastSessionId
 						  ,@ErrCode				= @ErrCode OUTPUT
 						  ,@ErrMessage			= @ErrMessage OUTPUT
 
@@ -396,6 +399,7 @@ BEGIN
 						   ,@matchid				= @matchid
 						   ,@ActionId				= @ActionId
 						   ,@IsCalculateBalance		= @IsCalculateBalance
+                           ,@BroadcastSessionId     = @BroadcastSessionId
 						   ,@ErrCode				= @ErrCode OUTPUT
 						   ,@ErrMessage			= @ErrMessage OUTPUT
 	                  
@@ -405,6 +409,7 @@ BEGIN
 						   ,@matchid			= @matchid
 						   ,@ActionId			= @ActionId
 						   ,@IsCalculateBalance = @IsCalculateBalance
+                           ,@BroadcastSessionId = @BroadcastSessionId
 						   ,@ErrCode				= @ErrCode OUTPUT
 						   ,@ErrMessage			= @ErrMessage OUTPUT
 				

@@ -27,6 +27,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
 	,@RunOnServer	VARCHAR(100) = NULL
 	,@IsReSettledTickets BIT = 0
 	,@strSetting VARCHAR(MAX) = NULL
+    ,@BroadcastSessionId	VARCHAR(50)	= NULL
 AS
 /*
     Created: Kathy
@@ -65,6 +66,7 @@ AS
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
 		- 20230810@Louisa: remove un-use code [Redmine:#188116]
+        - 20231214@Aries: Result Amendment [Redmine: #196401]
 
     Param's Explanation:
         @action         @mode
@@ -184,6 +186,7 @@ BEGIN
     BEGIN
         EXEC dbo.NAP_Admin_Calculate_MP_29 @matchdate = @matchdate
             , @strXML = @strXML
+            , @BroadcastSessionId = @BroadcastSessionId
     END
 
     IF @mode = 'VOID'
@@ -221,6 +224,7 @@ BEGIN
             , @matchdate = @matchdate
             , @action = @action
             , @strTransIds = @strTransIds
+            , @BroadcastSessionId = @BroadcastSessionId
     END
 	
 	IF @Mode = 'subParlay' AND @Action = 'MoveTicket'

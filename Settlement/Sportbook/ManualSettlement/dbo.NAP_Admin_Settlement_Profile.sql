@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	 @creator			INT
 	,@MatchID			INT
@@ -82,6 +82,7 @@ AS
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -746,6 +747,7 @@ BEGIN
 				   ,@IsSettingByProfile  = 1
 				   ,@strTransIds		 = @strTransIds
 				   ,@IsCalculateBalance	 = @IsCalculateBalance
+				   ,@BroadcastSessionId	 = @BroadcastSessionId
 				   ,@ErrCode			 = @ErrCode OUTPUT
 				   ,@ErrMessage			 = @ErrMsg OUTPUT
 			END
@@ -770,6 +772,7 @@ BEGIN
 					   ,@IsSettingByProfile  = 1
 					   ,@strTransIds		 = @strSDTTransIds
 					   ,@IsCalculateBalance	 = @IsCalculateBalance
+					   ,@BroadcastSessionId	 = @BroadcastSessionId
 					   ,@ErrCode			 = @ErrCode OUTPUT
 					   ,@ErrMessage			 = @ErrMsg OUTPUT
 				END
@@ -837,6 +840,7 @@ BEGIN
 						   ,@CashoutVersion		 = 2 
 						   ,@strTransIds		 = @strTransIds
 						   ,@IsCalculateBalance	 = @IsCalculateBalance
+						   ,@BroadcastSessionId	 = @BroadcastSessionId
 						   ,@ErrCode			 = @ErrCode OUTPUT
 						   ,@ErrMessage			 = @ErrMsg OUTPUT
 					END
@@ -861,6 +865,7 @@ BEGIN
 								   ,@CashoutVersion		 = 2 
 								   ,@strTransIds		 = @strSDTTransIds
 								   ,@IsCalculateBalance	 = @IsCalculateBalance
+								   ,@BroadcastSessionId	 = @BroadcastSessionId
 								   ,@ErrCode			 = @ErrCode OUTPUT
 								   ,@ErrMessage			 = @ErrMsg OUTPUT
 						END

@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Refund_TransID]
 	@transIds			VARCHAR(MAX)
 	,@MatchId			INT = 0
@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Refund_TransID]
 	,@IsCalculateBalance	BIT =  0
 	,@CWLBettype			SMALLINT = 0
 	,@BalanceType			TINYINT  = 1 --sport
+	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@ErrMessage			VARCHAR(300) = '' OUTPUT
 	,@ErrCode				INT			 = 0  OUTPUT
 
@@ -27,6 +28,7 @@ AS
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
 		- 20230704@Louisa:  CWL for Virtual Leap Gaming [Redmine:#189854]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
 			@transIds = '<root>
@@ -74,6 +76,7 @@ BEGIN
 								,FcUpdateTime DATETIME2
 								,bef_winlost MONEY,bef_statusid TINYINT, bettype SMALLINT, winlostdate	SMALLDATETIME
 								,actual_stake MONEY
+								,betid BIGINT,refno BIGINT
 								)
 
 	DECLARE @handle INT
@@ -129,7 +132,7 @@ BEGIN
 				,inserted.Status,inserted.StatusID,inserted.ruben, deleted.ruben
 				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 				,deleted.winlost,deleted.statusid	
-				,deleted.bettype
+				,deleted.bettype,deleted.betid,deleted.refno
 				,deleted.winlostdate
 				,deleted.actual_stake
 		INTO @tmpTransInfo (
@@ -142,7 +145,7 @@ BEGIN
 				,Status,StatusID,ruben, before_ruben
 				,FcUpdateTime
 				,bef_winlost, bef_statusid
-				,bettype
+				,bettype,betid,refno
 				,winlostdate
 				,actual_stake
 		)
@@ -170,6 +173,9 @@ BEGIN
 						,FcUpdateTime AS 'rut'
 						,bef_winlost AS 'bef_w' 
 						,bef_statusid AS 'bef_sid' 
+						,bettype AS 'bt'
+						,betid AS 'bi' 
+						,refno AS 'rf'
 					
 				FROM	@tmpTransInfo
 				FOR JSON AUTO )
@@ -188,14 +194,15 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns
 				@SystemName = 'Settlement' 
 				,@FunctionName = 'RefundOtherSport'
 				,@TableName = 'bettrans'
 				,@MatchId = @MatchId
 				,@transinfoJson = @transinfoJson
-				,@SettlementAction = 'REFUND'
+				,@SettlementAction = 'REFUND'			
 				,@TicketType = 's'
+				,@BroadcastSessionId = @BroadcastSessionId
 
 		END
 	END
@@ -267,6 +274,7 @@ BEGIN
 		EXEC NAP_Admin_Settlement_BalanceUpd @BalanceChanged =	@BalanceChanged
 											,@ActionID		 = @ActionID
 											,@BalanceType	 = @BalanceType
+											,@BroadcastSessionId  = @BroadcastSessionId
 											,@ErrMessage	 = @ErrMessage OUTPUT
 											,@ErrCode		 = @ErrCode OUTPUT
 	END

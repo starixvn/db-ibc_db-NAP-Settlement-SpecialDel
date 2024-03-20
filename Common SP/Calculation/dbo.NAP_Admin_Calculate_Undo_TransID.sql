@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Undo_TransID]
 	@transIds			VARCHAR(MAX)
 	,@MatchId			INT = 0
@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Undo_TransID]
 	,@Is3rd				BIT =  0
 	,@ActionID					INT = NULL
 	,@IsCalculateBalance		BIT =  0
+	,@BroadcastSessionId		VARCHAR(50)	= NULL
 	,@ErrMessage				VARCHAR(300) = '' OUTPUT
 	,@ErrCode					INT			 = 0  OUTPUT
 AS
@@ -23,6 +24,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
 			@transIds = '<root>
@@ -70,6 +72,7 @@ BEGIN
 								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
 								,FcUpdateTime DATETIME2
 								,bef_winlost MONEY,bef_statusid TINYINT
+								,bettype SMALLINT,betid BIGINT,refno BIGINT
 							)
 	DECLARE @handle			INT
 			,@IsUpd_Void	BIT = 0
@@ -123,7 +126,8 @@ BEGIN
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.Status,inserted.StatusID,inserted.ruben
 				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
-				,deleted.winlost,deleted.statusid		
+				,deleted.winlost,deleted.statusid	
+				,deleted.bettype,deleted.betid,deleted.refno
 		INTO @tmpTransInfo (transId
 							,custid, Balance
 							,odds, statuswinlost
@@ -131,7 +135,8 @@ BEGIN
 							,PlayerComm,Comm,aComm,sComm
 							,Status,StatusID,ruben
 							,FcUpdateTime
-							,bef_winlost, bef_statusid)
+							,bef_winlost, bef_statusid
+							,bettype,betid,refno)
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 		
@@ -155,7 +160,11 @@ BEGIN
 						,FcUpdateTime AS 'rut' 
 
 						,bef_winlost AS 'bef_w' 
-						,bef_statusid AS 'bef_sid' 
+						,bef_statusid AS 'bef_sid'  
+
+						,bettype AS 'bt'
+						,betid AS 'bi' 
+						,refno AS 'rf' 
 					
 				FROM	@tmpTransInfo
 				FOR JSON AUTO
@@ -175,7 +184,7 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns
 				@SystemName = 'Settlement' 
 				,@FunctionName = 'UndoOtherSport'
 				,@TableName = 'bettrans'
@@ -183,6 +192,7 @@ BEGIN
 				,@transinfoJson = @transinfoJson
 				,@SettlementAction = 'UNDO'
 				,@TicketType = 's'
+				,@BroadcastSessionId = @BroadcastSessionId
 		END
 	END
 
@@ -200,6 +210,7 @@ BEGIN
 
 		EXEC NAP_Admin_Settlement_BalanceUpd @BalanceChanged =	@BalanceChanged
 											,@ActionID		 =  @ActionID
+											,@BroadcastSessionId  = @BroadcastSessionId
 											,@ErrMessage	 =  @ErrMessage OUTPUT
 											,@ErrCode		 =  @ErrCode OUTPUT
 	END

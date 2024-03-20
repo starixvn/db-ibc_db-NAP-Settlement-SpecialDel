@@ -1,7 +1,8 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_29]
 	@matchdate	SMALLDATETIME
 	,@strXML	VARCHAR(MAX)
+	,@BroadcastSessionId VARCHAR(50)
 AS
 /*
 	Created: Kathy
@@ -21,6 +22,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 	Param's Explanation:
 */
 BEGIN
@@ -54,6 +56,7 @@ BEGIN
 		,ExtraInfo VARCHAR(1000)
 		,bef_winlost MONEY
 		,bef_statusid TINYINT
+		,bettype SMALLINT,refno BIGINT
 	)
 
 	CREATE TABLE #Refno (refno BIGINT  PRIMARY KEY, transid BIGINT, IsMarked BIT DEFAULT(0))
@@ -185,7 +188,8 @@ BEGIN
 		,Inserted.Statuswinlost
 		,inserted.ExtraInfo
 		,deleted.winlost
-		,deleted.statusid	
+		,deleted.statusid
+		,deleted.bettype,deleted.refno
 	INTO @tmpTransInfo (transId
 		,SettlementTime
 		,Status, StatusID, WinLostDate, betdaqid, ruben
@@ -196,6 +200,7 @@ BEGIN
 
 		,bef_winlost
 		,bef_statusid
+		,bettype,refno
 	)
 	FROM @tmpSource s
 		INNER JOIN dbo.bettrans b
@@ -223,6 +228,9 @@ BEGIN
 					,ExtraInfo AS 'ex'
 					,bef_winlost AS 'bef_w' 
 					,bef_statusid AS 'bef_sid' 
+
+					,bettype AS 'bt' 
+					,refno AS 'rf' 
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
 		)
@@ -236,6 +244,7 @@ BEGIN
 				,@TransInfoJson = @transinfoJson
 				,@SettlementAction = 'CAL'
 				,@TicketType = 'p'
+				,@BroadcastSessionId = @BroadcastSessionId
 		
 	END
 END

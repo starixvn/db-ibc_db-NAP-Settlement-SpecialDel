@@ -1,1 +1,1 @@
-Settlement\NumberGame\dbo.NAP_Admin_Settlement_s161_Manual.sql
+Common SP\SiteDB\Service\dbo.SiteDB_NAP_SettlementService_CalculationLogIns.sql

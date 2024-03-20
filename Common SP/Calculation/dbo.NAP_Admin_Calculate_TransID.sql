@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_TransID]
 	@transIds		   VARCHAR(MAX)	
 	,@MatchId			INT = 0
@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_TransID]
 	,@IsCalculateBalance	BIT =  0
 	,@CWLBettype			SMALLINT = 0
 	,@BalanceType			TINYINT  = 1 --sport
+	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@ErrMessage			VARCHAR(300) = '' OUTPUT
 	,@ErrCode				INT			 = 0  OUTPUT
 	
@@ -32,6 +33,7 @@ AS
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
 		- 20230704@Louisa:  CWL for Virtual Leap Gaming [Redmine:#189854]
 		- 20230830@Kathy: Set Max Payout for Non-sports Products [Redmine:#193259]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:  
 		   
@@ -89,6 +91,7 @@ BEGIN
 								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, before_ruben TINYINT, extrainfo VARCHAR(1000)
 								,bef_winlost MONEY,bef_statusid TINYINT, bettype SMALLINT, winlostdate	SMALLDATETIME
 								,actual_stake MONEY
+								,betid BIGINT,refno BIGINT
 								)
 	
 	DECLARE @handle 			INT
@@ -326,7 +329,7 @@ BEGIN
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID,inserted.ruben, deleted.ruben, inserted.ExtraInfo
 			,deleted.winlost,deleted.statusid	
-			,deleted.bettype
+			,deleted.bettype,deleted.betid,deleted.refno
 			,deleted.winlostdate
 			,deleted.actual_stake
 	INTO @tmpTransInfo (
@@ -338,7 +341,7 @@ BEGIN
 			,PlayerComm,Comm,aComm,sComm
 			,Status,StatusID,ruben, before_ruben, extrainfo
 			,bef_winlost, bef_statusid	
-			,bettype
+			,bettype,betid,refno
 			,winlostdate
 			,actual_stake
 		)
@@ -368,6 +371,9 @@ BEGIN
 						,extrainfo AS 'ex'
 						,bef_winlost AS 'bef_w' 
 						,bef_statusid AS 'bef_sid' 
+						,bettype AS 'bt'
+						,betid AS 'bi' 
+						,refno AS 'rf' 
 				
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
@@ -395,6 +401,7 @@ BEGIN
 				,@TransInfoJson = @TransInfoJson
 				,@SettlementAction = 'CAL'
 				,@TicketType = 's'
+				,@BroadcastSessionId = @BroadcastSessionId
 
 		END
 	END
@@ -467,6 +474,7 @@ BEGIN
 		EXEC NAP_Admin_Settlement_BalanceUpd @BalanceChanged =	@BalanceChanged
 											,@ActionID		=   @ActionID
 											,@BalanceType	=	@BalanceType
+											,@BroadcastSessionId  = @BroadcastSessionId
 											,@ErrMessage	=   @ErrMessage OUTPUT
 											,@ErrCode		=   @ErrCode	OUTPUT
 	END

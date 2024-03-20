@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	 @AdminId			INT				
 	,@MatchId			INT
@@ -53,6 +53,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -164,6 +165,16 @@ BEGIN
 			,@Action
 			,@sqlCommand
 			,@BroadcastSessionId
+
+		IF @sportType = 50 
+		BEGIN
+			UPDATE SettlementResultHistory  WITH(UPDLOCK, ROWLOCK)
+			SET  StatusID = 100
+				,RepUpdateTime = SYSDATETIME()
+			WHERE Matchid = @MatchId
+				AND SessionId = @BroadcastSessionId
+				AND StatusID IS NULL
+		END
 	END
 
 END

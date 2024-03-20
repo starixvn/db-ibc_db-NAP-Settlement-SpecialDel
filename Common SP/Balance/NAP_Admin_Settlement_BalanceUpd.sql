@@ -1,8 +1,9 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 CREATE PROCEDURE dbo.NAP_Admin_Settlement_BalanceUpd
 (	 @BalanceChanged		TVP_BalanceWalletChange READONLY 
 	,@ActionID              INT  
 	,@BalanceType			TINYINT	 = 1 --sport
+	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@ErrMessage			VARCHAR(300) = '' OUTPUT
 	,@ErrCode				INT			 = 0  OUTPUT
 )
@@ -16,6 +17,7 @@ AS
         - 20230214@Aries: Created [Redmine: #182677]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
 
@@ -80,6 +82,7 @@ BEGIN
 				,[Balance]
 				,[StatusID]
 				,[Remark]
+				,[SessionId]
 			)
 			SELECT	GETDATE()
 					,MatchID
@@ -89,6 +92,7 @@ BEGIN
 					,SUM(Balance)
 					,0
 					,NULL
+					,@BroadcastSessionId
 			FROM	@BalanceChanged bal
 			GROUP BY bal.CustId, bal.MatchID
 			HAVING SUM(Balance) < 0
