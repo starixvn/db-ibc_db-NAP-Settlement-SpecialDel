@@ -75,6 +75,7 @@ BEGIN
 
 	DECLARE	@FilteredBy			TINYINT
 		   ,@RequestInfoGetCalcTimes VARBINARY(MAX) = NULL
+		   ,@RequestInfo VARBINARY(MAX) = NULL
 
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
@@ -667,11 +668,14 @@ BEGIN
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
 	
 	-- 2. Support get total voided ticket
-	SELECT RequestId
-		  ,VoidingHistoryId
-		  ,IssueTypeId
-		  ,MatchId
+	SET @RequestInfo = COMPRESS((SELECT RequestId AS 'req'
+		  ,VoidingHistoryId AS 'vh'
+		  ,IssueTypeId AS 'it'
+		  ,MatchId AS 'mid'
 	FROM @tmpMatchVoidingHistory
+	FOR JSON PATH))
+
+	SELECT CONVERT(VARCHAR(MAX), @RequestInfo, 1) AS RequestInfo
 
 	-- 3. Support get calculate time 
 	SET @RequestInfoGetCalcTimes = COMPRESS((SELECT RequestId AS 'req'
