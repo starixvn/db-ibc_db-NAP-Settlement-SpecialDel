@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Validation]
 (
 	 @SingleTicketsJSON			NVARCHAR(MAX) = NULL
@@ -24,6 +24,7 @@ AS
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
 
 	Param's explanation:
 		
@@ -54,6 +55,7 @@ BEGIN
 	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
 	CREATE TABLE #SingleTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT)
 	CREATE TABLE #ParlayTickets_ReSettle (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
+	CREATE TABLE #ExceptionTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
 	CREATE TABLE #CancelCashOutTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
 	--Void14 (Abnormal Account only)
 	CREATE TABLE #SingleTickets_14 (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
@@ -104,7 +106,6 @@ BEGIN
 			,t.TicketType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-		WHERE b.statusID IN (0,1)
 	
 		IF EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds WHERE statuswinlost IS NOT NULL)
 		BEGIN
@@ -112,26 +113,37 @@ BEGIN
 			SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId, t.TicketType
 			FROM #tmpTransIds t
 			WHERE t.TicketType IN (1,4)
-				AND t.statuswinlost IN (1,2)
+				AND 1 = CASE WHEN t.StatusID IN (0,1) AND t.statuswinlost IN (1,2) THEN 1 
+							 WHEN t.StatusID = 112 THEN 1 --WON
+							 ELSE 0 END
 
 			INSERT INTO #SingleTickets_ReSettle (TransId, RequestId, Matchid, IssueTypeId, TicketType)
 			SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId, t.TicketType
 			FROM #tmpTransIds t
 			WHERE t.TicketType IN (1,4)
-				AND t.statuswinlost IN (0,3,4)
+				AND t.StatusID IN (0,1) AND t.statuswinlost IN (0,3,4)
 
 			INSERT INTO #ParlayTickets (TransId, RequestId, MatchId, IssueTypeId)
 			SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId
 			FROM #tmpTransIds t
 			WHERE t.TicketType = 2
-				AND t.statuswinlost IN (1,2)
+				AND 1 = CASE WHEN t.StatusID IN (0,1) AND t.statuswinlost IN (1,2) THEN 1 
+							 WHEN t.StatusID = 112 THEN 1 --WON
+							 ELSE 0 END
 
 			INSERT INTO #ParlayTickets_ReSettle (TransId, RequestId, MatchId, IssueTypeId)
 			SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId
 			FROM #tmpTransIds t
 			WHERE t.TicketType = 2
-				AND t.statuswinlost IN (0,3,4)
+				AND t.StatusID IN (0,1) AND t.statuswinlost IN (0,3,4)
+
+			INSERT INTO #ExceptionTickets (TransId, RequestId, MatchId, IssueTypeId)
+			SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId
+			FROM #tmpTransIds t
+			WHERE t.TicketType IN (1,2,4)
+				AND t.StatusID IN (111,113) --DRAW, LOSE
 		END
+
 	END
 	IF @IssueTypeId IN (1,10,3) 
 	BEGIN
@@ -259,6 +271,8 @@ BEGIN
 	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId FROM #SingleTickets_14 --Single_14Void
 	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId FROM #ParlayTickets_14 --Parlay_14Void
 
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #ExceptionTickets --Single & Parlay(Exclude ticket LOSE) 
+
 	DROP TABLE #tmpInputTransId
 	DROP TABLE #tmpTransIds
 	DROP TABLE #SingleTickets
@@ -268,6 +282,7 @@ BEGIN
 	DROP TABLE #CancelCashOutTickets
 	DROP TABLE #SingleTickets_14
 	DROP TABLE #ParlayTickets_14
+	DROP TABLE #ExceptionTickets
 END		
 GO
 

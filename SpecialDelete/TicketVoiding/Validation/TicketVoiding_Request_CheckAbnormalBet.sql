@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 (
 	 @TransIds					VARCHAR(MAX) = NULL
@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@IsRemoveCustomerClass201	BIT = 0
 	,@IsRemoveCustomerClass4K	BIT = 0
 	,@TransInfoJson				VARCHAR(MAX) = NULL
+	,@IsAddSettledTickets		BIT = 0
 )
 AS
 /*  
@@ -60,6 +61,7 @@ AS
 		- 20231115@July: [TVS] Abnormal Bet - Export the list of tickets that the user inputs to a request before Save it [Redmine: #194133]
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -575,7 +577,9 @@ BEGIN
 										FOR XML PATH('')), 1, 1, ''), '')
 		
 		UPDATE t
-		SET t.RemarkId = CASE WHEN @ActionId IN (2,3,5) AND t.RemarkId IS NOT NULL THEN t.RemarkId ELSE 4 END --Settled
+		SET t.RemarkId = CASE WHEN @IsAddSettledTickets = 1 AND t.RemarkId IS NOT NULL THEN t.RemarkId
+							  WHEN @IsAddSettledTickets = 1 AND t.RemarkId IS NULL THEN NULL
+							  ELSE 4 END --Settled
 		FROM #tmpInputTransid_RemarkId t
 			INNER JOIN #validTransId v ON t.Transid = v.transid
 		WHERE v.StatusId NOT IN (0,1)
