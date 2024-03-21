@@ -72,6 +72,7 @@ AS
 		- 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
+		- 20240321@Max: [TVS] Remove parameters when calling SP for settling parlay tickets [Redmine: #202022]
 
 	Param's Explanation:
 */
@@ -1143,11 +1144,7 @@ BEGIN
 					SELECT	@transid_tmp = @transid_tmp + CONVERT(VARCHAR(50), TransId) + ','
 					FROM	@tmpTransIDBatch
 
-					EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId  
-						,@fth = 0  
-						,@fta = 0  
-						,@hth = 0  
-						,@hta = 0  
+					EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId   
 						,@matchdate = @matchdate  
 						,@mode = 'VOID'  
 						,@VoidTransID = @transid_tmp  

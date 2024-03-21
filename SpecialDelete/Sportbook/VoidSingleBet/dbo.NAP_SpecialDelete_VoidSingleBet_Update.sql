@@ -137,6 +137,7 @@ AS
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
+		- 20240321@Max: [TVS] Remove parameters when calling SP for settling parlay tickets [Redmine: #202022]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -1706,11 +1707,7 @@ BEGIN
 					SELECT	@transid_tmp = @transid_tmp + CONVERT(VARCHAR(50), TransId) + ','
 					FROM	@tmpTransIDBatch
 
-					EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId  
-						,@fth = 0  
-						,@fta = 0  
-						,@hth = 0  
-						,@hta = 0  
+					EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId   
 						,@matchdate = @matchdate  
 						,@mode = 'VOID'  
 						,@VoidTransID = @transid_tmp  
