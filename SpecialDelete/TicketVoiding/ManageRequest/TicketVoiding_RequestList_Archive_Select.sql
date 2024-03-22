@@ -511,9 +511,8 @@ BEGIN
 			,t.DecidedBy
 			,v.Username AS LastPerformedBy
 			,ch.Username AS CheckedBy
-			,CASE WHEN t.IssueTypeId IN (11,15,17,20) THEN LEN(ISNULL(ts.TransIds,'')) - LEN(REPLACE(ISNULL(ts.TransIds,''), ',', ''))  ELSE 0 END AS TotalSingle
-			,ISNULL(p.TotalParlay,0) AS TotalParlay
-			,CASE WHEN t.IssueTypeId IN (11,15) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds --Return with issuetype Abnormal bet, AB(real member)
+			,cnt.TotalSingle
+			,cnt.TotalParlay
 			,t.IssueTypeId
 			,CASE WHEN f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN ''
 				  ELSE CASE WHEN ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 'Failed'
@@ -541,18 +540,13 @@ BEGIN
 			ON t.LastVoidedBy = v.CustId
 		LEFT JOIN bodb02.dbo.Customer ch WITH(NOLOCK)
 			ON t.CheckedBy = ch.CustId
-		OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+		OUTER APPLY (SELECT  COUNT(CASE WHEN s.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799,10449) THEN s.TransId 
+										WHEN s.IssueTypeId IN (11,15,20) THEN s.TransId 
+										ELSE NULL END) AS TotalSingle
+							,COUNT(CASE WHEN s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799,10449) THEN s.TransId ELSE NULL END) AS TotalParlay
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
-					WHERE s.RequestId = t.RequestId
-					AND 1 = CASE WHEN t.IssueTypeId IN (11,15,20) THEN 1
-								 WHEN t.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799,10449) THEN 1
-								 ELSE 0 END
-					FOR XML PATH('')
-				)ts	 (TransIds)
-		OUTER APPLY (SELECT COUNT(1) AS TotalParlay
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
-					WHERE s.RequestId = t.RequestId AND t.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799,10449)
-				)p	
+					WHERE s.RequestId = t.RequestId 
+				)cnt	
 		---Case Failed
 		OUTER APPLY ( 
 					SELECT DISTINCT RequestId, vh.StatusId
@@ -606,17 +600,36 @@ BEGIN
 			END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
 	
-	-- 2. Support get calculate time 
+	-- 2. Support get calculate time for Issuetype Abnormal Bet (Single ticket) + AB (Real Member) 
+	DECLARE @tmpGetInfo TABLE (RequestId INT, Sporttype SMALLINT, MatchId INT)
+	INSERT INTO @tmpGetInfo (RequestId, Sporttype, MatchId)
+	SELECT RequestId, Sporttype, MatchId
+	FROM #tmpResult
+	WHERE 1 = CASE WHEN IssueTypeId IN (11) AND FilterBy IS NULL THEN 1 
+				   WHEN IssueTypeId = 15 THEN 1
+				   ELSE 0 END 
+
 	SET @RequestInfoGetCalcTimes = COMPRESS((SELECT RequestId AS 'req'
 		  ,Sporttype AS 's'
 		  ,MatchId AS 'mid'
-	FROM #tmpResult
-	WHERE 1 = CASE WHEN IssueTypeId IN (11) AND FilterBy IS NULL THEN 1 --Abnormal Bet (Single ticket)
-				   WHEN IssueTypeId = 15 THEN 1 --AB (Real Member)
-				   ELSE 0 END
+	FROM @tmpGetInfo
 	FOR JSON PATH))
 
 	SELECT CONVERT(VARCHAR(MAX), @RequestInfoGetCalcTimes, 1) AS RequestInfoGetCalcTimes
+
+	-- 3. Support get bettype name for Issuetype Abnormal Bet (Single ticket) + AB (Real Member) [#135041]
+	SELECT t.RequestId, s.Bettype, CASE WHEN f.IsNameXBettype = 1 THEN s.BetId ELSE NULL END AS BetId
+	FROM @tmpGetInfo t
+		CROSS APPLY ( 
+				SELECT DISTINCT s.Bettype, s.betid
+				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
+				WHERE s.RequestId = t.RequestId 
+		)s
+		OUTER APPLY (
+			SELECT	TOP 1 f.IsNameXBettype
+			FROM	dbo.f_SD_GetGroupBettypes () f
+			WHERE	f.bettype = s.Bettype
+		)f
 
 	DROP TABLE #tmpResult
 	DROP TABLE #tmpMatchVoidingHistory
