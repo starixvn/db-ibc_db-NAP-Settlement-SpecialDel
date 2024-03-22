@@ -46,6 +46,15 @@ BEGIN
 	   ,MatchId			INT
 	   ,ChildMatchId	INT
 	)
+	CREATE TABLE #tmpResult(
+		 RequestId			INT
+		,MatchId			INT
+		,IssueTypeId		TINYINT
+		,TotalSingleProcessed	INT DEFAULT (0)
+		,TotalParlayProcessed	INT DEFAULT (0)
+		,TotalCancelCashOutProcessed INT DEFAULT (0)
+		,TotalResettleProcessed	INT DEFAULT (0)
+	)
 
 	INSERT INTO #tmpMatchVoidingHistory( 
 		 RequestId			
@@ -63,15 +72,6 @@ BEGIN
 			)tbl
 	WHERE f.value <> ''
 
-	CREATE TABLE #tmpResult(
-		 RequestId			INT
-		,MatchId			INT
-		,IssueTypeId		TINYINT
-		,TotalSingleProcessed	INT DEFAULT (0)
-		,TotalParlayProcessed	INT DEFAULT (0)
-		,TotalCancelCashOutProcessed INT DEFAULT (0)
-		,TotalResettleProcessed	INT DEFAULT (0)
-	)
 	INSERT INTO #tmpResult (RequestId, MatchId, IssueTypeId)
 	SELECT DISTINCT RequestId, MatchId, IssueTypeId
 	FROM #tmpMatchVoidingHistory
@@ -114,7 +114,7 @@ BEGIN
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
 				LEFT JOIN @tmpChildMatchCricket m ON z.matchid = m.ChildMatchId
-			WHERE vh.IssueTypeId NOT IN (22) --Recover Ticket
+			WHERE z.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (22) --Recover Ticket
 				 AND (vh.MatchId = CASE WHEN m.MatchId IS NOT NULL THEN m.MatchId ELSE z.matchid END
                         OR vh.MatchId = 0)
 			GROUP BY vh.VoidingHistoryId
@@ -136,7 +136,7 @@ BEGIN
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
 				LEFT JOIN @tmpChildMatchCricket m ON zm.matchid = m.ChildMatchId
-			WHERE vh.IssueTypeId NOT IN (11,15,13,17,22) --Except AB,AB(real member),AC,ARC,RT
+			WHERE zm.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (11,15,13,17,22) --Except AB,AB(real member),AC,ARC,RT
 				AND vh.MatchId = CASE WHEN m.MatchId IS NOT NULL THEN m.MatchId ELSE zm.matchid END
 			GROUP BY vh.VoidingHistoryId, ISNULL(m.matchid, zm.matchid)
 	)
@@ -166,7 +166,7 @@ BEGIN
 		SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed
 		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN #tmpResult t ON t.RequestId = s.Requestid
-		WHERE s.IsProcessed IS NOT NULL
+		WHERE s.IsProcessed IS NOT NULL AND s.IssueTypeId = 22
 			AND s.SiteDBGroupID = @SiteDBGroupID
 
 		DELETE t

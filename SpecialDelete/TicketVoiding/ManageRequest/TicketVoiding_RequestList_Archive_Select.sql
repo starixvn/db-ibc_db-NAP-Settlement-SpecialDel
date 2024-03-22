@@ -492,6 +492,7 @@ BEGIN
 				)rt	
 		WHERE t.IssueTypeId = 22 --Recover Ticket
 	END
+	
 	/*****************Return table **************************/
 	-- 1. Return infor table
 	SELECT	t.RequestId
@@ -610,7 +611,7 @@ BEGIN
 		  ,Sporttype AS 's'
 		  ,MatchId AS 'mid'
 	FROM #tmpResult
-	WHERE 1 = CASE WHEN IssueTypeId IN (11,20) AND FilterBy IS NULL THEN 1 --Abnormal Bet (Single ticket)
+	WHERE 1 = CASE WHEN IssueTypeId IN (11) AND FilterBy IS NULL THEN 1 --Abnormal Bet (Single ticket)
 				   WHEN IssueTypeId = 15 THEN 1 --AB (Real Member)
 				   ELSE 0 END
 	FOR JSON PATH))
