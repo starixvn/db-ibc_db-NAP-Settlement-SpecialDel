@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ParlayType_Update]
 	@RequestId			INT
 	,@MatchId			INT
@@ -32,6 +32,7 @@ AS
 		- 20230523@Max: Hotfix - [TVS] Void Sub Parlay not return balance [Redmine: #188610]
 		- 20230712@Max: Scale out credit - Fix issue child match cricket [Redmine: #181595]
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
+		- 20240321@Max: [TVS] Remove parameters when calling SP for settling parlay tickets [Redmine: #202022]
 
 	Param's explanation:	
 		
@@ -240,11 +241,7 @@ BEGIN
 			SELECT	@strSubTransId = @strSubTransId + CONVERT(VARCHAR(50), TransId) + ','
 			FROM	@tmpTransIDBatch
 
-			EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId  
-				,@fth = 0  
-				,@fta = 0  
-				,@hth = 0  
-				,@hta = 0  
+			EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId 
 				,@matchdate = @matchdate  
 				,@mode = 'VOID'  
 				,@VoidTransID = @strSubTransId  
