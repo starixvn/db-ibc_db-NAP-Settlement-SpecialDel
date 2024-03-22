@@ -157,7 +157,7 @@ BEGIN
 	INSERT INTO #tmp_transfer ( transid, mrecommend_New, srecommend_New )
 	SELECT f.transid, c.mrecommend_New, c.srecommend_New
 	FROM dbo.Transfer f WITH(NOLOCK)
-		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
+		INNER JOIN #tmp_Cust c ON c.CustID = f.Recommend
 	WHERE c.roleid = 2
 		AND f.WinlostDate > XXXXX ---@MoveBetsDay
 		AND f.Bettype > 20000
@@ -286,7 +286,7 @@ BEGIN
 	INSERT INTO #tmp_transfer ( transid, mrecommend_New, srecommend_New )
 	SELECT f.transid, c.mrecommend_New, c.srecommend_New
 	FROM dbo.transfer_coll f WITH(NOLOCK)
-		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
+		INNER JOIN #tmp_Cust c ON c.CustID = f.Recommend
 	WHERE c.roleid = 2
 		AND f.WinlostDate > XXX ----@MoveBetsDay
 		AND f.Bettype > 20000
