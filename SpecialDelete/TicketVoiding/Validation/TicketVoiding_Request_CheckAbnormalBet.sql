@@ -64,11 +64,9 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
-		- 20240315@July: [TVS] Abnormal Bet - Support void System Parlay tickets [Redmine: #196462]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
-		+ @FilterBy: NULL: single ticket, 1: mix-parlay ticket, 2: system-parlay ticket
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -412,7 +410,7 @@ BEGIN
 		WHERE matchid = @MatchId
 
 	END
-	ELSE 
+	ELSE IF @FilterBy =1
 	BEGIN
 		SET @MatchId = 29
 		INSERT INTO @tmpMatchId (MatchId)
@@ -462,9 +460,9 @@ BEGIN
 		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
 		LEFT JOIN @tmpMatchId m ON b.matchid = b.matchid
 	WHERE 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
-			       WHEN @FilterBy IS NOT NULL AND b.bettype = 29 THEN 1
+			       WHEN @FilterBy = 1 AND b.bettype = 29 THEN 1
 				   ELSE 0 END
-		AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.transdate >= @Archived_FromDate THEN 1
+		AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.winlostdate >= @Archived_FromDate THEN 1
 					WHEN @IsVoidAllArchivedTickets = 1 THEN 1
 				ELSE 0 END
 
@@ -473,7 +471,10 @@ BEGIN
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE bt.bettype IS NULL AND @FilterBy IS NULL
+	WHERE 1 = CASE WHEN bt.bettype IS NULL 
+						AND (t.bettype <> 29 OR (t.bettype = 29  AND t.betteam <> '1')) --Unsupported System parlay Transids
+				   THEN 1
+				   ELSE 0 END
 
 	SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #UnsupportedTransids t
@@ -507,9 +508,8 @@ BEGIN
 				    WHEN @ActionId = 2 AND StatusId IN (101, 103) THEN 1
 					ELSE 0 END)
 		OR (bt.bettype IS NULL AND 1 = CASE WHEN @FilterBy IS NULL THEN 1 
-											WHEN @FilterBy = 1 AND t.bettype = 29 AND t.betteam <> '1' THEN 1
-										    WHEN @FilterBy = 2 AND t.bettype = 29 AND t.betteam = '1' THEN 1
-											ELSE 0 END 
+										    WHEN @FilterBy = 1 AND t.bettype = 29  AND t.betteam <> '1' THEN 1
+										    ELSE 0 END 
 										   )
 		OR t.betfrom ='p'
 	
@@ -533,7 +533,7 @@ BEGIN
 		SELECT TOP 1 IsMoved14
 		FROM #tmpTransInfo
 		WHERE transid = temp.transid 
-			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 AND transdate > @Archived_FromDate THEN 1 ELSE 0 END
+			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 AND winlostdate > @Archived_FromDate THEN 1 ELSE 0 END
 		) bm
 		OUTER APPLY (
 		SELECT transid
@@ -821,6 +821,7 @@ BEGIN
 		,t.transid AS 't'
 		,b.custid AS  'c'           
 		,b.bettype AS 'btype'
+		,b.betteam AS 'bteam'
 		,b.betid AS 'bid'
 		,b.IsMixParlay AS 'isP'
 		,b.SiteDBGroupID AS 'sitedb'
