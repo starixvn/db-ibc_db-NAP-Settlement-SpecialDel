@@ -473,11 +473,7 @@ BEGIN
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE bt.bettype IS NULL 
-		AND 1 = CASE WHEN t.bettype <> 29 THEN 1 
-					 WHEN @FilterBy = 1 AND t.bettype = 29 AND t.betteam <> '1' THEN 1 --Unsupported System parlay Transids
-					 WHEN @FilterBy = 2 AND t.bettype = 29 AND t.betteam = '1' THEN 1 --Unsupported Mix parlay Transids
-				     ELSE 0 END
+	WHERE bt.bettype IS NULL AND @FilterBy IS NULL
 
 	SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #UnsupportedTransids t
