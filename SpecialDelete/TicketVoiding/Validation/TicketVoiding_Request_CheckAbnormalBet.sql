@@ -95,7 +95,7 @@ BEGIN
 			,@ListBettype 				 VARCHAR(MAX) =''
 			,@ListBetteam 				 VARCHAR(MAX) =''
 			,@TransInfoJson_Output		 VARBINARY(MAX) = NULL
-
+			,@Archived_FromDate			 DATETIME = NULL
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -103,6 +103,8 @@ BEGIN
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50))
+
+	SET @Archived_FromDate = DATEADD(DAY, -7, GETDATE())
 
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -401,14 +403,12 @@ BEGIN
 		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
 		FROM dbo.match m WITH(NOLOCK) 
 		WHERE matchid = @MatchId
+		
+		UNION ALL
+		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
+		FROM dbo.match14 m WITH(NOLOCK) 
+		WHERE matchid = @MatchId
 
-		IF @IsVoidAllArchivedTickets = 1
-		BEGIN
-			INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode)
-			SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
-			FROM dbo.match14 m WITH(NOLOCK) 
-			WHERE matchid = @MatchId
-		END
 	END
 	ELSE IF @FilterBy =1
 	BEGIN
@@ -462,7 +462,7 @@ BEGIN
 	WHERE 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
 			       WHEN @FilterBy = 1 AND b.bettype = 29 THEN 1
 				   ELSE 0 END
-		AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.IsMoved14 = 0 THEN 1
+		AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.transdate >= @Archived_FromDate THEN 1
 					WHEN @IsVoidAllArchivedTickets = 1 THEN 1
 				ELSE 0 END
 
@@ -533,7 +533,7 @@ BEGIN
 		SELECT TOP 1 IsMoved14
 		FROM #tmpTransInfo
 		WHERE transid = temp.transid 
-			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 THEN 1 ELSE 0 END
+			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 AND transdate > @Archived_FromDate THEN 1 ELSE 0 END
 		) bm
 		OUTER APPLY (
 		SELECT transid
