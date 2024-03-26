@@ -540,7 +540,9 @@ BEGIN
 		FROM #UnsupportedTransids
 		WHERE transid = temp.transid
 		) u
-	WHERE NOT EXISTS (SELECT 1 FROM #validTransId WHERE transid = temp.transid )
+	WHERE NOT EXISTS (SELECT 1 FROM #validTransId 
+					  WHERE transid = temp.transid 
+					  AND 1 = CASE WHEN @ActionId = 1 AND StatusId IN (111,112,113) THEN 0 ELSE 1 END)
 		AND u.transid IS NULL
 
 	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
