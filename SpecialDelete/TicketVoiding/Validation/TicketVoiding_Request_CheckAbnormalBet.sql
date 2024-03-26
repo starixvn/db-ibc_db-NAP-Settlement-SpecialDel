@@ -106,7 +106,7 @@ BEGIN
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50))
 
-	SET @Archived_FromDate = DATEADD(DAY, -7, GETDATE())
+	SET @Archived_FromDate = CONVERT(DATE, DATEADD(DAY, -7, GETDATE()))
 
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
