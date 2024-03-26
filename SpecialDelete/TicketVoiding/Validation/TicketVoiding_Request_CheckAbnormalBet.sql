@@ -590,8 +590,8 @@ BEGIN
 										FOR XML PATH('')), 1, 1, ''), '')
 		
 		UPDATE t
-		SET t.RemarkId = CASE WHEN @IsAddSettledTickets = 1 AND t.RemarkId IS NOT NULL THEN t.RemarkId
-							  WHEN @IsAddSettledTickets = 1 AND t.RemarkId IS NULL THEN NULL
+		SET t.RemarkId = CASE WHEN @IsAddSettledTickets = 1 AND @ActionId <> 1 AND t.RemarkId IS NOT NULL THEN t.RemarkId
+							  WHEN @IsAddSettledTickets = 1 AND @ActionId <> 1 AND t.RemarkId IS NULL THEN NULL
 							  ELSE 4 END --Settled
 		FROM #tmpInputTransid_RemarkId t
 			INNER JOIN #validTransId v ON t.Transid = v.transid
