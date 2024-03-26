@@ -46,17 +46,19 @@ AS
 		- 20230427@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 		- 20240220@July: Merge VS1, VS2, VS3 into Virtual Sports - Remove code unused [Redmine: #200317]
+		- 20240319@July: Add code get bettype for page Number Game [Redmine: #200840]
 
     Param's Explanation:  
     @Mode:   
          0: Single bet  
-         3: TicketListing  
+         1: Number Game
+		 3: TicketListing  
          9: Mark Ticket
 */
 BEGIN
     SET NOCOUNT ON
 
-    IF @mode in (0, 9) OR (@matchid <> 0 AND @mode = 3) 
+    IF @mode IN (0, 9) OR (@matchid <> 0 AND @mode = 3) 
     BEGIN    
         DECLARE @Sporttype INT    
         
@@ -158,6 +160,22 @@ BEGIN
 						 ELSE 0 END
     END
     
+	-- Page void number game  
+    IF @Mode = 1
+    BEGIN
+        INSERT INTO #TmpBettype (
+            typeid
+            ,type
+            ,liveindicator            
+            )        
+        SELECT typeid
+            ,1 AS type -- type = 1: NG
+            ,1 AS liveindicator            
+        FROM bettype WITH (NOLOCK)
+        WHERE @matchid = 0 AND (typeid BETWEEN 85 AND 91 OR typeid BETWEEN 8101 AND 8105)
+    END
+
+
     SELECT tb.typeid
         ,CASE WHEN tb.typeid = 9604 THEN 'Over/Under'
 			  WHEN tb.typeid = 9605 THEN 'Odd/Even'

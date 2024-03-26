@@ -1,7 +1,7 @@
 /*<info serverAlias="DBARC-bodb_Archive" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Archive_Select]
 (
-	 @RequestInfoJSON	VARCHAR(MAX)	= NULL
+	 @RequestInfoJson	VARCHAR(MAX)	= NULL
 	,@MatchId			INT				= NULL
 	,@IsExcludeTest		BIT				= 1
 	,@Status			INT				= 0
@@ -128,7 +128,7 @@ BEGIN
 	SELECT	@FilteredBy = CASE
 							  WHEN @RequestId IS NOT NULL THEN 1 -- RequestId
 							  WHEN @MatchId IS NOT NULL THEN 2 -- MatchId
-							  WHEN @RequestInfoJSON IS NOT NULL THEN 3 -- Fromdate, Todate
+							  WHEN @RequestInfoJson IS NOT NULL THEN 3 -- Fromdate, Todate
 						  END
 	-----------------------------GET eventdate of match---------------------------------------------
 	IF @FilteredBy = 1
@@ -142,7 +142,7 @@ BEGIN
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  s.RequestId, MIN(bk.winlostdate)
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid AND s.MatchId = bk.matchid
+					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid AND s.MatchId = bk.matchid AND s.CustId = bk.CustId AND s.Bettype = bk.Bettype 
 				WHERE s.MatchId IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
 				GROUP BY s.RequestId
 			END
@@ -179,7 +179,7 @@ BEGIN
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  s.RequestId, MIN(bk.winlostdate)
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid AND s.MatchId = bk.matchid
+					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid AND s.MatchId = bk.matchid AND s.CustId = bk.CustId AND s.Bettype = bk.Bettype 
 				WHERE s.MatchId IN (9, 29, 2799, 10449) AND s.MatchId = @MatchId
 				GROUP BY s.RequestId
 			END
@@ -209,7 +209,7 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpRequest(RequestId, Eventdate)
 		SELECT req, e
-		FROM STRING_SPLIT(@RequestInfoJSON, ',') f
+		FROM STRING_SPLIT(@RequestInfoJson, ',') f
 			CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_RequestInfo) t
 			CROSS APPLY (
 					SELECT req, e
