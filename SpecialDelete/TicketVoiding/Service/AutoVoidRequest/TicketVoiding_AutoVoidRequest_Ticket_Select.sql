@@ -35,25 +35,28 @@ BEGIN
 		SELECT value FROM STRING_SPLIT (@RequestIds, ',')
 
 		--Single
-		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, bettype, CustId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, rds.Bettype, rds.CustId
+		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, bettype, CustId, VoidActionId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, rds.Bettype, rds.CustId, r.ActionId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId <> 29
 			AND rds.IsProcessed IS NULL
 
 		--Main parlay
-		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
+		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, VoidActionId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, r.ActionId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId = 29
 			AND rds.IsProcessed IS NULL
 		UNION ALL
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, r.ActionId
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rds WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.IsProcessed IS NULL

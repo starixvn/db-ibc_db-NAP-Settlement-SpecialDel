@@ -145,6 +145,31 @@ BEGIN
 	END
 	IF @IssueTypeId IN (11,15) AND @ActionId <> 1 --For: action auto void instant
 	BEGIN
+		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType, transdate, winlostdate, statusId)
+		SELECT t.TransId
+			,t.RequestId
+			,t.MatchId
+			,t.IssueTypeId
+			,t.TicketType
+			,b.transdate
+			,b.winlostdate
+			,b.statusID
+		FROM #tmpInputTransId t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE t.TicketType <> 2
+
+		INSERT INTO #ParlayTickets (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
+		SELECT t.TransId
+			,t.RequestId
+			,t.MatchId
+			,t.IssueTypeId
+			,b.transdate
+			,b.winlostdate
+			,b.statusID
+		FROM #tmpInputTransId t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE t.TicketType = 2
+
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpInputTransId t
 					INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId)
 		BEGIN
