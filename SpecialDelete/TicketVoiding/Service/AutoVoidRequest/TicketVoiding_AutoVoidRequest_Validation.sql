@@ -34,12 +34,16 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @IssueTypeId TINYINT
+		, @ActionId TINYINT
+
 	CREATE TABLE #tmpInputTransId (
 		TransId BIGINT
 		, RequestId INT
 		, IssueTypeId TINYINT
 		, MatchId INT
-		, TicketType TINYINT) --1: single(exclude cancel CO), 2 parlay, 3: cancel CO, 4: Cricket (bettype: 501)
+		, TicketType TINYINT --1: single(exclude cancel CO), 2 parlay, 3: cancel CO, 4: Cricket (bettype: 501)
+		, VoidActionId TINYINT 
+	) 
 	
 	CREATE TABLE #tmpTransIds (
 		TransId BIGINT PRIMARY KEY
@@ -63,38 +67,41 @@ BEGIN
 
 	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, MatchId, TicketType)
-		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.MatchId, 1
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, MatchId, TicketType, VoidActionId)
+		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.MatchId, 1, tbl.VoidActionId
 		FROM OPENJSON(@SingleTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, MatchId INT) tbl
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, MatchId INT, VoidActionId TINYINT) tbl
 	END
 
 	IF @ParlayTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, MatchId, TicketType)
-		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.MatchId, 2
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, MatchId, TicketType, VoidActionId)
+		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.MatchId, 2, tbl.VoidActionId
 		FROM OPENJSON(@ParlayTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, MatchId INT) tbl
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, MatchId INT, VoidActionId TINYINT) tbl
 	END
 
 	IF @CancelCashOutTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, MatchId, TicketType)
-		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.MatchId, 3
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, MatchId, TicketType, VoidActionId)
+		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.MatchId, 3, tbl.VoidActionId
 		FROM OPENJSON(@CancelCashOutTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, MatchId INT) tbl
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, MatchId INT, VoidActionId TINYINT) tbl
 	END
 
 	IF @CricketTicketsJSON IS NOT NULL
 	BEGIN		
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, MatchId, TicketType)
-		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.MatchId, 4
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, MatchId, TicketType, VoidActionId)
+		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.MatchId, 4, tbl.VoidActionId
 		FROM OPENJSON(@CricketTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, MatchId INT) tbl
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, MatchId INT, VoidActionId TINYINT) tbl
 	END
 
-	SET @IssueTypeId = (SELECT TOP 1 IssueTypeId FROM #tmpInputTransId)
-	IF @IssueTypeId IN (11,15) --For: action auto void winning
+	SELECT TOP 1 @IssueTypeId = IssueTypeId 
+		,@ActionId = VoidActionId 
+	FROM #tmpInputTransId
+
+	IF @IssueTypeId IN (11,15) AND @ActionId = 1 --For: action auto void winning
 	BEGIN
 		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, statuswinlost, MatchId, IssueTypeId, TicketType)
 		SELECT t.TransId
@@ -107,32 +114,6 @@ BEGIN
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE b.statusID IN (0,1)
-
-		IF EXISTS (SELECT TOP 1 1 FROM #tmpInputTransId t
-					INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId)
-		BEGIN
-			INSERT INTO #SingleTickets_14 (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
-			SELECT t.TransId
-				,t.RequestId
-				,t.MatchId
-				,t.IssueTypeId
-				,b.transdate
-				,b.winlostdate
-				,b.statusID
-			FROM #tmpInputTransId t
-				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype NOT IN (9,29,2799)
-
-			INSERT INTO #ParlayTickets_14 (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
-			SELECT t.TransId
-				,t.RequestId
-				,t.MatchId
-				,t.IssueTypeId
-				,b.transdate
-				,b.winlostdate
-				,b.statusID
-			FROM #tmpInputTransId t
-				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (9,29,2799)
-		END
 		
 		IF EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds WHERE statuswinlost IS NOT NULL)
 		BEGIN
@@ -161,6 +142,34 @@ BEGIN
 				AND t.statuswinlost IN (0,3,4)
 		END
 
+	END
+	IF @IssueTypeId IN (11,15) AND @ActionId <> 1 --For: action auto void instant
+	BEGIN
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpInputTransId t
+					INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId)
+		BEGIN
+			INSERT INTO #SingleTickets_14 (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
+			SELECT t.TransId
+				,t.RequestId
+				,t.MatchId
+				,t.IssueTypeId
+				,b.transdate
+				,b.winlostdate
+				,b.statusID
+			FROM #tmpInputTransId t
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype NOT IN (9,29,2799)
+
+			INSERT INTO #ParlayTickets_14 (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
+			SELECT t.TransId
+				,t.RequestId
+				,t.MatchId
+				,t.IssueTypeId
+				,b.transdate
+				,b.winlostdate
+				,b.statusID
+			FROM #tmpInputTransId t
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (9,29,2799)
+		END
 	END
 	IF @IssueTypeId IN (1,10,3) 
 	BEGIN
