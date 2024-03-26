@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member,svc_tig" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Dot_Member_CustLimitBet_Insert]
 (
 	@MatchId		INT
