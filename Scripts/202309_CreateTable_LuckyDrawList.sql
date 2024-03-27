@@ -9,6 +9,8 @@
 USE bodb02
 GO
 
+--DROP TABLE IF EXISTS LuckyDrawList
+
 CREATE TABLE dbo.LuckyDrawList
 (
 	 DrawID				INT	IDENTITY(1,1)	NOT NULL
@@ -29,6 +31,7 @@ CREATE TABLE dbo.LuckyDrawList
 	,NotifiedDate		DATETIME		NULL
 	,IsTest				BIT				NULL
 	,IsLicensee			BIT				NULL
+	,SettledDate		DATE			NULL
 	,RepUpdateTime		DATETIME2		NOT NULL ---use for InHouse Replication
 )
 GO
