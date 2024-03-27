@@ -28,6 +28,7 @@ AS
 		- 20240122@Aries: Provider Result Log [Redmine:#199100]
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 		- 20240412@Aries: Direct Payout for Virtual Kabaddi [Redmine:#203590]
+		- 20270327@Aries: Support the Super Tiebreak match in Tennis  [Redmine: #202531]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -60,6 +61,7 @@ BEGIN
 		,hthomescore		INT
 		,htawayscore		INT
 		,ChildMatchType		TINYINT
+		,SessionTime FLOAT
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -87,6 +89,7 @@ BEGIN
 			,hthomescore	
 			,htawayscore
 			,ChildMatchType
+			,SessionTime
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -110,6 +113,7 @@ BEGIN
 			,m.hthomescore	
 			,m.htawayscore
 			,m.ChildMatchType
+			,l.SessionTime
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -146,6 +150,7 @@ BEGIN
 		,hthomescore	
 		,htawayscore
 		,ChildMatchType
+		,SessionTime
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -174,6 +179,7 @@ BEGIN
 		,m.hthomescore	
 		,m.htawayscore
 		,m.ChildMatchType
+		,l.SessionTime
      FROM dbo.[match] m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -210,6 +216,7 @@ BEGIN
 		,hthomescore AS HalfTimeHomeScore	
 		,htawayscore AS HalfTimeAwayScore
 		,ChildMatchType
+		,SessionTime
 	FROM @tmpMatchInfo
 
 END
