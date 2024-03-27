@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelInfo]
 	@matchid 			   INT = 0
 	,@matchIds	VARCHAR(MAX) = NULL
@@ -26,6 +26,7 @@ AS
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20240122@Aries: Provider Result Log [Redmine:#199100]
+		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -54,6 +55,7 @@ BEGIN
 		,AutoSetting TINYINT
 		,GameSession TINYINT
 		,LeagueType TINYINT
+		,OverTimeSession	TINYINT
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -77,6 +79,7 @@ BEGIN
 			,GoalRecord
 			,AutoSetting
 			,GameSession
+			,OverTimeSession
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -96,6 +99,7 @@ BEGIN
 			,m.goalrecord
 			,ISNULL(m.AutoSetting, l.AutoSetting)	
 			,l.GameSession
+			,l.OverTimeSession
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -128,6 +132,7 @@ BEGIN
 		,AutoSetting
 		,GameSession
 		,LeagueType
+		,OverTimeSession
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -152,6 +157,7 @@ BEGIN
 		,ISNULL(m.AutoSetting, l.AutoSetting)
 		,l.GameSession
 		,ls.LeagueType
+		,l.OverTimeSession
      FROM dbo.[match] m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -184,6 +190,7 @@ BEGIN
 		,AutoSetting
 		,GameSession
 		,LeagueType
+		,OverTimeSession
 	FROM @tmpMatchInfo
 
 END

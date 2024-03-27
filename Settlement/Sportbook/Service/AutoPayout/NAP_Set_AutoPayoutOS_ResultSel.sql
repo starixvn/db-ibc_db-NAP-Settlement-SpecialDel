@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayoutOS_ResultSel
 	 @MatchId			INT
 	,@SportType			SMALLINT
@@ -14,6 +14,7 @@ AS
 		- 20231205@Aries: Get only provider [Redmine: #195768]
 		- 20231222@Louisa: Allow retry AutoPayout Cricket when score mismatch [Redmine: #198781]
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
+		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 
 
 	Param's Explanation:
@@ -24,6 +25,7 @@ BEGIN
 
 	DECLARE  @ResultTable				TINYINT = 0
 			,@ExternalResultTable		TINYINT = 0
+			,@GameType					TINYINT  = 0
 			
 	DECLARE @Resource TABLE (ResourceId	VARCHAR(20), PRIMARY KEY (ResourceId))
 	DECLARE @Result TABLE (MatchId INT, SourceId SMALLINT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT, ResultStatusID TINYINT, CreateDate DATETIME)
@@ -32,6 +34,11 @@ BEGIN
 		  ,@ExternalResultTable = r.ExternalResultTable 
 	FROM dbo.SettlementResultTableSetting r (NOLOCK)
 	WHERE r.Sporttype = @Sporttype
+
+	SELECT @GameType =  CASE WHEN m.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END
+	FROM match AS m WITH(NOLOCK)
+		INNER JOIN League l WITH(NOLOCK) ON m.LeagueId = l.LeagueId	
+	WHERE m.MatchId	 = @MatchId	
 
 	INSERT INTO @Resource(ResourceId)
 	SELECT DISTINCT value
@@ -132,7 +139,9 @@ BEGIN
 		OUTER APPLY (SELECT TOP 1 1 AS IsMapped
 					 FROM dbo.ProviderGameTypeMapping AS p WITH(NOLOCK)
 					 WHERE p.sporttype = @SportType
-						AND p.SourceId = m.SourceID) AS pm
+						AND p.SourceId = m.SourceID
+						AND p.isActive = 1
+						AND p.GameType = @GameType) AS pm
 	WHERE pm.IsMapped IS NOT NULL
 		OR m.SourceId IS NULL
 		
