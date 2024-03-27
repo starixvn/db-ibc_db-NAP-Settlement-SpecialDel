@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkedTickets_MatchId_Select] 
 (
 	@MatchId       INT,
@@ -42,6 +42,7 @@ AS;
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -309,6 +310,7 @@ BEGIN
 		TransDesc			NVARCHAR(1000),
 		refno				BIGINT,	
 		ExtraInfo			VARCHAR(1000),
+		modds				SMALLMONEY,
 		matchid				INT,
 		WalletType			TINYINT,
 		RefCode				BIGINT,
@@ -389,6 +391,7 @@ BEGIN
 			,FilterTransdesc
 			,ActualStake
 			,matchid
+			,modds
 		)
 		SELECT 
 			b.transid,
@@ -439,7 +442,8 @@ BEGIN
 			b.oddsid AS FilterOddsId,
 			b.transdesc AS FilterTransdesc,
 			b.actual_stake AS ActualStake,
-			b.matchid
+			b.matchid,
+			b.modds
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = b.bettype
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
@@ -509,6 +513,7 @@ BEGIN
 			,ExtraInfo
 			,ActualStake
 			,matchid
+			,modds
 		)
 		SELECT 
 			b.transid,
@@ -562,6 +567,7 @@ BEGIN
 			b.ExtraInfo,
 			b.actual_stake AS ActualStake,
 			bm.matchid
+			,b.modds
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
@@ -751,6 +757,7 @@ BEGIN
 		b.SubOdds,
 		b.ActualStake,
 		@SiteDBGroupID AS SiteDBGroupID
+		,b.modds AS MasterOdds
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 

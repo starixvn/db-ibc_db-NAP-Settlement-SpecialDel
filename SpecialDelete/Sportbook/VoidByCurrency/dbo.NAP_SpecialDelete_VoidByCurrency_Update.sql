@@ -73,6 +73,7 @@ AS
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240321@Max: [TVS] Remove parameters when calling SP for settling parlay tickets [Redmine: #202022]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation:
 */
@@ -294,6 +295,7 @@ BEGIN
 			ruben				TINYINT,
 			SiteDBGroupId		SMALLINT,
 			IsFinish			BIT,
+			modds				SMALLMONEY,
 			SiteID				INT
 	)	
 	
@@ -446,7 +448,8 @@ BEGIN
 						SubHdp2,
 						SubOdds,
 						SubStatus,
-						SiteDBGroupId
+						SiteDBGroupId,
+						modds
 					)
 			SELECT 	b.transid AS GroupID,
 					b.Stake,
@@ -500,7 +503,8 @@ BEGIN
 					NULL AS SubHdp2,
 					NULL AS SubOdds,
 					NULL AS SubStatus,
-					b.SiteDBGroupID
+					b.SiteDBGroupID,
+					b.modds
 			FROM @tblTransIds t
 				 INNER JOIN bettrans b WITH (NOLOCK)
 						 ON t.transid = b.transid
@@ -578,7 +582,8 @@ BEGIN
 						ruben,
 						SiteDBGroupId,
 						matchid,
-						SiteID
+						SiteID,
+						modds
 					)
 			SELECT  main.Stake,
 					@AwayId,
@@ -629,7 +634,8 @@ BEGIN
 					main.ruben,
 					main.SiteDBGroupID,
 					sub.matchid,
-					main.BetSiteID
+					main.BetSiteID,
+					main.modds
 			FROM @tblTransIds t				 				 						 			 				 					 				 
 				 INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON t.transid = sub.transid
 				 INNER HASH JOIN bettrans main WITH (NOLOCK) ON sub.refno = main.refno
@@ -1525,6 +1531,7 @@ BEGIN
 				,@LeagueGroupID AS LeagueGroupID
 				,ISNULL(si.IsChinaView,0) AS IsChinaView
 				,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
+				,modds AS MasterOdds
 		FROM (
 				SELECT CAST(0 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Single				
 				UNION ALL

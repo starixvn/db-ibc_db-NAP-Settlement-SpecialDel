@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkedTickets_BetIds_Select]
 	@TransIds				VARCHAR(MAX)	= NULL
 	
@@ -24,6 +24,7 @@ AS
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Explanation's Param:			    
 */
@@ -75,6 +76,7 @@ BEGIN
               LeagueId         INT,
               IsNeutral        BIT,
               SettlementStatus TINYINT,
+			  modds			   SMALLMONEY,
 			  ActualStake	   MONEY
              );
 
@@ -117,6 +119,7 @@ BEGIN
 			,RefCode
 			,BonusID
 			,ActualStake
+			,modds
 		)
 		SELECT
 			 b.bettype
@@ -153,6 +156,7 @@ BEGIN
 			,b.RefCode
 			,b.BonusID
 			,b.actual_stake AS ActualStake
+			,b.modds
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp ON b.transid = temp.transid
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid
@@ -306,6 +310,7 @@ BEGIN
 		c.site AS LicenseeName,
 		b.IsDeposit
 		,b.ActualStake
+		,b.modds AS MasterOdds
 		,@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverByBetId_Update]
 	@TransIds		      VARCHAR(MAX), 
 	@UserId			      INT,	
@@ -24,6 +24,7 @@ AS
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230921@Max: [TVS] Recover Virtual Sports Bet and Recover By Bet ID - Update more info when calling SP from Settlement site [Redmine: #194269]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		
 	Param's Explanation:	
 */
@@ -63,6 +64,7 @@ BEGIN
 		username		VARCHAR(50),
 		transdate		DATETIME,
 		odds			SMALLMONEY,
+		modds			SMALLMONEY,
 		stake			MONEY,
 		winlost			MONEY,
 		STATUS			NVARCHAR(10),
@@ -113,6 +115,7 @@ BEGIN
 		sporttype		SMALLINT,
 		Currency		TINYINT,
 		transdate		DATETIME,
+		modds			SMALLMONEY,
 		eventdate		DATETIME,
 		EndTime			DATETIME,
 		IsMatch3rd		BIT DEFAULT(0)
@@ -131,6 +134,7 @@ BEGIN
 		transdesc		NVARCHAR(1000),
 		CurrencyName	NVARCHAR(50),
 		Currency		TINYINT,
+		modds			SMALLMONEY,
 		transdate		DATETIME
 	);
 	CREATE CLUSTERED INDEX ix_RecoverBet_cl ON #RecoverBet(transid);
@@ -187,6 +191,7 @@ BEGIN
 			transdesc,
 			CurrencyName,
 			Currency,
+			modds,
 			transdate
 		)
 		SELECT	b.custid,
@@ -201,6 +206,7 @@ BEGIN
 				b.transdesc,
 				b.CurrencyName,
 				b.currency,
+				b.modds,
 				b.transdate
 		FROM dbo.bettrans b WITH(NOLOCK)
 		WHERE EXISTS (SELECT 1 FROM #TransIds t WHERE t.transid = b.transid)
@@ -226,6 +232,7 @@ BEGIN
 			IsNeutral,
 			sporttype,
 			transdate,
+			modds,
 			eventdate,
 			EndTime,
 			IsMatch3rd
@@ -249,6 +256,7 @@ BEGIN
 				NULL AS IsNeutral,
 				m.sporttype,
 				b.transdate,
+				b.modds,
 				m.eventdate,
 				m.EndTime,
 				1 AS IsMatch3rd
@@ -275,6 +283,7 @@ BEGIN
 				m.IsNeutral ,
 				m.sporttype,
 				b.transdate,
+				b.modds,
 				m.eventdate,
 				NULL AS EndTime,
 				0 AS IsMatch3rd
@@ -313,6 +322,7 @@ BEGIN
 		username,	
 		transdate,	
 		odds,
+		modds,
 		stake,
 		winlost,
 		STATUS,
@@ -348,6 +358,7 @@ BEGIN
 			b.Username,		
 			b.transdate,
 			z.odds,
+			b.modds,
 			z.stake,
 			z.winlost - b.actual_stake,
 			z.STATUS,
@@ -637,6 +648,7 @@ BEGIN
 			t.username,
 			t.transdate,
 			t.odds,
+			t.modds AS MasterOdds,
 			t.stake,
 			t.winlost,
 			t.STATUS,

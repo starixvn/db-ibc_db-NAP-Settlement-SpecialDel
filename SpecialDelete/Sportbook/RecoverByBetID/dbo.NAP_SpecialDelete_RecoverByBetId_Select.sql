@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverByBetId_Select]
 	@TransIds			VARCHAR(MAX) = ''
 AS
@@ -15,6 +15,7 @@ AS
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans - Support NumberGame  [Redmine: #175412]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation:
 */
@@ -59,6 +60,7 @@ BEGIN
 		GroupName		VARCHAR(50),
 		EventDate		DATETIME,
 		matchid			INT, 
+		modds			SMALLMONEY,
 		endtime			DATETIME
 	);
 
@@ -82,6 +84,7 @@ BEGIN
 		sporttype		SMALLINT,
 		transdate		DATETIME,
 		eventdate		DATETIME,
+		modds			SMALLMONEY,
 		endtime			DATETIME
 	);
 
@@ -97,7 +100,8 @@ BEGIN
 		betid			BIGINT,
 		transdesc		NVARCHAR(1000),
 		CurrencyName	NVARCHAR(50),
-		transdate		DATETIME
+		transdate		DATETIME,
+		modds			SMALLMONEY
 	);
 	CREATE INDEX ix_TempBettrans ON #TempBettrans(matchid);
 	CREATE CLUSTERED INDEX ix_TempBet_cl ON #TempBet(custid, matchid, bettype);
@@ -135,6 +139,7 @@ BEGIN
 		betid,
 		transdesc,
 		CurrencyName,
+		modds,
 		transdate
 	)
 	SELECT	b.custid,
@@ -148,6 +153,7 @@ BEGIN
 			b.betid,
 			b.transdesc,
 			b.CurrencyName,
+			b.modds,
 			b.transdate
 	FROM dbo.bettrans b WITH(NOLOCK)
 	WHERE EXISTS (SELECT 1 FROM #tblTransIds t WHERE t.transid = b.transid)
@@ -174,6 +180,7 @@ BEGIN
 		IsNeutral,
 		sporttype,
 		transdate,
+		modds,
 		eventdate,
 		endtime
 	)
@@ -196,6 +203,7 @@ BEGIN
 			NULL AS IsNeutral,
 			m.sporttype,
 			b.transdate,
+			b.modds,
 			m.eventdate,
 			m.EndTime
 	FROM #TempBettrans b
@@ -221,6 +229,7 @@ BEGIN
 			m.IsNeutral ,
 			m.sporttype,
 			b.transdate,
+			b.modds,
 			m.eventdate,
 			NULL AS EndTime
 	FROM #TempBettrans b
@@ -258,6 +267,7 @@ BEGIN
 		CurrencyName,
 		EventDate,
 		matchid,
+		modds,
 		endtime
 	)
 	SELECT	z.transid,
@@ -290,6 +300,7 @@ BEGIN
 			b.CurrencyName,
 			b.EventDate,
 			b.matchid,
+			b.modds,
 			b.endtime
 	FROM dbo.zzzbettrans z WITH(NOLOCK)
 		INNER JOIN #TempBet b
@@ -369,6 +380,7 @@ BEGIN
 			t.CurrencyName,
 			t.matchid, 
 			t.endtime,
+			t.modds AS MasterOdds,
 			@SiteDBGroupID AS SiteDBGroupID
 	FROM #RecoverBet t
 	ORDER BY GroupName, transid;

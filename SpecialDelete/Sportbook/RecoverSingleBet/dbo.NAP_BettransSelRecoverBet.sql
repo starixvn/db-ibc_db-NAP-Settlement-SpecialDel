@@ -1,12 +1,11 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverBet]
 (
 	@TransIds		VARCHAR(MAX)	= ''
 )
 AS
 /*
-	Created: Kathy
-	Date: 20131022
+	Created: 20131022@Kathy
 	DB: DBTXN/bodb02
 
 	Revisions: 
@@ -41,6 +40,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation:
 */
@@ -85,6 +85,7 @@ BEGIN
 		,MainTransId	BIGINT
 		,EventDate		DATETIME
 		,ActualStake	MONEY
+		,modds			SMALLMONEY
 		,UNIQUE CLUSTERED(RefCode, custid, matchid, bettype, transid)				
 	)	
 	DECLARE  @InvalidTransIds   VARCHAR(MAX) = ''
@@ -138,6 +139,7 @@ BEGIN
 			,BonusID
 			,EventDate
 			,ActualStake
+			,modds
 	)
 	SELECT	z.transid
 			,z.transid
@@ -174,6 +176,7 @@ BEGIN
 			,b.BonusID
 			,o.EventDate
 			,b.actual_stake AS ActualStake
+			,b.modds
 	FROM zzzbettrans z WITH (NOLOCK)
 		INNER JOIN bettrans b WITH (NOLOCK) 
 				ON b.transid = z.transid
@@ -225,6 +228,7 @@ BEGIN
 			,BonusID
 			,EventDate
 			,ActualStake
+			,modds
 	)
 	SELECT	z.transid
 			,z.transid
@@ -262,6 +266,7 @@ BEGIN
 			,b.BonusID
 			,m.EventDate
 			,b.actual_stake AS ActualStake
+			,b.modds
 	FROM	dbo.zzzbettrans z WITH (NOLOCK)
 		INNER JOIN dbo.bettrans b WITH (NOLOCK)
 			ON	z.transid = b.transid
@@ -364,6 +369,7 @@ BEGIN
 			,m.GlobalShowTime
 			,t.ActualStake
 			,@SiteDBGroupID AS SiteDBGroupID
+			,t.modds AS MasterOdds
 	FROM	@tblRecoverBet t
 		INNER JOIN custDB.dbo.Customer ag WITH (NOLOCK) ON	t.recommend = ag.custid
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid

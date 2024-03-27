@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] 
 (
 	@CustID            VARCHAR(MAX) = NULL,
@@ -72,7 +72,8 @@ AS;
 		- 20231031@July: [SD] Void By BetID - Void abnormal tickets of many matches at once [Redmine: #196028]
 		- 20240223@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240229@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
-		
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
@@ -587,7 +588,7 @@ BEGIN
 		,d.betteam
 		,d.betcheck
 		,d.liveindicator
-		,d.modds
+		,d.modds AS MasterOdds
 		,d.custid
 		,d.username
 		,d.livehomescore

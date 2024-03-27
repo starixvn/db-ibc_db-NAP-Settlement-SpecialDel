@@ -138,6 +138,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
 		- 20240321@Max: [TVS] Remove parameters when calling SP for settling parlay tickets [Redmine: #202022]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -371,6 +372,7 @@ BEGIN
 		SettlementStatus	TINYINT,
 		eventstatus			NVARCHAR(50),
 		SiteID				INT,
+		modds				SMALLMONEY,
 		mainoddsspread 		MONEY
 	)
 
@@ -758,6 +760,7 @@ BEGIN
 				,SiteDBGroupId
 				,FilterOdds
 				,matchid
+				,modds
 			)
 			SELECT	
 				b.transid
@@ -814,6 +817,7 @@ BEGIN
 				,b.SiteDBGroupID
 				,b.odds AS FilterOdds
 				,b.matchid
+				,b.modds
 			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 			WHERE	b.matchid IN (SELECT matchid FROM @tmpMatchId)
@@ -888,6 +892,7 @@ BEGIN
 				,SiteDBGroupId
 				,FilterOdds
 				,matchid
+				,modds
 			)
 			SELECT	
 				b.transid
@@ -944,6 +949,7 @@ BEGIN
 				,b.SiteDBGroupID
 				,b.odds AS FilterOdds
 				,b.matchid
+				,b.modds
 			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 			WHERE	b.matchid IN (SELECT matchid FROM @tmpMatchId)
@@ -1146,6 +1152,7 @@ BEGIN
 				,matchid
 				,SiteID
 				,mainoddsspread
+				,modds
 			)
 			SELECT
 				b.transid,
@@ -1207,6 +1214,7 @@ BEGIN
 				,bm.matchid
 				,b.BetSiteID
 				,b.oddsspread
+			    ,b.modds
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
@@ -2136,6 +2144,7 @@ BEGIN
 			,@LeagueGroupID AS LeagueGroupID
 			,ISNULL(si.IsChinaView,0) AS IsChinaView
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
+			,al.modds AS MasterOdds
 		FROM #SpecialDeleteBets al
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK) ON al.custid = ci.custid
 			INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON	al.creator = cr.custid	

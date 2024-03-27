@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select] 
 (
 	@MatchId          INT,
@@ -101,6 +101,7 @@ AS
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -304,7 +305,8 @@ BEGIN
               SportType          SMALLINT,
               TransDesc          NVARCHAR(1000),
               refno              BIGINT,
-              mainstatusid       TINYINT, -- store statusid of normal ticket	
+              modds				 SMALLMONEY,
+			  mainstatusid       TINYINT, -- store statusid of normal ticket	
               ExtraInfo          VARCHAR(1000),
               IsCashOut			 BIT DEFAULT(0),
               matchid            INT,
@@ -453,6 +455,7 @@ BEGIN
 				,SiteDBGroupId
 				,FilterOdds
 				,matchid
+				,modds
 			)
 			SELECT
 				b.transid,
@@ -508,6 +511,7 @@ BEGIN
 				,b.SiteDBGroupID
 				,b.odds AS FilterOdds
 				,b.matchid
+				,b.modds
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
@@ -581,6 +585,7 @@ BEGIN
 				,SiteDBGroupId
 				,FilterOdds
 				,matchid
+				,modds
 			)
 			SELECT
 				b.transid,
@@ -636,6 +641,7 @@ BEGIN
 				,b.SiteDBGroupID
 				,b.odds AS FilterOdds
 				,b.matchid
+				,b.modds
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
@@ -838,6 +844,7 @@ BEGIN
 				,SiteDBGroupId
 				,FilterOdds
 				,matchid
+				,modds
 			)
 			SELECT
 				b.transid,
@@ -895,6 +902,7 @@ BEGIN
 				,bm.SiteDBGroupId
 				,bm.SubOdds AS FilterOdds
 				,bm.matchid
+				,b.modds
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
@@ -1219,6 +1227,7 @@ BEGIN
 			   ,s.SiteDBGroupId
 			   ,s.eventstatus
 			   ,s.SettlementStatus
+			   ,s.modds
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN #SpecialDeleteBets sub ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1287,6 +1296,7 @@ BEGIN
 			   ,s.SiteDBGroupId
 			   ,s.eventstatus
 			   ,s.SettlementStatus
+			   ,s.modds
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON s.betid = b.transid AND b.matchid = s.matchid
 		WHERE	s.recommend IN (52466, 5707545)
@@ -1348,6 +1358,7 @@ BEGIN
 			   ,s.SiteDBGroupId
 			   ,s.eventstatus
 			   ,s.SettlementStatus
+			   ,s.modds
 		FROM #SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1419,6 +1430,7 @@ BEGIN
 			   ,s.SiteDBGroupId
 			   ,s.eventstatus
 			   ,s.SettlementStatus
+		       ,s.modds
 		FROM #SpecialDeleteBets s
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1527,6 +1539,7 @@ BEGIN
 			,CASE WHEN s.SubGroupName LIKE '%(Instant Settlement)' THEN 1 ELSE 0 END AS IsInstantSettlement
 			,s.SiteDBGroupId
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
+			,s.modds AS MasterOdds
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site

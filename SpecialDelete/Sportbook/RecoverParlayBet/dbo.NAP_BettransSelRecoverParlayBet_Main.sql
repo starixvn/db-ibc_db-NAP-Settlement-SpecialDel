@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Main] 
 	@BetType		VARCHAR(20) = 'all'
 	,@TransIds		VARCHAR(MAX)	= ''
@@ -17,6 +17,7 @@ AS
 		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation:			
 			- @BetType:
@@ -45,6 +46,7 @@ BEGIN
 		,liveawayscore			SMALLINT 
 		,Stake					MONEY
 		,Odds					SMALLMONEY		
+		,modds					SMALLMONEY
 		,hdp1					SMALLMONEY
 		,hdp2					SMALLMONEY						
 		,betcheck				NVARCHAR(50)
@@ -81,6 +83,7 @@ BEGIN
 			,liveawayscore 
 			,Stake	
 			,Odds			
+			,modds
 			,hdp1
 			,hdp2			
 			,betcheck
@@ -106,6 +109,7 @@ BEGIN
 			,z.liveawayscore AS liveawayscore 
 			,z.stake AS Stake	
 			,z.odds AS Odds			
+			,b.modds
 			,z.hdp1 AS hdp1
 			,z.hdp2 AS hdp2		
 			,z.betcheck AS betcheck
@@ -163,6 +167,7 @@ BEGIN
 			 ,t.ExtraInfo
 			 ,t.ActualStake   
 			 ,@SiteDBGroupID AS SiteDBGroupID
+			 ,t.modds AS MasterOdds
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID

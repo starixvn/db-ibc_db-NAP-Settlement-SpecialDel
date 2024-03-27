@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBACC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail] 
 	@MatchId					INT,
     @LicenseeName				VARCHAR(MAX)  = 'ALL',
@@ -89,6 +89,7 @@ AS;
 		- 20240123@July: Separate groups to view data of some special sites (special 777 site) [Redmine: #198089]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -1034,7 +1035,7 @@ BEGIN
 			refno,
 			TransDesc,
 			SportType,
-			MOdds,
+			MOdds AS MasterOdds,
 			BallSequence,
 			WalletType,			
 			RefCode,

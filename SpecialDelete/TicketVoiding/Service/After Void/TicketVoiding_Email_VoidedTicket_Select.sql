@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 	 @VoidingHistoryId			INT = NULL
 	,@IsITSupport				BIT = 0
@@ -36,6 +36,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20230823@Max: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		
 	Param's explanation:	
 		
@@ -114,6 +115,7 @@ BEGIN
 		,LeagueGroupID  SMALLINT
 		,zzzWinlost		MONEY
 		,IsMainParlay	BIT DEFAULT (0)
+		,modds			SMALLMONEY
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -189,6 +191,7 @@ BEGIN
 			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
 			,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799, 10449) THEN 1 ELSE 0 END --case AB(void mix parlay)
 			,IsMainParlay = CASE WHEN t.Bettype IN (9,29,2799, 10449) THEN 1 ELSE 0 END
+			,modds = b.modds
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -232,6 +235,7 @@ BEGIN
 				,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END --case AB(void mix parlay)
 				,IsVoidArchived = 1
 				,IsMainParlay = CASE WHEN t.Bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END
+				,modds = b.modds
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON t.TransId = b.transid
@@ -306,6 +310,7 @@ BEGIN
 			,LiveIndicator = bm.liveindicator
 			,ActualStake = b.actual_stake
 			,t.Status = b.status
+			,modds = b.modds
 	FROM	#tmpTicket t
 		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
@@ -611,6 +616,7 @@ BEGIN
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 			,@VoidingHistoryId AS VoidingHistoryId
 			,t.zzzWinlost
+			,t.modds AS MasterOdds
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid

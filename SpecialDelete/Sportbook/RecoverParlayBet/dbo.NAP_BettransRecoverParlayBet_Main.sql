@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Main] 
 	@BetType				VARCHAR(20)		= 'All',
 	@TransIds				VARCHAR(MAX)	= '',
@@ -33,6 +33,7 @@ AS
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation:			
 		- @BetType: 'all': All
@@ -618,6 +619,7 @@ BEGIN
 				,b.ExtraInfo
 				,b.actual_stake AS ActualStake
 				,@SiteDBGroupID AS SiteDBGroupID
+				,b.modds AS MasterOdds 
 		FROM	#tblRecoverBet t
 				INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = t.transid AND b.SiteDBGroupID = @SiteDBGroupID
 				INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = b.srecommend

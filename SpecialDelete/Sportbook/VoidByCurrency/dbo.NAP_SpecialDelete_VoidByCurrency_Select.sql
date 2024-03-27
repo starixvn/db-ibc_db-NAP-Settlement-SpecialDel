@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Select] 
 (
 	@MatchID       INT,
@@ -37,6 +37,7 @@ AS;
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation:			
 			- @TicketType:
@@ -120,7 +121,7 @@ BEGIN
         IsMixParlay           BIT,
         OddsType              INT,
         RefNo                 BIGINT,
-        Status                NVARCHAR(10),
+		Status                NVARCHAR(10),
         TransDate             DATETIME,
         TransDesc             NVARCHAR(1000),
         TransId               BIGINT,
@@ -148,6 +149,7 @@ BEGIN
 		ActualStake			  MONEY,
 		IsMarked			  BIT DEFAULT(0),
 		IsDeposit			  BIT DEFAULT(0),
+        modds                 SMALLMONEY,
 		SiteDBGroupID		  SMALLINT
 
    );
@@ -255,6 +257,7 @@ BEGIN
 					SubOdds,
 					SubStatus,
 					ActualStake,
+					modds,
 					SiteDBGroupID
 				)
 		SELECT 	b.transid AS GroupID,
@@ -304,6 +307,7 @@ BEGIN
 				NULL AS SubOdds,
 				b.status AS SubStatus,
 				b.actual_stake AS ActualStake,
+				b.modds,
 				b.SiteDBGroupID
 		FROM bettrans b WITH (NOLOCK)
 			 INNER JOIN @t_exchanges te
@@ -369,6 +373,7 @@ BEGIN
 				SubStatus,
 				ExtraInfo,
 				ActualStake,
+				modds,
 				SiteDBGroupID
 			)
 		SELECT  main.Stake,
@@ -408,6 +413,7 @@ BEGIN
 				sub.status AS SubStatus,
 				main.ExtraInfo,
 				main.actual_stake AS ActualStake,
+				main.modds,
 				main.SiteDBGroupID
 		FROM	dbo.bettransm sub WITH (NOLOCK)	
 			 INNER HASH JOIN bettrans main WITH (NOLOCK)
@@ -492,6 +498,7 @@ BEGIN
 		s.IsMarked,
 		@GlobalShowTime AS GlobalShowTime,
 		s.ActualStake,
+		s.modds AS MasterOdds,
 		s.SiteDBGroupID
 	FROM #SpecialDeleteBets s	
 	ORDER BY CASE
