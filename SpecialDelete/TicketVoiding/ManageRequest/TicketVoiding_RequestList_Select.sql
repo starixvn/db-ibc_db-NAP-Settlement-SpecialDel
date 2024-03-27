@@ -219,7 +219,7 @@ BEGIN
 					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 					SELECT  s.RequestId,MIN(b.winlostdate)
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid
+						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid AND s.MatchId = b.matchid AND s.CustId = b.CustId AND s.Bettype = b.Bettype
 					WHERE s.matchid IN (9, 29, 2799, 10449)
 						AND s.MatchId = @MatchId
 					GROUP BY s.RequestId
@@ -227,7 +227,7 @@ BEGIN
 					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 					SELECT  s.RequestId,MIN(b.winlostdate)
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-						INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid
+						INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid AND s.MatchId = b.matchid AND s.CustId = b.CustId AND s.Bettype = b.Bettype
 					WHERE s.matchid IN (9, 29, 2799, 10449)
 						AND s.MatchId = @MatchId
 					GROUP BY s.RequestId
@@ -460,7 +460,7 @@ BEGIN
 	WHERE t.IssueTypeId = 3
 
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId, MatchId)
-	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId, t.MatchId
+	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId, ISNULL(t.MatchId,0)
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
