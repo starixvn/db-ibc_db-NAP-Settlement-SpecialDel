@@ -36,6 +36,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20230823@Max: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240402@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
 
@@ -385,8 +386,11 @@ BEGIN
 			,matchid    = m.matchid
 			,SettlementStatus = 0
 			,eventstatus = m.eventstatus
+				,LeagueGroupID = l.LeagueGroupID
 		FROM #tmpTicket t
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
+				INNER JOIN dbo.league l WITH (NOLOCK) 
+					ON	m.leagueid = l.leagueid
 			ON	t.matchid = m.matchid
 		WHERE t.IsMixParlay = 0 AND IsVoidArchived = 1
 	END
@@ -401,6 +405,7 @@ BEGIN
 			,sporttype 	= l.sporttype
 			,showtime	= ''
 			,eventstatus = odds.oddsstatus
+					,LeagueGroupID = l.LeagueGroupID
 		FROM #tmpTicket t
 			INNER JOIN dbo.outright14 AS odds WITH (NOLOCK) 
 			ON	t.matchid = odds.orid
