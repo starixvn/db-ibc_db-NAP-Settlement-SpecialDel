@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBMSG-bodb_Message" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBMSG-bodb_Message" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_RecoverBet_MessageDel]
    @transids 	VARCHAR(MAX),
     @UserID 	INT = 8 

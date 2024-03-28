@@ -1,4 +1,4 @@
-/*<info serverAlias="DBOIC-bodb_OIC" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBOIC-bodb_OIC" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[SpecialDelete_MailingList_Select]
 	@CategoryId		TINYINT = 10
 AS

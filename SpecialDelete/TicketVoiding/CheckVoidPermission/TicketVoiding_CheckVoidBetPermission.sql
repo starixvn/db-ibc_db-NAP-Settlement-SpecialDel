@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_CheckVoidBetPermission] 
 	 @TransInfoJson						VARCHAR(MAX) = NULL
 	,@IsCashOutAsUnSettledTicket		BIT = 0

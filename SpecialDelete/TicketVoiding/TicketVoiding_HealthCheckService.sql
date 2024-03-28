@@ -1,4 +1,4 @@
-/*<info serverAlias="DBOIC-bodb_OIC,DBMSG-bodb_Message,DBPRO-bodb02,DBTXN-bodb02,DBONUSER-ON_USER" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBOIC-bodb_OIC,DBMSG-bodb_Message,DBPRO-bodb02,DBTXN-bodb02,DBONUSER-ON_USER" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_HealthCheckService]
 AS
 /*	Created by: Raymond

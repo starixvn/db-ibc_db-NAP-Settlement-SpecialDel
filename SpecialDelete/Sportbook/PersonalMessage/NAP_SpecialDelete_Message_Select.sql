@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBMSG-bodb_Message" executers="bodbAdminNet,Dot_Admin" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBMSG-bodb_Message" executers="wsv_nap,Dot_Admin" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_Message_Select]
 	@MessageId INT
 	/*	

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_ACC_Select] 
 (
 	@AbnormalAccounts  VARCHAR(MAX) = NULL
@@ -51,7 +51,8 @@ BEGIN
 		,IsVoid14 BIT DEFAULT(0)
 		,winlost	MONEY
 		,actual_stake	MONEY
-    )
+		,modds SMALLMONEY
+	)
 	
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
@@ -194,6 +195,7 @@ BEGIN
 			,IsVoid14
 			,winlost
 			,actual_stake
+			,modds
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -210,6 +212,7 @@ BEGIN
 		,0 AS IsVoid14
 		,b.winlost
 		,b.actual_stake
+		,b.modds
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -263,6 +266,7 @@ BEGIN
 			,IsVoid14
 			,winlost
 			,actual_stake
+			,modds
 			)
 		SELECT b.matchid
 			,b.TransId
@@ -279,6 +283,7 @@ BEGIN
 			,1 AS IsVoid14
 			,b.winlost
 			,b.actual_stake
+			,b.modds
 		FROM dbo.bettrans14 b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -324,6 +329,7 @@ BEGIN
 		,IsVoid14 AS 'isV14'
 		,winlost AS 'wl'
 		,actual_stake AS 'act_s'
+		,modds AS 'm'
 	FROM #TransInfo
 	FOR JSON PATH))
 

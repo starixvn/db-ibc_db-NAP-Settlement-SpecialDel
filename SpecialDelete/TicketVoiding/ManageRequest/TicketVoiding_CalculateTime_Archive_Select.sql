@@ -1,4 +1,4 @@
-/*<info serverAlias="DBLOG-bodb_CustomerLog_Archive" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBLOG-bodb_CustomerLog_Archive" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_CalculateTime_Archive_Select]
 ( 
 	@RequestInfoGetCalcTimes VARCHAR(MAX) = NULL

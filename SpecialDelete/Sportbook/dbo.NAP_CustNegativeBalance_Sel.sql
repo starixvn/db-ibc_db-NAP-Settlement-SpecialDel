@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_CustNegativeBalance_Sel] 	
 	@CustIds			  VARCHAR(MAX)	= '',
     @NegativeBalanceUsers VARCHAR(MAX) OUTPUT
