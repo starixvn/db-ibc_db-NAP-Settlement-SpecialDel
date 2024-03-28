@@ -533,7 +533,7 @@ BEGIN
 		SELECT TOP 1 IsMoved14
 		FROM #tmpTransInfo
 		WHERE transid = temp.transid 
-			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 AND winlostdate > @Archived_FromDate THEN 1 ELSE 0 END
+			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 AND winlostdate < @Archived_FromDate THEN 1 ELSE 0 END
 		) bm
 		OUTER APPLY (
 		SELECT transid
