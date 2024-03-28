@@ -23,6 +23,7 @@ AS
 		- 20220808@July: Create new SP - Split code issuetype Abnormal bet & AB(real member) [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20240327@Max: [CTS] - [TVS] - Missing Void Info - Not auto-mark PA [Redmine: #201993]
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet, 15 - AB(real member)
@@ -42,6 +43,7 @@ BEGIN
 			,@OldMatchId		 INT
 			,@OldTransIds 		 VARCHAR(MAX) = NULL
 			,@RequestDetailId	 INT
+			,@row_count			 INT = 0
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -146,6 +148,12 @@ BEGIN
 						AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
 									 WHEN @FilterBy = 1 AND b.betteam = '1' THEN 1 ELSE 0 END
 					)tmp
+
+	SET @row_count = @@ROWCOUNT
+
+	UPDATE rd SET rd.SingleCount = @row_count
+	FROM TicketVoiding_RequestDetail rd WITH (ROWLOCK, UPDLOCK)
+	WHERE rd.RequestId = @RequestId
 
 	-- Get content of log data 
 	SET @LogDataContent = ''
