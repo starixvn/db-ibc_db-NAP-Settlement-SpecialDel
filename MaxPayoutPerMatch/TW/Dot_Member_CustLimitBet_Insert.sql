@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member,svc_tig" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Dot_Member_CustLimitBet_Insert]
 (
 	@MatchId		INT
@@ -20,6 +20,7 @@ AS
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20220317@Max: Support Max Payout & Max Turnover for Deposit - [Redmine: #167898]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
+		- 20240118@Louisa: VS4 - Cock Fighting [Redmine:#199700]
 	
 	Param's explanation:	
 		
@@ -33,14 +34,14 @@ BEGIN
 	END
 	
 
-	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186) AND (@sporttype NOT BETWEEN 190 AND 197))
-		OR (@bettype IN(2799)) OR (@bettype BETWEEN 801 AND 806)
+	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186,188) AND (@sporttype NOT BETWEEN 190 AND 197))
+		OR (@bettype IN(2799,10449)) OR (@bettype BETWEEN 801 AND 806)
 	BEGIN
 		RETURN
 	END
 	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) 
 		OR (@sporttype IN (43,44) AND @sitetype <> 3)
-		OR (@sporttype IN (164,178,179,180,186)) 
+		OR (@sporttype IN (164,178,179,180,186,188)) 
 		OR (@sporttype BETWEEN 190 AND 197)
 	BEGIN
 		SET @payout = 0
