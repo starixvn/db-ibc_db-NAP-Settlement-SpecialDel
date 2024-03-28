@@ -42,7 +42,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF (@IssueTypeId = 17) OR (@IssueTypeId IN (11,15,13) AND @VoidingTypeId = 5) --Void 14
+	IF (@IssueTypeId = 17) OR (@IssueTypeId IN (11,15,13) AND @VoidingTypeId IN (5,6)) --Void 14
 	BEGIN
 		EXEC dbo.TicketVoiding_VoidHistorical_Update
 			@RequestId				= @RequestId
