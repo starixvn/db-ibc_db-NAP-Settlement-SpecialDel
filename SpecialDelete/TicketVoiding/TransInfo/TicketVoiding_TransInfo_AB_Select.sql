@@ -73,6 +73,7 @@ BEGIN
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
 		,winlostdate SMALLDATETIME
+		,ChildMatchid INT -- for Cricket
     )
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
@@ -179,7 +180,8 @@ BEGIN
 	IF(EXISTS(SELECT TOP 1 1 FROM #TransInfo WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE d
-		SET d.matchid = m.ParentID
+		SET d.ChildMatchid = d.matchid
+			,d.matchid = m.ParentID
 		FROM #TransInfo d
 			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
 		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
@@ -286,7 +288,8 @@ BEGIN
 		IF(EXISTS(SELECT TOP 1 1 FROM #TransInfo WHERE bettype NOT IN (9, 29, 2799, 10449)))
 		BEGIN
 			UPDATE d
-			SET d.matchid = m.ParentID
+			SET d.ChildMatchid = d.matchid
+				,d.matchid = m.ParentID
 			FROM #TransInfo d
 				INNER JOIN dbo.match14 m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
 			WHERE d.bettype NOT IN (9, 29, 2799, 10449)
@@ -335,12 +338,14 @@ BEGIN
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
 		,winlostdate AS 'wld'
+		,ChildMatchid AS 'cmid'
 	FROM #TransInfo
 	FOR JSON PATH))
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
 	DROP TABLE #TransInfo
+	DROP TABLE #transIdTemp
 END
 
 GO
