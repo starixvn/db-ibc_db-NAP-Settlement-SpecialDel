@@ -54,7 +54,7 @@ AS
 		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
-		- 20240328@Louisa: fix issue Auto ES cannot pass data into queue single [Redmine: #000000]
+		- 20240328@Louisa: fix issue Auto ES cannot pass data into queue single [Redmine: #203079]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
