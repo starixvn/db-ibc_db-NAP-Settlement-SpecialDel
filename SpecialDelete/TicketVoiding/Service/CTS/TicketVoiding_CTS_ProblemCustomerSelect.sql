@@ -1,9 +1,11 @@
 ﻿/*<info serverAlias="DBTP-bodb02" executers="bodbSPUNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_CTS_ProblemCustomerSelect]
+(
 	@Datetime				DATETIME = NULL
    ,@IsArchive				BIT = 0			OUTPUT
    ,@MaxTimeRequestActive	DATETIME = NULL OUTPUT
    ,@MissingDataRequestIds	VARCHAR(2000) = '' OUTPUT
+)
 AS
 /*	Created by: 20220606@July
 	Task: TVS - Send problem customer in Abnormal Bet request to CTS  [Redmine:#172634]
@@ -54,18 +56,18 @@ BEGIN
 
 	IF @@ROWCOUNT > 0
 	BEGIN
-		DECLARE @wait_time TINYINT = 1
+		DECLARE @i TINYINT = 1
 			,@waitfor_delay DATETIME = '00:00:00.000'
 		
-		WHILE (@wait_time <= 3)
+		WHILE (@i <= 5)
 		BEGIN
-			SET @waitfor_delay = DATEADD(SECOND, @wait_time , '00:00:00.000') 
+			SET @waitfor_delay = CASE WHEN @i = 1 THEN '00:00:01.000'
+									  WHEN @i = 2 THEN '00:00:02.000'
+									  WHEN @i = 3 THEN '00:00:05.000'
+									  WHEN @i = 4 THEN '00:00:30.000' 
+									  WHEN @i = 5 THEN '00:00:60.000'
+								END
 			WAITFOR DELAY @waitfor_delay
-
-			IF @wait_time = 2
-			BEGIN
-				UPDATE @tmp_Request_Retry set Detail_count = 1
-			END
 
 			DELETE t
 			FROM @tmp_Request_Retry t
@@ -79,7 +81,7 @@ BEGIN
 			IF NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Request_Retry)
 				BREAK;
 
-			SET @wait_time += 1
+			SET @i += 1
 		END
 	END
 
