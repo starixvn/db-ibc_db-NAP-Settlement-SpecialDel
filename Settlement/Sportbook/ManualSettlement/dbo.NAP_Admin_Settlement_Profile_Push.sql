@@ -54,6 +54,7 @@ AS
 		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
+		- 20240328@Louisa: fix issue Auto ES cannot pass data into queue single [Redmine: #203079]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -88,7 +89,10 @@ BEGIN
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
 			,@leagueid		= m.leagueid
+			,@LeagueGroupId	= l.LeagueGroupID
 	FROM	DBPRO.bodb02.dbo.match m WITH(NOLOCK)
+		INNER JOIN dbo.League l WITH(NOLOCK)
+			ON m.leagueid = l.leagueid
 	WHERE	m.matchid = @MatchId
 
 	SELECT	 @ErrCode		= 0
@@ -126,7 +130,9 @@ BEGIN
 		
 
 	IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- For testing on UAT -- UAT1 -->UAT9
-		OR ( @IsAuto = 1 AND @sporttype IN (1,2,43) ) -- product PinGoal will be executed directly instead of pushing in queue
+		OR (@IsAuto = 1 AND @sporttype = 1 AND @LeagueGroupId = 113 ) -- product PinGoal
+		OR (@IsAuto = 1 AND @sporttype = 43 AND @LeagueGroupId IN (151,215) ) --PinGoal, RedCat
+		OR (@IsAuto = 1 AND @sporttype = 2 AND @LeagueGroupId = 122 ) --PinGoal
 	BEGIN
 		BEGIN TRY
 			EXEC sys.sp_executesql @sqlCommand
