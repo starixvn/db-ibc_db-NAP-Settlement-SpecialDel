@@ -425,7 +425,7 @@ BEGIN
 					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed -- Apply for DA,RC,WC
 			FROM #tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
-					ON	vh.VoidingHistoryId = z.VoidingHistoryId
+					ON	vh.VoidingHistoryId = z.VoidingHistoryId AND z.VoidingHistoryId IS NOT NULL
 				LEFT JOIN @tmpChildMatchCricket m ON z.matchid = m.ChildMatchId
 			WHERE vh.IssueTypeId NOT IN (22) --Recover Ticket
 				 AND (vh.MatchId = CASE WHEN m.MatchId IS NOT NULL THEN m.MatchId ELSE z.matchid END
@@ -447,7 +447,7 @@ BEGIN
 					,ISNULL(m.matchid, zm.matchid) AS matchid
 			FROM	#tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm_bk zm WITH(NOLOCK)
-					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
+					ON	zm.VoidingHistoryId = vh.VoidingHistoryId AND zm.VoidingHistoryId IS NOT NULL
 				LEFT JOIN @tmpChildMatchCricket m ON zm.matchid = m.ChildMatchId
 			WHERE vh.IssueTypeId NOT IN (11,15,13,17,22) --Except AB,AB(real member),AC,ARC,RT
 				AND vh.MatchId = CASE WHEN m.MatchId IS NOT NULL THEN m.MatchId ELSE zm.matchid END

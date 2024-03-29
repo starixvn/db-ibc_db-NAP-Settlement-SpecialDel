@@ -94,7 +94,8 @@ BEGIN
 				,SUM(CASE WHEN z.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalVoidedParlay
 				,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut -- Apply for DA,RC,WC
 		FROM #tmpResult vh
-			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON vh.VoidingHistoryId = z.VoidingHistoryId
+			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) 
+					ON vh.VoidingHistoryId = z.VoidingHistoryId AND z.VoidingHistoryId IS NOT NULL
 			LEFT JOIN @tmpChildMatchCricket m ON z.matchid = m.ChildMatchId
 		WHERE 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
 				       WHEN @MatchId NOT IN (0,29) AND ISNULL(m.matchid, z.matchid) = @MatchId THEN 1
@@ -114,7 +115,8 @@ BEGIN
 			 , COUNT(1) AS TotalVoidedParlay
 			 , @MatchId AS MatchId
 		FROM #tmpResult vh
-			INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK) ON zm.VoidingHistoryId = vh.VoidingHistoryId
+			INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK) 
+				ON zm.VoidingHistoryId = vh.VoidingHistoryId AND zm.VoidingHistoryId IS NOT NULL
 			LEFT JOIN @tmpChildMatchCricket m ON zm.matchid = m.ChildMatchId
 		WHERE ISNULL(m.matchid, zm.matchid) = @MatchId 
 		GROUP BY vh.VoidingHistoryId
