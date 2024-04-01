@@ -114,7 +114,6 @@ BEGIN
 		,LeagueGroupID  SMALLINT
 		,zzzWinlost		MONEY
 		,modds			SMALLMONEY
-		,modds			SMALLMONEY
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -189,7 +188,6 @@ BEGIN
 			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
 			,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END
 			,modds = b.modds
-			,modds = b.modds
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid AND t.SiteDBGroupID = b.SiteDBGroupID
@@ -231,7 +229,6 @@ BEGIN
 				,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
 				,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END
 				,IsVoidArchived = 1
-				,modds = b.modds
 				,modds = b.modds
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)

@@ -625,6 +625,8 @@ BEGIN
 			FROM	dbo.f_SD_GetGroupBettypes () f
 			WHERE	f.bettype = s.Bettype
 		)f
+	GROUP BY t.RequestId, s.Bettype, CASE WHEN f.IsNameXBettype = 1 THEN s.BetId ELSE NULL END
+	ORDER BY s.Bettype DESC
 
 	DROP TABLE #tmpResult
 	
