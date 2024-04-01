@@ -16,6 +16,7 @@ AS
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -227,6 +228,12 @@ BEGIN
 			AND b.betfrom <> 'P'
 			AND b.SiteDBGroupID = @SiteDBGroupID
 	END
+
+	--Update Main MatchID for child match cricket (Sporttype = 50)
+	UPDATE d
+	SET d.matchid = m.ParentID
+	FROM #TransInfo d
+		INNER JOIN dbo.match14 m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
 						
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
