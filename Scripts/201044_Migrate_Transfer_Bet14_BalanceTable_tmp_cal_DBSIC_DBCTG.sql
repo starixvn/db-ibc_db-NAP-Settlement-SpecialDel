@@ -1,10 +1,14 @@
-/*<info serverAlias="DBSIC-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBSIC-bodb02,DBCTG-bodb02" executers="" viewers="" isFunction=""></info>*/
 
 /*
 	Created: 20240114@Louisa
-	Task: Migrate Data for table transfer [Redmine: #201044]
-	DB: DBSIC/bodb02 
+	Task: Migrate Data for new site Hedging and PhoneBetting [Redmine: #201044]
+	DB: DBSIC-bodb02
+		DBCTG-bodb02 
 
+	Table:
+		transfer bettype 19999 and 20000
+		BalanceTable_tmp_cal
 */
 
 USE bodb02
@@ -14,15 +18,18 @@ GO
 ---- init data
 BEGIN
 	DROP TABLE IF EXISTS #tmp_Cust;
-	CREATE TABLE #tmp_Cust (CustID INT PRIMARY KEY, Username VARCHAR(10), site VARCHAR(30), roleid TINYINT, mrecommend_New INT, srecommend_New INT,recommend_NEW INT, IsFinished BIT DEFAULT(0))
+	CREATE TABLE #tmp_Cust (CustID INT PRIMARY KEY, Username VARCHAR(10), site VARCHAR(30), roleid TINYINT, mrecommend_New INT, srecommend_New INT,recommend_NEW INT )
 	
 	DROP TABLE IF EXISTS #tmp_transfer;
 	CREATE TABLE #tmp_transfer ( ID INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
 
+	DROP TABLE IF EXISTS #tmp_Balance;
+	CREATE TABLE #tmp_Balance ( ID INT IDENTITY(1,1) PRIMARY KEY, dow TINYINT, custid INT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+
 	INSERT INTO #tmp_Cust(CustID, Username, site, roleid)
 	SELECT custid,username,'Hedging',roleid
 	FROM custdb.dbo.custinfo WITH (NOLOCK)
-	WHERE username IN ('999MYR','USTM','MOLLYBET','AH501','MollyBF','XYZHK','billma','FRARM','M008iRM','M9999RM','mbrm','2022WC-RM','CASHTEST','CMD','FRA','IT-test1','MMRODDS','XYZPTRM','XYZRM','ISN','STELIM')
+	WHERE username IN ('MOLLYBET','AH501','MollyBF','XYZHK','billma','FRARM','M008iRM','M9999RM','mbrm','2022WC-RM','CASHTEST','CMD','FRA','IT-test1','MMRODDS','XYZPTRM','XYZRM','ISN','STELIM')
 	UNION 
 	SELECT custid,username,'Special',roleid
 	FROM custdb.dbo.custinfo WITH (NOLOCK)
@@ -104,10 +111,6 @@ BEGIN
 END
 
 
-DECLARE @MoveBetsDay	 SMALLDATETIME
-EXEC dbo.NAP_Admin_GetMovebetDate @MovebetDate = @MoveBetsDay OUTPUT
-SELECT  @MoveBetsDay AS MoveBetsDay
-
 ----UPDATE Transfer, roleid = 1
 BEGIN
 	TRUNCATE TABLE #tmp_transfer;
@@ -116,8 +119,7 @@ BEGIN
 	FROM dbo.Transfer f WITH(NOLOCK)
 		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
 	WHERE c.roleid = 1
-		AND f.WinlostDate > XXX  ------@MoveBetsDay
-		AND f.Bettype > 20000
+		AND f.Bettype IN (19999, 20000)
 	
 	DECLARE @Threshold1 INT  = 1000
 		,@StartRow1 INT = 1, @StopRow1 INT = 0, @MaxRow1  INT = 0
@@ -135,7 +137,6 @@ BEGIN
 		SET f.recommend = t.recommend_NEW
 			,f.mrecommend = t.mrecommend_New
 			,f.srecommend = t.srecommend_New
-			,f.RepUpdateTime = SYSDATETIME()
 		FROM dbo.Transfer f WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
 		WHERE t.ID BETWEEN @StartRow1 AND @StopRow1
@@ -159,8 +160,7 @@ BEGIN
 	FROM dbo.Transfer f WITH(NOLOCK)
 		INNER JOIN #tmp_Cust c ON c.CustID = f.Recommend
 	WHERE c.roleid = 2
-		AND f.WinlostDate > XXXXX ---@MoveBetsDay
-		AND f.Bettype > 20000
+		AND f.Bettype IN (19999, 20000)
 	
 	DECLARE @Threshold2 INT  = 1000
 		,@StartRow2 INT = 1, @StopRow2 INT = 0, @MaxRow2  INT = 0
@@ -177,7 +177,6 @@ BEGIN
 		UPDATE TOP(1000) f
 		SET f.mrecommend = t.mrecommend_New
 			,f.srecommend = t.srecommend_New
-			,f.RepUpdateTime = SYSDATETIME()
 		FROM dbo.Transfer f WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
 		WHERE t.ID BETWEEN @StartRow2 AND @StopRow2
@@ -200,8 +199,7 @@ BEGIN
 	SELECT f.transid, c.srecommend_New
 	FROM dbo.Transfer f WITH(NOLOCK)
 		INNER JOIN #tmp_Cust_RecommendList_roleid_3 c ON c.recommend = f.recommend
-	WHERE f.WinlostDate > XXXX ---@MoveBetsDay
-		AND f.Bettype > 20000
+	WHERE f.Bettype IN (19999, 20000)
 
 	DECLARE @Threshold3 INT  = 1000
 			,@StartRow3 INT = 1, @StopRow3 INT = 0, @MaxRow3  INT = 0
@@ -217,7 +215,6 @@ BEGIN
 	BEGIN		
 		UPDATE TOP(1000) b
 		SET b.srecommend = t.srecommend_New
-			,b.RepUpdateTime = SYSDATETIME()
 		FROM dbo.Transfer b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_transfer t ON b.TransId = t.TransId
 		WHERE t.ID BETWEEN @StartRow3 AND @StopRow3
@@ -237,21 +234,19 @@ END
 
 ----transfer_coll---------------------------
 
---UPDATE transfer_coll, roleid = 1
+--UPDATE BalanceTable_tmp_cal, roleid = 1
 BEGIN
-	TRUNCATE TABLE #tmp_transfer;
-	INSERT INTO #tmp_transfer ( transid, recommend_NEW, mrecommend_New, srecommend_New )
-	SELECT f.transid, c.recommend_NEW, c.mrecommend_New, c.srecommend_New
-	FROM dbo.transfer_coll f WITH(NOLOCK)
+	TRUNCATE TABLE #tmp_Balance;
+	INSERT INTO #tmp_Balance ( dow, custid, recommend_NEW, mrecommend_New, srecommend_New )
+	SELECT f.dow, f.custid, c.recommend_NEW, c.mrecommend_New, c.srecommend_New
+	FROM dbo.BalanceTable_tmp_cal f WITH(NOLOCK)
 		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
 	WHERE c.roleid = 1
-		AND f.WinlostDate > XXX ----@MoveBetsDay
-		AND f.Bettype > 20000
 	
 	DECLARE @Threshold11 INT  = 1000
 		,@StartRow11 INT = 1, @StopRow11 INT = 0, @MaxRow11  INT = 0
 
-	SELECT @MaxRow11	= MAX(ID) FROM #tmp_transfer
+	SELECT @MaxRow11	= MAX(ID) FROM #tmp_Balance
 	
 	IF @Threshold11 >= @MaxRow11
 	SET @Threshold11 = @MaxRow11
@@ -264,9 +259,8 @@ BEGIN
 		SET f.recommend = t.recommend_NEW
 			,f.mrecommend = t.mrecommend_New
 			,f.srecommend = t.srecommend_New
-			,f.RepUpdateTime = SYSDATETIME()
-		FROM dbo.transfer_coll f WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
+		FROM dbo.BalanceTable_tmp_cal f WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tmp_Balance t ON f.dow = t.dow AND f.custid = t.custid
 		WHERE t.ID BETWEEN @StartRow11 AND @StopRow11
 
 		IF @StopRow11 = @MaxRow11 BREAK
@@ -280,62 +274,58 @@ BEGIN
 	END
 END
 
-----UPDATE transfer_coll, roleid = 2
+----UPDATE #tmp_Balance, roleid = 2
 BEGIN
-	TRUNCATE TABLE #tmp_transfer;
-	INSERT INTO #tmp_transfer ( transid, mrecommend_New, srecommend_New )
-	SELECT f.transid, c.mrecommend_New, c.srecommend_New
-	FROM dbo.transfer_coll f WITH(NOLOCK)
-		INNER JOIN #tmp_Cust c ON c.CustID = f.Recommend
+	TRUNCATE TABLE #tmp_Balance;
+	INSERT INTO #tmp_Balance ( dow, custid, recommend_NEW, mrecommend_New, srecommend_New )
+	SELECT f.dow, f.custid, c.recommend_NEW, c.mrecommend_New, c.srecommend_New
+	FROM dbo.BalanceTable_tmp_cal f WITH(NOLOCK)
+		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
 	WHERE c.roleid = 2
-		AND f.WinlostDate > XXX ----@MoveBetsDay
-		AND f.Bettype > 20000
 	
-	DECLARE @Threshold22 INT  = 1000
-		,@StartRow22 INT = 1, @StopRow22 INT = 0, @MaxRow22  INT = 0
+	DECLARE @Threshold11 INT  = 1000
+		,@StartRow11 INT = 1, @StopRow11 INT = 0, @MaxRow11  INT = 0
 
-	SELECT @MaxRow22	= MAX(ID) FROM #tmp_transfer
+	SELECT @MaxRow11	= MAX(ID) FROM #tmp_Balance
 	
-	IF @Threshold22 >= @MaxRow22
-	SET @Threshold22 = @MaxRow22
+	IF @Threshold11 >= @MaxRow11
+	SET @Threshold11 = @MaxRow11
 
-	SELECT @StopRow22 = @Threshold22
+	SELECT @StopRow11 = @Threshold11
 	
-	WHILE (@MaxRow22 IS NOT NULL)
+	WHILE (@MaxRow11 IS NOT NULL)
 	BEGIN		
 		UPDATE TOP(1000) f
-		SET f.mrecommend = t.mrecommend_New
+		SET f.recommend = t.recommend_NEW
+			,f.mrecommend = t.mrecommend_New
 			,f.srecommend = t.srecommend_New
-			,f.RepUpdateTime = SYSDATETIME()
-		FROM dbo.transfer_coll f WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
-		WHERE t.ID BETWEEN @StartRow22 AND @StopRow22
+		FROM dbo.BalanceTable_tmp_cal f WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tmp_Balance t ON f.dow = t.dow AND f.custid = t.custid
+		WHERE t.ID BETWEEN @StartRow11 AND @StopRow11
 
-		IF @StopRow22 = @MaxRow22 BREAK
+		IF @StopRow11 = @MaxRow11 BREAK
 
 		WAITFOR DELAY '00:00:00.010'
 
-		SET @StartRow22 = @StopRow22 + 1
-		SET @StopRow22 = @StopRow22 + @Threshold22
-		IF @StopRow22 >= @MaxRow22
-			SET @StopRow22 = @MaxRow22
+		SET @StartRow11 = @StopRow11 + 1
+		SET @StopRow11 = @StopRow11 + @Threshold11
+		IF @StopRow11 >= @MaxRow11
+			SET @StopRow11 = @MaxRow11
 	END
 END
 
 --UPDATE transfer, roleid = 3
 BEGIN
-	TRUNCATE TABLE #tmp_transfer
-	INSERT INTO #tmp_transfer ( transid, srecommend_New )
-	SELECT f.transid, c.srecommend_New
-	FROM dbo.transfer_coll f WITH(NOLOCK)
+	TRUNCATE TABLE #tmp_Balance;
+	INSERT INTO #tmp_Balance ( dow, custid, recommend_NEW, mrecommend_New, srecommend_New )
+	SELECT f.dow, f.custid, c.recommend_NEW, c.mrecommend_New, c.srecommend_New
+	FROM dbo.BalanceTable_tmp_cal f WITH(NOLOCK)
 		INNER JOIN #tmp_Cust_RecommendList_roleid_3 c ON c.recommend = f.recommend
-	WHERE f.WinlostDate > XXX---@MoveBetsDay
-		AND f.Bettype > 20000
 
 	DECLARE @Threshold33 INT  = 1000
 			,@StartRow33 INT = 1, @StopRow33 INT = 0, @MaxRow33  INT = 0
 
-	SELECT @MaxRow33	= MAX(ID) FROM #tmp_transfer
+	SELECT @MaxRow33	= MAX(ID) FROM #tmp_Balance
 	
 	IF @Threshold33 >= @MaxRow33
 	SET @Threshold33 = @MaxRow33
@@ -346,9 +336,8 @@ BEGIN
 	BEGIN		
 		UPDATE TOP(1000) b
 		SET b.srecommend = t.srecommend_New
-			,b.RepUpdateTime = SYSDATETIME()
-		FROM dbo.transfer_coll b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmp_transfer t ON b.TransId = t.TransId
+		FROM dbo.BalanceTable_tmp_cal b WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tmp_Balance t ON b.dow = t.dow AND b.custid = t.custid
 		WHERE t.ID BETWEEN @StartRow33 AND @StopRow33
 
 		IF @StopRow33 = @MaxRow33 BREAK
@@ -361,3 +350,4 @@ BEGIN
 			SET @StopRow33 = @MaxRow33
 	END
 END
+

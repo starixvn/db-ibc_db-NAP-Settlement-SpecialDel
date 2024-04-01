@@ -1,15 +1,14 @@
-/*<info serverAlias="DBSIC-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction=""></info>*/
 
 /*
 	Created: 20240114@Louisa
-	Task: Migrate Data for bettrans, translog[Redmine: #201044]
-	DB: DBSIC/bodb02 
+	Task: Migrate Data for bettrans14, translog14 [Redmine: #201044]
+	DB: DBCTG/bodb02 
 
 */
 
 USE bodb02
 GO
-
 
 ---- init data
 BEGIN
@@ -108,92 +107,129 @@ BEGIN
 	WHERE c.roleid = 3
 
 	-- 11076 cust
-	--select count(1) from #tmp_Member
-
+	--select count(1) from #tmp_Member select count(1) from #tmp_Member
 END
 
+--UPDATE bettrans14
+BEGIN
+	DROP TABLE IF EXISTS #tmp_bettrans14;
+	CREATE TABLE #tmp_bettrans14 ( ID INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
 
---UPDATE Bettrans ( bettrans use RepUpdateTime for Inhouse Replication)select * from #tmp_bettrans
-BEGIN		
-	DROP TABLE IF EXISTS #tmp_bettrans;
-	CREATE TABLE #tmp_bettrans ( ID INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+	DROP TABLE IF EXISTS #tmp_batch;
+	CREATE TABLE #tmp_batch ( transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
 	
-	INSERT INTO #tmp_bettrans (transid, recommend_NEW, mrecommend_New, srecommend_New)	
+	INSERT INTO #tmp_bettrans14 (transid, recommend_NEW, mrecommend_New, srecommend_New)	
 	SELECT b.transid, m.recommend_NEW, m.mrecommend_New, m.srecommend_New
-	FROM bettrans b WITH(NOLOCK)
+	FROM bettrans14 b WITH(NOLOCK)
 		INNER JOIN #tmp_Member m
 			ON b.custid = m.CustID
 		
-	DECLARE @Threshold1 INT  = 1000
-			,@StartRow1 INT = 1, @StopRow1 INT = 0, @MaxRow1  INT = 0
+	DECLARE @Batch_Trans14 INT  = 2000
+			,@StartTrans14 INT = 1, @StopTrans14 INT = 0, @MaxTrans14  INT = 0
+			,@debug_Trans14 VARCHAR(500)
+			,@transIds14 VARCHAR (MAX) = ''
+			,@tablename1 VARCHAR (200) = 'bettrans14'
 
-	SELECT @MaxRow1	= MAX(ID) FROM #tmp_bettrans
-	
-	IF @Threshold1 >= @MaxRow1
-	SET @Threshold1 = @MaxRow1
+	SELECT @MaxTrans14	= ISNULL(MAX(ID),0) FROM #tmp_bettrans14
 
-	SELECT @StopRow1 = @Threshold1
+	SELECT @StopTrans14 = @Batch_Trans14
 	
-	WHILE (@MaxRow1 IS NOT NULL)
+	WHILE (1=1)
 	BEGIN		
-		UPDATE TOP(1000) b
-		SET b.recommend		= CASE WHEN t.recommend_NEW IS NULL THEN b.recommend ELSE t.recommend_NEW END
-			,b.mrecommend	= CASE WHEN t.mrecommend_New IS NULL THEN b.mrecommend ELSE t.mrecommend_New END
-			,b.srecommend	= CASE WHEN t.srecommend_New IS NULL THEN b.srecommend ELSE t.srecommend_New END
-			,b.RepUpdateTime = SYSDATETIME()
-		FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmp_bettrans t ON b.TransId = t.TransId
-		WHERE t.ID BETWEEN @StartRow1 AND @StopRow1
+		TRUNCATE TABLE #tmp_batch
 
-		IF @StopRow1 = @MaxRow1 BREAK
+		DELETE b
+		OUTPUT DELETED.transid, DELETED.recommend_NEW, DELETED.mrecommend_New, DELETED.srecommend_New
+		INTO #tmp_batch (transid, recommend_NEW, mrecommend_New, srecommend_New)
+		FROM #tmp_bettrans14 b
+		WHERE b.ID BETWEEN @StartTrans14 AND @StopTrans14
+
+		IF @@ROWCOUNT = 0 
+		BREAK
+
+		SET @debug_Trans14 = @tablename1 + ' StartRow: ' + CAST(@StartTrans14 AS VARCHAR)  + ' StopRow: ' + CAST(@StopTrans14 AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
+		RAISERROR (@debug_Trans14, 0, 1) WITH NOWAIT
+
+		SET @transIds14 = (SELECT transid AS t
+								 ,recommend_NEW AS r
+								 ,mrecommend_New AS mr
+								 ,srecommend_New AS sr
+							FROM #tmp_batch
+							FOR XML RAW ('r'), ROOT ('root'))
+
+		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds14, @SiteDBGroupID = 3, @tablename = @tablename1, @mode = 1
 
 		WAITFOR DELAY '00:00:00.010'
 
-		SET @StartRow1 = @StopRow1 + 1
-		SET @StopRow1 = @StopRow1 + @Threshold1
-		IF @StopRow1 >= @MaxRow1
-			SET @StopRow1 = @MaxRow1
+		TRUNCATE TABLE #tmp_batch
+
+		SET @StartTrans14 = @StopTrans14 + 1
+		SET @StopTrans14 = @StopTrans14 + @Batch_Trans14
+
+		IF @StartTrans14 > @MaxTrans14
+		BREAK
+
 	END
 END
 
-----UPDATE translog ( translog use tstamp for Inhouse Replication)
+--UPDATE translog14
 BEGIN
-	DROP TABLE IF EXISTS #tmp_translog;
-	CREATE TABLE #tmp_translog ( ID INT IDENTITY(1,1) PRIMARY KEY, translogid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+	DROP TABLE IF EXISTS #tmp_translog14;
+	CREATE TABLE #tmp_translog14 ( ID INT IDENTITY(1,1) PRIMARY KEY, translogid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+
+	DROP TABLE IF EXISTS #tmp_batch;
+	CREATE TABLE #tmp_batch ( translogid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
 	
-	INSERT INTO #tmp_translog (translogid, recommend_NEW, mrecommend_New, srecommend_New)	
+	INSERT INTO #tmp_translog14 (translogid, recommend_NEW, mrecommend_New, srecommend_New)	
 	SELECT b.translogid, m.recommend_NEW, m.mrecommend_New, m.srecommend_New
-	FROM translog b WITH(NOLOCK)
+	FROM translog14 b WITH(NOLOCK)
 		INNER JOIN #tmp_Member m
 			ON b.custid = m.CustID
+		
+	DECLARE @Batch_TransLog14 INT  = 2000
+			,@StartLog14 INT = 1, @StopLog14 INT = 0, @MaxLog14  INT = 0
+			,@debug_Log14 VARCHAR(500)
+			,@transLogIds14 VARCHAR (MAX) = ''
+			,@tablename2 VARCHAR (200) = 'translog14'
 
-	DECLARE @Threshold2 INT  = 1000
-			,@StartRow2 INT = 1, @StopRow2 INT = 0, @MaxRow2  INT = 0
+	SELECT @MaxLog14	= ISNULL(MAX(ID),0) FROM #tmp_Translog14
 
-	SELECT @MaxRow2 = MAX(ID)	FROM #tmp_translog
+	SELECT @StopLog14 = @Batch_TransLog14
 	
-	IF @Threshold2 >= @MaxRow2
-	SET @Threshold2 = @MaxRow2
-
-	SELECT @StopRow2 = @Threshold2
-	
-	WHILE (@MaxRow2 IS NOT NULL)
+	WHILE (1=1)
 	BEGIN		
-		UPDATE TOP(1000) b
-		SET b.recommend		= CASE WHEN t.recommend_NEW IS NULL THEN b.recommend ELSE t.recommend_NEW END
-			,b.mrecommend	= CASE WHEN t.mrecommend_New IS NULL THEN b.mrecommend ELSE t.mrecommend_New END
-			,b.srecommend	= CASE WHEN t.srecommend_New IS NULL THEN b.srecommend ELSE t.srecommend_New END
-		FROM dbo.translog b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmp_translog t ON b.translogid = t.translogid
-		WHERE t.ID BETWEEN @StartRow2 AND @StopRow2
+		TRUNCATE TABLE #tmp_batch
 
-		IF @StopRow2 = @MaxRow2 BREAK
+		DELETE b
+		OUTPUT DELETED.translogid, DELETED.recommend_NEW, DELETED.mrecommend_New, DELETED.srecommend_New
+		INTO #tmp_batch (translogid, recommend_NEW, mrecommend_New, srecommend_New)
+		FROM #tmp_translog14 b
+		WHERE b.ID BETWEEN @StartLog14 AND @StopLog14
+
+		IF @@ROWCOUNT = 0 
+		BREAK
+
+		SET @debug_Log14 = @tablename2 + ' StartRow: ' + CAST(@StartLog14 AS VARCHAR)  + ' StopRow: ' + CAST(@StopLog14 AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
+		RAISERROR (@debug_Log14, 0, 1) WITH NOWAIT
+
+		SET @translogIds14 = (SELECT translogid AS t
+								 ,recommend_NEW AS r
+								 ,mrecommend_New AS mr
+								 ,srecommend_New AS sr
+							FROM #tmp_batch
+							FOR XML RAW ('r'), ROOT ('root'))
+
+		EXEC ExecRep_NAP_Admin_09 @transIds = @translogIds14, @SiteDBGroupID = 3, @tablename = @tablename2 , @mode = 1
 
 		WAITFOR DELAY '00:00:00.010'
 
-		SET @StartRow2 = @StopRow2 + 1
-		SET @StopRow2 = @StopRow2 + @Threshold2
-		IF @StopRow2 >= @MaxRow2
-			SET @StopRow2 = @MaxRow2
+		TRUNCATE TABLE #tmp_batch
+
+		SET @StartLog14 = @StopLog14 + 1
+		SET @StopLog14 = @StopLog14 + @Batch_TransLog14
+
+		IF @StartLog14 > @MaxLog14
+		BREAK
+
 	END
 END
