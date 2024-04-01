@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Profile]
     ,@OddsType SMALLINT
     ,@ActionId INT = 0
     ,@SessionId BIGINT = 0
+	,@AffectedTicket INT = 0 OUTPUT
     ,@ErrMessage VARCHAR(300) = '' OUTPUT
 AS
 /*
@@ -32,6 +33,7 @@ AS
         - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
         - 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230523@Kathy: scaleout - credit [Redmine:#188452]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 
     Param's Explanation:  
            
@@ -225,7 +227,6 @@ BEGIN
                             ON  t.transid = b.transid
                 WHERE    ISNULL(b.betdaqid,0) <> -2
                 OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
-
             END
             ELSE
             BEGIN 
@@ -499,7 +500,7 @@ BEGIN
             END
             SET @StepDone = @StepDone + ' bettrans'
 
-            SELECT TOP 1 @matchid = MatchId
+            SELECT  @AffectedTicket = COUNT(1)
             FROM    @tmpBalanceChanged
 
             IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged )
@@ -736,6 +737,8 @@ BEGIN
                     ,scomm = 0
                     ,statuswinlost = NULL
                     ,FcUpdateTime = CASE WHEN b.statusid = 0 THEN b.FcUpdateTime ELSE @FcUpdateTime END
+			OUTPUT  inserted.transid
+			INTO @tmpBalanceChanged (transId)
             FROM @tmpTransId t
                     INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
                         ON  t.transid = b.transid
@@ -981,12 +984,18 @@ BEGIN
                                 ELSE 1
                             END
                     ,FcUpdateTime = CASE WHEN @statusId = 103 THEN @FcUpdateTime ELSE b.FcUpdateTime END
+			OUTPUT  inserted.transid
+			INTO @tmpBalanceChanged (transId)
             FROM @tmpTransId t
                 INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
                     ON  t.transid = b.transid 
             WHERE    ISNULL(b.betdaqid,0) <> -2 
             OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
         END
+		
+		SELECT  @AffectedTicket = COUNT(1)
+		FROM 	@tmpBalanceChanged
+		
         IF OBJECT_ID('SettlementProcessing', 'U') IS NOT NULL
             DELETE 
             FROM    dbo.SettlementProcessing 

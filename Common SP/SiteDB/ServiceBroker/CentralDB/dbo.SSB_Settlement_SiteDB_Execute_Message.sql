@@ -12,6 +12,7 @@ as
 	Revisions:  
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 */
 begin
 	set nocount on
@@ -19,7 +20,7 @@ begin
 		, @__params xml, @__tableName varchar(200), @__matchId int
 		, @__action varchar(1), @__settlementAction varchar(20), @__ticketType varchar(1)
 		, @__startTime datetime2, @__endtime datetime2
-		, @__sessionId bigint, @__siteDBGroupId smallint, @__totalQueue int
+		, @__sessionId bigint, @__siteDBGroupId smallint, @__totalQueue int, @__AffectedTicket int , @__TableType SMALLINT
 
 	select @__startTime = sysdatetime(), @__params = cast(@MessageBody as xml)
 
@@ -34,7 +35,7 @@ begin
 			,@__transInfo = T.C.value('@TransInfo','varchar(max)')
 			,@__siteDBGroupId = T.C.value('@SiteDBGroupId','smallint')
 			,@__sessionId = T.C.value('@SessionId','bigint')
-			,@__totalQueue = T.C.value('@TotalQueue','int')
+			,@__totalQueue = T.C.value('@TotalQueue','int')			
 			,@__transinfoJson = convert( varbinary(max), T.C.value('@TransInfoJson','varchar(max)'),1)
 		from @__params.nodes('/root/r') as T(C)
 
@@ -51,6 +52,7 @@ begin
 			,@TicketType					= @__ticketType
 			
 			,@TotalQueue					= @__totalQueue	
+			,@AffectedTicket				= @__AffectedTicket output
 			,@ErrCode						= @__errCode output
 			,@ErrMsg						= @__errmsg output
 
@@ -97,6 +99,13 @@ begin
 			+ case when @__transInfoJson is not null then ',@TransInfoJson=''' + CONVERT(nvarchar(max), @__transInfoJson, 1) + '''' else '' end
 			
 		, @__endtime = sysdatetime()
+		, @__TableType = case
+							when @__tableName = 'bettrans' then 1
+							when @__tableName = 'bettransm' then 2
+							when @__tableName = 'betParlayResult' then 3
+							else 0 
+						end
+		
 
 	exec dbo.SSB_Settlement_WriteLogs @MessageId = @MessageId
 		, @MessageType			= @MessageType
@@ -108,4 +117,8 @@ begin
 		, @ConversationHandle	= @ConversationHandle
 		, @QueueNo				= 0
 		, @SiteDBGroupId		= @__siteDBGroupId
+		, @matchid				= @__matchid
+		, @AffectedTicket 		= @__AffectedTicket 
+		, @TableType			= @__TableType
+		, @EventTable			= 1
 end

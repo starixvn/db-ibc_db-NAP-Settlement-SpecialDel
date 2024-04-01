@@ -11,6 +11,7 @@ as
 	
 	Revisions:
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 
 	Param's Explanation:  
 		   
@@ -19,7 +20,7 @@ begin
 	set nocount on
 	declare @__errmsg varchar(1024), @__errCode int, @__transInfoJson varbinary(max)
 		, @__params xml, @__tableName varchar(200), @__matchId int
-		, @__action varchar(1), @__settlementAction varchar(20), @__ticketType varchar(1)
+		, @__action varchar(1), @__settlementAction varchar(20), @__ticketType varchar(1), @__TableType tinyint, @__EventTable tinyint, @__AffectedTicket int
 		, @__startTime datetime2, @__endtime datetime2
 		, @__siteDBGroupId smallint
 
@@ -34,6 +35,7 @@ begin
 			,@__ticketType = T.C.value('@TicketType','varchar(1)')
 			,@__transInfoJson = convert( varbinary(max), T.C.value('@TransInfoJson','varchar(max)'),1)
 			,@__siteDBGroupId = T.C.value('@SiteDBGroupId','smallint')		
+			,@__EventTable = T.C.value('@EventTable','tinyint')
 		from @__params.nodes('/root/r') as T(C)
 
 		exec dbo.NAP_SettlementService_Calculation 
@@ -45,8 +47,10 @@ begin
 			,@Action						= @__action
 			,@SettlementAction				= @__settlementAction
 			,@TicketType					= @__ticketType
+			,@EventTable					= @__EventTable
 			,@Is3rd							= 1
 			
+			,@AffectedTicket				= @__AffectedTicket output
 			,@ErrCode						= @__errCode output
 			,@ErrMsg						= @__errmsg output
 
@@ -80,8 +84,14 @@ begin
 			+ case when @__settlementAction is not null then ',@SettlementAction=''' + @__settlementAction + '''' else '' end
 			+ case when @__ticketType is not null then ',@TicketType=''' + @__ticketType + '''' else '' end			
 			+ case when @__transInfoJson is not null then ',@TransInfoJson=''' + CONVERT(nvarchar(max), @__transInfoJson, 1) + '''' else '' end
+			+ case when @__EventTable is not null then ',@EventTable=' + cast(@__EventTable as varchar(20)) else '' end
 			
 		, @__endtime = sysdatetime()
+		, @__TableType = case
+							when @__tableName = 'bettrans' then 1
+							when @__tableName = 'bettransm' then 2
+							else 0 
+						end
 
 	exec dbo.SSB_Settlement_WriteLogs @MessageId = @MessageId
 		, @MessageType			= @MessageType
@@ -92,4 +102,8 @@ begin
 		, @ConversationHandle	= @ConversationHandle
 		, @QueueNo				= 0
 		, @SiteDBGroupId		= @__siteDBGroupId
+		, @matchid				= @__matchid
+		, @AffectedTicket 		= @__AffectedTicket 
+		, @TableType			= @__TableType
+		, @EventTable			= @__EventTable
 end

@@ -13,16 +13,18 @@ as
 	DB: SBSETTLE-bodb02, DBBAL-bodb02
 	Revisions:  
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]	
 */
 begin
 	set nocount on
 	declare @__startTime datetime2, @__sessionId bigint, @__strTransInfo varbinary(max)
-		, @__processingId bigint, @__delayTime varchar(50), @__siteDBGroupId smallint
+		, @__processingId bigint, @__delayTime varchar(50), @__siteDBGroupId smallint, @__matchid int, @__AffectedTicket int
 		, @__settlementAction varchar(20), @__ticketType varchar(1)
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
 
-	select @__siteDBGroupId = substring(@MessageBody, 0, charindex('^', @MessageBody, 0))
-	select @__sessionId = substring(@MessageBody, charindex('^', @MessageBody, 0) + 1, datalength(@MessageBody))
+	select @__siteDBGroupId = PARSENAME(REPLACE(@MessageBody, '^', '.'), 3)
+			,@__matchid = PARSENAME(REPLACE(@MessageBody, '^', '.'), 2)
+			,@__sessionId = PARSENAME(REPLACE(@MessageBody, '^', '.'), 1)
 
 	while 1 = 1
 	begin
@@ -88,7 +90,8 @@ begin
 				, @SettlementAction				= @__settlementAction
 				, @TicketType					= @__ticketType
 				, @SettlementProcessingId		= @__processingId	
-				, @CalledByBrokerService 		= 1				
+				, @CalledByBrokerService 		= 1		
+				, @AffectedTicket				= @__AffectedTicket OUTPUT
 
 		end try
 		begin catch
@@ -120,6 +123,10 @@ begin
 			, @ConversationHandle	= @ConversationHandle
 			, @QueueNo				= @QueueNo
 			, @SiteDBGroupId		= @__siteDBGroupId
+			, @matchid				= @__matchid
+			, @AffectedTicket 		= @__AffectedTicket 
+			, @TableType			= 1 -- bettrans
+			, @EventTable			= 1 -- match
 
 		--waitfor on each batch exec ==> default 001ms
 		select @__delayTime = dbo.f_Settlement_GetDelayTime('SiteDB_Wait_Exec_Each_Batch')

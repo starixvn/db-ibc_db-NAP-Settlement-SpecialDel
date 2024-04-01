@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_05] 
 	 @IgnoreList VARCHAR(200)
 	,@updatetype 	TINYINT = 1  -- 1, 2, 3, 4
@@ -31,6 +31,7 @@ AS
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230908@Louisa: Apply Company Max Payout for Non-sports [Redmine:#193259]
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		
 	Param: 
 		+ @updatetype: 
@@ -53,7 +54,12 @@ BEGIN
 			,@AllowUndo 		BIT
 			,@ServerName		SYSNAME
 			,@TicketType 		VARCHAR(1)
-			
+			,@StartTime			DATETIME2
+			,@EndTime			DATETIME2
+			,@MessageBody		VARCHAR(MAX)
+			,@TableType			TINYINT
+			,@AffectedTicket	INT
+
 	SET @ServerName = @@SERVERNAME
 	
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
@@ -97,6 +103,9 @@ BEGIN
 
 	IF @updatetype = 1 --Virtual Sports
 	BEGIN
+		SET @StartTime =SYSDATETIME()
+		SET @TableType = 1 -- bettrans
+
 		;WITH sourceData AS (
 			SELECT	
 				T.C.value('./@q', 'bigint') as transid
@@ -151,6 +160,8 @@ BEGIN
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 
+		SET @EndTime = SYSDATETIME()
+
 		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @TransInfoJson = (
@@ -188,6 +199,9 @@ BEGIN
 	
 	ELSE IF @updatetype = 2 --bettransm (for virtual racing) 
 	BEGIN
+		SET @StartTime =SYSDATETIME()
+		SET @TableType = 2 -- bettransm
+
 		;WITH sourceData AS (
 			SELECT	
 				T.C.value('./@q', 'bigint') as transid
@@ -251,6 +265,8 @@ BEGIN
 		FROM sourceData s
 		WHERE bettransm.transid = s.transid
 
+		SET @EndTime = SYSDATETIME()
+
 		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @TransInfoJson = (
@@ -289,6 +305,9 @@ BEGIN
 	END		
 	ELSE IF @updatetype = 3 --bettrans (for virtual racing) 
 	BEGIN
+		SET @StartTime =SYSDATETIME()
+		SET @TableType = 1 -- bettrans
+
 		;WITH sourceData AS (
 			SELECT	
 				T.C.value('./@q', 'bigint') as transid
@@ -335,6 +354,9 @@ BEGIN
 				ELSE 0 END			
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
+
+		SET @EndTime = SYSDATETIME()
+
 	END		
 	ELSE IF @updatetype = 4 --refund number game
 	BEGIN		
@@ -346,6 +368,9 @@ BEGIN
 
 		IF @mode = 'Refund-FT'
 		BEGIN
+			SET @StartTime =SYSDATETIME()
+			SET @TableType = 1 -- bettrans
+
 			UPDATE dbo.bettrans WITH (ROWLOCK,UPDLOCK)
 			SET WinLost = actual_stake
 				,aWinLost = 0
@@ -374,6 +399,8 @@ BEGIN
 				AND statusID IN (0, 1) -- only refund all running/waiting's tickets
 				AND bettype BETWEEN 81 AND 120
 				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
+
+			SET @EndTime = SYSDATETIME()
 
 			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
@@ -411,6 +438,9 @@ BEGIN
 		END
 		ELSE
 		BEGIN
+			SET @StartTime =SYSDATETIME()
+			SET @TableType = 1 -- bettrans
+
 			UPDATE dbo.bettrans WITH (ROWLOCK,UPDLOCK)
 			SET WinLost = actual_stake
 				,aWinLost = 0
@@ -438,6 +468,8 @@ BEGIN
 				AND statusID NOT IN (101,102) -- refund all, except void/reject
 				AND bettype BETWEEN 81 AND 120
 				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
+
+			SET @EndTime = SYSDATETIME()
 
 			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
@@ -475,6 +507,9 @@ BEGIN
 	END
 	ELSE IF @updatetype = 5 --CAL/REFUND/VOID VS BetRadar parlay
 	BEGIN
+		SET @StartTime =SYSDATETIME()
+		SET @TableType = 2 -- bettransm
+
 		;WITH sourceData AS (
 			SELECT	
 				T.C.value('./@t', 'bigint') as transid
@@ -513,6 +548,8 @@ BEGIN
 		FROM sourceData s
 		WHERE bettransm.transid = s.transid
 
+		SET @EndTime = SYSDATETIME()
+
 		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @TransInfoJson = (
@@ -543,6 +580,9 @@ BEGIN
 	END
 	ELSE IF @updatetype = 6 --update bettrans for recover single + main parlay VS Betradar, VS4 in special delete
 	BEGIN
+		SET @StartTime =SYSDATETIME()
+		SET @TableType = 1 -- bettrans
+
 		;WITH sourceData AS (
 			SELECT	
 				T.C.value('./@q', 'bigint') as transid
@@ -568,6 +608,8 @@ BEGIN
 			)
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
+
+		SET @EndTime = SYSDATETIME()
 
 		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
@@ -600,6 +642,8 @@ BEGIN
 	BEGIN
 		DECLARE @settlementTime DATETIME
 		SET @settlementTime = GETDATE(); 
+		SET @StartTime =SYSDATETIME()
+		SET @TableType = 1 -- bettrans
 
 		;WITH sourceData AS (
 			SELECT	
@@ -655,6 +699,8 @@ BEGIN
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 		
+		SET @EndTime = SYSDATETIME()
+
 		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @TransInfoJson = (
@@ -689,6 +735,33 @@ BEGIN
 				,@EventTable = 2				
 		END
 
+	END
+
+	SELECT @AffectedTicket = COUNT(1)
+	FROM	@tmpTransInfo
+	
+	IF OBJECT_ID('SSB_Settlement_WriteLogs','P') IS NOT NULL 
+	BEGIN 
+		SET @MessageBody = 'EXEC Bet_ExecRep_05 @IgnoreList = ''' + @IgnoreList + ''''
+								+ ',@updatetype = ' + CAST(@updatetype AS VARCHAR)
+								+ ',@_sXML = ''' + @_sXML + ''''
+								+ ',@Action = ''' + @Action + ''''
+								+ ',@matchid = ' + CAST(@matchid AS VARCHAR)
+								
+		exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL
+			, @MessageType			= NULL
+			, @MessageBody			= @MessageBody
+			, @StartTime			= @StartTime
+			, @EndTime				= @EndTime
+			, @SessionId			= NULL
+			, @ErrorMessage			= NULL
+			, @ConversationHandle	= NULL
+			, @QueueNo				= 0
+			, @SiteDBGroupId		= 0
+			, @matchid				= @matchid
+			, @AffectedTicket 		= @AffectedTicket 
+			, @TableType			= @TableType
+			, @EventTable			= 1
 	END
 END
 GO

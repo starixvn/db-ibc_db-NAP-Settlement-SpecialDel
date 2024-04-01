@@ -29,6 +29,7 @@ AS
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
 		- 20230704@Louisa:  CWL for Virtual Leap Gaming [Redmine:#189854]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 
 	Param's Explanation:
 			@transIds = '<root>
@@ -82,7 +83,10 @@ BEGIN
 	DECLARE @handle INT
 			,@transinfoJson NVARCHAR(MAX)
 			,@BalanceChanged		TVP_BalanceWalletChange
-
+			,@EndTime DATETIME2
+			,@AffectedTicket INT
+			,@MessageBody VARCHAR(MAX)
+			
 	---parse XML
 	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
 	INSERT INTO @tempTrans(TransID)
@@ -151,7 +155,9 @@ BEGIN
 		)
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
-
+		
+	SET @EndTime = SYSDATETIME()
+	
 	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
 		SET @transinfoJson = (
@@ -277,6 +283,36 @@ BEGIN
 											,@BroadcastSessionId  = @BroadcastSessionId
 											,@ErrMessage	 = @ErrMessage OUTPUT
 											,@ErrCode		 = @ErrCode OUTPUT
+	END
+	
+	SELECT @AffectedTicket = COUNT(1)
+	FROM	@tmpTransInfo
+	
+	IF OBJECT_ID('SSB_Settlement_WriteLogs','P') IS NOT NULL 
+	BEGIN 
+		SET @MessageBody = 'EXEC NAP_Admin_Calculate_Refund_TransID @MatchId = ' + CAST(@MatchId AS VARCHAR)
+								+ ',@EventTable = ' + CAST(@EventTable AS VARCHAR)
+								+ ',@Is3rd = ' + CAST(@Is3rd AS VARCHAR)
+								+ CASE WHEN @ActionId IS NOT NULL THEN ',@ActionID = ' + CAST(@ActionID AS VARCHAR) ELSE '' END
+								+ ',@IsCalculateBalance = ' + CAST(@IsCalculateBalance AS VARCHAR)
+								+ ',@CWLBettype = ' + CAST(@CWLBettype AS VARCHAR)
+								+ ',@BalanceType = ' + CAST(@BalanceType AS VARCHAR)
+								+ CASE WHEN @BroadcastSessionId IS NOT NULL THEN ',@BroadcastSessionId = ''' + @BroadcastSessionId + '''' ELSE '' END
+								+ ',@transIds = ''' + @transIds + ''''
+		exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL
+			, @MessageType			= NULL
+			, @MessageBody			= @MessageBody
+			, @StartTime			= @FcUpdateTime
+			, @EndTime				= @EndTime
+			, @SessionId			= NULL
+			, @ErrorMessage			= NULL
+			, @ConversationHandle	= NULL
+			, @QueueNo				= 0
+			, @SiteDBGroupId		= 0
+			, @matchid				= @matchid
+			, @AffectedTicket 		= @AffectedTicket 
+			, @TableType			= 1 -- bettrans
+			, @EventTable			= @EventTable
 	END
 END
 GO

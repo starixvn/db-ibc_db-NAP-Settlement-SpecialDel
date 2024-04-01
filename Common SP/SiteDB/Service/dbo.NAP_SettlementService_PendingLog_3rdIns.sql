@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_PendingLog_3rdIns]
 	@SiteDBGroupId SMALLINT
 	,@SiteDBCalculationLog_3rd TVP_SiteDB_CalculationLog_3rd READONLY
@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 
 	Param's Explanation:  
 		   
@@ -26,6 +27,7 @@ BEGIN
 		,Action
 		,SettlementAction
 		,TicketType
+		,EventTable
 	)
 	SELECT l.LogId
 		,l.TransInfoJson
@@ -34,6 +36,7 @@ BEGIN
 		,l.Action
 		,l.SettlementAction
 		,l.TicketType
+		,l.EventTable
 	FROM @SiteDBCalculationLog_3rd l
 		LEFT JOIN dbo.SiteDB_SettlementService_CalculationLog_3rd_History h WITH(NOLOCK)
 			ON l.LogId = h.LogId

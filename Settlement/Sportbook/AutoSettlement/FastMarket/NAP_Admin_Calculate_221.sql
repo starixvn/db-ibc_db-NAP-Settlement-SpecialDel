@@ -26,6 +26,7 @@ AS
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 
     Param's Explanation:
 
@@ -73,7 +74,11 @@ BEGIN
 			,@ActionId TINYINT
 			,@IsSubDB BIT = 0
 			,@transinfoJson NVARCHAR(MAX)
-
+			,@StartTime DATETIME2
+			,@EndTime DATETIME2
+			,@AffectedTicket INT
+			,@MessageBody VARCHAR(MAX)
+			
 	DECLARE @settlementTime DATETIME
 			,@FcUpdateTime DATETIME2
 			
@@ -238,6 +243,8 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #tblTransIds WHERE ActionId = 1) AND @AllowCalculation = 1 -- CAL
 		BEGIN
 			SET @settlementTime = GETDATE();
+			SET @StartTime = SYSDATETIME()
+
 			DELETE @tmpTransInfo
 
 			UPDATE b
@@ -431,6 +438,8 @@ BEGIN
 							END
 						AND t.ActionId = 1
 			
+			SET @EndTime = SYSDATETIME()
+
 			IF @IsSubDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transinfoJson = (
@@ -470,6 +479,7 @@ BEGIN
 		BEGIN
 			SET @settlementTime = GETDATE()
 			SET @FcUpdateTime = SYSDATETIME()
+			SET @StartTime = SYSDATETIME()
 			DELETE @tmpTransInfo
 
 			UPDATE	b
@@ -526,6 +536,8 @@ BEGIN
 					ON	b.transid = t.transid	
 			WHERE	t.ActionId = 2
 
+			SET @EndTime = SYSDATETIME()
+
 			IF @IsSubDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transinfoJson = (
@@ -565,6 +577,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #tblTransIds WHERE ActionId = 0) AND @AllowUndo = 1 -- UNDO
 		BEGIN
 			SET @FcUpdateTime = SYSDATETIME()
+			SET @StartTime = SYSDATETIME()
 			DELETE @tmpTransInfo
 
 			UPDATE	b
@@ -610,6 +623,8 @@ BEGIN
 					ON	b.transid = t.transid
 			WHERE	t.ActionId = 0
 
+			SET @EndTime = SYSDATETIME()
+
 			IF @IsSubDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transinfoJson = (
@@ -646,6 +661,32 @@ BEGIN
 			END
 		END
 		
+		SELECT @AffectedTicket = COUNT(1)
+		FROM	@tmpTransInfo
+	
+		IF OBJECT_ID('SSB_Settlement_WriteLogs','P') IS NOT NULL 
+		BEGIN 
+			SET @MessageBody = 'EXEC NAP_Admin_Calculate_221 @MatchId = ' + CAST(@MatchId AS VARCHAR)
+									+ ',@result = ''' + @result + ''''
+									+ ',@action = ''' + @action + ''''									
+									+ ',@IsReSettledTickets = ' + CAST(@IsReSettledTickets AS VARCHAR)
+									
+			exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL
+				, @MessageType			= NULL
+				, @MessageBody			= @MessageBody
+				, @StartTime			= @StartTime
+				, @EndTime				= @EndTime
+				, @SessionId			= NULL
+				, @ErrorMessage			= NULL
+				, @ConversationHandle	= NULL
+				, @QueueNo				= 0
+				, @SiteDBGroupId		= 0
+				, @matchid				= @matchid
+				, @AffectedTicket 		= @AffectedTicket 
+				, @TableType			= 1 -- bettrans
+				, @EventTable			= 1 -- match
+		END
+
 		BREAK
 	END
 END

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_Calculation]
 	@SiteDBGroupId		SMALLINT
 	,@SessionId			BIGINT			= NULL
@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_SettlementService_Calculation]
 	,@TransInfo			XML				= NULL
 	,@TransInfoJson		VARBINARY(MAX)	= NULL
 
-	,@TableName			VARCHAR(128) 
+	,@TableName			VARCHAR(128) 	= ''
 	,@MatchId			INT				= 0
 	,@Action			VARCHAR(1)		= 'U'
 	,@SettlementAction	VARCHAR(20)		= NULL
@@ -15,6 +15,8 @@ ALTER PROCEDURE [dbo].[NAP_SettlementService_Calculation]
 	,@SettlementProcessingId BIGINT		= 0
 	,@Is3rd				BIT				= 0
 	,@SiteDB			SMALLINT		= 1
+	,@EventTable		TINYINT			= 0
+	,@AffectedTicket	INT 			= 0 OUTPUT
 	,@ErrCode			INT				= 0	 OUTPUT
 	,@ErrMsg			VARCHAR(300)	= '' OUTPUT
 AS
@@ -29,6 +31,7 @@ AS
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20230111@Kathy: Skip validate ticket count [Redmine:#182763]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]	
 
 	Param's Explanation:  
 		   
@@ -356,6 +359,8 @@ BEGIN
 					,@SettlementProcessingId = @SettlementProcessingId
 					,@Is3rd = @Is3rd
 					,@SiteDB = @SiteDB
+					,@EventTable = @EventTable
+					,@AffectedTicket = @AffectedTicket OUTPUT
 		END
 	END TRY
 	BEGIN CATCH

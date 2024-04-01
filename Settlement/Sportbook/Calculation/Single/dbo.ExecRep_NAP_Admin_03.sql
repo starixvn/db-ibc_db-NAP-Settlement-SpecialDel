@@ -19,6 +19,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230214@Louisa: New way to update balance for cashout Basketball [Redmine:#182677]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 
 	Param's Explanation:  
 		   
@@ -74,7 +75,11 @@ BEGIN
 			,@settlementTime	DATETIME
 			,@commWinRate		SMALLMONEY
 			,@commLostRate		SMALLMONEY
-			,@transinfoJson		NVARCHAR(MAX)	
+			,@transinfoJson		NVARCHAR(MAX)
+			,@StartTime			DATETIME2
+			,@EndTime 			DATETIME2
+			,@MessageBody		VARCHAR(MAX)
+			,@AffectedTicket 	INT
 
 	DECLARE @tempTrans TABLE (TransID BIGINT, statuswinlost TINYINT, winlost MONEY)
 	DECLARE @tmpTransInfo TABLE (CustId INT, Balance MONEY
@@ -100,6 +105,7 @@ BEGIN
 
 	SET	@IsUpdated = 0
 	SET @SettlementTime = GETDATE()
+	SET @StartTime = SYSDATETIME()
 
 	UPDATE b
 		SET @StatusId = CASE	
@@ -208,6 +214,8 @@ BEGIN
 		INNER JOIN @tempTrans t
 			ON b.transid = t.TransId
 
+	SET @EndTime = SYSDATETIME()
+	
 	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
 		SET @transinfoJson = (
@@ -241,7 +249,7 @@ BEGIN
 			,@SettlementAction = @Mode
 			,@TicketType = 's'
 	END
-
+			
 	IF @IsCalculateBalance = 1 AND (@IsSiteDB = 1 OR @IsCentral = 1) ---except cashout soccer
 	BEGIN
 		INSERT INTO @BalanceChanged (matchid,custid, walletType, bonusId, balance)
@@ -259,6 +267,33 @@ BEGIN
 			,@ActionID		= @ActionID
 			,@ErrMessage	= @ErrMessage OUTPUT
 			,@ErrCode		= @ErrCode	  OUTPUT
+	END
+	
+	SELECT @AffectedTicket = COUNT(1)
+	FROM	@tmpTransInfo
+	
+	IF OBJECT_ID('SSB_Settlement_WriteLogs','P') IS NOT NULL 
+	BEGIN 
+		SET @MessageBody = 'EXEC ExecRep_NAP_Admin_03 @transIds = ''' + @transIds + ''''
+								+ ',@Mode = ''' + @Mode + ''''
+								+ ',MatchId = ' + CAST(@MatchId AS VARCHAR)
+								+ ',@ActionID = ' + CAST(@ActionID AS VARCHAR)
+								+ ',@IsCalculateBalance = ' + CAST(@IsCalculateBalance AS VARCHAR)
+	
+		exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL
+			, @MessageType			= NULL
+			, @MessageBody			= @MessageBody
+			, @StartTime			= @StartTime
+			, @EndTime				= @EndTime
+			, @SessionId			= NULL
+			, @ErrorMessage			= NULL
+			, @ConversationHandle	= NULL
+			, @QueueNo				= 0
+			, @SiteDBGroupId		= 0
+			, @matchid				= @matchid
+			, @AffectedTicket 		= @AffectedTicket 
+			, @TableType			= 1 -- bettrans
+			, @EventTable			= 1 -- match
 	END
 
 END

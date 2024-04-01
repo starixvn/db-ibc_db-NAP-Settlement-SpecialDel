@@ -13,6 +13,7 @@ AS
 	
 	Revisions:
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		
 	Param's Explanation:  
 		   
@@ -45,7 +46,7 @@ BEGIN
 					SET @MessageType = @MessageTypeTriggerPattern 
 											+ CASE WHEN @QueueNo < 10 THEN '0' ELSE '' END + CAST(@queueNo AS VARCHAR)
 					
-					SET @MessageContent = CAST(@SiteDBGroupId AS VARCHAR) + '^' + CAST(@SessionId AS VARCHAR)
+					SET @MessageContent = CAST(@SiteDBGroupId AS VARCHAR) + '^' + CAST(@matchid AS VARCHAR) + '^' + CAST(@SessionId AS VARCHAR)
 
 					EXEC [dbo].[SSB_Send_Message] @MessageContent = @MessageContent
 						, @FunctionName = 'settlement'
