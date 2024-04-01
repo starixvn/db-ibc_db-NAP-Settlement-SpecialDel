@@ -32,7 +32,8 @@ CREATE TABLE dbo.LuckyDrawList
 	,IsTest				BIT				NULL
 	,IsLicensee			BIT				NULL
 	,SettledDate		DATE			NULL
-	,RepUpdateTime		DATETIME2		NOT NULL ---use for InHouse Replication
+	,RepUpdateTime		DATETIME2(7)	DEFAULT SYSDATETIME() ---use for InHouse Replication
+	,IsDeleted			BIT				DEFAULT 0
 )
 GO
 --------------------------------------------------------------------------------------------------
@@ -40,6 +41,9 @@ ALTER TABLE dbo.LuckyDrawList ADD CONSTRAINT PK_LuckyDrawList PRIMARY KEY CLUSTE
 GO
 --------------------------------------------------------------------------------------------------
 CREATE UNIQUE NONCLUSTERED INDEX IDX_LuckyDrawList_TypeID_VerificationCode ON dbo.LuckyDrawList(TypeID,VerificationCode)
+GO
+--------------------------------------------------------------------------------------------------
+CREATE UNIQUE NONCLUSTERED INDEX IX_RepUpdateTime ON dbo.LuckyDrawList(RepUpdateTime)
 GO
 --------------------------------------------------------------------------------------------------
 ALTER TABLE dbo.LuckyDrawList ADD CONSTRAINT DF_LuckyDrawList_IsNotify DEFAULT(0) FOR IsNotify
