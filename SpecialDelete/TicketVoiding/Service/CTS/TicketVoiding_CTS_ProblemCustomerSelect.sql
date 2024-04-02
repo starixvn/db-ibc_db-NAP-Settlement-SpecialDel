@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTP-bodb02" executers="bodbSPUNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTP-bodb02" executers="wsv_cts" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_CTS_ProblemCustomerSelect]
 (
 	@Datetime				DATETIME = NULL
