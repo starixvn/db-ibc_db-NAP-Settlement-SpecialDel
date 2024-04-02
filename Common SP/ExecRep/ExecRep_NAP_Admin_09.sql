@@ -1,7 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 (
-	@transIds14 VARCHAR(MAX)
+	@transIds VARCHAR(MAX)
 	, @SiteDBGroupID SMALLINT
 	, @tablename VARCHAR(200) = ''
 	, @mode TINYINT  = 0
@@ -23,12 +23,12 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 				  1-Update sma 
 		
 		Samlple execution to parse XML
-			DECLARE @transIds14 VARCHAR(MAX), @xml XML	
-			SET @transIds14 = (SELECT TOP 10 transid as t
+			DECLARE @transIds VARCHAR(MAX), @xml XML	
+			SET @transIds = (SELECT TOP 10 transid as t
 				from bettrans (NOLOCK)
 				FOR XML RAW ('r'), ROOT ('root'))
 
-			SET @xml = CAST(@transIds14 as XML)
+			SET @xml = CAST(@transIds as XML)
 
 			SELECT r.value('@t','BIGINT') AS transid
 			FROM @transidXML.nodes('//root/r') AS RECORDS(r)
@@ -41,7 +41,7 @@ BEGIN
 	DECLARE @transidXML XML
 	DECLARE @tempTrans TABLE (TransID BIGINT PRIMARY KEY, recommend_New INT, mrecommend_New INT, srecommend_New INT )
 
-	SET @transidXML = CONVERT(XML, @transIds14)
+	SET @transidXML = CONVERT(XML, @transIds)
 	
 	INSERT INTO @tempTrans (TransID, recommend_New, mrecommend_New, srecommend_New)
 	SELECT r.value('@t','BIGINT') AS transid
@@ -65,7 +65,7 @@ BEGIN
 
 		IF (@tablename = 'translog14' AND OBJECT_ID(N'dbo.translog14') is not null )
 		BEGIN
-			UPDATE TOP(1000) b
+			UPDATE b
 			SET b.recommend		= CASE WHEN t.recommend_New IS NULL THEN b.recommend ELSE t.recommend_New END
 				,b.mrecommend	= CASE WHEN t.mrecommend_New IS NULL THEN b.mrecommend ELSE t.mrecommend_New END
 				,b.srecommend	= CASE WHEN t.srecommend_New IS NULL THEN b.srecommend ELSE t.srecommend_New END

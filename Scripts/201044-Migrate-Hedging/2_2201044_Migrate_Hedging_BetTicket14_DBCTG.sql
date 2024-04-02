@@ -19,6 +19,12 @@ BEGIN
 	DROP TABLE IF EXISTS #tmp_Member;
 	CREATE TABLE #tmp_Member (CustID INT PRIMARY KEY,recommend_NEW INT, mrecommend_New INT, srecommend_New INT)
 
+	DROP TABLE IF EXISTS #tmp_trans14;
+	CREATE TABLE #tmp_trans14 ( ID INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+
+	DROP TABLE IF EXISTS #tmp_batch;
+	CREATE TABLE #tmp_batch ( transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+
 	--39 rows
 	INSERT INTO #tmp_Cust(CustID, Username, site, roleid)
 	SELECT custid,username,'Hedging',roleid
@@ -113,13 +119,10 @@ END
 
 --UPDATE bettrans14
 BEGIN
-	DROP TABLE IF EXISTS #tmp_bettrans14;
-	CREATE TABLE #tmp_bettrans14 ( ID INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
-
-	DROP TABLE IF EXISTS #tmp_batch;
-	CREATE TABLE #tmp_batch ( transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+	TRUNCATE TABLE #tmp_trans14
+	TRUNCATE TABLE #tmp_batch
 	
-	INSERT INTO #tmp_bettrans14 (transid, recommend_NEW, mrecommend_New, srecommend_New)	
+	INSERT INTO #tmp_trans14 (transid, recommend_NEW, mrecommend_New, srecommend_New)	
 	SELECT b.transid, m.recommend_NEW, m.mrecommend_New, m.srecommend_New
 	FROM bettrans14 b WITH(NOLOCK)
 		INNER JOIN #tmp_Member m
@@ -131,7 +134,7 @@ BEGIN
 			,@transIds14 VARCHAR (MAX) = ''
 			,@tablename1 VARCHAR (200) = 'bettrans14'
 
-	SELECT @MaxTrans14	= ISNULL(MAX(ID),0) FROM #tmp_bettrans14
+	SELECT @MaxTrans14	= ISNULL(MAX(ID),0) FROM #tmp_trans14
 
 	SELECT @StopTrans14 = @Batch_Trans14
 	
@@ -142,7 +145,7 @@ BEGIN
 		DELETE b
 		OUTPUT DELETED.transid, DELETED.recommend_NEW, DELETED.mrecommend_New, DELETED.srecommend_New
 		INTO #tmp_batch (transid, recommend_NEW, mrecommend_New, srecommend_New)
-		FROM #tmp_bettrans14 b
+		FROM #tmp_trans14 b
 		WHERE b.ID BETWEEN @StartTrans14 AND @StopTrans14
 
 		IF @@ROWCOUNT = 0 
@@ -162,8 +165,6 @@ BEGIN
 
 		WAITFOR DELAY '00:00:00.010'
 
-		TRUNCATE TABLE #tmp_batch
-
 		SET @StartTrans14 = @StopTrans14 + 1
 		SET @StopTrans14 = @StopTrans14 + @Batch_Trans14
 
@@ -176,13 +177,10 @@ GO
 
 --UPDATE translog14
 BEGIN
-	DROP TABLE IF EXISTS #tmp_translog14;
-	CREATE TABLE #tmp_translog14 ( ID INT IDENTITY(1,1) PRIMARY KEY, translogid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+	TRUNCATE TABLE #tmp_trans14
+	TRUNCATE TABLE #tmp_batch
 
-	DROP TABLE IF EXISTS #tmp_batch;
-	CREATE TABLE #tmp_batch ( translogid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
-	
-	INSERT INTO #tmp_translog14 (translogid, recommend_NEW, mrecommend_New, srecommend_New)	
+	INSERT INTO #tmp_trans14 (transid, recommend_NEW, mrecommend_New, srecommend_New)	
 	SELECT b.translogid, m.recommend_NEW, m.mrecommend_New, m.srecommend_New
 	FROM translog14 b WITH(NOLOCK)
 		INNER JOIN #tmp_Member m
@@ -194,7 +192,7 @@ BEGIN
 			,@transLogIds14 VARCHAR (MAX) = ''
 			,@tablename2 VARCHAR (200) = 'translog14'
 
-	SELECT @MaxLog14	= ISNULL(MAX(ID),0) FROM #tmp_Translog14
+	SELECT @MaxLog14 = ISNULL(MAX(ID),0) FROM #tmp_trans14
 
 	SELECT @StopLog14 = @Batch_TransLog14
 	
@@ -203,9 +201,9 @@ BEGIN
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE b
-		OUTPUT DELETED.translogid, DELETED.recommend_NEW, DELETED.mrecommend_New, DELETED.srecommend_New
-		INTO #tmp_batch (translogid, recommend_NEW, mrecommend_New, srecommend_New)
-		FROM #tmp_translog14 b
+		OUTPUT DELETED.transid, DELETED.recommend_NEW, DELETED.mrecommend_New, DELETED.srecommend_New
+		INTO #tmp_batch (transid, recommend_NEW, mrecommend_New, srecommend_New)
+		FROM #tmp_trans14 b
 		WHERE b.ID BETWEEN @StartLog14 AND @StopLog14
 
 		IF @@ROWCOUNT = 0 
@@ -214,7 +212,7 @@ BEGIN
 		SET @debug_Log14 = @tablename2 + ' StartRow: ' + CAST(@StartLog14 AS VARCHAR)  + ' StopRow: ' + CAST(@StopLog14 AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_Log14, 0, 1) WITH NOWAIT
 
-		SET @translogIds14 = (SELECT translogid AS t
+		SET @translogIds14 = (SELECT transid AS t
 								 ,recommend_NEW AS r
 								 ,mrecommend_New AS mr
 								 ,srecommend_New AS sr
@@ -224,8 +222,6 @@ BEGIN
 		EXEC ExecRep_NAP_Admin_09 @transIds = @translogIds14, @SiteDBGroupID = 3, @tablename = @tablename2 , @mode = 1
 
 		WAITFOR DELAY '00:00:00.010'
-
-		TRUNCATE TABLE #tmp_batch
 
 		SET @StartLog14 = @StopLog14 + 1
 		SET @StopLog14 = @StopLog14 + @Batch_TransLog14
