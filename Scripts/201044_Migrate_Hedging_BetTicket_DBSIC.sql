@@ -124,16 +124,16 @@ BEGIN
 			ON b.custid = m.CustID
 		
 	DECLARE @Threshold1 INT  = 1000
-			,@StartRow1 INT = 1, @StopRow1 INT = 0, @MaxRow1  INT = 0
+			,@StartBettrans14 INT = 1, @StopBettrans14 INT = 0, @MaxBettrans14  INT = 0
 
-	SELECT @MaxRow1	= MAX(ID) FROM #tmp_bettrans
+	SELECT @MaxBettrans14	= MAX(ID) FROM #tmp_bettrans
 	
-	IF @Threshold1 >= @MaxRow1
-	SET @Threshold1 = @MaxRow1
+	IF @Threshold1 >= @MaxBettrans14
+	SET @Threshold1 = @MaxBettrans14
 
-	SELECT @StopRow1 = @Threshold1
+	SELECT @StopBettrans14 = @Threshold1
 	
-	WHILE (@MaxRow1 IS NOT NULL)
+	WHILE (@MaxBettrans14 IS NOT NULL)
 	BEGIN		
 		UPDATE TOP(1000) b
 		SET b.recommend		= CASE WHEN t.recommend_NEW IS NULL THEN b.recommend ELSE t.recommend_NEW END
@@ -142,16 +142,16 @@ BEGIN
 			,b.RepUpdateTime = SYSDATETIME()
 		FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_bettrans t ON b.TransId = t.TransId
-		WHERE t.ID BETWEEN @StartRow1 AND @StopRow1
+		WHERE t.ID BETWEEN @StartBettrans14 AND @StopBettrans14
 
-		IF @StopRow1 = @MaxRow1 BREAK
+		IF @StopBettrans14 = @MaxBettrans14 BREAK
 
 		WAITFOR DELAY '00:00:00.010'
 
-		SET @StartRow1 = @StopRow1 + 1
-		SET @StopRow1 = @StopRow1 + @Threshold1
-		IF @StopRow1 >= @MaxRow1
-			SET @StopRow1 = @MaxRow1
+		SET @StartBettrans14 = @StopBettrans14 + 1
+		SET @StopBettrans14 = @StopBettrans14 + @Threshold1
+		IF @StopBettrans14 >= @MaxBettrans14
+			SET @StopBettrans14 = @MaxBettrans14
 	END
 END
 
