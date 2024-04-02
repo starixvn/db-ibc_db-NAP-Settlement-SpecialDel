@@ -142,7 +142,7 @@ BEGIN
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  s.RequestId, MIN(bk.winlostdate)
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid AND s.MatchId = bk.matchid AND s.CustId = bk.CustId AND s.Bettype = bk.Bettype 
+					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid 
 				WHERE s.MatchId IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
 				GROUP BY s.RequestId
 			END
@@ -179,7 +179,7 @@ BEGIN
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  s.RequestId, MIN(bk.winlostdate)
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid AND s.MatchId = bk.matchid AND s.CustId = bk.CustId AND s.Bettype = bk.Bettype 
+					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid
 				WHERE s.MatchId IN (9, 29, 2799, 10449) AND s.MatchId = @MatchId
 				GROUP BY s.RequestId
 			END
