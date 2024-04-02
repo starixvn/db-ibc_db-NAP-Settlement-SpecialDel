@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverMainParlayVSBetRadar_Upd] 
 	@TransIds					VARCHAR(MAX),
     @UserID						INT,
@@ -20,7 +20,8 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
-		
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+
 	Param's Explanation:		
 		- @TransIds : Main transids.
 */
@@ -567,7 +568,7 @@ BEGIN
 				r.showtime,
 				r.LeagueId,
 				r.matchcode,
-				r.modds,
+				r.modds AS MasterOdds,
 				r.matchid,
 				r.SubStatus,
 				r.SubTransId,

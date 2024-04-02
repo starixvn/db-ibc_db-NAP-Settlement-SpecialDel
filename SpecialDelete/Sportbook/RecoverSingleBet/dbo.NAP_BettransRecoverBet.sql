@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverBet]
 (
 	@TransIds			VARCHAR(MAX), 	
@@ -73,7 +73,8 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+
 	Param's Explanation:
 */
 BEGIN
@@ -332,6 +333,7 @@ BEGIN
 				,winlostdate
 				,SportType
 				,ActualStake
+				,modds
 		)
 		SELECT	z.transid
 				,z.transid
@@ -373,6 +375,7 @@ BEGIN
 				,o.eventdate
 				,l.sporttype
 				,b.actual_stake AS ActualStake
+				,b.modds
 		FROM	#tbTransId t			
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
@@ -1099,86 +1102,9 @@ BEGIN
 
 	--2. Table get tickets
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
-	;WITH CTE
-	AS
-	(	
-		SELECT	t.grouptransid
-				,t.site
-				,t.transid
-				,t.username
-				,t.username2
-				,t.transdate
-				,t.odds
-				,t.oddsspread
-				,t.oddstype
-				,t.bettype
-				,t.winlost
-				,t.betteam
-				,t.betcheck
-				,t.hdp1
-				,t.hdp2
-				,t.betfrom
-				,t.stake
-				,t.matchid
-				,t.SportType
-				,t.IsLiveIndicator
-				,t.livehomescore
-				,t.liveawayscore
-				,t.creatorName AS creator
-				,t.currencyName
-				,t.status
-				,t.leagueid
-				,t.homeid
-				,t.awayid				
-				,t.betid
-				,t.transdesc
-				,t.refno
-				,t.betdaqid
-				,t.ExtraInfo
-				,t.custid
-				--,NULL AS SiteId
-				,CASE
-					WHEN T1.isExists = 1
-						 OR (T2.isExists = 1 
-							 AND @IsITAdmin = 0 -- Check UserID not in IT group
-							 )
-								THEN CAST(1 AS BIT)
-					ELSE CAST(0 AS BIT)
-				 END AS IsReal
-				,CASE
-					WHEN T1.isExists = 1 
-						 AND @IsITAdmin = 1
-								THEN CAST(1 AS BIT)
-					ELSE CAST(0 AS BIT)
-				 END AS IsItSupport
-				,CASE
-					WHEN T2.isExists = 1 
-						 AND @IsITAdmin = 1
-								THEN CAST(1 AS BIT)
-					ELSE CAST(0 AS BIT)
-				 END AS IsItQa
-				,IsCashOut
-				,CASE WHEN t.IsCashOut = 0 AND t_m.inputtransid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isSettled
-				,t.WalletType
-				,t.BonusID
-				,t.MainTransId
-				,t.RefCode
-				,t.ActualStake
-		FROM #tblTransInfo t
-			 OUTER APPLY (SELECT TOP 1 1 AS isExists
-						  FROM CustDB.dbo.Customer c WITH(NOLOCK) 
-						  WHERE c.currency <> 20 
-							AND c.roleid = 4 
-							AND c.custid = t.srecommend) AS T1
-			 OUTER APPLY (SELECT TOP 1 1 AS isExists
-						  FROM CustDB.dbo.Customer c WITH(NOLOCK) 
-						  WHERE c.currency = 20 
-							AND c.roleid = 4 
-							AND c.custid = t.srecommend) AS T2
-			 LEFT JOIN #t_match_completed AS t_m
-					ON t.transid = t_m.inputtransid
-	)
-	SELECT  t.site
+	
+	SELECT	t.grouptransid
+			,t.site
 			,t.transid
 			,t.username
 			,t.username2
@@ -1199,36 +1125,53 @@ BEGIN
 			,t.IsLiveIndicator
 			,t.livehomescore
 			,t.liveawayscore
-			,t.creator
+			,t.creatorName AS creator
 			,t.currencyName
 			,t.status
 			,t.leagueid
 			,t.homeid
-			,t.awayid			
+			,t.awayid				
 			,t.betid
 			,t.transdesc
 			,t.refno
 			,t.betdaqid
 			,t.ExtraInfo
 			,t.custid
-			,t.IsReal
-			,t.IsItSupport
-			,t.IsItQa
-			,t.IsCashOut
-			,t.isSettled
+			,t.modds AS MasterOdds 
+			,CASE WHEN T1.isExists = 1 OR (T2.isExists = 1 AND @IsITAdmin = 0 -- Check UserID not in IT group
+							)THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsReal
+			,CASE WHEN T1.isExists = 1 AND @IsITAdmin = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsItSupport
+			,CASE WHEN T2.isExists = 1 AND @IsITAdmin = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsItQa
+			,IsCashOut
+			,CASE WHEN t.IsCashOut = 0 AND t_m.inputtransid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isSettled
 			,t.WalletType
+			,t.BonusID
+			,t.MainTransId
 			,t.RefCode
+			,t.ActualStake
 			,m.SettlementStatus
 			,m.GlobalShowTime
-			,t.ActualStake
-	FROM CTE t
-		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
+	FROM #tblTransInfo t
+			OUTER APPLY (SELECT TOP 1 1 AS isExists
+						FROM CustDB.dbo.Customer c WITH(NOLOCK) 
+						WHERE c.currency <> 20 
+						AND c.roleid = 4 
+						AND c.custid = t.srecommend) AS T1
+			OUTER APPLY (SELECT TOP 1 1 AS isExists
+						FROM CustDB.dbo.Customer c WITH(NOLOCK) 
+						WHERE c.currency = 20 
+						AND c.roleid = 4 
+						AND c.custid = t.srecommend) AS T2
+			LEFT JOIN #t_match_completed AS t_m
+				ON t.transid = t_m.inputtransid
+			LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 	ORDER BY site
-		   , ISNULL(t.MainTransId, t.transid)
-		   , CASE WHEN t.BonusID IS NOT NULL
+			, ISNULL(t.MainTransId, t.transid)
+			, CASE WHEN t.BonusID IS NOT NULL
 				THEN CASE WHEN t.MainTransId IS NULL THEN 1 ELSE 2 END
 				ELSE t.transid
-			 END					
+				END				
+	
 	
 	-- Write useraction log	
 	BEGIN TRY

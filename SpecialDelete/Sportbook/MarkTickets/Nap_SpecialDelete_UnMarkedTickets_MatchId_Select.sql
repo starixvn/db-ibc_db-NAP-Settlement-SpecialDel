@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_UnMarkedTickets_MatchId_Select] 
 (
 	@MatchId       INT,
@@ -41,6 +41,7 @@ AS;
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -282,7 +283,8 @@ BEGIN
               UserName              VARCHAR(50),
               oddsspread            MONEY,
               odds                  MONEY,
-              OddsType              INT,
+              modds					SMALLMONEY,
+			  OddsType              INT,
               transdate             DATETIME,
               bettype               SMALLINT,
               betteam               NVARCHAR(10),
@@ -368,6 +370,7 @@ BEGIN
 			transid
 			,custid	
 			,odds
+			,modds
 			,oddsspread	
 			,OddsType
 			,transdate
@@ -416,6 +419,7 @@ BEGIN
 			b.transid,
 			b.custid,
 			b.odds,   
+			b.modds,
 			b.oddsspread,
 			b.OddsType,  
 			b.transdate,
@@ -538,6 +542,7 @@ BEGIN
 			 transid
 			,custid	
 			,odds
+			,modds
 			,oddsspread	
 			,OddsType
 			,transdate
@@ -590,6 +595,7 @@ BEGIN
 			b.transid,
 			bm.custid,
 			b.odds,   
+			b.modds,
 			bm.oddsspread,
 			b.OddsType,  
 			bm.transdate,
@@ -822,6 +828,7 @@ BEGIN
 		b.SubHdp2,
 		b.SubOdds,
 		b.ActualStake,
+		b.modds AS MasterOdds, 
 		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid

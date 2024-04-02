@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update] 		
 	 @matchid		INT				= 0
 	,@strRefnos		VARCHAR(MAX)	= NULL

@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBACC-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Acc_BettransSelBet_BatchMsg] (
 	@TransIds 		VARCHAR(MAX)
 	,@ProductIds 	VARCHAR(1000) = ''

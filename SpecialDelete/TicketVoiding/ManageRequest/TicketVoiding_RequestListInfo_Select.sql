@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestListInfo_Select] 
 (
 	@FromDate   DATETIME
@@ -15,6 +15,7 @@ AS
         - 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20230224@July: Change config DBTXN -> DBCTG [Redmine: #180625]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
 
 	Param's explanation:
 	
@@ -26,10 +27,12 @@ AS
 BEGIN 
     SET NOCOUNT ON 
 
-    DECLARE @tmpResult TABLE (requestid INT) 
+    DECLARE @tmpResult TABLE (RequestID INT, Eventdate DATETIME)
 
-	DECLARE @FromDate_tmp DATETIME, @ToDate_tmp DATETIME
-
+	DECLARE @FromDate_tmp	DATETIME
+		  , @ToDate_tmp		DATETIME
+		  , @RequestInfo	VARBINARY(MAX) = NULL
+	
 	SELECT @FromDate_tmp = @FromDate, @ToDate_tmp = @ToDate
 
     IF EXISTS (SELECT TOP 1 1 
@@ -37,16 +40,17 @@ BEGIN
                WHERE  matchid IN ( 9, 29, 2799, 10449 )) 
       BEGIN 
 			--BETTRANS
-            INSERT INTO @tmpResult (requestid) 
-            SELECT s.requestid
+            INSERT INTO @tmpResult (RequestID, Eventdate) 
+            SELECT s.requestid, MIN(b.winlostdate)
             FROM   dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.transid = b.transid 
-            WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) AND b.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
+					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.transid = b.transid AND s.MatchId = b.matchid AND s.CustId = b.CustId AND s.Bettype = b.Bettype
+            WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
+					AND b.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
             GROUP  BY s.requestid
             
 			--BETTRANS14
-            INSERT INTO @tmpResult (requestid) 
-            SELECT s.requestid 
+            INSERT INTO @tmpResult (RequestID, Eventdate) 
+            SELECT s.requestid, MIN(b14.winlostdate)
             FROM   dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
 					INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON s.transid = b14.transid 
             WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
@@ -67,8 +71,8 @@ BEGIN
 							)o 
                WHERE  o.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp ) 
       BEGIN 
-          INSERT INTO @tmpResult (requestid) 
-          SELECT rd.requestid
+          INSERT INTO @tmpResult (RequestID, Eventdate) 
+          SELECT rd.requestid, MIN(o.eventdate)
           FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				 INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.requestid = r.RequestId
                  CROSS APPLY (
@@ -84,19 +88,25 @@ BEGIN
           GROUP  BY rd.requestid, r.IssueTypeId
       END 
 	
-    INSERT INTO @tmpResult (requestid) 
-    SELECT rd.requestid
+    INSERT INTO @tmpResult (RequestID, Eventdate) 
+    SELECT rd.requestid, MIN(m.eventdate)
     FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			INNER JOIN dbo.match m WITH(NOLOCK) ON rd.matchid = m.matchid 
 	WHERE m.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 						
     GROUP  BY rd.requestid
 	UNION ALL
-	SELECT rd.requestid
+	SELECT rd.requestid, MIN(m14.eventdate)
     FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			INNER JOIN dbo.match14 m14 WITH(NOLOCK) ON rd.matchid = m14.matchid 
 	WHERE m14.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 					
     GROUP  BY rd.requestid
     
-	SELECT DISTINCT requestid
-	FROM @tmpResult
+	SET @RequestInfo = COMPRESS((
+		SELECT DISTINCT RequestId AS 'req'
+			  ,MIN(Eventdate) AS 'e'
+		FROM @tmpResult
+		GROUP BY RequestID
+	FOR JSON PATH))
+
+	SELECT CONVERT(VARCHAR(MAX), @RequestInfo, 1) AS RequestInfo
 END

@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Update]
 (
 	 @TransIds			VARCHAR(MAX)	= ''
@@ -39,7 +39,8 @@ AS
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230818@Max: [TVS] Cancel Cash Out Action - Search by BetID [Redmine: #186624]
-		
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+
 	Explanation's Param:
 
 */
@@ -128,6 +129,7 @@ BEGIN
 		EventDate			DATETIME,
 		ActualStake			MONEY,
 		statuswinlost		TINYINT,
+		modds				SMALLMONEY,
 		SiteDBGroupID		SMALLINT
 	)
 	CREATE INDEX IDX_SpecialDeleteBets_RefNo_Bettype_matchid_custid	
@@ -216,6 +218,7 @@ BEGIN
 					EventDate,
 					ActualStake,
 					statuswinlost,
+					modds,
 					SiteDBGroupID
 			)
 	SELECT 	sub.TransId,
@@ -255,6 +258,7 @@ BEGIN
 			m.eventdate,
 			sub.actual_stake AS ActualStake,
 			sub.statuswinlost,
+			sub.modds,
 			sub.SiteDBGroupID
 	FROM dbo.bettrans sub WITH(NOLOCK)
 		 INNER JOIN dbo.match m WITH(NOLOCK) 
@@ -538,16 +542,14 @@ BEGIN
 			d.IsNeutral,
 			d.MatchCode ,
 			d.ActualStake,
+			d.modds AS MasterOdds,
 			d.SiteDBGroupID
 	FROM #SpecialDeleteBets AS d
 	LEFT JOIN #tblCustInfo AS ci ON d.custid = ci.custid
 	LEFT JOIN #tblCustInfo AS ag ON d.recommend = ag.custid	
 	LEFT JOIN #tblCustInfo AS ma ON d.mrecommend = ma.custid
 	LEFT JOIN #tblCustInfo AS su ON d.srecommend = su.custid
-	WHERE d.BetType NOT IN (912,913)
-	ORDER BY ag.site ASC
-		   , CASE WHEN d.BetType = 911 THEN d.TransId ELSE d.RefNo END
-		   , d.TransId
+	ORDER BY ag.site ASC, d.TransId ASC
 	
 	-- Write useraction log	
 	BEGIN TRY

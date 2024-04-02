@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelSpecialDel_NumberGame] 
 	@Option			BIT = 0
 	,@MatchID		INT
@@ -30,7 +30,8 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+
 	Param's Explanation:
 			- @Opition: 
 			0: By MatchID
@@ -78,6 +79,7 @@ BEGIN
 		,ShowTime		NVARCHAR(50)
 		,BallSequence	TINYINT
 		,SportTypeId	INT
+		,modds			SMALLMONEY
 	)
 
 	DECLARE @tblTransIds TABLE (transid BIGINT PRIMARY KEY)
@@ -132,6 +134,7 @@ BEGIN
 				,m.showtime
 				,null
 				,m.sporttype
+				,b.modds
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 				INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
@@ -187,6 +190,7 @@ BEGIN
 				,m.showtime
 				,BS_tmp.BallSequence
 				,m.sporttype
+				,b.modds
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 				INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
@@ -250,6 +254,7 @@ BEGIN
 			,m.showtime
 			,BS_tmp.BallSequence
 			,m.sporttype
+			,b.modds
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 			INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
@@ -307,6 +312,7 @@ BEGIN
 		,'Credit' AS GroupName
 		,SportTypeId
 		,@SiteDBGroupID AS SiteDBGroupID
+		,modds AS MasterOdds
 	FROM #SpecialDeleteBets WITH (NOLOCK)
 	WHERE custid NOT IN (
 			SELECT CustID
@@ -341,6 +347,7 @@ BEGIN
 		,'Deposit' AS GroupName
 		,SportTypeId
 		,@SiteDBGroupID AS SiteDBGroupID
+		,modds AS MasterOdds
 	FROM #SpecialDeleteBets s WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
 	WHERE c.custid NOT IN (

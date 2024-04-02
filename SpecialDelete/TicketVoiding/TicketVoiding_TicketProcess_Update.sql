@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TicketProcess_Update]
 (
 	@SingleTicketsJSON			NVARCHAR(MAX) = NULL
@@ -18,6 +18,7 @@ AS
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240319@Max: [TVS] SP tuning for EC2024 [Redmine: #200840]
 
 	Param's explanation:
 */
@@ -28,7 +29,9 @@ BEGIN
 	CREATE TABLE #tmpInputTransId_Parlay (TransId BIGINT, RequestId INT, MatchId INT)
 	CREATE TABLE #tmpInputTransId_CancelCashOut (TransId BIGINT, RequestId INT, MatchId INT)
 
-	DECLARE @tmpTransIdBatch AS TABLE (TransId BIGINT, RequestId INT, MatchId INT)
+	--DECLARE @tmpTransIdBatch AS TABLE (TransId BIGINT, RequestId INT, MatchId INT)
+	DECLARE @tmp_Id AS TABLE (Id BIGINT)
+	DECLARE @tmpTransIdBatch AS TABLE (Id BIGINT)
 
 	IF (@SingleTicketsJSON IS NOT NULL)
 	BEGIN
@@ -69,79 +72,96 @@ BEGIN
 		FROM string_split(@ResettledTransIds, ',')
 		WHERE value <> ''
 
+		INSERT INTO @tmp_Id(Id)
+		SELECT t.Id
+		FROM #tmpInputTransId_Single s
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single t WITH (NOLOCK) ON s.RequestId = t.RequestId and s.TransId = t.TransId
+
 		WHILE(1=1)
 		BEGIN
 			DELETE @tmpTransIdBatch
 
-			DELETE TOP(2000) s OUTPUT deleted.TransId INTO @tmpTransIdBatch(TransId)
-			FROM #tmpInputTransId_Single s
+			DELETE TOP(4500) s OUTPUT deleted.Id INTO @tmpTransIdBatch(Id)
+			FROM @tmp_Id s
 
 			IF @@ROWCOUNT = 0
 				BREAK
 
 			UPDATE s SET s.IsProcessed = 2 --Mark resettled ticket
 			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (ROWLOCK, UPDLOCK)
-				INNER JOIN @tmpTransIdBatch t ON t.TransId = s.TransId
+				INNER JOIN @tmpTransIdBatch t ON t.Id = s.Id
 
 		END
 		RETURN
 	END
 
-	--Single update
+	--Single, Main parlay update
+	INSERT INTO @tmp_Id(Id)
+	SELECT t.Id
+	FROM #tmpInputTransId_Single s
+		INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single t WITH (NOLOCK) ON s.RequestId = t.RequestId and s.TransId = t.TransId
+	UNION ALL
+	SELECT t.Id
+	FROM #tmpInputTransId_Parlay s
+		INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single t WITH (NOLOCK) ON s.RequestId = t.RequestId and s.TransId = t.TransId AND t.MatchId = 29
+
 	WHILE(1=1)
 	BEGIN
 		DELETE @tmpTransIdBatch
 
-		DELETE TOP(2000) s OUTPUT deleted.TransId, deleted.RequestId INTO @tmpTransIdBatch(TransId, RequestId)
-		FROM #tmpInputTransId_Single s
+		DELETE TOP(4500) s OUTPUT deleted.Id INTO @tmpTransIdBatch(Id)
+		FROM @tmp_Id s
 
 		IF @@ROWCOUNT = 0
 			BREAK
 
 		UPDATE s SET s.IsProcessed = 1
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN @tmpTransIdBatch t ON t.RequestId = s.RequestId AND t.TransId = s.TransId
+			INNER JOIN @tmpTransIdBatch t ON t.Id = s.Id
 
 	END
 	
-	--Main, Sub parlay update
+	--Sub parlay update
+	INSERT INTO @tmp_Id(Id)
+	SELECT t.Id
+	FROM #tmpInputTransId_Parlay s
+		INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay t WITH (NOLOCK) ON s.RequestId = t.RequestId and s.TransId = t.TransId
+
 	WHILE(1=1)
 	BEGIN
 		DELETE @tmpTransIdBatch
 
-		DELETE TOP(2000) s OUTPUT deleted.TransId, deleted.RequestId, deleted.MatchId INTO @tmpTransIdBatch(TransId, RequestId, MatchId)
-		FROM #tmpInputTransId_Parlay s
+		DELETE TOP(4500) s OUTPUT deleted.id INTO @tmpTransIdBatch(Id)
+		FROM @tmp_Id s
 
 		IF @@ROWCOUNT = 0
 			BREAK
 
 		UPDATE s SET s.IsProcessed = 1
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN @tmpTransIdBatch t ON t.RequestId = s.RequestId AND t.TransId = s.TransId
-		WHERE t.MatchId = 29
-
-		UPDATE s SET s.IsProcessed = 1
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN @tmpTransIdBatch t ON t.RequestId = s.RequestId AND t.TransId = s.TransId
-		WHERE t.MatchId <> 29
+			INNER JOIN @tmpTransIdBatch t ON t.id = s.Id
 
 	END
 	
 	--Cancel cash-out update
+	INSERT INTO @tmp_Id(Id)
+	SELECT t.Id
+	FROM #tmpInputTransId_CancelCashOut s
+		INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single t WITH (NOLOCK) ON s.RequestId = t.RequestId and s.TransId = t.TransId AND t.IsCancelCO = 1
+
 	WHILE(1=1)
 	BEGIN
 		DELETE @tmpTransIdBatch
 
-		DELETE TOP(2000) s OUTPUT deleted.TransId, deleted.RequestId INTO @tmpTransIdBatch(TransId, RequestId)
-		FROM #tmpInputTransId_CancelCashOut s
+		DELETE TOP(4500) s OUTPUT deleted.Id INTO @tmpTransIdBatch(Id)
+		FROM @tmp_Id s
 
 		IF @@ROWCOUNT = 0
 			BREAK
 
 		UPDATE s SET s.IsProcessed = 1
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN @tmpTransIdBatch t ON t.RequestId = s.RequestId AND t.TransId = s.TransId
-		WHERE s.IsCancelCO = 1
+			INNER JOIN @tmpTransIdBatch t ON t.id = s.Id 
 	END
 	
 

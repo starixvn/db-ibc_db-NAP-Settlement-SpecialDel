@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb_CustomerLog" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb_CustomerLog" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROC [sb].[CustomerLog_SendMessage] 
 (	
 	@xml			XML				= NULL

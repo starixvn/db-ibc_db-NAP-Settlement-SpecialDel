@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsDetail_Select]
 	@MatchId		INT,
 	@UserId			INT,
@@ -21,6 +21,7 @@ AS
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Explanation's Param:
 */
@@ -72,7 +73,8 @@ BEGIN
               SubBetType      SMALLINT DEFAULT(0),
               SubHdp1         SMALLMONEY,
               SubHdp2         SMALLMONEY,
-              SubOdds         SMALLMONEY
+              modds			  SMALLMONEY,
+			  SubOdds         SMALLMONEY
              );
 	-- get single tickets
 	INSERT INTO #Tickets (
@@ -106,6 +108,7 @@ BEGIN
 			,WalletType
 			,RefCode
 			,BonusID
+			,modds
 		)
 		SELECT
 			b.bettype
@@ -141,6 +144,7 @@ BEGIN
 			,b.WalletType
 			,b.RefCode
 			,b.BonusID
+			,b.modds
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid
 		WHERE b.statusID IN (0, 1) -- running, waiting
@@ -187,6 +191,7 @@ BEGIN
 			,SubHdp1
 			,SubHdp2
 			,SubOdds
+			,modds
 		)
 		SELECT
 			b.bettype
@@ -228,6 +233,7 @@ BEGIN
 			,bm.hdp1 AS SubHdp1
 			,bm.hdp2 AS SubHdp2
 			,bm.odds As SubOdds
+			,b.modds
 		FROM dbo.bettransm AS bm WITH (NOLOCK)
 			INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND bm.refno = b.refno
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
@@ -342,6 +348,7 @@ BEGIN
 		b.SubHdp1,
 		b.SubHdp2,
 		b.SubOdds,
+		b.modds AS MasterOdds,
 		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid

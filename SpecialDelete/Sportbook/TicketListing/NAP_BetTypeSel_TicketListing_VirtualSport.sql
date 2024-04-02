@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_BetTypeSel_TicketListing_VirtualSport] 
      @MatchId    INT = 0 
     ,@BetTypes   VARCHAR(MAX) = NULL

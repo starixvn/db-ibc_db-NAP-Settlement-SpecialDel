@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSIC-bodb02, DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIC-bodb02, DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_TicketVoiding_NetPosition]
 	@strTransIds VARCHAR(MAX)
 	,@Action VARCHAR(20)

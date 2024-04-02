@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarByMatchId_Sel]
 	@MatchId		 INT,
 	@BetTypes		 VARCHAR(MAX)		
@@ -15,6 +15,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation:		
 		
@@ -60,7 +61,7 @@ BEGIN
 		   ,ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral
 		   ,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
 		   ,m.leagueid
-		   ,b.modds
+		   ,b.modds AS MasterOdds
 		   ,bm.Status AS SubStatus
 		   ,bm.TransId AS SubTransId
 		   ,bm.BetCheck AS SubBetCheck

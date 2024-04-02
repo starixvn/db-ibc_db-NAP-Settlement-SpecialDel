@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select] 
 (
 	 @MatchId			INT
@@ -56,6 +56,7 @@ AS
 		- 20231206@July: [TVS] Update message template when Pool House bet types are affected [Redmine: #196467]
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's explanation:	
 		
@@ -339,6 +340,7 @@ BEGIN
 				,winlostdate
 				,SiteDBGroupID
 				,statuswinlost
+				,modds
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -386,6 +388,7 @@ BEGIN
 				,b.winlostdate
 				,b.SiteDBGroupID
 				,b.statuswinlost
+				,b.modds
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId
@@ -536,6 +539,7 @@ BEGIN
 					,statuswinlost
 					,CheckTimeCashOut
 					,GroupPHaffected
+					,modds
 				)
 			SELECT DISTINCT
 					b.transid AS GroupID
@@ -602,6 +606,7 @@ BEGIN
 																 WHEN f.GroupMatch <> 0 THEN 2
 																 ELSE 2 END
 						  ELSE 0 END AS GroupPHaffected
+					,b.modds
 			FROM #tmpTransInfo b	
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 				CROSS APPLY (
@@ -902,6 +907,7 @@ BEGIN
 					,statuswinlost
 					,CheckTimeCashOut
 					,GroupPHaffected
+					,modds
 				)
 			SELECT DISTINCT
 					b.transid AS GroupID
@@ -955,6 +961,7 @@ BEGIN
 																 WHEN f.GroupMatch <> 0 THEN 2
 																 ELSE 2 END
 						  ELSE 0 END AS GroupPHaffected
+					,b.modds
 			FROM	#tmpTransInfo b
 			   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			   CROSS APPLY (
@@ -1245,6 +1252,7 @@ BEGIN
 				,matchid
 				,SiteDBGroupID
 				,statuswinlost
+				,modds
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -1290,6 +1298,7 @@ BEGIN
 				,b.matchid
 				,b.SiteDBGroupID
 				,b.statuswinlost
+				,b.modds
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId
@@ -2150,7 +2159,7 @@ BEGIN
 		   ,s.followedUsername
 		   ,s.Transdesc
 		   ,s.sporttype
-		   ,s.modds
+		   ,s.modds AS MasterOdds
 		   ,s.IsCricket
 		   ,s.betdaqid
 		   ,s.ExtraInfo

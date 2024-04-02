@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select]
 (
 	@MatchId			INT				= 0
@@ -8,11 +8,9 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select]
 )
 AS
 /*
-    Created by: Kent
-	Date: 20170323
-	Original: 
+    Created by: 20170323@Kent
 	Task: Select Cash-out transaction for delete
-	DB: DBTXN/BODB02
+	DB: DBTXN/bodb02
 
 	Revisions:	
 		- 20170403@Kent: Integrate Cash-out [Redmine:#72059]			
@@ -27,7 +25,8 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230818@Max: [TVS] Cancel Cash Out Action - Search by BetID [Redmine: #186624]
-		
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+
 	Explanation's Param:
 		@MatchId: <> 0 - by MatchId
 				 = 0 - by BetId(s) 
@@ -72,6 +71,7 @@ BEGIN
 		statuswinlost		TINYINT,
 		ActualStake			MONEY,
 		MatchId				INT,
+		modds				SMALLMONEY,
 		SiteDBGroupID		SMALLINT				
 	)
 	
@@ -133,6 +133,7 @@ BEGIN
 				statuswinlost,
 				ActualStake,
 				MatchId,
+				modds,
 				SiteDBGroupID
 			)
 		SELECT 
@@ -170,6 +171,7 @@ BEGIN
 				sub.statuswinlost,
 				sub.actual_stake AS ActualStake,
 				@MatchId,
+				sub.modds,
 				sub.SiteDBGroupID
 		FROM	dbo.bettrans sub WITH(NOLOCK)	
 			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
@@ -232,6 +234,7 @@ BEGIN
 				statuswinlost,
 				ActualStake,
 				MatchId,
+				modds,
 				SiteDBGroupID
 			)
 		SELECT 
@@ -269,6 +272,7 @@ BEGIN
 				sub.statuswinlost,
 				sub.actual_stake AS ActualStake,
 				@MatchId,
+				sub.modds,
 				sub.SiteDBGroupID
 		FROM #tblTransIds t
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK) ON t.transid = sub.TransId
@@ -360,6 +364,7 @@ BEGIN
 			d.statuswinlost,
 			d.ActualStake,
 			d.MatchId,
+			d.modds AS MasterOdds,
 			d.SiteDBGroupID
 	FROM #SpecialDeleteBets d		 
 		 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)

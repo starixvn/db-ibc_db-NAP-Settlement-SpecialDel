@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransDelSpecial_NumberGame] 
 	@Option			BIT = 0
 	,@MatchId		INT
@@ -46,6 +46,7 @@ AS
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation: 
 		- @Opition: 
@@ -257,6 +258,7 @@ BEGIN
 		,matchid INT
 		,BallSequence TINYINT
 		,SportTypeId INT
+		,modds SMALLMONEY
 	)		
 
 	IF @Option = 0 AND EXISTS(SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchID AND m.sporttype = 164)
@@ -289,6 +291,7 @@ BEGIN
 			,matchid
 			,BallSequence
 			,SportTypeId
+			,modds
 		)
 		SELECT DISTINCT b.transid
 			,b.custid
@@ -317,6 +320,7 @@ BEGIN
 			,m.matchid
 			,NULL AS BallSequence
 			,m.sporttype
+			,b.modds
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid			
 		WHERE	b.matchid = @MatchId 
@@ -357,6 +361,7 @@ BEGIN
 			,matchid
 			,BallSequence
 			,SportTypeId
+			,modds
 		)
 		SELECT DISTINCT b.transid
 			,b.custid
@@ -385,6 +390,7 @@ BEGIN
 			,m.matchid
 			,BS_tmp.BallSequence
 			,m.sporttype
+			,b.modds
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 			OUTER APPLY (SELECT BallSequence 
@@ -788,6 +794,7 @@ BEGIN
 			,m.ShowTime
 			,b.BallSequence
 			,b.SportTypeId
+			,b.modds AS MasterOdds
 		FROM #BetDelete b WITH (NOLOCK)
 			INNER JOIN match m WITH (NOLOCK) 
 				ON m.matchid = b.matchid

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet,bodbSPUNet" isFunction="0"></info>*/
+/*<info serverAlias="DBACC-bodb02" executers="wsv_nap,bodbSPUNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_TicketsInRequest_Select]
 (
 	@TransIds VARCHAR(MAX) = NULL

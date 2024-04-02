@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Sub] 
 	@BetType		VARCHAR(20) = 'all'
 	,@MatchId		INT			= 0	
@@ -18,6 +18,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation:			
 			- @BetType:
@@ -65,6 +66,7 @@ BEGIN
 		,betcheck				NVARCHAR(50)
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
+		,modds					SMALLMONEY
 	)		
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
@@ -122,6 +124,7 @@ BEGIN
 			,betcheck
 			,ExtraInfo
 			,ActualStake
+			,modds
 		)
 	SELECT  bm.transid AS SubTransID			 
 			,bm.betcheck AS SubBetCheck	
@@ -159,6 +162,7 @@ BEGIN
 			,b.betcheck AS betcheck
 			,b.ExtraInfo
 			,b.actual_stake AS ActualStake	
+			,b.modds 
 	FROM @tblTransIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID		   
@@ -223,6 +227,7 @@ BEGIN
 			 ,t.ExtraInfo
 			 ,t.ActualStake
 			 ,@SiteDBGroupID AS SiteDBGroupID
+			 ,t.modds AS MasterOdds
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID

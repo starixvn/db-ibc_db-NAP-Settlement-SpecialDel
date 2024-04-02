@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Sub] 
 	@UserId				INT,	
 	@IP					VARCHAR(50),
@@ -30,7 +30,8 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
-		
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+
 	Param's Explanation:			
 			- @BetType:
 			'all': All
@@ -114,6 +115,7 @@ BEGIN
 		,balance				MONEY					
 		,custid					INT
 		,isdeposit				BIT
+		,modds					SMALLMONEY
 		,mrecommend				INT
 		,recommend				INT
 		,srecommend				INT
@@ -298,6 +300,7 @@ BEGIN
 				,ruben
 				,oddsspread
 				,SiteID
+				,modds
 				)
 		SELECT  bm.transid AS SubTransID			 
 				,bm.betcheck AS SubBetCheck	
@@ -342,6 +345,7 @@ BEGIN
 				,b.ruben
 				,b.oddsspread
 				,b.BetSiteID
+				,b.modds
 		FROM @tblMainTransIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
@@ -761,6 +765,7 @@ BEGIN
 				 ,t.betfrom AS BetFrom
 				 ,CURRENT_TIMESTAMP AS [DateTime]
 				 ,t.matchid
+				 ,t.modds AS MasterOdds 
 		FROM @tblRecoverBet t
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				   ON t.custid = f.CustID

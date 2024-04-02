@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,dot_intg" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap,dot_intg" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_SpecialDelete_RecoverByBetId_ReCal_s175
 	@MatchId		INT
 	,@TransIds		VARCHAR(MAX)

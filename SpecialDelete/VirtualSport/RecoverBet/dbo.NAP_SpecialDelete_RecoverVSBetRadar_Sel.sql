@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverVSBetRadar_Sel] 
 	@TicketType			VARCHAR(100),
 	@Type				VARCHAR(100)	= NULL,
@@ -19,6 +19,7 @@ AS
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 		- 20231030@July: [TVS] Integrate a new sport type "Virtual Football League" [Redmine: #195313]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -681,7 +682,7 @@ BEGIN
 			r.showtime,
 			r.LeagueId,
 			r.matchcode,
-			r.modds,
+			r.modds AS MasterOdds,
 			r.SubStatus,
 			r.SubTransId,
 			r.SubBetCheck,

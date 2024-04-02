@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket14_Select]
 ( 
 	@VoidingHistoryIds VARCHAR(MAX) =''
@@ -14,6 +14,7 @@ AS;
 		- 20220820@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		
 	Param's explanation:	
 		
@@ -77,6 +78,7 @@ BEGIN
 			  isNeutral       BIT,
 			  matchcode		  NVARCHAR(50),
 			  showtime        NVARCHAR(50),
+			  modds           SMALLMONEY,
 			  winlostdate	  DATETIME
              );
 
@@ -150,6 +152,7 @@ BEGIN
 			,ActualStake = b.actual_stake
 			,subTransId = b.transid
 			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
+			,modds = b.modds
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 
@@ -289,6 +292,7 @@ BEGIN
 			   ,s.isNeutral 
 			   ,s.matchcode
 			   ,s.winlostdate
+			   ,s.modds
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -347,6 +351,7 @@ BEGIN
 			   ,s.isNeutral 
 			   ,s.matchcode
 			   ,s.winlostdate
+			   ,s.modds
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON	s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
@@ -399,6 +404,7 @@ BEGIN
 			   ,s.isNeutral 
 			   ,s.matchcode
 			   ,s.winlostdate
+			   ,s.modds
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -456,6 +462,7 @@ BEGIN
 		   ,s.isNeutral 
 		   ,s.matchcode
 		   ,s.winlostdate
+		   ,s.modds
 		FROM	#tmpTicket s 
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -507,6 +514,7 @@ BEGIN
 		   ,s.isNeutral 
 		   ,s.matchcode
 		   ,s.winlostdate
+		   ,s.modds AS MasterOdds
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid

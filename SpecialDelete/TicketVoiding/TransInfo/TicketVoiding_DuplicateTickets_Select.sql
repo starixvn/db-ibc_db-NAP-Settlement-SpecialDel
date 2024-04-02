@@ -1,4 +1,4 @@
-/*<info serverAlias="DBRPT-bodb_Report" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBRPT-bodb_Report" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_DuplicateTickets_Select]
 (
 	@TransIds VARCHAR(MAX) = NULL

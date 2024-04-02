@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_SpecialDelete_UserLog_MarkTickets_Select
 	@LogDateFrom	DATETIME
 	,@LogDateTo		DATETIME

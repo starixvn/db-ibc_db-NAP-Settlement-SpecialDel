@@ -1,14 +1,14 @@
-/*<info serverAlias="DBARC-bodb_Archive" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBARC-bodb_Archive" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Archive_Select]
 (
-	 @RequestIdXml	XML				= NULL
-	,@MatchId		INT				= NULL
-	,@IsExcludeTest BIT				= 1
-	,@Status		INT				= 0
-	,@IssueTypeId	VARCHAR(MAX)	= NULL
-	,@SubIssueType  VARCHAR(MAX)	= NULL
-	,@RequestId		INT				= NULL
-	,@CreatedBy		INT				= 0
+	 @RequestInfoJson	VARCHAR(MAX)	= NULL
+	,@MatchId			INT				= NULL
+	,@IsExcludeTest		BIT				= 1
+	,@Status			INT				= 0
+	,@IssueTypeId		VARCHAR(MAX)	= NULL
+	,@SubIssueType		VARCHAR(MAX)	= NULL
+	,@RequestId			INT				= NULL
+	,@CreatedBy			INT				= 0
 )
 AS
 /*	Created by: 20200811@Zane
@@ -44,6 +44,7 @@ AS
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
 
 	Param's explanation:	
 		@Status: 
@@ -52,7 +53,6 @@ AS
 			- 1: Running
 			- 2: Completed
 			- 3: Failed
-		@RequestIdXml : <RequestId Id="1"/><RequestId Id="2"/>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -60,18 +60,25 @@ BEGIN
 	DECLARE	@FilteredBy			TINYINT
 	       ,@RequestInfoGetCalcTimes VARBINARY(MAX) = NULL
 
-	DECLARE @tmpRequest TABLE (RequestId INT)
+	DECLARE @tmpRequest TABLE (RequestId INT, Eventdate DATETIME)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
-	DECLARE @tmpMatchVoidingHistory TABLE (
-		RequestId			INT
+	DECLARE @tmpChildMatchCricket TABLE (
+		RequestId		INT
+	   ,MatchId			INT
+	   ,ChildMatchId	INT
+	)
+    
+	CREATE TABLE #tmpMatchVoidingHistory (
+		 RequestId			INT
 		,VoidingHistoryId	INT
 		,VoidedBy			INT
-		,TotalSingleProcessed	INT
-		,TotalParlayProcessed	INT
-		,TotalCancelCashOutProcessed INT
+		,TotalSingleProcessed	INT DEFAULT (0)
+		,TotalParlayProcessed	INT DEFAULT (0)
+		,TotalCancelCashOutProcessed INT DEFAULT (0)
 		,MatchId			INT
 		,IssueTypeId		INT
 	)
+	CREATE NONCLUSTERED INDEX IX_tmpMatchVoidingHistory_VoidingHistoryId ON #tmpMatchVoidingHistory (VoidingHistoryId)
 	 
 	CREATE TABLE #tmpResult (
 		RequestId		INT
@@ -118,88 +125,101 @@ BEGIN
 	SELECT	value AS SubIssueTypeId
 	FROM STRING_SPLIT(@SubIssueType, ',')
 
-	IF @RequestIdXml IS NOT NULL
-	BEGIN
-		-- Parse xml @RequestId
-		INSERT INTO @tmpRequest(RequestId)
-		SELECT t.c.value('@Id','INT') AS RequestId
-		FROM @RequestIdXml.nodes('RequestId') t(c)
-		OPTION (OPTIMIZE FOR (@RequestIdXml = NULL))
-	END
-
 	SELECT	@FilteredBy = CASE
-								WHEN @RequestId IS NOT NULL THEN 1 -- RequestId
-								WHEN @MatchId IS NOT NULL THEN 2 -- MatchId
-								WHEN @RequestIdXml IS NOT NULL THEN 3 -- Fromdate, Todate
-
-							END
+							  WHEN @RequestId IS NOT NULL THEN 1 -- RequestId
+							  WHEN @MatchId IS NOT NULL THEN 2 -- MatchId
+							  WHEN @RequestInfoJson IS NOT NULL THEN 3 -- Fromdate, Todate
+						  END
 	-----------------------------GET eventdate of match---------------------------------------------
-	IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20,22)))
+	IF @FilteredBy = 1
 	BEGIN
-		IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-										LEFT JOIN @tmpRequest r 
-											ON rd.RequestId = r.RequestId 
-								   WHERE matchid IN (9, 29, 2799, 10449)
-								   AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-												WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-												WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
-												ELSE 0 END
-		)
+		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20,22)))
 		BEGIN
-			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-			SELECT  rd.RequestId, MIN(bk.winlostdate)
-			FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-					ON rd.RequestId = s.RequestId AND rd.MatchId = s.MatchId
-				INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) 
-					ON rd.MatchId = bk.matchid AND s.TransId = bk.transid
-				LEFT JOIN @tmpRequest r 
-					ON rd.RequestId = r.RequestId 
-			WHERE rd.matchid IN (9, 29, 2799, 10449)
-			AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-						 WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-						 WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
-						 ELSE 0 END
-			GROUP BY rd.RequestId
+			IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
+									   WHERE matchid IN (9, 29, 2799, 10449) AND rd.RequestId = @RequestId
+					  )
+			BEGIN
+				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+				SELECT  s.RequestId, MIN(bk.winlostdate)
+				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
+					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid AND s.MatchId = bk.matchid AND s.CustId = bk.CustId AND s.Bettype = bk.Bettype 
+				WHERE s.MatchId IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
+				GROUP BY s.RequestId
+			END
+			IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
+						FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
+							INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
+						WHERE  rd.RequestId = @RequestId
+						)
+			BEGIN
+				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+				SELECT  rd.RequestId, MIN(o.eventdate)
+				FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
+					INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
+				WHERE rd.RequestId = @RequestId
+				GROUP BY rd.RequestId
+			END
 		END
-		IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
-					FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
-						INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
-						LEFT JOIN @tmpRequest r ON rd.RequestId = r.RequestId 
-					WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-								   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-								   WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
-								   ELSE 0 END
-					)
-		BEGIN
-			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-			SELECT  rd.RequestId, MIN(o.eventdate)
-			FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-				INNER JOIN dbo.outright_bk o WITH(NOLOCK) 
-					ON rd.MatchId = o.orid
-				LEFT JOIN @tmpRequest r 
-					ON rd.RequestId = r.RequestId 
-			WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-						   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-						   WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
-						   ELSE 0 END
-			GROUP BY rd.RequestId
-		END
-	END
 	
-	INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-	SELECT rd.RequestId, MIN(m.eventdate)
-	FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-		INNER JOIN dbo.match_bk m WITH(NOLOCK) 
-			ON rd.MatchId = m.matchid
-		LEFT JOIN @tmpRequest r 
-			ON rd.RequestId = r.RequestId 
-	WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-				   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-				   WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
-				   ELSE 0 END
-	GROUP BY rd.RequestId
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT rd.RequestId, MIN(m.eventdate)
+		FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
+			INNER JOIN dbo.match_bk m WITH(NOLOCK) ON rd.MatchId = m.matchid
+		WHERE rd.RequestId = @RequestId
+		GROUP BY rd.RequestId
+	END
+	ELSE IF @FilteredBy = 2
+	BEGIN
+		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20,22)))
+		BEGIN
+			IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
+									   WHERE matchid IN (9, 29, 2799, 10449) AND rd.MatchId = @MatchId
+					  )
+			BEGIN
+				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+				SELECT  s.RequestId, MIN(bk.winlostdate)
+				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
+					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid AND s.MatchId = bk.matchid AND s.CustId = bk.CustId AND s.Bettype = bk.Bettype 
+				WHERE s.MatchId IN (9, 29, 2799, 10449) AND s.MatchId = @MatchId
+				GROUP BY s.RequestId
+			END
+			IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
+						FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
+							INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
+						WHERE  rd.MatchId = @MatchId
+						)
+			BEGIN
+				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+				SELECT  rd.RequestId, MIN(o.eventdate)
+				FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
+					INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
+				WHERE rd.MatchId = @MatchId
+				GROUP BY rd.RequestId
+			END
+		END
+	
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT rd.RequestId, MIN(m.eventdate)
+		FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
+			INNER JOIN dbo.match_bk m WITH(NOLOCK) ON rd.MatchId = m.matchid
+		WHERE rd.MatchId = @MatchId
+		GROUP BY rd.RequestId
+	END
+	ELSE IF @FilteredBy = 3
+	BEGIN
+		INSERT INTO @tmpRequest(RequestId, Eventdate)
+		SELECT req, e
+		FROM STRING_SPLIT(@RequestInfoJson, ',') f
+			CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_RequestInfo) t
+			CROSS APPLY (
+					SELECT req, e
+					FROM OPENJSON(t.Decompress_RequestInfo) 
+					WITH( req INT, e DATETIME)
+				)tbl
+		WHERE f.value <> ''
 
+	END
+	----------------------------- End of EventDate Processing ------------------------------
 	IF @FilteredBy = 1
 	BEGIN
 	INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds)
@@ -322,7 +342,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
 				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
-				,m.eventdate
+				,t.eventdate
 				,CASE WHEN r.IssueTypeId IN (3,19,21) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
@@ -334,15 +354,11 @@ BEGIN
 					ELSE STUFF(w.scores,1,1,'') END AS WrongScores
 				,rd.FilterBy
 				,rd.ProductIds
-		FROM	dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
+		FROM @tmpRequest t
+			INNER JOIN dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
+				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
-			INNER JOIN (
-						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
-						FROM @MinEventDate_tmp m
-						GROUP BY RequestID
-						)m
-				ON r.RequestId = m.RequestID
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
 			INNER JOIN @SubIssueType_tmp sub
@@ -367,8 +383,8 @@ BEGIN
 			)rd
 	WHERE t.IssueTypeId = 3
 
-	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId)
-	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId
+	INSERT INTO #tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId, MatchId)
+	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId, ISNULL(t.MatchId,0)
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
@@ -381,51 +397,66 @@ BEGIN
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	TOP (1) vh.VoidedBy AS LastVoidedBy
-			FROM	@tmpMatchVoidingHistory vh
+			FROM	#tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId
 			ORDER BY vh.VoidingHistoryId DESC
 		) vh
 	
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult WHERE Sporttype = 50)
+	BEGIN
+		INSERT INTO @tmpChildMatchCricket (RequestId, MatchId, ChildMatchId)
+		SELECT t.RequestId, t.MatchId, m.matchid
+		FROM #tmpResult t 
+			INNER JOIN dbo.match_bk m WITH (NOLOCK) ON m.ParentID = t.MatchId  
+		WHERE t.Sporttype = 50  
+			AND m.sporttype = 50 AND m.ChildMatchType = 200
+	END
+
 	-- single ticket	
-	UPDATE vh 
-		SET TotalSingleProcessed = t.TotalSingleProcessed
-			,MatchId = t.matchid
-			,TotalParlayProcessed = t.TotalParlayProcessed
-			,TotalCancelCashOutProcessed = t.TotalCancelCashOutProcessed
-	FROM @tmpMatchVoidingHistory vh
-		INNER JOIN (
+	;WITH CTE_Single AS(
 			SELECT	vh.VoidingHistoryId
 					,SUM( CASE 
-							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2,19,20,21) THEN 1
-							WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
-							WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799,10449) THEN 1
+							WHEN vh.IssueTypeId NOT IN (1,10,3) AND z.bettype NOT IN (9,29,2799,10449) THEN 1
+							WHEN vh.IssueTypeId IN (1,10,3) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 						ELSE 0 END
 					) AS TotalSingleProcessed
-					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype IN(9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
-					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
-					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed
-			FROM @tmpMatchVoidingHistory vh
+					,SUM(CASE WHEN z.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+					,CASE WHEN vh.MatchId = 0 THEN 0 ELSE ISNULL(m.matchid, z.matchid) END AS matchid
+					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed -- Apply for DA,RC,WC
+			FROM #tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
-					ON	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END 
-	) t 
-		ON	vh.VoidingHistoryId = t.VoidingHistoryId
+					ON	vh.VoidingHistoryId = z.VoidingHistoryId AND z.VoidingHistoryId IS NOT NULL
+				LEFT JOIN @tmpChildMatchCricket m ON z.matchid = m.ChildMatchId
+			WHERE vh.IssueTypeId NOT IN (22) --Recover Ticket
+				 AND (vh.MatchId = CASE WHEN m.MatchId IS NOT NULL THEN m.MatchId ELSE z.matchid END
+                        OR vh.MatchId = 0)
+			GROUP BY vh.VoidingHistoryId
+				   , CASE WHEN vh.MatchId = 0 THEN 0 ELSE ISNULL(m.matchid, z.matchid) END 
+	)
+	UPDATE vh 
+		SET TotalSingleProcessed = t.TotalSingleProcessed
+			,TotalParlayProcessed = t.TotalParlayProcessed
+			,TotalCancelCashOutProcessed = t.TotalCancelCashOutProcessed
+	FROM #tmpMatchVoidingHistory vh
+		INNER JOIN CTE_Single t ON vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid
 	
-	--parlay
+	--parlay ticket
+	;WITH CTE_Parlay AS(
+		SELECT	vh.VoidingHistoryId
+					,COUNT(1) AS TotalParlayProcessed
+					,ISNULL(m.matchid, zm.matchid) AS matchid
+			FROM	#tmpMatchVoidingHistory vh
+				INNER JOIN dbo.zzzbettransm_bk zm WITH(NOLOCK)
+					ON	zm.VoidingHistoryId = vh.VoidingHistoryId AND zm.VoidingHistoryId IS NOT NULL
+				LEFT JOIN @tmpChildMatchCricket m ON zm.matchid = m.ChildMatchId
+			WHERE vh.IssueTypeId NOT IN (11,15,13,17,22) --Except AB,AB(real member),AC,ARC,RT
+				AND vh.MatchId = CASE WHEN m.MatchId IS NOT NULL THEN m.MatchId ELSE zm.matchid END
+			GROUP BY vh.VoidingHistoryId, ISNULL(m.matchid, zm.matchid)
+	)
 	UPDATE vh
 		SET TotalParlayProcessed = t.TotalParlayProcessed
-			,MatchId = t.matchid
-	FROM	@tmpMatchVoidingHistory vh
-		INNER JOIN (
-			SELECT	vh.VoidingHistoryId
-					,COUNT(1) AS TotalParlayProcessed
-					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END AS matchid
-			FROM	@tmpMatchVoidingHistory vh
-				INNER JOIN dbo.zzzbettransm_bk zm WITH(NOLOCK)
-					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END 
-	) t
-		ON	vh.VoidingHistoryId = t.VoidingHistoryId
+	FROM	#tmpMatchVoidingHistory vh
+		INNER JOIN CTE_Parlay t ON vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid  
 
 	UPDATE t 
 		SET TotalSingleProcessed = ISNULL(vh.TotalSingleProcessed,0)
@@ -436,29 +467,40 @@ BEGIN
 			SELECT	SUM(vh.TotalSingleProcessed) AS TotalSingleProcessed
 					,SUM(vh.TotalParlayProcessed) AS TotalParlayProcessed
 					,SUM(vh.TotalCancelCashOutProcessed) AS TotalCancelCashOutProcessed
-			FROM	@tmpMatchVoidingHistory vh
+			FROM	#tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
 		) vh
 
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchVoidingHistory WHERE IssueTypeId = 22) --Recover Ticket
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchVoidingHistory WHERE IssueTypeId = 22) --Recover Ticket
 	BEGIN
+		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT)
+
+		INSERT INTO @tmp_TransId(RequestId, TransId, MatchId, IsProcessed)
+		SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
+			INNER JOIN #tmpResult t ON t.RequestId = s.Requestid
+		WHERE s.IsProcessed IS NOT NULL
+			AND s.IssueTypeId = 22
+
+		DELETE t
+		FROM @tmp_TransId t
+			INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK) ON t.TransId = z.transid AND z.comstatus <> 'CO'
+
 		UPDATE t 
-			SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)
-				,TotalParlayProcessed = ISNULL(rt.TotalParlayProcessed,0)
-				,TotalResettleProcessed = ISNULL(rt.TotalResettleProcessed,0)
+		SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)
+		   ,TotalParlayProcessed = ISNULL(rt.TotalParlayProcessed,0)
+		   ,TotalResettleProcessed = ISNULL(rt.TotalResettleProcessed,0) 
 		FROM	#tmpResult t
-			OUTER APPLY (SELECT 
-							SUM(CASE WHEN s.IsProcessed = 3 THEN 1 ELSE 0 END) AS TotalResettleProcessed
-						   ,SUM(CASE WHEN s.MatchId NOT IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						   ,SUM(CASE WHEN s.MatchId IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
-						LEFT JOIN dbo.zzzbettrans_bk z ON s.transid = z.transid
+		CROSS APPLY (SELECT 
+						 SUM(CASE WHEN s.MatchId NOT IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						,SUM(CASE WHEN s.MatchId IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
+					FROM @tmp_TransId s
 					WHERE s.RequestId = t.RequestId
-						AND s.IsProcessed IS NOT NULL
-						AND z.transid IS NULL
 				)rt	
-		WHERE t.IssueTypeId = 22 
+		WHERE t.IssueTypeId = 22 --Recover Ticket
 	END
+	
 	/*****************Return table **************************/
 	-- 1. Return infor table
 	SELECT	t.RequestId
@@ -477,9 +519,8 @@ BEGIN
 			,t.DecidedBy
 			,v.Username AS LastPerformedBy
 			,ch.Username AS CheckedBy
-			,CASE WHEN t.IssueTypeId IN (11,15,17,20) THEN LEN(ISNULL(ts.TransIds,'')) - LEN(REPLACE(ISNULL(ts.TransIds,''), ',', ''))  ELSE 0 END AS TotalSingle
-			,CASE WHEN t.IssueTypeId IN (17) THEN p.TotalParlay ELSE 0 END AS TotalParlay
-			,CASE WHEN t.IssueTypeId IN (11,15,20) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds
+			,cnt.TotalSingle
+			,cnt.TotalParlay
 			,t.IssueTypeId
 			,CASE WHEN f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN ''
 				  ELSE CASE WHEN ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 'Failed'
@@ -507,18 +548,13 @@ BEGIN
 			ON t.LastVoidedBy = v.CustId
 		LEFT JOIN bodb02.dbo.Customer ch WITH(NOLOCK)
 			ON t.CheckedBy = ch.CustId
-		OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+		OUTER APPLY (SELECT  COUNT(CASE WHEN s.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799,10449) THEN s.TransId 
+										WHEN s.IssueTypeId IN (11,15,20) THEN s.TransId 
+										ELSE NULL END) AS TotalSingle
+							,COUNT(CASE WHEN s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799,10449) THEN s.TransId ELSE NULL END) AS TotalParlay
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
-					WHERE s.RequestId = t.RequestId
-					AND 1 = CASE WHEN t.IssueTypeId IN (11,15,20) THEN 1
-								 WHEN t.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799,10449) THEN 1
-								 ELSE 0 END
-					FOR XML PATH('')
-				)ts	 (TransIds)
-		OUTER APPLY (SELECT COUNT(1) AS TotalParlay
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
-					WHERE s.RequestId = t.RequestId AND t.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799,10449)
-				)p	
+					WHERE s.RequestId = t.RequestId 
+				)cnt	
 		---Case Failed
 		OUTER APPLY ( 
 					SELECT DISTINCT RequestId, vh.StatusId
@@ -572,18 +608,39 @@ BEGIN
 			END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
 	
-	-- 2. Support get calculate time 
+	-- 2. Support get calculate time for Issuetype Abnormal Bet (Single ticket) + AB (Real Member) 
+	DECLARE @tmpGetInfo TABLE (RequestId INT, Sporttype SMALLINT, MatchId INT)
+	INSERT INTO @tmpGetInfo (RequestId, Sporttype, MatchId)
+	SELECT RequestId, Sporttype, MatchId
+	FROM #tmpResult
+	WHERE 1 = CASE WHEN IssueTypeId IN (11) AND FilterBy IS NULL THEN 1 
+				   WHEN IssueTypeId = 15 THEN 1
+				   ELSE 0 END 
+
 	SET @RequestInfoGetCalcTimes = COMPRESS((SELECT RequestId AS 'req'
 		  ,Sporttype AS 's'
 		  ,MatchId AS 'mid'
-	FROM #tmpResult
-	WHERE 1 = CASE WHEN IssueTypeId IN (11,20) AND FilterBy IS NULL THEN 1 --Abnormal Bet (Single ticket)
-				   WHEN IssueTypeId = 15 THEN 1 --AB (Real Member)
-				   ELSE 0 END
+	FROM @tmpGetInfo
 	FOR JSON PATH))
 
 	SELECT CONVERT(VARCHAR(MAX), @RequestInfoGetCalcTimes, 1) AS RequestInfoGetCalcTimes
 
+	-- 3. Support get bettype name for Issuetype Abnormal Bet (Single ticket) + AB (Real Member) [#135041]
+	SELECT t.RequestId, s.Bettype, CASE WHEN f.IsNameXBettype = 1 THEN s.BetId ELSE NULL END AS BetId
+	FROM @tmpGetInfo t
+		CROSS APPLY ( 
+				SELECT DISTINCT s.Bettype, s.betid
+				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
+				WHERE s.RequestId = t.RequestId 
+		)s
+		OUTER APPLY (
+			SELECT	TOP 1 f.IsNameXBettype
+			FROM	dbo.f_SD_GetGroupBettypes () f
+			WHERE	f.bettype = s.Bettype
+		)f
+	GROUP BY t.RequestId, s.Bettype, CASE WHEN f.IsNameXBettype = 1 THEN s.BetId ELSE NULL END
+	ORDER BY s.Bettype DESC
+
 	DROP TABLE #tmpResult
-	
+	DROP TABLE #tmpMatchVoidingHistory
 END

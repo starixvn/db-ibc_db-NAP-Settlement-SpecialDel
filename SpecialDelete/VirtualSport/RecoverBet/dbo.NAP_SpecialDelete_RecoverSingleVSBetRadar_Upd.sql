@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSingleVSBetRadar_Upd]			
 	@TransIds					VARCHAR(MAX),
     @UserID						INT,
@@ -24,6 +24,7 @@ AS
 		- 20230921@Max: [TVS] Recover Virtual Sports Bet and Recover By Bet ID - Update more info when calling SP from Settlement site [Redmine: #194269]
 		- 20231030@July: [TVS] Integrate a new sport type "Virtual Football League" [Redmine: #195313]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -1167,7 +1168,7 @@ BEGIN
 				r.showtime,
 				r.LeagueId,
 				r.matchcode,
-				r.modds,
+				r.modds AS MasterOdds,
 				r.matchid,
 				r.SubStatus,
 				r.SubTransId,

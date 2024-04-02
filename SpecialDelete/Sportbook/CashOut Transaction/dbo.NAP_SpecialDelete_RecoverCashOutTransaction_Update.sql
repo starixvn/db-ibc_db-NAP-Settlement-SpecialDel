@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverCashOutTransaction_Update]
 (
 	@TransIds			VARCHAR(MAX),
@@ -8,7 +8,6 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverCashOutTransaction_Update]
 AS
 /*
     Created by: 20170403@Kent
-	Original: 
 	Task: Recover CashOut transaction
 	DB: DBTXN/BODB02
 
@@ -33,7 +32,8 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+
 	Param's Explanation:
 	
 */
@@ -550,6 +550,7 @@ BEGIN
 			d.BetTeam,
 			d.Stake,
 			d.Odds,
+			d.MOdds AS MasterOdds,
 			d.OddsType,			
 			d.Hdp1,
 			d.Hdp2,			

@@ -1,13 +1,11 @@
- /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ /*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverCashOutTransaction_Select]
 (
 	@TransIds			VARCHAR(MAX)	= ''
 )
 AS
 /*
-    Created by: Kent
-	Date: 20170323
-	Original: 
+    Created by: 20170323@Kent
 	Task: Select CashOut transaction for recover
 	DB: DBTXN/BODB02
 
@@ -20,7 +18,8 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+
 	Explanation's Param:
 		@Option: 0 - by MatchId - removed
 				 1 - by BetId(s)
@@ -43,6 +42,7 @@ BEGIN
 		BetTeam				NVARCHAR(10),
 		Stake				MONEY,
 		Odds				SMALLMONEY,
+		modds				SMALLMONEY,
 		OddsType			INT,		
 		Hdp1				SMALLMONEY,
 		Hdp2				SMALLMONEY,		
@@ -98,6 +98,7 @@ BEGIN
 					BetTeam,
 					Stake,
 					Odds,
+					modds,
 					OddsType,
 					Hdp1,
 					Hdp2,
@@ -133,6 +134,7 @@ BEGIN
 			sub.BetTeam,
 			sub.Stake,
 			sub.Odds,
+			sub.modds,
 			sub.OddsType,				
 			sub.Hdp1,
 			sub.Hdp2,				
@@ -227,6 +229,7 @@ BEGIN
 			d.BetTeam,
 			d.Stake,
 			d.Odds,
+			d.modds AS MasterOdds,
 			d.OddsType,			
 			d.Hdp1,
 			d.Hdp2,			

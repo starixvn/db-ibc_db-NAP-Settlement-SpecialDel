@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCUST-SiteConfig" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCUST-SiteConfig" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.TicketVoiding_Email_OperatorInfo_Select 
     @AgentIdsXml XML
 AS
