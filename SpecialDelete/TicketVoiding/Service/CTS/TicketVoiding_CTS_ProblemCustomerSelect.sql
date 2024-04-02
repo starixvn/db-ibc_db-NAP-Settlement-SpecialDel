@@ -65,7 +65,7 @@ BEGIN
 									  WHEN @i = 2 THEN '00:00:02.000'
 									  WHEN @i = 3 THEN '00:00:05.000'
 									  WHEN @i = 4 THEN '00:00:30.000' 
-									  WHEN @i = 5 THEN '00:00:60.000'
+									  WHEN @i = 5 THEN '00:01:00.000'
 								END
 			WAITFOR DELAY @waitfor_delay
 
