@@ -43,9 +43,6 @@ GO
 CREATE UNIQUE NONCLUSTERED INDEX IDX_LuckyDrawList_TypeID_VerificationCode ON dbo.LuckyDrawList(TypeID,VerificationCode)
 GO
 --------------------------------------------------------------------------------------------------
-CREATE UNIQUE NONCLUSTERED INDEX IX_RepUpdateTime ON dbo.LuckyDrawList(RepUpdateTime)
-GO
---------------------------------------------------------------------------------------------------
 ALTER TABLE dbo.LuckyDrawList ADD CONSTRAINT DF_LuckyDrawList_IsNotify DEFAULT(0) FOR IsNotify
 GO
 --------------------------------------------------------------------------------------------------

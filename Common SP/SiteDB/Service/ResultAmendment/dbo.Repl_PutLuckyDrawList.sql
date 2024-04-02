@@ -15,11 +15,10 @@ BEGIN
 
     MERGE dbo.LuckyDrawList AS l
         USING @tvp_param AS tvp
-        ON h.DrawID = tvp.DrawID
+        ON l.DrawID = tvp.DrawID
         WHEN MATCHED THEN
             UPDATE 
-            SET	     l.DrawID				=   tvp.DrawID   
-	                ,l.matchid				=   tvp.matchid 
+            SET	     l.matchid				=   tvp.matchid 
 	                ,l.custid				=	tvp.custid 
 	                ,l.TypeID				=	tvp.TypeID 
 	                ,l.VerificationCode		=   tvp.VerificationCode 
