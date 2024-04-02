@@ -84,8 +84,7 @@ BEGIN
 
 	-- single ticket
 	;WITH CTE_Single AS(
-		SELECT vh.VoidingHistoryId
-				,@MatchId  AS MatchId
+		SELECT vh.RequestId
 				,SUM( CASE 
 						WHEN vh.IssueTypeId NOT IN (1,10,3) AND z.bettype NOT IN (9,29,2799,10449) THEN 1
 						WHEN vh.IssueTypeId IN (1,10,3) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
@@ -100,31 +99,30 @@ BEGIN
 		WHERE 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
 				       WHEN @MatchId NOT IN (0,29) AND ISNULL(m.matchid, z.matchid) = @MatchId THEN 1
 					   ELSE 0 END
-		GROUP BY vh.VoidingHistoryId
+		GROUP BY vh.RequestId
 	)
 	UPDATE vh 
 		SET TotalSingleProcessed = t.TotalVoidedSingle
 			,TotalParlayProcessed = t.TotalVoidedParlay
 			,TotalCancelCashOutProcessed = t.TotalCancelCashOut
 	FROM #tmpResult vh
-		INNER JOIN CTE_Single t ON vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid
+		INNER JOIN CTE_Single t ON vh.RequestId = t.RequestId
 		
 	--parlay ticket
 	;WITH CTE_Parlay AS(
-		SELECT vh.VoidingHistoryId
+		SELECT vh.RequestId
 			 , COUNT(1) AS TotalVoidedParlay
-			 , @MatchId AS MatchId
 		FROM #tmpResult vh
 			INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK) 
 				ON zm.VoidingHistoryId = vh.VoidingHistoryId AND zm.VoidingHistoryId IS NOT NULL
 			LEFT JOIN @tmpChildMatchCricket m ON zm.matchid = m.ChildMatchId
 		WHERE ISNULL(m.matchid, zm.matchid) = @MatchId 
-		GROUP BY vh.VoidingHistoryId
+		GROUP BY vh.RequestId
 	)
 	UPDATE vh
 		SET TotalParlayProcessed = t.TotalVoidedParlay
 	FROM #tmpResult vh
-		INNER JOIN CTE_Parlay t ON vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid
+		INNER JOIN CTE_Parlay t ON vh.RequestId = t.RequestId
 
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult WHERE IssueTypeId = 22)
 	BEGIN

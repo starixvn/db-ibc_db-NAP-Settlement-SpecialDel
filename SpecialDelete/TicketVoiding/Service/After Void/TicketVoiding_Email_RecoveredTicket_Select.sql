@@ -14,7 +14,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Email_RecoveredTicket_Select](
 	Revisions: 
 		- 20240102@July: Create new SP [Redmine:#196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
-		
+		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+
 	Param's explanation:	
 		
 */	
@@ -82,6 +83,7 @@ BEGIN
 		,IsCashOut		BIT DEFAULT(0)
 		,IsSettled		BIT DEFAULT(0)
 		,IsDeposit		BIT DEFAULT(0) 
+		,modds			SMALLMONEY
 	)
 
 	CREATE TABLE #transIdTemp (
@@ -145,6 +147,7 @@ BEGIN
 			,username
 			,MainTransId
 			,IsCashOut
+			,modds
 		)
 		SELECT b.matchid
 			,b.TransId
@@ -194,6 +197,7 @@ BEGIN
 			,b.Username
 			,b.transid AS MainTransId
 			,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
+			,b.modds
 		FROM #transIdTemp d 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON d.transid = b.TransId
 			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
@@ -256,6 +260,7 @@ BEGIN
 			,IsMove14
 			,MainTransId
 			,IsCashOut
+			,modds
 		)
 		SELECT b.matchid
 			,b.TransId
@@ -306,6 +311,7 @@ BEGIN
 			,1 AS IsMove14
 			,b.transid AS MainTransId
 			,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
+			,b.modds
 		FROM #transIdTemp d 
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON d.transid = b.TransId
 			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
@@ -527,6 +533,7 @@ BEGIN
 		   ,t.IsCashOut 
 		   ,CASE WHEN t.IsCashOut = 0 AND t.eventstatus = 'completed' THEN 1 ELSE 0 END AS IsSettled
 		   ,t.CurrencyName
+		   ,t.modds AS MasterOdds
 	FROM	#TVSTicketBets t
 		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.srecommend
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON t.custid = f.CustID

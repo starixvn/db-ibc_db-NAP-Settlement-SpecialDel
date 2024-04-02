@@ -146,14 +146,14 @@ BEGIN
 					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 					SELECT  s.RequestId,MIN(b.winlostdate)
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid AND s.MatchId = b.matchid AND s.CustId = b.CustId AND s.Bettype = b.Bettype
+						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid
 					WHERE s.matchid IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
 					GROUP BY s.RequestId
 
 					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 					SELECT  s.RequestId,MIN(b.winlostdate)
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-						INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid AND s.MatchId = b.matchid AND s.CustId = b.CustId AND s.Bettype = b.Bettype
+						INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid
 					WHERE s.matchid IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
 					GROUP BY s.RequestId
 
@@ -219,7 +219,7 @@ BEGIN
 					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 					SELECT  s.RequestId,MIN(b.winlostdate)
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid AND s.MatchId = b.matchid AND s.CustId = b.CustId AND s.Bettype = b.Bettype
+						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid
 					WHERE s.matchid IN (9, 29, 2799, 10449)
 						AND s.MatchId = @MatchId
 					GROUP BY s.RequestId

@@ -43,7 +43,7 @@ BEGIN
             INSERT INTO @tmpResult (RequestID, Eventdate) 
             SELECT s.requestid, MIN(b.winlostdate)
             FROM   dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.transid = b.transid AND s.MatchId = b.matchid AND s.CustId = b.CustId AND s.Bettype = b.Bettype
+					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.transid = b.transid
             WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
 					AND b.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
             GROUP  BY s.requestid
