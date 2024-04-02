@@ -22,6 +22,9 @@ BEGIN
 	DROP TABLE IF EXISTS #tmp_transfer;
 	CREATE TABLE #tmp_transfer ( ID INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT, IsInHouse BIT )	
 
+	DROP TABLE IF EXISTS #tmp_Balance;
+	CREATE TABLE #tmp_Balance ( ID INT IDENTITY(1,1) PRIMARY KEY, dow TINYINT, custid INT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+
 	INSERT INTO #tmp_Cust(CustID, Username, site, roleid)
 	SELECT custid,username,'Hedging',roleid
 	FROM custdb.dbo.custinfo WITH (NOLOCK)
@@ -419,6 +422,127 @@ BEGIN
 			,f.RepUpdateTime = CASE WHEN IsInHouse = 1 THEN SYSDATETIME() ELSE f.RepUpdateTime END
 		FROM dbo.transfer_coll f WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
+		WHERE t.ID BETWEEN @StartRow AND @StopRow
+
+		IF @StopRow = @MaxRow BREAK
+
+		WAITFOR DELAY '00:00:00.010'
+
+		SET @StartRow = @StopRow + 1
+		SET @StopRow = @StopRow + @Threshold
+		IF @StopRow >= @MaxRow
+			SET @StopRow = @MaxRow
+	END
+END
+GO
+
+----BalanceTable_tmp_cal
+----UPDATE BalanceTable_tmp_cal, roleid = 1
+BEGIN
+	TRUNCATE TABLE #tmp_Balance;
+	INSERT INTO #tmp_Balance ( dow, custid, recommend_NEW, mrecommend_New, srecommend_New )
+	SELECT f.dow, f.custid, c.recommend_NEW, c.mrecommend_New, c.srecommend_New
+	FROM dbo.BalanceTable_tmp_cal f WITH(NOLOCK)
+		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
+	WHERE c.roleid = 1
+	
+	DECLARE @Threshold INT  = 1000
+		,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
+
+	SELECT @MaxRow	= MAX(ID) FROM #tmp_Balance
+	
+	IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+
+	SELECT @StopRow = @Threshold
+	
+	WHILE (@MaxRow IS NOT NULL)
+	BEGIN		
+		UPDATE TOP(@Threshold) f
+		SET f.recommend = t.recommend_NEW
+			,f.mrecommend = t.mrecommend_New
+			,f.srecommend = t.srecommend_New
+		FROM dbo.BalanceTable_tmp_cal f WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tmp_Balance t ON f.dow = t.dow AND f.custid = t.custid
+		WHERE t.ID BETWEEN @StartRow AND @StopRow
+
+		IF @StopRow = @MaxRow BREAK
+
+		WAITFOR DELAY '00:00:00.010'
+
+		SET @StartRow = @StopRow + 1
+		SET @StopRow = @StopRow + @Threshold
+		IF @StopRow >= @MaxRow
+			SET @StopRow = @MaxRow
+	END
+END
+GO
+
+----UPDATE BalanceTable_tmp_cal, roleid = 2
+BEGIN
+	TRUNCATE TABLE #tmp_Balance;
+	INSERT INTO #tmp_Balance ( dow, custid, recommend_NEW, mrecommend_New, srecommend_New )
+	SELECT f.dow, f.custid, c.recommend_NEW, c.mrecommend_New, c.srecommend_New
+	FROM dbo.BalanceTable_tmp_cal f WITH(NOLOCK)
+		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
+	WHERE c.roleid = 2
+	
+	DECLARE @Threshold INT  = 1000
+		,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
+
+	SELECT @MaxRow	= MAX(ID) FROM #tmp_Balance
+	
+	IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+
+	SELECT @StopRow = @Threshold
+	
+	WHILE (@MaxRow IS NOT NULL)
+	BEGIN		
+		UPDATE TOP(@Threshold) f
+		SET f.recommend = t.recommend_NEW
+			,f.mrecommend = t.mrecommend_New
+			,f.srecommend = t.srecommend_New
+		FROM dbo.BalanceTable_tmp_cal f WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tmp_Balance t ON f.dow = t.dow AND f.custid = t.custid
+		WHERE t.ID BETWEEN @StartRow AND @StopRow
+
+		IF @StopRow = @MaxRow BREAK
+
+		WAITFOR DELAY '00:00:00.010'
+
+		SET @StartRow = @StopRow + 1
+		SET @StopRow = @StopRow + @Threshold
+		IF @StopRow >= @MaxRow
+			SET @StopRow = @MaxRow
+	END
+END
+GO
+
+--UPDATE BalanceTable_tmp_cal, roleid = 3
+BEGIN
+	TRUNCATE TABLE #tmp_Balance;
+	INSERT INTO #tmp_Balance ( dow, custid, srecommend_New )
+	SELECT f.dow, f.custid, c.srecommend_New
+	FROM dbo.BalanceTable_tmp_cal f WITH(NOLOCK)
+		INNER JOIN #tmp_Cust_RecommendList_roleid_3 c ON c.recommend = f.recommend
+
+	DECLARE @Threshold INT  = 1000
+			,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
+
+	SELECT @MaxRow	= MAX(ID) FROM #tmp_Balance
+	
+	IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+
+	SELECT @StopRow = @Threshold
+	
+	WHILE (@MaxRow IS NOT NULL)
+	BEGIN		
+		UPDATE TOP(@Threshold) b
+		SET b.srecommend = t.srecommend_New
+		FROM dbo.BalanceTable_tmp_cal b WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tmp_Balance t ON b.dow = t.dow AND b.custid = t.custid
 		WHERE t.ID BETWEEN @StartRow AND @StopRow
 
 		IF @StopRow = @MaxRow BREAK

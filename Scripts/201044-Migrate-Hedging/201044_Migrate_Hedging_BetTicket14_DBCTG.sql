@@ -12,6 +12,7 @@ GO
 
 ---- init data
 BEGIN
+
 	DROP TABLE IF EXISTS #tmp_Cust;
 	CREATE TABLE #tmp_Cust (CustID INT PRIMARY KEY, Username VARCHAR(10), site VARCHAR(30), roleid TINYINT, mrecommend_New INT, srecommend_New INT,recommend_NEW INT)
 
@@ -171,6 +172,7 @@ BEGIN
 
 	END
 END
+GO
 
 --UPDATE translog14
 BEGIN

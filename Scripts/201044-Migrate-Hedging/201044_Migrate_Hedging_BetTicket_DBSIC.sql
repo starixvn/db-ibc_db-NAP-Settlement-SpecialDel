@@ -2,9 +2,11 @@
 
 /*
 	Created: 20240114@Louisa
-	Task: Migrate Data for bettrans,bettrans14,translog,translog14 [Redmine: #201044]
+	Task: Migrate Data for new site Hedging and PhoneBetting [Redmine: #201044]
 	DB: DBSIC/bodb02 
 
+	bettrans,translog		: Update sma and RepUpdateTime to Inhouse rep to DBTrans
+	bettrans14,translog14	: Update sma
 */
 
 USE bodb02
@@ -12,11 +14,15 @@ GO
 
 ---- init data
 BEGIN
+
 	DROP TABLE IF EXISTS #tmp_Cust;
 	CREATE TABLE #tmp_Cust (CustID INT PRIMARY KEY, Username VARCHAR(10), site VARCHAR(30), roleid TINYINT, mrecommend_New INT, srecommend_New INT,recommend_NEW INT)
 
 	DROP TABLE IF EXISTS #tmp_Member;
 	CREATE TABLE #tmp_Member (CustID INT PRIMARY KEY,recommend_NEW INT, mrecommend_New INT, srecommend_New INT)
+
+	DROP TABLE IF EXISTS #tmp_bettrans;
+	CREATE TABLE #tmp_bettrans ( ID INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT)	
 
 	--39 rows
 	INSERT INTO #tmp_Cust(CustID, Username, site, roleid)
@@ -99,23 +105,21 @@ BEGIN
 	WHERE c.roleid = 2
 
 	--move master to another super
-	INSERT INTO #tmp_Member (CustID,recommend_NEW, mrecommend_New, srecommend_New)
-	SELECT s.CustID, c.recommend_NEW, c.mrecommend_New, c.srecommend_New
+	INSERT INTO #tmp_Member (CustID,srecommend_New)
+	SELECT s.CustID, c.srecommend_New
 	FROM #tmp_Cust c
 		INNER JOIN custdb.dbo.vw_customer s WITH(NOLOCK) 
 			ON c.CustID = s.mrecommend
 	WHERE c.roleid = 3
 
-	-- 11076 cust
 	--select count(1) from #tmp_Member
 
 END
 
 
---UPDATE Bettrans --> in-house rep to dbtrans --> replication to Replicated ( bettrans use RepUpdateTime for Inhouse Replication)
+--UPDATE Bettrans --> in-house rep to dbtrans --> replication to Replicated
 BEGIN
-	DROP TABLE IF EXISTS #tmp_bettrans;
-	CREATE TABLE #tmp_bettrans ( ID INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+	TRUNCATE TABLE #tmp_bettrans;
 	
 	INSERT INTO #tmp_bettrans (transid, recommend_NEW, mrecommend_New, srecommend_New)	
 	SELECT b.transid, m.recommend_NEW, m.mrecommend_New, m.srecommend_New
@@ -123,160 +127,160 @@ BEGIN
 		INNER JOIN #tmp_Member m
 			ON b.custid = m.CustID
 		
-	DECLARE @Threshold1 INT  = 1000
-			,@StartBettrans14 INT = 1, @StopBettrans14 INT = 0, @MaxBettrans14  INT = 0
+	DECLARE @Threshold INT  = 1000
+			,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
 
-	SELECT @MaxBettrans14	= MAX(ID) FROM #tmp_bettrans
+	SELECT @MaxRow	= MAX(ID) FROM #tmp_bettrans
 	
-	IF @Threshold1 >= @MaxBettrans14
-	SET @Threshold1 = @MaxBettrans14
+	IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
 
-	SELECT @StopBettrans14 = @Threshold1
+	SELECT @StopRow = @Threshold
 	
-	WHILE (@MaxBettrans14 IS NOT NULL)
+	WHILE (@MaxRow IS NOT NULL)
 	BEGIN		
-		UPDATE TOP(1000) b
+		UPDATE TOP(@Threshold) b
 		SET b.recommend		= CASE WHEN t.recommend_NEW IS NULL THEN b.recommend ELSE t.recommend_NEW END
 			,b.mrecommend	= CASE WHEN t.mrecommend_New IS NULL THEN b.mrecommend ELSE t.mrecommend_New END
 			,b.srecommend	= CASE WHEN t.srecommend_New IS NULL THEN b.srecommend ELSE t.srecommend_New END
 			,b.RepUpdateTime = SYSDATETIME()
 		FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_bettrans t ON b.TransId = t.TransId
-		WHERE t.ID BETWEEN @StartBettrans14 AND @StopBettrans14
+		WHERE t.ID BETWEEN @StartRow AND @StopRow
 
-		IF @StopBettrans14 = @MaxBettrans14 BREAK
+		IF @StopRow = @MaxRow BREAK
 
 		WAITFOR DELAY '00:00:00.010'
 
-		SET @StartBettrans14 = @StopBettrans14 + 1
-		SET @StopBettrans14 = @StopBettrans14 + @Threshold1
-		IF @StopBettrans14 >= @MaxBettrans14
-			SET @StopBettrans14 = @MaxBettrans14
+		SET @StartRow = @StopRow + 1
+		SET @StopRow = @StopRow + @Threshold
+		IF @StopRow >= @MaxRow
+			SET @StopRow = @MaxRow
 	END
 END
+GO
 
 ----UPDATE translog--> in-house rep to dbtrans --> replication to Replicated ( translog use tstamp for Inhouse Replication)
 BEGIN
-	DROP TABLE IF EXISTS #tmp_translog;
-	CREATE TABLE #tmp_translog ( ID INT IDENTITY(1,1) PRIMARY KEY, translogid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+	TRUNCATE TABLE #tmp_bettrans;
 	
-	INSERT INTO #tmp_translog (translogid, recommend_NEW, mrecommend_New, srecommend_New)	
+	INSERT INTO #tmp_bettrans (transid, recommend_NEW, mrecommend_New, srecommend_New)	
 	SELECT b.translogid, m.recommend_NEW, m.mrecommend_New, m.srecommend_New
 	FROM translog b WITH(NOLOCK)
 		INNER JOIN #tmp_Member m
 			ON b.custid = m.CustID
 
-	DECLARE @Threshold2 INT  = 1000
-			,@StartRow2 INT = 1, @StopRow2 INT = 0, @MaxRow2  INT = 0
+	DECLARE @Threshold INT  = 1000
+			,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
 
-	SELECT @MaxRow2 = MAX(ID)	FROM #tmp_translog
+	SELECT @MaxRow = MAX(ID) FROM #tmp_bettrans
 	
-	IF @Threshold2 >= @MaxRow2
-	SET @Threshold2 = @MaxRow2
+	IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
 
-	SELECT @StopRow2 = @Threshold2
+	SELECT @StopRow = @Threshold
 	
-	WHILE (@MaxRow2 IS NOT NULL)
+	WHILE (@MaxRow IS NOT NULL)
 	BEGIN		
-		UPDATE TOP(1000) b
+		UPDATE TOP(@Threshold) b
 		SET b.recommend		= CASE WHEN t.recommend_NEW IS NULL THEN b.recommend ELSE t.recommend_NEW END
 			,b.mrecommend	= CASE WHEN t.mrecommend_New IS NULL THEN b.mrecommend ELSE t.mrecommend_New END
 			,b.srecommend	= CASE WHEN t.srecommend_New IS NULL THEN b.srecommend ELSE t.srecommend_New END
 		FROM dbo.translog b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmp_translog t ON b.translogid = t.translogid
-		WHERE t.ID BETWEEN @StartRow2 AND @StopRow2
+			INNER JOIN #tmp_bettrans t ON b.translogid = t.transid
+		WHERE t.ID BETWEEN @StartRow AND @StopRow
 
-		IF @StopRow2 = @MaxRow2 BREAK
+		IF @StopRow = @MaxRow BREAK
 
 		WAITFOR DELAY '00:00:00.010'
 
-		SET @StartRow2 = @StopRow2 + 1
-		SET @StopRow2 = @StopRow2 + @Threshold2
-		IF @StopRow2 >= @MaxRow2
-			SET @StopRow2 = @MaxRow2
+		SET @StartRow = @StopRow + 1
+		SET @StopRow = @StopRow + @Threshold
+		IF @StopRow >= @MaxRow
+			SET @StopRow = @MaxRow
 	END
 END
+GO
 
 --UPDATE Bettrans14
 BEGIN
-	DROP TABLE IF EXISTS #tmp_bettrans14;
-	CREATE TABLE #tmp_bettrans14 ( ID INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+	TRUNCATE TABLE #tmp_bettrans;	
 	
-	INSERT INTO #tmp_bettrans14 (transid, recommend_NEW, mrecommend_New, srecommend_New)	
+	INSERT INTO #tmp_bettrans (transid, recommend_NEW, mrecommend_New, srecommend_New)	
 	SELECT b.transid, m.recommend_NEW, m.mrecommend_New, m.srecommend_New
 	FROM bettrans14 b WITH(NOLOCK)
 		INNER JOIN #tmp_Member m
 			ON b.custid = m.CustID
 		
-	DECLARE @Threshold3 INT  = 1000
-			,@StartRow3 INT = 1, @StopRow3 INT = 0, @MaxRow3  INT = 0
+	DECLARE @Threshold INT  = 1000
+			,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
 
-	SELECT @MaxRow3	= MAX(ID) FROM #tmp_bettrans14
+	SELECT @MaxRow	= MAX(ID) FROM #tmp_bettrans
 	
-	IF @Threshold3 >= @MaxRow3
-	SET @Threshold3 = @MaxRow3
+	IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
 
-	SELECT @StopRow3 = @Threshold3
+	SELECT @StopRow = @Threshold
 	
-	WHILE (@MaxRow3 IS NOT NULL)
+	WHILE (@MaxRow IS NOT NULL)
 	BEGIN		
-		UPDATE TOP(1000) b
+		UPDATE TOP(@Threshold) b
 		SET b.recommend		= CASE WHEN t.recommend_NEW IS NULL THEN b.recommend ELSE t.recommend_NEW END
 			,b.mrecommend	= CASE WHEN t.mrecommend_New IS NULL THEN b.mrecommend ELSE t.mrecommend_New END
 			,b.srecommend	= CASE WHEN t.srecommend_New IS NULL THEN b.srecommend ELSE t.srecommend_New END
 		FROM dbo.bettrans14 b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmp_bettrans14 t ON b.TransId = t.TransId
-		WHERE t.ID BETWEEN @StartRow3 AND @StopRow3
+			INNER JOIN #tmp_bettrans t ON b.TransId = t.TransId
+		WHERE t.ID BETWEEN @StartRow AND @StopRow
 
-		IF @StopRow3 = @MaxRow3 BREAK
+		IF @StopRow = @MaxRow BREAK
 
 		WAITFOR DELAY '00:00:00.010'
 
-		SET @StartRow3 = @StopRow3 + 3
-		SET @StopRow3 = @StopRow3 + @Threshold3
-		IF @StopRow3 >= @MaxRow3
-			SET @StopRow3 = @MaxRow3
+		SET @StartRow = @StopRow + 3
+		SET @StopRow = @StopRow + @Threshold
+		IF @StopRow >= @MaxRow
+			SET @StopRow = @MaxRow
 	END
 END
+GO
 
 ----UPDATE translog14
 BEGIN
-	DROP TABLE IF EXISTS #tmp_translog14;
-	CREATE TABLE #tmp_translog14 ( ID INT IDENTITY(1,1) PRIMARY KEY, translogid BIGINT, recommend_NEW INT, mrecommend_New INT, srecommend_New INT )	
+	TRUNCATE TABLE #tmp_bettrans	
 	
-	INSERT INTO #tmp_translog14 (translogid, recommend_NEW, mrecommend_New, srecommend_New)	
+	INSERT INTO #tmp_bettrans (transid, recommend_NEW, mrecommend_New, srecommend_New)	
 	SELECT b.translogid, m.recommend_NEW, m.mrecommend_New, m.srecommend_New
 	FROM translog14 b WITH(NOLOCK)
 		INNER JOIN #tmp_Member m
 			ON b.custid = m.CustID
 
-	DECLARE @Threshold4 INT  = 1000
-			,@StartRow4 INT = 1, @StopRow4 INT = 0, @MaxRow4  INT = 0
+	DECLARE @Threshold INT  = 1000
+			,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
 
-	SELECT @MaxRow4 = MAX(ID)	FROM #tmp_translog14
+	SELECT @MaxRow = MAX(ID)	FROM #tmp_bettrans
 	
-	IF @Threshold4 >= @MaxRow4
-	SET @Threshold4 = @MaxRow4
+	IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
 
-	SELECT @StopRow4 = @Threshold4
+	SELECT @StopRow = @Threshold
 	
-	WHILE (@MaxRow4 IS NOT NULL)
+	WHILE (@MaxRow IS NOT NULL)
 	BEGIN		
-		UPDATE TOP(1000) b
+		UPDATE TOP(@Threshold) b
 		SET b.recommend		= CASE WHEN t.recommend_NEW IS NULL THEN b.recommend ELSE t.recommend_NEW END
 			,b.mrecommend	= CASE WHEN t.mrecommend_New IS NULL THEN b.mrecommend ELSE t.mrecommend_New END
 			,b.srecommend	= CASE WHEN t.srecommend_New IS NULL THEN b.srecommend ELSE t.srecommend_New END
 		FROM dbo.translog14 b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmp_translog14 t ON b.translogid = t.translogid
-		WHERE t.ID BETWEEN @StartRow4 AND @StopRow4
+			INNER JOIN #tmp_bettrans t ON b.translogid = t.transid
+		WHERE t.ID BETWEEN @StartRow AND @StopRow
 
-		IF @StopRow4 = @MaxRow4 BREAK
+		IF @StopRow = @MaxRow BREAK
 
 		WAITFOR DELAY '00:00:00.010'
 
-		SET @StartRow4 = @StopRow4 + 1
-		SET @StopRow4 = @StopRow4 + @Threshold4
-		IF @StopRow4 >= @MaxRow4
-			SET @StopRow4 = @MaxRow4
+		SET @StartRow = @StopRow + 1
+		SET @StopRow = @StopRow + @Threshold
+		IF @StopRow >= @MaxRow
+			SET @StopRow = @MaxRow
 	END
 END

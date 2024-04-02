@@ -16,6 +16,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 		- 20221229@July:	update sitedbgroupid [Redmine:#181575]
 		- 20230602@Louisa:  UPDATE sitedbgroupid for licensee 12Bet at DBTRANS & ALL SubDB [Redmineid:#188707] 
 		- 20240114@Louisa: Migrate Data for new site Hedging and PhoneBetting [Redmine: #201044]
+
     Param's Explanation:
         - ExecRep SP: DBTrans_Bet
 		- @mode : 0-Update SiteDBGroupID
