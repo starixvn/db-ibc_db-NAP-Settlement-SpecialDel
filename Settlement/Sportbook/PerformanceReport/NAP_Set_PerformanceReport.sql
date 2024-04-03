@@ -18,6 +18,7 @@ AS
 		- 20230322@Louisa: support get result Game/Set/Interval... [Redmine:#182007]
 		- 20230605@Louisa: Get data group by SiteDBGroupId [Redmine:#185675]
 		- 20230906@Kathy: list detail SettleAction
+		- 20240403@Louisa: New hold match Action [Redmine:#203333]
 */
 BEGIN
 	DECLARE @maxdate DATETIME
@@ -201,13 +202,13 @@ BEGIN
 			SELECT	us.MatchID
 			FROM	bodb_CustomerLog.dbo.UserLog_Settle us WITH (NOLOCK)
 			WHERE	r.matchid = us.MatchID 
-					AND us.ActionID IN (81002,81003,81004,81005,81019)
+					AND us.ActionID IN (81002,81003,81004,81005,81019,81049)
 			GROUP BY us.MatchID
 			UNION ALL 
 			SELECT	us.MatchID
 			FROM	dbo.UserLog_Settle us WITH (NOLOCK)
 			WHERE	r.matchid = us.MatchID 
-					AND us.ActionID IN (81002,81003,81004,81005,81019)
+					AND us.ActionID IN (81002,81003,81004,81005,81019,81049)
 			GROUP BY us.MatchID
 		)l
 
