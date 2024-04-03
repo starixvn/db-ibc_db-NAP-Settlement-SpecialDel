@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_AutoPayoutOS_Schedule_Sel
 	@Sporttype SMALLINT = 0
 	,@AutoSetting TINYINT  = 1
@@ -26,6 +26,7 @@ AS
 		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
 		- 20230724@Louisa: Enhance for Tennis - exclude Auto for match has confirm score is 0-0 [Redmine:#189433]
 		- 20240301@Aries: Direct payout run before waiting time [Redmine:#201698]
+		- 20240308@Aries: Direct Ice Hockey [Redmine:#201836]
 
 	Param's Explanation:
 		- @AutoSetting: 
@@ -60,16 +61,20 @@ BEGIN
 	IF OBJECT_ID('tempdb..#MatchInfo') IS NOT NULL
 		DROP TABLE #MatchInfo
 
-	CREATE TABLE #MatchInfo (
-		MatchId			INT
-		,leagueid		INT
+	CREATE  TABLE #MatchInfo (
+		 MatchId			INT
+		,leagueid			INT
+		,betstatus			NVARCHAR(100)
+		,ChildMatchType		TINYINT
+		,SubType			SMALLINT
 		,SettlementStatus	TINYINT
 		,ResourceId			VARCHAR(20)
 		,RelateResources	VARCHAR(20)
-		,HomeValue		VARCHAR(50)
-		,AwayValue		VARCHAR(50)
-		,StatusId		TINYINT
-		,Ranking		INT
+		,HomeValue			VARCHAR(50)
+		,AwayValue			VARCHAR(50)
+		,StatusId			TINYINT
+		,InitConfirmDate	BIT DEFAULT 0
+		,Ranking			INT
 	)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
@@ -328,6 +333,81 @@ BEGIN
 			END
 
 		END
+		ELSE IF @ResultTable = 0  -- Ice Hockey
+		BEGIN
+			DECLARE	  @currentdate		DATETIME
+					 ,@fromdate			DATETIME
+					 ,@todate			DATETIME
+					 ,@checktimeGST		DATETIME
+			
+			SET @currentdate = CAST(GETDATE() AS DATE)
+			SELECT	@fromdate = DATEADD(DAY,-1,@currentdate)
+				   ,@todate = DATEADD(DAY,1,@currentdate)
+				   ,@checktimeGST = DATEADD(HOUR, 3, GETDATE())
+
+			INSERT INTO #MatchInfo  ( MatchId, leagueid,ChildMatchType,SubType, SettlementStatus, ResourceId,HomeValue, AwayValue,betstatus,InitConfirmDate)
+			SELECT m.matchid AS MatchId
+				, l.leagueid
+				, m.ChildMatchType
+				, mr.SubType
+				, m.SettlementStatus
+				, '00' AS ResourceId
+				, CAST(m.finalhomescore AS VARCHAR(50))
+				, CAST(m.finalawayscore  AS VARCHAR(50))
+				, m.betstatus
+				, IIF(pe.ConfirmDate IS NULL, 1,0)
+			FROM dbo.match AS m WITH(NOLOCK)
+				INNER JOIN dbo.match_remark AS mr WITH(NOLOCK) ON	m.matchid = mr.matchid
+				INNER JOIN dbo.League AS l WITH(NOLOCK) ON	m.leagueid = l.leagueid
+				OUTER APPLY (
+					SELECT TOP 1 1 AS IsExistAP 
+					FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
+					WHERE os.MatchId = m.matchid 
+						AND os.ResourceId = '00'
+						AND ISNULL(os.SourceID,0) = 0
+				) AS rs
+				OUTER APPLY (
+					SELECT TOP 1 pr.ProviderExternalId AS LastProviderExternalId
+					FROM dbo.ProviderExternalResultDetailOS AS pr WITH(NOLOCK)
+					WHERE pr.MatchId = m.matchid 
+						AND pr.ResourceId = '00'
+						AND pr.SourceId = 97
+					ORDER BY pr.ProviderExternalId DESC
+				) AS pid
+				OUTER APPLY (
+					SELECT TOP 1 p.CreateDate  AS ConfirmDate
+					FROM dbo.ProviderExternalResultDetailOS AS p WITH(NOLOCK)
+					WHERE p.ProviderExternalId = pid.LastProviderExternalId
+						AND p.HomeValue = CAST(m.finalhomescore AS VARCHAR(50))
+						AND p.AwayValue = CAST(m.finalawayscore  AS VARCHAR(50))
+				) AS pe
+				OUTER APPLY(
+					SELECT TOP 1 ss.WaitingTime
+					FROM	dbo.SettlementSetting ss WITH (NOLOCK)
+					WHERE	ss.LeagueId = l.leagueid
+							AND ss.AutoType = 5 -- Direct Auto Payout
+				) AS ss
+			WHERE	m.eventstatus = 'running' 
+					AND m.sporttype = @Sporttype
+					AND m.eventdate BETWEEN @fromdate AND @todate 
+					AND GlobalShowTime <= @checktimeGST
+					AND l.LeagueGroupID = 42
+					AND 1 = CASE WHEN m.ChildMatchType IN (18,19,20,23,24) THEN 1 -- Child match
+								 WHEN ISNULL(m.ParentID,0) = 0 THEN 1 -- main match
+								 ELSE 0
+							 END
+
+					AND mr.ConfirmFT > 0
+					AND m.finalhomescore IS NOT NULL 
+					AND m.finalawayscore IS NOT NULL
+					AND ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) & 16 = 16
+					AND rs.IsExistAP IS NULL
+					AND 1 = CASE WHEN pe.ConfirmDate IS NULL THEN 1
+					             WHEN pe.ConfirmDate IS NOT NULL AND pe.ConfirmDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,@checkTime), GETDATE() )	 THEN 1
+								 ELSE 0
+							END
+				
+		END
 	END 
 
 	IF EXISTS (SELECT 1 FROM @tmpLatestResult)
@@ -349,10 +429,14 @@ BEGIN
 	SELECT MatchId
 		, @Sporttype AS SportType
 		, LeagueId
+		, ChildMatchType
+		, SubType
 		, SettlementStatus
+		, betstatus
 		, ResourceId
 		, HomeValue
 		, AwayValue
+		, InitConfirmDate
 	FROM #MatchInfo m
 
 END
