@@ -182,7 +182,7 @@ BEGIN
 			, CASE WHEN @IsSiteDB3 = 1 AND f.Bettype NOT IN(19999,20000) THEN 1 ELSE 0 
 					END AS IsInHouse
 	FROM dbo.Transfer f WITH(NOLOCK)
-		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
+		INNER JOIN #tmp_Cust c ON c.CustID = f.Recommend
 	WHERE c.roleid = 2
 		AND ( 
 				@IsSiteDB3 = 1	OR ( @IsDBTrans = 1 AND f.Bettype IN (19999, 20000) )
@@ -347,7 +347,7 @@ BEGIN
 			, CASE WHEN @IsSiteDB3 = 1 AND f.Bettype NOT IN(19999,20000) THEN 1 ELSE 0 
 					END AS IsInHouse
 	FROM dbo.transfer_coll f WITH(NOLOCK)
-		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
+		INNER JOIN #tmp_Cust c ON c.CustID = f.Recommend
 	WHERE c.roleid = 2
 		AND ( 
 				@IsSiteDB3 = 1	OR ( @IsDBTrans = 1 AND f.Bettype IN (19999, 20000) )
@@ -484,7 +484,7 @@ BEGIN
 	INSERT INTO #tmp_Balance ( dow, custid, recommend_NEW, mrecommend_New, srecommend_New )
 	SELECT f.dow, f.custid, c.recommend_NEW, c.mrecommend_New, c.srecommend_New
 	FROM dbo.BalanceTable_tmp_cal f WITH(NOLOCK)
-		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
+		INNER JOIN #tmp_Cust c ON c.CustID = f.Recommend
 	WHERE c.roleid = 2
 	
 	DECLARE @Threshold INT  = 1000
