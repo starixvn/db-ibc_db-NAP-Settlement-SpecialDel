@@ -211,11 +211,7 @@ BEGIN
 	BEGIN
 		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20,22)))
 		BEGIN
-			IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-					   WHERE matchid IN (9, 29, 2799, 10449)
-					   		AND rd.MatchId = @MatchId
-													
-			)
+			IF @MatchId IN (9, 29, 2799, 10449)
 			BEGIN
 					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 					SELECT  s.RequestId,MIN(b.winlostdate)
@@ -228,7 +224,7 @@ BEGIN
 					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 					SELECT  s.RequestId,MIN(b.winlostdate)
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-						INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid AND s.MatchId = b.matchid AND s.CustId = b.CustId AND s.Bettype = b.Bettype
+						INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid
 					WHERE s.matchid IN (9, 29, 2799, 10449)
 						AND s.MatchId = @MatchId
 					GROUP BY s.RequestId

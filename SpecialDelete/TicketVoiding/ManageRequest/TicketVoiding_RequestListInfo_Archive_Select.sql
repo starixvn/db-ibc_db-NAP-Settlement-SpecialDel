@@ -25,70 +25,44 @@ BEGIN
 
 	DECLARE @RequestInfoActive		VARBINARY(MAX) = NULL
 	      , @RequestInfoArchive		VARBINARY(MAX) = NULL
+		  , @FromDate_Request		DATETIME
 
-    DECLARE @tmpResult TABLE (RequestID INT, isActivedRequest BIT, Eventdate DATETIME)
+	SET @FromDate_Request = DATEADD(MONTH,-3, @FromDate)
 
-    IF EXISTS (SELECT TOP 1 1 
-               FROM dbo.TicketVoiding_RequestDetail_bk WITH(NOLOCK) 
-               WHERE MatchId IN ( 9, 29, 2799, 10449 )) 
-    BEGIN 
-		INSERT INTO @tmpResult (RequestID, Eventdate) 
-        SELECT s.RequestID, MIN(b.winlostdate)
-        FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-				INNER JOIN dbo.bettrans_bk b WITH(NOLOCK) ON s.transid = b.transid
-        WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
-				AND b.winlostdate BETWEEN @FromDate AND @ToDate
-        GROUP  BY s.RequestID
-	END
+    DECLARE @tmpResult TABLE (RequestID INT, Eventdate DATETIME)
 
-  IF EXISTS (SELECT TOP 1 rd.requestid, o.eventdate 
-               FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
-                      INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid 
-               WHERE  o.eventdate BETWEEN @FromDate AND @ToDate) 
-    BEGIN 
-        INSERT INTO @tmpResult (RequestID, isActivedRequest, Eventdate)
-        SELECT rd.RequestID
-			  ,CASE WHEN r.RequestId IS NULL THEN 1 ELSE NULL END AS isActivedRequest
-			  ,MIN(o.Eventdate) AS Eventdate
-		FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-				LEFT JOIN dbo.TicketVoiding_Request_bk r WITH(NOLOCK) 
-						ON rd.requestid = r.RequestId
-                INNER JOIN dbo.outright_bk o WITH(NOLOCK) 
-                        ON rd.matchid = o.orid 
-        WHERE  o.eventdate BETWEEN @FromDate AND @ToDate 
-        GROUP  BY rd.requestid, r.IssueTypeId, rd.Usernames, r.RequestId
-    END 
+	INSERT INTO @tmpResult (RequestID, Eventdate) 
+    SELECT s.RequestID, MIN(s.Winlostdate)
+    FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
+    WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
+			AND s.Winlostdate BETWEEN @FromDate AND @ToDate
+    GROUP  BY s.RequestID
 
-    INSERT INTO @tmpResult (RequestID, isActivedRequest, Eventdate)
-    SELECT rd.RequestID
-		  ,CASE WHEN r.RequestId IS NULL THEN 1 ELSE NULL END AS isActivedRequest
-		  ,MIN(m.Eventdate) AS Eventdate
-	FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-			LEFT JOIN dbo.TicketVoiding_Request_bk r WITH(NOLOCK) 
-					ON rd.requestid = r.RequestId
-			INNER JOIN dbo.match_bk m WITH(NOLOCK)
-					ON rd.matchid = m.matchid 
-    WHERE  m.eventdate BETWEEN @FromDate AND @ToDate
-    GROUP  BY rd.RequestID, r.IssueTypeId , rd.Usernames, r.RequestId
+	;WITH CTE_MatchInfo AS
+	(
+		SELECT matchid,eventdate
+		FROM dbo.match_bk WITH(NOLOCK)
+		WHERE eventdate BETWEEN @FromDate AND @ToDate
+		UNION all 
+		SELECT orid, eventdate
+		FROM dbo.outright_bk WITH(NOLOCK)
+		WHERE eventdate BETWEEN @FromDate AND @ToDate
+	) 
+	INSERT INTO @tmpResult (RequestID,  Eventdate)
+    SELECT r.RequestID
+		  ,MIN(c.Eventdate) AS Eventdate
+	FROM  TicketVoiding_Request_bk  r WITH(NOLOCK)
+		INNER LOOP JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) ON rd.requestid = r.RequestId
+		INNER JOIN CTE_MatchInfo c ON c.matchid = rd.matchid
+	where r.CreatedDate >= @FromDate_Request  
+	GROUP  BY r.RequestID
 
 	/***********************************************************************/
-	--1. Return table request active
-	SET @RequestInfoActive = COMPRESS((
-		SELECT DISTINCT RequestId AS 'req'
-			  ,MIN(Eventdate) AS 'e'
-		FROM @tmpResult
-		WHERE isActivedRequest = 1
-		GROUP BY RequestID
-	FOR JSON PATH))
-
-	SELECT CONVERT(VARCHAR(MAX), @RequestInfoActive, 1) AS RequestInfoActive
-
-	--2. Return table request archive
+	-- Return table request archive
 	SET @RequestInfoArchive = COMPRESS((
 		SELECT DISTINCT RequestId AS 'req'
 			  ,MIN(Eventdate) AS 'e'
 		FROM @tmpResult
-		WHERE isActivedRequest IS NULL
 		GROUP BY RequestID
 	FOR JSON PATH))
 
