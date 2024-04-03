@@ -3,7 +3,8 @@
 USE bodb_CustomerLog_Archive
 GO
 
-DROP TABLE IF EXISTS #tmpMatchID
+DROP TABLE IF EXISTS #tmp_MatchID
+DROP TABLE IF EXISTS #tmp_Update
 
 CREATE TABLE #tmp_MatchID ( ID INT IDENTITY(1,1) PRIMARY KEY, matchid INT)
 
@@ -29,6 +30,8 @@ BEGIN
 	OUTPUT Deleted.Matchid
 	INTO #tmp_Update (matchid)
 
+	IF @@ROWCOUNT = 0 BREAK
+
 	UPDATE p
 	SET IsHold = 1
 	FROM SettlementPerformanceLog p WITH (NOLOCK)
@@ -36,4 +39,8 @@ BEGIN
 			ON p.matchid = m.matchid
 	WHERE ISNULL(p.IsHold,0) = 0
 		AND p.StartTime BETWEEN '2024-02-20' AND '2024-04-04'
+
+	TRUNCATE TABLE #tmp_Update
+	WAITFOR DELAY '00:00:00:010'
+
 END
