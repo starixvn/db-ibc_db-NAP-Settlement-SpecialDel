@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.TicketVoiding_VoidHistorical_Update
 (
 	@RequestId			INT

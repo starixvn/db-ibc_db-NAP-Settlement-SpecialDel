@@ -20,6 +20,7 @@ AS
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 
 	Param's explanation:
 		
@@ -74,7 +75,15 @@ BEGIN
 			,CASE WHEN r.IssuetypeId IN (22) THEN r.CreatedDate ELSE NULL END AS RecoveredTime
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
-		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
+		OUTER APPLY (
+					SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.kickofftime
+					FROM	dbo.match m WITH(NOLOCK)
+					WHERE rd.MatchId = m.matchid
+					UNION
+					SELECT	m14.MatchId, m14.homeid, m14.awayid, m14.leagueid, m14.kickofftime
+					FROM	dbo.match14 m14 WITH(NOLOCK)
+					WHERE rd.MatchId = m14.matchid
+					) m
 	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId IN (0,29))
 	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatch WHERE IssuetypeId = 22) --Recover Ticket
@@ -189,3 +198,4 @@ BEGIN
 END
 
 GO
+

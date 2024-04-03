@@ -18,6 +18,7 @@ AS
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20220706@July: Add column Kickofftime get linklog Poolhouse ticket [Redmine: #172486]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 
 	Param's explanation:		
 */
@@ -32,7 +33,14 @@ BEGIN
 			AND m.matchid = @MatchId 
 			AND 1 = CASE WHEN @Sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 					     ELSE 1 END
-		
+	UNION 
+	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode, m.parentid, m.kickofftime
+	FROM	dbo.match14 m WITH(NOLOCK)
+	WHERE	m.sporttype = @Sporttype 
+			AND m.matchid = @MatchId 
+			AND 1 = CASE WHEN @Sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+					     ELSE 1 END
+
 	SELECT matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ISNULL(parentid,matchid) AS parentid, Kickofftime
 	FROM #MatchInfo
 
