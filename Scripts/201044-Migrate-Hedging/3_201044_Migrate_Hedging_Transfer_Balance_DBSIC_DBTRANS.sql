@@ -240,6 +240,20 @@ BEGIN
 		INNER JOIN #tmp_Cust_RecommendList_roleid_3 c ON c.recommend = f.recommend
 	WHERE @IsSiteDB3 = 1 OR ( @IsDBTrans = 1 AND f.Bettype IN (19999, 20000) )
 
+	INSERT INTO #tmp_transfer ( transid, srecommend_New, IsInHouse)
+	SELECT f.transid,   cc.srecommend_New  
+			, CASE WHEN @IsSiteDB3 = 1 AND f.Bettype NOT IN(19999,20000) THEN 1 ELSE 0 
+					END AS IsInHouse
+	FROM dbo.Transfer f WITH(NOLOCK)	
+		INNER JOIN CUSTDB.dbo.vw_Customer c1 WITH (NOLOCK) ON   f.CustId = c1.CustID and c1.roleid = 3
+		CROSS APPLY (SELECT	c.srecommend_New, cc.mrecommend 
+						FROM #tmp_Cust c
+							INNER JOIN CUSTDB.dbo.vw_Customer cc WITH (NOLOCK) 
+								ON c.CustID = cc.mrecommend 	AND cc.roleid = 2
+						WHERE c.roleid = 3	and f.custid = cc.mrecommend 
+					) cc
+	WHERE (@IsSiteDB3 = 1 OR ( @IsDBTrans = 1 AND f.Bettype IN (19999, 20000) ))
+
 	DECLARE @Threshold INT  = 1000
 			,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
 
@@ -402,7 +416,7 @@ BEGIN
 			, CASE WHEN @IsSiteDB3 = 1 AND f.Bettype NOT IN(19999,20000) THEN 1 ELSE 0 
 					END AS IsInHouse
 	FROM dbo.transfer_coll f WITH(NOLOCK)
-		INNER JOIN #tmp_Cust_RecommendList_roleid_3 c ON c.recommend = f.recommend
+		INNER JOIN #tmp_Cust_RecommendList_roleid_3 c ON c.mrecommend = f.MRecommend
 	WHERE @IsSiteDB3 = 1 OR ( @IsDBTrans = 1 AND f.Bettype IN (19999, 20000) )
 
 	DECLARE @Threshold INT  = 1000
@@ -525,7 +539,7 @@ BEGIN
 	INSERT INTO #tmp_Balance ( dow, custid, srecommend_New )
 	SELECT f.dow, f.custid, c.srecommend_New
 	FROM dbo.BalanceTable_tmp_cal f WITH(NOLOCK)
-		INNER JOIN #tmp_Cust_RecommendList_roleid_3 c ON c.recommend = f.recommend
+		INNER JOIN #tmp_Cust_RecommendList_roleid_3 c ON c.mrecommend = f.mrecommend
 
 	DECLARE @Threshold INT  = 1000
 			,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
