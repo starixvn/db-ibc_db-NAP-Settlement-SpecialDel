@@ -34,7 +34,7 @@ BEGIN
 	DECLARE @tmp_Request_Retry AS TABLE (RequestId INT, Detail_count INT)
 
 	INSERT INTO @tmp_Request (RequestId, Detail_count, Actual_count, CreatedBy, CreatedDate, Sporttype, IssueTypeId)
-	SELECT r.RequestId, 2, act.Actual_count, r.LastModifiedBy, r.LastModifiedDate, r.Sporttype, r.IssueTypeId
+	SELECT r.RequestId, dt.Detail_count, act.Actual_count, r.LastModifiedBy, r.LastModifiedDate, r.Sporttype, r.IssueTypeId
 	FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
 	CROSS APPLY (
 		SELECT TOP 1 rd.SingleCount AS Detail_count
