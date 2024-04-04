@@ -109,7 +109,7 @@ BEGIN
 
 END
 
-----UPDATE Transfer, roleid = 1
+----UPDATE Transfer, Transfer_coll, roleid = 1
 BEGIN
 	DECLARE @IsSiteDB3 BIT	,@IsDBTrans BIT
 
@@ -153,6 +153,15 @@ BEGIN
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
 		WHERE t.ID BETWEEN @StartRow AND @StopRow
 
+		UPDATE TOP(@Threshold) f
+		SET f.Recommend	= t.recommend_NEW
+			,f.mrecommend = t.mrecommend_New
+			,f.srecommend = t.srecommend_New
+			,f.RepUpdateTime = CASE WHEN IsInHouse = 1 THEN SYSDATETIME() ELSE f.RepUpdateTime END
+		FROM dbo.transfer_coll f WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
+		WHERE t.ID BETWEEN @StartRow AND @StopRow
+
 		IF @StopRow = @MaxRow BREAK
 
 		WAITFOR DELAY '00:00:00.010'
@@ -165,7 +174,7 @@ BEGIN
 END
 GO
 
-----UPDATE Transfer, roleid = 2
+----UPDATE Transfer, Transfer_coll, roleid = 2
 BEGIN
 	DECLARE @IsSiteDB3 BIT	,@IsDBTrans BIT
 
@@ -208,6 +217,13 @@ BEGIN
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
 		WHERE t.ID BETWEEN @StartRow AND @StopRow
 
+		UPDATE TOP(@Threshold) f
+		SET f.mrecommend = t.mrecommend_New
+			,f.srecommend = t.srecommend_New
+			,f.RepUpdateTime = CASE WHEN IsInHouse = 1 THEN SYSDATETIME() ELSE f.RepUpdateTime END
+		FROM dbo.transfer_coll f WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
+		WHERE t.ID BETWEEN @StartRow AND @StopRow
 		IF @StopRow = @MaxRow BREAK
 
 		WAITFOR DELAY '00:00:00.010'
@@ -245,12 +261,12 @@ BEGIN
 			, CASE WHEN @IsSiteDB3 = 1 AND f.Bettype NOT IN(19999,20000) THEN 1 ELSE 0 
 					END AS IsInHouse
 	FROM dbo.Transfer f WITH(NOLOCK)	
-		INNER JOIN CUSTDB.dbo.vw_Customer c1 WITH (NOLOCK) ON   f.CustId = c1.CustID and c1.roleid = 3
+		INNER JOIN CUSTDB.dbo.vw_Customer c1 WITH (NOLOCK) ON   f.CustId = c1.CustID AND c1.roleid = 3
 		CROSS APPLY (SELECT	c.srecommend_New, cc.mrecommend 
 						FROM #tmp_Cust c
 							INNER JOIN CUSTDB.dbo.vw_Customer cc WITH (NOLOCK) 
-								ON c.CustID = cc.mrecommend 	AND cc.roleid = 2
-						WHERE c.roleid = 3	and f.custid = cc.mrecommend 
+								ON c.CustID = cc.mrecommend AND cc.roleid = 2
+						WHERE c.roleid = 3	AND f.custid = cc.mrecommend 
 					) cc
 	WHERE (@IsSiteDB3 = 1 OR ( @IsDBTrans = 1 AND f.Bettype IN (19999, 20000) ))
 
@@ -273,112 +289,6 @@ BEGIN
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
 		WHERE t.ID BETWEEN @StartRow AND @StopRow
 
-		IF @StopRow = @MaxRow BREAK
-
-		WAITFOR DELAY '00:00:00.010'
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-		IF @StopRow >= @MaxRow
-			SET @StopRow = @MaxRow
-	END
-END
-GO
----/end transfer
-
-
-----transfer_coll---------------------------
-----UPDATE transfer_coll, roleid = 1
-BEGIN
-	DECLARE @IsSiteDB3 BIT	,@IsDBTrans BIT
-
-	SELECT @IsSiteDB3 = CASE WHEN @@SERVERNAME IN( 'DEVDB061\DEVSITEDB2','TESTSITEDB2', 'SITDBGRP03N1','SITDBGRP03N2','DBGRP03N1', 'DBGRP03N2') 
-							THEN 1 ELSE 0
-							END
-	SELECT @IsDBTrans = CASE WHEN @@SERVERNAME IN('DB-60\DevDBTrans','TESTDBTRANS','SITDBTRANS','DBTRANS')
-							THEN 1 ELSE 0
-							END
-
-	TRUNCATE TABLE #tmp_transfer;
-	INSERT INTO #tmp_transfer ( transid, recommend_NEW, mrecommend_New, srecommend_New, IsInHouse)
-	SELECT f.transid, c.recommend_NEW, c.mrecommend_New, c.srecommend_New
-			, CASE WHEN @IsSiteDB3 = 1 AND f.Bettype NOT IN(19999,20000) THEN 1 ELSE 0 
-					END AS IsInHouse
-	FROM dbo.transfer_coll f WITH(NOLOCK)
-		INNER JOIN #tmp_Cust c ON c.CustID = f.custid
-	WHERE c.roleid = 1
-		AND ( 
-				@IsSiteDB3 = 1	OR ( @IsDBTrans = 1 AND f.Bettype IN (19999, 20000) )
-			)
-	
-	DECLARE @Threshold INT  = 1000
-			,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
-
-	SELECT @MaxRow	= MAX(ID) FROM #tmp_transfer
-	
-	IF @Threshold >= @MaxRow
-	SET @Threshold = @MaxRow
-
-	SELECT @StopRow = @Threshold
-	
-	WHILE (@MaxRow IS NOT NULL)
-	BEGIN		
-		UPDATE TOP(@Threshold) f
-		SET f.Recommend	= t.recommend_NEW
-			,f.mrecommend = t.mrecommend_New
-			,f.srecommend = t.srecommend_New
-			,f.RepUpdateTime = CASE WHEN IsInHouse = 1 THEN SYSDATETIME() ELSE f.RepUpdateTime END
-		FROM dbo.transfer_coll f WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
-		WHERE t.ID BETWEEN @StartRow AND @StopRow
-
-		IF @StopRow = @MaxRow BREAK
-
-		WAITFOR DELAY '00:00:00.010'
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-		IF @StopRow >= @MaxRow
-			SET @StopRow = @MaxRow
-	END
-END
-GO
-
-----UPDATE transfer_coll, roleid = 2
-BEGIN
-	DECLARE @IsSiteDB3 BIT	,@IsDBTrans BIT
-
-	SELECT @IsSiteDB3 = CASE WHEN @@SERVERNAME IN( 'DEVDB061\DEVSITEDB2','TESTSITEDB2', 'SITDBGRP03N1','SITDBGRP03N2','DBGRP03N1', 'DBGRP03N2') 
-							THEN 1 ELSE 0
-							END
-	SELECT @IsDBTrans = CASE WHEN @@SERVERNAME IN('DB-60\DevDBTrans','TESTDBTRANS','SITDBTRANS','DBTRANS')
-							THEN 1 ELSE 0
-							END
-
-	TRUNCATE TABLE #tmp_transfer;
-	INSERT INTO #tmp_transfer ( transid, mrecommend_New, srecommend_New, IsInHouse)
-	SELECT f.transid, c.mrecommend_New, c.srecommend_New
-			, CASE WHEN @IsSiteDB3 = 1 AND f.Bettype NOT IN(19999,20000) THEN 1 ELSE 0 
-					END AS IsInHouse
-	FROM dbo.transfer_coll f WITH(NOLOCK)
-		INNER JOIN #tmp_Cust c ON c.CustID = f.Recommend
-	WHERE c.roleid = 2
-		AND ( 
-				@IsSiteDB3 = 1	OR ( @IsDBTrans = 1 AND f.Bettype IN (19999, 20000) )
-			)
-	
-	DECLARE @Threshold INT  = 1000
-			,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
-
-	SELECT @MaxRow	= MAX(ID) FROM #tmp_transfer
-	
-	IF @Threshold >= @MaxRow
-	SET @Threshold = @MaxRow
-
-	SELECT @StopRow = @Threshold
-	
-	WHILE (@MaxRow IS NOT NULL)
-	BEGIN		
 		UPDATE TOP(@Threshold) f
 		SET f.mrecommend = t.mrecommend_New
 			,f.srecommend = t.srecommend_New
@@ -398,57 +308,8 @@ BEGIN
 	END
 END
 GO
+---/end transfer, transfer_coll
 
---UPDATE transfer_coll, roleid = 3
-BEGIN
-	DECLARE @IsSiteDB3 BIT	,@IsDBTrans BIT
-
-	SELECT @IsSiteDB3 = CASE WHEN @@SERVERNAME IN( 'DEVDB061\DEVSITEDB2','TESTSITEDB2', 'SITDBGRP03N1','SITDBGRP03N2','DBGRP03N1', 'DBGRP03N2') 
-							THEN 1 ELSE 0
-							END
-	SELECT @IsDBTrans = CASE WHEN @@SERVERNAME IN('DB-60\DevDBTrans','TESTDBTRANS','SITDBTRANS','DBTRANS')
-							THEN 1 ELSE 0
-							END
-
-	TRUNCATE TABLE #tmp_transfer;
-	INSERT INTO #tmp_transfer ( transid, srecommend_New, IsInHouse)
-	SELECT f.transid, c.srecommend_New
-			, CASE WHEN @IsSiteDB3 = 1 AND f.Bettype NOT IN(19999,20000) THEN 1 ELSE 0 
-					END AS IsInHouse
-	FROM dbo.transfer_coll f WITH(NOLOCK)
-		INNER JOIN #tmp_Cust_RecommendList_roleid_3 c ON c.mrecommend = f.MRecommend
-	WHERE @IsSiteDB3 = 1 OR ( @IsDBTrans = 1 AND f.Bettype IN (19999, 20000) )
-
-	DECLARE @Threshold INT  = 1000
-			,@StartRow INT = 1, @StopRow INT = 0, @MaxRow  INT = 0
-
-	SELECT @MaxRow	= MAX(ID) FROM #tmp_transfer
-	
-	IF @Threshold >= @MaxRow
-	SET @Threshold = @MaxRow
-
-	SELECT @StopRow = @Threshold
-	
-	WHILE (@MaxRow IS NOT NULL)
-	BEGIN		
-		UPDATE TOP(@Threshold) f
-		SET f.srecommend = t.srecommend_New
-			,f.RepUpdateTime = CASE WHEN IsInHouse = 1 THEN SYSDATETIME() ELSE f.RepUpdateTime END
-		FROM dbo.transfer_coll f WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
-		WHERE t.ID BETWEEN @StartRow AND @StopRow
-
-		IF @StopRow = @MaxRow BREAK
-
-		WAITFOR DELAY '00:00:00.010'
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-		IF @StopRow >= @MaxRow
-			SET @StopRow = @MaxRow
-	END
-END
-GO
 
 ----BalanceTable_tmp_cal
 ----UPDATE BalanceTable_tmp_cal, roleid = 1
