@@ -38,55 +38,40 @@ BEGIN
     IF EXISTS (SELECT TOP 1 1 
                FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
                WHERE  matchid IN ( 9, 29, 2799, 10449 )) 
-      BEGIN 
-			--BETTRANS
-            INSERT INTO @tmpResult (RequestID, Eventdate) 
-            SELECT s.requestid, MIN(b.winlostdate)
-            FROM   dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.transid = b.transid
-            WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
-					AND b.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
-            GROUP  BY s.requestid
+    BEGIN 
+		--BETTRANS
+        INSERT INTO @tmpResult (RequestID, Eventdate) 
+        SELECT s.requestid, MIN(b.winlostdate)
+        FROM   dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.transid = b.transid
+        WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
+				AND b.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
+        GROUP  BY s.requestid
             
-			--BETTRANS14
-            INSERT INTO @tmpResult (RequestID, Eventdate) 
-            SELECT s.requestid, MIN(b14.winlostdate)
-            FROM   dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-					INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON s.transid = b14.transid 
-            WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
-                    AND b14.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
-            GROUP  BY s.requestid
-      END 
+		--BETTRANS14
+        INSERT INTO @tmpResult (RequestID, Eventdate) 
+        SELECT s.requestid, MIN(b14.winlostdate)
+        FROM   dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+				INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON s.transid = b14.transid 
+        WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
+                AND b14.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
+        GROUP  BY s.requestid
+    END 
 	
-	 IF EXISTS (SELECT TOP 1 rd.requestid, o.eventdate 
-               FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
-                    CROSS APPLY (
-								SELECT o.orid, o.eventdate
-								FROM	dbo.outright o WITH(NOLOCK)
-								WHERE rd.MatchId = o.orid
-								UNION
-								SELECT	o14.orid, o14.eventdate
-								FROM	dbo.outright14 o14 WITH(NOLOCK)
-								WHERE rd.MatchId = o14.orid
-							)o 
-               WHERE  o.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp ) 
-      BEGIN 
-          INSERT INTO @tmpResult (RequestID, Eventdate) 
-          SELECT rd.requestid, MIN(o.eventdate)
-          FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-				 INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.requestid = r.RequestId
-                 CROSS APPLY (
-							SELECT o.orid, o.eventdate
-							FROM	dbo.outright o WITH(NOLOCK)
-							WHERE rd.MatchId = o.orid
-							UNION
-							SELECT	o14.orid, o14.eventdate
-							FROM	dbo.outright14 o14 WITH(NOLOCK)
-							WHERE rd.MatchId = o14.orid
-				)o 
-          WHERE  o.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
-          GROUP  BY rd.requestid, r.IssueTypeId
-      END 
+    INSERT INTO @tmpResult (RequestID, Eventdate) 
+    SELECT rd.requestid, MIN(o.eventdate)
+    FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+            CROSS APPLY (
+					SELECT o.orid, o.eventdate
+					FROM	dbo.outright o WITH(NOLOCK)
+					WHERE rd.MatchId = o.orid
+					UNION
+					SELECT	o14.orid, o14.eventdate
+					FROM	dbo.outright14 o14 WITH(NOLOCK)
+					WHERE rd.MatchId = o14.orid
+		)o 
+    WHERE  o.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
+    GROUP  BY rd.requestid
 	
     INSERT INTO @tmpResult (RequestID, Eventdate) 
     SELECT rd.requestid, MIN(m.eventdate)

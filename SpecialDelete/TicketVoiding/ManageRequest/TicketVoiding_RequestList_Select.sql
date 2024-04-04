@@ -137,59 +137,39 @@ BEGIN
 	-----------------------------GET eventdate of match---------------------------------------------
 	IF @FilteredBy = 1
 	BEGIN
-		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20,22)))
+		IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+					WHERE matchid IN (9, 29, 2799, 10449) AND RequestId = @RequestId
+		)
 		BEGIN
-			IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-									   WHERE matchid IN (9, 29, 2799, 10449) AND RequestId = @RequestId
-									   
-			)
-			BEGIN
-					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-					SELECT  s.RequestId,MIN(b.winlostdate)
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid
-					WHERE s.matchid IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
-					GROUP BY s.RequestId
+			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+			SELECT  s.RequestId,MIN(b.winlostdate)
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid
+			WHERE s.matchid IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
+			GROUP BY s.RequestId
 
-					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-					SELECT  s.RequestId,MIN(b.winlostdate)
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-						INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid
-					WHERE s.matchid IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
-					GROUP BY s.RequestId
-
-			END
-
-			IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
-						FROM TicketVoiding_RequestDetail rd WITH(NOLOCK) 
-							CROSS APPLY	(
-										 SELECT o.orid, o.eventdate
-										 FROM	dbo.outright o WITH(NOLOCK)
-										 WHERE rd.MatchId = o.orid
-										 UNION
-										 SELECT	o14.orid, o14.eventdate
-										 FROM	dbo.outright14 o14 WITH(NOLOCK)
-										 WHERE rd.MatchId = o14.orid
-										)o 
-						WHERE rd.RequestId = @RequestId
-						)
-			BEGIN
-				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-				SELECT  rd.RequestId, MIN(o.eventdate)
-				FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-				CROSS APPLY(
-							SELECT o.orid, o.eventdate
-							FROM	dbo.outright o WITH(NOLOCK)
-							WHERE rd.MatchId = o.orid
-							UNION ALL
-							SELECT	o14.orid, o14.eventdate
-							FROM	dbo.outright14 o14 WITH(NOLOCK)
-							WHERE rd.MatchId = o14.orid
-						  )o 
-				WHERE rd.RequestId = @RequestId
-				GROUP BY rd.RequestId			   
-			END
+			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+			SELECT  s.RequestId,MIN(b.winlostdate)
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+				INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid
+			WHERE s.matchid IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
+			GROUP BY s.RequestId
 		END
+
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT  rd.RequestId, MIN(o.eventdate)
+		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		CROSS APPLY(
+					SELECT o.orid, o.eventdate
+					FROM	dbo.outright o WITH(NOLOCK)
+					WHERE rd.MatchId = o.orid
+					UNION ALL
+					SELECT	o14.orid, o14.eventdate
+					FROM	dbo.outright14 o14 WITH(NOLOCK)
+					WHERE rd.MatchId = o14.orid
+					)o 
+		WHERE rd.RequestId = @RequestId
+		GROUP BY rd.RequestId			   
 		
 		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 		SELECT rd.RequestId, MIN(m.eventdate)
@@ -209,58 +189,39 @@ BEGIN
 	ELSE
 	IF @FilteredBy = 2
 	BEGIN
-		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20,22)))
+		IF @MatchId IN (9, 29, 2799, 10449)
 		BEGIN
-			IF @MatchId IN (9, 29, 2799, 10449)
-			BEGIN
-					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-					SELECT  s.RequestId,MIN(b.winlostdate)
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid
-					WHERE s.matchid IN (9, 29, 2799, 10449)
-						AND s.MatchId = @MatchId
-					GROUP BY s.RequestId
+			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+			SELECT  s.RequestId,MIN(b.winlostdate)
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid
+			WHERE s.matchid IN (9, 29, 2799, 10449)
+				AND s.MatchId = @MatchId
+			GROUP BY s.RequestId
 					
-					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-					SELECT  s.RequestId,MIN(b.winlostdate)
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-						INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid
-					WHERE s.matchid IN (9, 29, 2799, 10449)
-						AND s.MatchId = @MatchId
-					GROUP BY s.RequestId
-
-			END
-
-			IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
-						FROM TicketVoiding_RequestDetail rd WITH(NOLOCK) 
-							CROSS APPLY (
-										 SELECT o.orid, o.eventdate
-										 FROM	dbo.outright o WITH(NOLOCK)
-										 WHERE rd.MatchId = o.orid
-										 UNION
-										 SELECT	o14.orid, o14.eventdate
-										 FROM	dbo.outright14 o14 WITH(NOLOCK)
-										 WHERE rd.MatchId = o14.orid
-										)o 
-						WHERE rd.MatchId = @MatchId
-						)
-			BEGIN
-				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-				SELECT  rd.RequestId, MIN(o.eventdate)
-				FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-				CROSS APPLY(
-							SELECT o.orid, o.eventdate
-							FROM	dbo.outright o WITH(NOLOCK)
-							WHERE rd.MatchId = o.orid
-							UNION ALL
-							SELECT	o14.orid, o14.eventdate
-							FROM	dbo.outright14 o14 WITH(NOLOCK)
-							WHERE rd.MatchId = o14.orid
-						 )o 
-				WHERE rd.MatchId = @MatchId
-				GROUP BY rd.RequestId
-			END
+			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+			SELECT  s.RequestId,MIN(b.winlostdate)
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+				INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid
+			WHERE s.matchid IN (9, 29, 2799, 10449)
+				AND s.MatchId = @MatchId
+			GROUP BY s.RequestId
 		END
+
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT  rd.RequestId, MIN(o.eventdate)
+		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		CROSS APPLY(
+					SELECT o.orid, o.eventdate
+					FROM	dbo.outright o WITH(NOLOCK)
+					WHERE rd.MatchId = o.orid
+					UNION ALL
+					SELECT	o14.orid, o14.eventdate
+					FROM	dbo.outright14 o14 WITH(NOLOCK)
+					WHERE rd.MatchId = o14.orid
+					)o 
+		WHERE rd.MatchId = @MatchId
+		GROUP BY rd.RequestId
 		
 		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 		SELECT rd.RequestId, MIN(m.eventdate)
