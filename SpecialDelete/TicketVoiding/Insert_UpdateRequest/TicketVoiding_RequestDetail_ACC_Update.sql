@@ -24,6 +24,7 @@ AS
 		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240327@Max: [CTS] - [TVS] - Missing Void Info - Not auto-mark PA [Redmine: #201993]
 
 	Param's explanation:
 */
@@ -49,6 +50,7 @@ BEGIN
 			,@FromDate				 DATETIME = NULL
 			,@ToDate				 DATETIME = NULL
 			,@maxdate 				 DATETIME = '9999-01-01'
+			,@row_count				 INT = 0
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -304,6 +306,12 @@ BEGIN
 	FROM #tmpTransInfo s
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
 				ON rd.RequestId = @RequestId AND s.MatchId = rd.MatchId
+
+	SET @row_count = @@ROWCOUNT
+
+	UPDATE rd SET rd.SingleCount = @row_count
+	FROM TicketVoiding_RequestDetail rd WITH (ROWLOCK, UPDLOCK)
+	WHERE rd.RequestId = @RequestId
 
 	-- Get content of log data 
 	SET @LogDataContent = ''
