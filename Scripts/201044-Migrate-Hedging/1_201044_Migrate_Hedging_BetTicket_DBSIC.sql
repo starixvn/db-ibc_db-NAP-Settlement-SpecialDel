@@ -236,7 +236,7 @@ BEGIN
 
 		WAITFOR DELAY '00:00:00.010'
 
-		SET @StartRow = @StopRow + 3
+		SET @StartRow = @StopRow + 1
 		SET @StopRow = @StopRow + @Threshold
 		IF @StopRow >= @MaxRow
 			SET @StopRow = @MaxRow
