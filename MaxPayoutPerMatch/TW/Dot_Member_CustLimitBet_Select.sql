@@ -65,12 +65,14 @@ BEGIN
 		END
 	
 		--get bonus data from queue
-		IF EXISTS ( SELECT TOP(1) 1 FROM dbo.CustLimitBetQueue q WITH (NOLOCK, INDEX = PK_CustLimitBetQueue_MBC_QueueID)
-					WHERE q.QueueID > @LastQueueID 
-						AND q.ActionID = 3 
-						AND q.CustID = @custid  
-						AND q.EventTypeID = @EventTypeID 
-				)
+		IF EXISTS ( SELECT TOP(1) 1 FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
+							INNER JOIN outright o WITH (NOLOCK) ON o.orid = q.Matchid
+				WHERE q.QueueID > @LastQueueID 
+					AND q.ActionID = 3 
+					AND q.CustID = @custid  
+					AND q.EventTypeID = @EventTypeID 
+					AND o.leagueid = @LeagueID
+					AND o.oddsstatus <> 'Completed' )
 		BEGIN
 			IF @sitetype = 1
 			BEGIN
