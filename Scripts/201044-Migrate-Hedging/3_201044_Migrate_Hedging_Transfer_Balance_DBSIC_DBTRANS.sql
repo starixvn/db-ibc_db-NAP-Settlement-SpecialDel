@@ -145,18 +145,18 @@ BEGIN
 	WHILE (@MaxRow IS NOT NULL)
 	BEGIN		
 		UPDATE TOP(@Threshold) f
-		SET f.recommend = t.recommend_NEW
-			,f.mrecommend = t.mrecommend_New
-			,f.srecommend = t.srecommend_New
+		SET f.recommend = ISNULL(t.recommend_NEW, f.recommend)
+			,f.mrecommend = ISNULL(t.mrecommend_New, f.mrecommend)
+			,f.srecommend = ISNULL(t.srecommend_New, f.srecommend)
 			,f.RepUpdateTime = CASE WHEN IsInHouse = 1 THEN SYSDATETIME() ELSE f.RepUpdateTime END
 		FROM dbo.Transfer f WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
 		WHERE t.ID BETWEEN @StartRow AND @StopRow
 
 		UPDATE TOP(@Threshold) f
-		SET f.Recommend	= t.recommend_NEW
-			,f.mrecommend = t.mrecommend_New
-			,f.srecommend = t.srecommend_New
+		SET f.Recommend		= ISNULL(t.recommend_NEW, f.Recommend)
+			,f.mrecommend	= ISNULL(t.mrecommend_New, f.mrecommend)
+			,f.srecommend	= ISNULL(t.srecommend_New, f.srecommend)
 			,f.RepUpdateTime = CASE WHEN IsInHouse = 1 THEN SYSDATETIME() ELSE f.RepUpdateTime END
 		FROM dbo.transfer_coll f WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
@@ -210,16 +210,16 @@ BEGIN
 	WHILE (@MaxRow IS NOT NULL)
 	BEGIN		
 		UPDATE TOP(@Threshold) f
-		SET f.mrecommend = t.mrecommend_New
-			,f.srecommend = t.srecommend_New
+		SET f.mrecommend	= ISNULL(t.mrecommend_New, f.mrecommend)
+			,f.srecommend	= ISNULL(t.srecommend_New, f.srecommend)
 			,f.RepUpdateTime = CASE WHEN IsInHouse = 1 THEN SYSDATETIME() ELSE f.RepUpdateTime END
 		FROM dbo.Transfer f WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
 		WHERE t.ID BETWEEN @StartRow AND @StopRow
 
 		UPDATE TOP(@Threshold) f
-		SET f.mrecommend = t.mrecommend_New
-			,f.srecommend = t.srecommend_New
+		SET f.mrecommend =	ISNULL(t.mrecommend_New, f.mrecommend)
+			,f.srecommend = ISNULL(t.srecommend_New, f.srecommend)
 			,f.RepUpdateTime = CASE WHEN IsInHouse = 1 THEN SYSDATETIME() ELSE f.RepUpdateTime END
 		FROM dbo.transfer_coll f WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
@@ -283,15 +283,14 @@ BEGIN
 	WHILE (@MaxRow IS NOT NULL)
 	BEGIN		
 		UPDATE TOP(@Threshold) f
-		SET f.srecommend = t.srecommend_New
+		SET f.srecommend = ISNULL(t.srecommend_New, f.srecommend)
 			,f.RepUpdateTime = CASE WHEN IsInHouse = 1 THEN SYSDATETIME() ELSE f.RepUpdateTime END
 		FROM dbo.Transfer f WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
 		WHERE t.ID BETWEEN @StartRow AND @StopRow
 
 		UPDATE TOP(@Threshold) f
-		SET f.mrecommend = t.mrecommend_New
-			,f.srecommend = t.srecommend_New
+		SET f.srecommend = ISNULL(t.srecommend_New, f.srecommend)
 			,f.RepUpdateTime = CASE WHEN IsInHouse = 1 THEN SYSDATETIME() ELSE f.RepUpdateTime END
 		FROM dbo.transfer_coll f WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_transfer t ON f.TransId = t.TransId
@@ -334,9 +333,9 @@ BEGIN
 	WHILE (@MaxRow IS NOT NULL)
 	BEGIN		
 		UPDATE TOP(@Threshold) f
-		SET f.recommend = t.recommend_NEW
-			,f.mrecommend = t.mrecommend_New
-			,f.srecommend = t.srecommend_New
+		SET f.recommend		= ISNULL(t.recommend_NEW, f.recommend)
+			,f.mrecommend	= ISNULL(t.mrecommend_New, f.mrecommend)
+			,f.srecommend	= ISNULL(t.srecommend_New, f.srecommend)
 		FROM dbo.BalanceTable_tmp_cal f WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_Balance t ON f.dow = t.dow AND f.custid = t.custid
 		WHERE t.ID BETWEEN @StartRow AND @StopRow
@@ -375,9 +374,8 @@ BEGIN
 	WHILE (@MaxRow IS NOT NULL)
 	BEGIN		
 		UPDATE TOP(@Threshold) f
-		SET f.recommend = t.recommend_NEW
-			,f.mrecommend = t.mrecommend_New
-			,f.srecommend = t.srecommend_New
+		SET f.mrecommend	= ISNULL(t.mrecommend_New, f.mrecommend)
+			,f.srecommend	= ISNULL(t.srecommend_New, f.srecommend)
 		FROM dbo.BalanceTable_tmp_cal f WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_Balance t ON f.dow = t.dow AND f.custid = t.custid
 		WHERE t.ID BETWEEN @StartRow AND @StopRow
@@ -415,7 +413,7 @@ BEGIN
 	WHILE (@MaxRow IS NOT NULL)
 	BEGIN		
 		UPDATE TOP(@Threshold) b
-		SET b.srecommend = t.srecommend_New
+		SET b.srecommend = ISNULL(t.srecommend_New, b.srecommend)
 		FROM dbo.BalanceTable_tmp_cal b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tmp_Balance t ON b.dow = t.dow AND b.custid = t.custid
 		WHERE t.ID BETWEEN @StartRow AND @StopRow
