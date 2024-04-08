@@ -39,6 +39,8 @@ AS
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+
 		
 		
 	Param's Explanation:
@@ -83,8 +85,11 @@ BEGIN
 			,@posComma				INT
 			,@IsUpd_Void			BIT = 0
 			,@FcUpdateTime			DATETIME2
+			,@EndTime				DATETIME2
 			,@transInfoJson			NVARCHAR(MAX)
-	
+			,@AffectedTicket 		INT
+			,@MessageBody VARCHAR(MAX)
+			
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,modds MONEY, odds SMALLMONEY, oddsspread MONEY, statuswinlost TINYINT
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
@@ -265,6 +270,8 @@ BEGIN
 				AND ISNULL(b.betdaqid,0) <> - 2	
 				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		
+		SET @EndTime = SYSDATETIME()
+		
 		IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfoJson = (
@@ -299,6 +306,31 @@ BEGIN
 				,@SettlementAction = 'UNDO'
 				,@TicketType = 's'
 		END
+		
+		SELECT @AffectedTicket = COUNT(1)
+		FROM	@tmpTransInfo
+		
+		IF OBJECT_ID('SSB_Settlement_WriteLogs','P') IS NOT NULL 
+		BEGIN
+			SET @MessageBody = 'EXEC NAP_Admin_Calculate_Undo @matchid = ' + CAST(@MatchId AS VARCHAR) 
+								+ ',@strBettypes = ''' + @strBettypes + ''''
+								
+			exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL
+				, @MessageType			= NULL
+				, @MessageBody			= @MessageBody
+				, @StartTime			= @FcUpdateTime
+				, @EndTime				= @EndTime
+				, @SessionId			= NULL
+				, @ErrorMessage			= NULL
+				, @ConversationHandle	= NULL
+				, @QueueNo				= 0
+				, @SiteDBGroupId		= 0
+				, @matchid				= @matchid
+				, @AffectedTicket 		= @AffectedTicket 
+				, @TableType			= 1 -- bettrans
+				, @EventTable			= 1 -- match
+		END
+			
 		SET @BatchNo = @BatchNo - 1
 
 		WAITFOR DELAY '00:00:00:010'

@@ -10,14 +10,18 @@ as
 	DB: DBTXN-bodb02
 	Revisions:  
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 */
 begin
 	set nocount on
+	
 	declare @__startTime datetime2, @__sessionId bigint, @__strTransIds varchar(max)
-		, @__processingId bigint, @__modds money, @__IsMarked bit, @__oddsType smallint, @__actionId int
+		, @__processingId bigint, @__modds money, @__IsMarked bit, @__oddsType smallint, @__actionId int, @__matchid int, @__AffectedTicket int 
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
 
-	select @__startTime = sysdatetime(), @__sessionId = @MessageBody
+	select	@__startTime = sysdatetime()	
+			,@__matchid = PARSENAME(REPLACE(@MessageBody, '^', '.'), 2)
+			,@__sessionId = PARSENAME(REPLACE(@MessageBody, '^', '.'), 1)
 
 	while 1 = 1
 	begin
@@ -62,7 +66,7 @@ begin
 		set deadlock_priority high
 		select @__errmsg = ''
 		begin try
-			exec dbo.NAP_Admin_Calculate_Main @matchid = 0
+			exec dbo.NAP_Admin_Calculate_Main @matchid = @__matchid
 				, @IsSettingByProfile		= 1
 				, @strTransIds				= @__strTransIds
 				, @mode						= 'profile-major'
@@ -72,6 +76,7 @@ begin
 				, @OddsType					= @__oddsType
 				, @ActionId					= @__actionId
 				, @SessionId				= @__sessionId
+				, @AffectedTicket			= @__AffectedTicket OUTPUT
 				, @ErrMessage				= @__errmsg OUTPUT
 		end try
 		begin catch
@@ -81,7 +86,8 @@ begin
 		set deadlock_priority normal
 
 		declare @__messageBodyTemp nvarchar(max), @__messageTypeTemp varchar(128), @__delayTime varchar(50)
-		select @__messageBodyTemp = 'exec dbo.NAP_Admin_Calculate_Main @matchid = 0,@IsSettingByProfile=1,@mode=''profile-major'''
+		select @__messageBodyTemp = 'exec dbo.NAP_Admin_Calculate_Main @matchid = ' + cast(@__matchid as varchar(20))
+				+ ',@IsSettingByProfile=1,@mode=''profile-major'''
 				+ case when @__strTransIds is not null then ',@strTransIds=''' + @__strTransIds + '''' else '' end
 				+ case when @__processingId is not null then ',@SettlementProcessingId=' + cast(@__processingId as varchar(20)) else '' end
 				+ case when @__modds is not null then ',@modds=' + cast(@__modds as varchar(20)) else '' end
@@ -101,6 +107,10 @@ begin
 			, @ErrorMessage			= @__errmsg
 			, @ConversationHandle	= @ConversationHandle
 			, @QueueNo				= @QueueNo
+			, @MatchId 				= @__matchid 
+			, @AffectedTicket		= @__AffectedTicket
+			, @TableType			= 1
+			, @EventTable			= 1
 
 		--waitfor on each batch exec ==> default 001ms
 		select @__delayTime = dbo.f_Settlement_GetDelayTime('Wait_Exec_Each_Batch')

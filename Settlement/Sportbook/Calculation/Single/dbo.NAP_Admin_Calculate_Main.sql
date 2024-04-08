@@ -83,6 +83,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@ErrCode						INT			 = 0  OUTPUT
     ,@IsCalculateBalance			BIT			= 0
     ,@BroadcastSessionId	        VARCHAR(50)	= NULL
+	,@AffectedTicket 				INT 		= 0 OUTPUT
 AS
 /*
     Created: Viet
@@ -167,6 +168,7 @@ AS
         - 20230516@Aries: Replicate to SubDB is not correctly [Redmine:#188298]
         - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
         - 20231214@Aries: Result Amendment [Redmine: #196401]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 
     Param's Explanation:
         @action             @mode
@@ -366,7 +368,9 @@ BEGIN
 					,@SettlementProcessingId = @SettlementProcessingId
 					,@ActionId = @ActionId		
 					,@SessionId = @SessionId
+					,@AffectedTicket = @AffectedTicket OUTPUT
 					,@ErrMessage = @ErrMessage OUTPUT 
+					
 			END
 			ELSE IF @mode = 'Outright'
 			BEGIN
@@ -443,7 +447,7 @@ BEGIN
         BEGIN   
             EXEC dbo.NAP_Admin_Calculate_Undo
                 @matchid       = @matchid
-                ,@strBettypes   = @strBettypes                           
+                ,@strBettypes   = @strBettypes   			
         END
 
         IF @action = 'CAL-FM'

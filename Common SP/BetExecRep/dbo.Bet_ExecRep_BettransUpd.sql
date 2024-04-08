@@ -18,7 +18,8 @@ AS
 		- 20221109@Louisa: log more info [Redmine:#178694]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
-		
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+
 	Param's Explanation:
 		- ExecRep SP: DBTrans_Bet
 					
@@ -31,7 +32,12 @@ BEGIN
 			,@AllowExec	BIT
 			,@transInfoJson	NVARCHAR(MAX)
 			,@IsSiteDB	BIT = 0
-			
+			,@StartTime			DATETIME2
+			,@EndTime			DATETIME2
+			,@MessageBody		VARCHAR(MAX)
+			,@TableType			TINYINT
+			,@AffectedTicket	INT
+
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,modds MONEY, statuswinlost TINYINT, winlostdate SMALLDATETIME
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
@@ -128,6 +134,8 @@ BEGIN
 	FROM @xmlTicket.nodes('/root/r') AS [T](C) --T: table, C: column
 	OPTION (OPTIMIZE FOR (@xmlTicket = NULL))
 
+	SET @StartTime = SYSDATETIME()
+
 	UPDATE b 
 		SET winlost 		= s.winlost
 			,awinlost 		= s.awinlost
@@ -179,7 +187,8 @@ BEGIN
 			AND b.custid 	= s.custid
 			AND b.bettype 	= s.bettype
 			AND b.transid 	= s.transid
-	
+	SET @EndTime = SYSDATETIME()
+
 	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
 		SET @transInfoJson = (
@@ -217,6 +226,32 @@ BEGIN
 			,@TicketType = @TicketType
 			,@EventTable = 1
 			
+	END
+
+	SELECT @AffectedTicket = COUNT(1)
+	FROM	@tmpTransInfo
+	
+	IF OBJECT_ID('SSB_Settlement_WriteLogs','P') IS NOT NULL 
+	BEGIN 
+		SET @MessageBody = 'EXEC Bet_ExecRep_BettransUpd @BetTickets = ''' + @BetTickets + ''''
+								+ ',@matchid = ' + CAST(@matchid AS VARCHAR)
+								+ ',@Action = ''' + @Action + ''''
+								+ ',@TicketType = ''' + @TicketType + ''''
+								
+		exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL
+			, @MessageType			= NULL
+			, @MessageBody			= @MessageBody
+			, @StartTime			= @StartTime
+			, @EndTime				= @EndTime
+			, @SessionId			= NULL
+			, @ErrorMessage			= NULL
+			, @ConversationHandle	= NULL
+			, @QueueNo				= 0
+			, @SiteDBGroupId		= 0
+			, @matchid				= @matchid
+			, @AffectedTicket 		= @AffectedTicket 
+			, @TableType			= 1
+			, @EventTable			= 1
 	END
 END
 GO

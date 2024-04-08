@@ -10,6 +10,7 @@ AS
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
 		- 20240318@Kathy: Missing LogId [Redmine:#202516]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 
 	Param's Explanation:  
 		   
@@ -29,6 +30,7 @@ BEGIN
 			,@Action		VARCHAR(1)
 			,@SettlementAction VARCHAR(20)
 			,@TicketType	VARCHAR(1)
+			,@EventTable	TINYINT
 			
 			,@procName		SYSNAME	= OBJECT_NAME(@@procid)
 			,@WaitingTime	VARCHAR(10)
@@ -52,7 +54,8 @@ BEGIN
 				,@MatchId AS MatchId
 				,@Action AS Action
 				,@SettlementAction AS SettlementAction
-				,@TicketType AS TicketType				
+				,@TicketType AS TicketType	
+				,@EventTable AS EventTable
 		WHERE 1 = 0
 		
 		RETURN
@@ -94,7 +97,7 @@ BEGIN
 				,l.Action
 				,l.SettlementAction
 				,l.TicketType
-				
+				,l.EventTable
 		FROM	dbo.SiteDB_SettlementService_CalculationLog_3rd l WITH(NOLOCK,INDEX = CIX_SiteDB_SettlementService_CalculationLog_3rd)
 			INNER JOIN @tmpInsertedLogIds tmp ON l.LogId = tmp.LogId
 		ORDER BY LogId
@@ -109,7 +112,7 @@ BEGIN
 				,@Action AS Action
 				,@SettlementAction AS SettlementAction
 				,@TicketType AS TicketType
-				
+				,@EventTable AS EventTable
 		WHERE 1 = 0
 	END
 END

@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01]
 	,@MessageType VARCHAR(200) = ''
 	,@TransInfo	XML = NULL
 	,@TransInfoJson VARBINARY(MAX) = NULL
-	,@TableName VARCHAR(128)
+	,@TableName VARCHAR(128)= '' OUTPUT
 	,@MatchId	INT			= 0
 	,@Action	VARCHAR(1)	= 'U'
 	,@SettlementAction VARCHAR(20) = NULL
@@ -15,8 +15,9 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01]
 	,@SettlementProcessingId BIGINT = NULL	
 	,@Is3rd 	BIT =  0
 	,@SiteDB	 SMALLINT = 1
+	,@EventTable TINYINT = 0 
 	,@CalledByBrokerService	BIT = 0
-	,@AffectedTicket INT = 0
+	,@AffectedTicket INT = 0 OUTPUT	
 AS
 /*
 	Created by: 20220728@Kathy
@@ -38,7 +39,8 @@ AS
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230411@July: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine:#168081]
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
-		- 20230816@Kathy: parlay boost [Redmine:#191873]   
+		- 20230816@Kathy: parlay boost [Redmine:#191873] 
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]		
 
 	Param's Explanation:  
 		   
@@ -82,7 +84,7 @@ BEGIN
 		,currency	TINYINT	
 		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate FLOAT, MainMatchId INT
 	)
-
+	
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
 	SET @ServerName = @@SERVERNAME
 	SET @SiteDB_RunSettlement = 1
@@ -161,38 +163,23 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			SET @sMessage = 'EXEC dbo.Bet_ExecRep_NAP_Admin_01 @matchid = ' + CONVERT(NVARCHAR(50), ISNULL(@matchid,0)) 
-							+ CASE WHEN @SessionId IS NULL THEN '' ELSE ',@SessionId =' + CAST(@SessionId AS VARCHAR(20) ) END
-							+ ',@SiteDBGroupId = ' + CAST(@SiteDBGroupId AS VARCHAR) 
-							+ ',@MessageType = ' +  '''' + @MessageType + ''''
-							+ ',@TableName = ' + CASE
-													WHEN @TableName IS NULL THEN 'NULL'
-													ELSE '''' + @TableName + ''''
-													END 
-							+ ',@Action = ' + CASE
-													WHEN @Action IS NULL THEN 'NULL'
-													ELSE '''' + @Action + ''''
-													END 
-							+ ',@SettlementAction = ' + CASE
-													WHEN @SettlementAction IS NULL THEN 'NULL'
-													ELSE '''' + @SettlementAction + ''''
-													END 
-							+ ',@TicketType = ' + CASE
-													WHEN @TicketType IS NULL THEN 'NULL'
-													ELSE '''' + @TicketType + ''''
-													END 
-							+ ',@TotalQueue = ' +  CONVERT(VARCHAR(20), @SiteDB_TotalQueue) 
-							+ ',@RunOnServer = ' + CASE
-													WHEN @RunOnServer IS NULL THEN 'NULL'
-													ELSE '''' + @RunOnServer + ''''
-													END 							
-							+ ',@Is3rd = ' + CASE
-													WHEN @Is3rd IS NULL THEN '0'
-													ELSE CAST(@Is3rd AS VARCHAR(3))
-													END 
-							+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfo) + '''' END
-							+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = '  + CONVERT(NVARCHAR(max), @TransInfoJson, 1)  END
-							+ ',@CalledByBrokerService = 1'
+			SET @sMessage = CAST((
+					SELECT	@matchid AS '@MatchId'
+							,@SessionId AS '@SessionId'
+							,@SiteDBGroupId AS '@SiteDBGroupId'
+							,@MessageType AS '@MessageType'
+							,@TableName AS '@TableName'
+							,@Action AS '@Action'
+							,@SettlementAction AS '@SettlementAction'
+							,@TicketType AS '@TicketType'
+							,@SiteDB_TotalQueue AS '@TotalQueue'
+							,@RunOnServer AS '@RunOnServer'
+							,@Is3rd AS '@Is3rd'
+							,CONVERT(nvarchar(max), @TransInfoJson, 1) AS '@TransInfoJson'	
+							,CAST(@TransInfo AS VARCHAR(MAX)) AS '@TransInfo'
+							,@EventTable AS '@EventTable'							
+					FOR XML PATH ('r'), ROOT ('root'), TYPE)
+				AS VARCHAR(MAX))
 		
 			EXEC dbo.SSB_Send_Message 
 				@MessageContent = @sMessage
@@ -212,7 +199,7 @@ BEGIN
 				SET @errmsg = NULL
 
 				DELETE @tmpTransId
-
+				
 				IF @TableName = 'SiteDB_SettlementLock' AND OBJECT_ID('SiteDB_SettlementLock', 'U') IS NOT NULL
 				BEGIN
 					EXEC dbo.ExecRep_NAP_Admin_04 @Action = @Action
@@ -277,13 +264,13 @@ BEGIN
 								,sComm = CASE WHEN t.sComm IS NULL THEN b.scomm ELSE t.sComm END					
 								,Status = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
 								,StatusID = CASE WHEN t.StatusID IS NULL THEN b.statusID ELSE t.StatusID END
-								,ruben= CASE WHEN t.ruben IS NULL THEN b.ruben ELSE t.ruben END									
+								,ruben= CASE WHEN t.ruben IS NULL THEN b.ruben ELSE t.ruben END		
 						FROM @tmpTransId t
 							INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 								ON  t.transid = b.transid 
 						OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 
-						SET @AffectedTicket = @@ROWCOUNT
+						SELECT @AffectedTicket = @batchNo
 							
 						DELETE 
 						FROM	dbo.SiteDB_SettlementProcessing 
@@ -421,12 +408,13 @@ BEGIN
 									,betid = CASE WHEN t.betid IS NULL THEN b.betid ELSE CAST(t.betid AS BIGINT) END
 									,ExtraInfo = CASE WHEN t.ExtraInfo IS NULL THEN b.ExtraInfo ELSE t.ExtraInfo END
 									,virtualrate = CASE WHEN t.virtualrate IS NULL THEN b.virtualrate ELSE t.virtualrate END
+						
 							FROM @tmpTransId t
 								INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 									ON  t.transid = b.transid 
 							OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 
-						SET @AffectedTicket = @@ROWCOUNT
+						SELECT @AffectedTicket = @batchNo
 					END
 				END
 				ELSE IF @TableName = 'bettransm'
@@ -507,9 +495,12 @@ BEGIN
 							,livehomescore = CASE WHEN t.livehomescore IS NULL THEN bm.livehomescore ELSE t.livehomescore END					
 							,liveawayscore = CASE WHEN t.liveawayscore IS NULL THEN bm.liveawayscore ELSE t.liveawayscore END									
 							,creator = CASE WHEN t.creator IS NULL THEN bm.creator ELSE t.creator END
+					
 					FROM	@tmptransid t
 						INNER JOIN dbo.bettransm bm WITH (ROWLOCK, UPDLOCK)
 							ON	bm.transid = t.transid 
+							
+					SELECT @AffectedTicket = @batchNo
 				END
 				ELSE IF @TableName = 'BetParlayDetail'
 				BEGIN

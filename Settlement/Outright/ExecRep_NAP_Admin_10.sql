@@ -20,6 +20,7 @@ AS
 	  - 20230526@Kathy: wrong SMA winlost because of order in calculate formula [Redmine:#188795]
 	  - 20230523@Kathy: scaleout - credit [Redmine:#188452]
 	  - 20231123@Kathy: Enhance outright settlement to prevent discrepancy data on winlostdate between SiteDBs & CentralDB [Redmine:#197266]
+	  - 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 	  
     
 	 Param's Explanation:  
@@ -42,7 +43,11 @@ BEGIN
 			,@transInfoJson			NVARCHAR(MAX)
 			,@NewStatusID			TINYINT
 			,@NewWinLost			MONEY
-			
+			,@AffectedTicket		INT
+			,@StartTime				DATETIME2
+			,@EndTime				DATETIME2
+			,@MessageBody			VARCHAR(MAX)
+
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY)
 	DECLARE @tmpTransInfo TABLE (TransId			BIGINT
 								,CustId				INT
@@ -82,6 +87,8 @@ BEGIN
 	IF @@ROWCOUNT = 0 RETURN
 
 	BEGIN TRY
+		SET @StartTime = SYSDATETIME()
+
 		IF @Action='UNDO'
 		BEGIN
 			SET @StepNumber = 1;
@@ -251,7 +258,9 @@ BEGIN
 			FROM @tmpTransId AS t
 				INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) ON t.transid = b.transid
 		END
-	
+		
+		SET @EndTime = SYSDATETIME()
+
 		IF @IsCentral = 1 OR @IsSiteDB = 1
 		BEGIN
 			SET @StepNumber = 5;
@@ -359,7 +368,35 @@ BEGIN
 				,@TransInfoJson = @TransInfoJson
 				,@SettlementAction = @Action
 				,@TicketType = 's'
-				,@EventTable = 2
+				,@EventTable = 2 
+	END
+
+	SELECT @AffectedTicket = COUNT(1)
+	FROM	@tmpTransInfo
+	
+	IF OBJECT_ID('SSB_Settlement_WriteLogs','P') IS NOT NULL 
+	BEGIN 
+		SET @MessageBody = 'EXEC ExecRep_NAP_Admin_10 @transIds = ''' + @TransIDs + ''''
+								+ ',@MatchId = ' + CAST(@MatchId AS VARCHAR)
+								+ CASE WHEN @Status IS NOT NULL THEN ',@Status = ''' + @Status + '''' ELSE '' END
+								+ ',@Action = ''' + @Action + ''''
+								+ ',@Deadheat = ' + CAST(@Deadheat AS VARCHAR)
+								+ CASE WHEN @Winlostdate IS NOT NULL THEN ',@Winlostdate = ''' + CAST(@Winlostdate AS VARCHAR) ELSE '' END
+							
+		exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL
+			, @MessageType			= NULL
+			, @MessageBody			= @MessageBody
+			, @StartTime			= @StartTime
+			, @EndTime				= @EndTime
+			, @SessionId			= NULL
+			, @ErrorMessage			= NULL
+			, @ConversationHandle	= NULL
+			, @QueueNo				= 0
+			, @SiteDBGroupId		= 0
+			, @matchid				= @matchid
+			, @AffectedTicket 		= @AffectedTicket 
+			, @TableType			= 1 -- bettrans
+			, @EventTable			= 2 -- outright
 	END
 END
 

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_CalculationLog_3rdIns]
 	@SiteDBGroupId SMALLINT
 	,@SiteDBCalculationLog_3rd TVP_SiteDB_CalculationLog_3rd READONLY
@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 
 	Param's Explanation:  
 		   
@@ -22,6 +23,7 @@ BEGIN
 			,@MatchId			INT
 			,@SettlementAction	VARCHAR(20)
 			,@TicketType		VARCHAR(1)
+			,@EventTable		TINYINT
 			
 			,@xmlCommand		VARCHAR(MAX)
 			,@MessageType		VARCHAR(200)
@@ -52,6 +54,7 @@ BEGIN
 					,@Action = s.Action
 					,@SettlementAction = s.SettlementAction
 					,@TicketType = s.TicketType	
+					,@EventTable = s.EventTable
 				
 			FROM	@SiteDBCalculationLog_3rd s
 			WHERE	s.LogId > @LogId
@@ -67,6 +70,7 @@ BEGIN
 							,@Action AS '@Action'
 							,@SettlementAction AS '@SettlementAction'
 							,@TicketType AS '@TicketType'
+							,@EventTable AS '@EventTable'
 							,@SiteDBGroupId AS '@SiteDBGroupId'		
 							,CONVERT(nvarchar(max), @TransInfoJson, 1) AS '@TransInfoJson'	
 					FOR XML PATH ('r'), ROOT ('root'), TYPE)
