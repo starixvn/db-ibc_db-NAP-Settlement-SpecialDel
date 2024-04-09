@@ -63,6 +63,7 @@ AS
 			- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 			- 20231229@Aries: Enhancement of Auto Settlement [Redmine:#199004]
 			- 20240311@Helen: SP Tuning [Redmine:#202131]
+			- 20240408@Aries: Cannot insert duplicate key in object dbo.#tmpAllParentChildMatch [Redmine:#203558]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -186,7 +187,7 @@ BEGIN
 
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 	
-	CREATE TABLE #tmpAllParentChildMatch (MatchId INT PRIMARY KEY, ParentId INT, eventstatus NVARCHAR(50))
+	CREATE TABLE #tmpAllParentChildMatch (MatchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON), ParentId INT, eventstatus NVARCHAR(50))
 	CREATE INDEX CIX_tmp_ParentId ON #tmpAllParentChildMatch(ParentId)
 
 	SET @n = 2147483647
