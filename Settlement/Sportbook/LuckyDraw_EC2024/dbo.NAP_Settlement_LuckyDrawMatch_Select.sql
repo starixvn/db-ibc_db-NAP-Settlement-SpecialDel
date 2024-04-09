@@ -18,25 +18,25 @@ BEGIN
 			,@To30Time			DATETIME 
 			,@CurrTime			DATETIME
 
-	SET @CurrTime	= CAST(GETDATE() AS DATE)
+	SET @CurrTime	= GETDATE()
 	SET @To15Time	= DATEADD(SECOND, - 900, @CurrTime) --15 min
 	SET @To30Time	= DATEADD(SECOND, - 1800, @CurrTime) --30 min
-
+	
 	SELECT m.MatchId
 		  ,m.leagueid
 		  ,ls.MinBet
 		  ,ls.MinPool
 		  ,ls.MaxPool
 		  ,pr.TotalPool
-		  ,5 AS TotalLucker
+		  ,5 AS TotalWinner
 		  ,s.IsTest
 	FROM match AS m WITH(NOLOCK)
 		INNER JOIN dbo.f_Set_LuckyDraw_Setting() s ON s.LeagueID = m.leagueid
 		CROSS APPLY (SELECT TOP 1 q.execTime AS SettleTime
 					 FROM dbo.Single_Calculate_Queue AS q WITH(NOLOCK) 
 					 WHERE q.MatchId = m.matchid 
-						AND s.Action IN ('CAL', 'CAL-FT')
-					 ORDER BY e.execTime DESC
+						AND q.Action IN ('CAL', 'CAL-FT')
+					 ORDER BY q.execTime DESC
 				) AS qt
 		CROSS APPLY (SELECT TOP 1 s.MinBet,s.MinPool,s.MaxPool
 					 FROM dbo.LuckyDrawSetting AS s WITH(NOLOCK) 
@@ -54,12 +54,12 @@ BEGIN
 		OUTER APPLY (SELECT MAX(l.StatusID) AS MaxStatusID, MIN(l.StatusID) AS MinStatusID
 					 FROM dbo.LuckyDrawList AS l WITH(NOLOCK) 
 					 WHERE l.MatchId = m.matchid 
-				) AS ldN
+				) AS ld
 	WHERE m.eventstatus = 'completed'  
 		AND m.betstatus NOT LIKE '%Refund%' 
 		AND ISNULL(ld.MaxStatusID,3) = 3 
 		AND ISNULL(ld.MinStatusID,3) = 3 
-		AND 1 = CASE WHEN qt.SettleTime <= @To30Time THEN 1
+		AND 1 = CASE WHEN qt.SettleTime BETWEEN @To15Time AND @To30Time THEN 1
 		             WHEN qt.SettleTime <= @To15Time AND ISNULL(m.SettlementStatus,0) & 87 = 0 THEN 1
 					 ELSE 0
 				END

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Settlement_LuckyDrawMember_Select]
 	  @MatchID		INT
 	 ,@MinBet		DECIMAL(12,4)
@@ -7,7 +7,7 @@ AS
 /*
 	Created by: 20240401@Aries
 	Task: Settlement  
-	DB: DBCTG-bodb02
+	DB: DBSIC-bodb02
 	
 	Revisions:
 		- 20240401@Aries: EC 2024-Correct Score Sharing and Lucky Draw-(Pool prize) [Redmine:#202309]
@@ -26,7 +26,8 @@ BEGIN
 	WHERE b.matchid = @MatchID
 		AND b.bettype = 413
 		AND b.status = 'WON'
-		AND (s.SiteLabel in ('789y') OR s.site IN ('Special','Hedging','saba789' ))
+		AND s.SiteLabel NOT IN ('789y')  
+		AND s.site NOT IN ('Special','Hedging','saba789' )
 		AND 1 = CASE WHEN @IsTest = 1 AND b.currency = 20 AND 1*stake >= @Minbet THEN 1 
 		             WHEN actualrate*stake >= @Minbet THEN 1 
 					 ELSE 0

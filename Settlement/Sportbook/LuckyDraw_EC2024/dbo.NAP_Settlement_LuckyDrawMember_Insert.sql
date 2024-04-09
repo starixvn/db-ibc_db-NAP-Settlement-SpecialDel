@@ -2,8 +2,8 @@
 ALTER PROCEDURE [dbo].[NAP_Settlement_LuckyDrawMember_Insert]
 	 @MatchId			INT
 	,@ListTransIDs		VARCHAR(MAX)
-	,@TotalPool			DECIMAL(12,4)
-	,@TotalLucker		INT
+	,@PoolAmount		DECIMAL(12,4)
+	,@TotalWinner		INT
 	,@IsTest			BIT = 0
 AS
 /*
@@ -40,26 +40,26 @@ BEGIN
 	SELECT @TotalCust = COUNT(DISTINCT CustId)
 	FROM #TransInfo
 
-	IF (@TotalLucker >= @TotalCust)
+	IF (@TotalWinner >= @TotalCust)
 	BEGIN
 		INSERT INTO @Lucker(CustId)
 		SELECT	DISTINCT 
 				CustId
 		FROM #TransInfo
 
-		SET @TotalLucker = @TotalCust
+		SET @TotalWinner = @TotalCust
 	END
 	ELSE
 	BEGIN
 		INSERT INTO @Lucker(CustId)
 		SELECT	DISTINCT 
-				TOP(@TotalLucker)  
+				TOP(@TotalWinner)  
 				CustId
 		FROM #TransInfo
 		ORDER BY RankRandom ASC
 	END
 
-	SET @MaxCount = @TotalLucker*2
+	SET @MaxCount = @TotalWinner*2
 	WHILE @Count <= @MaxCount
 	BEGIN
 		SET @VerificationCode = dbo.f_GenerateLuckyDraw_VerificationCode(RAND(),RAND(),NEWID(),NEWID(),NEWID())
@@ -82,20 +82,22 @@ BEGIN
 		SET @Count = @Count + 1
 	END
 
-	INSERT INTO LuckyDrawList(matchid,custid,TypeID,VerificationCode,StatusID,Payout,Currency,CreatedDate,LastModifiedDate,IsNotify,ExpiredDate, IsTest)
+	INSERT INTO LuckyDrawList(matchid,custid,DisplayName,TypeID,VerificationCode,StatusID,Payout,Currency,CreatedDate,LastModifiedDate,IsNotify,ExpiredDate,IsLicensee, IsTest)
 	SELECT @MatchId
 		  ,l.custid
+		  ,[dbo].[f_EncodeLuckyDraw_UserName](c.username) AS DisplayName
 		  ,1 AS TypeID
 		  ,l.VerificationCode
 		  ,0 AS StatusID
-		  ,@TotalPool/@TotalLucker AS Payout
-		  ,'US$' AS Currency
+		  ,@PoolAmount/@TotalWinner AS Payout
+		  ,'RM' AS Currency
 		  ,GETDATE() AS CreatedDate
 		  ,GETDATE() AS LastModifiedDate
 		  ,0 AS IsNotify
 		  ,CASE WHEN c.Site = 'IBCIndo' THEN DATEADD(DAY, 14, GETDATE())
 				ELSE DATEADD(DAY, 7, GETDATE() )
 			END AS ExpiredDate
+		  ,0 AS IsLicensee -- Credit
 		  ,@IsTest
 	FROM @Lucker AS l
 		INNER JOIN CustDB.dbo.Customer AS c WITH(NOLOCK) ON l.CustId = c.custid
