@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Settlement_LuckyDrawMatch_Select]
 AS
 /*
@@ -14,17 +14,19 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 		
-	DECLARE  @WaitingSecond		INT = 900 -- 15min
-			,@WaitingTime		DATETIME 
+	DECLARE  @FromTime			DATETIME 
+			,@ToTime			DATETIME 
 			,@CurrTime			DATETIME
 
-	SET @CurrTime = CAST(GETDATE() AS DATE)
-	SET @WaitingTime = DATEADD(SECOND, - @WaitingSecond, @CurrTime)
+	SET @CurrTime	= CAST(GETDATE() AS DATE)
+	SET @FromTime	= DATEADD(SECOND, - 10800, @CurrTime) --3 hours 
+	SET @ToTime		= DATEADD(SECOND, - 900, @CurrTime) --15 min
 
 	SELECT TOP 1
 		   m.MatchId
 		  ,m.leagueid
 		  ,50 AS MinBet --ls.MinBet
+		  ,s.IsTest
 	FROM match AS m WITH(NOLOCK)
 		OUTER APPLY (SELECT MAX(l.StatusID) AS MaxStatusID, MIN(l.StatusID) AS MinStatusID
 					 FROM dbo.LuckyDrawList AS l WITH(NOLOCK) 
@@ -35,10 +37,12 @@ BEGIN
 		--			 WHERE s.MatchId = m.matchid 
 		--				AND s.BetType = 413
 		--		) AS ls
+		INNER JOIN dbo.f_Set_LuckyDraw_Setting() s
+			ON s.LeagueID = m.leagueid
 	WHERE m.eventstatus = 'completed'  
 		AND m.matchid IN (83149876,83149907)
 		AND ISNULL(ld.MaxStatusID,3) = 3 
 		AND ISNULL(ld.MinStatusID,3) = 3 
-		AND m.settleTime <= @WaitingTime
+		AND m.settleTime <= @ToTime
 
 END

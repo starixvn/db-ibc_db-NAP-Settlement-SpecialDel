@@ -1,7 +1,8 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Settlement_LuckyDrawMember_Insert]
 	 @MatchId			INT
 	,@ListTransIDs		VARCHAR(MAX)
+	,@IsTest			BIT
 AS
 /*
 	Created by: 20240401@Aries
@@ -80,7 +81,7 @@ BEGIN
 		SET @Count = @Count + 1
 	END
 
-	INSERT INTO LuckyDrawList(matchid,custid,TypeID,VerificationCode,StatusID,Payout,Currency,CreatedDate,LastModifiedDate,IsNotify)
+	INSERT INTO LuckyDrawList(matchid,custid,TypeID,VerificationCode,StatusID,Payout,Currency,CreatedDate,LastModifiedDate,IsNotify,ExpiredDate, IsTest)
 	SELECT @MatchId
 		  ,l.custid
 		  ,1 AS TypeID
@@ -91,7 +92,15 @@ BEGIN
 		  ,GETDATE() AS CreatedDate
 		  ,GETDATE() AS LastModifiedDate
 		  ,0 AS IsNotify
+		  ,CASE WHEN s.Site = 'IBCIndo' THEN DATEADD(DAY, 14, GETDATE())
+				ELSE DATEADD(DAY, 7, GETDATE() )
+			END AS ExpiredDate
+		  ,@IsTest
 	FROM @Lucker AS l
+		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
+			ON l.CustId = c.custid
+		INNER JOIN CustDB.dbo.Site s WITH(NOLOCK)
+			ON c.Site = s.Site
 		--CROSS APPLY(SELECT TOP 1 TotalPool
 		--			FROM LuckyDrawPoolPrize AS ls 
 		--			WHERE ls.MatchId = @MatchId
