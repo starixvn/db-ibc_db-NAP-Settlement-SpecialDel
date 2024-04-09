@@ -19,6 +19,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@DeterminedType		TINYINT		= 0
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 	,@IsPingoal			BIT				= 0
+	,@IsSettleRelated	BIT				= 0
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -86,6 +87,7 @@ AS
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20240409@Aries: Enhance Refund Game Winner matches for Tennis [Redmine: #203638]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -1011,6 +1013,7 @@ BEGIN
 							END								
 							+ CASE WHEN @IsAppliedSOP = 1 AND @IsAuto = 0 THEN '<r n="Is Leader" v="' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '"/>' ELSE '' END
 							+ CASE WHEN @Action LIKE 'CAL%' THEN '<r n="Recalc" v="' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) + '"/>' ELSE '' END
+							+ CASE WHEN @IsSettleRelated = 1 THEN '<r n="RefundRelated" v="1"/>' ELSE '' END
 							+ CASE @RefResultStatus 
 								WHEN 1 THEN '<r n="confirmed/provider" v="no"/>'
 								WHEN 2 THEN '<r n="value consistency" v="no"/>'
