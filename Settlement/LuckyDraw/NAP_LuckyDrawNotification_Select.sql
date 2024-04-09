@@ -17,13 +17,13 @@ BEGIN
 			,m.HomeID
 			,m.AwayID
 			,l.CustID
-			,c.UserName
+			,c.Username
 			,c.recommend	AS AgentID
-			,r.username		AS AgentUserName
+			,r.username		AS AgentUsername
 			,c.mrecommend	AS MasterID
-			,mr.username	AS MasterUserName
+			,mr.username	AS MasterUsername
 			,c.srecommend	AS SuperID
-			,s.username		AS SuperUserName
+			,s.username		AS SuperUsername
 			,c.Site
 			,l.Currency AS CurrencyName
 			,l.Payout AS PrizeAmount
