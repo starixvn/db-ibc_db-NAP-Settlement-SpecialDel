@@ -17,6 +17,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20231115@July: [TVS] Abnormal Bet - Export the list of tickets that the user inputs to a request before Save it [Redmine: #194133]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 
 	Param's explanation:	
 		- @AbnormalBetTransIds: '12343091763609600,12343108943478784'
@@ -72,6 +73,7 @@ BEGIN
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
 		,winlostdate SMALLDATETIME
+		,ChildMatchid INT -- for Cricket
     )
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
@@ -178,7 +180,8 @@ BEGIN
 	IF(EXISTS(SELECT TOP 1 1 FROM #TransInfo WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE d
-		SET d.matchid = m.ParentID
+		SET d.ChildMatchid = d.matchid
+			,d.matchid = m.ParentID
 		FROM #TransInfo d
 			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
 		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
@@ -232,54 +235,65 @@ BEGIN
 			,SiteDBGroupID
 			,winlostdate
 		)
-	SELECT b.matchid
-		,b.TransId
-		,b.custid
-		,b.transdate
-		,b.checktime
-		,b.hdp1
-		,b.hdp2
-		,b.livehomescore
-		,b.liveawayscore
-		,b.liveindicator
-		,b.betteam
-		,b.creator
-		,b.refno
-		,b.betid
-		,b.bettype
-		,b.betdaqid 
-		,b.betfrom 
-		,b.statusID 
-		,b.WalletType 
-		,b.RefCode 
-		,b.recommend 
-		,b.mrecommend 
-		,b.srecommend 
-		,b.statuswinlost 
-		,0 AS IsMixParlay 
-		,1 AS IsMoved14 
-		,b.odds 
-		,b.oddsspread
-		,b.oddstype 
-		,b.betcheck 
-		,b.stake 
-		,b.CurrencyName 
-		,b.Transdesc 
-		,b.ExtraInfo 
-		,b.BonusID 
-		,b.winlost        
-		,b.actual_stake 
-		,b.Status
-		,b.modds 
-		,b.SiteDBGroupID
-		,b.winlostdate
-	FROM #transIdTemp t
-		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
-	WHERE b.statusID NOT IN (101, 102, 103)
-		AND b.bettype NOT IN (805, 806)			
-		AND b.bettype NOT BETWEEN 901 AND 920
-		AND b.betfrom <> 'P'
-		AND b.SiteDBGroupID = @SiteDBGroupID
+		SELECT b.matchid
+			,b.TransId
+			,b.custid
+			,b.transdate
+			,b.checktime
+			,b.hdp1
+			,b.hdp2
+			,b.livehomescore
+			,b.liveawayscore
+			,b.liveindicator
+			,b.betteam
+			,b.creator
+			,b.refno
+			,b.betid
+			,b.bettype
+			,b.betdaqid 
+			,b.betfrom 
+			,b.statusID 
+			,b.WalletType 
+			,b.RefCode 
+			,b.recommend 
+			,b.mrecommend 
+			,b.srecommend 
+			,b.statuswinlost 
+			,0 AS IsMixParlay 
+			,1 AS IsMoved14 
+			,b.odds 
+			,b.oddsspread
+			,b.oddstype 
+			,b.betcheck 
+			,b.stake 
+			,b.CurrencyName 
+			,b.Transdesc 
+			,b.ExtraInfo 
+			,b.BonusID 
+			,b.winlost        
+			,b.actual_stake 
+			,b.Status
+			,b.modds 
+			,b.SiteDBGroupID
+			,b.winlostdate
+		FROM #transIdTemp t
+			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
+		WHERE b.statusID NOT IN (101, 102, 103)
+			AND b.bettype NOT IN (805, 806)			
+			AND b.bettype NOT BETWEEN 901 AND 920
+			AND b.betfrom <> 'P'
+			AND b.SiteDBGroupID = @SiteDBGroupID
+
+		--Update Main MatchID for child match cricket (Sporttype = 50)
+		IF(EXISTS(SELECT TOP 1 1 FROM #TransInfo WHERE bettype NOT IN (9, 29, 2799, 10449)))
+		BEGIN
+			UPDATE d
+			SET d.ChildMatchid = d.matchid
+				,d.matchid = m.ParentID
+			FROM #TransInfo d
+				INNER JOIN dbo.match14 m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+			WHERE d.bettype NOT IN (9, 29, 2799, 10449)
+		END
 	END
 						
 	--RETURN DATA
@@ -324,12 +338,14 @@ BEGIN
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
 		,winlostdate AS 'wld'
+		,ChildMatchid AS 'cmid'
 	FROM #TransInfo
 	FOR JSON PATH))
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
 	DROP TABLE #TransInfo
+	DROP TABLE #transIdTemp
 END
 
 GO

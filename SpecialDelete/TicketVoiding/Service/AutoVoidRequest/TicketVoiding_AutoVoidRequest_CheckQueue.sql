@@ -17,6 +17,7 @@ AS
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 
 	Param's explanation:
 	 Note : Call for ActionId IN (1,9) -- Auto void winning, VoidResultKeyed
@@ -68,7 +69,16 @@ BEGIN
 		FROM #tmpInputTransId t 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE b.statuswinlost IS NOT NULL 
-		
+			AND 1 = CASE WHEN t.IssueTypeId IN (19,21) THEN 1
+						WHEN t.IssueTypeId <> 19 AND b.statusID IN (0,1) THEN 1
+						ELSE 0
+					END
+		UNION ALL
+		SELECT DISTINCT t.RequestId, t.VoidActionId
+		FROM #tmpInputTransId t 
+			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE b.statuswinlost IS NOT NULL AND b.statusID IN (0,1) --Abnormal bet
+			
 		UNION ALL
 		SELECT DISTINCT t.RequestId, t.VoidActionId
 		FROM #tmpInputTransId t 
@@ -82,20 +92,35 @@ BEGIN
 	SELECT t.RequestId, t.TransId
 	FROM #tmpInputTransId t 
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-	WHERE b.statusID IN (101, 102, 103) 
+	WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
+				   WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+				ELSE 0 END
+		AND t.IsMixParlay = 0
+		AND t.IsCricket = 0
+	UNION ALL
+	SELECT t.RequestId, t.TransId
+	FROM #tmpInputTransId t 
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
+	WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
+				   WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+				ELSE 0 END
 		AND t.IsMixParlay = 0
 		AND t.IsCricket = 0
 
 	SELECT t.RequestId, t.TransId
 	FROM #tmpInputTransId t 
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-	WHERE b.statusID IN (101, 102, 103)
+	WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
+				   WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+				ELSE 0 END
 		AND t.IsMixParlay = 1
 
 	SELECT t.RequestId, t.TransId
 	FROM #tmpInputTransId t 
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-	WHERE b.statusID IN (101, 102, 103) 
+	WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
+				   WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+				ELSE 0 END
 		AND t.IsCricket = 1
 
 	DROP TABLE #tmpInputTransId

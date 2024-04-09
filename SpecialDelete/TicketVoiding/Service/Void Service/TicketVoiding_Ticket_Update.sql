@@ -34,6 +34,7 @@ AS
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835] 
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 	
 	Param's explanation:	
 		
@@ -41,7 +42,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF (@IssueTypeId = 17) OR (@IssueTypeId = 13 AND @VoidingTypeId = 5) --Void 14
+	IF (@IssueTypeId = 17) OR (@IssueTypeId IN (11,15,13) AND @VoidingTypeId IN (5,6)) --Void 14
 	BEGIN
 		EXEC dbo.TicketVoiding_VoidHistorical_Update
 			@RequestId				= @RequestId

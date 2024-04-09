@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.TicketVoiding_VoidHistorical_Update
 (
 	@RequestId			INT
@@ -31,6 +31,7 @@ AS
 		- 20230623@Max: [TVS] Enhance void 14 by Username Feature name [Redmine: #190028]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 
 	Param's explanation:	
 		
@@ -343,7 +344,7 @@ BEGIN
 			,t.sporttype
 
 	/**********************************************   *************************************************************/
-	IF @IssueTypeId = 13
+	IF @IssueTypeId IN (11,13)
 	BEGIN
 		SET @IsAbnormalBet = 1
 	END

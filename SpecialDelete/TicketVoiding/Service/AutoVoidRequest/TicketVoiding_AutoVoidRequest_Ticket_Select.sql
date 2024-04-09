@@ -17,6 +17,7 @@ AS
 		- 20230321@Max: Hotfix scan request auto void winning [Redmine: #185526]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 
 	Param's explanation:
 		+ Both @RequestIds, @SiteDBGroupID IS NULL: Service scan signal settle 5p/time
@@ -34,25 +35,28 @@ BEGIN
 		SELECT value FROM STRING_SPLIT (@RequestIds, ',')
 
 		--Single
-		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, bettype, CustId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, rds.Bettype, rds.CustId
+		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, bettype, CustId, VoidActionId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, rds.Bettype, rds.CustId, r.ActionId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId <> 29
 			AND rds.IsProcessed IS NULL
 
 		--Main parlay
-		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
+		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, VoidActionId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, r.ActionId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId = 29
 			AND rds.IsProcessed IS NULL
 		UNION ALL
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, r.ActionId
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rds WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.IsProcessed IS NULL
@@ -64,7 +68,15 @@ BEGIN
 		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, rds.Bettype, rds.CustId, r.ActionId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
-			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rds.MatchId
+			CROSS APPLY (
+				SELECT m.GlobalShowTime
+				FROM dbo.match m WITH (NOLOCK) 
+				WHERE m.matchid = rds.MatchId
+				UNION 
+				SELECT m.GlobalShowTime
+				FROM dbo.match14 m WITH (NOLOCK) 
+				WHERE m.matchid = rds.MatchId
+			)m
 		WHERE rds.MatchId <> 29
 			AND r.ActionId IN (1,9)
 			AND rds.IsProcessed IS NULL

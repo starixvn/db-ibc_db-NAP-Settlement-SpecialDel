@@ -19,6 +19,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		
 	Param's explanation:	
 		
@@ -294,6 +295,23 @@ BEGIN
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
 		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
+
+		--Get data from match for case main match cricket still belong range active
+		IF @@ROWCOUNT = 0 
+		BEGIN
+			UPDATE d
+			SET matchcode 	= m.matchcode
+				,homeid 	= m.homeid
+				,awayid 	= m.awayid
+				,leagueid 	= m.leagueid
+				,sporttype 	= m.sporttype
+				,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+				,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
+			FROM #TVSTicketBets d
+				INNER JOIN dbo.match m WITH (NOLOCK) 
+				ON	d.matchid = m.matchid
+			WHERE d.bettype NOT IN (9, 29, 2799, 10449)
+		END
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]

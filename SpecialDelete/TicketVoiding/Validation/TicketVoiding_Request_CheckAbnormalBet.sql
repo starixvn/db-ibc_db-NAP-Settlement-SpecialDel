@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@IsRemoveCustomerClass4K	BIT = 0
 	,@TransInfoJson				VARCHAR(MAX) = NULL
 	,@IsAddSettledTickets		BIT = 0
+	,@IsVoidAllArchivedTickets	BIT = 0
 )
 AS
 /*  
@@ -62,9 +63,12 @@ AS
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
+		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
+		- 20240315@July: [TVS] Abnormal Bet - Support void System Parlay tickets [Redmine: #196462]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
+		+ @FilterBy: NULL: single ticket, 1: mix-parlay ticket, 2: system-parlay ticket
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -93,7 +97,7 @@ BEGIN
 			,@ListBettype 				 VARCHAR(MAX) =''
 			,@ListBetteam 				 VARCHAR(MAX) =''
 			,@TransInfoJson_Output		 VARBINARY(MAX) = NULL
-
+			,@Archived_FromDate			 DATETIME = NULL
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -101,6 +105,8 @@ BEGIN
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50))
+
+	SET @Archived_FromDate = CONVERT(DATE, DATEADD(DAY, -7, GETDATE()))
 
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -226,34 +232,35 @@ BEGIN
 	  ,eventstatus		NVARCHAR(50)
 	  ,CustomerClass	SMALLINT
 	  ,IsVipMember		BIT DEFAULT(0)
+	  ,ChildMatchId		INT
 	)
 	INSERT INTO #tmpTransInfo( 
 		   matchid, transid, refno, custid, hdp1, hdp2, livehomescore, liveawayscore, liveindicator, odds, oddsspread 
 		 , betfrom, bettype, betteam, betcheck, Status, transdate, betid, Transdesc, statusID
 		 , srecommend, mrecommend, recommend, creator, WalletType, RefCode, stake, oddstype, winlost
-		 , CurrencyName, betdaqid, ExtraInfo, actual_stake, winlostdate, modds, statuswinlost, IsMoved14, IsMixParlay, SiteDBGroupID
+		 , CurrencyName, betdaqid, ExtraInfo, actual_stake, winlostdate, modds, statuswinlost, IsMoved14, IsMixParlay, SiteDBGroupID, ChildMatchId
 		)
 	SELECT mid, t, ref, c, hdp1, hdp2, lh, la, li, o, os
 		 , bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid 
 		 , sre, mre, re, cr, wt, refc, stake, ost, w
-		 , curr, bdaq, ex, acstake, wld, m, statuswl, isM, isP, sitedb
+		 , curr, bdaq, ex, acstake, wld, m, statuswl, isM, isP, sitedb, cmid
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
 			SELECT mid, t, ref, c, hdp1, hdp2, lh, la, li, o, os
 				 , bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid 
 				 , sre, mre, re, cr, wt, refc, stake, ost, w
-				 , curr, bdaq, ex, acstake, wld, m, statuswl, isM, isP, sitedb
+				 , curr, bdaq, ex, acstake, wld, m, statuswl, isM, isP, sitedb, cmid
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, os MONEY
 					, bfr NVARCHAR(4), btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME,bid BIGINT ,tdes NVARCHAR(1000), sid TINYINT 
 					, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, w MONEY
-					, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), acstake MONEY, wld SMALLDATETIME, m SMALLMONEY ,statuswl TINYINT ,isM BIT ,isP BIT ,sitedb SMALLINT
+					, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), acstake MONEY, wld SMALLDATETIME, m SMALLMONEY ,statuswl TINYINT ,isM BIT ,isP BIT ,sitedb SMALLINT, cmid INT
 				)
 		) tbl
 	WHERE f.value <> ''
 
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND IsMoved14 = 0))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND (IsMoved14 = 0 OR ChildMatchId IS NOT NULL)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -270,7 +277,7 @@ BEGIN
 		WHERE d.bettype NOT IN (9, 29)
 	END
 	
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND IsMoved14 = 1))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND (IsMoved14 = 1 OR ChildMatchId IS NOT NULL)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -399,8 +406,14 @@ BEGIN
 		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
 		FROM dbo.match m WITH(NOLOCK) 
 		WHERE matchid = @MatchId
+		
+		UNION ALL
+		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
+		FROM dbo.match14 m WITH(NOLOCK) 
+		WHERE matchid = @MatchId
+
 	END
-	ELSE IF @FilterBy =1
+	ELSE
 	BEGIN
 		SET @MatchId = 29
 		INSERT INTO @tmpMatchId (MatchId)
@@ -450,19 +463,18 @@ BEGIN
 		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
 		LEFT JOIN @tmpMatchId m ON b.matchid = b.matchid
 	WHERE 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
-			       WHEN @FilterBy = 1 AND b.bettype = 29 THEN 1
+			        WHEN @FilterBy IS NOT NULL AND b.bettype = 29 THEN 1
 				   ELSE 0 END
-		AND b.IsMoved14 = 0
+		AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.winlostdate >= @Archived_FromDate THEN 1
+					WHEN @IsVoidAllArchivedTickets = 1 THEN 1
+				ELSE 0 END
 
 	-- get unsuppored transid
 	INSERT #UnsupportedTransids (transid)
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE 1 = CASE WHEN bt.bettype IS NULL 
-						AND (t.bettype <> 29 OR (t.bettype = 29  AND t.betteam <> '1')) --Unsupported System parlay Transids
-				   THEN 1
-				   ELSE 0 END
+	WHERE bt.bettype IS NULL AND @FilterBy IS NULL
 
 	SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #UnsupportedTransids t
@@ -496,7 +508,8 @@ BEGIN
 				    WHEN @ActionId = 2 AND StatusId IN (101, 103) THEN 1
 					ELSE 0 END)
 		OR (bt.bettype IS NULL AND 1 = CASE WHEN @FilterBy IS NULL THEN 1 
-										    WHEN @FilterBy = 1 AND t.bettype = 29  AND t.betteam <> '1' THEN 1
+										    WHEN @FilterBy = 1 AND t.bettype = 29 AND t.betteam <> '1' THEN 1
+										    WHEN @FilterBy = 2 AND t.bettype = 29 AND t.betteam = '1' THEN 1
 										    ELSE 0 END 
 										   )
 		OR t.betfrom ='p'
@@ -520,14 +533,17 @@ BEGIN
 		OUTER APPLY (
 		SELECT TOP 1 IsMoved14
 		FROM #tmpTransInfo
-		WHERE transid = temp.transid AND IsMoved14 = 1
+		WHERE transid = temp.transid 
+			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 AND winlostdate < @Archived_FromDate THEN 1 ELSE 0 END
 		) bm
 		OUTER APPLY (
 		SELECT transid
 		FROM #UnsupportedTransids
 		WHERE transid = temp.transid
 		) u
-	WHERE NOT EXISTS (SELECT 1 FROM #validTransId WHERE transid = temp.transid )
+	WHERE NOT EXISTS (SELECT 1 FROM #validTransId 
+					  WHERE transid = temp.transid 
+					  AND 1 = CASE WHEN @ActionId = 1 AND StatusId IN (111,112,113) THEN 0 ELSE 1 END)
 		AND u.transid IS NULL
 
 	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
@@ -577,8 +593,8 @@ BEGIN
 										FOR XML PATH('')), 1, 1, ''), '')
 		
 		UPDATE t
-		SET t.RemarkId = CASE WHEN @IsAddSettledTickets = 1 AND t.RemarkId IS NOT NULL THEN t.RemarkId
-							  WHEN @IsAddSettledTickets = 1 AND t.RemarkId IS NULL THEN NULL
+		SET t.RemarkId = CASE WHEN @IsAddSettledTickets = 1 AND @ActionId <> 1 AND t.RemarkId IS NOT NULL THEN t.RemarkId
+							  WHEN @IsAddSettledTickets = 1 AND @ActionId <> 1 AND t.RemarkId IS NULL THEN NULL
 							  ELSE 4 END --Settled
 		FROM #tmpInputTransid_RemarkId t
 			INNER JOIN #validTransId v ON t.Transid = v.transid
@@ -654,6 +670,11 @@ BEGIN
 		FROM #validTransId t
 			OUTER APPLY ( 	SELECT GlobalShowTime, livehomescore, liveawayscore, sporttype    
 							FROM dbo.match WITH (NOLOCK)
+							WHERE matchid = @MatchId
+							
+							UNION 
+							SELECT GlobalShowTime, livehomescore, liveawayscore, sporttype    
+							FROM dbo.match14 WITH (NOLOCK)
 							WHERE matchid = @MatchId
 						) m
 
@@ -803,7 +824,6 @@ BEGIN
 		,t.transid AS 't'
 		,b.custid AS  'c'           
 		,b.bettype AS 'btype'
-		,b.betteam AS 'bteam'
 		,b.betid AS 'bid'
 		,b.IsMixParlay AS 'isP'
 		,b.SiteDBGroupID AS 'sitedb'
