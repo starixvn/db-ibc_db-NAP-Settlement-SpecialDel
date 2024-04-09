@@ -2,7 +2,9 @@
 ALTER PROCEDURE [dbo].[NAP_Settlement_LuckyDrawMember_Insert]
 	 @MatchId			INT
 	,@ListTransIDs		VARCHAR(MAX)
-	,@IsTest			BIT
+	,@TotalPool			DECIMAL(12,4)
+	,@TotalLucker		INT
+	,@IsTest			BIT = 0
 AS
 /*
 	Created by: 20240401@Aries
@@ -18,7 +20,6 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE  @handle			INT
-		    ,@NumberLucker		INT = 5
 			,@TotalCust			INT = 0
 			,@VerificationCode	VARCHAR(50)
 			,@Count				INT = 1
@@ -39,26 +40,26 @@ BEGIN
 	SELECT @TotalCust = COUNT(DISTINCT CustId)
 	FROM #TransInfo
 
-	IF (@NumberLucker >= @TotalCust)
+	IF (@TotalLucker >= @TotalCust)
 	BEGIN
 		INSERT INTO @Lucker(CustId)
 		SELECT	DISTINCT 
 				CustId
 		FROM #TransInfo
 
-		SET @NumberLucker = @TotalCust
+		SET @TotalLucker = @TotalCust
 	END
 	ELSE
 	BEGIN
 		INSERT INTO @Lucker(CustId)
 		SELECT	DISTINCT 
-				TOP(@NumberLucker)  
+				TOP(@TotalLucker)  
 				CustId
 		FROM #TransInfo
 		ORDER BY RankRandom ASC
 	END
 
-	SET @MaxCount = @NumberLucker*2
+	SET @MaxCount = @TotalLucker*2
 	WHILE @Count <= @MaxCount
 	BEGIN
 		SET @VerificationCode = dbo.f_GenerateLuckyDraw_VerificationCode(RAND(),RAND(),NEWID(),NEWID(),NEWID())
@@ -87,24 +88,15 @@ BEGIN
 		  ,1 AS TypeID
 		  ,l.VerificationCode
 		  ,0 AS StatusID
-		  ,50000/@NumberLucker AS Payout
+		  ,@TotalPool/@TotalLucker AS Payout
 		  ,'US$' AS Currency
 		  ,GETDATE() AS CreatedDate
 		  ,GETDATE() AS LastModifiedDate
 		  ,0 AS IsNotify
-		  ,CASE WHEN s.Site = 'IBCIndo' THEN DATEADD(DAY, 14, GETDATE())
+		  ,CASE WHEN c.Site = 'IBCIndo' THEN DATEADD(DAY, 14, GETDATE())
 				ELSE DATEADD(DAY, 7, GETDATE() )
 			END AS ExpiredDate
 		  ,@IsTest
 	FROM @Lucker AS l
-		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
-			ON l.CustId = c.custid
-		INNER JOIN CustDB.dbo.Site s WITH(NOLOCK)
-			ON c.Site = s.Site
-		--CROSS APPLY(SELECT TOP 1 TotalPool
-		--			FROM LuckyDrawPoolPrize AS ls 
-		--			WHERE ls.MatchId = @MatchId
-		--				AND ls.bettype = 413
-		--			) AS s
-
+		INNER JOIN CustDB.dbo.Customer AS c WITH(NOLOCK) ON l.CustId = c.custid
 END

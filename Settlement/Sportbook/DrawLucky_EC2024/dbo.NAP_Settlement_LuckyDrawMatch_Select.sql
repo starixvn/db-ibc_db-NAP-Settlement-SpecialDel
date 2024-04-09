@@ -14,35 +14,55 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 		
-	DECLARE  @FromTime			DATETIME 
-			,@ToTime			DATETIME 
+	DECLARE  @To15Time			DATETIME 
+			,@To30Time			DATETIME 
 			,@CurrTime			DATETIME
 
 	SET @CurrTime	= CAST(GETDATE() AS DATE)
-	SET @FromTime	= DATEADD(SECOND, - 10800, @CurrTime) --3 hours 
-	SET @ToTime		= DATEADD(SECOND, - 900, @CurrTime) --15 min
+	SET @To15Time	= DATEADD(SECOND, - 900, @CurrTime) --15 min
+	SET @To30Time	= DATEADD(SECOND, - 1800, @CurrTime) --30 min
 
-	SELECT TOP 1
-		   m.MatchId
+	SELECT m.MatchId
 		  ,m.leagueid
-		  ,50 AS MinBet --ls.MinBet
+		  ,ls.MinBet
+		  ,ls.MinPool
+		  ,ls.MaxPool
+		  ,pr.TotalPool
+		  ,5 AS TotalLucker
 		  ,s.IsTest
 	FROM match AS m WITH(NOLOCK)
+		INNER JOIN dbo.f_Set_LuckyDraw_Setting() s ON s.LeagueID = m.leagueid
+		CROSS APPLY (SELECT TOP 1 q.execTime AS SettleTime
+					 FROM dbo.Single_Calculate_Queue AS q WITH(NOLOCK) 
+					 WHERE q.MatchId = m.matchid 
+						AND s.Action IN ('CAL', 'CAL-FT')
+					 ORDER BY e.execTime DESC
+				) AS qt
+		CROSS APPLY (SELECT TOP 1 s.MinBet,s.MinPool,s.MaxPool
+					 FROM dbo.LuckyDrawSetting AS s WITH(NOLOCK) 
+					 WHERE s.MatchId = m.matchid 
+						AND s.BetType = 413
+						AND s.SiteId = 4100
+				) AS ls
+		CROSS APPLY (SELECT TOP 1 p.TotalPool
+					 FROM dbo.LuckyDrawPoolPrize AS p WITH(NOLOCK) 
+					 WHERE p.MatchId = m.matchid 
+						AND p.BetType = 413
+						AND p.SiteId = 4100
+						AND p.BetTeam = 'TotalPool'
+				) AS pr
 		OUTER APPLY (SELECT MAX(l.StatusID) AS MaxStatusID, MIN(l.StatusID) AS MinStatusID
 					 FROM dbo.LuckyDrawList AS l WITH(NOLOCK) 
 					 WHERE l.MatchId = m.matchid 
-				) AS ld
-		--OUTER APPLY (SELECT s.MinBet
-		--			 FROM dbo.LuckyDrawSetting AS s WITH(NOLOCK) 
-		--			 WHERE s.MatchId = m.matchid 
-		--				AND s.BetType = 413
-		--		) AS ls
-		INNER JOIN dbo.f_Set_LuckyDraw_Setting() s
-			ON s.LeagueID = m.leagueid
+				) AS ldN
 	WHERE m.eventstatus = 'completed'  
-		AND m.matchid IN (83149876,83149907)
+		AND m.betstatus NOT LIKE '%Refund%' 
 		AND ISNULL(ld.MaxStatusID,3) = 3 
 		AND ISNULL(ld.MinStatusID,3) = 3 
-		AND m.settleTime <= @ToTime
+		AND 1 = CASE WHEN qt.SettleTime <= @To30Time THEN 1
+		             WHEN qt.SettleTime <= @To15Time AND ISNULL(m.SettlementStatus,0) & 87 = 0 THEN 1
+					 ELSE 0
+				END
+
 
 END
