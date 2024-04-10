@@ -49,21 +49,14 @@ BEGIN
 
 	IF @IsEnableServiceBroker = 1 AND @CalledByBrokerService = 0
     BEGIN
-		SET @sMessage = 'EXEC dbo.Bet_ExecRep14_04 @TransInfoJson = ' + CONVERT(NVARCHAR(MAX), @TransInfoJson, 1)
-							+ ',@TableName = ' + CASE
-													WHEN @TableName IS NULL THEN 'NULL'
-													ELSE '''' + @TableName + ''''
-													END 
-							+ ',@Action = ' + CASE
-													WHEN @Action IS NULL THEN 'NULL'
-													ELSE '''' + @Action + ''''
-													END 
-							+ ',@RunOnServer = ' + CASE
-													WHEN @RunOnServer IS NULL THEN 'NULL'
-													ELSE '''' + @RunOnServer + ''''
-													END 
-							+ ',@CalledByBrokerService = 1'
-		
+		SET @sMessage = CAST((
+							SELECT	CONVERT(nvarchar(max), @TransInfoJson, 1) AS '@TransInfoJson'
+									,@TableName AS '@TableName'
+									,@Action AS '@Action'
+									,@RunOnServer AS '@RunOnServer'					
+							FOR XML PATH ('r'), ROOT ('root'), TYPE)
+						AS VARCHAR(MAX))
+				
 		EXEC dbo.SSB_Send_Message 
 			@MessageContent = @sMessage
 			,@FunctionName = 'settlement'
