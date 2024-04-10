@@ -12,6 +12,7 @@ as
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
 		- 20230516@Aries: Replicate to SubDB is not correctly [Redmine:#188298]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20240410@Kathy: fix bug: parameter '@matchid' was supplied multiple times. [Redmine:#203724]
 */
 begin
 	declare @__startTime datetime2, @__sessionId bigint, @__strTransIds varchar(max)
@@ -65,7 +66,7 @@ begin
 					where SessionId = @__sessionId
 				)
 				begin
-					exec dbo.SSB_Send_Message @MessageContent = @__sessionId
+					exec dbo.SSB_Send_Message @MessageContent = @MessageBody
 						, @FunctionName = 'settlement'
 						, @MessageType = @MessageType
 
@@ -86,7 +87,6 @@ begin
 				, @modds					= @__modds
 				, @Oddstype					= @__oddsType
 				, @IsMarked					= @__IsMarked
-				, @matchid					= 0 -- for replicated no need pass matchid value
 				, @ActionId					= @__actionId
 				, @ServerAlias				= ''
 				, @ServerName				= @@servername
