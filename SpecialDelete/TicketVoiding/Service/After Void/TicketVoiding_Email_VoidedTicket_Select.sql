@@ -39,6 +39,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240402@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
+		- 20240409@July: [TVS] Fix issue duplicate insert voided transaction [Redmine: #203614]
 
 	Param's explanation:	
 		
@@ -598,10 +599,17 @@ BEGIN
 			,t.ActualStake
 			,t.MainTransId
 			,CASE 
-				WHEN ISNULL(t.eventstatus, '') <> @eventstatus_completed AND t.status IN ('won', 'lose', 'draw') 
-				 AND ISNULL(t.betdaqid,0) <> -2 AND ib.bettype IS NOT NULL
-						THEN CASE WHEN t.sporttype = 1 THEN 1
-								  WHEN t.sporttype = 2 AND (ib.betid = t.betid OR t.betid IS NULL) THEN 1
+				WHEN ISNULL(t.eventstatus, '') <> @eventstatus_completed AND t.status IN ('won', 'lose', 'draw') AND ISNULL(t.betdaqid,0) <> -2
+						THEN CASE WHEN t.sporttype = 1
+										AND EXISTS (SELECT TOP 1 1
+													FROM #InstantSettlementBettypes
+													WHERE bettype = t.bettype)
+										THEN 1
+								  WHEN t.sporttype = 2
+										AND EXISTS (SELECT TOP 1 1
+													FROM #InstantSettlementBettypes
+													WHERE bettype = t.bettype AND (betid = t.betid OR t.betid IS NULL))
+										THEN 1
 								ELSE 0 END
 				ELSE 0
 			END AS IsInstantSettlementTicket
@@ -622,7 +630,6 @@ BEGIN
 			,t.zzzWinlost
 			,t.modds AS MasterOdds
 	FROM	#tmpTicket t
-		LEFT JOIN #InstantSettlementBettypes ib ON t.bettype = ib.bettype
 		LEFT JOIN #CTE_CustInfo c WITH(NOLOCK) ON c.custid = t.custid
 		LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK) ON ag.custid = t.recommend 
 		LEFT JOIN #CTE_CustInfo ma WITH(NOLOCK) ON ma.custid = t.mrecommend
