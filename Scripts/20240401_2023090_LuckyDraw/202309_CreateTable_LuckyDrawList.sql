@@ -32,6 +32,9 @@ CREATE TABLE dbo.LuckyDrawList
 	,IsTest				BIT				NULL
 	,IsLicensee			BIT				NULL
 	,SettledDate		DATE			NULL
+	,PoolPrize			MONEY			NULL
+	,finalhomescore		INT				NULL
+	,finalawayscore		INT				NULL
 	,RepUpdateTime		DATETIME2(7)	NOT NULL ---use for InHouse Replication
 	,IsDeleted			BIT				NOT NULL
 )

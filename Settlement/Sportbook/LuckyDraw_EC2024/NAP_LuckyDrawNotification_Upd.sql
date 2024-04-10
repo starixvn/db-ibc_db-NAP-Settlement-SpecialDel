@@ -19,6 +19,7 @@ BEGIN
 
 	UPDATE l
 	SET l.IsNotiFy = 1
+		,NotifiedDate = GETDATE()
 	FROM dbo.LuckyDrawList l 
 		INNER JOIN @tmp_DrawID t
 			ON l.DrawID = t.DrawID
