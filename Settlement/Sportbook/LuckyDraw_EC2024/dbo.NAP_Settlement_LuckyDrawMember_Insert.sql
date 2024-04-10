@@ -24,25 +24,37 @@ BEGIN
 			,@VerificationCode	VARCHAR(50)
 			,@Count				INT = 1
 			,@MaxCount		    INT
+			,@finalhomescore	INT
+			,@finalawayscore	INT
+			,@crrDateGMT8		DATETIME
 
-	DECLARE @Lucker TABLE(CustId INT, VerificationCode VARCHAR(50))
+	DECLARE @Winner TABLE(CustId INT, VerificationCode VARCHAR(50))
 
-	CREATE TABLE #TransInfo (transId BIGINT,CustId INT,RankRandom INT)
+	CREATE TABLE #TransInfo (transId BIGINT,CustId INT,Rank1 INT,Rank2 INT)
 	
 	EXEC sp_xml_preparedocument @handle OUTPUT, @ListTransIDs
-	INSERT INTO #TransInfo(TransID, CustId,RankRandom)
-	SELECT t, c,ROW_NUMBER() OVER(ORDER BY NEWID()) AS r
-	FROM OPENXML(@handle,'root/r',1) WITH(t   BIGINT
-										 ,c   INT
-									) tbl
+	INSERT INTO #TransInfo(TransID, CustId,Rank1,Rank2)
+	SELECT tbl.TransID, tbl.CustId,tbl.Rank1, DENSE_RANK() OVER(PARTITION BY tbl.CustId ORDER BY tbl.Rank1)
+	FROM (SELECT tt.t AS TransID, tt.c AS CustId,ROW_NUMBER() OVER(ORDER BY NEWID()) AS Rank1
+		  FROM OPENXML(@handle,'root/r',1) WITH(t   BIGINT
+											   ,c   INT
+										   ) tt
+	) AS tbl
 	EXEC sp_xml_removedocument @handle 
+
+	SELECT	 @finalhomescore = finalhomescore
+			,@finalawayscore = finalawayscore
+	FROM match WITH(NOLOCK)
+	WHERE matchid = @MatchId
 
 	SELECT @TotalCust = COUNT(DISTINCT CustId)
 	FROM #TransInfo
 
+	SET @crrDateGMT8 = DATEADD(HOUR,12,GETDATE())
+
 	IF (@TotalWinner >= @TotalCust)
 	BEGIN
-		INSERT INTO @Lucker(CustId)
+		INSERT INTO @Winner(CustId)
 		SELECT	DISTINCT 
 				CustId
 		FROM #TransInfo
@@ -51,12 +63,11 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		INSERT INTO @Lucker(CustId)
-		SELECT	DISTINCT 
-				TOP(@TotalWinner)  
-				CustId
+		INSERT TOP (@TotalWinner) INTO  @Winner(CustId)
+		SELECT	TOP (@TotalWinner) CustId
 		FROM #TransInfo
-		ORDER BY RankRandom ASC
+		WHERE Rank2 = 1
+		ORDER BY Rank1 ASC
 	END
 
 	SET @MaxCount = @TotalWinner*2
@@ -70,7 +81,7 @@ BEGIN
 			CONTINUE 
 		END
 
-		UPDATE TOP (1) @Lucker
+		UPDATE TOP (1) @Winner
 		SET VerificationCode = @VerificationCode
 		WHERE  VerificationCode IS NULL
 
@@ -82,7 +93,7 @@ BEGIN
 		SET @Count = @Count + 1
 	END
 
-	INSERT INTO LuckyDrawList(matchid,custid,DisplayName,TypeID,VerificationCode,StatusID,Payout,Currency,CreatedDate,LastModifiedDate,IsNotify,ExpiredDate,IsLicensee, IsTest)
+	INSERT INTO LuckyDrawList(matchid,custid,DisplayName,TypeID,VerificationCode,StatusID,Payout,Currency,CreatedDate,LastModifiedDate,IsNotify,ExpiredDate,IsLicensee,PoolPrize,finalhomescore,finalawayscore, IsTest)
 	SELECT @MatchId
 		  ,l.custid
 		  ,[dbo].[f_EncodeLuckyDraw_UserName](c.username) AS DisplayName
@@ -94,11 +105,14 @@ BEGIN
 		  ,GETDATE() AS CreatedDate
 		  ,GETDATE() AS LastModifiedDate
 		  ,0 AS IsNotify
-		  ,CASE WHEN c.Site = 'IBCIndo' THEN DATEADD(DAY, 14, GETDATE())
-				ELSE DATEADD(DAY, 7, GETDATE() )
+		  ,CASE WHEN c.Site = 'IBCIndo' THEN DATEADD(DAY, 14, @crrDateGMT8)
+				ELSE DATEADD(DAY, 7, @crrDateGMT8)
 			END AS ExpiredDate
 		  ,0 AS IsLicensee -- Credit
+		  ,@PoolAmount
+		  ,@finalhomescore 
+		  ,@finalawayscore
 		  ,@IsTest
-	FROM @Lucker AS l
+	FROM @Winner AS l
 		INNER JOIN CustDB.dbo.Customer AS c WITH(NOLOCK) ON l.CustId = c.custid
 END

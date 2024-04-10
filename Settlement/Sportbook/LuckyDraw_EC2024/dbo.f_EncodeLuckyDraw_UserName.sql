@@ -15,36 +15,14 @@ RETURNS VARCHAR(30)
 */
 AS
 BEGIN
-	
-    DECLARE @totalLen   INT         = 0
-           ,@start      INT         = 4
-           ,@len        INT         = 4
-           ,@dymmyStr   VARCHAR(50) = '*'
-
+	DECLARE @totalLen   INT         = 0
     SET  @totalLen = len(@UserName) 
 
-    IF @totalLen <= 3
+    IF @totalLen < 3 OR @totalLen IS NULL
     BEGIN
         RETURN @UserName;
     END
 
-    IF @totalLen < 9
-    BEGIN
-        SET @len = @totalLen - 3
-        SET @dymmyStr = REPLICATE('*', @len)
-
-        RETURN STUFF(@UserName, @start, @len, @dymmyStr)
-    END
-
-    IF @totalLen >= 9
-    BEGIN
-        SET @len = @totalLen - 6
-        SET @dymmyStr = REPLICATE('*', @len)
-
-        RETURN STUFF(@UserName, @start, @len, @dymmyStr)
-    END
-
-    RETURN @UserName
-
+    RETURN CONCAT(LEFT(@UserName, 3),'*****',RIGHT(@UserName, 3))
 END
 GO
