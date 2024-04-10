@@ -10,13 +10,14 @@ as
 	Revisions:  
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20240410@Kathy: missing bettrans14/transfer table [Redmine:#203737]
 */
 begin
 	set nocount on
 	declare @__conversationHandle uniqueidentifier, @__messageBody nvarchar(max), @__messageBodyTemp nvarchar(max), @__params xml
 			,@__siteDBGroupId smallint, @__sessionId bigint, @__messageType varchar(200), @__transInfo nvarchar(max), @__transinfoJson varbinary(max)
 			,@__tableName varchar(200), @__matchId int, @__action varchar(1), @__settlementAction varchar(20), @__ticketType varchar(1)
-			,@__totalQueue int, @__runOnServer varchar(100), @__is3rd bit, @__AffectedTicket int
+			,@__totalQueue int, @__runOnServer varchar(100), @__is3rd bit, @__AffectedTicket int, @__eventTable tinyint = 1
 			
 			,@__messageId varchar(200), @__errmsg varchar(1024),@__startTime datetime2, @__endtime datetime2, @__TableType SMALLINT
 
@@ -51,24 +52,46 @@ begin
 			from @__params.nodes('/root/r') as T(C)
 
 			select @__messageId = newid(), @__errmsg = '', @__startTime = sysdatetime()
-
-			exec dbo.Bet_ExecRep_NAP_Admin_01 
-				@SiteDBGroupId	= @__siteDBGroupId
-				,@SessionId	= @__sessionId
-				,@MessageType = @__messageType
-				,@TransInfo	= @__transInfo
-				,@TransInfoJson = @__transinfoJson
-				,@TableName = @__tableName
-				,@MatchId = @__matchId
-				,@Action = @__action
-				,@SettlementAction = @__settlementAction
-				,@TicketType = @__ticketType
-				,@TotalQueue = @__totalQueue
-				,@RunOnServer = @__runOnServer			
-				,@Is3rd	= @__is3rd					
-				,@CalledByBrokerService	= 1
-				,@AffectedTicket = @__AffectedTicket output
-
+			
+			if @__tableName = 'bettrans14'
+			begin
+				exec dbo.Bet_ExecRep14_04 
+					@TransInfoJson = @__transinfoJson
+					,@TableName = @__tableName
+					,@Action = @__action
+					,@RunOnServer = @__runOnServer
+					,@CalledByBrokerService	= 1
+			end
+			else if @__tableName = 'Transfer'
+			begin
+				set @__eventTable = 0
+				exec dbo.Transfer_ExecRep_04
+					@TransInfoJson = @__transinfoJson
+					,@TableName = @__tableName
+					,@Action = @__action
+					,@RunOnServer = @__runOnServer
+					,@CalledByBrokerService	= 1				
+			end
+			else
+			begin
+				exec dbo.Bet_ExecRep_NAP_Admin_01 
+					@SiteDBGroupId	= @__siteDBGroupId
+					,@SessionId	= @__sessionId
+					,@MessageType = @__messageType
+					,@TransInfo	= @__transInfo
+					,@TransInfoJson = @__transinfoJson
+					,@TableName = @__tableName
+					,@MatchId = @__matchId
+					,@Action = @__action
+					,@SettlementAction = @__settlementAction
+					,@TicketType = @__ticketType
+					,@TotalQueue = @__totalQueue
+					,@RunOnServer = @__runOnServer			
+					,@Is3rd	= @__is3rd					
+					,@CalledByBrokerService	= 1
+					,@AffectedTicket = @__AffectedTicket output
+			end
+			
 		end try
 		begin catch
 			select @__errmsg = error_message()
@@ -88,22 +111,32 @@ begin
 									when @__tableName = 'bettransm' then 2
 									else 0
 								end
-				,@__messageBodyTemp = 'EXEC dbo.Bet_ExecRep_NAP_Admin_01 '
-								+ '@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(20))
-								+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(30)) else '' end
-								+ case when @__messageType is not null then ',@MessageType=' + '''' + @__messageType + '''' else '' end
-								+ case when @__transInfo is not null then ',@TransInfo=''' + convert(nvarchar(max),@__transInfo) + '''' else '' end
-								+ case when @__transinfoJson is not null then ',@TransInfoJson=''' + convert(nvarchar(max), @__transinfoJson, 1) + '''' else '' end
-								+ case when @__tableName is not null then ',@TableName=' + '''' + @__tableName + '''' else '' end
-								+ case when @__matchId is not null then ',@MatchId=' + cast(@__matchId as varchar(20))  else '' end
-								+ case when @__action is not null then ',@Action=' + '''' + @__action + '''' else '' end
-								+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
-								+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end
-								+ case when @__totalQueue is not null then ',@TotalQueue=' + cast(@__totalQueue as varchar(20))  else '' end
-								+ case when @__runOnServer is not null then ',@RunOnServer=' + '''' + @__runOnServer + '''' else '' end
-								+ case when @__is3rd is not null then ',@Is3rd=' + cast(@__is3rd as varchar(20))  else '' end								
-								+ ',@CalledByBrokerService=1'
-								
+				,@__messageBodyTemp = case when @__tableName = 'bettrans14' then 'EXEC dbo.Bet_ExecRep14_04 @TransInfoJson=''' + convert(nvarchar(max), @__transinfoJson, 1) + '''' 
+																+ case when @__tableName is not null then ',@TableName=' + '''' + @__tableName + '''' else '' end
+																+ case when @__action is not null then ',@Action=' + '''' + @__action + '''' else '' end
+																+ case when @__runOnServer is not null then ',@RunOnServer=' + '''' + @__runOnServer + '''' else '' end
+																
+										   when @__tableName = 'Transfer' then 'EXEC dbo.Transfer_ExecRep_04 @TransInfoJson=''' + convert(nvarchar(max), @__transinfoJson, 1) + '''' 
+																+ case when @__tableName is not null then ',@TableName=' + '''' + @__tableName + '''' else '' end
+																+ case when @__action is not null then ',@Action=' + '''' + @__action + '''' else '' end
+																+ case when @__runOnServer is not null then ',@RunOnServer=' + '''' + @__runOnServer + '''' else '' end																
+										   else 'EXEC dbo.Bet_ExecRep_NAP_Admin_01 '
+												+ '@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(20))
+												+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(30)) else '' end
+												+ case when @__messageType is not null then ',@MessageType=' + '''' + @__messageType + '''' else '' end
+												+ case when @__transInfo is not null then ',@TransInfo=''' + convert(nvarchar(max),@__transInfo) + '''' else '' end
+												+ case when @__transinfoJson is not null then ',@TransInfoJson=''' + convert(nvarchar(max), @__transinfoJson, 1) + '''' else '' end
+												+ case when @__tableName is not null then ',@TableName=' + '''' + @__tableName + '''' else '' end
+												+ case when @__matchId is not null then ',@MatchId=' + cast(@__matchId as varchar(20))  else '' end
+												+ case when @__action is not null then ',@Action=' + '''' + @__action + '''' else '' end
+												+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
+												+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end
+												+ case when @__totalQueue is not null then ',@TotalQueue=' + cast(@__totalQueue as varchar(20))  else '' end
+												+ case when @__runOnServer is not null then ',@RunOnServer=' + '''' + @__runOnServer + '''' else '' end
+												+ case when @__is3rd is not null then ',@Is3rd=' + cast(@__is3rd as varchar(20))  else '' end								
+												+ ',@CalledByBrokerService=1'
+											end
+											
 		exec dbo.SSB_Settlement_WriteLogs @MessageId = @__messageId
 			, @MessageType			= @__messageType
 			, @MessageBody			= @__messageBodyTemp
@@ -117,7 +150,7 @@ begin
 			, @MatchId				= @__matchId
 			, @AffectedTicket 		= @__AffectedTicket 
 			, @TableType			= @__TableType
-			, @EventTable			= 1
+			, @EventTable			= @__eventTable
 
 	end
 end
