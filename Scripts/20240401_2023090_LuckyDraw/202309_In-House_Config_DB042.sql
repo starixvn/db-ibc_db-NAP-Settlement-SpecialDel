@@ -8,7 +8,7 @@
 
 USE bodb02
 GO
-/**************************RepInfoGroup: add  DBGRP01L*****************************************/
+
 IF NOT EXISTS (SELECT 1 FROM RepInfoGroup WITH(NOLOCK) WHERE GroupID = 2)
 BEGIN
 	INSERT INTO RepInfoGroup(GroupID,SourceServerName,SourceDBName)
@@ -16,7 +16,7 @@ BEGIN
 END
 
 
-IF NOT EXISTS (SELECT 1 FROM RepInfo WITH(NOLOCK)  WHERE [group] = 3 AND [name] = 'LuckyDrawList' )
+IF NOT EXISTS (SELECT 1 FROM RepInfo WITH(NOLOCK)  WHERE [group] = 2 AND [name] = 'LuckyDrawList' )
 BEGIN
 	INSERT INTO RepInfo([group],[name],active,version_key,version_type,unique_key,get_sp,put_sp,interval,back_fix,delayed_fix,batch_size )
 	SELECT 2										AS [group]

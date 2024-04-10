@@ -9,17 +9,17 @@
 USE bodb02
 GO
 /**************************RepInfoGroup: add  DBGRP01L*****************************************/
-IF NOT EXISTS (SELECT 1 FROM RepInfoGroup WITH(NOLOCK) WHERE GroupID = 3)
+IF NOT EXISTS (SELECT 1 FROM RepInfoGroup WITH(NOLOCK) WHERE GroupID = 2)
 BEGIN
 	INSERT INTO RepInfoGroup(GroupID,SourceServerName,SourceDBName)
-	VALUES (7,'DBTRANS','bodb02')
+	VALUES (2,'DBTRANS','bodb02')
 END
 
 
-IF NOT EXISTS (SELECT 1 FROM RepInfo WITH(NOLOCK)  WHERE [group] = 7 AND [name] = 'LuckyDrawList' )
+IF NOT EXISTS (SELECT 1 FROM RepInfo WITH(NOLOCK)  WHERE [group] = 2 AND [name] = 'LuckyDrawList' )
 BEGIN
 	INSERT INTO RepInfo([group],[name],active,version_key,version_type,unique_key,get_sp,put_sp,interval,back_fix,delayed_fix,batch_size )
-	SELECT 7										AS [group]
+	SELECT 2										AS [group]
 		  ,'LuckyDrawList'							AS [name]
 		  ,1										AS active
 		  ,'RepUpdateTime'							AS version_key

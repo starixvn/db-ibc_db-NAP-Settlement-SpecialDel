@@ -35,7 +35,10 @@ BEGIN
 	                ,l.NotifiedDate			=   tvp.NotifiedDate 
 	                ,l.IsTest				=	tvp.IsTest 
 	                ,l.IsLicensee			=	tvp.IsLicensee 
-	                ,l.SettledDate			=	tvp.SettledDate 		
+	                ,l.SettledDate			=	tvp.SettledDate
+					,l.PoolPrize			=	tvp.PoolPrize
+					,l.finalhomescore		=	tvp.finalhomescore
+					,l.finalawayscore		=	tvp.finalawayscore
 	                ,l.IsDeleted	        =   tvp.IsDeleted 
                     ,l.RepUpdateTime        =   CASE WHEN tvp.RepUpdateTime > l.RepUpdateTime THEN tvp.RepUpdateTime ELSE l.RepUpdateTime END
         WHEN NOT MATCHED THEN
@@ -58,7 +61,10 @@ BEGIN
 				,NotifiedDate			
 				,IsTest					
 				,IsLicensee				
-				,SettledDate			
+				,SettledDate
+				,PoolPrize
+				,finalhomescore
+				,finalawayscore
 				,RepUpdateTime			
 				,IsDeleted	
             ) VALUES (
@@ -80,7 +86,10 @@ BEGIN
 				,tvp.NotifiedDate			
 				,tvp.IsTest					
 				,tvp.IsLicensee				
-				,tvp.SettledDate			
+				,tvp.SettledDate
+				,tvp.PoolPrize
+				,tvp.finalhomescore
+				,tvp.finalawayscore
 				,tvp.RepUpdateTime			
 				,tvp.IsDeleted	   
             );

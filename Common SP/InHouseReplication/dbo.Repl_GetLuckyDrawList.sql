@@ -51,7 +51,10 @@ BEGIN
                 ,NotifiedDate		
                 ,IsTest				
                 ,IsLicensee			
-                ,SettledDate		
+                ,SettledDate
+				,PoolPrize
+				,finalhomescore
+				,finalawayscore
                 ,RepUpdateTime		
                 ,IsDeleted 
                 ,SYSDATETIME() AS _FetchedTime
