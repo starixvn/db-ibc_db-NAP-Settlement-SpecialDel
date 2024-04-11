@@ -1,4 +1,4 @@
-/*<info serverAlias="DBACC-bodb02,DBAGE-bodb02,DB042-bodb02,DBTP-bodb02" executers="repl_ap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBACC-bodb02,DBAGE-bodb02,DBBOF-bodb02,DBTP-bodb02" executers="repl_ap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.Repl_PutLuckyDrawList
 	 @tvp_param TVP_ReplLuckyDrawList READONLY
 AS

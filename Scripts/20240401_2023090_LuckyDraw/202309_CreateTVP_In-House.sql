@@ -1,4 +1,4 @@
-/*<info serverAlias="DBACC-bodb02,DBAGE-bodb02,DB042-bodb02,DBTP-bodb02" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBACC-bodb02,DBAGE-bodb02,DBBOF-bodb02,DBTP-bodb02" executers="" isFunction="0"></info>*/
 /*	
 	Created by: 20240401@Aries
 	Task: Settlement  
