@@ -40,4 +40,7 @@ CREATE TYPE [dbo].[TVP_ReplLuckyDrawList] AS TABLE(
 )
 GO
 GRANT EXECUTE ON TYPE::[dbo].[TVP_ReplLuckyDrawList] TO [repl_ap] AS [dbo]
+GO
+GRANT ALTER ON [dbo].[LuckyDrawList] TO [repl_ap]
+GO
 

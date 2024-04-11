@@ -13,6 +13,8 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 
+	SET IDENTITY_INSERT [dbo].[LuckyDrawList] ON;
+
     MERGE dbo.LuckyDrawList AS l
         USING @tvp_param AS tvp
         ON l.DrawID = tvp.DrawID
@@ -93,4 +95,6 @@ BEGIN
 				,tvp.RepUpdateTime			
 				,tvp.IsDeleted	   
             );
+
+	SET IDENTITY_INSERT [dbo].[LuckyDrawList] OFF;
 END
