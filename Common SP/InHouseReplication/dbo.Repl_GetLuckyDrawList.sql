@@ -1,4 +1,4 @@
-/*<info serverAlias="DBACC-bodb02,DBAGE-bodb02,DBBOF-bodb02,DBTP-bodb02" executers="repl_ap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTCG-bodb02" executers="repl_ap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.Repl_GetLuckyDrawList
 	 @start         DATETIME2
     ,@count         INT
@@ -7,7 +7,7 @@ AS
 /*	
 	Created by: 20240401@Aries
 	Task: Settlement  
-	DB: DBACC-bodb02,DBAGE-bodb02,DB042-bodb02,DBTP-bodb02
+	DB: DBTCG-bodb02
 	
 	Revisions:
 		- 20240401@Aries: EC 2024-Correct Score Sharing and Lucky Draw-(Pool prize) [Redmine:#202309]
