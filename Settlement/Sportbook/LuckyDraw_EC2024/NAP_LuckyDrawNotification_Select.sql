@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_LuckyDrawNotification_Select
-	@IsTest BIT = 0
+	--@IsTest BIT = 0
 AS
 /*	
 	Created: 20240327@Louisa
@@ -38,7 +38,6 @@ BEGIN
 		LEFT JOIN Custdb.dbo.customer mr WITH(NOLOCK) ON c.mrecommend = mr.custid AND mr.roleid = 3
 		LEFT JOIN Custdb.dbo.customer s WITH(NOLOCK) ON c.srecommend = s.custid AND s.roleid = 4
 	WHERE l.IsNotify = 0
-		AND l.IsTest = @IsTest
 
 END
 GO
