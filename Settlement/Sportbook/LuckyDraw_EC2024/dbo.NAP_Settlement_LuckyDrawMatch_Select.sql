@@ -16,11 +16,13 @@ BEGIN
 		
 	DECLARE  @To15Time			DATETIME 
 			,@To30Time			DATETIME 
+			,@To45Time			DATETIME 
 			,@CurrTime			DATETIME
 
 	SET @CurrTime	= GETDATE()
 	SET @To15Time	= DATEADD(SECOND, - 900, @CurrTime) --15 min
 	SET @To30Time	= DATEADD(SECOND, - 1800, @CurrTime) --30 min
+	SET @To45Time	= DATEADD(SECOND, - 2700, @CurrTime) --45 min
 	
 	SELECT m.MatchId
 		  ,m.leagueid
@@ -59,8 +61,8 @@ BEGIN
 		AND m.betstatus NOT LIKE '%Refund%' 
 		AND ISNULL(ld.MaxStatusID,3) = 3 
 		AND ISNULL(ld.MinStatusID,3) = 3 
-		AND 1 = CASE WHEN qt.SettleTime BETWEEN @To15Time AND @To30Time THEN 1
-		             WHEN qt.SettleTime <= @To15Time AND ISNULL(m.SettlementStatus,0) & 87 = 0 THEN 1
+		AND 1 = CASE WHEN qt.SettleTime BETWEEN @To30Time  AND @To15Time  AND ISNULL(m.SettlementStatus,0) & 87 = 0 THEN 1
+		             WHEN qt.SettleTime BETWEEN @To45Time  AND @To30Time THEN 1
 					 ELSE 0
 				END
 
