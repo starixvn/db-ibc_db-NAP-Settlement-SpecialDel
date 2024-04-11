@@ -134,33 +134,19 @@ BEGIN
 	-----------------------------GET eventdate of match---------------------------------------------
 	IF @FilteredBy = 1
 	BEGIN
-		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20,22)))
-		BEGIN
-			IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-									   WHERE matchid IN (9, 29, 2799, 10449) AND rd.RequestId = @RequestId
-					  )
-			BEGIN
-				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-				SELECT  s.RequestId, MIN(bk.winlostdate)
-				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid 
-				WHERE s.MatchId IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
-				GROUP BY s.RequestId
-			END
-			IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
-						FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
-							INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
-						WHERE  rd.RequestId = @RequestId
-						)
-			BEGIN
-				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-				SELECT  rd.RequestId, MIN(o.eventdate)
-				FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-					INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
-				WHERE rd.RequestId = @RequestId
-				GROUP BY rd.RequestId
-			END
-		END
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT  s.RequestId, MIN(s.Winlostdate)
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
+		WHERE s.MatchId IN (9, 29, 2799, 10449) 
+			AND s.RequestId = @RequestId
+		GROUP BY s.RequestId
+
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT  rd.RequestId, MIN(o.eventdate)
+		FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
+			INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
+		WHERE rd.RequestId = @RequestId
+		GROUP BY rd.RequestId
 	
 		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 		SELECT rd.RequestId, MIN(m.eventdate)
@@ -171,33 +157,22 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 2
 	BEGIN
-		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20,22)))
+		IF @MatchId IN (9, 29, 2799, 10449)
 		BEGIN
-			IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-									   WHERE matchid IN (9, 29, 2799, 10449) AND rd.MatchId = @MatchId
-					  )
-			BEGIN
-				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-				SELECT  s.RequestId, MIN(bk.winlostdate)
-				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-					INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON s.TransId = bk.transid
-				WHERE s.MatchId IN (9, 29, 2799, 10449) AND s.MatchId = @MatchId
-				GROUP BY s.RequestId
-			END
-			IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
-						FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
-							INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
-						WHERE  rd.MatchId = @MatchId
-						)
-			BEGIN
-				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-				SELECT  rd.RequestId, MIN(o.eventdate)
-				FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-					INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
-				WHERE rd.MatchId = @MatchId
-				GROUP BY rd.RequestId
-			END
+			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+			SELECT  s.RequestId, MIN(s.Winlostdate)
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
+			WHERE s.MatchId IN (9, 29, 2799, 10449) 
+				AND s.MatchId = @MatchId
+			GROUP BY s.RequestId
 		END
+
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT  rd.RequestId, MIN(o.eventdate)
+		FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
+			INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
+		WHERE rd.MatchId = @MatchId
+		GROUP BY rd.RequestId
 	
 		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 		SELECT rd.RequestId, MIN(m.eventdate)
