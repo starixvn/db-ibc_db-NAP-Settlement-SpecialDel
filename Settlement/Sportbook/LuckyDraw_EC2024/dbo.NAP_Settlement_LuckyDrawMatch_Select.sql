@@ -39,13 +39,13 @@ BEGIN
 					 ORDER BY q.execTime DESC
 				) AS qt
 		CROSS APPLY (SELECT TOP 1 s.MinBet,s.MinPool,s.MaxPool
-					 FROM dbo.LuckyDrawSetting AS s WITH(NOLOCK) 
+					 FROM ActivityDB.dbo.LuckyDrawSetting AS s WITH(NOLOCK) 
 					 WHERE s.MatchId = m.matchid 
 						AND s.BetType = 413
 						AND s.SiteId = 4100
 				) AS ls
 		CROSS APPLY (SELECT TOP 1 p.TotalPool
-					 FROM dbo.LuckyDrawPoolPrize AS p WITH(NOLOCK) 
+					 FROM ActivityDB.dbo.LuckyDrawPoolPrize AS p WITH(NOLOCK) 
 					 WHERE p.MatchId = m.matchid 
 						AND p.BetType = 413
 						AND p.SiteId = 4100
