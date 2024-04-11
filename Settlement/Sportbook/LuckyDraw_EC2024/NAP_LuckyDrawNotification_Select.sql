@@ -29,7 +29,7 @@ BEGIN
 			,l.Payout AS PrizeAmount
 			,l.VerificationCode
 			,l.ExpiredDate
-			,l.LastModifiedDate
+			,l.CreatedDate
 			,IsTest
 	FROM dbo.LuckyDrawList l WITH(NOLOCK)
 		INNER JOIN dbo.match m WITH(NOLOCK)	ON l.matchid = m.matchid
