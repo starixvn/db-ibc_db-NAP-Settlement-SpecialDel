@@ -1,4 +1,4 @@
-/*<info serverAlias="DB042-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBBOF-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created: 20240401@Aries
     Task: EC 2024-Correct Score Sharing and Lucky Draw-(Pool prize) [Redmine:#202309]
