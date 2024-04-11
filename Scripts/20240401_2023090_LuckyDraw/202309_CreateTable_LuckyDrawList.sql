@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBACC-bodb02,DBAGE-bodb02,DB042-bodb02,DBTP-bodb02" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBACC-bodb02,DBAGE-bodb02,DBBOF-bodb02,DBTP-bodb02" executers="" isFunction="0"></info>*/
 
 /*	
 	Created: 20240327@Louisa
