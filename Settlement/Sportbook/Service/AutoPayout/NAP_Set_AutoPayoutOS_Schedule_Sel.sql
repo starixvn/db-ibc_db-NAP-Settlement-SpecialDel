@@ -27,6 +27,7 @@ AS
 		- 20230724@Louisa: Enhance for Tennis - exclude Auto for match has confirm score is 0-0 [Redmine:#189433]
 		- 20240301@Aries: Direct payout run before waiting time [Redmine:#201698]
 		- 20240308@Aries: Direct Ice Hockey [Redmine:#201836]
+		- 20240412@Aries: Direct Payout for Virtual Kabaddi [Redmine:#203590]
 
 	Param's Explanation:
 		- @AutoSetting: 
@@ -333,7 +334,7 @@ BEGIN
 			END
 
 		END
-		ELSE IF @ResultTable = 0  -- Ice Hockey
+		ELSE IF @ResultTable = 0  
 		BEGIN
 			DECLARE	  @currentdate		DATETIME
 					 ,@fromdate			DATETIME
@@ -392,7 +393,8 @@ BEGIN
 					AND m.eventdate BETWEEN @fromdate AND @todate 
 					AND GlobalShowTime <= @checktimeGST
 					AND l.LeagueGroupID = 42
-					AND 1 = CASE WHEN m.ChildMatchType IN (18,19,20,23,24) THEN 1 -- Child match
+					AND 1 = CASE WHEN @Sporttype = 4 AND m.ChildMatchType IN (18,19,20,23,24) THEN 1 -- Child match Ice Hockey
+								 WHEN @Sporttype = 47 AND m.ChildMatchType IN (1,2,3,4) THEN 1 -- Child match Kabaddi
 								 WHEN ISNULL(m.ParentID,0) = 0 THEN 1 -- main match
 								 ELSE 0
 							 END
