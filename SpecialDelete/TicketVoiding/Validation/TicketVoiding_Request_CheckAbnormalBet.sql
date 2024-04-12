@@ -65,6 +65,7 @@ AS
 		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240315@July: [TVS] Abnormal Bet - Support void System Parlay tickets [Redmine: #196462]
+		- 20240412@Max: Abnormal Bet - Add request tick on REMOVE CC 40000 but tickets CC 4000 still add to request [Redmine: #203813]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -790,6 +791,13 @@ BEGIN
 				
 		SELECT @RemoveTransids = @UnmarkTransIds
 	END
+
+	--Remove CC201 & CC4000 in list transids insert into request
+	DELETE v
+	FROM #validTransId v 
+	WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND v.CustomerClass = 201 THEN 1
+					WHEN @IsRemoveCustomerClass4K = 1 AND v.CustomerClass = 4000 THEN 1
+			ELSE 0 END
 
 	/*****************Return table **************************/
 	--1. Info match table

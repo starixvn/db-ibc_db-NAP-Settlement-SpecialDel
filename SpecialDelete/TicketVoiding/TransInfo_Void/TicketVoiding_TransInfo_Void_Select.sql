@@ -21,6 +21,7 @@ AS
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20240219@Max: TVS - Voiding request but missing a parlay ticket [Redmine: #200987]
+		- 20240412@Max: Fix issue refno single vs parlay the same for Via Lucky [Redmine: #203813]
 
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -392,6 +393,8 @@ BEGIN
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.SiteDBGroupID = @SiteDBGroupID
+			AND b.matchid = 29
+			AND b.bettype = 29
 			AND d.TicketType = 2
 		
 		--Re-scan data for case miss by page split
