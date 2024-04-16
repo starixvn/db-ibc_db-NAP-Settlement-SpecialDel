@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet,dot_admin,wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="dot_admin,wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [NAP_Set_SettlementStatusUpd]
 	@MatchId	INT
 	,@Type		TINYINT = 0
