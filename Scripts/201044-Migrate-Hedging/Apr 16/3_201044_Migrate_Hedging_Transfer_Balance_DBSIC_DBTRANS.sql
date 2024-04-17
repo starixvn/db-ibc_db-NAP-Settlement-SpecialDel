@@ -1,7 +1,7 @@
 /*<info serverAlias="DBSIC-bodb02,DBCTG-bodb02" executers="" viewers="" isFunction="1"></info>*/
 
 /*
-	Created: 20240116@Louisa
+	Created: 20240416@Louisa
 	Task: Migrate Data for new site Hedging and PhoneBetting [Redmine: #201044]
 	DB: DBSIC/bodb02, DBCTG-bodb02
 
@@ -42,8 +42,8 @@ BEGIN
 		LEFT JOIN custdb.dbo.customer m WITH(NOLOCK) ON t.master = m.username
 
 	-- member 230RMB, 231RMB (move member)
-	INSERT INTO  #tmp_Member (CustID,recommend_NEW, mrecommend_New, srecommend_New)
-	SELECT ci.custid, temp.recommend_New, temp.mrecommend_New, temp.srecommend_New
+	INSERT INTO #tmp_Cust (CustID, Username, roleid, site, recommend_NEW, mrecommend_New,srecommend_New)
+	SELECT ci.custid, ci.username,ci.roleid, 'Hedging',temp.recommend_New, temp.mrecommend_New, temp.srecommend_New
 	FROM custdb.dbo.custinfo ci WITH(NOLOCK)
 		CROSS APPLY (SELECT custid AS recommend_New,
 						 mrecommend AS mrecommend_New,
