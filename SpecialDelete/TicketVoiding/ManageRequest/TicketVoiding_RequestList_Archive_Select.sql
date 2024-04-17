@@ -613,9 +613,9 @@ BEGIN
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
 	
 	-- 2. Support get calculate time for Issuetype Abnormal Bet (Single ticket) + AB (Real Member) 
-	DECLARE @tmpGetInfo TABLE (RequestId INT, Sporttype SMALLINT, MatchId INT)
-	INSERT INTO @tmpGetInfo (RequestId, Sporttype, MatchId)
-	SELECT RequestId, Sporttype, MatchId
+	DECLARE @tmpGetInfo TABLE (RequestId INT, Sporttype SMALLINT, MatchId INT, EventDate DATETIME)
+	INSERT INTO @tmpGetInfo (RequestId, Sporttype, MatchId, EventDate)
+	SELECT RequestId, Sporttype, MatchId, EventDate
 	FROM #tmpResult
 	WHERE 1 = CASE WHEN IssueTypeId IN (11) AND FilterBy IS NULL THEN 1 
 				   WHEN IssueTypeId = 15 THEN 1
@@ -624,6 +624,7 @@ BEGIN
 	SET @RequestInfoGetCalcTimes = COMPRESS((SELECT RequestId AS 'req'
 		  ,Sporttype AS 's'
 		  ,MatchId AS 'mid'
+		  ,EventDate AS 'e'
 	FROM @tmpGetInfo
 	FOR JSON PATH))
 
