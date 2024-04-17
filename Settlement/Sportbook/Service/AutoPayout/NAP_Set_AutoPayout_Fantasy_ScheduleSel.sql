@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_Fantasy_ScheduleSel]
 AS
 /*	Creator: 20230616@Aries
@@ -8,6 +8,7 @@ AS
 	Revisions:
 		- 20230616@Aries: Created [Redmine:#189493]
 		- 20230825@Aries: Direct Fantasy is run when parent match is not completed [Redmine:#193173]
+		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 
 	Param's Explanation:
  
@@ -120,13 +121,17 @@ BEGIN
 	
 	UPDATE m
 	SET  m.Action = 'REFUND'
+		,m.LastParentCalculateDate = tbl.LastParentCalculateDate
 	FROM @tmpMatch AS m
-	WHERE EXISTS (SELECT MAX(pr.LastModifyDate) AS LastModifyDate
-				  FROM @tmpParentInfo AS pr
-				  WHERE pr.MatchId = m.MatchId 
-					AND pr.ParentEventStatus = 'completed'
-				  GROUP BY pr.MatchId,pr.MatchParentId
-				  HAVING COUNT(1) % 2 = 0 AND SUM(IIF(SettlementStatusID = 1,4,0)) / COUNT(1) =  4) 
+		CROSS APPLY  (SELECT TOP 1
+							 MAX(pr.LastModifyDate) AS LastParentCalculateDate
+					  FROM @tmpParentInfo AS pr
+					  WHERE pr.MatchId = m.MatchId 
+						AND pr.ParentEventStatus = 'completed'
+					  GROUP BY pr.MatchId,pr.MatchParentId
+					  HAVING COUNT(1) % 2 = 0 AND SUM(IIF(SettlementStatusID = 1,4,0)) / COUNT(1) =  4
+					  ORDER BY MAX(pr.LastModifyDate) ASC
+					 ) AS tbl 
 		
 	DELETE m
 	FROM @tmpMatch AS m
@@ -176,8 +181,7 @@ BEGIN
 			WHERE ss.LeagueId = m.LeagueId
 				AND ss.AutoType = 5
 		) AS ss
-	WHERE (m.Action = 'CAL' AND m.LastParentCalculateDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,1), @CurrTime)) OR
-		   m.Action = 'REFUND'
-
+	WHERE m.Action IN ('CAL','REFUND') 
+		AND m.LastParentCalculateDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,300), @CurrTime)
 END
 GO

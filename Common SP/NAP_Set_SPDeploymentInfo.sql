@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_SPDeploymentInfo
 	@SPName			SYSNAME
 	,@WaitingTime	VARCHAR(10) 	OUTPUT
