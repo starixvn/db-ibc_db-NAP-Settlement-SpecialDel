@@ -119,6 +119,7 @@ BEGIN
 		,Remark			NVARCHAR(MAX)
 		,Trader			VARCHAR(MAX)
 		,LA				VARCHAR(MAX)
+		,MessageId      INT
 		,Message        VARCHAR(MAX)
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
@@ -368,7 +369,7 @@ BEGIN
 				SELECT STRING_AGG(CASE WHEN o.OperatorTypeId = 1 THEN c.Username ELSE NULL END,', ') AS Trader
 					  ,STRING_AGG(CASE WHEN o.OperatorTypeId = 2 THEN c.Username ELSE NULL END,', ') AS LA --Suspender
 				FROM dbo.TicketVoiding_OperatorInfo_bk o WITH(NOLOCK)
-					INNER JOIN bodb02.dbo.Customer c WITH(NOLOCK) ON O.OperatorId = c.CustId
+					INNER JOIN bodb02.dbo.Customer c WITH(NOLOCK) ON o.OperatorId = c.CustId
 				WHERE t.Requestid = o.RequestId
 			)o
 
@@ -394,7 +395,7 @@ BEGIN
 		
 	UPDATE	t 
 		SET LastVoidedBy = vh.LastVoidedBy
-		  , Message = msg.Content_en
+		   ,MessageId = vh.MessageId
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	TOP (1) vh.VoidedBy AS LastVoidedBy, vh.MessageId
@@ -402,7 +403,14 @@ BEGIN
 			WHERE	vh.RequestId = t.RequestId
 			ORDER BY vh.VoidingHistoryId DESC
 		) vh
-		INNER JOIN DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] msg WITH (NOLOCK) ON vh.MessageId = msg.MessageId
+	
+	UPDATE	t 
+		SET Message = CASE WHEN ms.MessageId IS NOT NULL THEN ms.Content_en
+								  WHEN ms1.MessageId IS NOT NULL THEN ms1.Content_en
+								  ELSE NULL END
+	FROM	#tmpResult t
+	LEFT JOIN DBMSG.bodb_Message.dbo.[Msg] ms WITH (NOLOCK) ON t.MessageId = ms.MessageId
+	LEFT JOIN DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] ms1 WITH (NOLOCK) ON t.MessageId = ms1.MessageId																						
 
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult WHERE Sporttype = 50)
 	BEGIN

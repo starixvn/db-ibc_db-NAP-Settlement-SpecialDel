@@ -426,7 +426,7 @@ BEGIN
 				SELECT STRING_AGG(CASE WHEN o.OperatorTypeId = 1 THEN c.Username ELSE NULL END,', ') AS Trader
 					  ,STRING_AGG(CASE WHEN o.OperatorTypeId = 2 THEN c.Username ELSE NULL END,', ') AS LA --Suspender
 				FROM dbo.TicketVoiding_OperatorInfo o WITH(NOLOCK)
-					INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON O.OperatorId = c.CustId
+					INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON o.OperatorId = c.CustId
 				WHERE t.Requestid = o.RequestId
 			)o
 
