@@ -370,7 +370,7 @@ BEGIN
 					  ,STRING_AGG(CASE WHEN o.OperatorTypeId = 2 THEN c.Username ELSE NULL END,', ') AS LA --Suspender
 				FROM dbo.TicketVoiding_OperatorInfo_bk o WITH(NOLOCK)
 					INNER JOIN bodb02.dbo.Customer c WITH(NOLOCK) ON o.OperatorId = c.CustId
-				WHERE t.Requestid = o.RequestId
+				WHERE t.RequestId = o.RequestId
 			)o
 
 	UPDATE t
@@ -379,7 +379,7 @@ BEGIN
 		CROSS APPLY (
 				SELECT TOP (1) rd.TransIds
 				FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-				WHERE t.Requestid = rd.RequestId
+				WHERE t.RequestId = rd.RequestId
 			)rd
 	WHERE t.IssueTypeId = 3
 
@@ -405,12 +405,11 @@ BEGIN
 		) vh
 	
 	UPDATE	t 
-		SET Message = CASE WHEN ms.MessageId IS NOT NULL THEN ms.Content_en
-								  WHEN ms1.MessageId IS NOT NULL THEN ms1.Content_en
-								  ELSE NULL END
+		SET Message = ISNULL(msg1.Content_en, msg.Content_en)
 	FROM	#tmpResult t
-	LEFT JOIN DBMSG.bodb_Message.dbo.[Msg] ms WITH (NOLOCK) ON t.MessageId = ms.MessageId
-	LEFT JOIN DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] ms1 WITH (NOLOCK) ON t.MessageId = ms1.MessageId																						
+		LEFT JOIN DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] msg1 WITH (NOLOCK) ON t.MessageId = msg1.MessageId																						
+		LEFT JOIN DBMSG.bodb_Message.dbo.[Msg] msg WITH (NOLOCK) ON t.MessageId = msg.MessageId
+	WHERE t.MessageId IS NOT NULL
 
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult WHERE Sporttype = 50)
 	BEGIN

@@ -427,7 +427,7 @@ BEGIN
 					  ,STRING_AGG(CASE WHEN o.OperatorTypeId = 2 THEN c.Username ELSE NULL END,', ') AS LA --Suspender
 				FROM dbo.TicketVoiding_OperatorInfo o WITH(NOLOCK)
 					INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON o.OperatorId = c.CustId
-				WHERE t.Requestid = o.RequestId
+				WHERE t.RequestId = o.RequestId
 			)o
 
 	UPDATE t
