@@ -38,6 +38,7 @@ BEGIN
 		LEFT JOIN Custdb.dbo.customer mr WITH(NOLOCK) ON c.mrecommend = mr.custid AND mr.roleid = 3
 		LEFT JOIN Custdb.dbo.customer s WITH(NOLOCK) ON c.srecommend = s.custid AND s.roleid = 4
 	WHERE l.IsNotify = 0
+		AND IsLicensee = 0
 
 END
 GO
