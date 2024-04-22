@@ -27,7 +27,8 @@ BEGIN
 		AND b.bettype = 413
 		AND b.status = 'WON'
 		AND ISNULL(s.SiteLabel,'') NOT IN ('789y') 
-		AND s.site NOT IN ('Special','Hedging','saba789' )
+		AND s.site NOT IN ('Special','Hedging')
+		AND s.isDeposit = 0
 		AND 1 = CASE WHEN @IsTest = 1 AND b.currency = 20 AND 1*stake >= @Minbet THEN 1 
 		             WHEN actualrate*stake >= @Minbet THEN 1 
 					 ELSE 0

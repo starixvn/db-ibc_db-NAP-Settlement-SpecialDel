@@ -12,6 +12,7 @@ AS
 BEGIN
 	SELECT l.DrawID
 			,l.MatchID
+			,m.leagueId
 			,l.TypeID
 			,m.Kickofftime
 			,m.HomeID
