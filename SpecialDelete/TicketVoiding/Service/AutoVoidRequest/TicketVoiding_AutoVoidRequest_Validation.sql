@@ -26,6 +26,7 @@ AS
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
+		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 
 	Param's explanation:
 		
@@ -278,7 +279,7 @@ BEGIN
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (9,29,2799,10449)
 		END
 	END
-	IF @IssueTypeId IN (19,21) --ReducedOver Cricket, Not Participate
+	IF @IssueTypeId IN (19,21,23) --ReducedOver Cricket, Not Participate, Abandoned
 	BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType, transdate, winlostdate, statusId)
 		SELECT t.TransId

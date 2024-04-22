@@ -18,6 +18,7 @@ AS
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
+		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 
 	Param's explanation:
 	 Note : Call for ActionId IN (1,9) -- Auto void winning, VoidResultKeyed
@@ -69,8 +70,8 @@ BEGIN
 		FROM #tmpInputTransId t 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE b.statuswinlost IS NOT NULL 
-			AND 1 = CASE WHEN t.IssueTypeId IN (19,21) THEN 1
-						WHEN t.IssueTypeId <> 19 AND b.statusID IN (0,1) THEN 1
+			AND 1 = CASE WHEN t.IssueTypeId IN (19,21,23) THEN 1
+						WHEN t.IssueTypeId NOT IN (19,23) AND b.statusID IN (0,1) THEN 1
 						ELSE 0
 					END
 		UNION ALL
@@ -84,7 +85,7 @@ BEGIN
 		FROM #tmpInputTransId t 
 			INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.IsMixParlay = 1
-			AND t.IssueTypeId IN (19,21) 
+			AND t.IssueTypeId IN (19,21,23) 
 			AND b.statuswinlost IS NOT NULL 
 	)t
 

@@ -66,6 +66,7 @@ AS
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -230,7 +231,7 @@ BEGIN
 				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END
-	ELSE IF @IssueTypeId IN (19)
+	ELSE IF @IssueTypeId IN (19,23) --Reduced Over, Abandoned
 	BEGIN
 		EXEC dbo.TicketVoiding_RequestDetail_RO_Update
 				 @RequestId		 = @RequestId		
@@ -297,7 +298,7 @@ BEGIN
 								+ ', Sporttype: ' + CAST(@Sporttype AS VARCHAR(20))
 								+ ', IssueTypeId: ' + CAST(@IssueTypeId AS VARCHAR(20))
 								+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
-								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10,15,4,5,6,7,19) OR (@IssueTypeId = 11 AND @FilterBy IS NULL) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
+								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10,15,4,5,6,7,19,23) OR (@IssueTypeId = 11 AND @FilterBy IS NULL) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
 															   ELSE '' END
 								+ ', DecidedBy: ' + CASE WHEN @DecidedBy IS NOT NULL THEN @DecidedBy ELSE 'NULL' END
 								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10,15) OR (@IssueTypeId = 11 AND @FilterBy IS NULL)

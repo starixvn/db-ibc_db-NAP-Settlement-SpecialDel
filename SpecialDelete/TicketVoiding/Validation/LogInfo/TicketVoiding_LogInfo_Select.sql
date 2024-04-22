@@ -69,6 +69,7 @@ AS
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
+		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 
 	Param's explanation:
 		
@@ -201,7 +202,7 @@ BEGIN
 			,@DARCInfo			   = @RedCardInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
-	ELSE IF @IssueTypeId = 19 --ReducedOver
+	ELSE IF @IssueTypeId IN (19,23) --ReducedOver, Abandoned
 	BEGIN
 		EXEC dbo.TicketVoiding_LogInfo_RO_Select
 			 @RequestId			   = @RequestId
@@ -221,7 +222,7 @@ BEGIN
 			,@ReducedOverInfo	   = @NotParticipateInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
-
+	
 	-- Write useraction log	
 	BEGIN TRY
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 

@@ -75,6 +75,7 @@ AS
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -276,7 +277,7 @@ BEGIN
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest
 		END
-		ELSE IF @IssueTypeId IN (19)
+		ELSE IF @IssueTypeId IN (19,23) --Reduced Over, Abandoned
 		BEGIN
 			EXEC dbo.TicketVoiding_RequestDetail_RO_Update
 					 @RequestId		 = @RequestId		
