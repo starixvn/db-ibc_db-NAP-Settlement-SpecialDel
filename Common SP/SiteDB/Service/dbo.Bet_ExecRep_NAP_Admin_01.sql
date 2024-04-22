@@ -185,10 +185,14 @@ BEGIN
 					UPDATE SiteDB_ParlaySettlementProcessing
 						SET TransInfoBetParlayResult = @TransInfoJson
 					WHERE	SiteDB_ParlaySettlementProcessingId = @SiteDB_ParlaySettlementProcessingId
+						AND SiteDBGroupId = @SiteDBGroupId
+						AND SessionId = @SessionId
 				ELSE IF @TableName = 'bettrans'
 					UPDATE SiteDB_ParlaySettlementProcessing
 						SET TransInfoBettrans = @TransInfoJson
 					WHERE	SiteDB_ParlaySettlementProcessingId = @SiteDB_ParlaySettlementProcessingId
+						AND SiteDBGroupId = @SiteDBGroupId
+						AND SessionId = @SessionId
 			END
 		END
 		ELSE

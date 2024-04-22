@@ -15,7 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
 	,@IsReSettledTickets BIT = 0
 	,@strSetting VARCHAR(MAX) = NULL
     ,@BroadcastSessionId	VARCHAR(50)	= NULL
-	,@SessionId INT = NULL
+	,@SessionId BIGINT = NULL
 	,@ActionId INT = NULL
 	,@IsCalculateBalance BIT = NULL
 	,@ParlaySettlementProcessingId BIGINT = NULL
