@@ -7,6 +7,7 @@ AS
 	
 	Revisions:
 		- 20240305@Aries: Created [Redmine:#199768]
+		- 20240422@Aries: Fix a issue due to the insufficient Leagueid of Fantasy matches for Basketball [Redmine:#204170]
 
 	Param's Explanation:
  
@@ -58,7 +59,7 @@ BEGIN
 		 
 	WHERE m.eventstatus = 'running' 
 		AND m.eventdate BETWEEN @FromDate AND @ToDate
-		AND m.leagueid IN (56053,56037,136578,99321,132325,16926)
+		AND m.leagueid IN (56053,56037,56069,136578,99321,132325,16926)
 		AND ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0))  & 16 > 0
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
 		AND rs.IsExistAP IS NULL
