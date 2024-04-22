@@ -10,7 +10,7 @@ AS;
 	
 	Revisions: 
 		- 20230522@July: Create new SP [Redmine:#188153]
-		- 20240417@July: Add filter range time => avoid scan data archive [Redmine:#199925]
+		- 20240417@July: Add filter range time => avoid scan all data archive [Redmine:#199925]
 		
 	Param's explanation:	
 			
