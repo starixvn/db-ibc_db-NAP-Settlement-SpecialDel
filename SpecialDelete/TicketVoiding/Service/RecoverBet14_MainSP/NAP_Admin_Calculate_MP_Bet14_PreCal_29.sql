@@ -429,9 +429,9 @@ BEGIN
 
 	IF @IsSiteDB = 1
 	BEGIN
-		DECLARE @TransInfoJson NVARCHAR(MAX)
+		DECLARE @TransInfoJson_Sync NVARCHAR(MAX)
 
-		SET @TransInfoJson = (
+		SET @TransInfoJson_Sync = (
 			SELECT	 @matchdate as 'wld'
 					,@strXML as 'strTransId'
 					,@IsReSettledTickets AS 'ReSettle'
@@ -439,13 +439,13 @@ BEGIN
 			FOR JSON PATH
 		)
 
-		IF @transinfoJson IS NOT NULL
+		IF @TransInfoJson_Sync IS NOT NULL
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
 				@SystemName = 'Settlement' 
 				,@FunctionName = 'PreCal29'
 				,@TableName = 'BetParlayResult'
 				,@MatchId = @MatchId
-				,@TransInfoJson = @transinfoJson
+				,@TransInfoJson = @TransInfoJson_Sync
 				,@SettlementAction = 'CAL'
 				,@TicketType = 'p'
 	END
