@@ -26,6 +26,7 @@ BEGIN
 	DECLARE @ExtraValue MONEY
 		,@IsSiteDB	BIT = 0
 		,@IsReSettledTickets BIT = 0
+		,@strXML VARCHAR(MAX) = NULL
 	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
@@ -44,7 +45,10 @@ BEGIN
 					WITH( t BIGINT, bet_sid INT)
 		) tbl
 	WHERE f.value <> ''
-	
+
+	SELECT  @strXML = @strXML + CONVERT(VARCHAR(20), transid) + ','
+	FROM	@transIDs
+
 	CREATE TABLE #temp_bettrans (
 			transid BIGINT NOT NULL
 			,refno BIGINT --PRIMARY KEY CLUSTERED
