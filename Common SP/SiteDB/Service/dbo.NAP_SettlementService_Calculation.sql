@@ -179,7 +179,7 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			IF @TableName IN ('bettrans', 'bettransm')
+			IF @TableName IN ('bettrans', 'bettransm', 'bettransm/BetParlayDetail')
 			BEGIN
 				SELECT	@IsPassed = 0 
 						,@DelayTime = dbo.f_Settlement_GetDelayTime('Wait_CompareTicket')

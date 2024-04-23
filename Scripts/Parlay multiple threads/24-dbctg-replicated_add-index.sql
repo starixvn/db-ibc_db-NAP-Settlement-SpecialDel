@@ -1,9 +1,9 @@
-/*<info serverAlias="DBCTG-bodb02" executers="" selecters="" viewers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,SBSETTLE-bodb02" executers="" selecters="" viewers="" isFunction="0" isNested="0"></info>*/
 
 /*
 	Created by: 20240422@Louisa
 	Task	  : add index
-	DB		  : DBCTG/bodb02
+	DB		  : DBCTG-bodb02,SBSETTLE-bodb02
 */
 
 USE [bodb02]
