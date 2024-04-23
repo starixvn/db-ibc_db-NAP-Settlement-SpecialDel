@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_Bet14_PreCal_29]
 (
 	@matchid	INT
 	,@matchdate SMALLDATETIME
-	,@TransInfoJson		VARCHAR(MAX) = NULL
+	,@TransInfoJson		VARBINARY(MAX) = NULL
 	,@strSetting VARCHAR(MAX) = NULL
 )
 AS
@@ -37,14 +37,12 @@ BEGIN
 
 	INSERT INTO @transIDs (transid, BetSiteID)
 	SELECT t, bet_sid
-	FROM STRING_SPLIT(@TransInfoJson, ',') f
-		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
-		CROSS APPLY (
-				SELECT t, bet_sid
-				FROM OPENJSON(t.Decompress_TransInfoJson) 
-					WITH( t BIGINT, bet_sid INT)
-		) tbl
-	WHERE f.value <> ''
+	FROM (SELECT CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) f
+	CROSS APPLY (
+			SELECT t, bet_sid
+			FROM OPENJSON(f.Decompress_TransInfoJson) 
+				WITH( t BIGINT, bet_sid INT)
+	) tbl
 
 	SELECT  @strXML = @strXML + CONVERT(VARCHAR(20), transid) + ','
 	FROM	@transIDs

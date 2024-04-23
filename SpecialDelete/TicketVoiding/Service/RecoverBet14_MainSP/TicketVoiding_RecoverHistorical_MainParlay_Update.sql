@@ -49,7 +49,7 @@ BEGIN
 			,@tmp_MatchId		INT
 			,@RowNumber			INT	= 1
 			,@MatchDate			DATETIME
-			,@tmp_TransIds		VARCHAR(MAX)
+			,@tmp_TransIds		VARBINARY(MAX) = NULL
 			,@refnos_29			VARCHAR(MAX)
 			,@strSetting		VARCHAR(MAX)
 			,@sqlOpenqueryCommand NVARCHAR(MAX) = ''
@@ -320,11 +320,11 @@ BEGIN
 		FROM	dbo.match14 WITH(NOLOCK)
 		WHERE	matchid = @tmp_MatchId
 
-		SET @tmp_TransIds = CONVERT(VARCHAR(MAX), COMPRESS((SELECT t.transid AS 't'
+		SET @tmp_TransIds = COMPRESS((SELECT t.transid AS 't'
 			,t.BetSiteID  AS 'bet_sid'
 		FROM @tblMatchIds t
 		WHERE matchid = @tmp_MatchId
-		FOR JSON PATH)))
+		FOR JSON PATH))
 
 		SELECT @refnos_29 = ''
 		SELECT 	@refnos_29 = @refnos_29 + ',' + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid)
