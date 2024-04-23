@@ -96,7 +96,6 @@ BEGIN
 							,PlayerComm, Comm, aComm, sComm, statuswinlost, creator, ExtraInfo)
 	FROM dbo.bettrans14 b
 		INNER JOIN @tbl_transIDs t ON b.transid = t.transid
-	WHERE b.SiteDBGroupID = @SiteDBGroupID
 
 	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
