@@ -13,6 +13,7 @@ as
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 */
 begin
 	set nocount on
@@ -20,7 +21,8 @@ begin
 		, @__params xml, @__tableName varchar(200), @__matchId int
 		, @__action varchar(1), @__settlementAction varchar(20), @__ticketType varchar(1)
 		, @__startTime datetime2, @__endtime datetime2
-		, @__sessionId bigint, @__siteDBGroupId smallint, @__totalQueue int, @__AffectedTicket int , @__TableType SMALLINT
+		, @__sessionId bigint, @__siteDBGroupId smallint, @__totalQueue int, @__AffectedTicket int , @__TableType SMALLINT,  @__totalParlayQueue int
+
 
 	select @__startTime = sysdatetime(), @__params = cast(@MessageBody as xml)
 
@@ -36,6 +38,7 @@ begin
 			,@__siteDBGroupId = T.C.value('@SiteDBGroupId','smallint')
 			,@__sessionId = T.C.value('@SessionId','bigint')
 			,@__totalQueue = T.C.value('@TotalQueue','int')			
+			,@__totalParlayQueue = T.C.value('@TotalParlayQueue','int')
 			,@__transinfoJson = convert( varbinary(max), T.C.value('@TransInfoJson','varchar(max)'),1)
 		from @__params.nodes('/root/r') as T(C)
 
@@ -52,6 +55,7 @@ begin
 			,@TicketType					= @__ticketType
 			
 			,@TotalQueue					= @__totalQueue	
+			,@TotalParlayQueue				= @__totalParlayQueue
 			,@AffectedTicket				= @__AffectedTicket output
 			,@ErrCode						= @__errCode output
 			,@ErrMsg						= @__errmsg output
@@ -95,6 +99,7 @@ begin
 			+ case when @__settlementAction is not null then ',@SettlementAction=''' + @__settlementAction + '''' else '' end
 			+ case when @__ticketType is not null then ',@TicketType=''' + @__ticketType + '''' else '' end
 			+ case when @__totalQueue is not null then ',@TotalQueue=' + cast(@__totalQueue as varchar(50)) + '' else '' end
+			+ case when @__totalParlayQueue is not null then ',@TotalParlayQueue=' + cast(@__totalParlayQueue as varchar(50)) + '' else '' end
 			+ case when @__transInfo is not null then ',@TransInfo=''' + @__transInfo + '''' else '' end
 			+ case when @__transInfoJson is not null then ',@TransInfoJson=''' + CONVERT(nvarchar(max), @__transInfoJson, 1) + '''' else '' end
 			

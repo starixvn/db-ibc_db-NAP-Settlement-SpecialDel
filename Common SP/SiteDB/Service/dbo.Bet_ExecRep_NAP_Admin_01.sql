@@ -11,13 +11,18 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01]
 	,@SettlementAction VARCHAR(20) = NULL
 	,@TicketType VARCHAR(1) = NULL
 	,@TotalQueue INT = 0
+	,@TotalParlayQueue INT = 0
 	,@RunOnServer VARCHAR(100)= NULL
 	,@SettlementProcessingId BIGINT = NULL	
+	,@ParlaySettlementProcessingId BIGINT = NULL	
+	,@SiteDB_ParlaySettlementProcessingId BIGINT = NULL
 	,@Is3rd 	BIT =  0
 	,@SiteDB	 SMALLINT = 1
 	,@EventTable TINYINT = 0 
 	,@CalledByBrokerService	BIT = 0
-	,@AffectedTicket INT = 0 OUTPUT	
+	,@AffectedTicket INT = 0 OUTPUT
+	,@ErrCode INT = 0	 OUTPUT
+	,@ErrMsg VARCHAR(300) = '' OUTPUT
 AS
 /*
 	Created by: 20220728@Kathy
@@ -41,6 +46,7 @@ AS
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 		- 20230816@Kathy: parlay boost [Redmine:#191873] 
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]		
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 
 	Param's Explanation:  
 		   
@@ -62,12 +68,14 @@ BEGIN
 
 			,@maxTryCount TINYINT
 			,@TryCount	TINYINT
-			,@errcode INT
-			,@errmsg VARCHAR(1024)
+
 			,@SiteDB_TotalQueue INT
+			,@SiteDB_TotalParlayQueue INT
 			,@Decompress_TransInfoJson NVARCHAR(MAX)
 			,@IsReSettledTickets BIT
-			,@strSetting VARCHAR(MAX)
+			,@strSetting VARCHAR(MAX)			
+			,@MessageTypeNew VARCHAR(200) 
+			,@QueueNoNew INT 
 			
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid VARCHAR(50)
@@ -84,6 +92,8 @@ BEGIN
 		,currency	TINYINT	
 		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate FLOAT, MainMatchId INT
 	)
+	
+	DECLARE @tmpAffectedTransId TABLE (transid BIGINT)
 	
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
 	SET @ServerName = @@SERVERNAME
@@ -138,6 +148,7 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
 		,@SiteDB_TotalQueue = @SiteDB_TotalQueue OUTPUT
+		,@SiteDB_TotalParlayQueue = @SiteDB_TotalParlayQueue OUTPUT
 		,@SiteDB_RunSettlement = @SiteDB_RunSettlement OUTPUT
 
 	IF @SiteDB_RunSettlement = 0
@@ -149,9 +160,6 @@ BEGIN
 		BEGIN
 			IF OBJECT_ID('SiteDB_SettlementProcessing', 'U') IS NOT NULL
 			BEGIN
-				DECLARE @MessageTypeNew VARCHAR(200) 
-					,@QueueNoNew INT 
-			
 				SET @QueueNoNew = @SettlementProcessingId%@SiteDB_TotalQueue 
 									+ CASE WHEN @SettlementProcessingId%@SiteDB_TotalQueue = 0 THEN @SiteDB_TotalQueue ELSE 0 END
 
@@ -159,6 +167,32 @@ BEGIN
 			
 				INSERT INTO dbo.SiteDB_SettlementProcessing (SiteDBGroupId, SessionId, TransInfo, MessageType, SettlementAction, TicketType)
 				SELECT @SiteDBGroupId, @SessionId, @TransInfoJson, @MessageTypeNew, @SettlementAction, @TicketType
+			END
+		END
+		ELSE IF ISNULL(@ParlaySettlementProcessingId,0) <> 0
+		BEGIN
+			IF OBJECT_ID('SiteDB_ParlaySettlementProcessing', 'U') IS NOT NULL
+			BEGIN
+				SET @QueueNoNew = @ParlaySettlementProcessingId%@SiteDB_TotalParlayQueue 
+									+ CASE WHEN @ParlaySettlementProcessingId%@SiteDB_TotalParlayQueue = 0 THEN @SiteDB_TotalParlayQueue ELSE 0 END
+
+				SET @MessageTypeNew = 'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_parlaybet_settle_msg_type_0' + CAST(@QueueNoNew AS VARCHAR)
+				
+				IF @TableName IN ('bettransm', 'bettransm/BetParlayDetail')
+					INSERT INTO dbo.SiteDB_ParlaySettlementProcessing (SiteDBGroupId, SessionId, MatchId, TableName, TransInfoBettransM, MessageType, SettlementAction, TicketType, SiteDB_ParlaySettlementProcessingId)
+					SELECT @SiteDBGroupId, @SessionId, @MatchId, @TableName, @TransInfoJson, @MessageTypeNew, @SettlementAction, @TicketType, @SiteDB_ParlaySettlementProcessingId
+				ELSE IF @TableName = 'BetParlayResult'
+					UPDATE SiteDB_ParlaySettlementProcessing
+						SET TransInfoBetParlayResult = @TransInfoJson
+					WHERE	SiteDB_ParlaySettlementProcessingId = @SiteDB_ParlaySettlementProcessingId
+						AND SiteDBGroupId = @SiteDBGroupId
+						AND SessionId = @SessionId
+				ELSE IF @TableName = 'bettrans'
+					UPDATE SiteDB_ParlaySettlementProcessing
+						SET TransInfoBettrans = @TransInfoJson
+					WHERE	SiteDB_ParlaySettlementProcessingId = @SiteDB_ParlaySettlementProcessingId
+						AND SiteDBGroupId = @SiteDBGroupId
+						AND SessionId = @SessionId
 			END
 		END
 		ELSE
@@ -173,6 +207,7 @@ BEGIN
 							,@SettlementAction AS '@SettlementAction'
 							,@TicketType AS '@TicketType'
 							,@SiteDB_TotalQueue AS '@TotalQueue'
+							,@SiteDB_TotalParlayQueue AS '@TotalParlayQueue'
 							,@RunOnServer AS '@RunOnServer'
 							,@Is3rd AS '@Is3rd'
 							,CONVERT(nvarchar(max), @TransInfoJson, 1) AS '@TransInfoJson'	
@@ -205,8 +240,18 @@ BEGIN
 					EXEC dbo.ExecRep_NAP_Admin_04 @Action = @Action
 						,@SiteDBGroupId = @SiteDBGroupId
 						,@MatchId = @MatchId
+						,@TableName = @TableName
 						,@SessionId = @SessionId
 						,@TotalQueue = @TotalQueue
+				END
+				ELSE IF @TableName = 'SiteDB_ParlaySettlementLock' AND OBJECT_ID('SiteDB_ParlaySettlementLock', 'U') IS NOT NULL
+				BEGIN
+					EXEC dbo.ExecRep_NAP_Admin_04 @Action = @Action
+						,@SiteDBGroupId = @SiteDBGroupId
+						,@MatchId = @MatchId
+						,@TableName = @TableName
+						,@SessionId = @SessionId
+						,@TotalParlayQueue = @TotalParlayQueue
 				END
 				ELSE IF @tablename = 'bettrans'
 				BEGIN
@@ -417,7 +462,7 @@ BEGIN
 						SELECT @AffectedTicket = @batchNo
 					END
 				END
-				ELSE IF @TableName = 'bettransm'
+				ELSE IF @TableName IN ('bettransm', 'bettransm/BetParlayDetail')
 				BEGIN
 					IF @TransInfoJson IS NOT NULL
 					BEGIN
@@ -501,6 +546,27 @@ BEGIN
 							ON	bm.transid = t.transid 
 							
 					SELECT @AffectedTicket = @batchNo
+					
+					IF @TableName = 'bettransm/BetParlayDetail'
+					BEGIN
+						UPDATE pd 
+						SET matchid = CASE WHEN t.matchid IS NULL THEN pd.matchid ELSE t.matchid END
+							,winlostdate = CASE	
+												WHEN t.winlostdate IS NULL THEN pd.winlostdate
+												WHEN t.winlostdate = '' THEN NULL
+												ELSE t.winlostdate
+											END
+								,statusID = CASE WHEN t.StatusID IS NULL THEN pd.statusid ELSE t.StatusID END			
+								,statuswinlost = CASE 
+													WHEN t.statuswinlost IS NULL THEN pd.statuswinlost
+													WHEN t.statuswinlost = '' THEN NULL
+													ELSE CAST(t.statuswinlost AS TINYINT)
+												END		
+						FROM   @tmpTransId t
+							INNER JOIN dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+								ON  pd.transid = t.transid
+					END
+						
 				END
 				ELSE IF @TableName = 'BetParlayDetail'
 				BEGIN
@@ -799,13 +865,13 @@ BEGIN
 						SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 						SELECT	@matchdate = wld
-								,@strTransIds = strTransId
+								,@strTransIds = strTransIds
 								,@IsReSettledTickets = ReSettle
 								,@strSetting = strSetting
 						FROM OPENJSON(@Decompress_TransInfoJson)
 						WITH (				
 							wld			SMALLDATETIME	
-							,strTransId VARCHAR(MAX)
+							,strTransIds VARCHAR(MAX)
 							,ReSettle		BIT
 							,strSetting VARCHAR(MAX)
 						)
@@ -813,7 +879,7 @@ BEGIN
 					ELSE -- @TransInfo IS NOT NULL (xml format)
 					BEGIN
 						SELECT  @matchdate = T.C.value('@wld', 'SMALLDATETIME') 
-								,@strTransIds = T.C.value('@strTransId', 'VARCHAR(MAX)') 
+								,@strTransIds = T.C.value('@strTransIds', 'VARCHAR(MAX)') 
 						FROM    @TransInfo.nodes('/root/r') AS T(C)
 					END 
 					
@@ -823,6 +889,7 @@ BEGIN
 						,@strXML = @strTransIds
 						,@IsReSettledTickets = @IsReSettledTickets
 						,@strSetting = @strSetting
+						,@AffectedTicket = @AffectedTicket OUTPUT
 				END
 				ELSE IF @TableName = 'TicketVoiding_VoidedTransaction' AND OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL
 				BEGIN

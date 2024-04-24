@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_CalculationLogIns]
 	@SiteDBGroupId SMALLINT
 	,@SiteDBCalculationLog TVP_SiteDB_CalculationLog READONLY
@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 
 	Param's Explanation:  
 		   
@@ -37,14 +38,15 @@ BEGIN
 			,@ErrCode INT
 			,@ErrMsg VARCHAR(300)
 	
-			,@SiteDB_RunExecDataBySSB BIT
+			--,@SiteDB_RunExecDataBySSB BIT
 			,@SiteDB_ExecDataQueueSize SMALLINT
-			,@MessageTypePattern VARCHAR(200)
+			,@SiteDB_ExecParlayDataQueueSize SMALLINT
 
 	EXEC dbo.NAP_Set_GlobalSettingSel	
 			@LockName = 'SiteDB_SettlementSSB'
-			,@SiteDB_RunExecDataBySSB =  @SiteDB_RunExecDataBySSB OUTPUT
+			--,@SiteDB_RunExecDataBySSB =  @SiteDB_RunExecDataBySSB OUTPUT
 			,@SiteDB_ExecDataQueueSize = @SiteDB_ExecDataQueueSize OUTPUT
+			,@SiteDB_ExecParlayDataQueueSize = @SiteDB_ExecParlayDataQueueSize OUTPUT
 
 	SELECT	@MaxLogId = MAX(CASE WHEN ISNULL(IsParallel,0) = 1 THEN 0 ELSE LogId END)
 			,@IsExistsParallel = MAX(CASE WHEN ISNULL(IsParallel,0) = 1 THEN 1 ELSE 0 END)
@@ -52,23 +54,89 @@ BEGIN
 
 	IF @IsExistsParallel = 1 -- run commands in parallel
 	BEGIN
-		SET @MessageTypePattern = 'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_bet_settle_msg_type_0'
-
+		-- single
 		INSERT INTO dbo.SiteDB_SettlementProcessing(SiteDBGroupId, SessionId, MessageType, TransInfo, SettlementAction, TicketType)
 		SELECT	@SiteDBGroupId
 				,s.SessionId
-				,@MessageTypePattern + CAST(s.LogId%@SiteDB_ExecDataQueueSize + CASE WHEN s.LogId%@SiteDB_ExecDataQueueSize = 0 THEN @SiteDB_ExecDataQueueSize ELSE 0 END AS VARCHAR)
+				,'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_bet_settle_msg_type_0' + CAST(s.LogId%@SiteDB_ExecDataQueueSize + CASE WHEN s.LogId%@SiteDB_ExecDataQueueSize = 0 THEN @SiteDB_ExecDataQueueSize ELSE 0 END AS VARCHAR)
 				,s.TransInfoJson
 				,s.SettlementAction
 				,s.TicketType
 		FROM	@SiteDBCalculationLog s
 		WHERE	s.IsParallel = 1
+				AND s.TicketType = 's'
 		ORDER BY s.LogId
+		
+		IF @@ROWCOUNT <> 0
+			INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId, LogDate)
+			SELECT s.LogId, @SiteDBGroupId, SYSDATETIME()
+			FROM	@SiteDBCalculationLog s
+			WHERE	s.IsParallel = 1
+					AND s.TicketType = 's'
+				
+		-- parlay
+		BEGIN -- TransInfoBetParlayResult, TransInfoBettrans, 
+			INSERT INTO dbo.SiteDB_ParlaySettlementProcessing(SiteDBGroupId, SessionId, MatchId, TableName, MessageType, TransInfoBettransM, SettlementAction, TicketType, SiteDB_ParlaySettlementProcessingId)
+			SELECT	@SiteDBGroupId
+					,s.SessionId
+					,s.MatchId
+					,s.TableName
+					,'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_parlaybet_settle_msg_type_0' + CAST(s.LogId%@SiteDB_ExecParlayDataQueueSize + CASE WHEN s.LogId%@SiteDB_ExecParlayDataQueueSize = 0 THEN @SiteDB_ExecParlayDataQueueSize ELSE 0 END AS VARCHAR)
+					,s.TransInfoJson AS TransInfoBettransM
+					,s.SettlementAction
+					,s.TicketType
+					,(SELECT TOP 1 T.C.value('./@pid', 'bigint') FROM TransInfo.nodes('/parlay/r') AS T(C)) AS SiteDB_ParlaySettlementProcessingId
+			FROM	@SiteDBCalculationLog s
+			WHERE	s.IsParallel = 1
+					AND s.TicketType = 'p'
+					AND TableName IN ('bettransm', 'bettransm/BetParlayDetail')
+			ORDER BY s.LogId
 
-		INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId, LogDate)
-		SELECT s.LogId, @SiteDBGroupId, SYSDATETIME()
-		FROM	@SiteDBCalculationLog s
-		WHERE	s.IsParallel = 1
+			IF @@ROWCOUNT <> 0
+				INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId, LogDate)
+				SELECT s.LogId, @SiteDBGroupId, SYSDATETIME()
+				FROM	@SiteDBCalculationLog s
+				WHERE	s.IsParallel = 1
+						AND s.TicketType = 'p'	
+						AND TableName IN ('bettransm', 'bettransm/BetParlayDetail')
+				ORDER BY s.LogId
+
+			;WITH cteSiteDBCalculationLog
+			AS (
+				SELECT	(SELECT TOP 1 T.C.value('./@pid', 'bigint') FROM TransInfo.nodes('/parlay/r') AS T(C)) AS SiteDB_ParlaySettlementProcessingId
+						,s.TransInfoJson
+						,s.TableName
+						,s.SessionId
+				FROM	@SiteDBCalculationLog s
+				WHERE	s.IsParallel = 1
+					AND s.TicketType = 'p'
+					AND TableName IN ('bettrans', 'BetParlayResult')
+			)
+			UPDATE	p
+				SET TransInfoBetParlayResult = ISNULL(s.TransInfoBetParlayResult, p.TransInfoBetParlayResult)
+					,TransInfoBettrans = ISNULL(s.TransInfoBettrans, p.TransInfoBettrans)
+			FROM	dbo.SiteDB_ParlaySettlementProcessing p
+				INNER JOIN (
+					SELECT	SiteDB_ParlaySettlementProcessingId
+							,SessionId
+							,MAX(CASE WHEN cte.TableName = 'BetParlayResult' THEN TransInfoJson ELSE NULL END) AS TransInfoBetParlayResult
+							,MAX(CASE WHEN cte.TableName = 'bettrans' THEN TransInfoJson ELSE NULL END) AS TransInfoBettrans
+					FROM	cteSiteDBCalculationLog cte
+					GROUP BY SiteDB_ParlaySettlementProcessingId, SessionId
+				)s
+				ON p.SiteDB_ParlaySettlementProcessingId = s.SiteDB_ParlaySettlementProcessingId
+					AND p.SessionId = s.SessionId
+					AND p.SiteDBGroupId = @SiteDBGroupId
+
+			IF @@ROWCOUNT <> 0
+				INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId, LogDate)
+				SELECT s.LogId, @SiteDBGroupId, SYSDATETIME()
+				FROM	@SiteDBCalculationLog s
+				WHERE	s.IsParallel = 1
+						AND s.TicketType = 'p'	
+						AND TableName IN ('bettrans', 'BetParlayResult')
+				ORDER BY s.LogId
+		END	
 	END
 	
 	IF @MaxLogId > 0 -- run commands in sequence
@@ -107,6 +175,7 @@ BEGIN
 							,@SiteDBGroupId AS '@SiteDBGroupId'
 							,@SessionId AS '@SessionId'
 							,@SiteDB_ExecDataQueueSize AS '@TotalQueue'
+							,@SiteDB_ExecParlayDataQueueSize AS '@TotalParlayQueue'
 							,CONVERT(nvarchar(max), @TransInfoJson, 1) AS '@TransInfoJson'	
 					FOR XML PATH ('r'), ROOT ('root'), TYPE)
 				AS VARCHAR(MAX))

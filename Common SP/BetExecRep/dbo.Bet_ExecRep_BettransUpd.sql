@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_BettransUpd] 
 	@BetTickets	VARCHAR(MAX)
 	,@matchid	INT = 0
@@ -19,6 +19,7 @@ AS
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20240410@Kathy: support parlay - write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 
 	Param's Explanation:
 		- ExecRep SP: DBTrans_Bet
@@ -37,7 +38,7 @@ BEGIN
 			,@MessageBody		VARCHAR(MAX)
 			,@TableType			TINYINT
 			,@AffectedTicket	INT
-
+			
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,modds MONEY, statuswinlost TINYINT, winlostdate SMALLDATETIME
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
@@ -213,8 +214,6 @@ BEGIN
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
 		)
-
-		SELECT @matchid = (SELECT TOP 1 matchid FROM @sourceTicket)
 
 		EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
 			@SystemName = 'Settlement' 

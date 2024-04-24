@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction=""></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction=""></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_GlobalSettingSel]
 	@LockName VARCHAR(100)
 	,@ThreadHold INT = 0 OUTPUT
@@ -10,6 +10,9 @@ ALTER PROCEDURE [dbo].[NAP_Set_GlobalSettingSel]
 	,@MinThreadHold INT = 0 OUTPUT
 	,@SiteDB_RunExecDataBySSB BIT = 0 OUTPUT
 	,@SiteDB_ExecDataQueueSize SMALLINT = 0 OUTPUT
+	,@RunExecParlayDataBySSB BIT = 0 OUTPUT
+	,@ExecParlayDataQueueSize SMALLINT = 0 OUTPUT
+	,@SiteDB_ExecParlayDataQueueSize SMALLINT = 0 OUTPUT
 AS
 
 /*
@@ -22,6 +25,7 @@ AS
 		- 20211210@Kathy: Improve performance 
 		- 20220606@Kathy: Adjust number of execution service from 6 to 8 [Redmine:#173205]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 
     Parameters Explanation:        
     
@@ -37,6 +41,9 @@ BEGIN
 		,ExecDataQueueSize 		SMALLINT
 		,SiteDB_RunExecDataBySSB BIT
 		,SiteDB_ExecDataQueueSize SMALLINT
+		,RunExecParlayDataBySSB	 BIT
+		,ExecParlayDataQueueSize SMALLINT
+		,SiteDB_ExecParlayDataQueueSize SMALLINT
 	)
 	
 	INSERT INTO @tmpGlobalSetting(LockName, ThreadHold)
@@ -45,8 +52,11 @@ BEGIN
 	INSERT INTO @tmpGlobalSetting(LockName, RunPrepareDataBySSB, RunExecDataBySSB, PrepareDataQueueSize, ExecDataQueueSize)
 	VALUES ('SettlementSSB', 1, 1, 6, 8)
 
-	INSERT INTO @tmpGlobalSetting(LockName, SiteDB_RunExecDataBySSB, SiteDB_ExecDataQueueSize)
-	VALUES ('SiteDB_SettlementSSB', 1, 4)
+	INSERT INTO @tmpGlobalSetting(LockName, SiteDB_RunExecDataBySSB, SiteDB_ExecDataQueueSize, SiteDB_ExecParlayDataQueueSize)
+	VALUES ('SiteDB_SettlementSSB', 1, 4, 4)
+	
+	INSERT INTO @tmpGlobalSetting(LockName, RunExecParlayDataBySSB, ExecParlayDataQueueSize)
+	VALUES ('ParlaySettlementSSB', 1, 4)
 
 	SET @ThreadHold = 0
 	SET @PrepareDataQueueSize = 0
@@ -55,6 +65,9 @@ BEGIN
 	SET @RunExecDataBySSB = 0
 	SET @SiteDB_RunExecDataBySSB = 0
 	SET @SiteDB_ExecDataQueueSize = 0
+	SET @RunExecParlayDataBySSB = 0
+	SET @ExecParlayDataQueueSize = 0
+	SET @SiteDB_ExecParlayDataQueueSize = 0
 
 	IF @LockName = 'ParlayRefno'
 		SELECT	@ThreadHold = ThreadHold
@@ -84,6 +97,7 @@ BEGIN
 	BEGIN
 		SELECT	@SiteDB_ExecDataQueueSize = SiteDB_ExecDataQueueSize
 				,@SiteDB_RunExecDataBySSB = SiteDB_RunExecDataBySSB
+				,@SiteDB_ExecParlayDataQueueSize = SiteDB_ExecParlayDataQueueSize
 		FROM	@tmpGlobalSetting
 		WHERE	LockName = @LockName
 
@@ -91,5 +105,16 @@ BEGIN
 			SELECT @SiteDB_ExecDataQueueSize = 1
 	END
 	
+	IF @LockName = 'ParlaySettlementSSB'
+	BEGIN
+		SELECT	@RunExecParlayDataBySSB = RunExecParlayDataBySSB
+				,@ExecParlayDataQueueSize = ExecParlayDataQueueSize
+		FROM	@tmpGlobalSetting
+		WHERE	LockName = @LockName
+		
+		IF @RunExecParlayDataBySSB = 0
+			SELECT @ExecParlayDataQueueSize = 1
+	END
+		
 END
 GO

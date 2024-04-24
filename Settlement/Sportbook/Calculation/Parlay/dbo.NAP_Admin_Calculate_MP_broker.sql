@@ -1,33 +1,27 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker] 
     @matchid INT = NULL
     ,@mode VARCHAR(30) = NULL
-    ,@priorAction VARCHAR(20) = NULL
     ,@action VARCHAR(20) = 'CAL'
-    ,@IsRefundHT BIT = 0
-    ,@fth INT = NULL
-    ,@fta INT = NULL
-    ,@hth INT = NULL
-    ,@hta INT = NULL
     ,@matchdate DATETIME = NULL
-    ,@statusID TINYINT = NULL
-    ,@winlostdate SMALLDATETIME = NULL
     ,@VoidTransID VARCHAR(2000) = NULL
     ,@UserId INT = NULL
     ,@strXML VARCHAR(MAX) = NULL
-    ,@TennisTotal       INT = NULL
-    ,@GoalSequence          VARCHAR(50) = NULL
-    ,@resultDetail_bb VARCHAR(MAX) = NULL -- for basketball
-    ,@resultDetail VARCHAR(MAX) = NULL -- for all result
-    ,@strBettypes   VARCHAR(MAX) = NULL
     ,@strTransIds   VARCHAR(MAX) = NULL
-    ,@betstatus     NVARCHAR(50) = NULL
-	,@Sporttype		SMALLINT = NULL
+	,@strMainTransIds VARCHAR(MAX) = NULL
+	,@strRefnoMainTransIds VARCHAR(MAX) = NULL
     ,@CalledByBrokerService BIT = 0
 	,@RunOnServer	VARCHAR(100) = NULL
 	,@IsReSettledTickets BIT = 0
 	,@strSetting VARCHAR(MAX) = NULL
     ,@BroadcastSessionId	VARCHAR(50)	= NULL
+	,@SessionId BIGINT = NULL
+	,@ActionId INT = NULL
+	,@IsCalculateBalance BIT = NULL
+	,@ParlaySettlementProcessingId BIGINT = NULL
+	,@StatusId TINYINT = NULL
+	,@IsParallel BIT = NULL
+	,@AffectedTicket INT = 0 OUTPUT
 AS
 /*
     Created: Kathy
@@ -67,6 +61,7 @@ AS
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
 		- 20230810@Louisa: remove un-use code [Redmine:#188116]
         - 20231214@Aries: Result Amendment [Redmine: #196401]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 
     Param's Explanation:
         @action         @mode
@@ -75,15 +70,16 @@ AS
 BEGIN
     SET NOCOUNT ON
 	
-	DECLARE @IsEnableServiceBroker BIT 
+	DECLARE @IsEnableServiceBroker	BIT 
+			,@ServerAlias			VARCHAR(50)
+			,@TotalParlayQueue		INT
 	
     IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042', 'DB055', 'SITDB055')
         RETURN
 
     IF ((@mode IS NULL) OR (@matchid IS NULL AND @mode NOT IN ('9', '29'))) RETURN -- not sure what's going on :P
 	
-	SET @IsEnableServiceBroker = 0
-	
+	SET @IsEnableServiceBroker = 0	
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
 	
 	IF @RunOnServer <> @@SERVERNAME
@@ -94,83 +90,87 @@ BEGIN
 	
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
+		,@ServerAlias = @ServerAlias OUTPUT	
+		,@TotalParlayQueue = @TotalParlayQueue OUTPUT
 		
 	IF (@@SERVERNAME IN ('DB052', 'DB053', 'DBTP','DB061', 'DB062') OR @IsEnableServiceBroker = 1) AND @CalledByBrokerService = 0 
     BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
         DECLARE @sMessage NVARCHAR(MAX)
 
-        SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_MP_broker '
-                + '@matchid = ' + CASE WHEN @matchid IS NULL THEN 'NULL' ELSE CONVERT(NVARCHAR(50),@matchid) END + ','
-                + '@mode = ' + CASE WHEN @mode IS NULL THEN 'NULL' ELSE '''' + @mode + '''' END + ','
-                + '@priorAction = ' + CASE WHEN @priorAction IS NULL THEN 'NULL' ELSE '''' + @priorAction + '''' END + ','
-                + '@action = ' + CASE WHEN @action IS NULL THEN 'NULL' ELSE '''' + @action + '''' END
+		IF OBJECT_ID('ParlaySettlementProcessing', 'U') IS NOT NULL AND ISNULL(@ParlaySettlementProcessingId,0) <> 0
+		BEGIN
+			IF @Mode = 'profile'
+			BEGIN
+				DECLARE @MessageTypeNew VARCHAR(200) 
+					,@QueueNoNew INT 
+			
+				SET @QueueNoNew = @ParlaySettlementProcessingId%@TotalParlayQueue 
+									+ CASE WHEN @ParlaySettlementProcessingId%@TotalParlayQueue = 0 THEN @TotalParlayQueue ELSE 0 END
 
-                + CASE WHEN @IsRefundHT IS NULL THEN '' ELSE ',@IsRefundHT = ' + CONVERT(NVARCHAR(50), @IsRefundHT) END
-                + CASE WHEN @fth IS NULL THEN '' ELSE ',@fth = ' + CONVERT(NVARCHAR(50), @fth) END
-                + CASE WHEN @fta IS NULL THEN '' ELSE ',@fta = ' + CONVERT(NVARCHAR(50), @fta) END
-                + CASE WHEN @hth IS NULL THEN '' ELSE ',@hth = ' + CONVERT(NVARCHAR(50), @hth) END
-                + CASE WHEN @hta IS NULL THEN '' ELSE ',@hta = ' + CONVERT(NVARCHAR(50), @hta) END
-                + CASE WHEN @matchdate IS NULL THEN '' ELSE ',@matchdate = ''' + CONVERT(NVARCHAR(50), @matchdate) + '''' END
-                + CASE WHEN @statusID IS NULL THEN '' ELSE ',@statusID = ' + CONVERT(NVARCHAR(50), @statusID) END
-                + CASE WHEN @winlostdate IS NULL THEN '' ELSE ',@winlostdate = ''' + CONVERT(NVARCHAR(50), @winlostdate) + '''' END
-                + CASE WHEN @VoidTransID IS NULL THEN '' ELSE ',@VoidTransID = ''' + @VoidTransId + '''' END
-                + CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
-                + CASE WHEN @strXML IS NULL THEN '' ELSE ',@strXML = ''' + @strXML + '''' END
-                + CASE WHEN @TennisTotal IS NULL THEN '' ELSE ',@TennisTotal = ' + CONVERT(NVARCHAR(50), @TennisTotal) END
-                + CASE WHEN @GoalSequence IS NULL THEN '' ELSE ',@GoalSequence = ''' + @GoalSequence + '''' END
-                + CASE WHEN @resultDetail_bb IS NULL THEN '' ELSE ',@resultDetail_bb = ''' + @resultDetail_bb + '''' END
-                + CASE WHEN @resultDetail IS NULL THEN '' ELSE ',@resultDetail = ''' + @resultDetail + '''' END              
-                + CASE WHEN @strBettypes IS NULL THEN '' ELSE ',@strBettypes = ''' + @strBettypes + '''' END
-                + CASE WHEN @strTransIds IS NULL THEN '' ELSE ',@strTransIds = ''' + @strTransIds + '''' END
-                + CASE WHEN @betstatus IS NULL THEN '' ELSE ',@betstatus = ''' + @betstatus + '''' END
-				+ CASE WHEN @sporttype IS NULL THEN '' ELSE ',@sporttype = ' + CONVERT(NVARCHAR(50), @sporttype) END
-				+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
-				+ ',@IsReSettledTickets = ' + CONVERT(NVARCHAR(1),ISNULL(@IsReSettledTickets,0))
-				 + CASE WHEN @strSetting IS NULL THEN '' ELSE ',@strSetting = ''' + @strSetting + '''' END
-                + ',@CalledByBrokerService = 1'
+				SET @MessageTypeNew = 'parlaybet_settle_msg_type_' 
+										+ CASE WHEN @QueueNoNew < 10 THEN '0' ELSE '' END + CAST(@QueueNoNew AS VARCHAR)
+			
+				INSERT INTO dbo.ParlaySettlementProcessing (SessionId, MatchId, MessageType, Action, ActionId ,subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets)
+				SELECT @SessionId, @matchid, @MessageTypeNew, @action, @ActionId
+					,@strTransIds -- list subtransid
+					,@strMainTransIds -- list maintransid
+					,@strRefnoMainTransIds -- refno|transid,refno|transid
+					,@matchdate, @strSetting, @IsReSettledTickets
+			END
+			ELSE
+			BEGIN
+				RETURN -- dont need to do anything for @mode = 'PRECAL-29' & '29'
+			END
+		END
+		ELSE
+		BEGIN
+			SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_MP_broker '
+					+ '@matchid = ' + CASE WHEN @matchid IS NULL THEN 'NULL' ELSE CONVERT(NVARCHAR(50),@matchid) END + ','
+					+ '@mode = ' + CASE WHEN @mode IS NULL THEN 'NULL' ELSE '''' + @mode + '''' END + ','
+					+ '@action = ' + CASE WHEN @action IS NULL THEN 'NULL' ELSE '''' + @action + '''' END
+					+ CASE WHEN @ActionId IS NULL THEN '' ELSE ',@ActionId = ' + CONVERT(NVARCHAR(50), @ActionId) END
+					+ CASE WHEN @SessionId IS NULL THEN '' ELSE ',@SessionId = ' + CONVERT(NVARCHAR(50), @SessionId) END
+					+ CASE WHEN @matchdate IS NULL THEN '' ELSE ',@matchdate = ''' + CONVERT(NVARCHAR(50), @matchdate) + '''' END               
+					+ CASE WHEN @VoidTransID IS NULL THEN '' ELSE ',@VoidTransID = ''' + @VoidTransId + '''' END
+					+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END					             
+					+ CASE WHEN @strTransIds IS NULL THEN '' ELSE ',@strTransIds = ''' + @strTransIds + '''' END
+					+ CASE WHEN @strXML IS NULL THEN '' ELSE ',@strXML = ''' + @strXML + '''' END  
+					+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
+					+ ',@IsReSettledTickets = ' + CONVERT(NVARCHAR(1),ISNULL(@IsReSettledTickets,0))
+					+ CASE WHEN @strSetting IS NULL THEN '' ELSE ',@strSetting = ''' + @strSetting + '''' END
+					+ ',@CalledByBrokerService = 1'
 		
-		EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
-			,@toService = N'//Service/Calculation_receive'
-			,@onContract = N'//Contract/Calculation'
-			,@messageType = N'//Message/Calculation'
-			,@messageBody = @sMessage
+			EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
+				,@toService = N'//Service/Calculation_receive'
+				,@onContract = N'//Contract/Calculation'
+				,@messageType = N'//Message/Calculation'
+				,@messageBody = @sMessage
+		END
 
         RETURN
     END
 
-    IF @mode = 'basketball_m'
+	IF @mode IN ('ParlayLockMatch', 'ParlayReleaseMatch') AND @ServerAlias <> 'DBTXN' AND @IsEnableServiceBroker = 1
+	BEGIN
+		EXEC dbo.ExecRep_NAP_Admin_01
+			@MatchId = @MatchId
+			,@Mode = @Mode
+			,@SessionId = @SessionId
+			,@TotalParlayQueue = @TotalParlayQueue
+	END
+
+	IF (@Mode IN ('profile'))
     BEGIN
-        EXEC dbo.NAP_Admin_Calculate_MP_m
-            @matchid = @matchid,
-            @fth = @fth,
-            @fta = @fta,
-            @hth = @hth,
-            @hta = @hta,
-            @matchdate = @matchdate,
-            @action = 'CAL',
-            @priorAction = 'REFUND',           
-            @resultDetail_bb = @resultDetail_bb,
-            @strBettypes = @strBettypes
-    END
-	
-    IF @mode = 'm'
-    BEGIN
-        EXEC dbo.NAP_Admin_Calculate_MP_m @matchid = @matchid
-            , @fth = @fth
-            , @fta = @fta
-            , @hth = @hth
-            , @hta = @hta
+        EXEC dbo.NAP_Admin_Parlay_Calculate_3 @matchid = @matchid
             , @matchdate = @matchdate
             , @action = @action
-            , @priorAction = @priorAction
-            , @IsRefundHT = @IsRefundHT
-            , @TennisTotal = @TennisTotal
-            , @GoalSequence = @GoalSequence
-            , @resultDetail = @resultDetail
-            , @strBettypes = @strBettypes
-            , @betstatus = @betstatus          
-			, @Sporttype = @Sporttype
+            , @strTransIds = @strTransIds
+			, @BroadcastSessionId = @BroadcastSessionId
+			, @SessionId = @SessionId
+			, @IsParallel = @IsParallel
+			, @ParlaySettlementProcessingId = @ParlaySettlementProcessingId
+			, @AffectedTicket = @AffectedTicket OUTPUT
     END
 
     IF @mode = 'PRECAL-29'
@@ -180,13 +180,25 @@ BEGIN
             , @strXML = @strXML
 			, @IsReSettledTickets = @IsReSettledTickets
 			, @strSetting = @strSetting
+			, @SessionId = @SessionId
+			, @IsParallel = @IsParallel
+			, @ParlaySettlementProcessingId = @ParlaySettlementProcessingId
+			, @AffectedTicket = @AffectedTicket OUTPUT
     END
 
     IF @mode = '29'
     BEGIN
-        EXEC dbo.NAP_Admin_Calculate_MP_29 @matchdate = @matchdate
+        EXEC dbo.NAP_Admin_Calculate_MP_29 @MatchId = @MatchId
             , @strXML = @strXML
             , @BroadcastSessionId = @BroadcastSessionId
+			, @ServerAlias = @ServerAlias
+			, @matchdate = @matchdate
+			, @ActionId = @ActionId
+			, @IsCalculateBalance = @IsCalculateBalance
+			, @SessionId = @SessionId
+			, @IsParallel = @IsParallel		
+			, @ParlaySettlementProcessingId = @ParlaySettlementProcessingId
+			, @AffectedTicket = @AffectedTicket OUTPUT
     END
 
     IF @mode = 'VOID'
@@ -208,23 +220,6 @@ BEGIN
             , @matchdate = @matchdate
             , @action = 'RECOVER'
             , @VoidTransID = @VoidTransID
-    END
-
-    IF (@Mode IN ('REFUND', 'ABANDONED', 'CAL', 'UNDO'))
-    BEGIN
-        EXEC dbo.NAP_Admin_Parlay_Calculate_3 @matchid = @matchid
-            , @matchdate = @matchdate
-            , @action = @mode
-            , @strTransIds = @strTransIds
-    END
-
-	IF (@Mode IN ('profile'))
-    BEGIN
-        EXEC dbo.NAP_Admin_Parlay_Calculate_3 @matchid = @matchid
-            , @matchdate = @matchdate
-            , @action = @action
-            , @strTransIds = @strTransIds
-            , @BroadcastSessionId = @BroadcastSessionId
     END
 	
 	IF @Mode = 'subParlay' AND @Action = 'MoveTicket'

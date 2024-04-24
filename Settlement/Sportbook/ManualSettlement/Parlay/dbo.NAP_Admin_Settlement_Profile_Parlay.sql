@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	 @creator				INT
 	,@MatchID				INT
@@ -19,6 +19,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@IsCentral				BIT			= 0
 	,@DeterminedType		TINYINT		= 0
 	,@BroadcastSessionId	VARCHAR(50)	= NULL
+	,@ParlayKeyId			INT			= 0
 	,@ErrCode				INT				= 0	OUTPUT
 	,@ErrMsg 				NVARCHAR(200)	= '' OUTPUT
 AS
@@ -49,6 +50,8 @@ AS
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
 		- 20231213@Kathy: Enhance Recalculation and Instant Settle for Basketball [Redmine:#198283]
 		- 20230131@Kathy: Support generate BetParlayDetail/BetParlayResult for voiding ticket [Redmine:#200440]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+
 		
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
@@ -83,7 +86,7 @@ BEGIN
 			,@IsABANDONEDHT			BIT = 0
 			,@IsSDT				BIT = 0
 			,@subAction			VARCHAR(20) = ''
-			,@ResourceRefund	VARCHAR(100) = ''
+			,@ResourceRefund	VARCHAR(100) = NULL
 			,@RemarkSDT			VARCHAR(500) = ''
 			,@strUndoTransIds	VARCHAR(MAX) = ''
 			,@strTransIdsSDT	VARCHAR(MAX) = ''
@@ -91,11 +94,26 @@ BEGIN
 			,@strSetting		VARCHAR(MAX)
 			,@sqlOpenqueryCommand NVARCHAR(MAX) = ''
 			,@MainTransIdVoided VARCHAR(MAX) = ''
+			,@SessionId			BIGINT
 
-	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
+			,@MessageTypePattern		VARCHAR(200) = 'parlaybet_settle_msg_type_0'
+			,@MessageType				VARCHAR(200) 
+			,@ExecParlayDataQueueSize	SMALLINT -- number of queue run parallel
+			,@RunExecParlayDataBySSB	BIT = 0
+			,@TotalBatch				INT = 0
+			,@i							INT = 1
+			
+			,@LogData			XML
+			,@ResultRemarkLog	VARCHAR(MAX) = ''
+			,@Remark			VARCHAR(MAX) = ''
+			,@matchLog			INT = @matchid
+			,@IsAutoRefund		BIT = 0
+			,@CommandMonitor	NVARCHAR(MAX)
+			,@SSBStatus			TINYINT
+			,@MainParlay_MaxPO	VARCHAR(MAX) = NULL
 
 	DECLARE @tmpMainTransIdBatch TABLE (TransId BIGINT, Refno BIGINT)
-	DECLARE @tmpSubTransIdBatch TABLE (TransId BIGINT, Refno BIGINT, modds MONEY, moddsSDT SMALLMONEY, IsMarked BIT DEFAULT(0))
+	DECLARE @tmpSubTransIdBatch TABLE (Id INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, Refno BIGINT, modds MONEY, moddsSDT SMALLMONEY, IsMarked BIT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 		HomeRound TINYINT, AwayRound TINYINT,
 		BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT
@@ -106,7 +124,6 @@ BEGIN
 		, IsInstHTFT BIT DEFAULT(0)
 	)
 
-	DECLARE @tmpRefnos TABLE (refno BIGINT)
 	DECLARE @tmpResourceAutoRefund TABLE ( ResourceID VARCHAR(20) )
 	DECLARE @tmpMarkedTicket TABLE ( MatchId INT , bettype SMALLINT ) ---use for Auto Refund
 
@@ -121,13 +138,14 @@ BEGIN
 	CREATE TABLE #tmpParlayBalanceBefore (transid BIGINT PRIMARY KEY, custid INT, balance money)
 	CREATE TABLE #tmpParlayBalanceAfter (transid BIGINT PRIMARY KEY, custid INT, balance money)
 	CREATE TABLE #tmpParlayBalance (custid int, balance money)	
-	CREATE TABLE #tmpMainTransId ( transid BIGINT, refno BIGINT, IsFinished BIT, ruben TINYINT, custid INT, betteam NVARCHAR(10), oddsspread MONEY, SiteID VARCHAR(7), srecommend INT)
+	CREATE TABLE #tmpMainTransId (Id INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, refno BIGINT, IsFinished BIT, betteam NVARCHAR(10), oddsspread MONEY, SiteID VARCHAR(7), srecommend INT, MainParlayMaxPO VARCHAR(MAX), statusId TINYINT) --ruben TINYINT, custid INT, )
 	--END Balance tables
 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
-	CREATE TABLE #tmpsubTransID (TransID BIGINT, refno BIGINT, modds SMALLMONEY, moddsSDT SMALLMONEY, IsSDT BIT DEFAULT(0), isFinish BIT, IsMarked BIT DEFAULT(0)
+	CREATE TABLE #tmpsubTransID (Id BIGINT IDENTITY(1,1),TransID BIGINT, refno BIGINT, modds SMALLMONEY, moddsSDT SMALLMONEY, IsSDT BIT DEFAULT(0), isFinish BIT, IsMarked BIT
 		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, betteam VARCHAR(10))
+	CREATE TABLE #tmpRefnos (refno BIGINT)
 	----------------------------------------------------------------------------------------------------------------------
 
   	SELECT  @start = CURRENT_TIMESTAMP
@@ -227,7 +245,7 @@ BEGIN
 		IF @sportType = 1 AND @Action <> 'CAL_EAR'
 		BEGIN
 			INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
-			SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+			SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 				CROSS APPLY (
 					SELECT	TOP 1 pfID, HomeValue, AwayValue
@@ -262,7 +280,7 @@ BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0)
 			BEGIN
 				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
-				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
 						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
@@ -312,7 +330,7 @@ BEGIN
 			IF @DeterminedType = 0
 			BEGIN
 				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
-				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
 						SELECT	TOP 1 pfID, HomeValue, AwayValue
@@ -345,7 +363,7 @@ BEGIN
 			ELSE IF @sportType != 1 AND  @DeterminedType > 0
 			BEGIN
 				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsInstHTFT, bettype, hdp1, betteam)
-				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked, sr.IsInstHTFT, bm.bettype, bm.hdp1, bm.betteam
+				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked, sr.IsInstHTFT, bm.bettype, bm.hdp1, bm.betteam
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
 						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, IsCalculated, MinusValue, IsInstHTFT
@@ -400,7 +418,7 @@ BEGIN
 	ELSE IF @action LIKE 'UNDO%'
 	BEGIN
 		INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
-		SELECT	bm.transid, bm.refno , CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked 
+		SELECT	bm.transid, bm.refno , CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked 
 		FROM	dbo.bettransm bm WITH(NOLOCK)
 			CROSS APPLY (
 				SELECT	TOP 1 pfID, HomeValue, AwayValue
@@ -432,7 +450,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0)
 		BEGIN
 			INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
-			SELECT	bm.transid, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked 
+			SELECT	bm.transid, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked 
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 				CROSS APPLY (
 					SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
@@ -563,7 +581,7 @@ BEGIN
 			END
 		END
 	END  
-	 
+	
 	IF @totalSubParlay = 0
 		RETURN 
 
@@ -586,408 +604,332 @@ BEGIN
 	IF @ErrCode <> 0
 		RETURN
 	
-	BEGIN TRY
-		-- settle sub parlay
-		WHILE(1=1)
-		BEGIN
-			SET @subAction = @Action
-			DELETE @tmpSubTransIdBatch
-			
-			IF @IsSDT = 1
-			BEGIN
-				UPDATE TOP(@batchNo) t
-					SET isFinish = 1
-				OUTPUT	deleted.transid, deleted.modds, deleted.refno, deleted.IsMarked
-					INTO @tmpSubTransIdBatch(transid, modds, refno, IsMarked)
-				FROM	#tmpsubTransID t
-				WHERE	IsSDT = 1
-						AND isFinish IS NULL
+	EXEC dbo.NAP_Set_GlobalSettingSel	
+		@LockName = 'ParlaySettlementSSB'
+		,@RunExecParlayDataBySSB =  @RunExecParlayDataBySSB OUTPUT
+		,@ExecParlayDataQueueSize = @ExecParlayDataQueueSize OUTPUT
 
-				IF @@ROWCOUNT = 0
-				BEGIN
-					SET @IsSDT = 0
-
-					CONTINUE 
-				END
-				
-				SET @subAction = 'CAL'
-			END
-			ELSE
-			BEGIN
-				
-				UPDATE TOP(@batchNo) t
-					SET isFinish = 1
-				OUTPUT	deleted.transid, deleted.modds,deleted.moddsSDT, deleted.refno, deleted.IsMarked
-					INTO @tmpSubTransIdBatch(transid, modds, moddsSDT, refno, IsMarked)
-				FROM	#tmpsubTransID t
-				WHERE	isFinish IS NULL
-				
-				IF @@ROWCOUNT = 0
-					BREAK
-					
-			END
-		
-			--filter selectedRID by current Profile and BetType
-			SET @strTransIds 		= (SELECT transid	AS '@t'
-												,modds	AS '@m'
-												,refno   AS '@r'
-												,IsMarked AS '@im'
-										FROM @tmpSubTransIdBatch
-										WHERE 1  = CASE WHEN @Action LIKE 'CAL%' AND @sportType != 1 AND @DeterminedType > 0 AND  @IsReSettledTickets = 1 AND modds IS NULL THEN 0
-														WHEN @Action LIKE 'REFUND%' AND @sportType != 1 AND @DeterminedType > 0 AND moddsSDT IS NOT NULL THEN 0
-														ELSE 1
-												   END
-										FOR XML PATH('b'))
-			
-			IF ISNULL(@strTransIds, '') != ''
-			BEGIN
-				EXEC dbo.NAP_Admin_Calculate_MP_broker
-					@matchid	  		 = @matchid
-					,@matchdate			 = @eventdate
-					,@mode				 = 'profile'
-					,@Action			 = @subAction
-					,@strTransIds		 = @strTransIds
-					,@BroadcastSessionId = @BroadcastSessionId
-			END
-
-			IF @Action LIKE 'CAL%' AND @sportType != 1 AND @DeterminedType > 0 AND  @IsReSettledTickets = 1
-			BEGIN
-				SET @StrUndoTransIds = (SELECT transid AS '@t',refno   AS '@r' FROM @tmpSubTransIdBatch WHERE modds IS NULL FOR XML PATH('b'))
-				IF ISNULL(@StrUndoTransIds, '') != ''
-				BEGIN
-					EXEC dbo.NAP_Admin_Calculate_MP_broker
-					 @matchid	  		 = @matchid
-					,@matchdate			 = @eventdate
-					,@mode				 = 'profile'
-					,@Action			 = 'UNDO'
-					,@strTransIds		 = @StrUndoTransIds
-					,@BroadcastSessionId = @BroadcastSessionId
-				END
-			END
-			ELSE IF @Action LIKE 'REFUND%' AND @sportType != 1 AND @DeterminedType > 0 
-			BEGIN
-				SET @strTransIdsSDT = (SELECT   transid	AS '@t'
-												,modds	AS '@m'
-												,refno   AS '@r'
-												,IsMarked AS '@im'
-										FROM @tmpSubTransIdBatch
-										WHERE moddsSDT IS NOT  NULL
-										FOR XML PATH('b'))
-				IF ISNULL(@strTransIdsSDT, '') != ''
-				BEGIN
-					EXEC dbo.NAP_Admin_Calculate_MP_broker
-					 @matchid	  		 = @matchid
-					,@matchdate			 = @eventdate
-					,@mode				 = 'profile'
-					,@Action			 = 'CAL'
-					,@strTransIds		 = @strTransIdsSDT
-					,@BroadcastSessionId = @BroadcastSessionId
-				END
-			END
-
-
-		END
-		
-		-- settle main parlay			
-		INSERT INTO @tmpRefnos (refno)
-		SELECT	t.refno
-		FROM	#tmpsubTransID t
-		WHERE	NOT EXISTS (SELECT TOP 1 1 
-							FROM	dbo.bettransm bm WITH(NOLOCK) 
-							WHERE	bm.refno = t.refno 
-									AND bm.statusID IN (1,101)
-						)
-		
-		INSERT INTO #tmpMainTransId (transid, refno, IsFinished, ruben, custid, betteam, oddsspread, SiteID, srecommend)
-		SELECT	transid, refno, 0 AS IsFinished, ruben, custid
+	INSERT INTO dbo.Settlement_SettledSession (MatchId)
+	SELECT @matchid
+	SET @SessionId = SCOPE_IDENTITY()
+	
+	-- settle main parlay			
+	INSERT INTO #tmpRefnos (refno)
+	SELECT	t.refno
+	FROM	#tmpsubTransID t
+	WHERE	NOT EXISTS (SELECT TOP 1 1 
+						FROM	dbo.bettransm bm WITH(NOLOCK) 
+						WHERE	bm.refno = t.refno 
+								AND bm.statusID IN (1,101))
+	
+	INSERT INTO #tmpMainTransId (transid, refno, IsFinished, betteam, oddsspread, SiteID, srecommend, MainParlayMaxPO, statusId)
+	SELECT main.transid, main.refno, main.IsFinished, main.betteam, main.oddsspread, main.BetSiteID, main.srecommend, CAST(info.MainParlayMaxPO AS VARCHAR(MAX)) AS MainParlayMaxPO, main.statusId
+	FROM (
+		SELECT	transid, refno, 0 AS IsFinished, custid, ruben
 				,betteam -- 1: combo parlay
 				,oddsspread -- 2: offer boost bonus
 				,BetSiteID
 				,srecommend
+				,statusId
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = 29
-				AND b.statusID NOT IN (101, 102) --( 'REJECT', 'VOID')
-				AND refno IN (SELECT refno FROM @tmpRefnos)
-		
-		SET @totalMainParlay = @@ROWCOUNT -- number of system parlay ticket
+				AND b.statusID NOT IN (101)-- 'REJECT'
+				AND EXISTS (SELECT TOP 1 refno FROM #tmpRefnos t WHERE t.refno = b.refno)
+	) main
+		CROSS APPLY (SELECT transid '@transid', ruben '@ruben' FOR XML PATH('r')) info (MainParlayMaxPO)
 
-		SELECT	@MainTransIdVoided = ISNULL(STRING_AGG(CAST(TransId AS VARCHAR(MAX)),','),'')
-		FROM	dbo.bettrans b WITH(NOLOCK)
-		WHERE	b.matchid = 29
-				AND b.statusID = 102 -- VOID
-				AND refno IN (SELECT refno FROM @tmpRefnos)
+	SET @totalMainParlay = @@ROWCOUNT -- number of system parlay ticket
 
-		IF @totalMainParlay > 0 OR @MainTransIdVoided <> ''  -- got system parlay tickets
-		BEGIN
-			INSERT INTO @tmpBoostSite(SiteId, srecommend )
-			SELECT DISTINCT SiteID, srecommend
-			FROM	#tmpMainTransId t
-			WHERE	t.betteam = '1' -- mix parlay
-					AND t.oddsspread = 2 -- offer parlay bonus
-					AND NOT EXISTS (SELECT 	TOP 1 1 
-									FROM 	dbo.bettransm bm WITH(NOLOCK) 
-									WHERE 	t.refno = bm.refno 
-											AND ((ISNULL(bm.statuswinlost,0) = 4 AND bm.statusID = 113)
-												OR bm.statusId = 0
-											)
-							) -- lose/running
+	IF @totalMainParlay > 0  -- got system parlay tickets
+	BEGIN
+		INSERT INTO @tmpBoostSite(SiteId, srecommend )
+		SELECT DISTINCT SiteID, srecommend
+		FROM	#tmpMainTransId t
+		WHERE	t.betteam = '1' -- mix parlay
+				AND t.oddsspread = 2 -- offer parlay bonus
 
-			UPDATE si 
-				SET IsDeposit = 1
-			FROM	@tmpBoostSite si
-				INNER JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK)
-					ON si.srecommend = d.custid
+		UPDATE si 
+			SET IsDeposit = 1
+		FROM	@tmpBoostSite si
+			INNER JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK)
+				ON si.srecommend = d.custid
 
-			SET @sqlOpenqueryCommand = 'SELECT SiteId, OverOdds, Boost FROM OPENQUERY(DBPRO,''SELECT SiteId, OverOdds, Boost FROM bodb02.dbo.ParlayOddsBoostSetting p WITH(NOLOCK) WHERE p.SiteId IN ('
-											+ (SELECT  STRING_AGG(CAST(s.SiteID AS VARCHAR(MAX)),',') 
+		SET @sqlOpenqueryCommand = 'SELECT SiteId, OverOdds, Boost FROM OPENQUERY(DBPRO,''SELECT SiteId, OverOdds, Boost FROM bodb02.dbo.ParlayOddsBoostSetting p WITH(NOLOCK) WHERE p.SiteId IN ('
+										+ (SELECT  STRING_AGG(CAST(s.SiteID AS VARCHAR(MAX)),',') 
+											FROM (
+												SELECT SiteId
 												FROM (
 													SELECT SiteId
-													FROM (
-														SELECT SiteId
-														FROM @tmpBoostSite t
-														UNION
-														SELECT -1
-														UNION 
-														SELECT -2
-													) t
-													GROUP BY t.SiteID
-												) s 
-											)
-									+ ')'')'
-
-
-			INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
-			EXEC (@sqlOpenqueryCommand)
-
-			SELECT @strSetting = CAST((
-				SELECT	si.SiteId AS 's'
-						,(SELECT t.OverOdds AS 'o', t.Boost AS 'b' -- get its own settings
-							FROM (SELECT se.SiteId, se.OverOdds, se.Boost
-								FROM	@tmpBoostSetting se
-								WHERE	EXISTS (SELECT TOP 1 1 FROM	@tmpBoostSite si WHERE se.SiteId = si.SiteId)
-								UNION
-								SELECT	si.SiteId, se.OverOdds, se.Boost -- If the site ID does not have its own settings, the default value will be taken on default SiteId (-1 if it's credit, -2 if it's licensee)
-								FROM	@tmpBoostSite si
-									CROSS APPLY (
-										SELECT	se.OverOdds, se.Boost
-										FROM	@tmpBoostSetting se
-										WHERE	se.SiteId = CASE WHEN si.IsDeposit = 1 THEN -2 ELSE -1 END
-									) se
-								WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @tmpBoostSetting se WHERE si.SiteId = se.SiteId)
-							) t
-						WHERE si.SiteId = t.SiteId
-						FOR JSON AUTO
-						) AS v
-				FROM	@tmpBoostSite si
-				FOR JSON AUTO
-			) AS VARCHAR(MAX))
-
-			INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
-			VALUES (@matchid, @totalMainParlay, CURRENT_TIMESTAMP, NULL, 'Start running PRECAL-29')
-
-			SELECT @strMainTransIds = @MainTransIdVoided + ',' +  ISNULL(STRING_AGG(CAST(TransId AS VARCHAR(MAX)),','),'')
-			FROM	#tmpMainTransId
-
-			-- handle betParlayDetail, betParlayResult
-			EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchid
-				,@mode = 'PRECAL-29'
-				,@matchdate = @eventdate
-				,@strXML = @strMainTransIds
-				,@IsReSettledTickets = @IsReSettledTickets
-				,@strSetting = @strSetting
-
-			INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
-			VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'Start running CAL-29')
-
+													FROM @tmpBoostSite t
+													UNION
+													SELECT -1
+													UNION 
+													SELECT -2
+												) t
+												GROUP BY t.SiteID
+											) s 
+										)
+								+ ')'')'
+	
+		INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
+		EXEC (@sqlOpenqueryCommand)
 			
-			--Prepare for Max Payout
-			SELECT @MainParlay_MaxPO = (SELECT t.CustId AS '@custid'
-										,t.ruben AS '@ruben'
-										,t.TransId AS '@transid'
-									FROM #tmpMainTransId t
-									FOR XML PATH('r'), ROOT('root')
-								)
-			-- update summary info back to bettrans
-			WHILE (1=1)
-			BEGIN
-				DELETE @tmpMainTransIdBatch
-				TRUNCATE TABLE #tmpParlayBalanceBefore
-				TRUNCATE TABLE #tmpParlayBalanceAfter
+		SELECT @strSetting = CAST((
+			SELECT	si.SiteId AS 's'
+					,(SELECT t.OverOdds AS 'o', t.Boost AS 'b' -- get its own settings
+						FROM (SELECT se.SiteId, se.OverOdds, se.Boost
+							FROM	@tmpBoostSetting se
+							WHERE	EXISTS (SELECT TOP 1 1 FROM	@tmpBoostSite si WHERE se.SiteId = si.SiteId)
+							UNION
+							SELECT	si.SiteId, se.OverOdds, se.Boost -- If the site ID does not have its own settings, the default value will be taken on default SiteId (-1 if it's credit, -2 if it's licensee)
+							FROM	@tmpBoostSite si
+								CROSS APPLY (
+									SELECT	se.OverOdds, se.Boost
+									FROM	@tmpBoostSetting se
+									WHERE	se.SiteId = CASE WHEN si.IsDeposit = 1 THEN -2 ELSE -1 END
+								) se
+							WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @tmpBoostSetting se WHERE si.SiteId = se.SiteId)
+						) t
+					WHERE si.SiteId = t.SiteId
+					FOR JSON AUTO
+					) AS v
+			FROM	@tmpBoostSite si
+			FOR JSON AUTO
+		) AS VARCHAR(MAX))
+	END
 
-				SET @strMainTransIdRefnos = ''
-
-				UPDATE TOP (800) #tmpMainTransId
-					SET IsFinished = 1
-				OUTPUT INSERTED.refno, INSERTED.transid INTO @tmpMainTransIdBatch (refno, transid)
-				WHERE IsFinished = 0
-
-				IF @@rowcount = 0
-					BREAK
-
-				SELECT @strMainTransIdRefnos = @strMainTransIdRefnos + ',' + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid)
-				FROM	@tmpMainTransIdBatch
-
-				SET @strMainTransIdRefnos = STUFF(@strMainTransIdRefnos,1,1,'')
-
-				---- CAPTURE value BALANCE before udpate bettrans [Redmine:#108768]: to avoid parlay settlement & movebet delete bet ticket run the same time
-				INSERT INTO #tmpParlayBalanceBefore (transid, custid, balance)
-				SELECT	b.transid, b.custid, (b.winlost - b.actual_stake + b.playercomm) AS balance
-				FROM	dbo.bettrans b WITH(ROWLOCK)
-				WHERE	b.transid IN (SELECT transid FROM @tmpMainTransIdBatch)
-
-				EXEC dbo.NAP_Admin_Calculate_MP_broker
-					@mode = '29'
-					,@matchdate = @eventdate
+	EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchid
+		,@mode = 'ParlayLockMatch'
+		,@SessionId = @SessionId
+		
+	IF @IsCentral = 0 AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL 
+	BEGIN
+		EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns
+			@SystemName		= 'Settlement'
+			,@FunctionName	= 'CalculateParlay'
+			,@TableName		= 'SiteDB_ParlaySettlementLock'
+			,@Action		= 'I'
+			,@MatchId		= @matchid
+			,@SessionId		= @SessionId
+			,@TicketType 	= 'p'
 					,@BroadcastSessionId = @BroadcastSessionId
-					,@strXML = @strMainTransIdRefnos
+	END
 
-				---- CAPTURE value BALANCE after udpate bettrans [Redmine:#108768]: to avoid parlay settlement & movebet delete bet ticket run the same time
-				INSERT INTO #tmpParlayBalanceAfter (transid, custid, balance)
-				SELECT	b.transid, b.custid, (b.winlost - b.actual_stake + b.playercomm) AS balance
-				FROM	dbo.bettrans b WITH(ROWLOCK)
-				WHERE	b.transid IN (SELECT transid FROM @tmpMainTransIdBatch)
+	BEGIN TRY
+		-- settle parlay
+		BEGIN
+			IF @IsSDT = 1
+			BEGIN
+				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, MainParlayMaxPO)
+				SELECT @SessionId
+						,@MatchID
+						,@MessageTypePattern + CAST(CASE WHEN main.batchNo%@ExecParlayDataQueueSize = 0 THEN @ExecParlayDataQueueSize ELSE main.batchNo%@ExecParlayDataQueueSize END AS VARCHAR)
+						,'CAL' AS Action
+						,@ActionID
+						,sub.subTransIds
+						,main.MainTransIds
+						,main.RefnoMainTransIds
+						,@EventDate AS EventDate
+						,@strSetting
+						,@IsReSettledTickets
+						,main.MainParlayMaxPO
+				FROM(
+					SELECT	s1.Id/@batchNo AS batchNo
+							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
+							,('<root>' + STRING_AGG(CAST(main.MainParlayMaxPO AS VARCHAR(MAX)), '') + '</root>') AS MainParlayMaxPO
+					FROM	#tmpsubTransID s1
+						LEFT JOIN #tmpMainTransId main
+							ON s1.refno = main.refno
+					WHERE	s1.IsSDT = 1
+					GROUP BY s1.id/@batchNo
+				) main
+					CROSS APPLY (
+						SELECT CAST((SELECT	s2.transid AS 't'	
+									,s2.modds AS 'm'
+									,s2.refno AS 'r'
+									,s2.IsMarked AS 'im'
+						FROM	#tmpsubTransID s2         
+						WHERE	s2.IsSDT = 1
+								AND s2.id/@batchNo = main.batchNo
+						FOR JSON AUTO) AS VARCHAR(MAX)) AS subTransIds
+					) sub
 
-				INSERT INTO #tmpParlayBalance (custid, balance)
-				SELECT b.custid, SUM(a.balance - b.balance)
-				FROM #tmpParlayBalanceBefore b
-					INNER JOIN #tmpParlayBalanceAfter a ON b.transid = a.transid
-				GROUP BY b.custid
+				SET @TotalBatch = @@ROWCOUNT
+
+				UPDATE	#tmpsubTransID
+					SET isFinish = 1
+				WHERE	IsSDT = 1
 			END
+			
+			IF @Action LIKE 'CAL%' AND @sportType != 1 AND @DeterminedType > 0 AND  @IsReSettledTickets = 1
+			BEGIN
+				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, MainParlayMaxPO, BroadcastSessionId)
+				SELECT	@SessionId
+						,@MatchID
+						,@MessageTypePattern + CAST(CASE WHEN main.batchNo%@ExecParlayDataQueueSize = 0 THEN @ExecParlayDataQueueSize ELSE main.batchNo%@ExecParlayDataQueueSize END AS VARCHAR)
+						,'UNDO' AS Action
+						,@ActionID
+						,sub.subTransIds
+						,main.MainTransIds
+						,main.RefnoMainTransIds
+						,@EventDate AS EventDate
+						,@strSetting
+						,@IsReSettledTickets
+						,main.MainParlayMaxPO
+						,@BroadcastSessionId 
+				FROM(
+					SELECT	s1.Id/@batchNo AS batchNo
+							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
+							,('<root>' + STRING_AGG(CAST(main.MainParlayMaxPO AS VARCHAR(MAX)), '') + '</root>' ) AS MainParlayMaxPO
+					FROM	#tmpsubTransID s1
+						LEFT JOIN #tmpMainTransId main
+							ON s1.refno = main.refno
+					WHERE	s1.modds IS NULL
+					GROUP BY s1.id/@batchNo
+				) main
+					CROSS APPLY (
+						SELECT CAST((SELECT	s2.transid AS 't'
+									,s2.refno AS 'r'
+						FROM	#tmpsubTransID s2         
+						WHERE	s2.modds IS NULL
+								AND s2.id/@batchNo = main.batchNo
+						FOR JSON AUTO) AS VARCHAR(MAX)) AS subTransIds
+					) sub
 
-			--Insert Max Payout Queue
-			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
-				@MatchId= 29
-				,@TransidList = @MainParlay_MaxPO
+				SET @TotalBatch = @TotalBatch + @@ROWCOUNT
+
+				UPDATE	#tmpsubTransID
+					SET isFinish = 1
+				WHERE	modds IS NULL
+			END
+			ELSE IF @Action LIKE 'REFUND%' AND @sportType != 1 AND @DeterminedType > 0 
+			BEGIN
+				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, MainParlayMaxPO, BroadcastSessionId)
+				SELECT	@SessionId
+						,@MatchID
+						,@MessageTypePattern + CAST(CASE WHEN main.batchNo%@ExecParlayDataQueueSize = 0 THEN @ExecParlayDataQueueSize ELSE main.batchNo%@ExecParlayDataQueueSize END AS VARCHAR)
+						,'CAL' AS Action
+						,@ActionID
+						,sub.subTransIds
+						,main.MainTransIds
+						,main.RefnoMainTransIds
+						,@EventDate AS EventDate	
+						,@strSetting
+						,@IsReSettledTickets
+						,main.MainParlayMaxPO
+						,@BroadcastSessionId
+				FROM(
+					SELECT	s1.Id/@batchNo AS batchNo
+							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
+							,('<root>' + STRING_AGG(CAST(main.MainParlayMaxPO AS VARCHAR(MAX)), '') + '</root>' ) AS MainParlayMaxPO
+					FROM	#tmpsubTransID s1
+						LEFT JOIN #tmpMainTransId main
+							ON s1.refno = main.refno
+					WHERE	s1.moddsSDT IS NOT NULL
+					GROUP BY s1.id/@batchNo
+				) main
+					CROSS APPLY (
+						SELECT CAST((SELECT	s2.transid AS 't'
+									,s2.modds AS 'm'
+									,s2.refno AS 'r'
+									,s2.IsMarked AS 'im'
+						FROM	#tmpsubTransID s2         
+						WHERE	s2.moddsSDT IS NOT NULL
+								AND s2.id/@batchNo = main.batchNo
+						FOR JSON AUTO) AS VARCHAR(MAX)) AS subTransIds
+					) sub
+				
+				SET @TotalBatch = @TotalBatch + @@ROWCOUNT
+
+				UPDATE	#tmpsubTransID
+					SET isFinish = 1
+				WHERE	moddsSDT IS NOT NULL
+			END
+			
+			INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, MainParlayMaxPO, BroadcastSessionId)
+			SELECT	@SessionId
+					,@MatchID
+					,@MessageTypePattern + CAST(CASE WHEN main.batchNo%@ExecParlayDataQueueSize = 0 THEN @ExecParlayDataQueueSize ELSE main.batchNo%@ExecParlayDataQueueSize END AS VARCHAR)
+					,@Action AS Action
+					,@ActionID
+					,sub.subTransIds
+					,main.MainTransIds
+					,main.RefnoMainTransIds
+					,@EventDate AS EventDate
+					,@strSetting
+					,@IsReSettledTickets
+					,main.MainParlayMaxPO
+					,@BroadcastSessionId
+			FROM(
+					SELECT	s1.Id/@batchNo AS batchNo
+							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
+							,('<root>' + STRING_AGG(CAST(main.MainParlayMaxPO AS VARCHAR(MAX)), '') + '</root>') AS MainParlayMaxPO
+					FROM	#tmpsubTransID s1
+						LEFT JOIN #tmpMainTransId main
+							ON s1.refno = main.refno
+					WHERE	isFinish IS NULL
+					GROUP BY s1.id/@batchNo
+				) main
+				CROSS APPLY (
+					SELECT CAST((SELECT	s2.transid AS 't'	
+								,s2.modds AS 'm'
+								,s2.refno AS 'r'
+								,s2.IsMarked AS 'im'
+					FROM	#tmpsubTransID s2         
+					WHERE	s2.isFinish IS NULL
+							AND s2.id/@batchNo = main.batchNo
+					FOR JSON AUTO) AS VARCHAR(MAX)) AS subTransIds
+				) sub
+
+			SET @TotalBatch = @TotalBatch + @@ROWCOUNT
+			
+			IF @TotalBatch > 0
+			BEGIN
+				IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT_' OR @RunExecParlayDataBySSB = 0
+				BEGIN
+					SELECT @MessageType = @MessageTypePattern + '1'
+		
+					EXEC dbo.SSB_ParlaySettlement_UpdateData @ConversationHandle = NULL
+						,@MessageType = @MessageType
+						,@MessageBody = @SessionId
+						,@MessageId = NULL
+				END
+				ELSE
+				BEGIN	
+					SET @i = 1
+					
+					WHILE(1=1)
+					BEGIN
+						SELECT @MessageType = @MessageTypePattern + CAST(@i AS VARCHAR)
+		
+						EXEC [dbo].[SSB_Send_Message] @MessageContent = @SessionId
+							, @FunctionName = 'parlaysettlement'
+							, @MessageType = @MessageType
+			
+						IF @i = CASE WHEN @TotalBatch > @ExecParlayDataQueueSize THEN @ExecParlayDataQueueSize ELSE @TotalBatch END
+							BREAK					
+
+						SET @i = @i + 1
+					END
+				END
+			END
+		
 		END
 	END TRY
 	BEGIN CATCH
-		INSERT INTO #tmpParlayBalanceAfter (transid, custid, balance)
-		SELECT	b.transid, b.custid, (b.winlost - b.actual_stake + b.playercomm) AS balance
-		FROM	dbo.bettrans b WITH(ROWLOCK)
-		WHERE	b.transid IN (SELECT transid FROM @tmpMainTransIdBatch)
-
-		INSERT INTO #tmpParlayBalance (custid, balance)
-		SELECT b.custid, SUM(a.balance - b.balance)
-		FROM #tmpParlayBalanceBefore b
-			INNER JOIN #tmpParlayBalanceAfter a ON b.transid = a.transid
-		GROUP BY b.custid
-
-		--Insert Max Payout Queue
-		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
-			@MatchId= 29
-			,@TransidList = @MainParlay_MaxPO
-		
 		SELECT	@ErrCode = 1001017
-				,@ErrMsg = ERROR_MESSAGE() + ERROR_PROCEDURE() 
+				,@ErrMsg = ERROR_MESSAGE() + ERROR_PROCEDURE() 	
 
-	END CATCH
+	END CATCH		
 
-	INSERT INTO @tmpParlayDebitPending (custID, balance)
-	SELECT t.custid, ABS(t.balance)
-	FROM (
-		SELECT	custID, SUM(balance) AS balance
-		FROM	#tmpParlayBalance
-		GROUP BY custID
-	) t
-	WHERE t.balance < 0
-
-	IF @@ROWCOUNT <> 0
-		EXEC dbo.Dot_BalancePendingDebitIns
-			@BalancePending = @tmpParlayDebitPending
-			,@Type			= 1 -- Sports
-
-	INSERT INTO @tmpParlayCreditPending (custID, balance)
-	SELECT t.custid, ABS(t.balance)
-	FROM (
-		SELECT	custID, SUM(balance) AS balance
-		FROM	#tmpParlayBalance
-		GROUP BY custID
-	) t
-	WHERE t.balance > 0
-
-	IF @@ROWCOUNT <> 0
-		EXEC dbo.Dot_BalancePendingCreditIns
-			@BalancePending = @tmpParlayCreditPending
-			,@Type			= 1 -- Sports
-			
-	----
-	-- Add Negative Balance into BalanceNegative table
-	----
-	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL
-	BEGIN
-		INSERT INTO [dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark], [SessionId])
-		SELECT GETDATE()
-			,@MatchID
-			,CASE 
-				WHEN @Action LIKE 'UNDO%' THEN 105
-				WHEN @Action = 'REFUND-HT' THEN 120
-				WHEN @Action = 'REFUND-FT' THEN 106
-				WHEN @Action LIKE 'REFUND%' THEN 107
-				ELSE 104 -- CAL
-			END
-			,2 -- Sportsbook Parlay Settlement
-			,t.CustID
-			,t.Balance
-			,0
-			,@matchid
-			,@BroadcastSessionId
-		FROM (	SELECT	custID, SUM(balance) AS balance
-				FROM	#tmpParlayBalance
-				GROUP BY custID) t
-		WHERE t.balance < 0
-	END
-
-	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
-	VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'END running CAL-29')
-
-	----------------------------------- releasing Settlement process--------------------------------------------
-	IF @LockedByRefno = 1
-	BEGIN
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@IsLockingByRefno = 1
-			,@Session	= @Session
-			,@IsReleased = 1
-	END
-
-	IF @ErrCode <> 0
-		RETURN
+	IF @IsAuto = 1 AND @Action = 'REFUND' AND @Sporttype <> 1 
+		SELECT @ResourceRefund = STRING_AGG(CAST(r.ResourceID AS VARCHAR(MAX)),',')
+		FROM @tmpSelectedRID r
 	
-	
-	IF @IsAuto = 1 AND @Action = 'REFUND'
-	BEGIN
-		IF  @sportType != 1
-		BEGIN
-			SELECT @ResourceRefund = @ResourceRefund + ',' + r.ResourceID FROM @tmpSelectedRID r
-			
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultUpd
-					@MatchId = @matchid
-					, @StatusId = 2
-					, @ResourceIds  = @ResourceRefund
-		END
-	END
-
-	--Auto refund Badminton after calculate parlay by Auto Service
-	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' AND ResourceID = '00' AND HomeValue <> AwayValue )
-	BEGIN
-		EXEC dbo.NAP_Set_GetRefundResult
-				@MatchId		= @MatchID
-				,@Sporttype		= @sportType
-				,@CalculateResources= @SelectedResources
-				,@ResourceRefund = @ResourceRefund OUTPUT
-
-		IF ISNULL(@ResourceRefund, '')  <> ''
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
-				@MatchId		 = @MatchID
-				,@ResourceIds	 = @ResourceRefund
-		END
-END
-	
-	-- Write log
-	DECLARE @ResultRemarkLog VARCHAR(MAX) = ''
-			,@Remark		VARCHAR(MAX) = ''
-			,@matchLog		INT = @matchid
-
 	IF @ParentMatchId IS NOT NULL 
 	BEGIN
 		DELETE FROM @tmpSelectedRID
@@ -1002,7 +944,7 @@ END
 
 		SET @matchLog = @ParentMatchId
 	END
-
+				
 	SELECT @ResultRemarkLog = STRING_AGG(ISNULL(RoundName,ResourceID) + 
 			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 					WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
@@ -1016,53 +958,64 @@ END
 		  	GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   		) AS tbl1
 	
-	SET @stop = CURRENT_TIMESTAMP
-	
-	-- write log
-	BEGIN
-		SELECT @fth = CASE WHEN @DeterminedType IN (1,2) THEN NULL ELSE @fth END
-				,@fta = CASE WHEN @DeterminedType IN (1,2) THEN NULL ELSE @fta END
+	SELECT @LogData = (
+		SELECT	@sporttype	AS '@sporttype'
+				,@Action	AS '@Action'
+				,@IsAuto	AS '@IsAuto'
+				,@start		AS '@StartTime'
+				,@ResourceRefund AS '@ResourceRefund'
+				,@SelectedResources AS '@SelectedResources'
+				,@DeterminedType AS '@DeterminedType'
+				,@ParentMatchId AS '@ParentMatchId'
+				,@RemarkSDT		AS '@RemarkSDT'
+				,@ResultRemarkLog AS '@ResultRemarkLog'
+				,CASE WHEN @DeterminedType IN (1,2) THEN NULL ELSE @fth END AS '@fth'
+				,CASE WHEN @DeterminedType IN (1,2) THEN NULL ELSE @fta END AS '@fta'
+				,@hth AS '@hth'
+				,@hta AS '@hta'
+				,(SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' AND ResourceID = '00' AND HomeValue <> AwayValue) AS '@IsAutoRefund'
+				,@matchLog AS '@matchLog'
+				,@IsReSettledTickets AS '@IsReSettledTickets'
+				,@totalSubParlay AS '@totalSubParlay'
+				,@creator AS '@creator'
+				,@ActionID AS '@ActionID'
+				,@IP AS '@IP'
+				,@BroadcastSessionId AS '@BroadcastSessionId'
+		FOR	XML PATH('r'), ROOT('root'), TYPE)
 
-		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
-		SELECT @Remark =
-			'<distinct>'
-							+ CASE WHEN @ParentMatchId IS NOT NULL THEN '<r n="Child" v="' + CAST(@matchid AS VARCHAR) + '"/>' ELSE '' END
-							+ CASE 
-								WHEN @sporttype <> 1 AND @DeterminedType = 0 
-									THEN CASE 
-											WHEN @Action LIKE 'CAL%' THEN '<r n="Result" v="' + ISNULL(@ResultRemarkLog,'') + '"/>' 
-											ELSE '<r n="Selected" v="' +  ISNULL(@ResultRemarkLog,'') + '"/>' 
-											END
-								WHEN @sportType <> 1 AND @DeterminedType > 0 THEN '<r n="Selected" v="' +  ISNULL(@RemarkSDT,'') + '"/>'
-								ELSE ''
-							END
-							+ CASE 
-								WHEN @DeterminedType = 2 THEN '<r n="SDT-FT" v="1"/>' 
-								WHEN @DeterminedType = 1 THEN '<r n="Instant HT" v="1"/>'
-								WHEN @DeterminedType = 4 THEN '<r n="Instant FT" v="1"/>'
-								ELSE '' END
-							+ CASE WHEN @Action LIKE 'CAL%' THEN '<r n="Recalc" v="' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) + '"/>' ELSE '' END
-						+ '</distinct>'
-						+ '<root>'
-							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
-							+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @start, 120)  + '"/>'			
-							+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'	
-							+ '<r t="s" n="TC" v="' + CAST(ISNULL(@totalSubParlay, 0) AS VARCHAR(20))  + '"/>'							
-						+ '</root>'			
-	
-		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @creator
-			,@Matchid = @matchLog
-			,@ActionID = @ActionID	
-			,@finalhomescore    = @fth
-			,@finalawayscore    = @fta
-			,@hthomescore        = @hth
-			,@htawayscore        = @hta
-			,@Remark = @Remark
-			,@IP = @IP
-			,@BroadcastSessionId = @BroadcastSessionId
-		
+	SET @CommandMonitor = 'EXEC dbo.NAP_Admin_MonitorParlayProcess @SessionId = ' + CAST(@SessionId AS VARCHAR(50))
+						+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)	
+						+ ', @Session = ''' + @Session + ''''
+						+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
+						+ ', @LogData = ' + '''' + CAST(@LogData AS VARCHAR(MAX)) + ''''
+						+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)	
+						+ ', @LockedByRefno = ' + CAST(@LockedByRefno AS VARCHAR)	
+						+ ', @ErrCode = @ErrCode OUTPUT' 
+                        + ', @ErrMsg = @ErrMsg OUTPUT'
+						+ ', @SSBStatus = @SSBStatus OUTPUT'
+
+	UPDATE	dbo.Parlay_Calculate_Queue 
+		SET SSBCommand = @CommandMonitor
+			,SSBStatus = 1
+	WHERE	keyid = @ParlayKeyId
+
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @CommandMonitor = @CommandMonitor + ', @NeedWaiting = 1' 
+
+		EXEC sys.sp_executesql @CommandMonitor
+			, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @SSBStatus TINYINT OUTPUT'
+			, @ErrMsg	= @ErrMsg	OUTPUT
+			, @ErrCode	= @ErrCode	OUTPUT
+			, @SSBStatus = @SSBStatus OUTPUT
 	END
 
-	--END: WRITE LOG ---------------------------------- 
+	IF @ErrCode <> 0 AND @LockedByRefno = 1
+	BEGIN
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@IsLockingByRefno = 1
+			,@Session	= @Session
+			,@IsReleased = 1
+	END
 END
 GO

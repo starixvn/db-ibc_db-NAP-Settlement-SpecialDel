@@ -1,8 +1,17 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_29]
-	@matchdate	SMALLDATETIME
-	,@strXML	VARCHAR(MAX)
-	,@BroadcastSessionId VARCHAR(50)
+	@matchdate				SMALLDATETIME
+	,@strXML				VARCHAR(MAX)
+	,@BroadcastSessionId VARCHAR(50) = ''
+	,@ServerAlias 			VARCHAR(50) = ''
+	,@MatchId				INT 		= 0
+	,@ActionId 				INT 		= 0
+	,@IsCalculateBalance 	BIT 		= 0
+	,@SessionId				BIGINT 		= NULL
+	,@IsParallel 			BIT 		= 0
+	,@ParlaySettlementProcessingId BIGINT = NULL
+	,@ServerName SYSNAME = ''
+	,@AffectedTicket 		INT 		= 0 OUTPUT
 AS
 /*
 	Created: Kathy
@@ -23,6 +32,8 @@ AS
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+
 	Param's Explanation:
 */
 BEGIN
@@ -36,7 +47,7 @@ BEGIN
 			,@transInfoJson		NVARCHAR(MAX)
 			,@IsSiteDB			BIT = 0
 			,@CurrentBonusAmount MONEY
-
+		
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
 			
@@ -47,7 +58,7 @@ BEGIN
 		, BonusAmount MONEY DEFAULT(0), xmlExtraInfo XML
 	)
 	
-	DECLARE @tmpTransInfo TABLE (transId BIGINT			
+	DECLARE @tmpTransInfo TABLE (transId BIGINT, custid INT, balancechanged MONEY			
 		,SettlementTime DATETIME,Status NVARCHAR(10),StatusID TINYINT
 		,WinLostDate SMALLDATETIME, betdaqid BIGINT,ruben TINYINT 
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
@@ -59,22 +70,23 @@ BEGIN
 		,bettype SMALLINT,refno BIGINT
 	)
 
-	CREATE TABLE #Refno (refno BIGINT  PRIMARY KEY, transid BIGINT, IsMarked BIT DEFAULT(0))
+	DECLARE @tmpRefno TABLE (refno BIGINT  PRIMARY KEY, transid BIGINT, IsMarked BIT DEFAULT(0))
+
+	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
 	
-	SET @xml = CONVERT(XML, N'<root><r rn="' + REPLACE(REPLACE(@strXML, '|', '" t="'), ',', '"/><r rn="') + '"/></root>')
-	
-	INSERT INTO #Refno (refno, transid)
-	SELECT T.C.value('./@rn', 'bigint')
-			,T.C.value('./@t', 'bigint')
-	FROM @xml.nodes('/root/r') AS T(C)
-	OPTION (OPTIMIZE FOR (@xml = NULL ))
+	IF @ServerName <> @@SERVERNAME
+        RETURN
+		
+	INSERT INTO @tmpRefno (refno, transid)
+	SELECT SUBSTRING(value,0,CHARINDEX('|', value)) as refno ,SUBSTRING(value,CHARINDEX('|', value) + 1, len(value)) as transid
+	FROM STRING_SPLIT(@strxml,',')
 	
 	SELECT @minRefno = MIN(refno)
-	FROM #Refno
+	FROM @tmpRefno
 	
 	UPDATE	r
 		SET IsMarked = 1
-	FROM	#Refno r
+	FROM	@tmpRefno r
 		INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
 			ON r.transid = mt.TransId
 	WHERE	mt.MatchId = 29
@@ -91,7 +103,7 @@ BEGIN
 		,CASE WHEN SUM(CASE pr.statusID WHEN 0 THEN pr.stake ELSE 0 END) > 0 THEN 0 ELSE 1 END -- in case got sub running, then ruben=0, otherwise set ruben=1
 		,b.IsMarked
 		,ISNULL(MAX(pr.stake * (pr.mOdds - 1)/(1 + pr.ExtraValue) * pr.ExtraValue),0)
-	FROM #Refno b 
+	FROM @tmpRefno b 
 		INNER JOIN dbo.BetParlayResult pr WITH(NOLOCK)
 			ON pr.refno = b.refno
 	WHERE pr.RefNo >= @minRefno
@@ -179,7 +191,8 @@ BEGIN
 							WHEN @statusId = 0 THEN NULL
 						END 
 		,ExtraInfo = CASE WHEN s.xmlExtraInfo IS NOT NULL AND CAST(s.xmlExtraInfo AS VARCHAR(1000)) <> b.ExtraInfo THEN CAST(s.xmlExtraInfo AS VARCHAR(1000))  ELSE b.ExtraInfo END
-	OUTPUT inserted.transid
+	OUTPUT inserted.transid, inserted.custid
+		 ,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 		,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 
 		,inserted.Status,inserted.StatusID,inserted.winlostdate,inserted.betdaqid,inserted.ruben
@@ -190,7 +203,8 @@ BEGIN
 		,deleted.winlost
 		,deleted.statusid
 		,deleted.bettype,deleted.refno
-	INTO @tmpTransInfo (transId
+	INTO @tmpTransInfo (transId, custid
+		,balancechanged
 		,SettlementTime
 		,Status, StatusID, WinLostDate, betdaqid, ruben
 		,WinLost,aWinLost,mWinLost,sWinLost
@@ -205,6 +219,40 @@ BEGIN
 	FROM @tmpSource s
 		INNER JOIN dbo.bettrans b
 			ON b.transid = s.transid
+	
+	SELECT @AffectedTicket = COUNT(1)
+	FROM 	@tmpTransInfo
+	
+	IF @IsCalculateBalance = 1 AND (@IsSiteDB = 1 OR @ServerAlias = 'DBTXN')
+	BEGIN
+		INSERT INTO dbo.BalCreditSportsPending(custid, balance)
+		SELECT	custid, SUM(balancechanged)
+		FROM	@tmpTransInfo
+		GROUP BY custid
+		HAVING SUM(balancechanged) > 0
+
+		INSERT INTO dbo.BalDebitSportsPending(custid, balance)
+		SELECT	custid, ABS(SUM(balancechanged))
+		FROM	@tmpTransInfo
+		GROUP BY custid
+		HAVING SUM(balancechanged) < 0
+
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark])
+			SELECT GETDATE()
+				,@MatchID
+				,@ActionId
+				,2 -- Sportsbook Parlay Settlement
+				,CustID
+				,SUM(balancechanged)
+				,0
+				,@matchid
+			FROM	@tmpTransInfo
+			GROUP BY custid
+			HAVING SUM(balancechanged) < 0
+		END
+	END
 
 	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)	
 	BEGIN
@@ -245,6 +293,9 @@ BEGIN
 				,@SettlementAction = 'CAL'
 				,@TicketType = 'p'
 				,@BroadcastSessionId = @BroadcastSessionId
+				,@SessionId     = @SessionId
+                ,@IsParallel    = @IsParallel
+				,@ParlaySettlementProcessingId = @ParlaySettlementProcessingId
 		
 	END
 END
