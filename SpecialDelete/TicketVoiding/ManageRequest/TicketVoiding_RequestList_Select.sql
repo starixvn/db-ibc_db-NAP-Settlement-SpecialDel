@@ -461,7 +461,7 @@ BEGIN
 	UPDATE t
 	SET  t.Message = msg.Content_en
 	FROM	#tmpResult t
-		INNER JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON t.RequestId = s.RequestID AND t.MatchId = s.matchID
+		INNER JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON t.RequestId = s.RequestID AND (ISNULL(t.MatchId,0) = s.matchID OR s.matchID = 0)
 		INNER JOIN DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) ON msg.MessageId = ISNULL(s.MessageId, s.MessageIdSpecial)
 	
 	/*****************Return table **************************/

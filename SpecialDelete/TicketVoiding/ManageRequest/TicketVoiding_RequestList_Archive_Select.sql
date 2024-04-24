@@ -404,7 +404,7 @@ BEGIN
 	UPDATE t
 	SET  t.MessageId = ISNULL(s.MessageId, s.MessageIdSpecial)
 	FROM #tmpResult t
-		INNER JOIN bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON t.RequestId = s.RequestID AND t.MatchId = s.matchID
+		INNER JOIN bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON t.RequestId = s.RequestID AND (ISNULL(t.MatchId,0) = s.matchID OR s.matchID = 0)
 
 	UPDATE	t 
 		SET Message = ISNULL(msg1.Content_en, msg.Content_en)
