@@ -20,10 +20,11 @@ begin
 		, @__parlayprocessingId bigint, @__sitedb_parlayprocessingId bigint
 		, @__delayTime varchar(50), @__siteDBGroupId smallint, @__tablename varchar(128), @__matchid int, @__previousStatusId tinyint, @__AffectedTicket int, @__tabletype tinyint
 		, @__settlementAction varchar(20), @__ticketType varchar(1), @__errorCode INT
-		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
+		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2, @__runOnServer varchar(100)
 		, @__messageBodyTemp nvarchar(max), @__messageTypeTemp varchar(128)
 	select @__siteDBGroupId = substring(@MessageBody, 0, charindex('^', @MessageBody, 0))
 	select @__sessionId = substring(@MessageBody, charindex('^', @MessageBody, 0) + 1, datalength(@MessageBody))
+	select @__runOnServer = @@SERVERNAME
 
 	while 1 = 1
 	begin
@@ -116,7 +117,8 @@ begin
 				, @TicketType					= @__ticketType
 				, @ParlaySettlementProcessingId	= @__parlayprocessingId	
 				, @CalledByBrokerService 		= 1			
-				, @TransInfoJson				= @__strTransInfo				
+				, @TransInfoJson				= @__strTransInfo	
+				, @RunOnServer 					= @__runOnServer		
 				, @AffectedTicket 				= @__AffectedTicket OUTPUT
 				, @ErrMsg						= @__errmsg OUTPUT
 		end try
@@ -143,6 +145,7 @@ begin
 									+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
 									+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end
 									+ case when @__parlayprocessingId is not null then ',@ParlaySettlementProcessingId=' + cast(@__parlayprocessingId as varchar(20)) else '' end
+									+ case when @__runOnServer is not null then ',@RunOnServer=' + '''' + @__runOnServer + '''' else '' end
 									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + convert(nvarchar(max), @__strTransInfo, 1) + '''' else '' end
 				, @__messageTypeTemp = isnull(@__messageTypeNew, @MessageType)
 				, @__endtime = sysdatetime()

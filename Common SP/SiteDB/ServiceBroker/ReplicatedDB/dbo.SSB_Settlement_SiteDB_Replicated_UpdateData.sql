@@ -20,12 +20,13 @@ begin
 	declare @__startTime datetime2, @__sessionId bigint, @__strTransInfo varbinary(max)
 		, @__processingId bigint, @__delayTime varchar(50), @__siteDBGroupId smallint, @__matchid int, @__AffectedTicket int
 		, @__settlementAction varchar(20), @__ticketType varchar(1)
-		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
+		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2, @__runOnServer varchar(100)
 
 	select @__siteDBGroupId = PARSENAME(REPLACE(@MessageBody, '^', '.'), 3)
 			,@__matchid = PARSENAME(REPLACE(@MessageBody, '^', '.'), 2)
 			,@__sessionId = PARSENAME(REPLACE(@MessageBody, '^', '.'), 1)
-
+			,@__runOnServer = @@SERVERNAME
+			
 	while 1 = 1
 	begin
 		select @__strTransInfo = NULL, @__processingId = 0
@@ -90,6 +91,7 @@ begin
 				, @SettlementAction				= @__settlementAction
 				, @TicketType					= @__ticketType
 				, @SettlementProcessingId		= @__processingId	
+				,@RunOnServer 					= @__runOnServer	
 				, @CalledByBrokerService 		= 1		
 				, @AffectedTicket				= @__AffectedTicket OUTPUT
 
@@ -108,6 +110,7 @@ begin
 									+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
 									+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end
 									+ case when @__processingId is not null then ',@SettlementProcessingId=' + cast(@__processingId as varchar(20)) else '' end
+									+ case when @__runOnServer is not null then ',@RunOnServer=' + '''' + @__runOnServer + '''' else '' end
 									+ ',@CalledByBrokerService=1'
 									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + convert(nvarchar(max), @__strTransInfo, 1) + '''' else '' end
 				, @__messageTypeTemp = isnull(@__messageTypeNew, @MessageType)
