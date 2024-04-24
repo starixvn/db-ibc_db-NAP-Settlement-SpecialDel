@@ -498,7 +498,7 @@ BEGIN
 			,mr.SettlementStatus
 			,CASE WHEN t.IssueTypeId IN (1,10,3,2,8,9) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
 			,CASE WHEN CHARINDEX('1',t.ProductIds) > 0 THEN 'Sportsbook' ELSE NULL END AS Products -- Apply issuetype Recover Ticket
-			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch
+			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch, m.ParentID AS ParentMatchId
 			,t.Provider, t.Source, t.Remark, t.Trader, t.LA, t.Message
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
@@ -539,11 +539,11 @@ BEGIN
 					ORDER BY VoidingHistoryId DESC 
 				)l_s	
 		OUTER APPLY (
-					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.kickofftime, m.eventdate
+					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.kickofftime, m.eventdate, m.ParentID
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE	m.matchid = t.MatchId
 					UNION
-					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.kickofftime, m.eventdate
+					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.kickofftime, m.eventdate, m.ParentID
 					FROM	dbo.match14 m WITH(NOLOCK)
 					WHERE	m.matchid = t.matchid
 			)m

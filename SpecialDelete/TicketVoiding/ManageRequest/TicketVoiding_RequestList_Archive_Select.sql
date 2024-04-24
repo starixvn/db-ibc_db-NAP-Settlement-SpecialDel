@@ -550,7 +550,7 @@ BEGIN
 			,t.TotalParlayProcessed
 			,t.TotalCancelCashOutProcessed
 			,t.TotalResettleProcessed 
-			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch
+			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch, m.ParentID AS ParentMatchId
 			,t.Provider, t.Source, t.Remark, t.Trader, t.LA, t.Message
 	FROM	#tmpResult t
 		LEFT JOIN bodb02.dbo.Customer c WITH(NOLOCK)
@@ -591,7 +591,7 @@ BEGIN
 					ORDER BY VoidingHistoryId DESC 
 				)l_s	
 		OUTER APPLY (
-					SELECT matchcode, hthomescore, htawayscore, finalhomescore, finalawayscore, kickofftime, eventdate
+					SELECT matchcode, hthomescore, htawayscore, finalhomescore, finalawayscore, kickofftime, eventdate, ParentID
 					FROM dbo.match_bk WITH (NOLOCK)
 					WHERE matchid = t.MatchId
 			)m
