@@ -889,6 +889,7 @@ BEGIN
 						,@strXML = @strTransIds
 						,@IsReSettledTickets = @IsReSettledTickets
 						,@strSetting = @strSetting
+						,@ServerName = @RunOnServer
 						,@AffectedTicket = @AffectedTicket OUTPUT
 				END
 				ELSE IF @TableName = 'TicketVoiding_VoidedTransaction' AND OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL

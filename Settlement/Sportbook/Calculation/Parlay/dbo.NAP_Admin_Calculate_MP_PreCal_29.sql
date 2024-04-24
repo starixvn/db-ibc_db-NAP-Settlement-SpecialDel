@@ -304,6 +304,8 @@ BEGIN
 					BREAK
 
 				BEGIN TRY
+					SET @isInsertedBetParlayDetail = 0
+					
 					INSERT INTO dbo.BetParlayDetail WITH (ROWLOCK)
 						(
 							RefNo, Serial, transid, winlostdate, statuswinlost, statusid
@@ -383,7 +385,7 @@ BEGIN
 	SELECT pd.refno, MAX(m.eventdate) AS EventDate
 	FROM dbo.BetParlayDetail pd WITH (NOLOCK)			
 		INNER JOIN @temp_bettrans t ON pd.refno = t.refno
-		INNER HASH JOIN dbo.match m WITH (NOLOCK)
+		INNER JOIN dbo.match m WITH (NOLOCK)
 			ON m.matchid = pd.matchid
 	GROUP BY pd.refno
 
