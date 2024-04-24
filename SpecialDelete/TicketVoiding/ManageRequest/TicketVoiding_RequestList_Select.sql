@@ -87,7 +87,6 @@ BEGIN
 		,VoidedBy			INT
 		,MatchId			INT
 		,IssueTypeId		TINYINT
-		,MessageId			INT
 	)
 
 	CREATE TABLE #tmpResult (
@@ -440,27 +439,30 @@ BEGIN
 			)rd
 	WHERE t.IssueTypeId = 3
 
-	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId, MatchId, MessageId)
-	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId, ISNULL(t.MatchId,0), MessageId
+	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId, MatchId)
+	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId, ISNULL(t.MatchId,0)
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
-				, CASE WHEN ISNULL(vh.MessageId,0) <> 0 THEN vh.MessageId ELSE vh.MessageIdSpecial END AS MessageId
 			FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 			WHERE	vh.RequestId = t.requestId AND vh.StatusId IN (2,3)
 		) vh
 		
 	UPDATE	t 
 		SET LastVoidedBy = vh.LastVoidedBy
-		   ,Message = msg.Content_en
 	FROM	#tmpResult t
 		CROSS APPLY (
-			SELECT	TOP (1) vh.VoidedBy AS LastVoidedBy, vh.MessageId
+			SELECT	TOP (1) vh.VoidedBy AS LastVoidedBy
 			FROM	@tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId
 			ORDER BY vh.VoidingHistoryId DESC
 		) vh
-		INNER JOIN DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) ON vh.MessageId = msg.MessageId
+	
+	UPDATE t
+	SET  t.Message = msg.Content_en
+	FROM	#tmpResult t
+		INNER JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON t.RequestId = s.RequestID AND t.MatchId = s.matchID
+		INNER JOIN DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) ON msg.MessageId = ISNULL(s.MessageId, s.MessageIdSpecial)
 	
 	/*****************Return table **************************/
 	-- 1. Return infor table

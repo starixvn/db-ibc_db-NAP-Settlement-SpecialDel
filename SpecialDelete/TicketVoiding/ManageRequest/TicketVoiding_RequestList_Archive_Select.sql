@@ -79,7 +79,6 @@ BEGIN
 		,TotalCancelCashOutProcessed INT DEFAULT (0)
 		,MatchId			INT
 		,IssueTypeId		INT
-		,MessageId			INT
 	)
 	CREATE NONCLUSTERED INDEX IX_tmpMatchVoidingHistory_VoidingHistoryId ON #tmpMatchVoidingHistory (VoidingHistoryId)
 	 
@@ -119,7 +118,7 @@ BEGIN
 		,Remark			NVARCHAR(MAX)
 		,Trader			VARCHAR(MAX)
 		,LA				VARCHAR(MAX)
-		,MessageId      INT
+		,MessageId		INT
 		,Message        VARCHAR(MAX)
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
@@ -383,27 +382,30 @@ BEGIN
 			)rd
 	WHERE t.IssueTypeId = 3
 
-	INSERT INTO #tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId, MatchId, MessageId)
-	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId, ISNULL(t.MatchId,0), vh.MessageId
+	INSERT INTO #tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId, MatchId)
+	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId, ISNULL(t.MatchId,0)
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
-				, CASE WHEN ISNULL(vh.MessageId,0) <> 0 THEN vh.MessageId ELSE vh.MessageIdSpecial END AS MessageId
 			FROM	dbo.TicketVoiding_VoidingHistory_bk vh WITH(NOLOCK)
 			WHERE	vh.RequestId = t.requestId AND vh.StatusId IN (2,3)
 		) vh
 		
 	UPDATE	t 
 		SET LastVoidedBy = vh.LastVoidedBy
-		   ,MessageId = vh.MessageId
 	FROM	#tmpResult t
 		CROSS APPLY (
-			SELECT	TOP (1) vh.VoidedBy AS LastVoidedBy, vh.MessageId
+			SELECT	TOP (1) vh.VoidedBy AS LastVoidedBy
 			FROM	#tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId
 			ORDER BY vh.VoidingHistoryId DESC
 		) vh
 	
+	UPDATE t
+	SET  t.MessageId = ISNULL(s.MessageId, s.MessageIdSpecial)
+	FROM #tmpResult t
+		INNER JOIN bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON t.RequestId = s.RequestID AND t.MatchId = s.matchID
+
 	UPDATE	t 
 		SET Message = ISNULL(msg1.Content_en, msg.Content_en)
 	FROM	#tmpResult t
