@@ -210,6 +210,7 @@ BEGIN
 								INSERT INTO @tmpTransId (TransID)
 								SELECT	t
 								FROM	OPENJSON(@Decompress_TransInfoJson) WITH (t BIGINT)
+								WHERE	ISNULL(t,0) <> 0
 								
 								SET @cnt_sitedb = @@ROWCOUNT
 							END
