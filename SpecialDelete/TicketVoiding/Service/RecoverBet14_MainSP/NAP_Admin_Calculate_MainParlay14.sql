@@ -23,11 +23,12 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
-			,@SiteDBGroupID		SMALLINT = 0
 			,@TransInfo			VARBINARY(MAX) = NULL
 			,@MatchId			INT
+			,@IsSiteDB			BIT 
 
-	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+    IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+        SET @IsSiteDB = 1
 
 	SET @ServerName = @@SERVERNAME
 
@@ -97,7 +98,7 @@ BEGIN
 	FROM dbo.bettrans14 b
 		INNER JOIN @tbl_transIDs t ON b.transid = t.transid
 
-	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
 		INSERT INTO @tmpMatchidInfo (MatchId)
 		SELECT DISTINCT MatchId FROM @tmpTransInfo
