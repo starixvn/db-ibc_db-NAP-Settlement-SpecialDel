@@ -370,7 +370,7 @@ BEGIN
 			, AVG(cast ((Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) as bigint)) 'Total'
 		FROM #tmpData
 		WHERE sporttype IN ( 50,5,18,9,6) 
-			AND @UserGroup = 1
+			AND @UserGroup = 0
 		group by [sporttype],[SportName],GroupName, [Month],[year]
 		order by [sporttype],[SportName],[Year], [Month],GroupName
 
