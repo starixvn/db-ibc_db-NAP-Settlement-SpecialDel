@@ -254,8 +254,13 @@ BEGIN
 		END
 	END
 
-	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)	
+	IF @IsSiteDB = 1 --AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)	
 	BEGIN
+		IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			INSERT INTO @tmpTransInfo (settlementTime) VALUES (GETDATE())
+		END
+		
 		SET @transInfoJson = (
 			SELECT	transId AS 't'			
 					,SettlementTime AS 'st' 
@@ -282,7 +287,7 @@ BEGIN
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
 		)
-
+	
 		IF @transinfoJson IS NOT NULL
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
 				@SystemName = 'Settlement' 
@@ -296,6 +301,7 @@ BEGIN
 				,@SessionId     = @SessionId
                 ,@IsParallel    = @IsParallel
 				,@ParlaySettlementProcessingId = @ParlaySettlementProcessingId
+		
 		
 	END
 END

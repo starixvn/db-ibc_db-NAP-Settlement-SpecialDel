@@ -134,7 +134,7 @@ begin
 			, @MessageBody			= @__messageBodyTemp
 			, @StartTime			= @__startTime
 			, @EndTime				= @__endtime
-			, @SessionId			= null
+			, @SessionId			= @__sessionId
 			, @ErrorMessage			= @__errmsg
 			, @ConversationHandle	= @__conversationHandle
 			, @QueueNo				= 0
