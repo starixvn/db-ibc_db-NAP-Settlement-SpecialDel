@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSID-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Insert_Licensee]
 (
 	@MatchId INT
@@ -17,6 +17,7 @@ AS
     Revisions:
 		- 20230712@Max: Clone from DBTRANS - [Redmine: #181595]
 		- 20240118@Louisa: Support Max Payout for VS4 [Redmine:#199700]
+		- 20240325@Max: Max Payout - NAP_Admin_CustLimitBetQueue_Insert_Parlay Enhancement [Redmine: #202058]
 
 	Param's explanation:	
 		
@@ -54,7 +55,7 @@ BEGIN
 	
 
 	 
-	IF @ActionId IN (1,3,4,5) --VOID,RECOVER,SETTLE
+	IF @ActionId IN (1,3) --VOID,RECOVER
 	BEGIN
 		
 		SET @xml = CONVERT(XML, @Transids)
@@ -65,6 +66,35 @@ BEGIN
 			,t.c.value('@sitetype','tinyint') AS sitetype
 			,t.c.value('@transid','BIGINT') AS transid
 		FROM @xml.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@xml = NULL))
+	END
+	ELSE IF @ActionId IN (4,5) --PARLAY
+	BEGIN
+		SET @xml = CONVERT(XML, @Transids)
+
+		INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid)        
+		SELECT @MatchId AS MatchId
+			,x_Data.custid
+			,dp.sitetype
+			,x_Data.transid
+		FROM
+		(	
+			SELECT t.c.value('@custid','int') AS custid
+				,t.c.value('@transid','BIGINT') AS transid
+			FROM @xml.nodes('root/r') t(c)
+		) x_Data
+		CROSS APPLY (
+				SELECT TOP 1 
+				CASE 
+					WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+					WHEN si.SiteLabel = '789y' THEN 2 --789y
+					ELSE 1 
+				END	AS sitetype
+				FROM CustDB.dbo.Customer c WITH (NOLOCK) 
+					INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
+					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON c.srecommend = dp.custid
+				WHERE c.custid = x_Data.custid
+		) AS dp
 		OPTION (OPTIMIZE FOR (@xml = NULL))
 	END
 	ELSE IF @ActionId = 2 --REJECT
