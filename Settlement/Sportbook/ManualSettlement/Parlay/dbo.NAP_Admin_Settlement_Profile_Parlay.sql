@@ -138,7 +138,7 @@ BEGIN
 	CREATE TABLE #tmpParlayBalanceBefore (transid BIGINT PRIMARY KEY, custid INT, balance money)
 	CREATE TABLE #tmpParlayBalanceAfter (transid BIGINT PRIMARY KEY, custid INT, balance money)
 	CREATE TABLE #tmpParlayBalance (custid int, balance money)	
-	CREATE TABLE #tmpMainTransId (Id INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, refno BIGINT, IsFinished BIT, betteam NVARCHAR(10), oddsspread MONEY, SiteID VARCHAR(7), srecommend INT, MainParlayMaxPO VARCHAR(MAX), statusId TINYINT) --ruben TINYINT, custid INT, )
+	CREATE TABLE #tmpMainTransId (Id INT IDENTITY(1,1) PRIMARY KEY, transid BIGINT, refno BIGINT, IsFinished BIT, betteam NVARCHAR(10), oddsspread MONEY, SiteID VARCHAR(7), srecommend INT, statusId TINYINT)
 	--END Balance tables
 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
@@ -622,10 +622,10 @@ BEGIN
 						WHERE	bm.refno = t.refno 
 								AND bm.statusID IN (1,101))
 	
-	INSERT INTO #tmpMainTransId (transid, refno, IsFinished, betteam, oddsspread, SiteID, srecommend, MainParlayMaxPO, statusId)
-	SELECT main.transid, main.refno, main.IsFinished, main.betteam, main.oddsspread, main.BetSiteID, main.srecommend, CAST(info.MainParlayMaxPO AS VARCHAR(MAX)) AS MainParlayMaxPO, main.statusId
+	INSERT INTO #tmpMainTransId (transid, refno, IsFinished, betteam, oddsspread, SiteID, srecommend, statusId)
+	SELECT main.transid, main.refno, main.IsFinished, main.betteam, main.oddsspread, main.BetSiteID, main.srecommend, main.statusId
 	FROM (
-		SELECT	transid, refno, 0 AS IsFinished, custid, ruben
+		SELECT	transid, refno, 0 AS IsFinished
 				,betteam -- 1: combo parlay
 				,oddsspread -- 2: offer boost bonus
 				,BetSiteID
@@ -636,8 +636,7 @@ BEGIN
 				AND b.statusID NOT IN (101)-- 'REJECT'
 				AND EXISTS (SELECT TOP 1 refno FROM #tmpRefnos t WHERE t.refno = b.refno)
 	) main
-		CROSS APPLY (SELECT transid '@transid', ruben '@ruben' FOR XML PATH('r')) info (MainParlayMaxPO)
-
+	
 	SET @totalMainParlay = @@ROWCOUNT -- number of system parlay ticket
 
 	IF @totalMainParlay > 0  -- got system parlay tickets
@@ -720,7 +719,7 @@ BEGIN
 		BEGIN
 			IF @IsSDT = 1
 			BEGIN
-				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, MainParlayMaxPO)
+				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets)
 				SELECT @SessionId
 						,@MatchID
 						,@MessageTypePattern + CAST(CASE WHEN main.batchNo%@ExecParlayDataQueueSize = 0 THEN @ExecParlayDataQueueSize ELSE main.batchNo%@ExecParlayDataQueueSize END AS VARCHAR)
@@ -731,13 +730,11 @@ BEGIN
 						,main.RefnoMainTransIds
 						,@EventDate AS EventDate
 						,@strSetting
-						,@IsReSettledTickets
-						,main.MainParlayMaxPO
+						,@IsReSettledTickets					
 				FROM(
 					SELECT	s1.Id/@batchNo AS batchNo
 							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
-							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
-							,('<root>' + STRING_AGG(CAST(main.MainParlayMaxPO AS VARCHAR(MAX)), '') + '</root>') AS MainParlayMaxPO
+							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
 					FROM	#tmpsubTransID s1
 						LEFT JOIN #tmpMainTransId main
 							ON s1.refno = main.refno
@@ -764,7 +761,7 @@ BEGIN
 			
 			IF @Action LIKE 'CAL%' AND @sportType != 1 AND @DeterminedType > 0 AND  @IsReSettledTickets = 1
 			BEGIN
-				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, MainParlayMaxPO, BroadcastSessionId)
+				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, BroadcastSessionId)
 				SELECT	@SessionId
 						,@MatchID
 						,@MessageTypePattern + CAST(CASE WHEN main.batchNo%@ExecParlayDataQueueSize = 0 THEN @ExecParlayDataQueueSize ELSE main.batchNo%@ExecParlayDataQueueSize END AS VARCHAR)
@@ -775,14 +772,12 @@ BEGIN
 						,main.RefnoMainTransIds
 						,@EventDate AS EventDate
 						,@strSetting
-						,@IsReSettledTickets
-						,main.MainParlayMaxPO
+						,@IsReSettledTickets						
 						,@BroadcastSessionId 
 				FROM(
 					SELECT	s1.Id/@batchNo AS batchNo
 							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
-							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
-							,('<root>' + STRING_AGG(CAST(main.MainParlayMaxPO AS VARCHAR(MAX)), '') + '</root>' ) AS MainParlayMaxPO
+							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
 					FROM	#tmpsubTransID s1
 						LEFT JOIN #tmpMainTransId main
 							ON s1.refno = main.refno
@@ -806,7 +801,7 @@ BEGIN
 			END
 			ELSE IF @Action LIKE 'REFUND%' AND @sportType != 1 AND @DeterminedType > 0 
 			BEGIN
-				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, MainParlayMaxPO, BroadcastSessionId)
+				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, BroadcastSessionId)
 				SELECT	@SessionId
 						,@MatchID
 						,@MessageTypePattern + CAST(CASE WHEN main.batchNo%@ExecParlayDataQueueSize = 0 THEN @ExecParlayDataQueueSize ELSE main.batchNo%@ExecParlayDataQueueSize END AS VARCHAR)
@@ -818,13 +813,11 @@ BEGIN
 						,@EventDate AS EventDate	
 						,@strSetting
 						,@IsReSettledTickets
-						,main.MainParlayMaxPO
 						,@BroadcastSessionId
 				FROM(
 					SELECT	s1.Id/@batchNo AS batchNo
 							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
 							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
-							,('<root>' + STRING_AGG(CAST(main.MainParlayMaxPO AS VARCHAR(MAX)), '') + '</root>' ) AS MainParlayMaxPO
 					FROM	#tmpsubTransID s1
 						LEFT JOIN #tmpMainTransId main
 							ON s1.refno = main.refno
@@ -849,7 +842,7 @@ BEGIN
 				WHERE	moddsSDT IS NOT NULL
 			END
 			
-			INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, MainParlayMaxPO, BroadcastSessionId)
+			INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, BroadcastSessionId)
 			SELECT	@SessionId
 					,@MatchID
 					,@MessageTypePattern + CAST(CASE WHEN main.batchNo%@ExecParlayDataQueueSize = 0 THEN @ExecParlayDataQueueSize ELSE main.batchNo%@ExecParlayDataQueueSize END AS VARCHAR)
@@ -861,13 +854,11 @@ BEGIN
 					,@EventDate AS EventDate
 					,@strSetting
 					,@IsReSettledTickets
-					,main.MainParlayMaxPO
 					,@BroadcastSessionId
 			FROM(
 					SELECT	s1.Id/@batchNo AS batchNo
 							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
 							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
-							,('<root>' + STRING_AGG(CAST(main.MainParlayMaxPO AS VARCHAR(MAX)), '') + '</root>') AS MainParlayMaxPO
 					FROM	#tmpsubTransID s1
 						LEFT JOIN #tmpMainTransId main
 							ON s1.refno = main.refno

@@ -47,6 +47,8 @@ AS
 		- 20231229@Kathy: insert duplicate betparlayresult - force index [Redmine:#198835]
 		- 20230131@Kathy: Support generate BetParlayDetail/BetParlayResult for voiding ticket [Redmine:#200440]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20240425@Kathy: enhance parlay [Redmine:#199518]
+
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -185,8 +187,7 @@ BEGIN
 	) 
 	CREATE TABLE #tmpBeingGeneratedRefno (refno BIGINT, mainwinlostdate SMALLDATETIME, cntRow INT, runningTotal INT, batchNo INT)
 	DECLARE @tmpbatchRefno TABLE (refno BIGINT, mainwinlostdate SMALLDATETIME)
-	DECLARE @tmpMissingRefnoBetParlayResult TABLE (refno BIGINT, mainwinlostdate SMALLDATETIME)
-
+	
 	BEGIN
 		INSERT INTO @temp_bettrans (
 			transid, refno, stake
@@ -194,7 +195,7 @@ BEGIN
 			,bitmapR
 			,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 			,adiscount, sdiscount, comstatus
-			,oddsspread, actual_stake, betteam, BetSiteID
+			,oddsspread, actual_stake, betteam, BetSiteID, eventdate
 		)
 		SELECT	[transid], [refno], [stake]
 				,CASE 
@@ -207,7 +208,7 @@ BEGIN
 					END AS bitmapR
 				,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 				,adiscount, sdiscount, comstatus
-				,ISNULL(oddsspread, 0), actual_stake, betteam, BetSiteID
+				,ISNULL(oddsspread, 0), actual_stake, betteam, BetSiteID, winlostdate as eventdate
 		FROM	dbo.bettrans WITH(NOLOCK, INDEX = PK_bettrans)
 		WHERE	transid IN (SELECT transid FROM @transIDs)
 				AND statusID <> 101 --('REJECT')	
@@ -347,53 +348,29 @@ BEGIN
 
 				SET @batchNo = @batchNo + 1
 			END
-		END
-
-		-- insert betparlayresult
-		BEGIN						
-			INSERT INTO @tmpMissingRefnoBetParlayResult(refno, mainwinlostdate)
-			SELECT t.refno, t.winlostdate
-			FROM @temp_bettrans t 
-				LEFT JOIN dbo.BetParlayResult r WITH(ROWLOCK)
-					ON 	t.refno = r.refno
-			WHERE r.refno IS NULL
-			GROUP BY t.refno, t.winlostdate
-
-			IF @@ROWCOUNT > 0
-			BEGIN
-				INSERT INTO dbo.BetParlayResult (
-					RefNo, Serial, transid, winlostdate, statusid, Stake
-					,Odds, mOdds, winlost, awinlost, mwinlost, swinlost
-					,playercomm, comm, acomm, scomm
-				)
-				SELECT DISTINCT b.RefNo, r.Serial, 0, b.mainwinlostdate, 0, r.stake
-					,0, 0, 0, 0, 0, 0
-					,0, 0, 0, 0
-				FROM @tmpMissingRefnoBetParlayResult b
-					INNER JOIN dbo.BetParlayDetail r WITH (ROWLOCK) 
-						ON 	b.refno = r.refno
-			END				
-		END
-		
+		END		
 	END
 	-----------------------
 	-----------------------
 	-- eventdate = max(match.eventdate) - using for set winlostdate of running ticket	
-	DECLARE @tmpRefnoMaxEventDate TABLE (refno BIGINT, EventDate SMALLDATETIME)
+	DECLARE @tmpRefnoMaxEventDate TABLE (refno BIGINT, EventDate DATETIME)
 
 	INSERT INTO @tmpRefnoMaxEventDate(refno, EventDate)
-	SELECT pd.refno, MAX(m.eventdate) AS EventDate
-	FROM dbo.BetParlayDetail pd WITH (NOLOCK)			
-		INNER JOIN @temp_bettrans t ON pd.refno = t.refno
-		INNER JOIN dbo.match m WITH (NOLOCK)
-			ON m.matchid = pd.matchid
-	GROUP BY pd.refno
-
-	UPDATE t 
-		SET eventdate = s.eventdate
-	FROM @temp_bettrans t
-		INNER JOIN @tmpRefnoMaxEventDate s
-			ON t.refno = s.refno 
+	SELECT t.refno, MAX(m.eventdate) AS EventDate
+	FROM @temp_bettrans t		
+		INNER LOOP JOIN dbo.bettransm bm WITH (NOLOCK)	 
+			ON bm.refno = t.refno
+		INNER LOOP JOIN dbo.match m WITH (NOLOCK)
+			ON m.matchid = bm.matchid
+	WHERE	m.eventdate > t.winlostdate
+	GROUP BY t.refno
+	
+	IF @@ROWCOUNT > 0
+		UPDATE t 
+			SET eventdate = s.eventdate
+		FROM @temp_bettrans t
+			INNER JOIN @tmpRefnoMaxEventDate s
+				ON t.refno = s.refno 
 
 	DECLARE @statusID TINYINT, @modds MONEY
 	DECLARE @commWinRate MONEY, @commLostRate MONEY
@@ -440,7 +417,7 @@ BEGIN
 		,winlostdate = CASE
 				WHEN @statusId = 0 THEN p.eventdate
 				WHEN @statusID IN (103, 111, 112) THEN p.matchdate_max
-				WHEN @statusID = 113                 THEN @matchdate
+				WHEN @statusID = 113 THEN CASE WHEN pr.statusid = 113 THEN pr.winlostdate ELSE @matchdate END
 				ELSE @matchdate
 			END
 		,odds = p.odds
