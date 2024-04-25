@@ -67,6 +67,7 @@ BEGIN
 	    ,Transdesc			NVARCHAR(1000)
 		,Bettype			SMALLINT
 	    ,LiveIndicator      BIT
+		,FilterSet          NVARCHAR(50)  
 	)
 	SELECT @IsHasSettledTicket = MAX(ISNULL(vh_xml.IsHasSettledTicket,0))
 	FROM (
@@ -174,13 +175,13 @@ BEGIN
 					) b
 		WHERE rd.RequestId = @RequestId AND rd.MatchId = @MatchId
 
-		INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator)
-		SELECT s.TransId, b.Transdesc, b.Bettype, b.liveindicator
+		INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, FilterSet)
+		SELECT s.TransId, b.Transdesc, b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS FilterSet
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON s.TransId = b.TransId
 		WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
 		UNION ALL
-		SELECT s.TransId, b.Transdesc, b.Bettype, b.liveindicator
+		SELECT s.TransId, b.Transdesc, b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS FilterSet
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON s.TransId = b.TransId
 		WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
@@ -189,8 +190,8 @@ BEGIN
 				FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) 
 				WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId)
 		BEGIN
-			INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator)
-			SELECT s.TransId, b.Transdesc, b.Bettype, b.liveindicator
+			INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, FilterSet)
+			SELECT s.TransId, b.Transdesc, b.Bettype, b.liveindicator, b.betcheck AS FilterSet
 			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
 				INNER JOIN dbo.bettransm b WITH (NOLOCK) ON s.TransId = b.TransId
 			WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
@@ -212,11 +213,12 @@ BEGIN
 			SET b.TicketsCount = a.TicketsCount
 			FROM @tmpBettypeCount b
 			CROSS APPLY  (
-				SELECT s.BetType, COUNT(1) AS TicketsCount
+				SELECT s.BetType, c.WicketOver, COUNT(1) AS TicketsCount
 				FROM  @tmpBettypeCount c
 					INNER JOIN @tmpTicketInfo s ON c.BetTypeId = s.Bettype  
-				GROUP BY s.BetType
-			)a WHERE b.bettypeid = a.BetType
+				WHERE (c.WicketOver = '' OR s.FilterSet LIKE '%' + c.WicketOver)
+				GROUP BY s.BetType, c.WicketOver
+			)a WHERE b.bettypeid = a.BetType AND b.WicketOver = a.WicketOver
 			
 		END
 		IF @IssueTypeId = 21
@@ -275,5 +277,6 @@ BEGIN
 	FROM @tmpBettypeCount c
 		INNER JOIN dbo.bettype b WITH (NOLOCK) ON c.BetTypeId = b.typeid
 	WHERE ISNULL(TicketsCount,0) <> 0
+	ORDER BY BetTypeId, InputtedRuns, WicketOver ASC
 
 END
