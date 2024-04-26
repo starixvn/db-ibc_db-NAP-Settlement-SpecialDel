@@ -14,6 +14,7 @@ AS
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 
 	Param's explanation:
 */
@@ -29,13 +30,9 @@ BEGIN
 
 	SELECT TOP(1) q.QueueId, q.MatchId, q.RequestIds, q.Action, q.StatusId, q.BroadcastSessionId
 	FROM dbo.TicketVoiding_AutoVoidQueue q WITH(NOLOCK)
-		LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
 	WHERE StatusId IN (0)
 		AND 1 = CASE WHEN q.Action IN ('CAL','VoidResultKeyed') AND DATEADD(SECOND,180,CreatedDate) <= GETDATE() THEN 1  --Settletment signal
 					WHEN q.Action IN ('VoidInstant','VoidInstantNopolicy','VoidInstantPolicy','RecoverInstant') THEN 1 --Void Instant Abnormal Bet, AB, AA; Recover ticket
-					WHEN q.Action IN ('VoidInstant5m','VoidInstant10m') AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 0 THEN 1 --AB
-					WHEN q.Action = 'VoidInstant5m' AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 5 THEN 1 --AB
-					WHEN q.Action = 'VoidInstant10m' AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 10 THEN 1 --AB
 				ELSE 0 END
 		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
 	ORDER BY q.Action DESC, CreatedDate
