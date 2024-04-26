@@ -33,6 +33,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@NotParticipateInfo	VARCHAR(MAX)  = NULL
 	,@DuplicateTicketsInfo	VARCHAR(MAX)  = NULL
 	,@RecoverTicketInfo		VARCHAR(MAX) = NULL
+	,@AbnormalBetInfo		VARCHAR(MAX) = NULL
 	,@IsVoided				BIT			  = 0
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
 )
@@ -76,6 +77,7 @@ AS
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
+		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -236,18 +238,16 @@ BEGIN
 					,@TransInfoJson	 = @TransInfoJson		
 					,@IsEditRequest	 = @IsEditRequest
 		END
-		ELSE IF @IssueTypeId IN (11,15)
+		ELSE IF @IssueTypeId IN (11)
 		BEGIN
 			EXEC dbo.TicketVoiding_RequestDetail_AB_Update
 					 @RequestId		 = @RequestId		
 					,@MatchId		 = @MatchId		
 					,@IssueTypeId	 = @IssueTypeId	
-					,@TransIds		 = @TransIds		
+					,@AbnormalBetInfo = @AbnormalBetInfo		
 					,@UserId		 = @UserId		
 					,@IP			 = @IP			
 					,@ActionId		 = @ActionId		
-					,@FilterBy		 = @FilterBy		
-					,@SubIssueTypeId = @SubIssueTypeId
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest
 		END
