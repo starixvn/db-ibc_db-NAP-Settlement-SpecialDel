@@ -19,6 +19,7 @@ AS
 		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
+		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 
 	Param's explanation:
 	 Note : Call for ActionId IN (1,9) -- Auto void winning, VoidResultKeyed
@@ -94,7 +95,7 @@ BEGIN
 	FROM #tmpInputTransId t 
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 	WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
-				   WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+				   WHEN t.IssueTypeId IN (11) AND b.statusID NOT IN (0,1) THEN 1
 				ELSE 0 END
 		AND t.IsMixParlay = 0
 		AND t.IsCricket = 0
@@ -103,7 +104,7 @@ BEGIN
 	FROM #tmpInputTransId t 
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
 	WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
-				   WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+				   WHEN t.IssueTypeId IN (11) AND b.statusID NOT IN (0,1) THEN 1
 				ELSE 0 END
 		AND t.IsMixParlay = 0
 		AND t.IsCricket = 0
@@ -112,7 +113,7 @@ BEGIN
 	FROM #tmpInputTransId t 
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 	WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
-				   WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+				   WHEN t.IssueTypeId IN (11) AND b.statusID NOT IN (0,1) THEN 1
 				ELSE 0 END
 		AND t.IsMixParlay = 1
 
@@ -120,7 +121,7 @@ BEGIN
 	FROM #tmpInputTransId t 
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 	WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
-				   WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+				   WHEN t.IssueTypeId IN (11) AND b.statusID NOT IN (0,1) THEN 1
 				ELSE 0 END
 		AND t.IsCricket = 1
 
