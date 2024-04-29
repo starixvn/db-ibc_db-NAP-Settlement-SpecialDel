@@ -104,7 +104,7 @@ BEGIN
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT)
 	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50))
-	DECLARE	@Letstalk_Info AS TABLE (MatchId INT, IsHasUUSTickets BIT DEFAULT(0), ListBettype VARCHAR(MAX),ListBetteam VARCHAR(MAX))
+	DECLARE	@Letstalk_Info AS TABLE (MatchId INT, IsHasUUSTickets BIT, ListBettype VARCHAR(MAX),ListBetteam VARCHAR(MAX))
 
 	SET @Archived_FromDate = CONVERT(DATE, DATEADD(DAY, -7, GETDATE()))
 
@@ -460,7 +460,7 @@ BEGIN
 		,b.CustomerClass
 	FROM #tmpTransInfo b
 		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
-		LEFT JOIN @tmpMatchId_Info m ON b.matchid = b.matchid
+		LEFT JOIN @tmpMatchId_Info m ON b.matchid = m.matchid
 	WHERE 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
 			        WHEN @FilterBy IS NOT NULL AND b.bettype = 29 THEN 1
 				   ELSE 0 END
@@ -851,7 +851,7 @@ BEGIN
 	--6. Info for send letstalk when add request
 	INSERT INTO @Letstalk_Info (MatchId, IsHasUUSTickets, ListBettype, ListBetteam)
 	SELECT m.MatchId
-		,t1.IsHasUUSTickets
+		,ISNULL(t1.IsHasUUSTickets, 0)
 		,ISNULL(STUFF((SELECT DISTINCT ', ' + CAST(b.typenamee AS VARCHAR(100))
 			FROM #validTransId AS v
 			INNER JOIN dbo.bettype b WITH(NOLOCK) ON v.bettype = b.typeid
@@ -868,6 +868,9 @@ BEGIN
 		WHERE t.matchid = m.MatchId
 			AND t.CurrencyName = 'UUS'
 	)t1
+
+	SELECT l.MatchId, l.IsHasUUSTickets, l.ListBettype, l.ListBetteam
+	FROM @Letstalk_Info l
 
 	DROP TABLE #inputTransid
 	DROP TABLE #validTransId
