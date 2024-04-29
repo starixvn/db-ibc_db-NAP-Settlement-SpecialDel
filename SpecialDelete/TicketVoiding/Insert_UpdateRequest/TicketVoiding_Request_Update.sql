@@ -241,8 +241,7 @@ BEGIN
 		ELSE IF @IssueTypeId IN (11)
 		BEGIN
 			EXEC dbo.TicketVoiding_RequestDetail_AB_Update
-					 @RequestId		 = @RequestId		
-					,@MatchId		 = @MatchId		
+					 @RequestId		 = @RequestId			
 					,@IssueTypeId	 = @IssueTypeId	
 					,@AbnormalBetInfo = @AbnormalBetInfo		
 					,@UserId		 = @UserId		
