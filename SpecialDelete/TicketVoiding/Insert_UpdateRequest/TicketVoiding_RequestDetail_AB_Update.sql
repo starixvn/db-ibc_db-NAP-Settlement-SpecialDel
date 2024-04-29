@@ -77,7 +77,7 @@ BEGIN
 
 	SET @AbnormalBetInfoXML = CONVERT(XML, @AbnormalBetInfo)
 	SELECT @TransIds = t.c.value('@TransIds','VARCHAR(MAX)')
-		, @FilterBy = t.c.value('@FilterBy','TINYINT')
+		, @FilterBy = NULLIF(t.c.value('@FilterBy','TINYINT'),'')
 		, @SubIssueTypeId = t.c.value('@SubIssueTypeId','TINYINT')
 	FROM @AbnormalBetInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AbnormalBetInfoXML = NULL))
