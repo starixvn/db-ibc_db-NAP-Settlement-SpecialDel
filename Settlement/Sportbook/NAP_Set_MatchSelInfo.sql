@@ -27,6 +27,7 @@ AS
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20240122@Aries: Provider Result Log [Redmine:#199100]
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
+		- 20240412@Aries: Direct Payout for Virtual Kabaddi [Redmine:#203590]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -56,6 +57,9 @@ BEGIN
 		,GameSession TINYINT
 		,LeagueType TINYINT
 		,OverTimeSession	TINYINT
+		,hthomescore		INT
+		,htawayscore		INT
+		,ChildMatchType		TINYINT
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -80,6 +84,9 @@ BEGIN
 			,AutoSetting
 			,GameSession
 			,OverTimeSession
+			,hthomescore	
+			,htawayscore
+			,ChildMatchType
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -100,6 +107,9 @@ BEGIN
 			,ISNULL(m.AutoSetting, l.AutoSetting)	
 			,l.GameSession
 			,l.OverTimeSession
+			,m.hthomescore	
+			,m.htawayscore
+			,m.ChildMatchType
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -133,6 +143,9 @@ BEGIN
 		,GameSession
 		,LeagueType
 		,OverTimeSession
+		,hthomescore	
+		,htawayscore
+		,ChildMatchType
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -158,6 +171,9 @@ BEGIN
 		,l.GameSession
 		,ls.LeagueType
 		,l.OverTimeSession
+		,m.hthomescore	
+		,m.htawayscore
+		,m.ChildMatchType
      FROM dbo.[match] m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -191,6 +207,9 @@ BEGIN
 		,GameSession
 		,LeagueType
 		,OverTimeSession
+		,hthomescore AS HalfTimeHomeScore	
+		,htawayscore AS HalfTimeAwayScore
+		,ChildMatchType
 	FROM @tmpMatchInfo
 
 END
