@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSID-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Queue_Licensee_Job]
 AS
 /*	
