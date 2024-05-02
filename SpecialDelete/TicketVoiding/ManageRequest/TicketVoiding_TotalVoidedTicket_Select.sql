@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TotalVoidedTicket_Select]
 ( 
 	@RequestInfo VARCHAR(MAX) = NULL
@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TotalVoidedTicket_Select]
 AS;
 /*	Created by: 20220822@July
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine:#175412]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20220822@July: Create new SP - get total voided ticket [Redmine:#175412]
@@ -35,17 +35,9 @@ BEGIN
 		,VoidingHistoryId	INT
 		,MatchId			INT
 		,IssueTypeId		TINYINT
-		,TotalSingleProcessed	INT DEFAULT (0)
-		,TotalParlayProcessed	INT DEFAULT (0)
-		,TotalCancelCashOutProcessed INT DEFAULT (0)
 	)
 	CREATE NONCLUSTERED INDEX IX_tmpMatchVoidingHistory_VoidingHistoryId ON #tmpMatchVoidingHistory (VoidingHistoryId)
 
-	DECLARE @tmpChildMatchCricket TABLE (
-		RequestId		INT
-	   ,MatchId			INT
-	   ,ChildMatchId	INT
-	)
 	CREATE TABLE #tmpResult(
 		 RequestId			INT
 		,MatchId			INT
@@ -75,89 +67,45 @@ BEGIN
 	INSERT INTO #tmpResult (RequestId, MatchId, IssueTypeId)
 	SELECT DISTINCT RequestId, MatchId, IssueTypeId
 	FROM #tmpMatchVoidingHistory
-
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult t
-					INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId AND m.sporttype = 50)
-	BEGIN
-		INSERT INTO @tmpChildMatchCricket (RequestId, MatchId, ChildMatchId)
-		SELECT t.RequestId, t.MatchId, m.matchid
-		FROM #tmpResult t 
-			INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId
-		WHERE m.sporttype = 50 
-			AND m.ChildMatchType = 200
-	END
-
-	-- Support case Cricket main in table match -> child in table match14
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult t
-						INNER JOIN dbo.match14 m WITH (NOLOCK) ON m.ParentID = t.MatchId AND m.sporttype = 50)
-	BEGIN
-		INSERT INTO @tmpChildMatchCricket (RequestId, MatchId, ChildMatchId)
-		SELECT t.RequestId, t.MatchId, m.matchid
-		FROM #tmpResult t 
-			INNER JOIN dbo.match14 m WITH (NOLOCK) ON m.ParentID = t.MatchId
-		WHERE m.sporttype = 50 
-			AND m.ChildMatchType = 200
-	END
 	
 	-- single ticket	
 	;WITH CTE_Single AS(
-			SELECT	vh.VoidingHistoryId
+			SELECT	vh.RequestId, vh.MatchId
 					,SUM( CASE 
 							WHEN vh.IssueTypeId NOT IN (1,10,3) AND z.bettype NOT IN (9,29,2799,10449) THEN 1
 							WHEN vh.IssueTypeId IN (1,10,3) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 						ELSE 0 END
 					) AS TotalSingleProcessed
 					,SUM(CASE WHEN z.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
-					,CASE WHEN vh.MatchId = 0 THEN 0 ELSE ISNULL(m.matchid, z.matchid) END AS matchid
 					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed -- Apply for DA,RC,WC
 			FROM #tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId AND z.VoidingHistoryId IS NOT NULL
-				LEFT JOIN @tmpChildMatchCricket m ON z.matchid = m.ChildMatchId AND vh.RequestId = m.RequestId
 			WHERE z.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (22) --Recover Ticket
-				 AND (vh.MatchId = CASE WHEN m.MatchId IS NOT NULL THEN m.MatchId ELSE z.matchid END
-                        OR vh.MatchId = 0)
-			GROUP BY vh.VoidingHistoryId
-				   , CASE WHEN vh.MatchId = 0 THEN 0 ELSE ISNULL(m.matchid, z.matchid) END 
+			GROUP BY vh.RequestId, vh.MatchId
 	)
 	UPDATE vh 
 		SET TotalSingleProcessed = t.TotalSingleProcessed
 			,TotalParlayProcessed = t.TotalParlayProcessed
 			,TotalCancelCashOutProcessed = t.TotalCancelCashOutProcessed
-	FROM #tmpMatchVoidingHistory vh
-		INNER JOIN CTE_Single t ON vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid
+	FROM #tmpResult vh
+		INNER JOIN CTE_Single t ON vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
 	
 	--parlay ticket
 	;WITH CTE_Parlay AS(
-		SELECT	vh.VoidingHistoryId
+		SELECT	vh.RequestId, vh.MatchId
 					,COUNT(1) AS TotalParlayProcessed
-					,ISNULL(m.matchid, zm.matchid) AS matchid
 			FROM	#tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId AND zm.VoidingHistoryId IS NOT NULL
-				LEFT JOIN @tmpChildMatchCricket m ON zm.matchid = m.ChildMatchId AND vh.RequestId = m.RequestId
 			WHERE zm.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (11,15,13,17,22) --Except AB,AB(real member),AC,ARC,RT
-				AND vh.MatchId = CASE WHEN m.MatchId IS NOT NULL THEN m.MatchId ELSE zm.matchid END
-			GROUP BY vh.VoidingHistoryId, ISNULL(m.matchid, zm.matchid)
+			GROUP BY vh.RequestId, vh.MatchId
 	)
 	UPDATE vh
 		SET TotalParlayProcessed = t.TotalParlayProcessed
-	FROM	#tmpMatchVoidingHistory vh
-		INNER JOIN CTE_Parlay t ON vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid  
+	FROM	#tmpResult vh
+		INNER JOIN CTE_Parlay t ON vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
 
-	UPDATE t 
-		SET TotalSingleProcessed = ISNULL(vh.TotalSingleProcessed,0)
-			,TotalParlayProcessed = ISNULL(vh.TotalParlayProcessed,0)
-			,TotalCancelCashOutProcessed = ISNULL(vh.TotalCancelCashOutProcessed,0)
-	FROM	#tmpResult t
-		CROSS APPLY (
-			SELECT	SUM(vh.TotalSingleProcessed) AS TotalSingleProcessed
-					,SUM(vh.TotalParlayProcessed) AS TotalParlayProcessed
-					,SUM(vh.TotalCancelCashOutProcessed) AS TotalCancelCashOutProcessed
-			FROM	#tmpMatchVoidingHistory vh
-			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
-		) vh
-	
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchVoidingHistory WHERE IssueTypeId = 22)
 	BEGIN
 		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT)
