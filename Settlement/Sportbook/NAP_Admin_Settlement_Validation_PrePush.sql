@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Validation_PrePush] 
 	 @Matchid				INT
 	,@CheckType				TINYINT			= 0
@@ -30,6 +30,7 @@ AS
 		- 20220629@Louisa: Volleyball AIO - use dbo.ddsOS instead of dbo.Odds [Redmineid:#173862]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider [Redmine:#195768]
+		- 20240502@204698: Direct Payout- Kabadi/Icehockey- missing check live odds are closed [Redmine:#204698]
      
     Param's Explanation:
 
@@ -79,7 +80,7 @@ BEGIN
 	FROM	dbo.match m WITH (NOLOCK)
 	WHERE	m.matchid = @MatchId
 
-	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5  )			THEN 1 --Odds
+	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5, 4,47 )		THEN 1 --Odds
 							 WHEN @sporttype IN ( 9, 45, 50, 6 )	THEN 2 --OddsOS
 							 WHEN @sporttype = 43					THEN 3 --OddsES
 							 ELSE 0 END -- not checking
