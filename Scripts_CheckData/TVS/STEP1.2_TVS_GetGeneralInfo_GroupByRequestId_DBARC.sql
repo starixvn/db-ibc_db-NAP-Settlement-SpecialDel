@@ -445,13 +445,11 @@ UPDATE	t
 /*************************************************************************************************************************************
 **************************************************************************************************************************************/
 UPDATE	t 
-		SET MessageContent = CASE WHEN ms.MessageId IS NOT NULL THEN ms.Content_en
-								  WHEN ms1.MessageId IS NOT NULL THEN ms1.Content_en
-								  ELSE NULL END
+		SET MessageContent = ISNULL(ms.Content_en, ms1.Content_en)
 FROM	#temp_transid t
 	LEFT JOIN  DBMSG.bodb_Message.dbo.[Msg] ms WITH (NOLOCK) ON t.MessageId = ms.MessageId
 	LEFT JOIN  DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] ms1 WITH (NOLOCK) ON t.MessageId = ms1.MessageId																						
-
+WHERE t.MessageId IS NOT NULL 
 
 INSERT INTO #temp_RequestId_GetList (RequestId)
 SELECT DISTINCT RequestId

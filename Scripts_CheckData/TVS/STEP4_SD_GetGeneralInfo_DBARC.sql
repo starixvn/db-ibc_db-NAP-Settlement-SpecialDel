@@ -24,66 +24,48 @@ transid bigint
 /*Range archive*/																							
 INSERT INTO #message_tmp (messageID, reason, transid, MessageContent)																									
 SELECT   MessageId																									
-	, CASE 
+		, CASE 
 			WHEN Content_en LIKE '%Due to%bets erroneously accepted%danger play%'
-				OR Content_en LIKE '%Due to%match has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%goal% has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%Booking% has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%corner% has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%the first penalty kick had been taken%considered VOID%'
-				OR Content_en LIKE '%Due to a goal was scored from a penalty awarded%VAR review for the match between%considered VOID%'
-				OR Content_en LIKE '%Due to an official decision to award%team%after reviewing VAR for the match between%considered VOID%'
-				OR Content_en LIKE '%Due to%1st Half has been completed%considered VOID%'
-				THEN 'Danger Accepted'
-			WHEN Content_en LIKE '%Due to%wrong odds displayed%considered VOID%' 
-				THEN 'Wrong Odds'
+			  OR Content_en LIKE '%Due to%match has been completed%considered VOID%'
+			  OR Content_en LIKE '%Due to%goal% has been completed%considered VOID%'
+			  OR Content_en LIKE '%Due to%Booking% has been completed%considered VOID%'
+			  OR Content_en LIKE '%Due to%corner% has been completed%considered VOID%'
+			  OR Content_en LIKE '%Due to%the first penalty kick had been taken%considered VOID%'
+			  OR Content_en LIKE '%Due to%a goal was scored from a penalty awarded%%considered VOID%'
+			  OR Content_en LIKE '%Due to%an official decision to award%considered VOID%'
+			  OR Content_en LIKE '%Due to%1st Half has been completed%considered VOID%'
+			THEN 'Danger Accepted'
+			WHEN Content_en LIKE '%Due to%wrong odds displayed%considered VOID%' THEN 'Wrong Odds'
 			WHEN Content_en LIKE '%Due to%wrong score displayed%considered VOID%' 
-				OR Content_en LIKE '%Due to an official decision to award a goal after reviewing VAR for the match between%considered VOID%'
-				OR Content_en LIKE '%Due to an official decision to cancel%team Booking after reviewing VAR for the match between%considered VOID%'
-				OR Content_en LIKE '%Due to an official decision to cancel a goal after reviewing VAR for the match between%considered VOID%'
+			  OR Content_en LIKE '%Due to%an official decision to cancel%considered VOID%'
 			THEN 'Wrong Score'
 			WHEN Content_en LIKE '%Due to%wrong HDP displayed%considered VOID%' THEN 'Wrong HDP'
 			WHEN Content_en LIKE '%Due to%wrong%HDP displayed%considered VOID%' THEN 'Wrong 1st HDP'
-			WHEN Content_en LIKE '%Due to%wrong OU displayed%considered VOID%' 
-				OR Content_en LIKE  '%Due to%wrong%Game Over/Under%'
-				THEN 'Wrong OU'
+			WHEN Content_en LIKE '%Due to%wrong OU displayed%considered VOID%' THEN 'Wrong OU'
 			WHEN Content_en LIKE '%Due to%wrong%OU displayed%considered VOID%' THEN 'Wrong 1st OU'
-			WHEN Content_en LIKE '%Due to%early kick off%considered VOID%'
-				OR Content_en LIKE '%Due to%match early tip off%considered VOID%'
-				OR Content_en LIKE '%Due to%event early%considered VOID%'
-				THEN 'Early Kick Off'
+			WHEN Content_en LIKE '%Due to%early%considered VOID%' THEN 'Early Kick Off'
 			WHEN Content_en LIKE '%Due to%wrong%time displayed%considered VOID%' THEN 'Wrong Kick Off Time'
 			WHEN Content_en LIKE '%Due to%wrong market offered caused by%considered VOID%'
 				OR Content_en LIKE '%Due to%red card being awarded to%considered VOID%'
 				OR Content_en LIKE '%Due to%wrong odds offered on replacement of%considered VOID%' 
-				OR Content_en LIKE '%Due to an official decision to cancel%team%after reviewing VAR for the match between%considered VOID%'
+				OR Content_en LIKE '%Due to%an official decision to cancel%team%after reviewing VAR for the match between%considered VOID%'
 				THEN 'Red card'
-			WHEN Content_en LIKE '%Due to%wrong market offered on Live betting for match%considered VOID%' THEN 'Wrong Market Offered'
-			WHEN Content_en LIKE '%Due to%Wicket%has been completed%considered VOID%' THEN 'Match Completed'
-			WHEN Content_en LIKE '%wrong team name displayed%considered VOID%' 
-				OR Content_en LIKE '%Due to%wrong Away team name displayed%considered VOID'
-				OR Content_en LIKE '%Due to%wrong Home team name displayed%considered VOID'
-				OR content_en LIKE '%Wrong%Team Name%'
-				THEN 'Wrong Team Name'
-			WHEN Content_en LIKE '%Due to%wrong market offered%considered VOID%' THEN 'Wrong Market'
-			--Issuetype: Other Issues
-			WHEN Content_en LIKE '%Due to%technical error%, bet ID:%considered VOID%' THEN 'Technical Error'
-			WHEN Content_en LIKE '%Due to%technical issue caused by disruption%considered VOID%' THEN 'Game Crashed Void Live'
-			WHEN Content_en LIKE '%Due to%match was abandoned before the scheduled overs%considered VOID%' THEN 'Abandoned'
+			WHEN Content_en LIKE '%Due to%abandoned%considered VOID%' THEN 'Abandoned'
+			WHEN Content_en LIKE '%Due to%scheduled overs being reduced%considered VOID%' THEN 'Reduced Over'
 			WHEN Content_en LIKE '%Due to%Player%did not participate%considered VOID%' THEN 'Not Participate'
-			--Issuetype: Reduced Over (Cricket)
-			WHEN Content_en LIKE '%Due to%the number of scheduled overs being reduced%considered VOID%' THEN 'Reduced Over'
-			WHEN Content_en LIKE '%Due to technical error%considered VOID%' THEN 'Technical Error'
-			WHEN Content_en LIKE '%Due to % corner has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%wrong event start time displayed%considered VOID%'
-                OR Content_en LIKE '%Due to%has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%number of rounds have changed%considered VOID%'
-			THEN 'Other Issues'
+			
+			
+			WHEN Content_en LIKE '%Due to%wrong market offered%match%considered VOID%' THEN 'Wrong Market Offered'
+			WHEN Content_en LIKE '%Due to%Wicket%has been completed%considered VOID%' THEN 'Match Completed'
+			WHEN Content_en LIKE '%Due to%wrong%team name displayed%considered VOID'THEN 'Wrong Team Name'
+			WHEN Content_en LIKE '%Due to%technical error%VOID%' THEN 'Technical Error'
+			WHEN Content_en LIKE '%Due to%technical issue caused by disruption%considered VOID%' THEN 'Game Crashed Void Live' -- Subtype
+			WHEN Content_en LIKE '%Due to%abnormal bets%VOID%' THEN 'Abnormal Bet'
 			ELSE 'Other Issues'
 		END as Reason																						
 		, t.transid		
 		, ms.Content_en
-from DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] ms WITH (NOLOCK)
+FROM DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] ms WITH (NOLOCK)
 	CROSS APPLY (SELECT DISTINCT BetTransId																								
 			FROM DBMSG.bodb_Message_Archive.[dbo].[MsgTarget_Archive] mt1 with (nolock)																						
 			WHERE mt1.MessageId= ms.MessageId																						
@@ -95,67 +77,46 @@ from DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] ms WITH (NOLOCK)
 		) as t																								
 WHERE ms.CreateTime >= @from AND ms.CreateTime < @to																									
 	AND ms.IsTest = 0	
-	AND Content_en LIKE '%VOID%'
+	AND Content_en LIKE '%Due to%VOID%'
+
 /*Range active*/																							
 INSERT INTO #message_tmp (messageID, reason, transid, MessageContent)																									
 SELECT   MessageId																									
 	, CASE 
 			WHEN Content_en LIKE '%Due to%bets erroneously accepted%danger play%'
-				OR Content_en LIKE '%Due to%match has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%goal% has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%Booking% has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%corner% has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%the first penalty kick had been taken%considered VOID%'
-				OR Content_en LIKE '%Due to a goal was scored from a penalty awarded%VAR review for the match between%considered VOID%'
-				OR Content_en LIKE '%Due to an official decision to award%team%after reviewing VAR for the match between%considered VOID%'
-				THEN 'Danger Accepted'
-			WHEN Content_en LIKE '%Due to%wrong odds displayed%considered VOID%' 
-				THEN 'Wrong Odds'
+			  OR Content_en LIKE '%Due to%match has been completed%considered VOID%'
+			  OR Content_en LIKE '%Due to%goal% has been completed%considered VOID%'
+			  OR Content_en LIKE '%Due to%Booking% has been completed%considered VOID%'
+			  OR Content_en LIKE '%Due to%corner% has been completed%considered VOID%'
+			  OR Content_en LIKE '%Due to%the first penalty kick had been taken%considered VOID%'
+			  OR Content_en LIKE '%Due to%a goal was scored from a penalty awarded%%considered VOID%'
+			  OR Content_en LIKE '%Due to%an official decision to award%considered VOID%'
+			  OR Content_en LIKE '%Due to%1st Half has been completed%considered VOID%' THEN 'Danger Accepted'
+			WHEN Content_en LIKE '%Due to%wrong odds displayed%considered VOID%' THEN 'Wrong Odds'
 			WHEN Content_en LIKE '%Due to%wrong score displayed%considered VOID%' 
-				OR Content_en LIKE '%Due to an official decision to award a goal after reviewing VAR for the match between%considered VOID%'
-				OR Content_en LIKE '%Due to an official decision to cancel%team Booking after reviewing VAR for the match between%considered VOID%'
-				OR Content_en LIKE '%Due to an official decision to cancel a goal after reviewing VAR for the match between%considered VOID%'
-			THEN 'Wrong Score'
+			  OR Content_en LIKE '%Due to%an official decision to cancel%considered VOID%' THEN 'Wrong Score'
 			WHEN Content_en LIKE '%Due to%wrong HDP displayed%considered VOID%' THEN 'Wrong HDP'
 			WHEN Content_en LIKE '%Due to%wrong%HDP displayed%considered VOID%' THEN 'Wrong 1st HDP'
-			WHEN Content_en LIKE '%Due to%wrong OU displayed%considered VOID%' 
-				OR Content_en LIKE  '%Due to%wrong%Game Over/Under%'
-				THEN 'Wrong OU'
+			WHEN Content_en LIKE '%Due to%wrong OU displayed%considered VOID%' THEN 'Wrong OU'
 			WHEN Content_en LIKE '%Due to%wrong%OU displayed%considered VOID%' THEN 'Wrong 1st OU'
-			WHEN Content_en LIKE '%Due to%early kick off%considered VOID%'
-				OR Content_en LIKE '%Due to%match early tip off%considered VOID%'
-				OR Content_en LIKE '%Due to%event early%considered VOID%'
-				THEN 'Early Kick Off'
+			WHEN Content_en LIKE '%Due to%early%considered VOID%' THEN 'Early Kick Off'
 			WHEN Content_en LIKE '%Due to%wrong%time displayed%considered VOID%' THEN 'Wrong Kick Off Time'
 			WHEN Content_en LIKE '%Due to%wrong market offered caused by%considered VOID%'
-				OR Content_en LIKE '%Due to%red card being awarded to%considered VOID%'
-				OR Content_en LIKE '%Due to%wrong odds offered on replacement of%considered VOID%' 
-				OR Content_en LIKE '%Due to an official decision to cancel%team%after reviewing VAR for the match between%considered VOID%'
-				THEN 'Red card'
-			WHEN Content_en LIKE '%Due to%wrong market offered on Live betting for match%considered VOID%' THEN 'Wrong Market Offered'
-			WHEN Content_en LIKE '%Due to%Wicket%has been completed%considered VOID%' THEN 'Match Completed'
-			WHEN Content_en LIKE '%wrong team name displayed%considered VOID%' 
-				OR Content_en LIKE '%Due to%wrong Away team name displayed%considered VOID'
-				OR Content_en LIKE '%Due to%wrong Home team name displayed%considered VOID'
-				OR content_en LIKE '%Wrong%Team Name%'
-				THEN 'Wrong Team Name'
-			WHEN Content_en LIKE '%Due to%wrong market offered%considered VOID%' THEN 'Wrong Market'
-			--Issuetype: Other Issues
-			WHEN Content_en LIKE '%Due to%technical error%, bet ID:%considered VOID%' THEN 'Technical Error'
-			WHEN Content_en LIKE '%Due to%technical issue caused by disruption%considered VOID%' THEN 'Game Crashed Void Live'
-			WHEN Content_en LIKE '%Due to%match was abandoned before the scheduled overs%considered VOID%' THEN 'Abandoned'
+			  OR Content_en LIKE '%Due to%red card being awarded to%considered VOID%'
+			  OR Content_en LIKE '%Due to%wrong odds offered on replacement of%considered VOID%' 
+			  OR Content_en LIKE '%Due to%an official decision to cancel%team%after reviewing VAR for the match between%considered VOID%' THEN 'Red card'
+			WHEN Content_en LIKE '%Due to%abandoned%considered VOID%' THEN 'Abandoned'
+			WHEN Content_en LIKE '%Due to%scheduled overs being reduced%considered VOID%' THEN 'Reduced Over'
 			WHEN Content_en LIKE '%Due to%Player%did not participate%considered VOID%' THEN 'Not Participate'
-			--Issuetype: Reduced Over (Cricket)
-			WHEN Content_en LIKE '%Due to%the number of scheduled overs being reduced%considered VOID%' THEN 'Reduced Over'
-			WHEN Content_en LIKE '%Due to technical error%considered VOID%' THEN 'Technical Error'
-			WHEN Content_en LIKE '%Due to % corner has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%wrong event start time displayed%considered VOID%'
-				OR Content_en LIKE '%Due to%1st Half has been completed%considered VOID%'
-                OR Content_en LIKE '%Due to%has been completed%considered VOID%'
-				OR Content_en LIKE '%Due to%number of rounds have changed%considered VOID%'
-			THEN 'Other Issues'
-			ELSE 'Other Issues1'
-		END as Reason																						
+			
+			WHEN Content_en LIKE '%Due to%wrong market offered%match%considered VOID%' THEN 'Wrong Market Offered'
+			WHEN Content_en LIKE '%Due to%Wicket%has been completed%considered VOID%' THEN 'Match Completed'
+			WHEN Content_en LIKE '%Due to%wrong%team name displayed%considered VOID'THEN 'Wrong Team Name'
+			WHEN Content_en LIKE '%Due to%technical error%VOID%' THEN 'Technical Error'
+			WHEN Content_en LIKE '%Due to%technical issue caused by disruption%considered VOID%' THEN 'Game Crashed Void Live' -- Subtype
+			WHEN Content_en LIKE '%Due to%abnormal bets%VOID%' THEN 'Abnormal Bet'
+			ELSE 'Other Issues'
+		END as Reason						
 		, t.transid	
 		, ms.Content_en
 FROM DBMSG.bodb_Message.dbo.[Msg] ms WITH (NOLOCK)	
@@ -170,7 +131,7 @@ FROM DBMSG.bodb_Message.dbo.[Msg] ms WITH (NOLOCK)
 		) as t																								
 WHERE ms.CreateTime >= @from AND ms.CreateTime < @to																									
 	AND ms.IsTest = 0																								
-	AND Content_en LIKE '%VOID%'																								
+	AND Content_en LIKE '%Due to%VOID%'	
 
 /*Range archive*/
 INSERT INTO #temp_transid (transid,reason,matchid, MessageContent)	
@@ -246,7 +207,7 @@ CROSS APPLY (
 		ON m.leagueid = l.leagueid																							
 WHERE l.isTest = 0																
 	
-SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																									
+SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' END IsMonthly																											
 	, 'SD' AS 'TVS/SD?', bk.winlostdate
 	, YEAR(bk.winlostdate) AS YEAR_winlostdate
 	, MONTH(bk.winlostdate) AS MONTH_winlostdate
@@ -272,7 +233,7 @@ FROM #temp_transid ms WITH (NOLOCK)
 GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate
 
-SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																									
+SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' END IsMonthly																									
 	, 'SD' AS 'TVS/SD?', bk.winlostdate
 	, YEAR(bk.winlostdate) AS YEAR_winlostdate
 	, MONTH(bk.winlostdate) AS MONTH_winlostdate
@@ -299,7 +260,7 @@ GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.h
 ORDER BY winlostdate	
 
 
-SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																									
+SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' END IsMonthly																								
 	, 'SD' AS 'TVS/SD?', bk.winlostdate
 	, YEAR(bk.winlostdate) AS YEAR_winlostdate
 	, MONTH(bk.winlostdate) AS MONTH_winlostdate

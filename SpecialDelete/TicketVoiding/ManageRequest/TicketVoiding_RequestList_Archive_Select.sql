@@ -46,6 +46,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240307@July: [TVS] Abnormal Bet - Support void System Parlay tickets [Redmine: #196462]
 		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
+		- 20240416@July: [TVS] Manage Request - Change the export excel template [Redmine: #199925]
 
 	Param's explanation:	
 		@Status: 
@@ -112,6 +113,13 @@ BEGIN
 		,TotalParlayProcessed	INT
 		,TotalCancelCashOutProcessed INT
 		,TotalResettleProcessed INT
+		,[Provider]	    NVARCHAR(400)
+		,Source			NVARCHAR(400)
+		,Remark			NVARCHAR(MAX)
+		,Trader			VARCHAR(MAX)
+		,LA				VARCHAR(MAX)
+		,MessageId		INT
+		,Message        VARCHAR(MAX)
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 
@@ -198,7 +206,7 @@ BEGIN
 	----------------------------- End of EventDate Processing ------------------------------
 	IF @FilteredBy = 1
 	BEGIN
-	INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds)
+	INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -225,6 +233,7 @@ BEGIN
 					ELSE STUFF(w.scores,1,1,'') END AS WrongScores
 				,rd.FilterBy
 				,rd.ProductIds
+				,r.Provider, r.Source, r.Remark
 		FROM dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -250,7 +259,7 @@ BEGIN
 		FROM	dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 		WHERE	rd.MatchId = @MatchId
 
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -277,6 +286,7 @@ BEGIN
 					ELSE STUFF(w.scores,1,1,'') END AS WrongScores
 				,rd.FilterBy
 				,rd.ProductIds
+				,r.Provider, r.Source, r.Remark
 		FROM	@tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
@@ -303,7 +313,7 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -330,6 +340,7 @@ BEGIN
 					ELSE STUFF(w.scores,1,1,'') END AS WrongScores
 				,rd.FilterBy
 				,rd.ProductIds
+				,r.Provider, r.Source, r.Remark
 		FROM @tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
@@ -350,12 +361,24 @@ BEGIN
 	END
 
 	UPDATE t
+	SET t.Trader = o.Trader
+	  , t.LA = o.LA
+	FROM #tmpResult t 
+		CROSS APPLY (
+				SELECT STRING_AGG(CASE WHEN o.OperatorTypeId = 1 THEN c.Username ELSE NULL END,', ') AS Trader
+					  ,STRING_AGG(CASE WHEN o.OperatorTypeId = 2 THEN c.Username ELSE NULL END,', ') AS LA --Suspender
+				FROM dbo.TicketVoiding_OperatorInfo_bk o WITH(NOLOCK)
+					INNER JOIN bodb02.dbo.Customer c WITH(NOLOCK) ON o.OperatorId = c.CustId
+				WHERE t.RequestId = o.RequestId
+			)o
+
+	UPDATE t
 	SET t.TransIds = rd.TransIds
 	FROM #tmpResult t 
 		CROSS APPLY (
 				SELECT TOP (1) rd.TransIds
 				FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-				WHERE t.Requestid = rd.RequestId
+				WHERE t.RequestId = rd.RequestId
 			)rd
 	WHERE t.IssueTypeId = 3
 
@@ -378,6 +401,18 @@ BEGIN
 			ORDER BY vh.VoidingHistoryId DESC
 		) vh
 	
+	UPDATE t
+	SET  t.MessageId = ISNULL(s.MessageId, s.MessageIdSpecial)
+	FROM #tmpResult t
+		INNER JOIN bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON t.RequestId = s.RequestID AND (ISNULL(t.MatchId,0) = s.matchID OR s.matchID = 0)
+
+	UPDATE	t 
+		SET Message = ISNULL(msg1.Content_en, msg.Content_en)
+	FROM	#tmpResult t
+		LEFT JOIN DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] msg1 WITH (NOLOCK) ON t.MessageId = msg1.MessageId																						
+		LEFT JOIN DBMSG.bodb_Message.dbo.[Msg] msg WITH (NOLOCK) ON t.MessageId = msg.MessageId
+	WHERE t.MessageId IS NOT NULL
+
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult WHERE Sporttype = 50)
 	BEGIN
 		INSERT INTO @tmpChildMatchCricket (RequestId, MatchId, ChildMatchId)
@@ -517,6 +552,8 @@ BEGIN
 			,t.TotalParlayProcessed
 			,t.TotalCancelCashOutProcessed
 			,t.TotalResettleProcessed 
+			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch, m.ParentID AS ParentMatchId
+			,t.Provider, t.Source, t.Remark, t.Trader, t.LA, t.Message
 	FROM	#tmpResult t
 		LEFT JOIN bodb02.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
@@ -556,7 +593,7 @@ BEGIN
 					ORDER BY VoidingHistoryId DESC 
 				)l_s	
 		OUTER APPLY (
-					SELECT matchcode, hthomescore, htawayscore, finalhomescore, finalawayscore
+					SELECT matchcode, hthomescore, htawayscore, finalhomescore, finalawayscore, kickofftime, eventdate, ParentID
 					FROM dbo.match_bk WITH (NOLOCK)
 					WHERE matchid = t.MatchId
 			)m
@@ -585,9 +622,9 @@ BEGIN
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
 	
 	-- 2. Support get calculate time for Issuetype Abnormal Bet (Single ticket) + AB (Real Member) 
-	DECLARE @tmpGetInfo TABLE (RequestId INT, Sporttype SMALLINT, MatchId INT)
-	INSERT INTO @tmpGetInfo (RequestId, Sporttype, MatchId)
-	SELECT RequestId, Sporttype, MatchId
+	DECLARE @tmpGetInfo TABLE (RequestId INT, Sporttype SMALLINT, MatchId INT, EventDate DATETIME)
+	INSERT INTO @tmpGetInfo (RequestId, Sporttype, MatchId, EventDate)
+	SELECT RequestId, Sporttype, MatchId, EventDate
 	FROM #tmpResult
 	WHERE 1 = CASE WHEN IssueTypeId IN (11) AND FilterBy IS NULL THEN 1 
 				   WHEN IssueTypeId = 15 THEN 1
@@ -596,6 +633,7 @@ BEGIN
 	SET @RequestInfoGetCalcTimes = COMPRESS((SELECT RequestId AS 'req'
 		  ,Sporttype AS 's'
 		  ,MatchId AS 'mid'
+		  ,EventDate AS 'e'
 	FROM @tmpGetInfo
 	FOR JSON PATH))
 
