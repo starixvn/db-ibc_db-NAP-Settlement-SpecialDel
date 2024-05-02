@@ -37,4 +37,5 @@ BEGIN
 					 WHEN @IsTest = 0 AND b.currency NOT IN (20,27,28,72,213) THEN 1				 
 					 ELSE 0
 				END
+		AND b.liveindicator = 0
 END
