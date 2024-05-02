@@ -1,7 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Insert]
 (
-	 @RequestIds			VARCHAR(MAX) = NULL
+	 @RequestsJson			VARCHAR(MAX) = NULL
 	,@SiteDBGroupID			SMALLINT = NULL
 	,@BroadcastSessionId	VARCHAR(100) = NULL
 	,@VoidData				XML = NULL
@@ -22,6 +22,7 @@ AS
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
+		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		
 	Param's explanation:	
 		
@@ -30,12 +31,15 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @DecidedBy NVARCHAR(400) = ''
+		,@MatchId INT = 0
 
-	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT)
-	DECLARE @RequestId_tmp AS TABLE (RequestId INT)	
+	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT, MatchId INT)
+	DECLARE @RequestId_tmp AS TABLE (RequestId INT, MatchId INT, IsFinish BIT)	
 
-	INSERT INTO @RequestId_tmp (RequestId)
-	SELECT value FROM STRING_SPLIT (@RequestIds, ',')
+	INSERT INTO @RequestId_tmp (RequestId, MatchId)
+	SELECT RequestId, MatchId
+	FROM OPENJSON(@RequestsJson) 
+	WITH( RequestId INT, MatchId INT)
 
 	--Add attribute for void instant abnormal account, reduced over
 	SET @DecidedBy = (SELECT TOP(1) r.DecidedBy
@@ -57,20 +61,31 @@ BEGIN
 					WHERE v.SiteDBGroupID = @SiteDBGroupID AND v.BroadcastSessionId = @BroadcastSessionId
 				)
 	BEGIN
-		INSERT INTO dbo.TicketVoiding_VoidingHistory (
-						RequestId
-						,UserId
-						,StatusId
-						,VoidData
-						,BroadcastSessionId
-						,SiteDBGroupID
-				)
-			OUTPUT inserted.VoidingHistoryId, inserted.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
-		SELECT RequestId, @UserId, 1, @VoidData, @BroadcastSessionId, @SiteDBGroupID
-		FROM @RequestId_tmp
+		WHILE (1=1)
+		BEGIN
+			UPDATE TOP(1) t SET t.IsFinish = 1, @MatchId = t.MatchId
+			FROM @RequestId_tmp t
+			WHERE t.IsFinish = NULL
+
+			IF @@ROWCOUNT = 0
+				BREAK
+
+			INSERT INTO dbo.TicketVoiding_VoidingHistory (
+							RequestId
+							,UserId
+							,StatusId
+							,VoidData
+							,BroadcastSessionId
+							,SiteDBGroupID
+					)
+				OUTPUT inserted.VoidingHistoryId, inserted.RequestId, @MatchId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId, MatchId)
+			SELECT RequestId, @UserId, 1, @VoidData, @BroadcastSessionId, @SiteDBGroupID
+			FROM @RequestId_tmp t
+			WHERE t.MatchId = @MatchId
+		END
 	END
 
-	SELECT VoidingHistoryId, RequestId
+	SELECT VoidingHistoryId, RequestId, MatchId
 	FROM @VoidingHistory_tmp
 
 END
