@@ -65,7 +65,7 @@ BEGIN
 		BEGIN
 			UPDATE TOP(1) t SET t.IsFinish = 1, @MatchId = t.MatchId
 			FROM @RequestId_tmp t
-			WHERE t.IsFinish = NULL
+			WHERE t.IsFinish IS NULL
 
 			IF @@ROWCOUNT = 0
 				BREAK

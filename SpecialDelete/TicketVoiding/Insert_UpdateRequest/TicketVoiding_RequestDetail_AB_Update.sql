@@ -83,15 +83,24 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@AbnormalBetInfoXML = NULL))
 
 	-- get match info
-	INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid)
-	SELECT DISTINCT m.matchid, homeid, awayid, leagueid
-	FROM #tmpTransInfo t 
-		INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
+	IF @FilterBy IS NULL
+	BEGIN
+		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid)
+		SELECT DISTINCT m.matchid, homeid, awayid, leagueid
+		FROM #tmpTransInfo t 
+			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 
-	UNION 
-	SELECT DISTINCT m.matchid, homeid, awayid, leagueid
-	FROM #tmpTransInfo t 
-		INNER JOIN dbo.match14 m WITH(NOLOCK) ON m.matchid = t.matchid
+		UNION 
+		SELECT DISTINCT m.matchid, homeid, awayid, leagueid
+		FROM #tmpTransInfo t 
+			INNER JOIN dbo.match14 m WITH(NOLOCK) ON m.matchid = t.matchid
+	END
+	ELSE
+	BEGIN
+		INSERT INTO @tmpMatchId_Info (MatchId)
+		SELECT DISTINCT t.matchid
+		FROM #tmpTransInfo t 
+	END
 
 	INSERT INTO #transIdTemp (transid)
 	SELECT DISTINCT value 
