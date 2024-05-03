@@ -13,6 +13,7 @@ AS
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 		- 20240524@Aries: Enhance the AutoPayout2 for Overwatch of eSports [Redmine:#202948]
+		- 20240503@Aries: Support Auto Payout 2 for Basketball [Redmine:#203520]
 
 	Param's Explanation:
 		-@ResourceType: 0-ALL, 1-Main, 2-Early
@@ -412,6 +413,18 @@ BEGIN
 						 WHEN m.AP_Main_HasTrader = 0 AND f.ResourceType = 1 THEN 0
 			             WHEN m.AP_EAR_HasTrader = 0 AND f.ResourceType = 2 THEN 0
 						 ELSE 1 END		
+	END
+
+	IF @AutoPayoutGroup >= 1000
+	BEGIN
+		DELETE mr
+		FROM #MatchResource AS mr
+		WHERE EXISTS (
+			SELECT TOP 1 1
+			FROM dbo.AutoPayoutPrepareOS AS ap WITH(NOLOCK)
+			WHERE mr.matchId = ap.matchId
+				AND mr.ResourceId = ap.ResourceId
+		)
 	END
 
 	SELECT Sporttype, AP_Main_CheckList AS MainCheckList ,AP_EAR_CheckList AS EarlyCheckList

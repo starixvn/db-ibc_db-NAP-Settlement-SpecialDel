@@ -15,6 +15,7 @@ AS
 		- 20231222@Louisa: Allow retry AutoPayout Cricket when score mismatch [Redmine: #198781]
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
+		- 20240503@Aries: Support Auto Payout 2 for Basketball [Redmine:#203520]
 
 
 	Param's Explanation:
@@ -130,7 +131,11 @@ BEGIN
 		  ,m.CreateDate
 		  ,ss.HasAwayValue
 	FROM @Result AS m
-		CROSS APPLY (SELECT TOP 1 HasAwayValue
+		OUTER APPLY (
+			SELECT TOP 1 tbl.ResourceId
+			FROM [dbo].[f_Set_MajorRound](@SportType) AS tbl
+		) AS mr
+		OUTER APPLY (SELECT TOP 1 s.HasAwayValue, s.pfID
 				     FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
 					 WHERE s.ResourceID = m.ResourceID
 						AND s.SportType = @SportType
@@ -142,8 +147,8 @@ BEGIN
 						AND p.SourceId = m.SourceID
 						AND p.isActive = 1
 						AND p.GameType = @GameType) AS pm
-	WHERE pm.IsMapped IS NOT NULL
-		OR m.SourceId IS NULL
+	WHERE (pm.IsMapped IS NOT NULL OR m.SourceId IS NULL)
+		AND  (ss.pfID IS NOT NULL OR mr.ResourceId IS NOT NULL)
 		
 END
 GO
