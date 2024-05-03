@@ -5,13 +5,12 @@ ALTER PROCEDURE dbo.NAP_Set_MatchOtherSports_TicketInfoSel
 
 AS
 /*  
-	 Created by: Aries
-	 Date: 20240318
-	 Task: Enhancement of the Multi-Sports webpage [Redmine:#199872] 
+	 Created by: 20240503@Louisa
+	 Task: Enhance-separate code DBTXN and DBPRO [Redmine:#204370]
 	 DB: DBTXN/bodb02
 	 
 	 Revisions:  
-			- 20240318@Aries: Enhancement of the Multi-Sports webpage [Redmine:#199872] 
+			- 20240503@Louisa: Enhance-separate code DBTXN and DBPRO [Redmine:#204370]
 
 	Parameters Explanation:        				
 */

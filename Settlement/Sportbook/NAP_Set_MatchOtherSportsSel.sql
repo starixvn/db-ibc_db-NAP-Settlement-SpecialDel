@@ -63,6 +63,7 @@ AS
 			- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 			- 20231229@Aries: Enhancement of Auto Settlement [Redmine:#199004]
 			- 20240311@Helen: SP Tuning [Redmine:#202131]
+			- 20240503@Louisa: Enhance-separate code DBTXN and DBPRO [Redmine:#204370]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
