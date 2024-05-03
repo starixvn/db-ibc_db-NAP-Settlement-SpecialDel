@@ -10,6 +10,7 @@ AS;
 	
 	Revisions: 
 		- 20230522@July: Create new SP [Redmine:#188153]
+		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		
 	Param's explanation:	
 			
@@ -55,9 +56,7 @@ BEGIN
 							 ELSE 0 END
 				)s
 	
-	SELECT  RequestId		
-		   ,CalcHalfTime
-		   ,CalcFullTime
+	SELECT  RequestId, MatchId, CalcHalfTime, CalcFullTime
 	FROM @tmpRequestInfo
 
 END

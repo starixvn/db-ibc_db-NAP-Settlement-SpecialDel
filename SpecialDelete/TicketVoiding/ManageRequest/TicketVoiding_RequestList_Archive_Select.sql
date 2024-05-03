@@ -47,6 +47,7 @@ AS
 		- 20240307@July: [TVS] Abnormal Bet - Support void System Parlay tickets [Redmine: #196462]
 		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
 		- 20240416@July: [TVS] Manage Request - Change the export excel template [Redmine: #199925]
+		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20240502@July: [TVS] Abandoned issue type [Redmine: #202626]
 
 	Param's explanation:	
@@ -539,7 +540,7 @@ BEGIN
 										ELSE 0 END) AS TotalSingle
 							,SUM(CASE WHEN s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlay
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK, INDEX = CIX_TicketVoiding_RequestDetailTicket_Single_bk_Request)
-					WHERE s.RequestId = t.RequestId 
+					WHERE s.RequestId = t.RequestId AND s.MatchId = t.MatchId
 						AND t.IssueTypeId IN (17,11,15,20)
 				)cnt	
 		OUTER APPLY ( 
@@ -595,13 +596,13 @@ BEGIN
 	SELECT CONVERT(VARCHAR(MAX), @RequestInfoGetCalcTimes, 1) AS RequestInfoGetCalcTimes
 
 	-- 3. Support get bettype name for Issuetype Abnormal Bet (Single ticket) [#135041]
-	SELECT t.RequestId, s.Bettype, s.BetId
+	SELECT t.RequestId, s.Bettype, s.BetId, t.MatchId
 	FROM #tmpResult t
 		CROSS APPLY ( 
 				SELECT DISTINCT s.Bettype, CASE WHEN f.IsNameXBettype = 1 THEN s.BetId ELSE NULL END AS BetId
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
 					LEFT JOIN dbo.f_SD_GetGroupBettypes () f ON f.bettype = s.Bettype
-				WHERE s.RequestId = t.RequestId 
+				WHERE s.RequestId = t.RequestId AND s.MatchId = t.MatchId
 		)s
 	WHERE IssueTypeId = 11 AND FilterBy IS NULL 
 	ORDER BY s.Bettype DESC
