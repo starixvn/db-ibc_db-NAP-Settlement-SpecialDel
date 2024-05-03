@@ -22,8 +22,6 @@ BEGIN
 	DECLARE  @handle			INT
 			,@TotalCust			INT = 0
 			,@VerificationCode	VARCHAR(50)
-			,@Count				INT = 1
-			,@MaxCount		    INT
 			,@finalhomescore	INT
 			,@finalawayscore	INT
 			,@crrDateGMT8		DATETIME
@@ -70,14 +68,12 @@ BEGIN
 		ORDER BY Rank1 ASC
 	END
 
-	SET @MaxCount = @TotalWinner*2
-	WHILE @Count <= @MaxCount
+	WHILE (1 = 1)
 	BEGIN
 		SET @VerificationCode = dbo.f_GenerateLuckyDraw_VerificationCode(RAND(),RAND(),NEWID(),NEWID(),NEWID())
 
-		IF EXISTS (SELECT 1 FROM LuckyDrawList WITH(NOLOCK) WHERE VerificationCode = @VerificationCode)
+		IF EXISTS (SELECT 1 FROM LuckyDrawList WITH(NOLOCK) WHERE VerificationCode = @VerificationCode AND TypeID = 1)
 		BEGIN
-			SET @Count = @Count + 1
 			CONTINUE 
 		END
 
@@ -89,8 +85,6 @@ BEGIN
 		BEGIN
 			BREAK
 		END
-
-		SET @Count = @Count + 1
 	END
 
 	INSERT INTO LuckyDrawList(matchid,custid,DisplayName,TypeID,VerificationCode,StatusID,Payout,Currency,CreatedDate,LastModifiedDate,IsNotify,ExpiredDate,IsLicensee,PoolPrize,finalhomescore,finalawayscore, IsTest)
