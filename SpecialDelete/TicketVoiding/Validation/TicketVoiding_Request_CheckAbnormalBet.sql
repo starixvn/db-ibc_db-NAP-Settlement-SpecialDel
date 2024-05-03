@@ -103,7 +103,7 @@ BEGIN
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT)
-	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50))
+	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), eventdate DATETIME)
 	DECLARE	@Letstalk_Info AS TABLE (MatchId INT, IsHasUUSTickets BIT, ListBettype VARCHAR(MAX),ListBetteam VARCHAR(MAX))
 
 	SET @Archived_FromDate = CONVERT(DATE, DATEADD(DAY, -7, GETDATE()))
@@ -403,13 +403,13 @@ BEGIN
 			RETURN;
 		END
 
-		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid,sporttype, matchcode)
-		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
+		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid,sporttype, matchcode, eventdate)
+		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate
 		FROM dbo.match m WITH(NOLOCK)
 		WHERE m.matchid IN (SELECT MatchId FROM @tmpMatchId)
 		
 		UNION ALL
-		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
+		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate
 		FROM dbo.match14 m WITH(NOLOCK) 
 		WHERE m.matchid IN (SELECT MatchId FROM @tmpMatchId)
 
@@ -417,7 +417,7 @@ BEGIN
 	ELSE
 	BEGIN
 		SET @MatchId = 29
-		INSERT INTO @tmpMatchId (MatchId)
+		INSERT INTO @tmpMatchId_Info (MatchId)
 		SELECT @MatchId
 	END
 	 
@@ -775,7 +775,7 @@ BEGIN
 
 	/*****************Return table **************************/
 	--1. Info match table
-	SELECT matchid, homeid, awayid, leagueid, sporttype, matchcode
+	SELECT matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate
 	FROM @tmpMatchId_Info
 		
 	--2. Validate Table
