@@ -103,11 +103,11 @@ BEGIN
 
 	/***********************Filter by OverStatus******************************/
 	INSERT INTO @tmpMatchOverStatus (matchid, bettype, betid, OverStatus)
-	SELECT tbl.m AS matchid, tbl.b AS bettype, tbl.bi AS bettype, tbl.o AS OverStatus
+	SELECT tbl.m AS matchid, tbl.b AS bettype, tbl.bid AS bettype, tbl.o AS OverStatus
 	FROM OPENJSON(@MatchOverStatus) WITH (
 			m		INT
 		   ,b		INT
-		   ,bi		INT
+		   ,bid		INT
 		   ,o		INT		
 	) AS tbl
 
