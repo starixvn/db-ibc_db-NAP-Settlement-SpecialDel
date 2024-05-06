@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_Bet14_PreCal_29]
 (
 	@matchid	INT
 	,@matchdate SMALLDATETIME
-	,@strXML VARCHAR(MAX) = NULL
+	,@TransInfoJson		VARBINARY(MAX) = NULL
 	,@strSetting VARCHAR(MAX) = NULL
 )
 AS
@@ -17,30 +17,36 @@ AS
 		- 20201126@Louisa: God Of Fortune for Parlay [Redmine:#145774]	
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240416@Max: [TVS] Recover Ticket - Recover full range of archived tickets [Redmine: #203754]
 				
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @xml XML
-		,@ExtraValue MONEY
+	DECLARE @ExtraValue MONEY
 		,@IsSiteDB	BIT = 0
 		,@IsReSettledTickets BIT = 0
+		,@strXML VARCHAR(MAX) = NULL
 	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
 
 	SET @IsReSettledTickets = ISNULL(@IsReSettledTickets, 0)
 
-	DECLARE @transIDs AS TABLE(transid BIGINT)
+	DECLARE @transIDs AS TABLE(transid BIGINT, BetSiteID INT)
 
-	SET @XML = N'<root><r>' + REPLACE(@strXML, ',', '</r><r>') + '</r></root>'
-	
-	INSERT INTO @transIDs (transid)
-	SELECT r.value('.','BIGINT')
-	FROM @xml.nodes('//root/r') AS RECORDS(r)
-	OPTION (OPTIMIZE FOR (@xml = NULL))
-	
+	INSERT INTO @transIDs (transid, BetSiteID)
+	SELECT t, bet_sid
+	FROM (SELECT CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) f
+	CROSS APPLY (
+			SELECT t, bet_sid
+			FROM OPENJSON(f.Decompress_TransInfoJson) 
+				WITH( t BIGINT, bet_sid INT)
+	) tbl
+
+	SELECT  @strXML = @strXML + CONVERT(VARCHAR(20), transid) + ','
+	FROM	@transIDs
+
 	CREATE TABLE #temp_bettrans (
 			transid BIGINT NOT NULL
 			,refno BIGINT --PRIMARY KEY CLUSTERED
@@ -90,9 +96,9 @@ BEGIN
 			,bitmapR
 			,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 			,adiscount, sdiscount, comstatus, inserted_Result, inserted_Detail
-			,oddsspread	,actual_stake, betteam, CustId
+			,oddsspread	,actual_stake, betteam, CustId, BetSiteID
 		)
-		SELECT	[transid], [refno], [stake]
+		SELECT	b.TransId, [refno], [stake]
 				,CASE 
 					WHEN betcheck IS NOT NULL THEN CAST(hdp2 AS TINYINT) -- Combo Parlay - New format	
 					ELSE CAST(LEN(betteam) AS TINYINT)  -- Old format
@@ -103,12 +109,12 @@ BEGIN
 					END AS bitmapR
 				,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 				,adiscount, sdiscount, comstatus, 0, 0
-				,ISNULL(oddsspread, 0), actual_stake, betteam, custid
-		FROM	dbo.bettrans WITH(NOLOCK)		
-		WHERE	transid IN (SELECT transid FROM @transIDs)
-				AND statusID NOT IN (101, 102) --('VOID','REJECT')	
+				,ISNULL(oddsspread, 0), actual_stake, betteam, custid, t.BetSiteID
+		FROM	dbo.bettrans b WITH(NOLOCK)	
+			INNER JOIN @transIDs t ON t.transid = b.TransId 
+		WHERE statusID NOT IN (101, 102) --('VOID','REJECT')	
 		UNION ALL
-		SELECT	[transid], [refno], [stake]
+		SELECT	b14.transid, [refno], [stake]
 				,CASE 
 					WHEN betcheck IS NOT NULL THEN CAST(hdp2 AS TINYINT) -- Combo Parlay - New format	
 					ELSE CAST(LEN(betteam) AS TINYINT)  -- Old format
@@ -119,16 +125,10 @@ BEGIN
 					END AS bitmapR
 				,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 				,adiscount, sdiscount, comstatus, 0, 0
-				,ISNULL(oddsspread, 0), actual_stake, betteam, custid
-		FROM	dbo.bettrans14 WITH(NOLOCK)		
-		WHERE	transid IN (SELECT transid FROM @transIDs)
-				AND statusID NOT IN (101, 102) --('VOID','REJECT')
-
-		--Update SiteId for parlay boost
-		UPDATE t SET t.BetSiteID = si.siteid
-		FROM #temp_bettrans t
-			INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.custid
-			INNER JOIN CustDB.dbo.Site si WITH (NOLOCK) ON c.site = si.site
+				,ISNULL(oddsspread, 0), actual_stake, betteam, custid, t.BetSiteID
+		FROM	dbo.bettrans14 b14 WITH(NOLOCK)	
+			INNER JOIN @transIDs t ON t.transid = b14.TransId 
+		WHERE	statusID NOT IN (101, 102) --('VOID','REJECT')
 					
 		-- Remove duplicate transid if page split occurs
 		;WITH cteDuplicateTransId
@@ -427,9 +427,9 @@ BEGIN
 
 	IF @IsSiteDB = 1
 	BEGIN
-		DECLARE @TransInfoJson NVARCHAR(MAX)
+		DECLARE @TransInfoJson_Sync NVARCHAR(MAX)
 
-		SET @TransInfoJson = (
+		SET @TransInfoJson_Sync = (
 			SELECT	 @matchdate as 'wld'
 					,@strXML as 'strTransId'
 					,@IsReSettledTickets AS 'ReSettle'
@@ -437,13 +437,13 @@ BEGIN
 			FOR JSON PATH
 		)
 
-		IF @transinfoJson IS NOT NULL
+		IF @TransInfoJson_Sync IS NOT NULL
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
 				@SystemName = 'Settlement' 
 				,@FunctionName = 'PreCal29'
 				,@TableName = 'BetParlayResult'
 				,@MatchId = @MatchId
-				,@TransInfoJson = @transinfoJson
+				,@TransInfoJson = @TransInfoJson_Sync
 				,@SettlementAction = 'CAL'
 				,@TicketType = 'p'
 	END

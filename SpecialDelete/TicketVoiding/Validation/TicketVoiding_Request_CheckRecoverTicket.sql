@@ -6,6 +6,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Request_CheckRecoverTicket]
 	,@FilterBy					TINYINT	= NULL -- (NULL: sing & mix parlay, 3: subparlay)
 	,@ProductIds				VARCHAR(50)  = NULL
 	,@TransInfoJson				VARCHAR(MAX) = NULL
+	,@IsVoidAllArchivedTickets	BIT = 0
 )
 AS
 /*	
@@ -15,6 +16,7 @@ AS
 	
 	Revisions: 
 		- 20240102@July: Create new SP [Redmine:#196020]
+		- 20240416@Max: [TVS] Recover Ticket - Recover full range of archived tickets [Redmine: #203754]
 		
 	Param's explanation:	
 		
@@ -183,7 +185,7 @@ BEGIN
 										FOR XML PATH('')), 1, 1, ''), '')
 
 
-	IF EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate < @GetDateRange)
+	IF @IsVoidAllArchivedTickets = 0 AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate < @GetDateRange)
 	BEGIN
 		DELETE 
 		FROM #validTransId
