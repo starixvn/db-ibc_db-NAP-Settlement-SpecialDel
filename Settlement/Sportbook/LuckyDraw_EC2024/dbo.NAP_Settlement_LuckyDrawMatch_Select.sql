@@ -31,9 +31,9 @@ BEGIN
 		  ,ls.MaxPool
 		  ,pr.TotalPool
 		  ,5 AS TotalWinner
-		  ,s.IsTest
+		  ,l.IsTest
 	FROM match AS m WITH(NOLOCK)
-		INNER JOIN dbo.f_Set_LuckyDraw_Setting() s ON s.LeagueID = m.leagueid
+		INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
 		CROSS APPLY (SELECT TOP 1 q.execTime AS SettleTime
 					 FROM dbo.Single_Calculate_Queue AS q WITH(NOLOCK) 
 					 WHERE q.MatchId = m.matchid 

@@ -94,7 +94,7 @@ BEGIN
 		  ,1 AS TypeID
 		  ,l.VerificationCode
 		  ,0 AS StatusID
-		  ,@PoolAmount/@TotalWinner AS Payout
+		  ,ROUND(@PoolAmount/@TotalWinner,0) AS Payout
 		  ,'RM' AS Currency
 		  ,GETDATE() AS CreatedDate
 		  ,GETDATE() AS LastModifiedDate

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="1"></info>*/
 CREATE FUNCTION [dbo].[f_GenerateLuckyDraw_VerificationCode] (
 	@Rand1          FLOAT
    ,@Rand2          FLOAT
