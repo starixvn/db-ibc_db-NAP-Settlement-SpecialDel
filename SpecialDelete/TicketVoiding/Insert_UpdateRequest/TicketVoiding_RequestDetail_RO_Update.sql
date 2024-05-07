@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_RO_Update]
+ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_RO_Update]
 (
 	 @RequestId				INT
 	,@IssueTypeId			TINYINT		= NULL
@@ -21,10 +21,12 @@ AS
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20230912@Max: [TVS] - Update the rules to get void ticket for Reduced Over issue type [Redmine: #193824]
 		- 20231207@Max: [TVS] Not Participate - Support user select exact bet type [Redmine: #197018]
+		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 
 	Param's explanation:
 		+ @IssueTypeId : 19 - Reduced Over
 		+ @IssueTypeId : 21 - Not Participate
+		+ @IssueTypeId : 23 - Abandoned
 */
 BEGIN
 	SET NOCOUNT ON
@@ -100,7 +102,7 @@ BEGIN
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 			,NULL AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,CASE WHEN @IssueTypeId = 19 THEN '<r BetTypeIds="' + t.c.value('@BetTypeIds','VARCHAR(MAX)')
+			,CASE WHEN @IssueTypeId IN (19, 23) THEN '<r BetTypeIds="' + t.c.value('@BetTypeIds','VARCHAR(MAX)')
 				+ '" WicketOver="' + t.c.value('@WicketOver','VARCHAR(20)')
 				+ '" PlayerIds="' + t.c.value('@PlayerIds','VARCHAR(MAX)')
 				+ '" Runs="' + t.c.value('@Runs','VARCHAR(20)')
@@ -208,7 +210,8 @@ BEGIN
 							+ ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidToTime: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
 							+ CASE WHEN @IssueTypeId = 19 THEN ', ReducedOver: '
-								WHEN  @IssueTypeId = 21 THEN ', NotParticipate: '
+								   WHEN @IssueTypeId = 21 THEN ', NotParticipate: '
+								   WHEN @IssueTypeId = 23 THEN ', Abandoned: '
 								+ l.ReducedOver
 							END
 							FROM #tblGetLogInfo l

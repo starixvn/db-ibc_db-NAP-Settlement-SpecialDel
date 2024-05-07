@@ -113,7 +113,7 @@ BEGIN
 			FROM #tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId AND z.VoidingHistoryId IS NOT NULL
-				LEFT JOIN @tmpChildMatchCricket m ON z.matchid = m.ChildMatchId
+				LEFT JOIN @tmpChildMatchCricket m ON z.matchid = m.ChildMatchId AND vh.RequestId = m.RequestId
 			WHERE z.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (22) --Recover Ticket
 				 AND (vh.MatchId = CASE WHEN m.MatchId IS NOT NULL THEN m.MatchId ELSE z.matchid END
                         OR vh.MatchId = 0)
@@ -135,7 +135,7 @@ BEGIN
 			FROM	#tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId AND zm.VoidingHistoryId IS NOT NULL
-				LEFT JOIN @tmpChildMatchCricket m ON zm.matchid = m.ChildMatchId
+				LEFT JOIN @tmpChildMatchCricket m ON zm.matchid = m.ChildMatchId AND vh.RequestId = m.RequestId
 			WHERE zm.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (11,15,13,17,22) --Except AB,AB(real member),AC,ARC,RT
 				AND vh.MatchId = CASE WHEN m.MatchId IS NOT NULL THEN m.MatchId ELSE zm.matchid END
 			GROUP BY vh.VoidingHistoryId, ISNULL(m.matchid, zm.matchid)
