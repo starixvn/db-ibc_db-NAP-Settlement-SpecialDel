@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
 (
-	@MatchId		 INT,	
+	@MatchId		 INT = 0,	
 	@TransIds		 VARCHAR(MAX),
 	@UserId          INT           = 0,
     @IP              VARCHAR(15)   = NULL,
@@ -24,6 +24,7 @@ AS
 		- 20230303@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230707@July: Remove unnecessary code [Redmine: #190859]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 
 	Param's explanation:	
 		
@@ -93,7 +94,7 @@ BEGIN
 	SELECT	b.transid, b.custid, b.bettype
 			,1 AS balanceType
 			, b.betid, b.refno
-			, @MatchId
+			, b.matchid
 			, b.oddsid
 			, b.ruben
 	FROM	@tmpInputTransId t
@@ -302,14 +303,15 @@ BEGIN
 			,bonusId
 			,balance
 		)
-		SELECT	@matchid
+		SELECT	b.MatchId
 				,b.custid
 				,b.balanceType
 				,b.WalletType
 				,b.BonusID			
 				,SUM(b.balance) AS balance
 		FROM (	
-			SELECT	b.custid
+			SELECT	t.MatchId
+					,b.custid
 					,t.balanceType
 					,CASE 
 						WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
@@ -362,14 +364,15 @@ BEGIN
 				,bonusId
 				,balance
 			)
-			SELECT	@matchid
+			SELECT	b.MatchId
 					,b.custid
 					,b.balanceType
 					,b.WalletType
 					,b.BonusID			
 					,SUM(b.balance) AS balance
 			FROM (	
-				SELECT	b.custid
+				SELECT	t.MatchId
+						,b.custid
 						,t.balanceType
 						,CASE 
 							WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
@@ -407,14 +410,15 @@ BEGIN
 			,bonusId
 			,balance
 		)
-		SELECT	@matchid
+		SELECT	b.MatchId
 				,b.custid
 				,b.balanceType
 				,b.WalletType
 				,b.BonusID			
 				,SUM(b.balance) AS balance
 		FROM (	
-			SELECT	b.custid
+			SELECT	t.MatchId
+					,b.custid
 					,t.balanceType
 					,CASE 
 						WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
