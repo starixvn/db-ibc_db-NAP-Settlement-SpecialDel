@@ -27,30 +27,30 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId TINYINT, VoidActionId TINYINT, IsCricket BIT DEFAULT(0))
+	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, MatchId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId TINYINT, VoidActionId TINYINT, IsCricket BIT DEFAULT(0))
 
 	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, VoidActionId)
-		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.VoidActionId
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, VoidActionId, MatchId)
+		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.VoidActionId, tbl.MatchId
 		FROM OPENJSON(@SingleTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, VoidActionId TINYINT) tbl
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, VoidActionId TINYINT, MatchId INT) tbl
 	END
 
 	IF @ParlayTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IsMixParlay, IssueTypeId, VoidActionId)
-		SELECT tbl.TransId, tbl.RequestId, 1, tbl.IssueTypeId, tbl.VoidActionId
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IsMixParlay, IssueTypeId, VoidActionId, MatchId)
+		SELECT tbl.TransId, tbl.RequestId, 1, tbl.IssueTypeId, tbl.VoidActionId, tbl.Matchid
 		FROM OPENJSON(@ParlayTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, VoidActionId TINYINT) tbl
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, VoidActionId TINYINT, MatchId INT) tbl
 	END
 
 	IF @CricketTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, IsCricket, VoidActionId)
-		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, 1, tbl.VoidActionId
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, IsCricket, VoidActionId, MatchId)
+		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, 1, tbl.VoidActionId, tbl.MatchId
 		FROM OPENJSON(@CricketTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, VoidActionId TINYINT) tbl
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, VoidActionId TINYINT, MatchId INT) tbl
 	END
 
 	--Remove request has already exists waiting in queue
@@ -59,15 +59,15 @@ BEGIN
 		CROSS APPLY (
 			SELECT q.Action, q.StatusId
 			FROM dbo.TicketVoiding_AutoVoidQueue q WITH (NOLOCK) 
-			WHERE t.RequestId IN (SELECT CAST(value AS INT) FROM STRING_SPLIT(q.RequestIds,','))
+			WHERE t.RequestId IN (SELECT CAST(value AS INT) FROM STRING_SPLIT(q.RequestIds,',')) AND t.MatchId = q.MatchId
 			)q
 	WHERE q.Action IN ('CAL','VoidResultKeyed')
 		AND q.StatusId = 0
 	
 	--Get statusWL of tiket
-	SELECT DISTINCT t.RequestId, t.VoidActionId
+	SELECT DISTINCT t.RequestId, t.VoidActionId, t.MatchId
 	FROM(
-		SELECT DISTINCT t.RequestId, t.VoidActionId
+		SELECT DISTINCT t.RequestId, t.VoidActionId, t.MatchId
 		FROM #tmpInputTransId t 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE b.statuswinlost IS NOT NULL 
@@ -76,13 +76,13 @@ BEGIN
 						ELSE 0
 					END
 		UNION ALL
-		SELECT DISTINCT t.RequestId, t.VoidActionId
+		SELECT DISTINCT t.RequestId, t.VoidActionId, t.MatchId
 		FROM #tmpInputTransId t 
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE b.statuswinlost IS NOT NULL AND b.statusID IN (0,1) --Abnormal bet
 			
 		UNION ALL
-		SELECT DISTINCT t.RequestId, t.VoidActionId
+		SELECT DISTINCT t.RequestId, t.VoidActionId, t.MatchId
 		FROM #tmpInputTransId t 
 			INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.IsMixParlay = 1
