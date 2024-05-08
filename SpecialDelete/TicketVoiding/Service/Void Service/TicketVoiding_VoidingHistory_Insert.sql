@@ -33,13 +33,13 @@ BEGIN
 	DECLARE @DecidedBy NVARCHAR(400) = ''
 		,@MatchId INT = 0
 
-	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT, MatchId INT)
+	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT)
 	DECLARE @RequestId_tmp AS TABLE (RequestId INT, MatchId INT, IsFinish BIT)	
 
-	INSERT INTO @RequestId_tmp (RequestId, MatchId)
+	INSERT INTO @RequestId_tmp (RequestId)
 	SELECT RequestId, MatchId
 	FROM OPENJSON(@RequestsJson) 
-	WITH( RequestId INT, MatchId INT)
+	WITH( RequestId INT)
 
 	--Add attribute for void instant abnormal account, reduced over
 	SET @DecidedBy = (SELECT TOP(1) r.DecidedBy
@@ -61,31 +61,20 @@ BEGIN
 					WHERE v.SiteDBGroupID = @SiteDBGroupID AND v.BroadcastSessionId = @BroadcastSessionId
 				)
 	BEGIN
-		WHILE (1=1)
-		BEGIN
-			UPDATE TOP(1) t SET t.IsFinish = 1, @MatchId = t.MatchId
-			FROM @RequestId_tmp t
-			WHERE t.IsFinish IS NULL
-
-			IF @@ROWCOUNT = 0
-				BREAK
-
-			INSERT INTO dbo.TicketVoiding_VoidingHistory (
-							RequestId
-							,UserId
-							,StatusId
-							,VoidData
-							,BroadcastSessionId
-							,SiteDBGroupID
-					)
-				OUTPUT inserted.VoidingHistoryId, inserted.RequestId, @MatchId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId, MatchId)
-			SELECT RequestId, @UserId, 1, @VoidData, @BroadcastSessionId, @SiteDBGroupID
-			FROM @RequestId_tmp t
-			WHERE t.MatchId = @MatchId
-		END
+		INSERT INTO dbo.TicketVoiding_VoidingHistory (
+						RequestId
+						,UserId
+						,StatusId
+						,VoidData
+						,BroadcastSessionId
+						,SiteDBGroupID
+				)
+			OUTPUT inserted.VoidingHistoryId, inserted.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
+		SELECT RequestId, @UserId, 1, @VoidData, @BroadcastSessionId, @SiteDBGroupID
+		FROM @RequestId_tmp
 	END
 
-	SELECT VoidingHistoryId, RequestId, MatchId
+	SELECT VoidingHistoryId, RequestId
 	FROM @VoidingHistory_tmp
 
 END
