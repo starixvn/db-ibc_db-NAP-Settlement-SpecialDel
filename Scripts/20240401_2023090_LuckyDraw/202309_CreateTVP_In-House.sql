@@ -30,7 +30,7 @@ CREATE TYPE [dbo].[TVP_ReplLuckyDrawList] AS TABLE(
 	,NotifiedDate		DATETIME		
 	,IsTest				BIT				
 	,IsLicensee			BIT				
-	,SettledDate		DATE
+	,SettledDate		DATE			
 	,PoolPrize			MONEY
 	,finalhomescore		INT
 	,finalawayscore		INT
