@@ -26,38 +26,36 @@ BEGIN
 	
 	SELECT m.MatchId
 		  ,m.leagueid
+		  ,ls.BetType
 		  ,ls.MinBet
 		  ,ls.MinPool
 		  ,ls.MaxPool
 		  ,pr.TotalPool
 		  ,5 AS TotalWinner
-		  ,l.IsTest
-	FROM match AS m WITH(NOLOCK)
-		INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
+		  ,IIF(l.IsTest = 1 OR ls.IsTest = 1,1,0) AS IsTest
+	FROM ActivityDB.dbo.LuckyDrawSetting AS ls WITH(NOLOCK)  
+		INNER JOIN dbo.match AS m WITH(NOLOCK) ON ls.MatchId = m.matchid
+		INNER JOIN dbo.League AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
 		CROSS APPLY (SELECT TOP 1 q.execTime AS SettleTime
 					 FROM dbo.Single_Calculate_Queue AS q WITH(NOLOCK) 
-					 WHERE q.MatchId = m.matchid 
+					 WHERE q.MatchId = ls.matchid 
 						AND q.Action IN ('CAL', 'CAL-FT')
 					 ORDER BY q.execTime DESC
 				) AS qt
-		CROSS APPLY (SELECT TOP 1 s.MinBet,s.MinPool,s.MaxPool
-					 FROM ActivityDB.dbo.LuckyDrawSetting AS s WITH(NOLOCK) 
-					 WHERE s.MatchId = m.matchid 
-						AND s.BetType = 413
-						AND s.SiteId = 4100
-				) AS ls
 		CROSS APPLY (SELECT TOP 1 p.TotalPool
 					 FROM ActivityDB.dbo.LuckyDrawPoolPrize AS p WITH(NOLOCK) 
-					 WHERE p.MatchId = m.matchid 
-						AND p.BetType = 413
-						AND p.SiteId = 4100
+					 WHERE p.MatchId = ls.matchid 
+						AND p.BetType = ls.BetType
+						AND p.SiteId = ls.SiteId
 						AND p.BetTeam = 'TotalPool'
 				) AS pr
-		OUTER APPLY (SELECT MAX(l.StatusID) AS MaxStatusID, MIN(l.StatusID) AS MinStatusID
-					 FROM dbo.LuckyDrawList AS l WITH(NOLOCK) 
-					 WHERE l.MatchId = m.matchid 
+		OUTER APPLY (SELECT MAX(ldl.StatusID) AS MaxStatusID, MIN(ldl.StatusID) AS MinStatusID
+					 FROM dbo.LuckyDrawList AS ldl WITH(NOLOCK) 
+					 WHERE ldl.MatchId = ls.matchid AND ldl.TypeID = 1
 				) AS ld
-	WHERE m.eventstatus = 'completed'  
+	WHERE ls.BetType = 413
+		AND ls.SiteId = 4100
+		AND m.eventstatus = 'completed'  
 		AND m.betstatus NOT LIKE '%Refund%' 
 		AND ISNULL(ld.MaxStatusID,3) = 3 
 		AND ISNULL(ld.MinStatusID,3) = 3 

@@ -95,7 +95,7 @@ BEGIN
 		  ,l.VerificationCode
 		  ,0 AS StatusID
 		  ,ROUND(@PoolAmount/@TotalWinner,0) AS Payout
-		  ,'RM' AS Currency
+		  ,'MYR' AS Currency
 		  ,GETDATE() AS CreatedDate
 		  ,GETDATE() AS LastModifiedDate
 		  ,0 AS IsNotify

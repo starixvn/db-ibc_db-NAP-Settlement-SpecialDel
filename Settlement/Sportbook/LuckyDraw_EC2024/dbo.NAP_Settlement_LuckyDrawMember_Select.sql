@@ -38,4 +38,5 @@ BEGIN
 					 ELSE 0
 				END
 		AND b.liveindicator = 0
+		AND b.betfrom != 'p'
 END
