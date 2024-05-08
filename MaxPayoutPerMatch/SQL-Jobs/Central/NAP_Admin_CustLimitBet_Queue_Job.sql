@@ -65,7 +65,7 @@ BEGIN
 			SET @xml = CONVERT(XML, @Transids)
 
 			INSERT INTO @tmp_SettleParlay (CustId, transid, ruben)
-			SELECT t.c.value('@custid','BIGINT') AS transid
+			SELECT t.c.value('@custid','INT') AS custid
 					,t.c.value('@transid','BIGINT') AS transid
 					,t.c.value('@ruben','tinyint') AS ruben
 			FROM @xml.nodes('root/r') t(c)
