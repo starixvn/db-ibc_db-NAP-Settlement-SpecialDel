@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 	 @VoidingHistoryId			INT = NULL
 	,@IsITSupport				BIT = 0
@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 )AS
 /*	Created by: 20181212@Kathy
 	Task: get voided ticket to send email [Redmine:#90155]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
@@ -40,6 +40,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240402@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
 		- 20240409@July: [TVS] Fix issue duplicate insert voided transaction [Redmine: #203614]
+		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 
 	Param's explanation:	
 		
@@ -108,7 +109,7 @@ BEGIN
 		,SettlementStatus TINYINT
 		,sporttype		SMALLINT
 		,eventstatus	NVARCHAR(50)
-		,IsDeposit      BIT DEFAULT(0)
+		,IsDeposit      BIT DEFAULT(0) --1: Deposit/ 0: Credit
 		,SiteDBGroupID	SMALLINT
 		,winlostdate	SMALLDATETIME
 		,IsCancelCashOut BIT DEFAULT(0)
@@ -614,12 +615,7 @@ BEGIN
 				ELSE 0
 			END AS IsInstantSettlementTicket
 			,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
-			,CASE WHEN f.CustID IS NULL AND (t.username <> '12EU')  AND t.IsDeposit = 0
-				    AND t.mrecommend NOT IN (105181, 118473, 105183) -- MHC
-				    AND t.recommend NOT IN (11196380, 13423967, 52466, 5707545) -- Foobet, 1E, 8RM, BARM
-				    AND t.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)  -- Betfair: BFOS, BF, ITibc102, BF3
-					AND c.site <> 'CN88'
-			THEN 1 ELSE 0 END IsCredit
+			,t.IsDeposit --0: Credit - Notify Letstalk when void Abnormal Bets
 			,t.SiteDBGroupID
 			,t.winlostdate
 			,ISNULL(t.IsCancelCashOut,0) AS IsCancelCashOut
@@ -635,7 +631,6 @@ BEGIN
 		LEFT JOIN #CTE_CustInfo ma WITH(NOLOCK) ON ma.custid = t.mrecommend
 		LEFT JOIN #CTE_CustInfo su WITH(NOLOCK) ON su.custid = t.srecommend
 		LEFT JOIN @VIPAccount_tmp vip ON t.custid = vip.CustID 	
-		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON t.custid = f.CustID
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON su.site = si.site
 	ORDER BY ISNULL(t.MainTransId, t.transid)
 		   , CASE 
