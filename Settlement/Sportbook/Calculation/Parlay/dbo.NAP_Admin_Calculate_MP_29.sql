@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_29]
 	,@ParlaySettlementProcessingId BIGINT = NULL
 	,@ServerName SYSNAME = ''
 	,@AffectedTicket 		INT 		= 0 OUTPUT
+	,@AffectedTransIds		VARCHAR(MAX) = NULL OUTPUT
 AS
 /*
 	Created: Kathy
@@ -33,6 +34,7 @@ AS
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20240425@Kathy: enhance MaxPayout [Redmine:#199518]
 
 	Param's Explanation:
 */
@@ -49,7 +51,7 @@ BEGIN
 			,@CurrentBonusAmount MONEY
 		
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
-	SET @IsSiteDB = 1
+		SET @IsSiteDB = 1
 			
 	DECLARE @tmpSource TABLE (TransId BIGINT PRIMARY KEY, WinlostDate SMALLDATETIME
 		, totalStake MONEY, Winlost MONEY, aWinlost MONEY, mWinlost MONEY, sWinlost MONEY
@@ -67,6 +69,7 @@ BEGIN
 		,ExtraInfo VARCHAR(1000)
 		,bef_winlost MONEY
 		,bef_statusid TINYINT
+		,bef_ruben TINYINT
 		,bettype SMALLINT,refno BIGINT
 	)
 
@@ -200,8 +203,10 @@ BEGIN
 		,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 		,Inserted.Statuswinlost
 		,inserted.ExtraInfo
+
 		,deleted.winlost
 		,deleted.statusid
+		,deleted.ruben
 		,deleted.bettype,deleted.refno
 	INTO @tmpTransInfo (transId, custid
 		,balancechanged
@@ -214,6 +219,7 @@ BEGIN
 
 		,bef_winlost
 		,bef_statusid
+		,bef_ruben
 		,bettype,refno
 	)
 	FROM @tmpSource s
@@ -252,6 +258,14 @@ BEGIN
 			GROUP BY custid
 			HAVING SUM(balancechanged) < 0
 		END
+
+		SELECT @AffectedTransIds = (SELECT	transId AS '@transid'
+											,custid AS '@custid'
+											,ruben AS '@ruben'
+									FROM	@tmpTransInfo
+									WHERE	ruben <> bef_ruben
+									FOR XML PATH('r'), ROOT('root')
+							)
 	END
 
 	IF @IsSiteDB = 1 --AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)	

@@ -10,6 +10,7 @@ as
 	DB: DBTXN-bodb02
 	Revisions:  
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20240425@Kathy: enhance MaxPayout [Redmine:#199518]
 		
 */
 begin
@@ -28,7 +29,7 @@ begin
 	while 1 = 1
 	begin
 		select @__parlayprocessingId = 0 , @__MatchId = 0
-			, @__strSubTransIds = '', @__strMainTransIds = '', @__strRefno_MainTransIds = '', @__MainParlayMaxPO = '', @__BroadcastSessionId = ''
+			, @__strSubTransIds = '', @__strMainTransIds = '', @__strRefno_MainTransIds = '', @__BroadcastSessionId = ''
 			, @__EventDate = NULL, @__Action = '', @__ActionId = NULL, @__strSetting = NULL, @__IsReSettledTickets = 0, @__AffectedTicket = 0
 			, @__startTime = sysdatetime(), @__messageTypeNew = null
 
@@ -43,8 +44,7 @@ begin
 				, @__Action = p.Action
 				, @__ActionId = p.ActionId
 				, @__strSetting = p.strSetting
-				, @__IsReSettledTickets = p.IsReSettledTickets
-				, @__MainParlayMaxPO = p.MainParlayMaxPO
+				, @__IsReSettledTickets = p.IsReSettledTickets				
 				, @__BroadcastSessionId = p.BroadcastSessionId
 		from	dbo.ParlaySettlementProcessing p with(readpast)
 		where	p.sessionId = @__sessionId
@@ -64,8 +64,7 @@ begin
 					, @__Action = p.Action
 					, @__ActionId = p.ActionId
 					, @__strSetting = p.strSetting
-					, @__IsReSettledTickets = p.IsReSettledTickets
-					, @__MainParlayMaxPO = p.MainParlayMaxPO
+					, @__IsReSettledTickets = p.IsReSettledTickets					
 					, @__BroadcastSessionId = p.BroadcastSessionId
 			from	dbo.ParlaySettlementProcessing p with(readpast)
 			where	p.sessionId = @__sessionId
@@ -229,6 +228,7 @@ begin
 						,@IsCalculateBalance = 1
 						,@IsParallel = 1
 						,@AffectedTicket = @__AffectedTicket OUTPUT	
+						,@AffectedTransIds = @__MainParlayMaxPO OUTPUT
 						
 				end try
 				begin catch
@@ -278,32 +278,34 @@ begin
 				end
 				
 				--Insert Max Payout Queue
-				set @__errmsg = ''
-				begin try
-					EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
-						@MatchId= 29
-						,@TransidList = @__MainParlayMaxPO
-				end try
-				begin catch
-					set @__errmsg = error_message()
-				end catch
+				if ISNULL(@__MainParlayMaxPO,'') <> ''
+				begin
+					set @__errmsg = ''
+					set @__startTime = sysdatetime()
+					
+					begin try
+						EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
+							@TransIds = @__MainParlayMaxPO
+					end try
+					begin catch
+						set @__errmsg = error_message()
+					end catch
 
-				select	@__messageBodyTemp = 'exec dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay @matchid = 29 ' 
-						+ ',@TransidList= ' + '''' + ISNULL(@__MainParlayMaxPO,'') + ''''
-					, @__messageTypeTemp = isnull(@__messageTypeNew, @MessageType)
-					, @__endtime = sysdatetime()
-		
-				exec dbo.SSB_Settlement_WriteLogs @MessageId = @MessageId
-					, @MessageType			= @__messageTypeTemp
-					, @MessageBody			= @__messageBodyTemp
-					, @StartTime			= @__startTime
-					, @EndTime				= @__endtime
-					, @SessionId			= @__sessionId
-					, @ErrorMessage			= @__errmsg
-					, @ConversationHandle	= @ConversationHandle
-					, @QueueNo				= @QueueNo
-					, @MatchId 				= @__matchid
-				
+					select	@__messageBodyTemp = 'exec dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay @TransIds= ' + '''' + @__MainParlayMaxPO + ''''
+						, @__messageTypeTemp = isnull(@__messageTypeNew, @MessageType)
+						, @__endtime = sysdatetime()
+			
+					exec dbo.SSB_Settlement_WriteLogs @MessageId = @MessageId
+						, @MessageType			= @__messageTypeTemp
+						, @MessageBody			= @__messageBodyTemp
+						, @StartTime			= @__startTime
+						, @EndTime				= @__endtime
+						, @SessionId			= @__sessionId
+						, @ErrorMessage			= @__errmsg
+						, @ConversationHandle	= @ConversationHandle
+						, @QueueNo				= @QueueNo
+						, @MatchId 				= @__matchid
+				end
 			end
 		end
 
