@@ -31,13 +31,12 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @DecidedBy NVARCHAR(400) = ''
-		,@MatchId INT = 0
 
 	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT)
-	DECLARE @RequestId_tmp AS TABLE (RequestId INT, MatchId INT, IsFinish BIT)	
+	DECLARE @RequestId_tmp AS TABLE (RequestId INT)	
 
 	INSERT INTO @RequestId_tmp (RequestId)
-	SELECT RequestId, MatchId
+	SELECT RequestId
 	FROM OPENJSON(@RequestsJson) 
 	WITH( RequestId INT)
 
