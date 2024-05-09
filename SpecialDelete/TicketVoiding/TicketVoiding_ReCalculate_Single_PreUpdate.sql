@@ -326,6 +326,7 @@ BEGIN
 				,b.balanceType
 				,b.BonusID
 				,b.WalletType
+				,b.MatchId
 
 		--ReCalculate
 		BEGIN TRY						
@@ -387,6 +388,7 @@ BEGIN
 					,b.balanceType
 					,b.BonusID
 					,b.WalletType
+					,b.MatchId
 
 			--UPDATE balance
 			EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
@@ -433,6 +435,7 @@ BEGIN
 				,b.balanceType
 				,b.BonusID
 				,b.WalletType
+				,b.MatchId
 
 		--UPDATE balance
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
