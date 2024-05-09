@@ -25,6 +25,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
+		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20240520@July: HotFix - [TVS] Wrong display No. of Tickets [Redmine: #205304]
 
 	Param's explanation:
@@ -59,7 +60,10 @@ BEGIN
 					ON vh.VoidingHistoryId = s.VoidingHistoryId 
 					AND vh.RequestId = s.requestId
 					AND (rd.MatchId = s.matchID OR s.matchID = 0)
-	WHERE	rd.RequestId = @RequestId AND rd.MatchId = @MatchId
+	WHERE	rd.RequestId = @RequestId 
+		AND 1 = CASE WHEN @IssueTypeId = 11 AND @MatchId = 0 THEN 1
+					WHEN rd.MatchId = @MatchId THEN 1
+				ELSE 0 END
 	
 	IF @IssueTypeId NOT IN (22) --NOT Recover Ticket
 	BEGIN
