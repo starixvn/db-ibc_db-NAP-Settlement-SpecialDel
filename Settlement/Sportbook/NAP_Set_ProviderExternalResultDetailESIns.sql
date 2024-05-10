@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite,bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite,wsv_nap" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailESIns]
 	@MatchId3rd INT
 	,@MatchId INT = 0
@@ -12,6 +12,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:
 		- 20200713@Kathy: Insert result from providers  [Redmine:#136931]
+		- 20240508@Aries: Enhance duplicate feed results of providers for SportBook  [Redmine:#204796]
 		
 	Param's Explanation:
 		@Resources:
@@ -25,8 +26,16 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @xmlResources XML
+	DECLARE @tmpResource TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 
 	SET @xmlResources = CAST(@Resources AS XML)	
+
+	INSERT INTO @tmpResource(ResourceId,HomeValue,AwayValue)
+	SELECT   DISTINCT
+			 T.C.value('@Id', 'VARCHAR(20)') AS ResourceId
+			,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
+			,T.C.value('@Away', 'VARCHAR(50)') AS AwayValue
+	FROM  @xmlResources.nodes('/Resources/Resource') AS T(C)
 
 	INSERT INTO dbo.ProviderExternalResultDetailES (
 		MatchId3rd
@@ -41,12 +50,27 @@ BEGIN
 	SELECT	@MatchId3rd
 			,@MatchId
 			,@SourceId
-			,T.C.value('@Id', 'VARCHAR(20)') AS ResouceId
-			,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
-			,T.C.value('@Away', 'VARCHAR(50)') AS AwayValue
+			,r.ResourceId
+			,r.HomeValue
+			,r.AwayValue
 			,@UserId
 			,@UserId
-	FROM	@xmlResources.nodes('/Resources/Resource') AS T(C)
+	FROM @tmpResource AS r
+		OUTER APPLY(
+			SELECT  TOP 1 
+					p.ProviderExternalId
+				   ,p.HomeValue
+				   ,p.AwayValue
+			FROM ProviderExternalResultDetailES AS p WITH(NOLOCK)
+			WHERE p.MatchId3rd = @MatchId3rd 
+				AND p.MatchId = @MatchId 
+				AND p.SourceId =  @SourceId
+				AND p.ResourceId =  r.ResourceId
+			ORDER BY ProviderExternalId DESC
+		) AS pr
+	WHERE pr.ProviderExternalId IS NULL
+		OR ISNULL(r.HomeValue,'') != ISNULL(pr.HomeValue,'') 
+        OR ISNULL(r.AwayValue,'') != ISNULL(pr.AwayValue,'')
 
 END
 GO
