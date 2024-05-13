@@ -21,6 +21,7 @@ AS;
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
+		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 
 	Param's explanation:	
 		
@@ -98,7 +99,7 @@ BEGIN
 			FROM	#tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId AND zm.VoidingHistoryId IS NOT NULL
-			WHERE zm.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (11,15,13,17,22) --Except AB,AB(real member),AC,ARC,RT
+			WHERE zm.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (11,13,17,22) --Except AB,AC,ARC,RT
 			GROUP BY vh.RequestId, vh.MatchId
 	)
 	UPDATE vh
