@@ -32,6 +32,7 @@ AS
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
+		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 
 	Param's explanation:	
 		
@@ -111,8 +112,8 @@ BEGIN
 	END
 	/*-----------------*/
 
-	/*---AbnormalBet / AB RealMember---*/
-	IF @IssueTypeId IN (11,15)
+	/*---AbnormalBet---*/
+	IF @IssueTypeId IN (11)
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_AB_Select
 			@AbnormalBetTransIds = @AbnormalBetTransIds
