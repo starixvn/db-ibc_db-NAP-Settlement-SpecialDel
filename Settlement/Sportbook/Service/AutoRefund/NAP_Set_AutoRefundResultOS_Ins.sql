@@ -1,6 +1,7 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0" isNested="1"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE NAP_Set_AutoRefundResultOS_Ins
-  @MatchId		 INT
+   @MatchId			INT
+  ,@ResourceIds		VARCHAR(MAX) = ''
 AS
 /*
 	Creator: 20230808@Aries
@@ -9,6 +10,7 @@ AS
 
 	Revisions:
 		- 20230808@Aries: Created [Redmine: #189433]
+		- 20240409@Aries: Enhance Refund Game Winner matches for Tennis [Redmine: #203638]
 
 	Param's explaination:
 
@@ -16,10 +18,22 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE  @ChildMatch TABLE (MatchId INT)
+	DECLARE  @IsCalculated	BIT = 0
+	DECLARE  @ChildMatch	TABLE (MatchId INT)
+	DECLARE  @Resource		TABLE (ResourceId VARCHAR(20) PRIMARY KEY(ResourceId))
 
-	IF NOT EXISTS(SELECT 1 FROM ResultDetail WITH(NOLOCK) WHERE matchID = @MatchId AND ResourceID = '00' AND ResultStatusID IN (2,5)) OR
-	   EXISTS(SELECT 1 FROM dbo.match WITH(NOLOCK) WHERE matchID = @MatchId AND ISNULL(ParentID,0) != 0)
+	INSERT INTO @Resource(ResourceId)
+	SELECT fs.value
+	FROM STRING_SPLIT(@ResourceIds,',') AS fs
+
+	IF EXISTS(SELECT 1 FROM ResultDetail WITH(NOLOCK) WHERE matchID = @MatchId AND ResourceID = '00' AND ResultStatusID IN (2,5))
+		AND EXISTS (SELECT 1 FROM @Resource WHERE ResourceId = '00')
+	BEGIN
+		SET @IsCalculated = 1
+	END
+
+	IF (ISNULL(@ResourceIds,'') = '' AND @IsCalculated = 0)
+		OR EXISTS(SELECT 1 FROM dbo.match WITH(NOLOCK) WHERE matchID = @MatchId AND ISNULL(ParentID,0) != 0)
 	BEGIN
 		RETURN
 	END
@@ -37,6 +51,7 @@ BEGIN
 						 ELSE 0
 					END AS Cal 
 			FROM ResultDetail AS rd WITH(NOLOCK) 
+				LEFT JOIN @Resource AS r ON r.ResourceId = rd.ResourceId
 			WHERE rd.MatchId = @MatchId
 				AND rd.ResourceID IN ('01','02','03','04','05')
 				AND 1 = CASE WHEN rd.ResourceID = '01' AND  m.ChildMatchType = 12 THEN 1
@@ -46,6 +61,11 @@ BEGIN
 							 WHEN rd.ResourceID = '05' AND  m.ChildMatchType = 17 THEN 1
 							 ELSE 0
 						END 
+				AND 1 = CASE WHEN @IsCalculated = 0 AND r.ResourceId IS NOT NULL THEN 1
+							 WHEN @IsCalculated = 1 THEN 1
+							 ELSE 0
+						 END
+
 		) AS rs
 		OUTER APPLY (
 			SELECT TOP 1 1 AS IsExistAR

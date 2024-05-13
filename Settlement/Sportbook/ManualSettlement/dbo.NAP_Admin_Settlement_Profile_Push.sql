@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap,Dot_Casino" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	 @AdminId			INT				
 	,@MatchId			INT
@@ -19,6 +19,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@DeterminedType	TINYINT			= 0
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 	,@IsPingoal			BIT				= 0
+	,@IsSettleRelated	BIT				= 0
 AS
 /*	Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -57,6 +58,7 @@ AS
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240328@Louisa: fix issue Auto ES cannot pass data into queue single [Redmine: #203079]
 		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
+		- 20240409@Aries: Enhance Refund Game Winner matches for Tennis [Redmine: #203638]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -128,6 +130,7 @@ BEGIN
 															+ ', @AutoType = ' + CONVERT(VARCHAR(5), @AutoType) 
 															+ IIF(@AutoSourceInfo IS NOT NULL,', @AutoSourceInfo =  ''' + @AutoSourceInfo + '''','') 
 															+ ', @IsPingoal = ' + CONVERT(NVARCHAR(1), @IsPingoal)
+															+ ', @IsSettleRelated = ' + CONVERT(NVARCHAR(1), @IsSettleRelated)
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 		
