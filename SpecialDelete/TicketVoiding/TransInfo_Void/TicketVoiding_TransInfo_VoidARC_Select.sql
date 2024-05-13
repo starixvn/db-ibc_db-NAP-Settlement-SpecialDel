@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_VoidARC_Select] 
 (
 	@SingleTransIds  VARCHAR(MAX) = NULL
+	,@MatchId				INT = NULL
 )
 AS
 /*	
@@ -17,6 +18,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
+		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -235,6 +237,11 @@ BEGIN
 	FROM #TransInfo d
 		INNER JOIN dbo.match14 m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
 						
+	--Remove Invalid data
+	DELETE t
+	FROM #TransInfo t
+	WHERE @MatchId IS NOT NULL AND t.matchid <> @MatchId
+	
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
 		,transid AS 't'
