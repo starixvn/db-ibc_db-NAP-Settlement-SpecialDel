@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_RecoveredTicket_Select]
 ( 
 	@SingleTransIds VARCHAR(MAX) =''
@@ -7,12 +7,13 @@ AS;
 /*	
 	Created by: 20240102@July
 	Task: [TVS] Recover Ticket issue type [Redmine: #196020]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20240102@July: Create new SP [Redmine:#196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 
 	Param's explanation:	
 		
@@ -94,7 +95,7 @@ BEGIN
 		,SettlementStatus	TINYINT
 		,eventstatus		NVARCHAR(50)
 		,sporttype			SMALLINT
-        ,IsDeposit			BIT DEFAULT(0)
+        ,IsDeposit			BIT DEFAULT(0) --1: Deposit/ 0: Credit
 		,username			VARCHAR(50)
 		,IsMove14			BIT DEFAULT(0)
 		
@@ -583,9 +584,9 @@ BEGIN
                ,s.SettlementStatus
                ,s.eventstatus	  
                ,s.sporttype       
-			   ,1 AS IsCredit
 			   ,s.MainTransId
 			   ,s.modds
+			   ,s.IsDeposit
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -654,9 +655,9 @@ BEGIN
                ,s.SettlementStatus
                ,s.eventstatus	  
                ,s.sporttype    
-			   ,0 AS IsCredit
 			   ,s.MainTransId
 			   ,s.modds
+		       ,s.IsDeposit
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
@@ -721,9 +722,9 @@ BEGIN
                ,s.SettlementStatus
                ,s.eventstatus	  
                ,s.sporttype 
-			   ,0 AS IsCredit
 			   ,s.MainTransId
 			   ,s.modds
+			   ,s.IsDeposit
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -791,9 +792,9 @@ BEGIN
            ,s.SettlementStatus
            ,s.eventstatus	  
            ,s.sporttype   
-		   ,0 AS IsCredit
 		   ,s.MainTransId
 		   ,s.modds
+		   ,s.IsDeposit
 		FROM	#TVSTicketBets s
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -855,7 +856,7 @@ BEGIN
            ,s.SettlementStatus
            ,s.eventstatus	  
            ,s.sporttype       
-		   ,s.IsCredit
+		   ,s.IsDeposit
 		   ,s.MainTransId
 	       ,s.modds AS MasterOdds
 	FROM CTE_OriginResult s

@@ -30,6 +30,7 @@ AS
 		- 20231130@Max: HotFix - Affected Pool House Ticket Detail SHOW DUPLICATE [Redmine: #197662]
 		- 20231207@July: [TVS] Fix issue Pool House input more 2 values still show ticket LG [Redmine: #196467]
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
+		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 
 	Param's explanation:
 
@@ -84,6 +85,8 @@ BEGIN
 		oddsid                INT,
 		statusID			  TINYINT,
 		winlostdate			  DATETIME,
+		IsDeposit			  BIT DEFAULT(0),
+		srecommend			  INT,
 		GroupName			  VARCHAR(50)
 	)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
@@ -304,6 +307,7 @@ BEGIN
 			,LiveIndicator
 			,ActualStake
 			,matchid
+			,srecommend
 			,GroupName
 			,statusID
 			,modds
@@ -346,6 +350,7 @@ BEGIN
 			,b.liveindicator
 			,b.actual_stake AS ActualStake
 			,b.matchid
+			,b.srecommend
 			,CASE WHEN f.GroupName IS NOT NULL THEN f.GroupName 
 				  ELSE 'Others' 
 			 END AS GroupName
@@ -443,6 +448,7 @@ BEGIN
 					,LiveIndicator
 					,ActualStake
 					,matchid
+					,srecommend
 					,GroupName
 					,statusID
 					,ExtraInfo
@@ -482,6 +488,7 @@ BEGIN
 					,b.Subliveindicator
 					,b.actual_stake AS ActualStake
 					,@MatchId
+					,srecommend
 					,CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
 							THEN CASE WHEN xHDPHome.HomeFavorite IS NOT NULL THEN 'HDP'
 									  WHEN xHDPAway.AwayFavorite IS NOT NULL THEN 'HDP'
@@ -575,6 +582,12 @@ BEGIN
 	SELECT s.Id, b.typenamee AS Name, s.GroupName
 	FROM #tmpBettype s
 		INNER JOIN dbo.bettype b WITH(NOLOCK) ON s.Id = b.typeid 
+	
+	-- update Isdeposit
+	UPDATE al 
+		SET IsDeposit = 1
+	FROM	#TVSTicketBets al
+	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = al.srecommend)
 
 	--Return all PH tickets
 	SELECT s.transid
@@ -620,7 +633,10 @@ BEGIN
 		   ,s.statusID
 		   ,s.ExtraInfo
 		   ,s.winlostdate
-		   ,CASE WHEN s.IsMixParlay = 1 AND s.GroupName <> 'Others' THEN 'Parlay' ELSE s.GroupName END AS GroupName
+		   ,s.IsDeposit
+		   ,CASE WHEN s.IsMixParlay = 1 AND s.GroupName <> 'Others' AND s.IsDeposit = 0 THEN 'Credit (Parlay)'
+				 WHEN s.IsMixParlay = 1 AND s.GroupName <> 'Others' AND s.IsDeposit = 1 THEN 'Deposit (Parlay)' 
+				 ELSE s.GroupName END AS GroupName
 		   ,s.matchid
 		   ,m.homeid
 		   ,m.awayid

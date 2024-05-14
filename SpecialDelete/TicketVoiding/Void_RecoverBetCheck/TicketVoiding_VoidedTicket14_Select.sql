@@ -1,13 +1,12 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket14_Select]
 ( 
 	@VoidingHistoryIds VARCHAR(MAX) =''
 )
 AS;
-/*	Created by: July
-	Date 20211126
+/*	Created by: 20211126@July
 	Task: TVS - Void Archived Tickets [Redmine:#140180]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20211126@July: Create new SP [Redmine:#140180]
@@ -15,7 +14,8 @@ AS;
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
-		
+		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
+
 	Param's explanation:	
 		
 */
@@ -57,7 +57,7 @@ BEGIN
               Username        NVARCHAR(50),
               creator         INT,
               CreatorName     NVARCHAR(50),
-              IsDeposit       BIT DEFAULT(0),
+              IsDeposit       BIT DEFAULT(0), --1: Deposit/ 0: Credit
               srecommend      INT,
               mrecommend      INT,
               recommend       INT,
@@ -293,6 +293,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.modds
+			   ,s.IsDeposit
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -352,6 +353,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.modds
+		       ,s.IsDeposit
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON	s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
@@ -405,6 +407,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.modds
+		       ,s.IsDeposit
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -463,6 +466,7 @@ BEGIN
 		   ,s.matchcode
 		   ,s.winlostdate
 		   ,s.modds
+		   ,s.IsDeposit
 		FROM	#tmpTicket s 
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -515,6 +519,7 @@ BEGIN
 		   ,s.matchcode
 		   ,s.winlostdate
 		   ,s.modds AS MasterOdds
+	       ,s.IsDeposit
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid

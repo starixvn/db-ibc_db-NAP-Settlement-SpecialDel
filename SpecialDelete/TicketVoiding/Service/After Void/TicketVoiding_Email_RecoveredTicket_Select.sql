@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_Email_RecoveredTicket_Select](
 	 @SingleTransIds			VARCHAR(MAX) = NULL
 	,@IsITSupport				BIT = 0
@@ -9,13 +9,13 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Email_RecoveredTicket_Select](
 /*	
 	Created by: 20240102@July
 	Task: [TVS] Recover Ticket issue type [Redmine: #196020]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20240102@July: Create new SP [Redmine:#196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
-
+		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 	Param's explanation:	
 		
 */	
@@ -82,7 +82,7 @@ BEGIN
 		,IsMove14		BIT
 		,IsCashOut		BIT DEFAULT(0)
 		,IsSettled		BIT DEFAULT(0)
-		,IsDeposit		BIT DEFAULT(0) 
+		,IsDeposit		BIT DEFAULT(0) --1: Deposit/ 0: Credit
 		,modds			SMALLMONEY
 	)
 
@@ -534,6 +534,7 @@ BEGIN
 		   ,CASE WHEN t.IsCashOut = 0 AND t.eventstatus = 'completed' THEN 1 ELSE 0 END AS IsSettled
 		   ,t.CurrencyName
 		   ,t.modds AS MasterOdds
+		   ,t.IsDeposit
 	FROM	#TVSTicketBets t
 		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.srecommend
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON t.custid = f.CustID

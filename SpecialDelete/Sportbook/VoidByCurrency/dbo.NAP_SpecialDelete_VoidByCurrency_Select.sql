@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Select] 
 (
 	@MatchID       INT,
@@ -9,9 +9,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Select]
 )
 AS;
 /*
-	Created: Kent
-	Date: 20161201
-	DB: DBTXN/bodb02
+	Created: 20161201@Kent
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 		
 		- 20161201@Kent: Search sportbook tickets by crrency to void [Redmine:#67987]
@@ -38,6 +37,7 @@ AS;
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 
 	Param's Explanation:			
 			- @TicketType:
@@ -118,7 +118,7 @@ BEGIN
         LiveHomeScore         SMALLINT,
         Odds                  SMALLMONEY,
         Oddsspread            MONEY,
-        IsMixParlay           BIT,
+        IsMixParlay           BIT DEFAULT(0),
         OddsType              INT,
         RefNo                 BIGINT,
 		Status                NVARCHAR(10),
@@ -148,10 +148,9 @@ BEGIN
         SubStatus             NVARCHAR(10),
 		ActualStake			  MONEY,
 		IsMarked			  BIT DEFAULT(0),
-		IsDeposit			  BIT DEFAULT(0),
+		IsDeposit			  BIT DEFAULT(0), --1: Deposit/ 0: Credit
         modds                 SMALLMONEY,
 		SiteDBGroupID		  SMALLINT
-
    );
 				
 	DECLARE @t_LicenseeNames TABLE(LicenseeName VARCHAR(100), GroupName VARCHAR(100))	
@@ -444,11 +443,10 @@ BEGIN
 		INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK)
 			ON m.TransId = s.GroupID
 
-	UPDATE s
-		SET  IsDeposit = 1
-	FROM	#SpecialDeleteBets s
-		INNER JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK)
-			ON s.srecommend = d.custid
+	-- update Isdeposit
+	UPDATE al SET IsDeposit = 1
+	FROM #SpecialDeleteBets al
+	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = al.srecommend)
 
 	SELECT 
 		s.Stake,
@@ -499,7 +497,8 @@ BEGIN
 		@GlobalShowTime AS GlobalShowTime,
 		s.ActualStake,
 		s.modds AS MasterOdds,
-		s.SiteDBGroupID
+		s.SiteDBGroupID,
+		s.IsDeposit
 	FROM #SpecialDeleteBets s	
 	ORDER BY CASE
 				WHEN s.GroupName = @cn88_Name THEN 1
