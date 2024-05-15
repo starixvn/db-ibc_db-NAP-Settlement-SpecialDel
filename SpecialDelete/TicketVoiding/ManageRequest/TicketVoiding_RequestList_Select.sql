@@ -452,7 +452,7 @@ BEGIN
 				INNER JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 					ON vh.VoidingHistoryId = s.VoidingHistoryId 
 					AND vh.RequestId = s.requestId
-					AND (t.MatchId = s.matchID OR s.matchID = 0) 
+					AND (t.MatchId = s.matchID OR t.IssueTypeId IN (13,17,22)) 
 			WHERE	vh.RequestId = t.requestId AND vh.StatusId IN (2,3)
 		) vh
 
@@ -525,12 +525,12 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer ch WITH(NOLOCK)
 			ON t.CheckedBy = ch.CustId
 		OUTER APPLY (SELECT  SUM(CASE WHEN s.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799,10449) THEN 1
-									  WHEN s.IssueTypeId IN (11,15,20) THEN 1
+									  WHEN s.IssueTypeId IN (11,20) THEN 1
 									  ELSE 0 END) AS TotalSingle
 							,SUM(CASE WHEN s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlay
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId AND s.MatchId = t.MatchId
-					AND t.IssueTypeId IN (17,11,15,20)
+					AND t.IssueTypeId IN (17,11,20)
 				)cnt	
 		OUTER APPLY ( 
 					SELECT TOP 1 vh.StatusId --1: Running | 2: Done | 3: Failed
