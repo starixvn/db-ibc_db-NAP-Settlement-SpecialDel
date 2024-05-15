@@ -772,6 +772,9 @@ BEGIN
 	WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND v.CustomerClass = 201 THEN 1
 					WHEN @IsRemoveCustomerClass4K = 1 AND v.CustomerClass = 4000 THEN 1
 			ELSE 0 END
+	
+	DELETE FROM @tmpMatchId_Info
+	WHERE matchid NOT IN (SELECT DISTINCT matchid FROM #validTransId)
 
 	/*****************Return table **************************/
 	--1. Info match table
