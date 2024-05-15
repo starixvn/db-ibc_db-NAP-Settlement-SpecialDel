@@ -59,6 +59,7 @@ AS
 		- 20240307@July: [TVS] Abnormal Bet - Support void System Parlay tickets [Redmine: #196462]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
+		- 20240514@July: [TVS] EKO/WKOT - Add message template to the Add Request page [Redmine: #203776]
 
 	Param's explanation:	
 		
@@ -117,7 +118,8 @@ BEGIN
         MainTransId           BIGINT,
         WinLost               MONEY,
         IsMarked              BIT DEFAULT(0),
-        LiveIndicator		  BIT,
+        IsHasSettledTicket    BIT DEFAULT(0),
+		LiveIndicator		  BIT,
 		FilterBettype		  SMALLINT,
         FilterBetTeam		  NVARCHAR(10),
         FilterSet			  VARCHAR(50),
@@ -1255,6 +1257,7 @@ BEGIN
 				,SiteDBGroupID
 				,statuswinlost
 				,modds
+				,IsHasSettledTicket
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -1301,6 +1304,7 @@ BEGIN
 				,b.SiteDBGroupID
 				,b.statuswinlost
 				,b.modds
+				,CASE WHEN b.statusID IN (111,112,113) THEN 1 ELSE 0 END AS IsHasSettledTicket
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId
@@ -1356,6 +1360,7 @@ BEGIN
 					,matchid
 					,SiteDBGroupID
 					,statuswinlost
+					,IsHasSettledTicket
 				)
 			SELECT 
 					bm.transid AS GroupID
@@ -1400,6 +1405,7 @@ BEGIN
 					,bm.matchid
 					,bm.SiteDBGroupID
 					,bm.statuswinlost
+				    ,CASE WHEN bm.statusID IN (111,112,113) THEN 1 ELSE 0 END AS IsHasSettledTicket
 			FROM	#tmpTransInfo bm
 					CROSS APPLY (
 							SELECT TOP 1 rs.TransId
@@ -1457,6 +1463,7 @@ BEGIN
 				,modds
 				,SiteDBGroupID
 				,statuswinlost
+				,IsHasSettledTicket
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -1503,6 +1510,7 @@ BEGIN
 				,b.modds
 				,b.SiteDBGroupID
 				,b.statuswinlost
+				,CASE WHEN b.statusID IN (111,112,113) THEN 1 ELSE 0 END AS IsHasSettledTicket
 		FROM #tmpTransInfo b
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 		WHERE b.IsMixParlay = 0
@@ -1550,6 +1558,7 @@ BEGIN
 					,matchid
 					,SiteDBGroupID
 					,statuswinlost
+					,IsHasSettledTicket
 				)
 			SELECT 
 					t.transid AS GroupID
@@ -1594,6 +1603,7 @@ BEGIN
 					,t.matchid
 					,t.SiteDBGroupID
 					,t.statuswinlost
+					,CASE WHEN t.statusID IN (111,112,113) THEN 1 ELSE 0 END AS IsHasSettledTicket
 			FROM	#tmpTransInfo t		
 			WHERE IsMixParlay = 1
 	END	
@@ -1832,6 +1842,7 @@ BEGIN
 			   ,s.statuswinlost
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
+			   ,s.IsHasSettledTicket
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1917,6 +1928,7 @@ BEGIN
 			   ,s.statuswinlost
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
+			   ,s.IsHasSettledTicket
 		FROM	#TVSTicketBets s 
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
@@ -1991,6 +2003,7 @@ BEGIN
 			   ,s.statuswinlost
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
+			   ,s.IsHasSettledTicket
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2074,6 +2087,7 @@ BEGIN
 		   ,s.statuswinlost
 		   ,s.CheckTimeCashOut
 		   ,s.GroupPHaffected 
+		   ,s.IsHasSettledTicket
 		FROM	#TVSTicketBets s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2193,6 +2207,7 @@ BEGIN
 		   ,s.CheckTimeCashOut AS CheckTimeCancelCashOut
 		   ,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 		   ,s.GroupPHaffected -- Affect isuetype : HDP,OU,ODDS
+		   ,s.IsHasSettledTicket
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
