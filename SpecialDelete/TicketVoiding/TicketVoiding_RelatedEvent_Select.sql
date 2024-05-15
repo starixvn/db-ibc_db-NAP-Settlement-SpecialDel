@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 (	
 	@MatchId		INT
 	,@EventDate		DATETIME = NULL
@@ -9,14 +9,14 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 )
 AS
 /*	
-	Created by: July
-	Date 20220916
+	Created by: 20220916@July
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBPRO/bodb02
 	
 	Revisions: 
 		- 20220916@July: Change config DBTXN -> DBPRO [Redmine: #175412]
 		- 20231013@July: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
+		- 20240514@July: [TVS] EKO/WKOT - Add message template to the Add Request page [Redmine: #203776]
 
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
@@ -52,13 +52,13 @@ BEGIN
 			END
 		END
 
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE 1 = CASE WHEN m.sporttype <> 50 AND m.ParentID = @MatchId THEN 1
 					WHEN m.sporttype = 50 AND m.ParentID = @MatchId AND m.ChildMatchType <> 200 THEN 1
 				ELSE 0 END
 		UNION ALL
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype
 		FROM #LinkedMatch_tmp lm
 		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.LinkedMatchID = m.matchid
 		ORDER BY matchcode ASC
@@ -67,7 +67,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 0 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 0 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.matchid = @MatchId
 			AND m.eventdate = @EventDate
