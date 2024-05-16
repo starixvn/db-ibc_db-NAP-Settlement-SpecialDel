@@ -26,6 +26,7 @@ AS
 		- 20240110@Louisa: Support hold child match [Redmine:#198710]
 		- 20240221@Louisa: Revert Code [Redmine:#198710]
 		- 20240411@Louisa: Enhance hold Child Match [Redmine:#203519]
+		- 20240514@Aries: Enhance the hold match function when hold child-matches [Redmine:#205060]
 
 	Parameters Explanation:    
 		@Type(old way-use from AdminSite)
@@ -57,7 +58,7 @@ BEGIN
 			,@ActionId			INT
 			,@Remark			VARCHAR(500)
 	
-	DECLARE @tmpHoldSetting TABLE (MatchID INT, ParentID INT, TurnOn TINYINT, TurnOff TINYINT, LV TINYINT)
+	DECLARE @tmpHoldSetting TABLE (MatchID INT, ParentID INT,eventstatus NVARCHAR(100), TurnOn TINYINT, TurnOff TINYINT, LV TINYINT)
 
 	SELECT	@Starttime = GETDATE()
 
@@ -133,89 +134,97 @@ BEGIN
 
 	END
 	ELSE
-	BEGIN TRY
-		EXEC sp_xml_preparedocument @handle OUTPUT, @HoldInfo
+	BEGIN
+		BEGIN TRY
+			EXEC sp_xml_preparedocument @handle OUTPUT, @HoldInfo
 
-		; WITH cte_recursion AS 
-		(
-			SELECT  m.matchid, m.ParentID, 0 AS LV
-			FROM dbo.match m WITH(NOLOCK)
-			WHERE matchid = @MatchId
+			; WITH cte_recursion AS 
+			(
+				SELECT  m.matchid, m.ParentID,m.eventstatus, 0 AS LV
+				FROM dbo.match m WITH(NOLOCK)
+				WHERE matchid = @MatchId
 		
-			UNION ALL 
-			SELECT  m.matchid, m.ParentID, LV+1
-			FROM dbo.match m WITH(NOLOCK)
-				INNER JOIN cte_recursion d
-				ON m.ParentID = d.matchid	 
-		)
-		---get all related matches
-		, cte_AllMatch ( MatchID, ParentID, LV) AS 
-		(
-			SELECT m.MatchID, ParentID, LV
-			FROM cte_recursion m
-		)
-		,cte_WebResources (MatchID, ParentID, HoldType, IsEnable, IsApplyChildMatch, LV) 
-		AS 
-		(
-			SELECT   d.matchid
-					,d.ParentID
-					,setting.t as HoldType
-					,setting.s as IsEnable
-					,setting.child as IsApplyChildMatch
-					,d.LV
-			FROM cte_AllMatch d
-				CROSS APPLY (	SELECT t, s, isnull(child,0) as child
-								FROM OPENXML(@handle,'root/r',1) WITH(	t INT ,s BIT ,child	BIT	) AS tbl --- will parse value "true"/"false" to 1/0 with datatype is BIT
-							) setting
-		)
+				UNION ALL 
+				SELECT  m.matchid, m.ParentID,m.eventstatus, LV+1
+				FROM dbo.match m WITH(NOLOCK)
+					INNER JOIN cte_recursion d
+					ON m.ParentID = d.matchid	 
+			)
+			---get all related matches
+			, cte_AllMatch ( MatchID, ParentID,eventstatus, LV) AS 
+			(
+				SELECT m.MatchID, ParentID,eventstatus, LV
+				FROM cte_recursion m
+			)
+			,cte_WebResources (MatchID, ParentID,eventstatus, HoldType, IsEnable, IsApplyChildMatch, LV) 
+			AS 
+			(
+				SELECT   d.matchid
+						,d.ParentID
+						,d.eventstatus
+						,setting.t as HoldType
+						,setting.s as IsEnable
+						,setting.child as IsApplyChildMatch
+						,d.LV
+				FROM cte_AllMatch d
+					CROSS APPLY (	SELECT t, s, isnull(child,0) as child
+									FROM OPENXML(@handle,'root/r',1) WITH(	t INT ,s BIT ,child	BIT	) AS tbl --- will parse value "true"/"false" to 1/0 with datatype is BIT
+								) setting
+			)
 
-		INSERT INTO @tmpHoldSetting (MatchID, ParentID, TurnOn, TurnOff, LV)
-		SELECT   w.matchid
-				,w.ParentID
-				,SUM(CASE WHEN (w.LV =0 OR w.IsApplyChildMatch = 1) AND IsEnable = 1 THEN HoldType ELSE 0 END) as TurnOn
-				,SUM(CASE WHEN (w.LV =0 OR w.IsApplyChildMatch = 1) AND IsEnable = 0 THEN HoldType ELSE 0 END) as TurnOff 
-				,w.LV
-		FROM cte_WebResources w
-		WHERE w.LV = 0 OR IsApplyChildMatch = 1
-		GROUP BY w.matchid, w.ParentID, LV
+			INSERT INTO @tmpHoldSetting (MatchID, ParentID,eventstatus, TurnOn, TurnOff, LV)
+			SELECT   w.matchid
+					,w.ParentID
+					,w.eventstatus
+					,SUM(CASE WHEN (w.LV =0 OR w.IsApplyChildMatch = 1) AND IsEnable = 1 THEN HoldType ELSE 0 END) as TurnOn
+					,SUM(CASE WHEN (w.LV =0 OR w.IsApplyChildMatch = 1) AND IsEnable = 0 THEN HoldType ELSE 0 END) as TurnOff 
+					,w.LV
+			FROM cte_WebResources w
+			WHERE w.LV = 0 OR IsApplyChildMatch = 1
+			GROUP BY w.matchid, w.ParentID,w.eventstatus, LV
 
-		EXEC sp_xml_removedocument @handle
+			EXEC sp_xml_removedocument @handle 
 
-		UPDATE m 
-			SET @SettlementStatus = ISNULL(SettlementStatus, 0)
-				,@AutoSetting	  = ISNULL(m.AutoSetting, l.AutoSetting)
-				,SettlementStatus =  @SettlementStatus &(~TurnOff) | TurnOn 
-				,AutoSetting = CASE WHEN TurnOn & 16 > 0 AND ISNULL(@AutoSetting,0) & 2 = 2 THEN  @AutoSetting ^ (POWER(2,1)) --Turn off Auto Instant if MTD Hold is on
-									ELSE m.AutoSetting
-									END
-		FROM	dbo.match m WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN dbo.League l WITH(NOLOCK) 
-				ON m.leagueId = l.leagueid
+			DELETE 
+			FROM @tmpHoldSetting
+			WHERE matchid != @MatchId
+				AND eventstatus != 'running'
+
+			UPDATE m 
+				SET @SettlementStatus = ISNULL(SettlementStatus, 0)
+					,@AutoSetting	  = ISNULL(m.AutoSetting, l.AutoSetting)
+					,SettlementStatus =  @SettlementStatus &(~TurnOff) | TurnOn 
+					,AutoSetting = CASE WHEN TurnOn & 16 > 0 AND ISNULL(@AutoSetting,0) & 2 = 2 THEN  @AutoSetting ^ (POWER(2,1)) --Turn off Auto Instant if MTD Hold is on
+										ELSE m.AutoSetting
+										END
+			FROM	dbo.match m WITH(ROWLOCK, UPDLOCK)
+				INNER JOIN dbo.League l WITH(NOLOCK) 
+					ON m.leagueId = l.leagueid
+				INNER JOIN @tmpHoldSetting h
+					ON m.matchid = h.MatchID
+		
+			UPDATE	mr 
+				SET isPending = CASE WHEN 1 & h.TurnOn = 1 THEN 1
+									 WHEN 1 & h.TurnOff = 1 THEN 0
+									 ELSE mr.isPending
+									 END
+					,isUndecided = CASE WHEN 2 & h.TurnOn = 2 THEN 1
+										WHEN 2 & h.TurnOff = 2 THEN 0
+										ELSE mr.isUndecided
+										END
+			FROM	dbo.match_remark mr WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpHoldSetting h
-				ON m.matchid = h.MatchID
-		
-		UPDATE	mr 
-			SET isPending = CASE WHEN 1 & h.TurnOn = 1 THEN 1
-								 WHEN 1 & h.TurnOff = 1 THEN 0
-								 ELSE mr.isPending
-								 END
-				,isUndecided = CASE WHEN 2 & h.TurnOn = 2 THEN 1
-									WHEN 2 & h.TurnOff = 2 THEN 0
-									ELSE mr.isUndecided
-									END
-		FROM	dbo.match_remark mr WITH(ROWLOCK, UPDLOCK)
-		INNER JOIN @tmpHoldSetting h
-				ON mr.matchid = h.MatchID
+					ON mr.matchid = h.MatchID
 
-		SELECT @ChildMatchList = ( SELECT MatchID AS 'm', ParentID AS 'p' FROM @tmpHoldSetting WHERE LV > 0 FOR JSON AUTO )
+			SELECT @ChildMatchList = ( SELECT MatchID AS 'm', ParentID AS 'p' FROM @tmpHoldSetting WHERE LV > 0 FOR JSON AUTO )
 
-	END TRY
-	BEGIN CATCH
-		SELECT	 @ErrMsg  = ERROR_MESSAGE()
-				,@ErrCode = @@ERROR
+		END TRY
+		BEGIN CATCH
+			SELECT	 @ErrMsg  = ERROR_MESSAGE()
+					,@ErrCode = @@ERROR
 
-		RETURN
-	END CATCH
-
+			RETURN
+		END CATCH
+	END
 END
 GO
