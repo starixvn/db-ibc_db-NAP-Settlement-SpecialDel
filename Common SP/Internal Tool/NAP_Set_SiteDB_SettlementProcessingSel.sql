@@ -1,6 +1,7 @@
-/*<info serverAlias="DBCTG-bodb02,SBSETTLE-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,SBSETTLE-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_SiteDB_SettlementProcessingSel
 	@matchId INT = 0
+	,@Mode VARCHAR(20) = 'single'
 AS
 /*
 	Created by: 20221122@Louisa
@@ -10,8 +11,10 @@ AS
 	Revisions:
 		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
 		- 20230208@Louisa: support queue 3rd [RedmineId:#179505]
+		- 20240514@Kathy: parlay settlement [RedmineId:#204985]
 
 	Param's Explanation:
+		@Mode = 'single', 'parlay'
 
 */
 BEGIN
@@ -50,35 +53,64 @@ BEGIN
 	GROUP BY SessionId
 			,SiteDBGroupId
 
-	SELECT	DISTINCT @ServerName AS ServerName
-			,t.SiteDBGroupId
-			,b.matchId
-			,t.SessionId
-			,b.HomeTeam 
-			,b.AwayTeam 
-			,t.CreatedTime
-			,t.ErrorMessage
-	FROM	@tmpSSB_SettlementLogs t
-		INNER JOIN dbo.SiteDB_SettlementProcessing p WITH(NOLOCK)
-			ON	t.SessionId = p.SessionId
-				AND t.SiteDBGroupId = p.SiteDBGroupId
-		CROSS APPLY (
-						SELECT	 TOP 1 
-								b.matchid
-								,h.teamname AS HomeTeam
-								,a.teamname AS AwayTeam
-						FROM OPENJSON (CAST(DECOMPRESS(TransInfo) AS NVARCHAR(MAX) ) ) WITH( t  VARCHAR(20) ) 
-							INNER JOIN dbo.bettrans b WITH(NOLOCK)
-								ON b.transid = t
-							INNER JOIN dbo.match m WITH(NOLOCK)
-								ON m.matchid = b.matchid
-							INNER JOIN dbo.team h WITH(NOLOCK)
-								ON h.teamid = m.homeid
-							INNER JOIN dbo.team a WITH(NOLOCK)
-								ON a.teamid = m.awayid
-						WHERE  @matchid = 0 OR b.matchid = @matchid
-						)  AS b
-	WHERE p.StatusId IN ( 1, 3)
+	IF @Mode = 'single'
+		SELECT	DISTINCT @ServerName AS ServerName
+				,t.SiteDBGroupId
+				,b.matchId
+				,'bettrans' AS TableName
+				,'Calculate Parlay' AS FunctionName
+				,p.SettlementAction
+				,'s' AS TicketType
+				,t.SessionId
+				,b.HomeTeam 
+				,b.AwayTeam 
+				,t.CreatedTime
+				,t.ErrorMessage
+		FROM	@tmpSSB_SettlementLogs t
+			INNER JOIN dbo.SiteDB_SettlementProcessing p WITH(NOLOCK)
+				ON	t.SessionId = p.SessionId
+					AND t.SiteDBGroupId = p.SiteDBGroupId
+			CROSS APPLY (
+							SELECT	 TOP 1 
+									b.matchid
+									,h.teamname AS HomeTeam
+									,a.teamname AS AwayTeam
+							FROM OPENJSON (CAST(DECOMPRESS(TransInfo) AS NVARCHAR(MAX) ) ) WITH( t  VARCHAR(20) ) 
+								INNER JOIN dbo.bettrans b WITH(NOLOCK)
+									ON b.transid = t
+								INNER JOIN dbo.match m WITH(NOLOCK)
+									ON m.matchid = b.matchid
+								INNER JOIN dbo.team h WITH(NOLOCK)
+									ON h.teamid = m.homeid
+								INNER JOIN dbo.team a WITH(NOLOCK)
+									ON a.teamid = m.awayid
+							WHERE  @matchid = 0 OR b.matchid = @matchid
+							)  AS b
+		WHERE p.StatusId IN ( 1, 3)
+	ELSE IF @Mode = 'parlay'
+		SELECT	DISTINCT @ServerName AS ServerName
+				,t.SiteDBGroupId
+				,p.matchId
+				,p.TableName
+				,'Calculate Parlay' AS FunctionName
+				,p.SettlementAction
+				,p.TicketType
+				,t.SessionId
+				,h.teamname AS  HomeTeam 
+				,a.teamname AS AwayTeam 
+				,t.CreatedTime
+				,t.ErrorMessage
+		FROM	@tmpSSB_SettlementLogs t
+			INNER JOIN dbo.SiteDB_ParlaySettlementProcessing p WITH(NOLOCK)
+				ON	t.SessionId = p.SessionId
+					AND t.SiteDBGroupId = p.SiteDBGroupId
+			INNER JOIN dbo.match m WITH(NOLOCK)
+				ON m.matchid = p.matchid
+			INNER JOIN dbo.team h WITH(NOLOCK)
+				ON h.teamid = m.homeid
+			INNER JOIN dbo.team a WITH(NOLOCK)
+				ON a.teamid = m.awayid
+		WHERE p.StatusId IN ( 1, 3, 13, 23)
 	
 END
 GO
