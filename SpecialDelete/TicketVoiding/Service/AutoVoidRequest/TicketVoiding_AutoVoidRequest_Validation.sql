@@ -27,6 +27,8 @@ AS
 		- 20240305@July: [TVS] Abnormal Bet - Void settled tickets for Auto Void actions [Redmine: #195506]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
+		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
+		- 20240516@Max: [TVS] Web get data via API [Redmine: #204974]
 
 	Param's explanation:
 		
@@ -56,7 +58,7 @@ BEGIN
 		, IssueTypeId TINYINT
 		, TicketType TINYINT
 	)
-	
+
 	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
 	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
 	CREATE TABLE #SingleTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT)
@@ -65,6 +67,19 @@ BEGIN
 	--Void14 (Abnormal Account only)
 	CREATE TABLE #SingleTickets_14 (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
 	CREATE TABLE #ParlayTickets_14 (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
+
+	CREATE TABLE #Tickets_Result (
+		TransId BIGINT
+		, RequestId INT
+		, Matchid INT
+		, IssueTypeId TINYINT
+		, TicketType TINYINT
+		, transdate DATETIME
+		, winlostdate DATETIME
+		, statusId INT
+		, ValidationType TINYINT
+	)
+	CREATE INDEX IX_ValidationType ON #Tickets_Result (ValidationType)
 
 	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
@@ -102,7 +117,7 @@ BEGIN
 		,@ActionId = VoidActionId 
 	FROM #tmpInputTransId
 
-	IF @IssueTypeId IN (11,15) AND @ActionId = 1 --For: action auto void winning
+	IF @IssueTypeId IN (11) AND @ActionId = 1 --For: action auto void winning
 	BEGIN
 		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, statuswinlost, MatchId, IssueTypeId, TicketType)
 		SELECT t.TransId
@@ -144,7 +159,7 @@ BEGIN
 		END
 
 	END
-	IF @IssueTypeId IN (11,15) AND @ActionId <> 1 --For: action auto void instant
+	IF @IssueTypeId IN (11) AND @ActionId <> 1 --For: action auto void instant
 	BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType, transdate, winlostdate, statusId)
 		SELECT t.TransId
@@ -309,20 +324,44 @@ BEGIN
 			AND b.statuswinlost IS NOT NULL
 	END
 	
-	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId FROM #SingleTickets WHERE TicketType = 1 --SingleVoid
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE TicketType = 1  --SingleReSettle
+	INSERT INTO #Tickets_Result (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
+	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, 1 FROM #SingleTickets WHERE TicketType = 1 --SingleVoid
 
-	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId FROM #ParlayTickets --Parlayvoid
-	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #ParlayTickets_ReSettle --ParlayReSettle
+	INSERT INTO #Tickets_Result (TransId, RequestId, Matchid, IssueTypeId, ValidationType)
+	SELECT TransId, RequestId, Matchid, IssueTypeId, 2 FROM #SingleTickets_ReSettle WHERE TicketType = 1  --SingleReSettle
 
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets WHERE TicketType = 4 --CricketVoid
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE TicketType = 4 --CricketReSettle
+	INSERT INTO #Tickets_Result (TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
+	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, 3 FROM #ParlayTickets --Parlayvoid
 
-	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #CancelCashOutTickets --CancelCO
+	INSERT INTO #Tickets_Result (TransId, RequestId, MatchId, IssueTypeId, ValidationType)
+	SELECT TransId, RequestId, MatchId, IssueTypeId, 4 FROM #ParlayTickets_ReSettle --ParlayReSettle
 
-	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId FROM #SingleTickets_14 --Single_14Void
-	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId FROM #ParlayTickets_14 --Parlay_14Void
+	INSERT INTO #Tickets_Result (TransId, RequestId, Matchid, IssueTypeId, ValidationType)
+	SELECT TransId, RequestId, Matchid, IssueTypeId, 5 FROM #SingleTickets WHERE TicketType = 4 --CricketVoid
 
+	INSERT INTO #Tickets_Result (TransId, RequestId, Matchid, IssueTypeId, ValidationType)
+	SELECT TransId, RequestId, Matchid, IssueTypeId, 6 FROM #SingleTickets_ReSettle WHERE TicketType = 4 --CricketReSettle
+
+	INSERT INTO #Tickets_Result (TransId, RequestId, MatchId, IssueTypeId, ValidationType)
+	SELECT TransId, RequestId, MatchId, IssueTypeId, 7 FROM #CancelCashOutTickets --CancelCO
+
+	INSERT INTO #Tickets_Result (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
+	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, 8 FROM #SingleTickets_14 --Single_14Void
+
+	INSERT INTO #Tickets_Result (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
+	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, 9 FROM #ParlayTickets_14 --Parlay_14Void
+
+	SELECT TransId 
+		, RequestId 
+		, Matchid 
+		, IssueTypeId 
+		, TicketType 
+		, transdate 
+		, winlostdate 
+		, statusId 
+		, ValidationType
+	FROM #Tickets_Result
+	ORDER BY ValidationType
 
 	DROP TABLE #tmpInputTransId
 	DROP TABLE #tmpTransIds
@@ -333,6 +372,7 @@ BEGIN
 	DROP TABLE #CancelCashOutTickets
 	DROP TABLE #SingleTickets_14
 	DROP TABLE #ParlayTickets_14
+	DROP TABLE #Tickets_Result
 END		
 GO
 
