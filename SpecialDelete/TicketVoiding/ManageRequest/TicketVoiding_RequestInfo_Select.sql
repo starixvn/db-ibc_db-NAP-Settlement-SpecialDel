@@ -25,6 +25,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
+		- 20240520@July: HotFix - [TVS] Wrong display No. of Tickets [Redmine: #205304]
 
 	Param's explanation:
 		
@@ -48,7 +49,7 @@ BEGIN
 	SELECT @IssueTypeId = IssueTypeId FROM dbo.TicketVoiding_Request WITH (NOLOCK) WHERE RequestId = @RequestId
 
 	INSERT INTO #tmpResult(RequestId, VoidingHistoryId, LastVoidedBy, MatchId)
-	SELECT rd.RequestId
+	SELECT DISTINCT rd.RequestId
 			,vh.VoidingHistoryId
 			,vh.UserId
 			,@MatchId
