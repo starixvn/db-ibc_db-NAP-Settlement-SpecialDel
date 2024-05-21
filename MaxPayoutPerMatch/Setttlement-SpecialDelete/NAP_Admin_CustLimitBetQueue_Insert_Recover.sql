@@ -17,6 +17,7 @@ AS
 		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240118@Louisa: VS4 - Cock Fighting [Redmine:#199700]
+		- 20240509@Max: Alpha - Provide risk amount on bet list [Redmine: #202427]
 	
 	Param's explanation:	
 		
@@ -139,6 +140,7 @@ BEGIN
 				SELECT @TransIds = (SELECT t.CustId AS '@custid'
 										,t.sitetype AS '@sitetype'
 										,t.TransId AS '@transid'
+										,t.bettype AS '@bettype'
 									FROM	@CustLimitBet_Batch t
 									FOR XML PATH('r'), ROOT('root')
 								)
@@ -165,6 +167,7 @@ BEGIN
 				SELECT @TransIds = (SELECT t.CustId AS '@custid'
 										,t.sitetype AS '@sitetype'
 										,t.TransId AS '@transid'
+										,t.bettype AS '@bettype'
 									FROM	@CustLimitBet_Batch t
 									FOR XML PATH('r'), ROOT('root')
 								)
@@ -191,6 +194,7 @@ BEGIN
 				SELECT @TransIds = (SELECT t.CustId AS '@custid'
 										,t.sitetype AS '@sitetype'
 										,t.TransId AS '@transid'
+										,t.bettype AS '@bettype'
 									FROM	@CustLimitBet_Batch t
 									FOR XML PATH('r'), ROOT('root')
 								)

@@ -19,6 +19,7 @@ AS
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20220317@Max: Support Max Payout & Max Turnover for Deposit - [Redmine: #167898]
 		- 20240318@Max: Enhance temp table [Redmine: #199517]
+		- 20240509@Max: Alpha - Provide risk amount on bet list [Redmine: #202427]
 	
 	Param's explanation:	
 		
@@ -78,14 +79,16 @@ BEGIN
 			BEGIN
 				;WITH cte AS
 				(
-					SELECT q.Matchid, @custid AS CustId, xTrans.transid
+					SELECT q.Matchid, @custid AS CustId, xTrans.transid, l.sporttype, xTrans.bettype
 					FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
 						INNER JOIN outright o WITH (NOLOCK) ON o.orid = q.Matchid
+						INNER JOIN dbo.League l WITH (NOLOCK) ON o.leagueid = l.leagueid
 						CROSS APPLY (
 								SELECT CONVERT(XML, q.Transids)
 							)AS t(xDATA)
 						CROSS APPLY (
 								SELECT t.c.value('@transid','BIGINT') AS transid
+									,t.c.value('@bettype','SMALLINT') AS bettype
 								FROM t.xDATA.nodes('root/r') t(c)
 							)xTrans
 					WHERE q.QueueID > @LastQueueID 
@@ -99,7 +102,12 @@ BEGIN
 					,@AccumPayout_InQueue += SUM(tmpsum.AccumPayout)
 				FROM
 				(
-					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout
+					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
+						, MAX(CASE 
+								WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
+									OR (t1.sporttype IN (43,44)) AND @sitetype <> 3
+									THEN 0
+								ELSE t2.PayoutAdjust END) AS AccumPayout
 					FROM cte t1
 						INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = @custid and t2.Transid = t1.transid
 					GROUP BY t1.Matchid, t1.CustId, t1.transid
@@ -110,14 +118,16 @@ BEGIN
 			BEGIN
 				;WITH cte AS
 				(
-					SELECT q.Matchid, @custid AS CustId, xTrans.transid
+					SELECT q.Matchid, @custid AS CustId, xTrans.transid, l.sporttype, xTrans.bettype
 					FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
 						INNER JOIN outright o WITH (NOLOCK) ON o.orid = q.Matchid
+						INNER JOIN dbo.League l WITH (NOLOCK) ON o.leagueid = l.leagueid
 						CROSS APPLY (
 								SELECT CONVERT(XML, q.Transids)
 							)AS t(xDATA)
 						CROSS APPLY (
 								SELECT t.c.value('@transid','BIGINT') AS transid
+									,t.c.value('@bettype','SMALLINT') AS bettype
 								FROM t.xDATA.nodes('root/r') t(c)
 							)xTrans
 					WHERE q.QueueID > @LastQueueID 
@@ -131,7 +141,12 @@ BEGIN
 					,@AccumPayout_InQueue += SUM(tmpsum.AccumPayout)
 				FROM
 				(
-					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout
+					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
+						, MAX(CASE 
+								WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
+									OR (t1.sporttype IN (43,44)) AND @sitetype <> 3
+									THEN 0
+								ELSE t2.PayoutAdjust END) AS AccumPayout
 					FROM cte t1
 						INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = @custid and t2.Transid = t1.transid
 					GROUP BY t1.Matchid, t1.CustId, t1.transid
@@ -215,12 +230,16 @@ BEGIN
 					SELECT @MatchId AS MatchId
 						, @custid AS custid
 						, xTrans.transid
+						, m.sporttype
+						, xTrans.bettype
 					FROM dbo.CustLimitBetQueue q WITH (NOLOCK) 
+						INNER JOIN dbo.match m WITH (NOLOCK) ON q.Matchid = m.matchid
 						CROSS APPLY (
 								SELECT CONVERT(XML, q.Transids)
 							)AS t(xDATA)
 						CROSS APPLY (
 								SELECT t.c.value('@transid','BIGINT') AS transid
+									,t.c.value('@bettype','SMALLINT') AS bettype
 								FROM t.xDATA.nodes('root/r') t(c)
 							)xTrans
 					WHERE q.QueueID > @LastQueueID 
@@ -233,7 +252,12 @@ BEGIN
 					,@AccumPayout_InQueue += SUM(tmpsum.AccumPayout)
 				FROM
 				(
-					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout
+					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
+						, MAX(CASE 
+								WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
+									OR (t1.sporttype IN (43,44)) AND @sitetype <> 3
+									THEN 0
+								ELSE t2.PayoutAdjust END) AS AccumPayout
 					FROM cte t1
 						INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = @custid and t2.Transid = t1.transid
 					GROUP BY t1.Matchid, t1.CustId, t1.transid
@@ -247,12 +271,16 @@ BEGIN
 					SELECT @MatchId AS MatchId
 						, @custid AS custid
 						, xTrans.transid
+						, m.sporttype
+						, xTrans.bettype
 					FROM dbo.CustLimitBetQueue q WITH (NOLOCK) 
+						INNER JOIN dbo.match m WITH (NOLOCK) ON q.Matchid = m.matchid
 						CROSS APPLY (
 								SELECT CONVERT(XML, q.Transids)
 							)AS t(xDATA)
 						CROSS APPLY (
 								SELECT t.c.value('@transid','BIGINT') AS transid
+									,t.c.value('@bettype','SMALLINT') AS bettype
 								FROM t.xDATA.nodes('root/r') t(c)
 							)xTrans
 					WHERE q.QueueID > @LastQueueID 
@@ -265,7 +293,12 @@ BEGIN
 					,@AccumPayout_InQueue += SUM(tmpsum.AccumPayout)
 				FROM
 				(
-					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout
+					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
+						, MAX(CASE 
+								WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
+									OR (t1.sporttype IN (43,44)) AND @sitetype <> 3
+									THEN 0
+								ELSE t2.PayoutAdjust END) AS AccumPayout
 					FROM cte t1
 						INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = @custid and t2.Transid = t1.transid
 					GROUP BY t1.Matchid, t1.CustId, t1.transid

@@ -22,12 +22,16 @@ AS
 		- 20220317@Max: Support Max Payout & Max Turnover for Deposit - [Redmine: #167898]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240118@Louisa: VS4 - Cock Fighting [Redmine:#199700]
+		- 20240509@Max: Alpha - Provide risk amount on bet list [Redmine: #202427]
 	
 	Param's explanation:	
 		
 */
 BEGIN
 	SET NOCOUNT ON
+
+	DECLARE @payout_input MONEY = 0
+	SET @payout_input = @payout
 
 	IF @EventTypeID IS NULL
 	BEGIN
@@ -45,6 +49,13 @@ BEGIN
 		OR (@sporttype BETWEEN 190 AND 197)
 	BEGIN
 		SET @payout = 0
+	END
+
+	--Keep insert payout value for potential winning, just apply for credit and sportbook
+	IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) 
+		OR (@sporttype IN (43,44)) AND @sitetype <> 3
+	BEGIN
+		SET @payout = @payout_input
 	END
 
 	IF @sitetype = 1 --MBC
