@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Settlement_MP_VS 
 	@AdminId			INT
 	,@MatchId			INT
@@ -18,7 +18,8 @@ AS
 	Revisions:
 		- 20240118@Louisa: Initial
 		- 20240315@Louisa: Fix null winlostdate [Redmine: #199700]
-		
+		- 20240521@Louisa: Enhancement - get match via linked server due to replication latency [Redmine:#205375]
+
 	Param's Explanation:
  
 */
@@ -288,15 +289,11 @@ BEGIN
 								) AS MONEY) AS modds
 		FROM #tempMainParlay t
 			CROSS APPLY(	SELECT bm.transid, bm.odds, bm.refno, bm.statuswinlost, bm.statusID, bm.winlostdate
-							FROM dbo.bettransm bm WITH(rowlock)	
-								INNER JOIN dbo.match m WITH (NOLOCK)
-									ON bm.matchid = m.matchid
+							FROM dbo.bettransm bm WITH(rowlock)
 							WHERE bm.refno = t.refno									
 							UNION
 							SELECT bm14.transid, bm14.odds, bm14.refno, bm14.statuswinlost, bm14.statusID, bm14.winlostdate
-							FROM dbo.bettransm14 bm14 WITH(rowlock)			
-								INNER JOIN dbo.match14 m14 WITH(NOLOCK)
-									ON bm14.matchid = m14.matchid
+							FROM dbo.bettransm14 bm14 WITH(rowlock)
 							WHERE bm14.refno = t.refno
 					) AS parlay 
 		GROUP BY parlay.refno
