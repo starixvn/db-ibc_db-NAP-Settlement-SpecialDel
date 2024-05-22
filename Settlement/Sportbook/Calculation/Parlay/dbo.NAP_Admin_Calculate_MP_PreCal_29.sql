@@ -48,6 +48,7 @@ AS
 		- 20230131@Kathy: Support generate BetParlayDetail/BetParlayResult for voiding ticket [Redmine:#200440]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240425@Kathy: enhance parlay [Redmine:#199518]
+		- 20240521@Kathy: write log [Redmine:#199518]
 
 
 	Param's Explanation:
@@ -107,10 +108,23 @@ BEGIN
 			,@thresHold		INT = 4000
 			,@batchNo		INT = 0
 			,@isInsertedBetParlayDetail BIT = 0
+
+			,@starttime		DATETIME2
+			,@starttimestatement	DATETIME2
+			,@rowcount		INT
+			,@affectedrow	INT
+			,@isWriteLog	BIT = 0
+			,@NewID			VARCHAR(50) 
 			
 	DECLARE @transIDs AS TABLE(transid BIGINT primary key)
 	DECLARE @tmpSetting AS TABLE (SiteId INT, FromOdds DECIMAL(9,4), ToOdds DECIMAL(9,4), Boost TINYINT, isFirstOdds BIT DEFAULT(0), isLastOdds BIT DEFAULT(0))
 
+	SET @starttime = SYSDATETIME()
+	SET @NewID = NEWID()
+	
+	IF OBJECT_ID('f_ParlaySettlement_WriteLog', 'FN') IS NOT NULL 
+		SET @isWriteLog = CASE WHEN ISNULL(@ParlaySettlementProcessingId,0) <> 0 AND dbo.f_ParlaySettlement_WriteLog() = 1 THEN 1 ELSE 0 END
+	
 	INSERT INTO @transIDs (transid)
 	SELECT value
 	FROM STRING_SPLIT(@strXML, ',')
@@ -213,6 +227,8 @@ BEGIN
 		WHERE	transid IN (SELECT transid FROM @transIDs)
 				AND statusID <> 101 --('REJECT')	
 		
+		SET @rowcount =@@ROWCOUNT
+
 		-- Remove duplicate transid if page split occurs
 		;WITH cteDuplicateTransId
 		AS(
@@ -266,6 +282,8 @@ BEGIN
 			FROM	#tmpSource
 			WHERE	SetStake > 0
 
+			SET @starttimestatement = SYSDATETIME()
+
 			INSERT INTO #BetParlayDetail_pre (RefNo, Serial, transid, winlostdate, mainwinlostdate, statuswinlost, statusid
 				,matchid, bettype, stake, odds, betteam, hdp1
 				,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc)
@@ -276,8 +294,18 @@ BEGIN
 				INNER JOIN dbo.RefCombinationSet rcs WITH (NOLOCK) ON p.selection_cnt = rcs.N AND (p.bitmapR & rcs.bitmapR) > 0 -- Pick Set by BitmapR (get R)
 				INNER JOIN dbo.RefCombination rc WITH (NOLOCK) ON rcs.N = rc.N AND rcs.R = rc.R AND p.RN = rc.seq -- Pick subticket details (R & seq)
 				INNER JOIN #tmpSetStake ps ON ps.refno = p.refno AND ps.RN = rc.R
-			
+
+			SET @affectedrow = @@ROWCOUNT
+
 			CREATE CLUSTERED INDEX CIX_BetParlayDetail_pre_refno ON #BetParlayDetail_pre (refno)
+
+			IF @isWriteLog = 1
+			BEGIN
+				INSERT INTO dbo.SSB_SettlementLogs(MessageId, matchid, SessionId, AffectedTicket, starttime, endtime, MessageBody)
+				SELECT @NewID, @matchid, @SessionId, @affectedrow, @starttimestatement, SYSDATETIME(), 'prepare BetParlayDetail'
+			END 			
+
+			SET @starttimestatement = SYSDATETIME()
 
 			INSERT INTO #tmpBeingGeneratedRefno(Refno, mainwinlostdate, cntRow)
 			SELECT	refno, mainwinlostdate, COUNT(1)
@@ -348,6 +376,12 @@ BEGIN
 
 				SET @batchNo = @batchNo + 1
 			END
+
+			IF @isWriteLog = 1
+			BEGIN
+				INSERT INTO dbo.SSB_SettlementLogs(MessageId, matchid, SessionId, AffectedTicket, starttime, endtime, MessageBody)
+				SELECT @NewID, @matchid, @SessionId, @affectedrow, @starttimestatement, SYSDATETIME(), 'insert BetParlayDetail/BetParlayResult'
+			END 
 		END		
 	END
 	-----------------------
@@ -355,6 +389,7 @@ BEGIN
 	-- eventdate = max(match.eventdate) - using for set winlostdate of running ticket	
 	DECLARE @tmpRefnoMaxEventDate TABLE (refno BIGINT, EventDate DATETIME)
 
+	SET @starttimestatement = SYSDATETIME()
 	INSERT INTO @tmpRefnoMaxEventDate(refno, EventDate)
 	SELECT t.refno, MAX(m.eventdate) AS EventDate
 	FROM @temp_bettrans t		
@@ -365,16 +400,26 @@ BEGIN
 	WHERE	m.eventdate > t.winlostdate
 	GROUP BY t.refno
 	
-	IF @@ROWCOUNT > 0
+	SET @affectedrow = @@ROWCOUNT
+
+	IF @affectedrow > 0
 		UPDATE t 
 			SET eventdate = s.eventdate
 		FROM @temp_bettrans t
 			INNER JOIN @tmpRefnoMaxEventDate s
 				ON t.refno = s.refno 
 
+	IF @isWriteLog = 1
+	BEGIN
+		INSERT INTO dbo.SSB_SettlementLogs(MessageId, matchid, SessionId, AffectedTicket, starttime, endtime, MessageBody)
+		SELECT @NewID, @matchid, @SessionId, @affectedrow, @starttimestatement, SYSDATETIME(), 'update eventdate'
+	END 
+
 	DECLARE @statusID TINYINT, @modds MONEY
 	DECLARE @commWinRate MONEY, @commLostRate MONEY
 
+	SET @starttimestatement = SYSDATETIME()
+	
 	;WITH p AS (
 		SELECT pd.refno as refno
 			,pd.serial
@@ -554,6 +599,12 @@ BEGIN
 	
 	SET @AffectedTicket = @@ROWCOUNT 
 	
+	IF @isWriteLog = 1
+	BEGIN
+		INSERT INTO dbo.SSB_SettlementLogs(MessageId, matchid, SessionId, AffectedTicket, starttime, endtime, MessageBody)
+		SELECT @NewID, @matchid, @SessionId, @AffectedTicket, @starttimestatement, SYSDATETIME(), 'update BetParlayResult'
+	END 
+
 	IF @IsSiteDB = 1
 	BEGIN
 		DECLARE @TransInfoJson NVARCHAR(MAX)
@@ -581,5 +632,11 @@ BEGIN
 
 	END
 
+	IF @isWriteLog = 1
+	BEGIN
+		INSERT INTO dbo.SSB_SettlementLogs(MessageId, matchid, SessionId, AffectedTicket, starttime, endtime, MessageBody)
+		SELECT @NewID, @matchid, @SessionId, @rowcount, @starttime, SYSDATETIME(), 'End SP'
+	END 
+	
 END -- end SP
 GO
