@@ -12,6 +12,7 @@ AS
     DB: DBSIC/bodb02
     Revisions:
 		- 20230712@Max: Clone from DBTRANS - [Redmine: #181595]
+		- 20240509@Max: Alpha - Provide risk amount on bet list [Redmine: #202427]
 	
 	Param's explanation:	
 		
@@ -24,16 +25,18 @@ BEGIN
 		, @rowcount789 INT = 0
 		, @IsExistsMBC BIT = 0
 		, @IsExists789	BIT = 0
+		, @MatchId INT
 
-	CREATE TABLE #CustLimitBet_RetryTransId_MBC (TransId BIGINT, TryCount TINYINT)
-	CREATE TABLE #CustLimitBet_RetryTransId_789 (TransId BIGINT, TryCount TINYINT)
+	CREATE TABLE #CustLimitBet_RetryTransId_MBC (TransId BIGINT, matchId INT, bettype SMALLINT, sporttype SMALLINT, TryCount TINYINT)
+	CREATE TABLE #CustLimitBet_RetryTransId_789 (TransId BIGINT, matchId INT, bettype SMALLINT, sporttype SMALLINT, TryCount TINYINT)
 
-	DECLARE @CustLimitBet_RetryTransId_Batch AS TABLE (TransId BIGINT)
+	DECLARE @CustLimitBet_RetryTransId_Batch AS TABLE (TransId BIGINT, bettype SMALLINT, sporttype SMALLINT)
 
 	--Prepare data for MBC
-	INSERT #CustLimitBet_RetryTransId_MBC (TransId, TryCount)
-	SELECT q.TransId, @TryCount
-	FROM dbo.CustLimitBet_QueueRetry q WITH(NOLOCK)
+	INSERT #CustLimitBet_RetryTransId_MBC (TransId, bettype, TryCount)
+	SELECT q.TransId, b.bettype, @TryCount
+	FROM dbo.CustLimitBet_QueueRetry q WITH(NOLOCK)	
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = q.TransId
 	WHERE q.MainQueueId = @QueueId
 		AND q.sitetype = 1
 		AND q.StatusId = 0
@@ -42,15 +45,62 @@ BEGIN
 		SET @IsExistsMBC = 1
 
 	--Prepare data for 789
-	INSERT #CustLimitBet_RetryTransId_789 (TransId, TryCount)
-	SELECT q.TransId, @TryCount
+	INSERT #CustLimitBet_RetryTransId_789 (TransId, bettype, TryCount)
+	SELECT q.TransId, b.bettype, @TryCount
 	FROM dbo.CustLimitBet_QueueRetry q WITH(NOLOCK)
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = q.TransId
 	WHERE q.MainQueueId = @QueueId
 		AND q.sitetype = 2
 		AND q.StatusId = 0
 
 	IF @@ROWCOUNT > 0 
 		SET @IsExists789 = 1
+
+	--Update sporttype for potential winning
+	SET @MatchId = (SELECT MatchId FROM dbo.CustLimitBetQueue q WITH (NOLOCK) WHERE q.QueueID = @QueueId)
+
+	IF EXISTS (SELECT TOP 1 1 FROM #CustLimitBet_RetryTransId_MBC WHERE bettype NOT IN (9,29,2799,10449,10))
+	BEGIN
+		UPDATE t SET t.sporttype = m.sporttype
+		FROM #CustLimitBet_RetryTransId_MBC t
+		CROSS APPLY (
+			SELECT sporttype 
+			FROM dbo.match m WITH (NOLOCK)
+			WHERE m.matchid = @MatchId
+		)m
+	END
+	IF EXISTS (SELECT TOP 1 1 FROM #CustLimitBet_RetryTransId_789 WHERE bettype NOT IN (9,29,2799,10449,10))
+	BEGIN
+		UPDATE t SET t.sporttype = m.sporttype
+		FROM #CustLimitBet_RetryTransId_MBC t
+		CROSS APPLY (
+			SELECT sporttype 
+			FROM dbo.match m WITH (NOLOCK)
+			WHERE m.matchid = @MatchId
+		)m
+	END
+	IF EXISTS (SELECT TOP 1 1 FROM #CustLimitBet_RetryTransId_MBC WHERE bettype = 10)
+	BEGIN
+		UPDATE t SET t.sporttype = m.sporttype
+		FROM #CustLimitBet_RetryTransId_MBC t
+		CROSS APPLY (
+			SELECT l.sporttype 
+			FROM dbo.outright m WITH (NOLOCK)
+				INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+			WHERE m.orid = @MatchId
+		)m
+	END
+	IF EXISTS (SELECT TOP 1 1 FROM #CustLimitBet_RetryTransId_789 WHERE bettype = 10)
+	BEGIN
+		UPDATE t SET t.sporttype = m.sporttype
+		FROM #CustLimitBet_RetryTransId_MBC t
+		CROSS APPLY (
+			SELECT l.sporttype 
+			FROM dbo.outright m WITH (NOLOCK)
+				INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+			WHERE m.orid = @MatchId
+		)m
+	END
 	
 	--Start Retry Process
 	WHILE (@Success = 0 AND @TryCount <= 5)
@@ -65,7 +115,8 @@ BEGIN
 				DELETE @CustLimitBet_RetryTransId_Batch
 
 				DELETE TOP(2000) t1
-				OUTPUT DELETED.TransId INTO @CustLimitBet_RetryTransId_Batch
+				OUTPUT DELETED.TransId, deleted.bettype, deleted.sporttype
+					INTO @CustLimitBet_RetryTransId_Batch(TransId, bettype, sporttype)
 				FROM #CustLimitBet_RetryTransId_MBC t1
 					INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
 				WHERE t1.TryCount = @TryCount
@@ -96,7 +147,13 @@ BEGIN
 								,tmpsum.MatchId, tmpsum.CustId
 							FROM
 							(
-								SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
+								SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
+									, MAX(CASE 
+											WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
+												OR (t1.sporttype IN (43,44))
+												THEN 0
+											ELSE t2.PayoutAdjust END) AS AccumPayout
+									, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
 								FROM @CustLimitBet_RetryTransId_Batch t1
 									INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
 								GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
@@ -121,7 +178,8 @@ BEGIN
 				DELETE @CustLimitBet_RetryTransId_Batch
 
 				DELETE TOP(2000) t1
-				OUTPUT DELETED.TransId INTO @CustLimitBet_RetryTransId_Batch
+				OUTPUT DELETED.TransId, deleted.bettype, deleted.sporttype
+					INTO @CustLimitBet_RetryTransId_Batch(TransId, bettype, sporttype)
 				FROM #CustLimitBet_RetryTransId_789 t1
 					INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Transid = t1.transid
 				WHERE t1.TryCount = @TryCount
@@ -152,7 +210,13 @@ BEGIN
 								,tmpsum.MatchId, tmpsum.CustId
 							FROM
 							(
-								SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
+								SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
+									, MAX(CASE 
+											WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
+												OR (t1.sporttype IN (43,44))
+												THEN 0
+											ELSE t2.PayoutAdjust END) AS AccumPayout
+									, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
 								FROM @CustLimitBet_RetryTransId_Batch t1
 									INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Transid = t1.transid
 								GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
