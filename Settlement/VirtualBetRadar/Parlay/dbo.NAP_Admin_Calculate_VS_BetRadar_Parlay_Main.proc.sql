@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay_Main] 
 	@matchid		INT
 	,@strRefnos		VARCHAR(MAX)
@@ -22,6 +22,7 @@ AS
 		- 20221109@Louisa: log more info [Redmine:#178694]
 		- 20230405@Louisa: Support resettle Parlay tickets and support double comm if it's possible [Redmine:#186276]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
+		- 20240521@Louisa: Enhancement - get match via linked server due to rep latency [Redmine:#205375]
 
 	Param's Explanation:
 	
@@ -132,7 +133,7 @@ BEGIN
 		, @GroupID				= 7 --VS Betradar
 
 	SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
-	SELECT @sporttype = m.sporttype FROM match m WITH(NOLOCK) WHERE m.matchid = @matchid
+	SELECT @sporttype = m.sporttype FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid
 	--CONVERT refno
 	SET @xmlRefno = CONVERT(XML, @strRefnos)
 	
@@ -245,17 +246,11 @@ BEGIN
 			CROSS APPLY(
 				SELECT	bm.transid, bm.odds, bm.refno, bm.statuswinlost, bm.statusID, bm.winlostdate
 				FROM	dbo.bettransm bm WITH(rowlock)	
-					INNER JOIN dbo.match m WITH (NOLOCK)
-						ON	bm.matchid = m.matchid
-				WHERE	bm.refno = t.refno
-						AND m.sporttype BETWEEN 190 AND 199											
+				WHERE	bm.refno = t.refno											
 				UNION
 				SELECT	bm14.transid, bm14.odds, bm14.refno, bm14.statuswinlost, bm14.statusID, bm14.winlostdate
 				FROM	dbo.bettransm14 bm14 WITH(rowlock)			
-					INNER JOIN dbo.match14 m14 WITH(NOLOCK)
-						ON bm14.matchid = m14.matchid
 				WHERE	bm14.refno = t.refno
-						AND m14.sporttype BETWEEN 190 AND 199
 			) AS parlay 
 		GROUP BY parlay.refno
 	)	
