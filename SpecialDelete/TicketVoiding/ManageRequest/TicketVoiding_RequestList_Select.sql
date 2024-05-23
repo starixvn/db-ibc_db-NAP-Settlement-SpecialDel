@@ -485,7 +485,7 @@ BEGIN
 			,t.SubIssueTypeId
 			,CASE WHEN t.MatchId = 0 THEN NULL ELSE t.MatchId END MatchId
 			,t.KickOffTime
-			,t.Sporttype
+			,CASE WHEN t.IssueTypeId = 11 THEN m.Sporttype ELSE t.Sporttype END AS Sporttype
 			,t.LeagueId
 			,t.HomeId
 			,t.AwayId
@@ -547,11 +547,11 @@ BEGIN
 					ORDER BY CASE WHEN s.StatusId = 3 THEN @n ELSE VoidingHistoryId END DESC
 				)s
 		OUTER APPLY (
-					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.kickofftime, m.eventdate, m.ParentID
+					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.kickofftime, m.eventdate, m.ParentID, m.sporttype
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE	m.matchid = t.MatchId
 					UNION
-					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.kickofftime, m.eventdate, m.ParentID
+					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.kickofftime, m.eventdate, m.ParentID, m.sporttype
 					FROM	dbo.match14 m WITH(NOLOCK)
 					WHERE	m.matchid = t.matchid
 			)m
