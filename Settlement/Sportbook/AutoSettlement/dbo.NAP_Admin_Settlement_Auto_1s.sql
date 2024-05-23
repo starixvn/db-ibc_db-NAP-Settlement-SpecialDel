@@ -46,6 +46,7 @@ AS
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -64,7 +65,7 @@ BEGIN
             ,@goalrecord        VARCHAR(50)
             ,@betstatus         VARCHAR(50) 
             ,@ActionID          INT
-            ,@Remark			VARCHAR(500)
+            ,@Remark			VARCHAR(MAX)
 			,@handle			INT			
                                 
 			,@avaiableProcess	BIT

@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_CoreAPI" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap,Dot_CoreAPI" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s_Push]
 	 @AdminId					INT				= 148		-- calculated by system (default)
 	,@MatchId					INT
@@ -27,6 +27,7 @@ AS
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
 
 	Param's Explanation:
 		 @SelectedResources: <Resources>
