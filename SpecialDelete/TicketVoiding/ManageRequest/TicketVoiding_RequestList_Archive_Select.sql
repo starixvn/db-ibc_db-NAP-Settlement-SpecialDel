@@ -492,7 +492,7 @@ BEGIN
 			,t.SubIssueTypeId
 			,CASE WHEN t.MatchId = 0 THEN NULL ELSE t.MatchId END MatchId
 			,t.KickOffTime
-			,t.Sporttype
+			,CASE WHEN t.IssueTypeId = 11 THEN m.Sporttype ELSE t.Sporttype END AS Sporttype
 			,t.LeagueId
 			,t.HomeId
 			,t.AwayId
@@ -558,7 +558,7 @@ BEGIN
 					ORDER BY CASE WHEN s.StatusId = 3 THEN @n ELSE VoidingHistoryId END DESC
 				)s
 		OUTER APPLY (
-					SELECT matchcode, hthomescore, htawayscore, finalhomescore, finalawayscore, kickofftime, eventdate, ParentID
+					SELECT matchcode, hthomescore, htawayscore, finalhomescore, finalawayscore, kickofftime, eventdate, ParentID, Sporttype
 					FROM dbo.match_bk WITH (NOLOCK)
 					WHERE matchid = t.MatchId
 			)m
