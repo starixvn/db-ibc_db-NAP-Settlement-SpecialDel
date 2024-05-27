@@ -11,6 +11,7 @@ AS
 	Revisions:
 		- 20230808@Aries: Created [Redmine: #189433]
 		- 20240409@Aries: Enhance Refund Game Winner matches for Tennis [Redmine: #203638]
+		- 20240527@Aries: Cannot insert duplicate key in object dbo.@Resource  [Redmine: #205620]
 
 	Param's explaination:
 
@@ -20,7 +21,7 @@ BEGIN
 
 	DECLARE  @IsCalculated	BIT = 0
 	DECLARE  @ChildMatch	TABLE (MatchId INT)
-	DECLARE  @Resource		TABLE (ResourceId VARCHAR(20) PRIMARY KEY(ResourceId))
+	DECLARE  @Resource		TABLE (ResourceId VARCHAR(20) PRIMARY KEY(ResourceId) WITH (IGNORE_DUP_KEY = ON))
 
 	INSERT INTO @Resource(ResourceId)
 	SELECT fs.value
