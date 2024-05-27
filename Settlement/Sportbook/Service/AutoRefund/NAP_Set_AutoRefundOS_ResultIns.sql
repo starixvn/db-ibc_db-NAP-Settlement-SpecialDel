@@ -15,6 +15,7 @@ AS
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20230328@Aries: Auto refund tennis incorrect [Redmine: #188857]
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
+		- 20240527@Aries: Cannot insert duplicate key in object dbo.@Resource  [Redmine: #205620]
 
 	Param's explaination:
 		@TypeIds: 1 - Refund Single
@@ -30,7 +31,7 @@ BEGIN
 
 	DECLARE  @Sporttype			INT
 			,@ResultTable		TINYINT
-	DECLARE @tmpResourceId TABLE ( ResourceId VARCHAR(20)	)
+	DECLARE @tmpResourceId TABLE ( ResourceId VARCHAR(20) PRIMARY KEY(ResourceId) WITH (IGNORE_DUP_KEY = ON))
 
 	SELECT @Sporttype	= m.sportType
   	FROM dbo.match m WITH (NOLOCK)
