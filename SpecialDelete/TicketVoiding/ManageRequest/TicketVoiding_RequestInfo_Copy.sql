@@ -16,11 +16,13 @@ AS
 		- 20230712@July: TVS - Add provider to the quickly copy request info function [Redmine: #191058]
 		- 20230817@Max: [TVS] Support Suspenders quickly copy request info to send mail/lestalk [Redmine: #185493]
 		- 20240415@July: [TVS] Quickly copy request info for Traders of Cricket [Redmine: #202943]
+		- 20240523@July: [TVS] New issue type Wrong Market Offered & Technical Error [Redmine: #197051/194093]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
 					         Reduced Overs, Not Participate, Abandoned
-	
+							 Wrong Market Offered, Technical Error
+
 	Noted: Case issue Wrong Score have scores -> get min voidtime of scores
 		
 */
@@ -31,6 +33,7 @@ BEGIN
 		  , @IsHasSettledTicket BIT = 0
 		  , @IssueTypeId		TINYINT
 		  , @LiveStatus		    VARCHAR(50)
+		  , @TotalCancelCashOutCount INT
 
 	DECLARE @tmpRequestInfo TABLE (
 		 RequestId			INT
@@ -51,6 +54,7 @@ BEGIN
 		,VoidToTime			DATETIME
 		,TotalSingleCount	INT
 		,TotalParlayCount	INT
+		,TotalCancelCashOutCount INT
 	)
 	
 	DECLARE @tmpBettypeCount TABLE(
@@ -153,27 +157,56 @@ BEGIN
 					WHERE ri.MatchId = m14.matchid
 		) m
 
-	IF @IssueTypeId IN (19,21,23) --Reduced Overs, Not Participate, Abandoned
+	IF @IssueTypeId IN (19,21,23,12,24) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error
 	BEGIN
-		INSERT INTO @tmpBettypeCount (BetTypeId, InputtedRuns, PlayerId, WicketOver)
-		SELECT DISTINCT b.BetTypeId, infor.Runs, infor.PlayerId, infor.WicketOver
-		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-				CROSS APPLY (
-						SELECT CONVERT(XML, rd.TransIds)
-					) AS t1(xDATA)
-				CROSS APPLY (
-						SELECT ISNULL(t.c.value('@PlayerId','VARCHAR(MAX)'),0) AS PlayerId	
-							  ,ISNULL(t.c.value('@BetTypeIds','VARCHAR(MAX)'),0) AS BetTypeIds
-							  ,ISNULL(t.c.value('@Runs','VARCHAR(20)'),NULL) AS Runs
-							  ,ISNULL(t.c.value('@WicketOver','VARCHAR(20)'),NULL) AS WicketOver
-						FROM t1.xDATA.nodes('/r') t(c)
-					) AS infor
-				CROSS APPLY (
-						SELECT DISTINCT value AS BetTypeId
-						FROM STRING_SPLIT(infor.BetTypeIds, ',')
-						WHERE value <> ''
-					) b
-		WHERE rd.RequestId = @RequestId AND rd.MatchId = @MatchId
+		IF @IssueTypeId IN (19,21,23)
+		BEGIN
+			INSERT INTO @tmpBettypeCount (BetTypeId, InputtedRuns, PlayerId, WicketOver)
+			SELECT DISTINCT b.BetTypeId, infor.Runs, infor.PlayerId, infor.WicketOver
+			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+					CROSS APPLY (
+							SELECT CONVERT(XML, rd.TransIds)
+						) AS t1(xDATA)
+					CROSS APPLY (
+							SELECT ISNULL(t.c.value('@PlayerId','VARCHAR(MAX)'),0) AS PlayerId	
+								  ,ISNULL(t.c.value('@BetTypeIds','VARCHAR(MAX)'),0) AS BetTypeIds
+								  ,ISNULL(t.c.value('@Runs','VARCHAR(20)'),NULL) AS Runs
+								  ,ISNULL(t.c.value('@WicketOver','VARCHAR(20)'),NULL) AS WicketOver
+							FROM t1.xDATA.nodes('/r') t(c)
+						) AS infor
+					CROSS APPLY (
+							SELECT DISTINCT value AS BetTypeId
+							FROM STRING_SPLIT(infor.BetTypeIds, ',')
+							WHERE value <> ''
+						) b
+			WHERE rd.RequestId = @RequestId AND rd.MatchId = @MatchId
+		END
+		ELSE --12,24
+		BEGIN
+			SELECT @TotalCancelCashOutCount = SUM(CASE WHEN s.IsCancelCO = 1 THEN 1 ELSE 0 END)
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+			WHERE RequestId = @RequestId AND MatchId = @MatchId
+		
+			INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, WicketOver)
+			SELECT DISTINCT kq.BetTypeId, p.PlayerId, w.WicketOver
+			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+					CROSS APPLY (
+							SELECT Id AS BetTypeId, Wicket AS Wicket, Player AS Player
+							FROM OPENJSON(rd.AdvancedExtraInfo) 
+							WITH(
+								  Id INT, 
+								  Wicket VARCHAR(20), 
+								  Player VARCHAR(MAX)
+								)
+						) AS kq
+					OUTER APPLY (
+							SELECT value AS WicketOver FROM STRING_SPLIT(kq.Wicket,',')
+						) AS w
+					OUTER APPLY (
+							SELECT value AS PlayerId FROM STRING_SPLIT(kq.Player,',')
+						) AS p
+			WHERE rd.RequestId = @RequestId AND rd.MatchId = @MatchId
+		END
 
 		INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, FilterSet)
 		SELECT s.TransId, b.Transdesc, b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS FilterSet
@@ -207,39 +240,36 @@ BEGIN
 			FROM @tmpTicketInfo
 		)kq
 
-		IF @IssueTypeId IN (19, 23)
-		BEGIN
-			UPDATE b
-			SET b.TicketsCount = a.TicketsCount
-			FROM @tmpBettypeCount b
-			CROSS APPLY  (
-				SELECT s.BetType, c.WicketOver, COUNT(1) AS TicketsCount
-				FROM  @tmpBettypeCount c
-					INNER JOIN @tmpTicketInfo s ON c.BetTypeId = s.Bettype  
-				WHERE (c.WicketOver = '' OR s.FilterSet LIKE '%' + c.WicketOver)
-				GROUP BY s.BetType, c.WicketOver
-			)a WHERE b.bettypeid = a.BetType AND b.WicketOver = a.WicketOver
+		UPDATE b
+		SET b.TicketsCount = a.TicketsCount
+		FROM @tmpBettypeCount b
+		CROSS APPLY  (
+			SELECT s.BetType, c.WicketOver, COUNT(1) AS TicketsCount
+			FROM  @tmpBettypeCount c
+				INNER JOIN @tmpTicketInfo s ON c.BetTypeId = s.Bettype  
+			WHERE (c.WicketOver = '' OR s.FilterSet LIKE '%' + c.WicketOver)
+			GROUP BY s.BetType, c.WicketOver
+		)a WHERE b.bettypeid = a.BetType AND b.WicketOver = a.WicketOver
 			
-		END
-		IF @IssueTypeId = 21
-		BEGIN
-			UPDATE b
-			SET b.TicketsCount = a.TicketsCount
-			FROM @tmpBettypeCount b
-			CROSS APPLY  (
-				SELECT s.BetType, s.transdesc, COUNT(1) AS TicketsCount
-				FROM  @tmpBettypeCount c
-					INNER JOIN @tmpTicketInfo s ON c.BetTypeId = s.Bettype
-				WHERE s.transdesc = CAST(c.PlayerId AS VARCHAR(20)) 
-				GROUP BY s.BetType, s.transdesc
-			)a WHERE b.bettypeid = a.BetType AND a.transdesc = CAST(b.PlayerId AS VARCHAR(20))
-			
-			UPDATE b
-			SET b.PlayerName = t.teamname
-			FROM @tmpBettypeCount b
-				INNER JOIN dbo.Team t WITH(NOLOCK) ON b.PlayerId = t.teamid
-		END
+		
+		UPDATE b
+		SET b.TicketsCount = a.TicketsCount
+		FROM @tmpBettypeCount b
+		CROSS APPLY  (
+			SELECT s.BetType, s.transdesc, COUNT(1) AS TicketsCount
+			FROM  @tmpBettypeCount c
+				INNER JOIN @tmpTicketInfo s ON c.BetTypeId = s.Bettype
+			WHERE s.transdesc = CAST(c.PlayerId AS VARCHAR(20)) 
+			GROUP BY s.BetType, s.transdesc
+		)a WHERE b.bettypeid = a.BetType AND a.transdesc = CAST(b.PlayerId AS VARCHAR(20))
+			AND ISNULL(b.PlayerId,'') <> ''
+
+		UPDATE b
+		SET b.PlayerName = t.teamname
+		FROM @tmpBettypeCount b
+			INNER JOIN dbo.Team t WITH(NOLOCK) ON b.PlayerId = t.teamid
 	END
+	
 	/*****************Return table **************************/
 	-- 1. Table infor request
 	SELECT RequestId 
@@ -264,6 +294,7 @@ BEGIN
 		  ,VoidToTime
 		  ,TotalSingleCount
 		  ,TotalParlayCount
+	      ,@TotalCancelCashOutCount AS TotalCancelCashOutCount
 	FROM @tmpRequestInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.UserId
 

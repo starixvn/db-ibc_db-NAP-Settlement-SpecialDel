@@ -64,6 +64,7 @@ AS
 		- 20240416@July: [TVS] Manage Request - Change the export excel template [Redmine: #199925]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20240502@July: [TVS] Abandoned issue type [Redmine: #202626]
+		- 20240523@July: [TVS] New issue type Wrong Market Offered & Technical Error [Redmine: #197051/194093]
 
 	Param's explanation:	
 		@Status: 
@@ -283,7 +284,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,CASE WHEN m.eventdate IS NULL THEN CAST(GETDATE() AS DATE) ELSE m.eventdate END -- NULL: case AB,AC only ticket parlay in sitedb not repl central
-				,CASE WHEN r.IssueTypeId IN (3,19,21,23) THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19,21,23,12,24) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
@@ -336,7 +337,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,CASE WHEN m.eventdate IS NULL THEN CAST(GETDATE() AS DATE) ELSE m.eventdate END -- NULL: case AB,AC only ticket parlay in sitedb not repl central
-				,CASE WHEN r.IssueTypeId IN (3,19,21,23) THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19,21,23,12,24) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
@@ -390,7 +391,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,CASE WHEN t.eventdate IS NULL THEN CAST(GETDATE() AS DATE) ELSE t.eventdate END -- NULL: case AB,AC only ticket parlay in sitedb not repl central
-				,CASE WHEN r.IssueTypeId IN (3,19,21,23) THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19,21,23,12,24) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
