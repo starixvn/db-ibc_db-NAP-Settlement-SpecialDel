@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]
 (
 	@MatchID			INT = 0,
@@ -15,9 +15,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]
 )
 AS
 /*
-	Created: Kent
-	Date: 20161201
-	DB: DBTXN/bodb02
+	Created: Kent@20161201
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 		
 		- 20161201@Kent: Search sportbook tickets by crrency to void [Redmine:#67987]
@@ -74,6 +73,7 @@ AS
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240321@Max: [TVS] Remove parameters when calling SP for settling parlay tickets [Redmine: #202022]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 
 	Param's Explanation:
 */
@@ -334,7 +334,7 @@ BEGIN
 		;WITH CTE_CreditSite AS
 		(
 			SELECT [site], ISNULL(SiteLabel,'') AS SiteLabel
-			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
+			FROM CustDB.dbo.Site WITH(NOLOCK) 
 			WHERE isLicensee = 0 AND isActive = 1
 		)
 		INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)

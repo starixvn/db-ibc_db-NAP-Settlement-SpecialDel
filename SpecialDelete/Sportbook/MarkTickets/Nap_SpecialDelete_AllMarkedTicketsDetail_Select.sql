@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsDetail_Select]
 	@MatchId		INT,
 	@UserId			INT,
@@ -7,7 +7,7 @@ AS
 /*
     Created by: 20190325@Alan
 	Task: Mark Ticket for Settlement Exclusion
-	DB: DBTXN-bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
@@ -22,6 +22,7 @@ AS
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 
 	Explanation's Param:
 */
@@ -272,7 +273,7 @@ BEGIN
 
 		INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
 		SELECT	s.site AS LicenseeName,  s.site AS GroupName 
-		FROM	DBCUST.CUSTDB.dbo.site s WITH(NOLOCK)
+		FROM CustDB.dbo.site s WITH(NOLOCK)
 		WHERE	s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29,35)
 
 		INSERT INTO #t_UIRepresentativeLicenseeGroupNames(GroupName)
@@ -281,7 +282,7 @@ BEGIN
 		;WITH CTE_CreditSite AS
 		(
 			SELECT [site], ISNULL(SiteLabel,'') AS SiteLabel
-			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
+			FROM CustDB.dbo.Site WITH(NOLOCK) 
 			WHERE isLicensee = 0 AND isActive = 1
 		)
 		INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)

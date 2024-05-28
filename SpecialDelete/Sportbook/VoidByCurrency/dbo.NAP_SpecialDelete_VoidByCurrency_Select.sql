@@ -38,6 +38,7 @@ AS;
 		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
+		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 
 	Param's Explanation:			
 			- @TicketType:
@@ -174,7 +175,7 @@ BEGIN
 		;WITH CTE_CreditSite AS
 		(
 			SELECT [site], ISNULL(SiteLabel,'') AS SiteLabel
-			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
+			FROM CustDB.dbo.Site WITH(NOLOCK) 
 			WHERE isLicensee = 0		  
 			  AND isActive = 1
 		)
