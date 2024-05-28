@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
 (
 	@MatchId		 INT = 0,	
@@ -13,7 +13,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
 AS
 /*	Created by: 20200212@Max
 	Task: Abnormal Void Bets Automation [Redmine: #128359]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20200212@Max: Create new SP [Redmine: #128359]	

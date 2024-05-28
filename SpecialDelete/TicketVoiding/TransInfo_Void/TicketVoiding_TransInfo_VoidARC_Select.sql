@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_VoidARC_Select] 
 (
 	@SingleTransIds  VARCHAR(MAX) = NULL
@@ -9,7 +9,7 @@ AS
 	Created by: Max
 	Date 20221124
 	Task: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20221124@Max: Create new SP [Redmine: #180863]

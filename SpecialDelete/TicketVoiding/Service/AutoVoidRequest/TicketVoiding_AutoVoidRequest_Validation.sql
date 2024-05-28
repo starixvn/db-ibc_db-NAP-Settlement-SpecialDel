@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Validation]
 (
 	 @SingleTicketsJSON			NVARCHAR(MAX) = NULL
@@ -10,7 +10,7 @@ AS
 /*	
 	Created by:20220727@Max
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
