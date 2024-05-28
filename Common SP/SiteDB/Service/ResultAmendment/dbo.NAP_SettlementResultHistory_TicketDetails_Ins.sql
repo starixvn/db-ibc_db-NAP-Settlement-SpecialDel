@@ -12,6 +12,7 @@ AS
 	
 	Revisions:
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
+		- 20240528@Aries: Support new changes on Result Amendment [Redmine: #205688]
 */
 BEGIN	
 	SET NOCOUNT ON
@@ -81,6 +82,7 @@ BEGIN
 											 	  ELSE 'None'
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),bef_winlost,2),'0')
+						,'" Id="',ISNULL(s.ResourceID,'')
 						,'" /></root>') AS ExtraInfo_Before
 			   ,CONCAT('<root><r status="',  CASE WHEN statusid = 1	 THEN 'WAITING' 
 											 	  WHEN statusid = 0	 THEN 'RUNNING' 
@@ -93,6 +95,7 @@ BEGIN
 											 	  ELSE 'None'
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),winlost,2),'0')
+						,'" Id="',ISNULL(s.ResourceID,'')
 						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
 			INNER JOIN SettlementSpecialBettypeProfile AS s WITH(NOLOCK) ON s.bettype = t.bettype AND  (s.BetID = 0 OR t.BetID = s.BetID)AND s.SportType = @sportType
@@ -118,6 +121,7 @@ BEGIN
 											 	  ELSE 'None'
 											 END
 						,'" winlost="',IIF(tp.bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),tp.bef_winlost,2),'0')
+						,'" Id="',ISNULL(tbl.ResourceID,'')
 						,'" /></root>') AS ExtraInfo_Before
 			   ,CONCAT('<root><r status="',  CASE WHEN tp.statusid = 1	 THEN 'WAITING' 
 											 	  WHEN tp.statusid = 0	 THEN 'RUNNING' 
@@ -130,9 +134,10 @@ BEGIN
 											 	  ELSE 'None'
 											 END
 						,'" winlost="',IIF(tp.bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),tp.winlost,2),'0')
+						,'" Id="',ISNULL(tbl.ResourceID,'')
 						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
-			CROSS APPLY(SELECT TOP 1 r.SeqNo
+			CROSS APPLY(SELECT TOP 1 r.SeqNo, r.ResourceID 
 			            FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK) 
 							INNER JOIN #Resource AS r ON  s.ResourceID = r.ResourceID 
 						WHERE s.bettype = t.bettype
