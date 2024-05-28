@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransCheckNegativeBalance]
 	@TransIds		VARCHAR(MAX) = '',
 	@Type			BIT,
@@ -7,7 +7,7 @@ AS
 	/*
 	Created by: 20131119@Kathy
 	Task : Check if a bet credit of customer is negative
-	DB: DBTXN.bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions:   
 		- 20140515@Kathy: Calculate balance from translog (for running tickets) and bettrans
@@ -31,6 +31,7 @@ AS
 		- 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
 		- 20230331@July: TVS changes for new process of BU [Redmine: #184000]
 		- 20240111@July: [TVS] Negative Balance - Don't Send Notification to Single Wallet Licensee [Redmine: #199097]
+		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
@@ -269,7 +270,7 @@ BEGIN
 	FROM	@tmpChangedBalance t
 		INNER JOIN @tmpCurrentBalance bal 
 			on	t.custid = bal.custid
-		INNER JOIN DBCUST.custDB.dbo.custInfo ci WITH(NOLOCK ) 
+		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK ) 
 			ON	bal.custid = ci.custid
 		INNER JOIN custDB.dbo.Customer c WITH(NOLOCK) 
 			ON	c.custid = ci.custid AND c.site <> 'CN88'

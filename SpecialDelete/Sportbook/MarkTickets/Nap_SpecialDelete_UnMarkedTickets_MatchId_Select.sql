@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_UnMarkedTickets_MatchId_Select] 
 (
 	@MatchId       INT,
@@ -15,7 +15,7 @@ AS;
 /*
     Created by: 20190325@Alan
 	Task: Mark Ticket for Settlement Exclusion
-	DB: DBTXN/BODB02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
@@ -42,6 +42,7 @@ AS;
 		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -252,7 +253,7 @@ BEGIN
 		;WITH CTE_CreditSite AS
 		(
 			SELECT [site], ISNULL(SiteLabel,'') AS SiteLabel
-			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
+			FROM CustDB.dbo.Site WITH(NOLOCK) 
 			WHERE isLicensee = 0 AND isActive = 1
 		)
 		INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
