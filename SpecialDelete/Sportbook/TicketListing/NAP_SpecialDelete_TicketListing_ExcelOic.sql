@@ -61,10 +61,15 @@ AS
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
+		- 20240529@July: [TVS] Ticket Listing - Get affected tickets of Result Amendment for Bet Builder and Other Sports [Redmine: #203615]
 
 	Param's Explanation:
 	- @Type: sports type
 		0: Sportsbook
+		1: Number Game
+		2: Virtual sports
+		8: Bet Builder
+		9: Bitcoin
 
 	- @LicenseeName:
 		ALL, IBC, 12bet, ...	
@@ -370,7 +375,7 @@ BEGIN
 							AND	   CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END
 				AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				
-			IF (@IsReSettled = 1 AND @SportType = 1)
+			IF (@IsReSettled = 1 AND @Type IN (0,8))
 			BEGIN
 				DELETE b
 				FROM #SpecialDeleteBets b
