@@ -12,6 +12,7 @@ AS
 		- 20231205@Aries: Get only provider [Redmine: #195768]
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
+		- 20240524@Aries: Enhance the AutoPayout2 for Overwatch of eSports [Redmine:#202948]
 
 	Param's Explanation:
 		-@ResourceType: 0-ALL, 1-Main, 2-Early
@@ -431,6 +432,8 @@ BEGIN
 		  ,cte.ResourceId
 		  ,cte.ResourceType
 		  ,s.ResourceStatus
+		  ,m.AP_Main_WaitingTime AS MainRetryTime
+		  ,m.AP_EAR_WaitingTime  AS EarlyRetryTime
 	FROM CTE_Provider AS cte
 		INNER JOIN #Match AS m on cte.matchId = m.matchId
 		CROSS APPLY(
