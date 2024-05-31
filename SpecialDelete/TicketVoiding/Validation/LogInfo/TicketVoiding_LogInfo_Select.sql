@@ -19,6 +19,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@ReducedOverInfo	  VARCHAR(MAX) = NULL
 	,@NotParticipateInfo  VARCHAR(MAX) = NULL
 	,@TransInfoJson		  VARCHAR(MAX) = NULL
+	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
+	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -70,6 +72,7 @@ AS
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
+		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 
 	Param's explanation:
 		
@@ -103,6 +106,8 @@ BEGIN
 					+ CASE WHEN @WrongOddsInfo IS NULL THEN '' ELSE ',@WrongOddsInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOddsInfo) + '''' END
 					+ CASE WHEN @ReducedOverInfo IS NULL THEN '' ELSE ',@ReducedOverInfo = ''' + CONVERT(NVARCHAR(MAX), @ReducedOverInfo) + '''' END
 					+ CASE WHEN @NotParticipateInfo IS NULL THEN '' ELSE ',@NotParticipateInfo = ''' + CONVERT(NVARCHAR(MAX), @NotParticipateInfo) + '''' END
+					+ CASE WHEN @NotParticipateInfo IS NULL THEN '' ELSE ',@WrongMarketOfferedInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongMarketOfferedInfo) + '''' END
+					+ CASE WHEN @NotParticipateInfo IS NULL THEN '' ELSE ',@TechnicalErrorInfo = ''' + CONVERT(NVARCHAR(MAX), @TechnicalErrorInfo) + '''' END
 					+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
@@ -202,6 +207,16 @@ BEGIN
 			,@DARCInfo			   = @RedCardInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
+	ELSE IF @IssueTypeId = 12 --Wrong Market Offered
+	BEGIN
+		EXEC dbo.TicketVoiding_LogInfo_ADVMode_Select
+			 @RequestId			   = @RequestId
+			,@ActionId			   = @ActionId
+			,@IsShowLogOnly		   = @IsShowLogOnly
+			,@IssueTypeId		   = @IssueTypeId
+			,@AdvancedModeInfo		   = @WrongMarketOfferedInfo
+			,@TransInfoJson		   = @TransInfoJson
+	END
 	ELSE IF @IssueTypeId IN (19,23) --ReducedOver, Abandoned
 	BEGIN
 		EXEC dbo.TicketVoiding_LogInfo_RO_Select
@@ -220,6 +235,16 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@ReducedOverInfo	   = @NotParticipateInfo
+			,@TransInfoJson		   = @TransInfoJson
+	END
+	ELSE IF @IssueTypeId = 24 --Technical Error
+	BEGIN
+		EXEC dbo.TicketVoiding_LogInfo_ADVMode_Select
+			 @RequestId			   = @RequestId
+			,@ActionId			   = @ActionId
+			,@IsShowLogOnly		   = @IsShowLogOnly
+			,@IssueTypeId		   = @IssueTypeId
+			,@AdvancedModeInfo		   = @TechnicalErrorInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
 	
