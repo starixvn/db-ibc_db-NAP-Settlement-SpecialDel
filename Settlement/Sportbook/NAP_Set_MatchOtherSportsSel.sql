@@ -63,6 +63,7 @@ AS
 			- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 			- 20231229@Aries: Enhancement of Auto Settlement [Redmine:#199004]
 			- 20240311@Helen: SP Tuning [Redmine:#202131]
+			- 20240408@Aries: Cannot insert duplicate key in object dbo.#tmpAllParentChildMatch [Redmine:#203558]
 			- 20240503@Louisa: Enhance-separate code DBTXN and DBPRO [Redmine:#204370]
 
 	Parameters Explanation:        
@@ -102,13 +103,13 @@ BEGIN
 			,@IsCompletedWithRunningTicket		BIT = 0 
 
 	DECLARE @tmpLeagueIds   TABLE (LeagueId INT)
-	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT, ResultTable TINYINT, AP_RetryTime  INT)
+	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT, ResultTable TINYINT, ExternalResultTable TINYINT, AP_RetryTime  INT)
 	DECLARE @tmpMatchStatus TABLE (MatchStatus TINYINT)
 	DECLARE @tmpOverStatus  TABLE (OverStatus TINYINT)
 	DECLARE @tmpHoldStatus  TABLE (HoldStatus TINYINT)
 	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), OverStatus INT DEFAULT(0) )
 
-	CREATE TABLE #ConfirmedResources ( MatchId INT,sporttype SMALLINT, ResourceId VARCHAR(20))
+	CREATE TABLE #ConfirmedResources ( MatchId INT,sporttype SMALLINT, ResourceId VARCHAR(20), IsEarly BIT, ResultStatusID TINYINT )
 
 	CREATE TABLE #tmpMatchIds (
 		 matchid						INT
@@ -140,6 +141,7 @@ BEGIN
 		,BestOfMap						TINYINT
 		,OfferLive						BIT
 		,ResultTable					TINYINT
+		,ExternalResultTable			TINYINT	
 		,AP_RetryTime					INT
 	)
 
@@ -174,8 +176,8 @@ BEGIN
 		SET @OverStatus = '0'
 	END
 
-	INSERT INTO @tmpSporttypes( Sporttype, ResultTable,AP_RetryTime )
-	SELECT	DISTINCT f.[value], s.ResultTable, s.AP_Main_WaitingTime
+	INSERT INTO @tmpSporttypes( Sporttype, ResultTable, ExternalResultTable, AP_RetryTime )
+	SELECT	DISTINCT f.[value], s.ResultTable, s.ExternalResultTable, s.AP_Main_WaitingTime
 	FROM	STRING_SPLIT(@Sporttypes, ',') f
 		INNER JOIN dbo.SettlementResultTableSetting s WITH(NOLOCK) 
 			ON f.[value] = s.sporttype
@@ -236,6 +238,7 @@ BEGIN
 			,BestOfMap
 			,OfferLive
 			,ResultTable
+			,ExternalResultTable
 			,AP_RetryTime
 		)
 		SELECT	 m.matchid
@@ -267,6 +270,7 @@ BEGIN
 				,mr.BestOfMap
 				,mr.OfferLive
 				,s.ResultTable
+				,s.ExternalResultTable
 				,s.AP_RetryTime
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
@@ -317,6 +321,7 @@ BEGIN
 			,BestOfMap
 			,OfferLive
 			,ResultTable
+			,ExternalResultTable
 			,AP_RetryTime
 		)
 		SELECT	 m.matchid
@@ -348,6 +353,7 @@ BEGIN
 				,mr.BestOfMap
 				,mr.OfferLive
 				,s.ResultTable
+				,s.ExternalResultTable
 				,s.AP_RetryTime
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes s
@@ -410,6 +416,35 @@ BEGIN
 
 	END	
 
+	---ESports Early ( special behavior #204370)
+	INSERT INTO #ConfirmedResources ( MatchId, sporttype, ResourceId, IsEarly, ResultStatusID )
+	SELECT m.MatchId,m.sporttype,rs.ResourceId, 1, rs.ResultStatusID
+	FROM #tmpMatchIds AS m
+		INNER JOIN dbo.ResultDetailES AS rs WITH(NOLOCK) ON rs.matchid = m.matchid AND rs.ResultStatusID IN (2,3,5)
+	WHERE m.ResultTable  = 3
+	
+	INSERT INTO #ConfirmedResources ( MatchId, sporttype, ResourceId, IsEarly )
+	SELECT m.MatchId,m.sporttype, p.ResourceID, 1
+	FROM dbo.ProviderExternalResultDetailES AS p WITH(NOLOCK)
+		INNER JOIN #tmpMatchIds AS m ON m.matchid = p.matchid
+		LEFT JOIN #ConfirmedResources c ON p.MatchId = c.MatchId AND p.ResourceId = c.ResourceId
+	WHERE  m.ResultTable  = 3
+		AND p.SourceId < 1001
+		AND p.SourceId NOT IN (98, 99)
+		AND c.ResourceId IS NULL
+		AND p.ResourceID NOT IN (SELECT f.ResourceID FROM dbo.f_Set_MajorRound (43) as f )
+		
+	DELETE FROM #ConfirmedResources WHERE ResultStatusID IN (2,5)
+	---/END ESports Early
+
+	INSERT INTO @tmpMatchOverStatus (matchid, bettype, betid, OverStatus)
+	SELECT r.matchid,sp.bettype, sp.betid, 1
+	FROM #ConfirmedResources r
+			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
+	WHERE sp.SettleType = 'EAR'
+			AND sp.sporttype = 43
+			AND (@IsOverEarly = 1 OR @OverStatus = '0')
+	
 	IF @IsOver = 1
 	BEGIN
 		INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
@@ -422,7 +457,7 @@ BEGIN
 							WHEN m.sporttype = 18 AND DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 20 THEN 1
 							WHEN DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 30 THEN 1
 							ELSE 0
-						END			
+						END		
 	END
 
 	IF (@IsOverEarly = 1 OR @IsMainOver = 1 )
@@ -437,11 +472,6 @@ BEGIN
 		FROM #tmpMatchIds AS m
 			INNER JOIN dbo.ResultDetailOS AS ro WITH(NOLOCK) ON ro.matchid = m.matchid AND ro.SettlementStatusID = 0 AND ro.ResultStatusID = 3		
 		WHERE m.ResultTable  = 2
-		UNION
-		SELECT m.MatchId,m.sporttype, rs.ResourceId 
-		FROM #tmpMatchIds AS m
-			INNER JOIN dbo.ResultDetailES AS rs WITH(NOLOCK) ON rs.matchid = m.matchid AND rs.SettlementStatusID = 0 AND rs.ResultStatusID = 3		
-		WHERE m.ResultTable  = 3
 
 		DELETE c
 		FROM #ConfirmedResources AS c
@@ -450,9 +480,9 @@ BEGIN
 						WHERE c.ResourceId = f.ResourceId
 			) AS mr
 		WHERE 1 = CASE WHEN @IsOverEarly = 1 AND mr.IsMain IS NULL THEN 1
-					   WHEN @IsMainOver = 1 AND mr.IsMain = 1 THEN 1
-					   ELSE 0
-				  END
+						WHEN @IsMainOver = 1 AND mr.IsMain = 1 THEN 1
+						ELSE 0
+					END
 
 		INSERT INTO @tmpMatchOverStatus (matchid, bettype, betid, OverStatus)
 		SELECT m.matchid,sp.bettype, sp.betid, 1
@@ -461,18 +491,19 @@ BEGIN
 				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
 		WHERE sp.sporttype = m.sporttype
 				AND sp.SettleType = 'EAR'
-
-		INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
-		SELECT DISTINCT r.matchid , 2
-		FROM #tmpMatchIds m
-			INNER JOIN #ConfirmedResources r ON r.matchId = m.matchid
-			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
-		WHERE sp.sporttype = m.sporttype
-			AND sp.SettleType = 'MNL'
-			AND m.eventstatus <> 'Completed'
+				AND m.sporttype <> 43
 
 		IF @IsMainOver = 1
 		BEGIN
+			INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
+			SELECT DISTINCT r.matchid , 2
+			FROM #tmpMatchIds m
+				INNER JOIN #ConfirmedResources r ON r.matchId = m.matchid
+				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
+			WHERE sp.sporttype = m.sporttype
+				AND sp.SettleType = 'MNL'
+				AND m.eventstatus <> 'Completed'
+
 			INSERT INTO @tmpMatchOverStatus (matchid,  OverStatus)
 			SELECT m.MatchId, 2
 			FROM #tmpMatchIds m

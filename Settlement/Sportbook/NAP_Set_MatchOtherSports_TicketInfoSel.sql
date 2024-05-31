@@ -49,7 +49,7 @@ BEGIN
 	)
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 	CREATE TABLE #temp_match_parlay (ParentID INT, transid BIGINT, matchid INT, refno BIGINT)
-	CREATE TABLE #tmpAllParentChildMatch (MatchId INT PRIMARY KEY, ParentId INT, eventstatus NVARCHAR(50))
+	CREATE TABLE #tmpAllParentChildMatch (MatchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON), ParentId INT, eventstatus NVARCHAR(50))
 	CREATE INDEX CIX_tmp_ParentId ON #tmpAllParentChildMatch(ParentId)
 
 	DECLARE @CheckingDisplay TABLE (matchid INT)
@@ -213,7 +213,7 @@ BEGIN
 
 	IF @IsOverEarly = 1 OR @IsOver = 1 OR @IsMainOver = 1 OR @IsCompletedWithRunningTicket = 1
 	BEGIN
-		DELETE FROM #tmpMatchId WHERE matchid NOT IN (SELECT matchid FROM @CheckingDisplay)
+		DELETE FROM #tmpMatch WHERE matchid NOT IN (SELECT matchid FROM @CheckingDisplay)
 	END
 
 	;WITH singlequeue 
