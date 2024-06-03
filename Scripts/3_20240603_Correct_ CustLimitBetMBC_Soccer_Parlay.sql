@@ -87,9 +87,12 @@ BEGIN
 			AND t.matchid = 29
 			AND t.EventTypeID = 3
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121) +' | CustId:' + CAST(@custid AS VARCHAR(20) )			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-		
+		IF @@ROWCOUNT > 0
+		BEGIN
+			SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121) +' | CustId:' + CAST(@custid AS VARCHAR(20) )			
+			RAISERROR (@debug_message, 0, 1) WITH NOWAIT
+		END
+
 		IF @StartRow = @MaxRow BREAK
 
 		WAITFOR DELAY '00:00:00.005' --optional
