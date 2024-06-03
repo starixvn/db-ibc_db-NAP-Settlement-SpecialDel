@@ -16,13 +16,16 @@ CREATE TABLE #Temp_CustID(
 INSERT INTO #Temp_CustID (CustID)
 SELECT DISTINCt CustID
 FROM CustLimitBet_MBC t WITH (Nolock)
-WHERE t.Matchid = 29 AND t.AccumPayout < 0
+WHERE t.Matchid = 29 
+	AND t.AccumPayout < 0
+	AND t.EventTypeID = 3
 	AND NOT EXISTS (
 			SELECT TOP 1 1 
 			FROM dbo.bettrans b WITH(NOLOCK)
 			WHERE b.custid = t.CustID
-				and b.matchid = 29
-				and b.statusID < 2
+				AND b.matchid = 29
+				AND b.statusID < 2
+				AND b.oddsid = 1
 		)
 
 ------ info for deployer
@@ -42,15 +45,20 @@ BEGIN
 		WHERE ID = @StartRow
 
 		UPDATE t
-		SET AccumTurnover = 0, AccumPayout = 0
+		SET AccumTurnover = 0
+			, AccumPayout = 0
 		FROM CustLimitBet_MBC t WITH (ROWLOCK, UPDLOCK)
-		WHERE t.custid = @custid and t.Matchid = 29 AND t.AccumPayout < 0
+		WHERE t.custid = @custid 
+			AND t.Matchid = 29 
+			AND t.AccumPayout < 0
+			AND t.EventTypeID =3
 			AND NOT EXISTS (
 					SELECT TOP 1 1 
 					FROM dbo.bettrans b WITH(NOLOCK)
 					WHERE b.custid = @custid
-						and b.matchid = 29
-						and b.statusID < 2
+						AND b.matchid = 29
+						AND b.statusID < 2
+						AND b.oddsid = 1
 				)
 
 		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121) +' | CustId:' + CAST(@custid AS VARCHAR(20) )			

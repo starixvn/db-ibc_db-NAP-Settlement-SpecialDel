@@ -17,6 +17,7 @@ SELECT DISTINCT c.CustID
 FROM CustLimitBet_MBC c WITH(NOLOCK)
 WHERE matchid = 29 
 	AND c.AccumPayout < 0
+	AND c.EventTypeID = 3
 
 ------ info for deployer
 DECLARE @StartRow INT 
@@ -39,7 +40,8 @@ BEGIN
 			SELECT COUNT(1) AS bettran_cnt
 			FROM bettrans b WITH(NOLOCK)
 			WHERE b.statusID in (0,1) 
-				AND b.Matchid = 29 
+				AND b.Matchid = 29
+				AND b.oddsid = 1
 				AND b.custid = @custid
 		)
 		, cte2 AS
@@ -51,6 +53,7 @@ BEGIN
 						AND b.matchid = 29
 			WHERE h.custid = @custid
 				AND h.matchid = 29
+				AND b.oddsid = 1
 				AND b.statusID in (0,1)
 		)
 		, cte3 AS
@@ -66,6 +69,7 @@ BEGIN
 					WHERE b.statusID in (0,1) 
 						AND h.Matchid = 29 
 						AND h.Matchid = 29 
+						AND b.oddsid = 1
 						AND b.custid = @custid
 					GROUP BY h.transid
 				) AS tmp
@@ -73,7 +77,8 @@ BEGIN
 		)
 
 		UPDATE t
-		SET AccumPayout = t3.PayoutAdjust , AccumTurnover = t3.TurnoverAdjust
+		SET AccumPayout = t3.PayoutAdjust 
+			, AccumTurnover = t3.TurnoverAdjust
 		FROM CustLimitBet_MBC t WITH(ROWLOCK, UPDLOCK)
 			CROSS APPLY ( SELECT bettran_cnt FROM cte1 ) AS t1
 			CROSS APPLY ( SELECT history_cnt	 FROM cte2 ) AS t2
@@ -81,6 +86,7 @@ BEGIN
 		WHERE t1.bettran_cnt = t2.history_cnt 
 			AND t.custid = @custid 
 			AND t.matchid = 29
+			AND t.EventTypeID = 3
 
 		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121) +' | CustId:' + CAST(@custid AS VARCHAR(20) )			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
