@@ -1,7 +1,7 @@
 /*<info serverAlias="DBSIC-bodb02" executers="" isFunction="0"></info>*/
 /*
     Created: 20240632@Louisa
-	Task: Correct CustLimitBet_MBC
+	Task: Correct CustLimitBet_MBC [Redmine:#206061]
 	DB:  DBSIC.bodb02
 */
 USE bodb02
@@ -53,7 +53,7 @@ BEGIN
 						and b.statusID < 2
 				)
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121) +' | CustId:' + CAST(@custid AS VARCHAR(20) )			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 		
 		IF @StartRow = @MaxRow BREAK
