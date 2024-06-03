@@ -1,7 +1,7 @@
 /*<info serverAlias="DBSIC-bodb02" executers="" isFunction="0"></info>*/
 /*
     Created: 20240632@Louisa
-	Task: Correct CustLimitBet_MBC [Redmine:#206061]
+	Task: Correct CustLimitBet_MBC when no running ticket [Redmine:#206061]
 	DB:  DBSIC.bodb02
 */
 USE bodb02
