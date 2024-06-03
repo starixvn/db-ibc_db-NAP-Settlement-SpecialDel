@@ -68,8 +68,7 @@ BEGIN
 						INNER JOIN CustLimitBetHistory_789 h WITH(NOLOCK)
 							ON h.Transid = b.transid 
 					WHERE b.statusID in (0,1) 
-						AND h.Matchid = 29 
-						AND h.Matchid = 29 
+						AND h.Matchid = 29  
 						AND b.custid = @custid
 						AND h.EventTypeID =4
 						AND b.oddsid = 99
