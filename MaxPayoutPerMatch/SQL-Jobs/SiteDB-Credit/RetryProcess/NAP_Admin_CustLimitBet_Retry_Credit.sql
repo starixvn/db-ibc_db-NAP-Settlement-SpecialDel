@@ -149,13 +149,12 @@ BEGIN
 							(
 								SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
 									, MAX(CASE 
-											WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
-												OR (t1.sporttype IN (43,44))
-												THEN 0
+											WHEN f.BetType IS NOT NULL OR (t1.sporttype IN (43,44)) THEN 0
 											ELSE t2.PayoutAdjust END) AS AccumPayout
 									, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
 								FROM @CustLimitBet_RetryTransId_Batch t1
 									INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
+									LEFT JOIN dbo.f_CustLimitBet_AccumPayout_Exclude() f ON f.BetType = t1.bettype 
 								GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
 							)tmpsum
 							WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
@@ -212,13 +211,12 @@ BEGIN
 							(
 								SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
 									, MAX(CASE 
-											WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
-												OR (t1.sporttype IN (43,44))
-												THEN 0
+											WHEN f.BetType IS NOT NULL OR (t1.sporttype IN (43,44)) THEN 0
 											ELSE t2.PayoutAdjust END) AS AccumPayout
 									, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
 								FROM @CustLimitBet_RetryTransId_Batch t1
 									INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Transid = t1.transid
+									LEFT JOIN dbo.f_CustLimitBet_AccumPayout_Exclude() f ON f.BetType = t1.bettype 
 								GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
 							)tmpsum
 							WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID

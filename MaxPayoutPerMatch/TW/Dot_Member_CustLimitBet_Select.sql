@@ -104,12 +104,11 @@ BEGIN
 				(
 					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
 						, MAX(CASE 
-								WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
-									OR (t1.sporttype IN (43,44)) AND @sitetype <> 3
-									THEN 0
+								WHEN f.BetType IS NOT NULL OR (t1.sporttype IN (43,44)) AND @sitetype <> 3 THEN 0
 								ELSE t2.PayoutAdjust END) AS AccumPayout
 					FROM cte t1
 						INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = @custid and t2.Transid = t1.transid
+						LEFT JOIN dbo.f_CustLimitBet_AccumPayout_Exclude() f ON f.BetType = t1.bettype 
 					GROUP BY t1.Matchid, t1.CustId, t1.transid
 				)tmpsum	
 			END
@@ -143,12 +142,11 @@ BEGIN
 				(
 					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
 						, MAX(CASE 
-								WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
-									OR (t1.sporttype IN (43,44)) AND @sitetype <> 3
-									THEN 0
+								WHEN f.BetType IS NOT NULL OR (t1.sporttype IN (43,44)) AND @sitetype <> 3 THEN 0
 								ELSE t2.PayoutAdjust END) AS AccumPayout
 					FROM cte t1
 						INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = @custid and t2.Transid = t1.transid
+						LEFT JOIN dbo.f_CustLimitBet_AccumPayout_Exclude() f ON f.BetType = t1.bettype 
 					GROUP BY t1.Matchid, t1.CustId, t1.transid
 				)tmpsum	
 			END
@@ -254,12 +252,11 @@ BEGIN
 				(
 					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
 						, MAX(CASE 
-								WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
-									OR (t1.sporttype IN (43,44)) AND @sitetype <> 3
-									THEN 0
+								WHEN f.BetType IS NOT NULL OR (t1.sporttype IN (43,44)) AND @sitetype <> 3 THEN 0
 								ELSE t2.PayoutAdjust END) AS AccumPayout
 					FROM cte t1
 						INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = @custid and t2.Transid = t1.transid
+						LEFT JOIN dbo.f_CustLimitBet_AccumPayout_Exclude() f ON f.BetType = t1.bettype 
 					GROUP BY t1.Matchid, t1.CustId, t1.transid
 				)tmpsum	
 			END
@@ -295,12 +292,11 @@ BEGIN
 				(
 					SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
 						, MAX(CASE 
-								WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
-									OR (t1.sporttype IN (43,44)) AND @sitetype <> 3
-									THEN 0
+								WHEN f.BetType IS NOT NULL OR (t1.sporttype IN (43,44)) AND @sitetype <> 3 THEN 0
 								ELSE t2.PayoutAdjust END) AS AccumPayout
 					FROM cte t1
 						INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = @custid and t2.Transid = t1.transid
+						LEFT JOIN dbo.f_CustLimitBet_AccumPayout_Exclude() f ON f.BetType = t1.bettype 
 					GROUP BY t1.Matchid, t1.CustId, t1.transid
 				)tmpsum	
 			END
