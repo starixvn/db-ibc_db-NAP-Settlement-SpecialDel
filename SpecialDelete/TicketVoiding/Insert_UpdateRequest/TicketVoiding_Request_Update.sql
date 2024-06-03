@@ -34,6 +34,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@DuplicateTicketsInfo	VARCHAR(MAX)  = NULL
 	,@RecoverTicketInfo		VARCHAR(MAX) = NULL
 	,@AbnormalBetInfo		VARCHAR(MAX) = NULL
+	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
+	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
 	,@IsVoided				BIT			  = 0
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
 )
@@ -78,6 +80,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
+		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -250,6 +253,17 @@ BEGIN
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest
 		END
+		ELSE IF @IssueTypeId IN (12)
+		BEGIN
+			EXEC dbo.TicketVoiding_RequestDetail_WMO_Update
+					 @RequestId		 = @RequestId		
+					,@IssueTypeId	 = @IssueTypeId	
+					,@UserId		 = @UserId		
+					,@IP			 = @IP			
+					,@WrongMarketOfferedInfo = @WrongMarketOfferedInfo
+					,@TransInfoJson	 = @TransInfoJson			
+					,@IsEditRequest	 = @IsEditRequest
+		END
 		ELSE IF @IssueTypeId IN (13) 
 		BEGIN
 			EXEC dbo.TicketVoiding_RequestDetail_ACC_Update
@@ -320,6 +334,17 @@ BEGIN
 					,@UserId		 = @UserId		
 					,@IP			 = @IP			
 					,@RecoverTicketInfo = @RecoverTicketInfo
+					,@TransInfoJson	 = @TransInfoJson			
+					,@IsEditRequest	 = @IsEditRequest
+		END
+		ELSE IF @IssueTypeId IN (24)
+		BEGIN
+			EXEC dbo.TicketVoiding_RequestDetail_TE_Update
+					 @RequestId		 = @RequestId		
+					,@IssueTypeId	 = @IssueTypeId	
+					,@UserId		 = @UserId		
+					,@IP			 = @IP			
+					,@TechnicalErrorInfo = @TechnicalErrorInfo
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest
 		END
