@@ -14,7 +14,7 @@ CREATE TABLE #Temp_CustID(
 
 INSERT INTO #Temp_CustID (CustID)
 SELECT DISTINCT c.CustID
-FROM CustLimitBet_MBC c WITH(NOLOCK)
+FROM CustLimitBet_789 c WITH(NOLOCK)
 WHERE matchid = 29 
 	AND c.AccumPayout < 0
 	AND c.EventTypeID = 4
