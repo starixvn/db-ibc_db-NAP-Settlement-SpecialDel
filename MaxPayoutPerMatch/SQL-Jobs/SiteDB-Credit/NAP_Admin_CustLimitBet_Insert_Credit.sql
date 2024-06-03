@@ -19,6 +19,7 @@ AS
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240118@Louisa: Support Max Payout for VS4 [Redmine:#199700]
 		- 20240325@Max: Max Payout - NAP_Admin_CustLimitBetQueue_Insert_Parlay Enhancement [Redmine: #202058]
+		- 20240509@Max: Alpha - Provide risk amount on bet list [Redmine: #202427]
 	
 	Param's explanation:	
 		
@@ -49,6 +50,8 @@ BEGIN
 			, CustId INT
 			, sitetype TINYINT
 			, transid BIGINT
+			, sporttype SMALLINT
+			, bettype	SMALLINT
 	)
 	
 	DECLARE @HistoryMissingTransId AS TABLE (transid BIGINT, sitetype TINYINT)
@@ -64,8 +67,32 @@ BEGIN
 			, t.c.value('@custid','int') AS custid
 			,t.c.value('@sitetype','tinyint') AS sitetype
 			,t.c.value('@transid','BIGINT') AS transid
+			,t.c.value('@bettype','SMALLINT') AS bettype
 		FROM @xml.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@xml = NULL))
+
+		--Update sporttype for potential winning
+		IF EXISTS (SELECT TOP 1 1 FROM #CustLimitBet_tmp WHERE bettype NOT IN (9,29,2799,10449,10))
+		BEGIN
+			UPDATE t SET t.sporttype = m.sporttype
+			FROM #CustLimitBet_tmp t
+			CROSS APPLY (
+				SELECT sporttype 
+				FROM dbo.match m WITH (NOLOCK)
+				WHERE m.matchid = @MatchId
+			)m
+		END
+		IF EXISTS (SELECT TOP 1 1 FROM #CustLimitBet_tmp WHERE bettype = 10)
+		BEGIN
+			UPDATE t SET t.sporttype = m.sporttype
+			FROM #CustLimitBet_tmp t
+			CROSS APPLY (
+				SELECT l.sporttype 
+				FROM dbo.outright m WITH (NOLOCK)
+					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+				WHERE m.orid = @MatchId
+			)m
+		END
 	END
 	ELSE IF @ActionId IN (4,5) --PARLAY
 	BEGIN
@@ -204,8 +231,8 @@ BEGIN
 	IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp WHERE sitetype = 2) -- 789y
 	BEGIN
 		DELETE t OUTPUT
-			DELETED.CustId, DELETED.sitetype, DELETED.transid, @MatchId
-			INTO #CustLimitBet_789 (CustId, sitetype, transid, MatchId)
+			DELETED.CustId, DELETED.sitetype, DELETED.transid, @MatchId, deleted.bettype, deleted.sporttype
+			INTO #CustLimitBet_789 (CustId, sitetype, transid, MatchId,bettype, sporttype)
 		FROM #CustLimitBet_tmp t
 		WHERE t.sitetype = 2
 
@@ -251,7 +278,13 @@ BEGIN
 						,tmpsum.MatchId, tmpsum.CustId
 					FROM
 					(
-						SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t1.MatchId, t1.CustId, t1.transid, t2.EventTypeID
+						SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
+							, MAX(CASE 
+									WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
+										OR (t1.sporttype IN (43,44))
+										THEN 0
+									ELSE t2.PayoutAdjust END) AS AccumPayout
+							, t1.MatchId, t1.CustId, t1.transid, t2.EventTypeID
 						FROM #CustLimitBet_tmp t1
 							INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = t1.CustId and t2.Transid = t1.transid
 						GROUP BY t1.Matchid, t1.CustId, t1.transid, t2.EventTypeID
@@ -284,7 +317,13 @@ BEGIN
 						,tmpsum.MatchId, tmpsum.CustId
 					FROM
 					(
-						SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t1.MatchId, t1.CustId, t1.transid, t2.EventTypeID
+						SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover
+							, MAX(CASE 
+									WHEN (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = t1.bettype)) 
+										OR (t1.sporttype IN (43,44))
+										THEN 0
+									ELSE t2.PayoutAdjust END) AS AccumPayout
+							, t1.MatchId, t1.CustId, t1.transid, t2.EventTypeID
 						FROM #CustLimitBet_789 t1
 							INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = t1.CustId and t2.Transid = t1.transid
 						GROUP BY t1.Matchid, t1.CustId, t1.transid, t2.EventTypeID
