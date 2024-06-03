@@ -68,7 +68,6 @@ BEGIN
 							ON h.Transid = b.transid 
 					WHERE b.statusID in (0,1) 
 						AND h.Matchid = 29 
-						AND h.Matchid = 29 
 						AND b.oddsid = 1
 						AND b.custid = @custid
 					GROUP BY h.transid
