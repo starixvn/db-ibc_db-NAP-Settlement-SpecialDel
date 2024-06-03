@@ -62,7 +62,7 @@ BEGIN
 		
 		SET @xml = CONVERT(XML, @Transids)
 
-		INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid)        
+		INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, bettype)        
 		SELECT @MatchId AS MatchId
 			, t.c.value('@custid','int') AS custid
 			,t.c.value('@sitetype','tinyint') AS sitetype
