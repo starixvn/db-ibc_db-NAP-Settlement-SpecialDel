@@ -37,7 +37,8 @@ BEGIN
 
 		;WITH cte AS
 		(
-			SELECT SUM(PayoutAdjust) as PayoutAdjust, SUM(TurnoverAdjust) as TurnoverAdjust
+			SELECT ISNULL(SUM(PayoutAdjust),0) as PayoutAdjust
+				, ISNULL(SUM(TurnoverAdjust),0) as TurnoverAdjust
 			FROM (
 					SELECT h.transid
 						, ABS(MAX(h.PayoutAdjust)) as PayoutAdjust
