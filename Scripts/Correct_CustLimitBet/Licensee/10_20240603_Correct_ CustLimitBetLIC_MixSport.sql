@@ -61,7 +61,7 @@ BEGIN
 			AND NOT EXISTS (
 					SELECT TOP 1 1 
 					FROM dbo.bettrans b WITH(NOLOCK)
-					WHERE b.custid = @custid
+					WHERE b.custid = t.CustID
 						AND b.matchid = 29
 						AND b.statusID < 2
 						AND b.oddsid = 99
