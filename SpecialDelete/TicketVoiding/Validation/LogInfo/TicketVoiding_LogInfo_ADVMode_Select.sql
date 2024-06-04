@@ -365,8 +365,8 @@ BEGIN
 					WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					ELSE 0 END
 		AND b.betfrom <> 'P' AND b.IsMixParlay = 0 
-		AND 1 = CASE WHEN b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-					 ELSE CASE WHEN b.betdaqid = -2 AND b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime AND b.AcceptModeCashOut IS NOT NULL THEN 1
+		AND 1 = CASE WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					 ELSE CASE WHEN b.betdaqid = -2 AND b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND b.AcceptModeCashOut IS NOT NULL THEN 1
 							   ELSE 0 END
 					 END
 		
@@ -436,7 +436,7 @@ BEGIN
 				AND CASE WHEN d.FilterBy = 1 THEN b.Subtransdate
 						 WHEN d.FilterBy = 2 AND b.Subchecktime IS NOT NULL THEN b.Subchecktime
 						 WHEN d.FilterBy = 2 AND b.Subchecktime IS NULL THEN b.Subtransdate
-					END BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime
+					END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 	END 
 
 	/*Get Transid in Request of range Transid*/
@@ -471,25 +471,18 @@ BEGIN
 	END
 
 	--Data Section
-	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, InstantlySettleCount, SettleCount, MainParlayCount, HighLightMinTime)
+	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, InstantlySettleCount, SettleCount, MainParlayCount)
 	SELECT b.matchid AS MatchId
 		,CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
-		,MIN(act.VoidTime) AS VoidFromTime
-		,MAX(act.VoidTime) AS VoidToTime
+		,MIN(b.transdate) AS VoidFromTime
+		,MAX(b.transdate) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS CashOutCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND i.bettype IS NOT NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS InstantlySettleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND i.bettype IS NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount --Exclude InstantlySettleCount,CO
 		,COUNT(CASE WHEN b.transid <> b.SubTransid THEN b.transid ELSE NULL END) AS MainParlayCount
-		,MIN(act.VoidTime) AS HighLightMinTime
 	FROM #TVSTicketBets b
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
-		CROSS APPLY (SELECT CASE 
-								WHEN b.FilterBy = 1 THEN b.transdate
-								WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-								WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-							 END AS VoidTime
-					)act
 	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
 	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)), b.matchid
 	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
@@ -850,6 +843,7 @@ BEGIN
 	FROM #TVSTicketBets b
 		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON b.bettype = bt.typeid
 	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
+	GROUP BY bt.typenamee
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
