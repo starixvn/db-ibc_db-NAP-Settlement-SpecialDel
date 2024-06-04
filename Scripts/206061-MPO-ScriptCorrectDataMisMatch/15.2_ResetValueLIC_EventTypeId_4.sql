@@ -1,0 +1,18 @@
+/*<info serverAlias="DBSID-bodb02" executers="" isFunction="0"></info>*/
+/*
+    Created: 20240604@Max
+	Task: Resert 0 if not exists in bettrans CustLitmitBet_LIC - EventTypeID = 4 [Redmine:#206061]
+	DB:  DBSID.bodb02
+*/
+USE bodb02
+GO
+ 
+UPDATE t
+SET AccumPayout = 0
+	, AccumTurnover = 0
+FROM CustLimitBet_LIC t WITH(ROWLOCK, UPDLOCK)
+	OUTER APPLY ( SELECT TOP 1 1 AS IsExists FROM bettrans b WITH (NOLOCK) WHERE b.custid = t.CustID AND b.matchid = 29 AND b.oddsid = 99) AS t1
+WHERE  t.matchid = 29
+	AND t.EventTypeID = 4
+	AND t1.IsExists IS NULL
+
