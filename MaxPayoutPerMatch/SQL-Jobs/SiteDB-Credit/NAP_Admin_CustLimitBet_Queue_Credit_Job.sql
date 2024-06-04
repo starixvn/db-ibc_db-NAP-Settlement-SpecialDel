@@ -8,6 +8,7 @@ AS
     Revisions:
 		- 20230712@Max: Clone from DBTRANS - [Redmine: #181595]
 		- 20240429@Max: Enhance the MaxPayout for the Parlay Settlement [Redmine: #204464]
+		- 20240604@Max: Max Payout Per Match| Parlay Ticket Can Bet Exceed Max Payout Per Match Limit [Redmine: #206061]
 	
 	Param's explanation:	
 		
@@ -39,6 +40,8 @@ BEGIN
 	
 	WHILE(1=1)
 	BEGIN
+		DELETE @tmp_SettleParlay
+
 		SELECT	@ErrCode = 0
 				,@ErrMsg = ''
 	
