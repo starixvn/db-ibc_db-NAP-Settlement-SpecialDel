@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSID-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_JobDeploymentInfo
 	@JobName		VARCHAR(100)
 	,@WaitingTime	VARCHAR(10) 	OUTPUT
