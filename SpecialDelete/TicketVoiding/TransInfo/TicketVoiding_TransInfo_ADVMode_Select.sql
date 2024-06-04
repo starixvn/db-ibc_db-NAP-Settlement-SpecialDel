@@ -103,23 +103,18 @@ BEGIN
 	)
 
 	SET @AdvancedModeInfoXML = CONVERT(XML, @AdvancedModeInfo)
-	INSERT INTO #FilterInfo (MatchId, Bettype, FilterTransdesc, FilterSet, FilterRuns, FilterLive, FilterNonLive)
-	SELECT t.c.value('@MatchId','INT')		
-		,bt.bettype
-		,pl.Transdesc
-		,t.c.value('@FilterWicketOver','NVARCHAR(50)')
-		,t.c.value('@Runs','SMALLMONEY')
-		,t.c.value('@Live','BIT')
-		,t.c.value('@NonLive','BIT')
+	INSERT INTO #FilterInfo (MatchId, Bettype)
+	SELECT t.c.value('@MatchId','INT')	
+		, bt.bettype
 	FROM @AdvancedModeInfoXML.nodes('root/r') t(c)
 		CROSS APPLY (
-			SELECT value AS bettype
-			FROM string_split (t.c.value('@BetTypeIds','VARCHAR(2000)'),',')
-		)bt
+			SELECT t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)') AS AdvancedMode
+		)tmp
 		CROSS APPLY (
-			SELECT value AS Transdesc
-			FROM string_split (t.c.value('@PlayerIds','VARCHAR(2000)'),',')
-		)pl
+			SELECT Id AS bettype
+			FROM OPENJSON(tmp.AdvancedMode) 
+			WITH( Id SMALLINT)
+		)bt
 	OPTION (OPTIMIZE FOR (@AdvancedModeInfoXML = NULL))
 
 	--Search single tickets
