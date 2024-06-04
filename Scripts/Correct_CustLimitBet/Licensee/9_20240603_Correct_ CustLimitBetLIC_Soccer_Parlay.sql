@@ -48,23 +48,19 @@ SELECT @StartRow = 1, @StopRow = @Threshold
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
-	
-		SELECT @CustID = CustID 
-		FROM #Temp_CustID
-		WHERE ID BETWEEN @StartRow AND @StopRow
-
 		UPDATE t
 		SET AccumTurnover = 0
 			, AccumPayout = 0
 		FROM CustLimitBet_LIC t WITH (ROWLOCK, UPDLOCK)
-		WHERE t.custid = @custid 
+			INNER JOIN #Temp_CustID c on c.CustID = t.CustID
+		WHERE c.ID BETWEEN @StartRow AND @StopRow
 			AND t.Matchid = 29 
 			AND t.AccumPayout < 0
 			AND t.EventTypeID =3
 			AND NOT EXISTS (
 					SELECT TOP 1 1 
 					FROM dbo.bettrans b WITH(NOLOCK)
-					WHERE b.custid = @custid
+					WHERE b.custid = t.custid
 						AND b.matchid = 29
 						AND b.statusID < 2
 						AND b.oddsid = 1
@@ -72,7 +68,7 @@ BEGIN
 		
 		IF @@ROWCOUNT > 0
 		BEGIN
-			SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121) +' | CustId:' + CAST(@custid AS VARCHAR(20) )			
+			SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121) +' | id:' + CAST(@StartRow AS VARCHAR(20)) + CAST(@StopRow AS VARCHAR(20) )			
 			RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 		END
 
