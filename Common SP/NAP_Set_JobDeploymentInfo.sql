@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_JobDeploymentInfo
 	@JobName		VARCHAR(100)
 	,@WaitingTime	VARCHAR(10) 	OUTPUT
@@ -37,7 +37,7 @@ BEGIN
 
 	--2.Parlay Settlement
 	UNION ALL
-	SELECT 'bodb02 : NAP Parlay Settlement'		, '00:01:00', 0
+	SELECT 'bodb02 : NAP Parlay Settlement'		, '00:01:00', 1
 
 	--3.Single Settlement 3rd
 	UNION ALL
