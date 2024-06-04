@@ -33,16 +33,26 @@ DECLARE @StartRow INT
 		, @MaxRow INT  
 		, @CustID	INT
 		,@debug_message VARCHAR(500)
+		, @Threshold INT  -- the number of each batch
+		, @StopRow INT 
 
 SET @MaxRow = (SELECT MAX(ID) FROM #Temp_CustID)
-SELECT @StartRow = 1
+
+SET @Threshold = 500
+
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
 	
 		SELECT @CustID = CustID 
 		FROM #Temp_CustID
-		WHERE ID = @StartRow
+		WHERE ID BETWEEN @StartRow AND @StopRow
 
 		UPDATE t
 		SET AccumTurnover = 0
@@ -66,11 +76,14 @@ BEGIN
 			RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 		END
 
-		IF @StartRow = @MaxRow BREAK
+		IF @StopRow = @MaxRow BREAK
 
 		WAITFOR DELAY '00:00:00.005' --optional
 
-		SET @StartRow = @StartRow + 1
+		SET @StartRow = @StopRow + 1
+		SET @StopRow = @StopRow + @Threshold
+		IF @StopRow >= @MaxRow
+			SET @StopRow = @MaxRow
 
 END
 
