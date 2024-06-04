@@ -107,7 +107,7 @@ BEGIN
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 			,'' AS IssueDetail
-			,REPLACE(t.c.value('@AdvancedExtraInfo','VARHCHAR(MAX)'), '&quot;','''') AS VoidToTime
+			,REPLACE(t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)'), '&quot;','''') AS VoidToTime
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 	FROM @TechnicalErrorXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@TechnicalErrorXML = NULL))
