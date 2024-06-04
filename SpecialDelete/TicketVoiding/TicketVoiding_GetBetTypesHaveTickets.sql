@@ -2,6 +2,8 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_GetBetTypesHaveTickets] 
 (
     @MatchId    INT 
+	,@FromTransDate DATETIME = NULL
+	,@ToTransDate DATETIME = NULL
 )
 AS
 /*  
@@ -12,6 +14,7 @@ AS
     Revisions:      
         - 20230608@Max: Create SP - [Redmine: #185833]
 		- 20231207@Max: [TVS] Not Participate - Support user select exact bet type [Redmine: #197018]
+		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 
     Param's Explanation:  
 
@@ -39,6 +42,7 @@ BEGIN
 		AND SiteDBGroupID = @SiteDBGroupID
 		AND bettype NOT IN (10,29,38,500)
 		AND bettype < 19000
+		AND (transdate BETWEEN @FromTransDate AND @ToTransDate OR (@FromTransDate IS NULL AND @ToTransDate IS NULL))
 	GROUP BY bettype, transdesc
 
     -- bettransm
@@ -51,6 +55,7 @@ BEGIN
         FROM #TmpBettype tb WHERE bt.bettype = tb.bettype)
         AND bt.bettype NOT IN (10,29,38,500)
         AND bt.bettype < 19000
+		AND (transdate BETWEEN @FromTransDate AND @ToTransDate OR (@FromTransDate IS NULL AND @ToTransDate IS NULL))
     GROUP BY bt.bettype, bt.transdesc
    
     SELECT t.bettype AS [Id]
@@ -58,8 +63,10 @@ BEGIN
 			  WHEN bt.typeid = 9605 THEN 'Odd/Even'
 		ELSE bt.typenamee END AS [Name]
 		,transdesc
+		,f.GroupName
     FROM #TmpBettype t
 		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = t.bettype
+		LEFT JOIN f_SD_GetGroupBettypes() f ON f.BetType = t.bettype
 
     DROP TABLE #TmpBettype
 END
