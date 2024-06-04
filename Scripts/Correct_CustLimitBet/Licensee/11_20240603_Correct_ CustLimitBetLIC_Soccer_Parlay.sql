@@ -15,6 +15,7 @@ CREATE TABLE #Temp_CustID(
 INSERT INTO #Temp_CustID (CustID)
 SELECT DISTINCT c.CustID
 FROM CustLimitBet_LIC c WITH(NOLOCK)
+	CROSS APPLY (SELECT TOP 1 1 valid FROM bettrans b WITH (NOLOCK) WHERE custid = c.CustID and oddsid = 1 and matchid = 29 and ruben = 0 ) AS t
 WHERE matchid = 29 
 	AND c.AccumPayout < 0
 	AND c.EventTypeID = 3
@@ -86,6 +87,8 @@ BEGIN
 			AND t.custid = @custid 
 			AND t.matchid = 29
 			AND t.EventTypeID = 3
+			AND t3.PayoutAdjust IS NOT NULL
+			AND (t3.PayoutAdjust <> t.AccumPayout OR t3.TurnoverAdjust <> t.AccumTurnover)
 
 		IF @@ROWCOUNT > 0
 		BEGIN
