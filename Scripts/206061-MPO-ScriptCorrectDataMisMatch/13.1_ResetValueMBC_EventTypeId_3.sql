@@ -14,5 +14,6 @@ FROM CustLimitBet_MBC t WITH(ROWLOCK, UPDLOCK)
 	OUTER APPLY ( SELECT TOP 1 1 AS IsExists FROM bettrans b WITH (NOLOCK) WHERE b.custid = t.CustID AND b.matchid = 29 AND b.oddsid = 1) AS t1
 WHERE  t.matchid = 29
 	AND t.EventTypeID = 3
+	AND t.AccumTurnover <> 0
 	AND t1.IsExists IS NULL
 
