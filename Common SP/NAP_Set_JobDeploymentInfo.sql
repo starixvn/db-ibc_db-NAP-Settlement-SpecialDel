@@ -22,7 +22,7 @@ AS
 		- 20230712@Max: Scale out credit [Redmine: #181595]
 		- 20230907@July: Remove job un-used [Redmine: #193701]
 
-*/
+*/ 
 BEGIN
 	SET NOCOUNT ON
 
