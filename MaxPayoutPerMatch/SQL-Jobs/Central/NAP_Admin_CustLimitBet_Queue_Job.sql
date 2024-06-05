@@ -10,6 +10,7 @@ AS
 		- 20210928@Max: HotFix Issue Max Payout - [Redmine: #158846]
 		- 20211112@Max: MPO Phase 2 - Enhancement [Redmine #159626]
 		- 20240429@Max: Enhance the MaxPayout for the Parlay Settlement [Redmine: #204464]
+		- 20240604@Max: Max Payout Per Match| Parlay Ticket Can Bet Exceed Max Payout Per Match Limit [Redmine: #206061]
 	
 	Param's explanation:	
 		
@@ -39,6 +40,8 @@ BEGIN
 	
 	WHILE(1=1)
 	BEGIN
+		DELETE @tmp_SettleParlay
+
 		SELECT	@ErrCode = 0
 				,@ErrMsg = ''
 	
