@@ -107,7 +107,7 @@ BEGIN
 
 		IF @@ROWCOUNT > 0
 		BEGIN
-			SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121) +' | id:' + CAST(@StartRow AS VARCHAR(20)) + CAST(@StopRow AS VARCHAR(20) )			
+			SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121) +' | id:' + CAST(@StartRow AS VARCHAR(20)) + ' - ' + CAST(@StopRow AS VARCHAR(20) )			
 			RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 		END
 
