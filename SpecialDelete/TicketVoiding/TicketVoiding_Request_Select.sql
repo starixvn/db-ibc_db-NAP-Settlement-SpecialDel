@@ -49,6 +49,7 @@ AS
 		- 20231221@July: [TVS] Display player name in English for Chinese message in case there is no data on player name in Chinese [Redmine: #198687]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
+		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 
 	Param's explanation:	
 	
@@ -217,6 +218,7 @@ BEGIN
 				,m.matchcode
 				,@OrgTransIds AS OrgTransIds
 				,rd.ProductIds -- Apply for issuetype Recover Ticket (22)
+				,rd.AdvancedExtraInfo
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
