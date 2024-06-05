@@ -17,8 +17,11 @@ CREATE TABLE #Temp_CustID(
 INSERT INTO #Temp_CustID (CustID)
 SELECT DISTINCT c.CustID
 FROM bettrans c WITH(NOLOCK)
-WHERE matchid = 29 
+	INNER JOIN CustLimitBetHistory_LIC h WITH (NOLOCK) ON h.Transid = c.TransId
+WHERE c.matchid = 29 
 	AND c.oddsid = 99
+	AND c.ruben = 0
+	AND h.EventTypeID = 4
 
 ------ info for deployer
 DECLARE @StartRow INT 
