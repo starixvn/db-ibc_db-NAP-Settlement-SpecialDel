@@ -68,8 +68,10 @@ BEGIN
 		SET AccumPayout = t1.PayoutAdjust 
 			, AccumTurnover = t1.TurnoverAdjust
 		FROM CustLimitBet_LIC t WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #Temp_CustID c ON c.CustID = t.CustID
 			CROSS APPLY ( SELECT PayoutAdjust, TurnoverAdjust FROM cte t1 WHERE t1.CustID = t.CustID ) AS t1
-		WHERE t.AccumPayout <> t1.PayoutAdjust
+		WHERE c.ID BETWEEN @StartRow AND @StopRow
+			AND t.AccumPayout <> t1.PayoutAdjust
 			AND t.matchid = 29
 			AND t.EventTypeID = 4
 

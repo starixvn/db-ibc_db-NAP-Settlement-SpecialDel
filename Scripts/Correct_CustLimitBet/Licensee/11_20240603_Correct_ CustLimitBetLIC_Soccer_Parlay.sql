@@ -93,11 +93,13 @@ BEGIN
 		UPDATE t
 		SET AccumPayout = t3.PayoutAdjust 
 			, AccumTurnover = t3.TurnoverAdjust
-		FROM CustLimitBet_LIC t WITH(ROWLOCK, UPDLOCK)
+		FROM CustLimitBet_LIC t WITH(ROWLOCK, UPDLOCK)	
+			INNER JOIN #Temp_CustID c ON c.CustID = t.CustID
 			CROSS APPLY ( SELECT bettran_cnt FROM cte1 t1 WHERE t1.custid = t.CustID ) AS t1
 			CROSS APPLY ( SELECT history_cnt	 FROM cte2 t2 WHERE t2.CustID = t.CustID ) AS t2
 			CROSS APPLY ( SELECT PayoutAdjust, TurnoverAdjust FROM cte3 t3 WHERE t3.CustID = t.CustID) AS t3
-		WHERE t1.bettran_cnt = t2.history_cnt 
+		WHERE c.ID BETWEEN @StartRow AND @StopRow
+			AND t1.bettran_cnt = t2.history_cnt 
 			AND t.matchid = 29
 			AND t.EventTypeID = 3
 			AND t3.PayoutAdjust IS NOT NULL
