@@ -6,6 +6,8 @@
 */
 USE bodb02
 GO
+
+SET NOCOUNT ON;
  
 CREATE TABLE #Temp_CustID(
 	ID INT IDENTITY (1,1) PRIMARY KEY,
@@ -23,60 +25,68 @@ DECLARE @StartRow INT
 		,@MaxRow INT
 		,@custid INT
 		,@debug_message VARCHAR(500)
+		, @Threshold INT  -- the number of each batch
+		, @StopRow INT 
 
-SET @MaxRow = (SELECT MAX(ID)
- FROM #Temp_CustID)
-SELECT @StartRow = 1
+SET @MaxRow = (SELECT MAX(ID) FROM #Temp_CustID)
+
+SET @Threshold = 500
+
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
-	
-		SELECT @CustID = CustID 
-		FROM #Temp_CustID
-		WHERE ID = @StartRow
-
 		;WITH cte AS
 		(
-			SELECT ISNULL(SUM(PayoutAdjust),0) as PayoutAdjust
+			SELECT tmp.CustID
+				, ISNULL(SUM(PayoutAdjust),0) as PayoutAdjust
 				, ISNULL(SUM(TurnoverAdjust),0) as TurnoverAdjust
 			FROM (
-					SELECT h.transid
+					SELECT h.CustID
+						, h.transid
 						, ABS(MAX(h.PayoutAdjust)) as PayoutAdjust
 						, ABS(MAX(h.TurnoverAdjust)) as TurnoverAdjust
-					FROM bettrans b with (NOLOCK) 
+					FROM bettrans b with (NOLOCK)	
+						INNER JOIN #Temp_CustID c ON c.CustID = b.custid
 						INNER JOIN CustLimitBetHistory_LIC h WITH(NOLOCK)
 							ON h.Transid = b.transid 
-					WHERE b.ruben = 0
+					WHERE c.ID BETWEEN @StartRow AND @StopRow
+						AND b.ruben = 0
 						AND h.Matchid = 29 
 						AND b.oddsid = 99
-						AND b.custid = @custid
 						AND h.EventTypeID = 4
-					GROUP BY h.transid
+					GROUP BY h.transid, h.CustID
 				) AS tmp
-	
+			GROUP BY tmp.CustID
 		)
 		
 		UPDATE t
 		SET AccumPayout = t1.PayoutAdjust 
 			, AccumTurnover = t1.TurnoverAdjust
 		FROM CustLimitBet_LIC t WITH(ROWLOCK, UPDLOCK)
-			CROSS APPLY ( SELECT PayoutAdjust, TurnoverAdjust FROM cte ) AS t1
+			CROSS APPLY ( SELECT PayoutAdjust, TurnoverAdjust FROM cte t1 WHERE t1.CustID = t.CustID ) AS t1
 		WHERE t.AccumPayout <> t1.PayoutAdjust
-			AND t.custid = @custid 
 			AND t.matchid = 29
 			AND t.EventTypeID = 4
 
 		IF @@ROWCOUNT > 0
 		BEGIN
-			SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121) +' | CustId:' + CAST(@custid AS VARCHAR(20) )			
+			SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121) +' | id:' + CAST(@StartRow AS VARCHAR(20)) + CAST(@StopRow AS VARCHAR(20) )			
 			RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 		END
 
-		IF @StartRow = @MaxRow BREAK
+		IF @StopRow = @MaxRow BREAK
 
-		WAITFOR DELAY '00:00:00.005' --optional
+		--WAITFOR DELAY '00:00:00.005' --optional
 
-		SET @StartRow = @StartRow + 1
+		SET @StartRow = @StopRow + 1
+		SET @StopRow = @StopRow + @Threshold
+		IF @StopRow >= @MaxRow
+			SET @StopRow = @MaxRow
 
 END
 

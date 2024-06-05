@@ -6,6 +6,8 @@
 */
 USE bodb02
 GO
+
+SET NOCOUNT ON;
  
 CREATE TABLE #Temp_CustID(
 	ID INT IDENTITY (1,1) PRIMARY KEY,
@@ -46,7 +48,6 @@ IF @Threshold >= @MaxRow
 -- SET for first batch
 SELECT @StartRow = 1, @StopRow = @Threshold
 
-
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
 		UPDATE t
@@ -75,7 +76,7 @@ BEGIN
 
 		IF @StopRow = @MaxRow BREAK
 
-		WAITFOR DELAY '00:00:00.005' --optional
+		--WAITFOR DELAY '00:00:00.005' --optional
 
 		SET @StartRow = @StopRow + 1
 		SET @StopRow = @StopRow + @Threshold
