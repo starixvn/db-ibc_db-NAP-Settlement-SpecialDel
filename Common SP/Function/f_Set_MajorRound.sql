@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02,DBLOG-bodb_CustomerLog_Archive" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02,DBPRO-bodb02,DBLOG-bodb_CustomerLog_Archive" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_MajorRound] (@Sporttype SMALLINT)
 RETURNS TABLE
 AS
@@ -22,6 +22,7 @@ AS
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
+		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
    
     Parameters Explanation:        
     
@@ -125,6 +126,16 @@ RETURN
 			UNION ALL SELECT 58, '00', 'ET',  'ET'  , 'FT', 1, 97, 1,0
 			UNION ALL SELECT 58, '00', 'PEN', 'PEN' , 'FT', 1, 98, 1,0
 			UNION ALL SELECT 58, '00', 'FT',  '00'  , 'FT', 1, 99, 1,0
+
+
+			UNION ALL SELECT 18, '01', '1S',  '0101'  , 'SP', 0, 1,  0,1
+			UNION ALL SELECT 18, '02', '2S',  '0102'  , 'SP', 1, 2,  0,2
+			UNION ALL SELECT 18, '03', '3S',  '0103'  , 'SP', 1, 3,  0,3
+			UNION ALL SELECT 18, '04', '4S',  '0104'  , 'SP', 1, 4,  0,4
+			UNION ALL SELECT 18, '05', '5S',  '0105'  , 'SP', 1, 5,  0,5
+			UNION ALL SELECT 18, '06', '6S',  '0106'  , 'SP', 1, 6,  0,6
+			UNION ALL SELECT 18, '07', '7S',  '0107'  , 'SP', 1, 7,  0,7
+			UNION ALL SELECT 18, '00', 'FT',  '00'    , 'FT', 1, 99, 1,0
 			)		  					
 	SELECT os1.Sporttype, os1.RoundID, os1.RoundName, os1.ResourceID, os1.GroupType, os1.isFinal, os1.OrdNo, os1.AllowDirectly, os1.IntervalNo
 	FROM os1 

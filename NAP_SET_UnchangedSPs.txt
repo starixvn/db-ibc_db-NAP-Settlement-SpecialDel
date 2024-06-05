@@ -1,2 +1,0 @@
-Settlement\Sportbook\dbo.NAP_Admin_MatchInfoUpd.sql
-Settlement\Sportbook\AutoSettlement\dbo.NAP_Admin_Settlement_Auto_1s_Push.sql

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02 " executers="bodbAdminNet" viewers="" isFunction="0" isNested="1"></info>*/
+/*<info serverAlias="DBPRO-bodb02 " executers="wsv_nap" viewers="" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailOSLatestInfoSel]
 	@MatchId INT
 	,@SettleType	VARCHAR(10) = 'MNL'
@@ -14,6 +14,7 @@ AS
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155360,#155361]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
+		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
 
 	Param's Explanation:
 		

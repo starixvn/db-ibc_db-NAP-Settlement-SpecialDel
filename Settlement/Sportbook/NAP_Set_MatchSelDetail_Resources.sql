@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources]
 	@matchid 		INT
 	,@SportType     INT
@@ -12,6 +12,7 @@ AS
     Revisions: 
 		- 20220719@Louisa: Initial [Redmine:#175251]
 		- 20230920@Aries: Remove remote query [Redmine:#194359]
+		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 */
 BEGIN
 	SET NOCOUNT ON

@@ -20,6 +20,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 	,@IsPingoal			BIT				= 0
 	,@IsSettleRelated	BIT				= 0
+	,@RemarkInfo		VARCHAR(MAX)	= NULL
 AS
 /*	Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -59,6 +60,7 @@ AS
 		- 20240328@Louisa: fix issue Auto ES cannot pass data into queue single [Redmine: #203079]
 		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 		- 20240409@Aries: Enhance Refund Game Winner matches for Tennis [Redmine: #203638]
+		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -131,6 +133,7 @@ BEGIN
 															+ IIF(@AutoSourceInfo IS NOT NULL,', @AutoSourceInfo =  ''' + @AutoSourceInfo + '''','') 
 															+ ', @IsPingoal = ' + CONVERT(NVARCHAR(1), @IsPingoal)
 															+ ', @IsSettleRelated = ' + CONVERT(NVARCHAR(1), @IsSettleRelated)
+															+ IIF(@RemarkInfo IS NOT NULL,', @RemarkInfo =  ''' + @RemarkInfo + '''','') 
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 		

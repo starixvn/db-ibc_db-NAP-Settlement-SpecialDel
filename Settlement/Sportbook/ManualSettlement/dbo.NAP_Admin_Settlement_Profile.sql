@@ -20,6 +20,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 	,@IsPingoal			BIT				= 0
 	,@IsSettleRelated	BIT				= 0
+	,@RemarkInfo		VARCHAR(MAX)	= NULL
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -88,6 +89,7 @@ AS
 		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240409@Aries: Enhance Refund Game Winner matches for Tennis [Redmine: #203638]
+		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -936,7 +938,7 @@ BEGIN
 			SET @BroadcastSessionId = CASE WHEN @sporttype = 50 AND @matchLog IS NOT NULL THEN @BroadcastSessionId + 'child' ELSE @BroadcastSessionId END -- for child match
 		END
 
-		IF @sportType IN ( 45, 58 ) ---for Log Only
+		IF @sportType IN ( 45, 58, 18) ---for Log Only
 		BEGIN
 			INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, RoundName, OrdNo )
 			SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName, OrdNo
@@ -1013,7 +1015,7 @@ BEGIN
 							END								
 							+ CASE WHEN @IsAppliedSOP = 1 AND @IsAuto = 0 THEN '<r n="Is Leader" v="' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '"/>' ELSE '' END
 							+ CASE WHEN @Action LIKE 'CAL%' THEN '<r n="Recalc" v="' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) + '"/>' ELSE '' END
-							+ CASE WHEN @IsSettleRelated = 1 THEN '<r n="RefundRelated" v="1"/>' ELSE '' END
+							+ CASE WHEN @RemarkInfo IS NOT NULL THEN @RemarkInfo ELSE '' END
 							+ CASE @RefResultStatus 
 								WHEN 1 THEN '<r n="confirmed/provider" v="no"/>'
 								WHEN 2 THEN '<r n="value consistency" v="no"/>'

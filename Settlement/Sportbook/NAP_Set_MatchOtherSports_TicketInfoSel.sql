@@ -14,6 +14,7 @@ AS
 	 Revisions:  
 			- 20240503@Louisa: Enhance-separate code DBTXN and DBPRO [Redmine:#204370]
 			- 20240719@Aries: Filter Over Status = Settle with Running TIcket, Complete match with betbulder running ticket is shown [Redmine:#208511]
+			- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
 
 	Parameters Explanation: 
 		@MatchInfo='[{"m":83541400,"s":9,"cmt":0,"e":"running","cfht":0,"cfft":4635582},{"m":83541402,"s":9,"cmt":0,"e":"running","cfht":0,"cfft":0}]'
@@ -35,6 +36,7 @@ BEGIN
 	CREATE TABLE #tmpMatch
 	(
 		 MatchId							INT
+		,ParentID							INT
 		,SportType							SMALLINT
 		,EventStatus						NVARCHAR(100)
 		,ChildMatchType						TINYINT
@@ -46,6 +48,7 @@ BEGIN
 		,IsRunningEarlyBettypes				BIT DEFAULT (0)
 		,IsWaitingEarlyBettypes				BIT DEFAULT (0)
 		,IsExistRunningTicketAfterCompleted	BIT DEFAULT (0) 
+		,IsDelete							BIT DEFAULT (0)
 	)
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 	CREATE TABLE #temp_match_parlay (ParentID INT, transid BIGINT, matchid INT, refno BIGINT)
@@ -59,8 +62,9 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 	
-	INSERT INTO #tmpMatch(MatchId,SportType,ChildMatchType,EventStatus,SuspenderHalfTime,SuspenderFullTime)
+	INSERT INTO #tmpMatch(MatchId,ParentID,SportType,ChildMatchType,EventStatus,SuspenderHalfTime,SuspenderFullTime)
 	SELECT tbl.m		AS MatchId
+		  ,tbl.p		AS ParentID
 		  ,tbl.s		AS SportType
 		  ,tbl.cmt	    AS ChildMatchType 		
 		  ,tbl.e		AS EventStatus
@@ -74,6 +78,7 @@ BEGIN
 			END
 	FROM OPENJSON(@MatchInfo) WITH (
 			m		INT
+		   ,p		INT
 		   ,s		SMALLINT
 		   ,cmt	    TINYINT		
 		   ,e		NVARCHAR(100)
@@ -159,8 +164,30 @@ BEGIN
 									ELSE 0
 									END
 						) AS tmp
+		UPDATE m
+		SET m.IsDelete = 1
+		FROM #tmpMatch AS m
+		WHERE m.matchid NOT IN (SELECT DISTINCT c.matchid FROM @CheckingDisplay AS c)
+			OR ( m.SportType = 18 
+                AND m.ParentID = 0  
+                AND NOT EXISTS (
+                            SELECT TOP 1 1
+                            FROM @tmpMatchOverStatus AS mp
+                            WHERE  m.matchid = mp.matchid
+                                AND mp.ResourceID = '00')  
+               )
 
-		DELETE FROM #tmpMatch WHERE matchid NOT IN (SELECT DISTINCT matchid FROM @CheckingDisplay)
+        DELETE m
+        FROM #tmpMatch AS m
+        WHERE m.IsDelete = 1
+            AND NOT EXISTS (
+                SELECT 1
+                FROM #tmpMatch AS mP 
+                WHERE mP.ParentID = m.matchid
+                    AND mp.IsDelete = 0
+                    AND mp.SportType = 18
+                    AND mp.ChildMatchType IN (11, 12, 14, 15, 16, 17, 18, 19)
+            )
 
 		UPDATE #tmpMatch  SET IsExistsConfirmedEarly = 1 WHERE matchid IN (SELECT DISTINCT matchid FROM @CheckingDisplay WHERE IsEarly = 1)
 

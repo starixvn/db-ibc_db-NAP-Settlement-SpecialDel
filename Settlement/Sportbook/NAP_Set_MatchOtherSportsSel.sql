@@ -66,6 +66,7 @@ AS
 			- 20240408@Aries: Cannot insert duplicate key in object dbo.#tmpAllParentChildMatch [Redmine:#203558]
 			- 20240503@Louisa: Enhance-separate code DBTXN and DBPRO [Redmine:#204370]
 			- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
+			- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -116,6 +117,7 @@ BEGIN
 
 	CREATE TABLE #tmpMatchIds (
 		 matchid						INT
+		,ParentID						INT
 		,matchcode						NVARCHAR(50)
 		,leagueid						INT
 		,sporttype						SMALLINT
@@ -217,6 +219,7 @@ BEGIN
 
 		INSERT INTO #tmpMatchIds(
 			 matchid
+			,ParentID
 			,matchcode
 			,leagueid
 			,sporttype
@@ -249,6 +252,7 @@ BEGIN
 			,AP_RetryTime
 		)
 		SELECT	 m.matchid
+				,m.ParentID
 				,m.matchcode
 				,m.LeagueId
 				,m.sporttype
@@ -300,6 +304,7 @@ BEGIN
 	BEGIN
 		INSERT INTO #tmpMatchIds(
 		     matchid
+			,ParentID
 			,matchcode
 			,leagueid
 			,sporttype
@@ -332,6 +337,7 @@ BEGIN
 			,AP_RetryTime
 		)
 		SELECT	 m.matchid
+				,m.ParentID
 				,m.matchcode
 				,m.LeagueId
 				,m.sporttype
@@ -575,7 +581,9 @@ BEGIN
 			WHERE m.matchid NOT IN (SELECT DISTINCT matchid FROM @tmpMatchOverStatus)
 	END
 
-	SELECT	 m.matchid 
+	SELECT	 m.matchid
+			,m.ParentID
+			,m.ChildMatchType
 			,m.matchcode
 			,m.leagueid 
 			,m.sporttype 
