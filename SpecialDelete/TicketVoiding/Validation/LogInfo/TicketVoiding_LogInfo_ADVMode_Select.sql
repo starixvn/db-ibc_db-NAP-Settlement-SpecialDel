@@ -578,24 +578,10 @@ BEGIN
 			,t.InstantlySettleCount
 			,t.SettleCount
 			,rd.MainParlayCount
-			,a.HighLightMinTime
-			,a.HighlightAcceptType
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			,t.CancelCashOutCount
-			,a.MinTransId
-			,a.ActionType
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-			CROSS APPLY (
-					SELECT CONVERT(XML, rd.TransIds)
-				)AS t1(xDATA)
-			CROSS APPLY (
-					SELECT NULLIF(t.c.value('@MinTime','DATETIME'),'')AS  HighLightMinTime
-						,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
-						,t.c.value('@MinTransId','BIGINT') AS  MinTransId
-						,t.c.value('@ActionType','VARCHAR(100)') AS  ActionType
-					FROM t1.xDATA.nodes('/r') t(c)
-				) a
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
 			CROSS APPLY(
 				SELECT DISTINCT '|' + l.ScoreNormalTicket FROM @tblScoreMessage l WHERE l.MatchId = rd.MatchId FOR XML PATH('')
@@ -610,6 +596,14 @@ BEGIN
 		
 		-- 5. Transinfo table (No need -> return table)
 		SELECT @TransInfoJson_Output AS TransInfoJson
+
+		-- 6. Count detail group by bettype
+		SELECT bt.typenamee AS 'Name'
+			,COUNT(b.transid) AS Count
+		FROM #TVSTicketBets b
+			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON b.bettype = bt.typeid
+		WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
+		GROUP BY bt.typenamee
 
 		RETURN;
 	END
