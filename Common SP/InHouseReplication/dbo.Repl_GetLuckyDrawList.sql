@@ -12,6 +12,7 @@ AS
 	Revisions:
 		- 20240401@Aries: EC 2024-Correct Score Sharing and Lucky Draw-(Pool prize) [Redmine:#202309]
 */
+
 BEGIN	
 	SET NOCOUNT ON;
 
