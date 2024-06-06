@@ -598,12 +598,16 @@ BEGIN
 		SELECT @TransInfoJson_Output AS TransInfoJson
 
 		-- 6. Count detail group by bettype
-		SELECT bt.typenamee AS 'Name'
-			,COUNT(b.transid) AS Count
-		FROM #TVSTicketBets b
-			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON b.bettype = bt.typeid
-		WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-		GROUP BY bt.typenamee
+		SELECT bt.bettypeid
+			,bt.betid
+			,bt.bettypecount
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+			CROSS APPLY (
+				SELECT bettypeid AS bettypeid, betid AS betid , bettypecount AS bettypecount
+				FROM OPENJSON(rd.TransIds) 
+				WITH( bettypeid SMALLINT, betid NVARCHAR(50),  bettypecount INT)
+			)bt
+		WHERE rd.RequestId = @RequestId
 
 		RETURN;
 	END
@@ -832,12 +836,13 @@ BEGIN
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
 	-- 6. Count detail group by bettype
-	SELECT bt.typenamee AS 'Name'
-		,COUNT(b.transid) AS Count
+	SELECT b.bettype AS bettypeid
+		, CASE WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) ELSE t.betcheck END AS betid
+		,COUNT(b.transid) AS bettypecount
 	FROM #TVSTicketBets b
-		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON b.bettype = bt.typeid
+		INNER JOIN #tmpTransInfo t ON t.transid = b.transid
 	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-	GROUP BY bt.typenamee
+	GROUP BY b.bettype, CASE WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) ELSE t.betcheck END
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

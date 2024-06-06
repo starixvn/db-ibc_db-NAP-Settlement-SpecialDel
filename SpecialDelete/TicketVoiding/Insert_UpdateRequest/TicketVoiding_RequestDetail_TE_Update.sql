@@ -50,7 +50,7 @@ BEGIN
 			,VoidToTime				DATETIME
 			,LiveHomeScore			INT
 			,LiveAwayScore			INT
-			,IssueDetail			VARCHAR(2000)
+			,BetTypeCount			VARCHAR(2000)
 			,AdvancedExtraInfo		VARCHAR(MAX)
 			,SubIssueTypeId			SMALLINT
 			)
@@ -93,7 +93,7 @@ BEGIN
 			,MainParlayCount		
 			,VoidFromTime			
 			,VoidToTime				
-			,IssueDetail					
+			,BetTypeCount			
 			,AdvancedExtraInfo
 			,SubIssueTypeId
 		)
@@ -106,8 +106,8 @@ BEGIN
 			,t.c.value('@MainParlayCount','INT') AS MainParlayCount
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-			,'' AS IssueDetail
-			,REPLACE(t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)'), '&quot;','''') AS VoidToTime
+			,REPLACE(t.c.value('@BetTypeCount','VARCHAR(MAX)'), '&quot;','''') AS BetTypeCount
+			,REPLACE(t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)'), '&quot;','''') AS AdvancedExtraInfo
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 	FROM @TechnicalErrorXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@TechnicalErrorXML = NULL))
@@ -131,6 +131,7 @@ BEGIN
 			, LiveAwayScore = l.LiveAwayScore
 			, SubIssueTypeId = l.SubIssueTypeId
 			, AdvancedExtraInfo = l.AdvancedExtraInfo
+			, TransIds = l.BetTypeCount
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
 	END
@@ -170,7 +171,7 @@ BEGIN
 		, l.VoidToTime
 		, l.LiveHomeScore
 		, l.LiveAwayScore
-		, l.IssueDetail
+		, l.BetTypeCount
 		, l.SubIssueTypeId
 		, l.AdvancedExtraInfo
 	FROM #tblGetLogInfo l
