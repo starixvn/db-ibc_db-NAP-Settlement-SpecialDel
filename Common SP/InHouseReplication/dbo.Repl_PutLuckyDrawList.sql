@@ -1,4 +1,4 @@
-/*<info serverAlias="DBACC-bodb02,DBAGE-bodb02,DBBOF-bodb02,DBTP-bodb02" executers="repl_ap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBACC-bodb02,DBTP-bodb02" executers="repl_ap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.Repl_PutLuckyDrawList
 	 @tvp_param TVP_ReplLuckyDrawList READONLY
 AS
@@ -10,6 +10,7 @@ AS
 	Revisions:
 		- 20240401@Aries: EC 2024-Correct Score Sharing and Lucky Draw-(Pool prize) [Redmine:#202309]
 */
+
 BEGIN	
 	SET NOCOUNT ON
 
