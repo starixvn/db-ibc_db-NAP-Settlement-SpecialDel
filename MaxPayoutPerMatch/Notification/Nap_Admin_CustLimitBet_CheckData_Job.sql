@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_Admin_CustLimitBet_CheckData_Job]
 	@StartTime DATETIME OUTPUT,
 	@EndTime DATETIME OUTPUT,
@@ -21,6 +21,7 @@ AS
 		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 		- 20230712@Max: Scale out credit [Redmine: #181595]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
+		- 20240607@Max: Max Turnover/Payout Job detection (the current job) [Redmine: #206245]
 
 	Param's explanation:		
 		
@@ -531,6 +532,181 @@ BEGIN
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage  + @CRLF + '6. Missing reject tickets in queue for Parlay for UUS currency. Top 100 transId(s): ' + @UUStransIds + @CRLF
 	END
+
+	--------------Rule to check negative amount for all eventtypeid (not for phone betting) --------------------
+	DECLARE @CustIDs VARCHAR(MAX) = ''
+	DECLARE @UUSCustIDs VARCHAR(MAX) = ''
+	DECLARE @EventtypeIDs VARCHAR(1000) = ''
+	DECLARE @UUSEventtypeIDs VARCHAR(1000) = ''
+
+	CREATE TABLE #Result_Negative_tmp (custid INT,currency TINYINT, eventtypeid TINYINT )
+
+	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_789 -------------------------
+	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
+	BEGIN
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '', @UUSEventtypeIDs = ''
+		
+		TRUNCATE TABLE #Result_Negative_tmp
+
+		INSERT INTO #Result_Negative_tmp (custid, Currency,eventtypeid)
+		SELECT DISTINCT TOP (100) l.custid, ci.currency,l.EventTypeID
+		FROM dbo.CustLimitBet_789 l WITH (NOLOCK)
+			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = l.custid
+			CROSS APPLY (SELECT TOP 1 1 valid FROM dbo.bettrans b WITH (NOLOCK)
+						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID AND b.betfrom <> 'p'
+						 ) AS tmp
+		WHERE l.AccumTurnover < 0
+	
+		IF @@ROWCOUNT > 0
+		BEGIN
+			--retry one more time for sure		
+			WAITFOR DELAY '00:00:02.000'
+
+			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT b.custid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency <> 20
+			) AS tmp
+
+			SELECT @EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
+			FROM(
+				SELECT DISTINCT b.eventtypeid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency <> 20
+			) AS tmp
+			IF ISNULL(@CustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_789 table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + 'eventtypeid(s): '+@EventtypeIDs + @CRLF
+			----------------uus------------------------
+			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT b.custid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency = 20
+			) AS tmp
+
+			SELECT @UUSEventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
+			FROM(
+				SELECT DISTINCT b.eventtypeid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency = 20
+			) AS tmp
+
+			IF ISNULL(@UUSCustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_789 table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + 'eventtypeid(s): '+ @UUSEventtypeIDs + @CRLF
+		END
+	END
+	
+	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_MBC -------------------------
+	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL
+	BEGIN
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '', @UUSEventtypeIDs = ''
+		
+		TRUNCATE TABLE #Result_Negative_tmp
+		INSERT INTO #Result_Negative_tmp (custid, Currency,eventtypeid)
+		SELECT DISTINCT TOP (100) l.custid, ci.currency,l.EventTypeID
+		FROM dbo.CustLimitBet_MBC l WITH (NOLOCK)
+			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = l.custid
+			CROSS APPLY (SELECT TOP 1 1 valid FROM dbo.bettrans b WITH (NOLOCK)
+						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID AND b.betfrom <> 'p'
+						 ) AS tmp
+		WHERE l.AccumTurnover < 0
+	
+		IF @@ROWCOUNT > 0
+		BEGIN
+			--retry one more time for sure
+			WAITFOR DELAY '00:00:02.000'
+
+			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT b.custid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency <> 20
+			) AS tmp
+
+			SELECT @EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
+			FROM(
+				SELECT DISTINCT b.eventtypeid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency <> 20
+			) AS tmp
+			IF ISNULL(@CustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_MBC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + 'eventtypeid(s): '+@EventtypeIDs + @CRLF
+			----------------uus------------------------
+			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT b.custid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency = 20
+			) AS tmp
+
+			SELECT @UUSEventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
+			FROM(
+				SELECT DISTINCT b.eventtypeid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency = 20
+			) AS tmp
+
+			IF ISNULL(@UUSCustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_MBC table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + 'eventtypeid(s): '+ @UUSEventtypeIDs + @CRLF
+		END
+	END
+
+	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_LIC -------------------------
+	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL
+	BEGIN
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '', @UUSEventtypeIDs = ''
+		
+		TRUNCATE TABLE #Result_Negative_tmp
+		INSERT INTO #Result_Negative_tmp (custid, Currency,eventtypeid)
+		SELECT DISTINCT TOP (100) l.custid, ci.currency,l.EventTypeID
+		FROM dbo.CustLimitBet_LIC l WITH (NOLOCK)
+			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = l.custid
+			CROSS APPLY (SELECT TOP 1 1 valid FROM dbo.bettrans b WITH (NOLOCK)
+						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID AND b.betfrom <> 'p'
+						 ) AS tmp
+		WHERE l.AccumTurnover < 0
+	
+		IF @@ROWCOUNT > 0
+		BEGIN
+			--retry one more time for sure
+			WAITFOR DELAY '00:00:02.000'
+
+			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT b.custid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency <> 20
+			) AS tmp
+
+			SELECT @EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
+			FROM(
+				SELECT DISTINCT b.eventtypeid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency <> 20
+			) AS tmp
+			IF ISNULL(@CustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_LIC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + 'eventtypeid(s): '+@EventtypeIDs + @CRLF
+			----------------uus------------------------
+			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT b.custid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency = 20
+			) AS tmp
+
+			SELECT @UUSEventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
+			FROM(
+				SELECT DISTINCT b.eventtypeid
+				FROM #Result_Negative_tmp b 
+				WHERE b.Currency = 20
+			) AS tmp
+
+			IF ISNULL(@UUSCustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_LIC table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + 'eventtypeid(s): '+ @UUSEventtypeIDs + @CRLF
+		END
+	END
+
 
 	--SELECT CASE WHEN @ErrorMessage = '' THEN 'NO Error' ELSE @ErrorMessage END ErrorMessage, @StartTime StartTime, @EndTime EndTime
 
