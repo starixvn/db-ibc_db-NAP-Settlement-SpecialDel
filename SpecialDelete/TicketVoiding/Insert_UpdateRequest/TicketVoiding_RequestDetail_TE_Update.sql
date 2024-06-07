@@ -50,7 +50,7 @@ BEGIN
 			,VoidToTime				DATETIME
 			,LiveHomeScore			INT
 			,LiveAwayScore			INT
-			,BetTypeCount			VARCHAR(2000)
+			,BetTypeCount			VARCHAR(MAX)
 			,AdvancedExtraInfo		VARCHAR(MAX)
 			,SubIssueTypeId			SMALLINT
 			)
