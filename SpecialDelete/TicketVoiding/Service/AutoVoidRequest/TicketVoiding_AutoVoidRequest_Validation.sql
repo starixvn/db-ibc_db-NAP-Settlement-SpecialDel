@@ -29,6 +29,7 @@ AS
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 		- 20240516@Max: [TVS] Web get data via API [Redmine: #204974]
+		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 
 	Param's explanation:
 		
@@ -212,7 +213,7 @@ BEGIN
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (9,29,2799)
 		END
 	END
-	IF @IssueTypeId IN (1,10,3,8,9) --Note For issuetype 1,10,3: case validate cancelCO & For issuetype 8,9: case auto void instant
+	IF @IssueTypeId IN (1,10,3,8,9,12,24) --Note For issuetype 1,10,3: case validate cancelCO & For issuetype 8,9: case auto void instant
 	BEGIN
 		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, betdaqid, MatchId, IssueTypeId, TicketType)
 		SELECT t.TransId
