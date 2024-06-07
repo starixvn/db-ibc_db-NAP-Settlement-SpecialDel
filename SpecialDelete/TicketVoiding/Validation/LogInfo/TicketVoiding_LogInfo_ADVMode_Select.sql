@@ -604,8 +604,8 @@ BEGIN
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			CROSS APPLY (
 				SELECT bettypeid AS bettypeid, betid AS betid , bettypecount AS bettypecount
-				FROM OPENJSON(rd.TransIds) 
-				WITH( bettypeid SMALLINT, betid NVARCHAR(50),  bettypecount INT)
+				FROM OPENJSON(NULLIF(rd.TransIds,'')) 
+				WITH( BetTypeId SMALLINT, BetId NVARCHAR(50),  BetTypeCount INT)
 			)bt
 		WHERE rd.RequestId = @RequestId
 
@@ -837,12 +837,16 @@ BEGIN
 
 	-- 6. Count detail group by bettype
 	SELECT b.bettype AS bettypeid
-		, CASE WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) ELSE t.betcheck END AS betid
+		, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
+			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
+			WHEN b.IsMixParlay = 1 THEN t.betcheck END AS betid
 		,COUNT(b.transid) AS bettypecount
 	FROM #TVSTicketBets b
 		INNER JOIN #tmpTransInfo t ON t.transid = b.transid
 	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-	GROUP BY b.bettype, CASE WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) ELSE t.betcheck END
+	GROUP BY b.bettype, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
+			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
+			WHEN b.IsMixParlay = 1 THEN t.betcheck END 
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
