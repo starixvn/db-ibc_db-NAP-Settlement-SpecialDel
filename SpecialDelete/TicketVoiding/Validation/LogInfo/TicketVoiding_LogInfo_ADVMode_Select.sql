@@ -353,8 +353,8 @@ BEGIN
 					END AS accepttype
 			,d.SubIssueTypeId
 			,d.FilterBy
-			,CASE WHEN b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 0
-				  ELSE CASE WHEN b.betdaqid = -2 AND b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime AND b.AcceptModeCashOut IS NOT NULL THEN 1
+			,CASE WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 0
+				  ELSE CASE WHEN b.betdaqid = -2 AND b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND b.AcceptModeCashOut IS NOT NULL THEN 1
 							ELSE 0 END
 				  END AS IsCancelCashOut
 			,b.CheckTimeCashOut
@@ -433,10 +433,7 @@ BEGIN
 					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END
 				AND b.Subbetfrom <> 'P' 
-				AND CASE WHEN d.FilterBy = 1 THEN b.Subtransdate
-						 WHEN d.FilterBy = 2 AND b.Subchecktime IS NOT NULL THEN b.Subchecktime
-						 WHEN d.FilterBy = 2 AND b.Subchecktime IS NULL THEN b.Subtransdate
-					END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+				AND b.Subtransdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 	END 
 
 	/*Get Transid in Request of range Transid*/
@@ -836,17 +833,20 @@ BEGIN
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
 	-- 6. Count detail group by bettype
-	SELECT b.bettype AS bettypeid
+	SELECT CASE WHEN b.IsMixParlay = 0 THEN b.bettype 
+				ELSE b.Subbettype END AS bettypeid
 		, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
 			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
-			WHEN b.IsMixParlay = 1 THEN t.betcheck END AS betid
+			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END AS betid
 		,COUNT(b.transid) AS bettypecount
 	FROM #TVSTicketBets b
 		INNER JOIN #tmpTransInfo t ON t.transid = b.transid
 	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-	GROUP BY b.bettype, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
+	GROUP BY CASE WHEN b.IsMixParlay = 0 THEN b.bettype 
+				ELSE b.Subbettype END
+		, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
 			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
-			WHEN b.IsMixParlay = 1 THEN t.betcheck END 
+			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END 
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
