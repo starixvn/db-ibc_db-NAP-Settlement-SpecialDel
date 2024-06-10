@@ -537,29 +537,30 @@ BEGIN
 	DECLARE @CustIDs VARCHAR(MAX) = ''
 	DECLARE @UUSCustIDs VARCHAR(MAX) = ''
 	DECLARE @EventtypeIDs VARCHAR(1000) = ''
-	DECLARE @UUSEventtypeIDs VARCHAR(1000) = ''
 
 	CREATE TABLE #Result_Negative_tmp (custid INT,currency TINYINT, eventtypeid TINYINT )
 
+	SET @StartTime   = DATEADD(MINUTE,-35,GETDATE())
+	SET @EndTime   = DATEADD(MINUTE, -2,GETDATE())
 	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_789 -------------------------
 	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
 	BEGIN
-		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '', @UUSEventtypeIDs = ''
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '1,2,3,4,5'
 		
 		TRUNCATE TABLE #Result_Negative_tmp
 
 		INSERT INTO #Result_Negative_tmp (custid, Currency,eventtypeid)
 		SELECT DISTINCT TOP (100) l.custid, ci.currency,l.EventTypeID
-		FROM dbo.CustLimitBet_789 l WITH (NOLOCK)
+		FROM CustLimitBet_789 l WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = l.custid
-			CROSS APPLY (SELECT TOP 1 1 valid FROM dbo.bettrans b WITH (NOLOCK)
+			CROSS APPLY (SELECT TOP 1 1 valid FROM bettrans b WITH (NOLOCK)
 						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID AND b.betfrom <> 'p'
 						 ) AS tmp
-		WHERE l.AccumTurnover < 0
+		WHERE l.AccumTurnover < 0 AND l.ModifiedDate BETWEEN @StartTime AND @EndTime
 	
 		IF @@ROWCOUNT > 0
 		BEGIN
-			--retry one more time for sure		
+			--retry one more time for sure
 			WAITFOR DELAY '00:00:02.000'
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
@@ -569,14 +570,8 @@ BEGIN
 				WHERE b.Currency <> 20
 			) AS tmp
 
-			SELECT @EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
-			FROM(
-				SELECT DISTINCT b.eventtypeid
-				FROM #Result_Negative_tmp b 
-				WHERE b.Currency <> 20
-			) AS tmp
 			IF ISNULL(@CustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_789 table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + 'eventtypeid(s): '+@EventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_789 table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + ' Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 			FROM(
@@ -585,32 +580,25 @@ BEGIN
 				WHERE b.Currency = 20
 			) AS tmp
 
-			SELECT @UUSEventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
-			FROM(
-				SELECT DISTINCT b.eventtypeid
-				FROM #Result_Negative_tmp b 
-				WHERE b.Currency = 20
-			) AS tmp
-
 			IF ISNULL(@UUSCustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_789 table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + 'eventtypeid(s): '+ @UUSEventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_789 table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ' Eventtypeid(s): '+ @EventtypeIDs + @CRLF
 		END
 	END
 	
 	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_MBC -------------------------
 	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL
 	BEGIN
-		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '', @UUSEventtypeIDs = ''
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '1,2,3,4,5'
 		
 		TRUNCATE TABLE #Result_Negative_tmp
 		INSERT INTO #Result_Negative_tmp (custid, Currency,eventtypeid)
 		SELECT DISTINCT TOP (100) l.custid, ci.currency,l.EventTypeID
-		FROM dbo.CustLimitBet_MBC l WITH (NOLOCK)
+		FROM CustLimitBet_MBC l WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = l.custid
-			CROSS APPLY (SELECT TOP 1 1 valid FROM dbo.bettrans b WITH (NOLOCK)
+			CROSS APPLY (SELECT TOP 1 1 valid FROM bettrans b WITH (NOLOCK)
 						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID AND b.betfrom <> 'p'
 						 ) AS tmp
-		WHERE l.AccumTurnover < 0
+		WHERE l.AccumTurnover < 0 AND l.ModifiedDate BETWEEN @StartTime AND @EndTime
 	
 		IF @@ROWCOUNT > 0
 		BEGIN
@@ -624,14 +612,8 @@ BEGIN
 				WHERE b.Currency <> 20
 			) AS tmp
 
-			SELECT @EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
-			FROM(
-				SELECT DISTINCT b.eventtypeid
-				FROM #Result_Negative_tmp b 
-				WHERE b.Currency <> 20
-			) AS tmp
 			IF ISNULL(@CustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_MBC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + 'eventtypeid(s): '+@EventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_MBC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + ' Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 			FROM(
@@ -640,32 +622,25 @@ BEGIN
 				WHERE b.Currency = 20
 			) AS tmp
 
-			SELECT @UUSEventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
-			FROM(
-				SELECT DISTINCT b.eventtypeid
-				FROM #Result_Negative_tmp b 
-				WHERE b.Currency = 20
-			) AS tmp
-
 			IF ISNULL(@UUSCustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_MBC table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + 'eventtypeid(s): '+ @UUSEventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_MBC table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ' Eventtypeid(s): '+ @EventtypeIDs + @CRLF
 		END
 	END
 
 	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_LIC -------------------------
 	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL
 	BEGIN
-		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '', @UUSEventtypeIDs = ''
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '1,2,3,4,5'
 		
 		TRUNCATE TABLE #Result_Negative_tmp
 		INSERT INTO #Result_Negative_tmp (custid, Currency,eventtypeid)
 		SELECT DISTINCT TOP (100) l.custid, ci.currency,l.EventTypeID
-		FROM dbo.CustLimitBet_LIC l WITH (NOLOCK)
+		FROM CustLimitBet_LIC l WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = l.custid
-			CROSS APPLY (SELECT TOP 1 1 valid FROM dbo.bettrans b WITH (NOLOCK)
+			CROSS APPLY (SELECT TOP 1 1 valid FROM bettrans b WITH (NOLOCK)
 						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID AND b.betfrom <> 'p'
 						 ) AS tmp
-		WHERE l.AccumTurnover < 0
+		WHERE l.AccumTurnover < 0 AND l.ModifiedDate BETWEEN @StartTime AND @EndTime
 	
 		IF @@ROWCOUNT > 0
 		BEGIN
@@ -679,14 +654,8 @@ BEGIN
 				WHERE b.Currency <> 20
 			) AS tmp
 
-			SELECT @EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
-			FROM(
-				SELECT DISTINCT b.eventtypeid
-				FROM #Result_Negative_tmp b 
-				WHERE b.Currency <> 20
-			) AS tmp
 			IF ISNULL(@CustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_LIC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + 'eventtypeid(s): '+@EventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_LIC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + ' Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 			FROM(
@@ -695,18 +664,671 @@ BEGIN
 				WHERE b.Currency = 20
 			) AS tmp
 
-			SELECT @UUSEventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
-			FROM(
-				SELECT DISTINCT b.eventtypeid
-				FROM #Result_Negative_tmp b 
-				WHERE b.Currency = 20
-			) AS tmp
-
 			IF ISNULL(@UUSCustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_LIC table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + 'eventtypeid(s): '+ @UUSEventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '7. CustLimitBet_LIC table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ' Eventtypeid(s): '+ @EventtypeIDs + @CRLF
 		END
 	END
 
+	--------------Rule to data mismatch --------------------
+	SET @StartTime   = DATEADD(MINUTE,-35,GETDATE())
+	SET @EndTime   = DATEADD(MINUTE, -2,GETDATE())
+
+	CREATE TABLE #Result_Mismatch_tmp (custid INT,currency TINYINT, eventtypeid TINYINT, AccumTurnover MONEY, AccumPayout MONEY, matchid INT )
+	CREATE TABLE #CustLimitBet_tmp  (Matchid INT, CustID INT, EventTypeID TINYINT, AccumTurnover MONEY, AccumPayout MONEY)
+	CREATE TABLE #Final (custid INT,currency TINYINT, eventtypeid TINYINT, matchid INT)
+	-------8. CustLimitBet_789: Parlay contains data mismatch with bettrans vs CustLimitBetHistory_789 tables -------------------------
+	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
+	BEGIN
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '3,4'
+		
+		TRUNCATE TABLE #Result_Mismatch_tmp
+		TRUNCATE TABLE #CustLimitBet_tmp
+		TRUNCATE TABLE #Final
+
+		INSERT INTO #CustLimitBet_tmp (matchid, custid, eventtypeid, accumTurnover, accumPayout)
+		SELECT  t.Matchid,t.CustID, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		FROM dbo.CustLimitBet_789 t WITH(NOLOCK)
+		WHERE t.EventTypeID IN (3,4) AND t.Matchid = 29
+			AND t.ModifiedDate BETWEEN @StartTime AND @EndTime
+
+		;WITH cte AS
+		(
+			SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
+			FROM (
+					SELECT h.transid, b.custid, h.EventTypeID
+						, MAX(h.PayoutAdjust) as PayoutAdjust
+						, MAX(h.TurnoverAdjust) as TurnoverAdjust
+					FROM dbo.bettrans b WITH (NOLOCK) 
+						INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+						INNER JOIN dbo.CustLimitBetHistory_789 h WITH(NOLOCK)
+							ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
+					WHERE b.ruben = 0
+						AND h.Matchid = 29 
+						AND b.oddsid IN (1,99)
+						AND b.betfrom <> 'p'
+					GROUP BY h.transid,b.custid, h.EventTypeID
+				) AS tmp
+		)
+		INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout)
+		SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		FROM dbo.CustLimitBet_789 t WITH(NOLOCK)
+			INNER JOIN CUSTDB.dbo.Customer cm WITH (NOLOCK) ON t.CustID = cm.custid
+			CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+						 FROM cte c
+						 WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID
+								AND ( c.Turnover_Accum <> t.AccumTurnover OR c.Payout_Accum <> t.AccumPayout)
+								) AS tmp
+		WHERE t.matchid = 29
+			 AND t.EventTypeID IN (3,4)
+	
+		IF @@ROWCOUNT > 0
+		BEGIN
+			--retry one more time for sure
+			WAITFOR DELAY '00:00:03.000'
+			;WITH cte AS
+			(
+				SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
+				FROM (
+						SELECT h.transid, b.custid, h.EventTypeID
+							, MAX(h.PayoutAdjust) as PayoutAdjust
+							, MAX(h.TurnoverAdjust) as TurnoverAdjust
+						FROM dbo.bettrans b WITH (NOLOCK) 
+							INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+							INNER JOIN dbo.CustLimitBetHistory_789 h WITH(NOLOCK)
+								ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
+						WHERE b.ruben = 0
+							AND h.Matchid = 29 
+							AND b.oddsid IN (1,99)
+							AND b.betfrom <> 'p'
+						GROUP BY h.transid,b.custid, h.EventTypeID
+					) AS tmp
+			)
+			INSERT INTO #Final (custid, Currency,eventtypeid)
+			SELECT DISTINCT TOP (100) t.CustID, t.currency, t.EventTypeID
+			FROM #Result_Mismatch_tmp t WITH(NOLOCK)
+					INNER JOIN dbo.CustLimitBet_789 l WITH(NOLOCK) ON t.custid = l.CustID AND t.matchid = l.Matchid AND t.eventtypeid = l.EventTypeID
+					CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+									FROM cte c
+									WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID 
+										AND ( c.Turnover_Accum <> l.AccumTurnover OR c.Payout_Accum <> l.AccumPayout)
+										) AS tmp
+
+			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT t.CustID
+					FROM #Final t
+					WHERE t.currency <> 20
+			) AS tmp
+
+			IF ISNULL(@CustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_789: Parlay contains data mismatch with bettrans vs CustLimitBetHistory_789 tables for real currency. Top 100 custid(s): ' + @CustIDs + ' Eventtypeid(s): '+@EventtypeIDs + @CRLF
+			----------------uus------------------------
+			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT t.CustID
+				FROM #Final t
+				WHERE t.currency =  20
+			) AS tmp
+
+			IF ISNULL(@UUSCustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_789: Parlay contains data mismatch with bettrans vs CustLimitBetHistory_789 tables UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ' Eventtypeid(s): '+ @EventtypeIDs + @CRLF
+		END
+	END
+	
+	-------8. CustLimitBet_mbc: Parlay contains data mismatch with bettrans vs CustLimitBetHistory_mbc tables -------------------------
+	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL
+	BEGIN
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '3,4'
+		
+		TRUNCATE TABLE #Result_Mismatch_tmp
+		TRUNCATE TABLE #CustLimitBet_tmp
+		TRUNCATE TABLE #Final
+
+		INSERT INTO #CustLimitBet_tmp (matchid, custid, eventtypeid, accumTurnover, accumPayout)
+		SELECT  t.Matchid,t.CustID, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		FROM dbo.CustLimitBet_MBC t WITH(NOLOCK)
+		WHERE t.EventTypeID IN (3,4) AND t.Matchid = 29
+			AND t.ModifiedDate BETWEEN @StartTime AND @EndTime
+
+		;WITH cte AS
+		(
+			SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
+			FROM (
+					SELECT h.transid, b.custid, h.EventTypeID
+						, MAX(h.PayoutAdjust) as PayoutAdjust
+						, MAX(h.TurnoverAdjust) as TurnoverAdjust
+					FROM dbo.bettrans b WITH (NOLOCK) 
+						INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+						INNER JOIN dbo.CustLimitBetHistory_MBC h WITH(NOLOCK)
+							ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
+					WHERE b.ruben = 0
+						AND h.Matchid = 29 
+						AND b.oddsid IN (1,99)
+						AND b.betfrom <> 'p'
+					GROUP BY h.transid,b.custid, h.EventTypeID
+				) AS tmp
+		)
+		INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout)
+		SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		FROM dbo.CustLimitBet_MBC t WITH(NOLOCK)
+			INNER JOIN CUSTDB.dbo.Customer cm WITH (NOLOCK) ON t.CustID = cm.custid
+			CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+						 FROM cte c
+						 WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID
+								AND ( c.Turnover_Accum <> t.AccumTurnover OR c.Payout_Accum <> t.AccumPayout)
+								) AS tmp
+		WHERE t.matchid = 29
+			 AND t.EventTypeID IN (3,4)
+	
+		IF @@ROWCOUNT > 0
+		BEGIN
+			--retry one more time for sure
+			WAITFOR DELAY '00:00:03.000'
+			;WITH cte AS
+			(
+				SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
+				FROM (
+						SELECT h.transid, b.custid, h.EventTypeID
+							, MAX(h.PayoutAdjust) as PayoutAdjust
+							, MAX(h.TurnoverAdjust) as TurnoverAdjust
+						FROM dbo.bettrans b WITH (NOLOCK) 
+							INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+							INNER JOIN dbo.CustLimitBetHistory_MBC h WITH(NOLOCK)
+								ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
+						WHERE b.ruben = 0
+							AND h.Matchid = 29 
+							AND b.oddsid IN (1,99)
+							AND b.betfrom <> 'p'
+						GROUP BY h.transid,b.custid, h.EventTypeID
+					) AS tmp
+			)
+			INSERT INTO #Final (custid, Currency,eventtypeid)
+			SELECT DISTINCT TOP (100) t.CustID, t.currency, t.EventTypeID
+			FROM #Result_Mismatch_tmp t WITH(NOLOCK)
+					INNER JOIN dbo.CustLimitBet_MBC l WITH(NOLOCK) ON t.custid = l.CustID AND t.matchid = l.Matchid AND t.eventtypeid = l.EventTypeID
+					CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+									FROM cte c
+									WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID 
+										AND ( c.Turnover_Accum <> l.AccumTurnover OR c.Payout_Accum <> l.AccumPayout)
+										) AS tmp
+
+			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT t.CustID
+					FROM #Final t
+					WHERE t.currency <> 20
+			) AS tmp
+
+			IF ISNULL(@CustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_MBC: Parlay contains data mismatch with bettrans vs CustLimitBetHistory_MBC tables for real currency. Top 100 custid(s): ' + @CustIDs + ' Eventtypeid(s): '+@EventtypeIDs + @CRLF
+			----------------uus------------------------
+			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT t.CustID
+				FROM #Final t
+				WHERE t.currency =  20
+			) AS tmp
+
+			IF ISNULL(@UUSCustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_MBC: Parlay contains data mismatch with bettrans vs CustLimitBetHistory_MBC tables UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ' Eventtypeid(s): '+ @EventtypeIDs + @CRLF
+		END
+	END
+
+	-------8. CustLimitBet_mbc: Parlay contains data mismatch with bettrans vs CustLimitBetHistory_LIC tables -------------------------
+	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL
+	BEGIN
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '3,4'
+		
+		TRUNCATE TABLE #Result_Mismatch_tmp
+		TRUNCATE TABLE #CustLimitBet_tmp
+		TRUNCATE TABLE #Final
+
+		INSERT INTO #CustLimitBet_tmp (matchid, custid, eventtypeid, accumTurnover, accumPayout)
+		SELECT  t.Matchid,t.CustID, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		FROM dbo.CustLimitBet_LIC t WITH(NOLOCK)
+		WHERE t.EventTypeID IN (3,4) AND t.Matchid = 29
+			AND t.ModifiedDate BETWEEN @StartTime AND @EndTime
+
+		;WITH cte AS
+		(
+			SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
+			FROM (
+					SELECT h.transid, b.custid, h.EventTypeID
+						, MAX(h.PayoutAdjust) as PayoutAdjust
+						, MAX(h.TurnoverAdjust) as TurnoverAdjust
+					FROM dbo.bettrans b WITH (NOLOCK) 
+						INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+						INNER JOIN dbo.CustLimitBetHistory_LIC h WITH(NOLOCK)
+							ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
+					WHERE b.ruben = 0
+						AND h.Matchid = 29 
+						AND b.oddsid IN (1,99)
+						AND b.betfrom <> 'p'
+					GROUP BY h.transid,b.custid, h.EventTypeID
+				) AS tmp
+		)
+		INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout)
+		SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		FROM dbo.CustLimitBet_LIC t WITH(NOLOCK)
+			INNER JOIN CUSTDB.dbo.Customer cm WITH (NOLOCK) ON t.CustID = cm.custid
+			CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+						 FROM cte c
+						 WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID
+								AND ( c.Turnover_Accum <> t.AccumTurnover OR c.Payout_Accum <> t.AccumPayout)
+								) AS tmp
+		WHERE t.matchid = 29
+			 AND t.EventTypeID IN (3,4)
+	
+		IF @@ROWCOUNT > 0
+		BEGIN
+			--retry one more time for sure
+			WAITFOR DELAY '00:00:03.000'
+			;WITH cte AS
+			(
+				SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
+				FROM (
+						SELECT h.transid, b.custid, h.EventTypeID
+							, MAX(h.PayoutAdjust) as PayoutAdjust
+							, MAX(h.TurnoverAdjust) as TurnoverAdjust
+						FROM dbo.bettrans b WITH (NOLOCK) 
+							INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+							INNER JOIN dbo.CustLimitBetHistory_LIC h WITH(NOLOCK)
+								ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
+						WHERE b.ruben = 0
+							AND h.Matchid = 29 
+							AND b.oddsid IN (1,99)
+							AND b.betfrom <> 'p'
+						GROUP BY h.transid,b.custid, h.EventTypeID
+					) AS tmp
+			)
+			INSERT INTO #Final (custid, Currency,eventtypeid)
+			SELECT DISTINCT TOP (100) t.CustID, t.currency, t.EventTypeID
+			FROM #Result_Mismatch_tmp t WITH(NOLOCK)
+					INNER JOIN dbo.CustLimitBet_LIC l WITH(NOLOCK) ON t.custid = l.CustID AND t.matchid = l.Matchid AND t.eventtypeid = l.EventTypeID
+					CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+									FROM cte c
+									WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID 
+										AND ( c.Turnover_Accum <> l.AccumTurnover OR c.Payout_Accum <> l.AccumPayout)
+										) AS tmp
+
+			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT t.CustID
+					FROM #Final t
+					WHERE t.currency <> 20
+			) AS tmp
+
+			IF ISNULL(@CustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_LIC: Parlay contains data mismatch with bettrans vs CustLimitBetHistory_LIC tables for real currency. Top 100 custid(s): ' + @CustIDs + ' Eventtypeid(s): '+@EventtypeIDs + @CRLF
+			----------------uus------------------------
+			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+			FROM(
+				SELECT DISTINCT t.CustID
+				FROM #Final t
+				WHERE t.currency =  20
+			) AS tmp
+
+			IF ISNULL(@UUSCustIDs,'') <> ''
+				SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_LIC: Parlay contains data mismatch with bettrans vs CustLimitBetHistory_LIC tables UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ' Eventtypeid(s): '+ @EventtypeIDs + @CRLF
+		END
+	END
+
+	--------------Rule to check Eventtypeid 1,2,5 contains data mismatch --------------------
+	DECLARE @matchIDs  VARCHAR(MAX) = ''
+	DECLARE @UUSmatchIDs  VARCHAR(MAX) = ''
+	DECLARE @UUSEventtypeIDs VARCHAR(1000) = ''
+
+	SET @StartTime   = DATEADD(MINUTE,-35,GETDATE())
+	SET @EndTime   = DATEADD(MINUTE, -2,GETDATE())
+
+	-------8. CustLimitBet_789: Eventtypeid 1,2,5 contains data mismatch with bettrans vs CustLimitBetHistory_789 tables -------------------------
+	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
+	BEGIN
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '1,2,5'
+		
+		TRUNCATE TABLE #Result_Mismatch_tmp
+		TRUNCATE TABLE #CustLimitBet_tmp
+		TRUNCATE TABLE #Final
+
+		INSERT INTO #CustLimitBet_tmp (matchid, custid, eventtypeid, accumTurnover, accumPayout)
+		SELECT  t.Matchid,t.CustID, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		FROM dbo.CustLimitBet_789 t WITH(NOLOCK)
+		WHERE t.EventTypeID IN (1,2,5) AND t.Matchid <> 29
+			AND t.ModifiedDate BETWEEN @StartTime AND @EndTime
+		
+		IF @@ROWCOUNT > 0
+		BEGIN
+			;WITH cte
+			AS (
+				SELECT b.custid,b.matchid,tmp.EventTypeID
+					, SUM (PayoutAdjust) as Payout_Accum
+					, SUM(TurnoverAdjust) as Turnover_Accum
+				FROM bettrans b WITH (NOLOCK) 
+					INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+					CROSS APPLY ( SELECT TOP 1 h.EventTypeID
+											, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.PayoutAdjust)	END AS PayoutAdjust
+											, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.TurnoverAdjust) END AS TurnoverAdjust
+									FROM CustLimitBetHistory_789 h WITH(NOLOCK)
+									WHERE h.Transid = b.transid 
+										AND h.EventTypeID = m.EventTypeID
+									) AS tmp
+				WHERE b.betfrom <> 'p'				
+				GROUP BY b.custid,b.matchid,tmp.EventTypeID
+			)
+
+			INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout, matchid)
+			SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout, t.Matchid
+			FROM #CustLimitBet_tmp t WITH(NOLOCK)
+				INNER JOIN CUSTDB.dbo.Customer cm WITH (NOLOCK) ON t.CustID = cm.custid
+				CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+							 FROM cte c
+							 WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID AND c.matchid = t.Matchid
+									AND ( c.Turnover_Accum <> t.AccumTurnover OR c.Payout_Accum <> t.AccumPayout)
+									) AS tmp
+			IF @@ROWCOUNT > 0
+			BEGIN
+				--retry one more time for sure
+				WAITFOR DELAY '00:00:03.000'
+				;WITH cte
+				AS (
+					SELECT b.custid,b.matchid,tmp.EventTypeID
+						, SUM (PayoutAdjust) as Payout_Accum
+						, SUM(TurnoverAdjust) as Turnover_Accum
+					FROM bettrans b WITH (NOLOCK) 
+						INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+						CROSS APPLY ( SELECT TOP 1 h.EventTypeID
+												, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.PayoutAdjust) END AS PayoutAdjust
+												, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.TurnoverAdjust) END AS TurnoverAdjust
+										FROM CustLimitBetHistory_789 h WITH(NOLOCK)
+										WHERE h.Transid = b.transid 
+											AND h.EventTypeID = m.EventTypeID
+										) AS tmp
+					WHERE b.betfrom <> 'p'				
+					GROUP BY b.custid,b.matchid,tmp.EventTypeID
+				)
+				INSERT INTO #Final (custid, Currency,eventtypeid, matchid)
+				SELECT DISTINCT TOP (100) t.CustID, t.currency, t.EventTypeID, t.matchid
+				FROM #Result_Mismatch_tmp t WITH(NOLOCK)
+					INNER JOIN CustLimitBet_789 l WITH(NOLOCK) ON t.custid = l.CustID AND t.matchid = l.Matchid AND t.eventtypeid = l.EventTypeID
+					CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+									FROM cte c
+									WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID AND c.matchid = t.Matchid
+										AND ( c.Turnover_Accum <> l.AccumTurnover OR c.Payout_Accum <> l.AccumPayout)
+										) AS tmp
+
+				SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',')  
+				FROM
+				(
+					SELECT DISTINCT t.CustID
+					FROM #Final t
+					WHERE t.currency <> 20
+				) AS tmp
+
+				
+				SELECT @matchIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.matchid), ',')  
+				FROM
+				(
+					SELECT DISTINCT t.matchid
+					FROM #Final t
+					WHERE t.currency <> 20
+				) AS tmp
+
+				IF ISNULL(@CustIDs,'') <> ''
+					SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_789: Match/Outright/Betbuilder contains data mismatch with bettrans vs CustLimitBetHistory_789 tables for real currency. Top 100 custid(s): ' + @CustIDs + ', matchid(s): ' + @matchIDs + ', eventtypeid(s): '+ @EventtypeIDs + @CRLF
+				----------------uus------------------------
+				SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+				FROM
+				(
+					SELECT DISTINCT t.CustID
+					FROM #Final t
+					WHERE t.currency = 20
+				) AS tmp
+
+				SELECT @UUSmatchIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.matchid), ',')  
+				FROM
+				(
+					SELECT DISTINCT t.matchid
+					FROM #Final t
+					WHERE t.currency = 20
+				) AS tmp
+
+				IF ISNULL(@UUSCustIDs,'') <> ''
+					SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_789: Match/Outright/Betbuilder contains data mismatch with bettrans vs CustLimitBetHistory_789 tables UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ', matchid(s): ' + @UUSmatchIDs + ', eventtypeid(s): '+ @EventtypeIDs + @CRLF
+			END
+		END
+	END
+	
+	-------8. CustLimitBet_mbc: Eventtypeid 1,2,5 contains data mismatch with bettrans vs CustLimitBetHistory_mbc tables -------------------------
+	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL
+	BEGIN
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '1,2,5'
+		
+		TRUNCATE TABLE #Result_Mismatch_tmp
+		TRUNCATE TABLE #CustLimitBet_tmp
+		TRUNCATE TABLE #Final
+
+		INSERT INTO #CustLimitBet_tmp (matchid, custid, eventtypeid, accumTurnover, accumPayout)
+		SELECT  t.Matchid,t.CustID, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		FROM dbo.CustLimitBet_MBC t WITH(NOLOCK)
+		WHERE t.EventTypeID IN (1,2,5) AND t.Matchid <> 29
+			AND t.ModifiedDate BETWEEN @StartTime AND @EndTime
+		
+		IF @@ROWCOUNT > 0
+		BEGIN
+			;WITH cte
+			AS (
+				SELECT b.custid,b.matchid,tmp.EventTypeID
+					, SUM (PayoutAdjust) as Payout_Accum
+					, SUM(TurnoverAdjust) as Turnover_Accum
+				FROM bettrans b WITH (NOLOCK) 
+					INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+					CROSS APPLY ( SELECT TOP 1 h.EventTypeID
+											, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.PayoutAdjust)	END AS PayoutAdjust
+											, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.TurnoverAdjust) END AS TurnoverAdjust
+									FROM CustLimitBetHistory_MBC h WITH(NOLOCK)
+									WHERE h.Transid = b.transid 
+										AND h.EventTypeID = m.EventTypeID
+									) AS tmp
+				WHERE b.betfrom <> 'p'				
+				GROUP BY b.custid,b.matchid,tmp.EventTypeID
+			)
+
+			INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout, matchid)
+			SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout, t.Matchid
+			FROM #CustLimitBet_tmp t WITH(NOLOCK)
+				INNER JOIN CUSTDB.dbo.Customer cm WITH (NOLOCK) ON t.CustID = cm.custid
+				CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+							 FROM cte c
+							 WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID AND c.matchid = t.Matchid
+									AND ( c.Turnover_Accum <> t.AccumTurnover OR c.Payout_Accum <> t.AccumPayout)
+									) AS tmp
+			IF @@ROWCOUNT > 0
+			BEGIN
+				--retry one more time for sure
+				WAITFOR DELAY '00:00:03.000'
+				;WITH cte
+				AS (
+					SELECT b.custid,b.matchid,tmp.EventTypeID
+						, SUM (PayoutAdjust) as Payout_Accum
+						, SUM(TurnoverAdjust) as Turnover_Accum
+					FROM bettrans b WITH (NOLOCK) 
+						INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+						CROSS APPLY ( SELECT TOP 1 h.EventTypeID
+												, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.PayoutAdjust) END AS PayoutAdjust
+												, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.TurnoverAdjust) END AS TurnoverAdjust
+										FROM CustLimitBetHistory_MBC h WITH(NOLOCK)
+										WHERE h.Transid = b.transid 
+											AND h.EventTypeID = m.EventTypeID
+										) AS tmp
+					WHERE b.betfrom <> 'p'				
+					GROUP BY b.custid,b.matchid,tmp.EventTypeID
+				)
+				INSERT INTO #Final (custid, Currency,eventtypeid, matchid)
+				SELECT DISTINCT TOP (100) t.CustID, t.currency, t.EventTypeID, t.matchid
+				FROM #Result_Mismatch_tmp t WITH(NOLOCK)
+					INNER JOIN CustLimitBet_MBC l WITH(NOLOCK) ON t.custid = l.CustID AND t.matchid = l.Matchid AND t.eventtypeid = l.EventTypeID
+					CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+									FROM cte c
+									WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID AND c.matchid = t.Matchid
+										AND ( c.Turnover_Accum <> l.AccumTurnover OR c.Payout_Accum <> l.AccumPayout)
+										) AS tmp
+
+				SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',')  
+				FROM
+				(
+					SELECT DISTINCT t.CustID
+					FROM #Final t
+					WHERE t.currency <> 20
+				) AS tmp
+
+				SELECT @matchIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.matchid), ',')  
+				FROM
+				(
+					SELECT DISTINCT t.matchid
+					FROM #Final t
+					WHERE t.currency <> 20
+				) AS tmp
+
+				IF ISNULL(@CustIDs,'') <> ''
+					SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_mbc: Match/Outright/Betbuilder contains data mismatch with bettrans vs CustLimitBetHistory_mbc tables for real currency. Top 100 custid(s): ' + @CustIDs + ', matchid(s): ' + @matchIDs + ', eventtypeid(s): '+ @EventtypeIDs + @CRLF
+				----------------uus------------------------
+				SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+				FROM
+				(
+					SELECT DISTINCT t.CustID
+					FROM #Final t
+					WHERE t.currency = 20
+				) AS tmp
+
+				SELECT @UUSmatchIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.matchid), ',')  
+				FROM
+				(
+					SELECT DISTINCT t.matchid
+					FROM #Final t
+					WHERE t.currency = 20
+				) AS tmp
+
+				IF ISNULL(@UUSCustIDs,'') <> ''
+					SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_789: Match/Outright/Betbuilder contains data mismatch with bettrans vs CustLimitBetHistory_mbc tables UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ', matchid(s): ' + @UUSmatchIDs + 'eventtypeid(s): '+ @EventtypeIDs + @CRLF
+			END
+		END
+	END
+
+	-------8. CustLimitBet_LIC: Eventtypeid 1,2,5 contains data mismatch with bettrans vs CustLimitBetHistory_LIC tables -------------------------
+	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL
+	BEGIN
+		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '1,2,5'
+		
+		TRUNCATE TABLE #Result_Mismatch_tmp
+		TRUNCATE TABLE #CustLimitBet_tmp
+		TRUNCATE TABLE #Final
+
+		INSERT INTO #CustLimitBet_tmp (matchid, custid, eventtypeid, accumTurnover, accumPayout)
+		SELECT  t.Matchid,t.CustID, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		FROM dbo.CustLimitBet_LIC t WITH(NOLOCK)
+		WHERE t.EventTypeID IN (1,2,5) AND t.Matchid <> 29
+			AND t.ModifiedDate BETWEEN @StartTime AND @EndTime
+		
+		IF @@ROWCOUNT > 0
+		BEGIN
+			;WITH cte
+			AS (
+				SELECT b.custid,b.matchid,tmp.EventTypeID
+					, SUM (PayoutAdjust) as Payout_Accum
+					, SUM(TurnoverAdjust) as Turnover_Accum
+				FROM bettrans b WITH (NOLOCK) 
+					INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+					CROSS APPLY ( SELECT TOP 1 h.EventTypeID
+											, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.PayoutAdjust)	END AS PayoutAdjust
+											, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.TurnoverAdjust) END AS TurnoverAdjust
+									FROM CustLimitBetHistory_LIC h WITH(NOLOCK)
+									WHERE h.Transid = b.transid 
+										AND h.EventTypeID = m.EventTypeID
+									) AS tmp
+				WHERE b.betfrom <> 'p'				
+				GROUP BY b.custid,b.matchid,tmp.EventTypeID
+			)
+
+			INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout, matchid)
+			SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout, t.Matchid
+			FROM #CustLimitBet_tmp t WITH(NOLOCK)
+				INNER JOIN CUSTDB.dbo.Customer cm WITH (NOLOCK) ON t.CustID = cm.custid
+				CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+							 FROM cte c
+							 WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID AND c.matchid = t.Matchid
+									AND ( c.Turnover_Accum <> t.AccumTurnover OR c.Payout_Accum <> t.AccumPayout)
+									) AS tmp
+			IF @@ROWCOUNT > 0
+			BEGIN
+				--retry one more time for sure
+				WAITFOR DELAY '00:00:03.000'
+				;WITH cte
+				AS (
+					SELECT b.custid,b.matchid,tmp.EventTypeID
+						, SUM (PayoutAdjust) as Payout_Accum
+						, SUM(TurnoverAdjust) as Turnover_Accum
+					FROM bettrans b WITH (NOLOCK) 
+						INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+						CROSS APPLY ( SELECT TOP 1 h.EventTypeID
+												, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.PayoutAdjust) END AS PayoutAdjust
+												, CASE WHEN  b.statusid IN (102,101) THEN 0 ELSE ABS( h.TurnoverAdjust) END AS TurnoverAdjust
+										FROM CustLimitBetHistory_LIC h WITH(NOLOCK)
+										WHERE h.Transid = b.transid 
+											AND h.EventTypeID = m.EventTypeID
+										) AS tmp
+					WHERE b.betfrom <> 'p'				
+					GROUP BY b.custid,b.matchid,tmp.EventTypeID
+				)
+				INSERT INTO #Final (custid, Currency,eventtypeid,matchid)
+				SELECT DISTINCT TOP (100) t.CustID, t.currency, t.EventTypeID,t.matchid
+				FROM #Result_Mismatch_tmp t WITH(NOLOCK)
+					INNER JOIN CustLimitBet_LIC l WITH(NOLOCK) ON t.custid = l.CustID AND t.matchid = l.Matchid AND t.eventtypeid = l.EventTypeID
+					CROSS APPLY (SELECT	TOP 1 1 IsInvalid
+									FROM cte c
+									WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID AND c.matchid = t.Matchid
+										AND ( c.Turnover_Accum <> l.AccumTurnover OR c.Payout_Accum <> l.AccumPayout)
+										) AS tmp
+
+				SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',')  
+				FROM
+				(
+					SELECT DISTINCT t.CustID
+					FROM #Final t
+					WHERE t.currency <> 20
+				) AS tmp
+
+				SELECT @matchIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.matchid), ',')  
+				FROM
+				(
+					SELECT DISTINCT t.matchid
+					FROM #Final t
+					WHERE t.currency <> 20
+				) AS tmp
+
+				IF ISNULL(@CustIDs,'') <> ''
+					SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_mbc: Match/Outright/Betbuilder contains data mismatch with bettrans vs CustLimitBetHistory_mbc tables for real currency. Top 100 custid(s): ' + @CustIDs + ', matchid(s): ' + @matchIDs + ', eventtypeid(s): '+ @EventtypeIDs + @CRLF
+				----------------uus------------------------
+				SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+				FROM
+				(
+					SELECT DISTINCT t.CustID
+					FROM #Final t
+					WHERE t.currency = 20
+				) AS tmp
+
+				SELECT @UUSmatchIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.matchid), ',')  
+				FROM
+				(
+					SELECT DISTINCT t.matchid
+					FROM #Final t
+					WHERE t.currency = 20
+				) AS tmp
+
+				IF ISNULL(@UUSCustIDs,'') <> ''
+					SET @ErrorMessage = @ErrorMessage + '8. CustLimitBet_789: Match/Outright/Betbuilder contains data mismatch with bettrans vs CustLimitBetHistory_mbc tables UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ', matchid(s): ' + @UUSmatchIDs + 'eventtypeid(s): '+ @EventtypeIDs + @CRLF
+			END
+		END
+	END
 
 	--SELECT CASE WHEN @ErrorMessage = '' THEN 'NO Error' ELSE @ErrorMessage END ErrorMessage, @StartTime StartTime, @EndTime EndTime
 
