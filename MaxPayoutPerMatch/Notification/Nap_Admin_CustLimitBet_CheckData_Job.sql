@@ -540,8 +540,6 @@ BEGIN
 
 	CREATE TABLE #Result_Negative_tmp (custid INT,currency TINYINT, eventtypeid TINYINT )
 
-	SET @StartTime   = DATEADD(MINUTE,-35,GETDATE())
-	SET @EndTime   = DATEADD(MINUTE, -2,GETDATE())
 	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_789 -------------------------
 	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
 	BEGIN
@@ -670,10 +668,7 @@ BEGIN
 	END
 
 	--------------Rule to data mismatch --------------------
-	SET @StartTime   = DATEADD(MINUTE,-35,GETDATE())
-	SET @EndTime   = DATEADD(MINUTE, -2,GETDATE())
-
-	CREATE TABLE #Result_Mismatch_tmp (custid INT,currency TINYINT, eventtypeid TINYINT, AccumTurnover MONEY, AccumPayout MONEY, matchid INT )
+	CREATE TABLE #Result_Mismatch_tmp (custid INT,currency TINYINT, eventtypeid TINYINT, AccumTurnover MONEY, AccumPayout MONEY, matchid INT, Diff_Amount MONEY )
 	CREATE TABLE #CustLimitBet_tmp  (Matchid INT, CustID INT, EventTypeID TINYINT, AccumTurnover MONEY, AccumPayout MONEY)
 	CREATE TABLE #Final (custid INT,currency TINYINT, eventtypeid TINYINT, matchid INT)
 	-------8. CustLimitBet_789: Parlay contains data mismatch with bettrans vs CustLimitBetHistory_789 tables -------------------------
@@ -693,31 +688,26 @@ BEGIN
 
 		;WITH cte AS
 		(
-			SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
-			FROM (
-					SELECT h.transid, b.custid, h.EventTypeID
-						, MAX(h.PayoutAdjust) as PayoutAdjust
-						, MAX(h.TurnoverAdjust) as TurnoverAdjust
-					FROM dbo.bettrans b WITH (NOLOCK) 
-						INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
-						INNER JOIN dbo.CustLimitBetHistory_789 h WITH(NOLOCK)
-							ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
-					WHERE b.ruben = 0
-						AND h.Matchid = 29 
-						AND b.oddsid IN (1,99)
-						AND b.betfrom <> 'p'
-					GROUP BY h.transid,b.custid, h.EventTypeID
-				) AS tmp
+			SELECT b.custid, m.EventTypeID
+				, SUM(b.stake) AS Turnover_Accum
+			FROM dbo.bettrans b WITH (NOLOCK) 
+				INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+			WHERE b.ruben = 0
+				AND m.Matchid = 29 
+				AND b.oddsid IN (1,99)
+				AND b.betfrom <> 'p'
+			GROUP BY b.custid, m.EventTypeID
 		)
-		INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout)
-		SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout, Diff_Amount)
+		SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout, (tmp.Turnover_Accum - t.AccumTurnover) AS Diff_Amount
 		FROM dbo.CustLimitBet_789 t WITH(NOLOCK)
 			INNER JOIN CUSTDB.dbo.Customer cm WITH (NOLOCK) ON t.CustID = cm.custid
-			CROSS APPLY (SELECT	TOP 1 1 IsInvalid
-						 FROM cte c
-						 WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID
-								AND ( c.Turnover_Accum <> t.AccumTurnover OR c.Payout_Accum <> t.AccumPayout)
-								) AS tmp
+			CROSS APPLY (
+					SELECT TOP 1 c.Turnover_Accum
+					FROM cte c
+					WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID
+						AND ( c.Turnover_Accum <> t.AccumTurnover)
+			) AS tmp
 		WHERE t.matchid = 29
 			 AND t.EventTypeID IN (3,4)
 	
@@ -727,31 +717,27 @@ BEGIN
 			WAITFOR DELAY '00:00:03.000'
 			;WITH cte AS
 			(
-				SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
-				FROM (
-						SELECT h.transid, b.custid, h.EventTypeID
-							, MAX(h.PayoutAdjust) as PayoutAdjust
-							, MAX(h.TurnoverAdjust) as TurnoverAdjust
-						FROM dbo.bettrans b WITH (NOLOCK) 
-							INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
-							INNER JOIN dbo.CustLimitBetHistory_789 h WITH(NOLOCK)
-								ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
-						WHERE b.ruben = 0
-							AND h.Matchid = 29 
-							AND b.oddsid IN (1,99)
-							AND b.betfrom <> 'p'
-						GROUP BY h.transid,b.custid, h.EventTypeID
-					) AS tmp
+				SELECT b.custid, m.EventTypeID
+					, SUM(b.stake) as Turnover_Accum
+				FROM dbo.bettrans b WITH (NOLOCK) 
+					INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+				WHERE b.ruben = 0
+					AND m.Matchid = 29 
+					AND b.oddsid IN (1,99)
+					AND b.betfrom <> 'p'
+				GROUP BY b.custid, m.EventTypeID
 			)
 			INSERT INTO #Final (custid, Currency,eventtypeid)
 			SELECT DISTINCT TOP (100) t.CustID, t.currency, t.EventTypeID
 			FROM #Result_Mismatch_tmp t WITH(NOLOCK)
 					INNER JOIN dbo.CustLimitBet_789 l WITH(NOLOCK) ON t.custid = l.CustID AND t.matchid = l.Matchid AND t.eventtypeid = l.EventTypeID
-					CROSS APPLY (SELECT	TOP 1 1 IsInvalid
-									FROM cte c
-									WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID 
-										AND ( c.Turnover_Accum <> l.AccumTurnover OR c.Payout_Accum <> l.AccumPayout)
-										) AS tmp
+					CROSS APPLY (
+							SELECT	TOP 1 1 IsInvalid
+							FROM cte c
+							WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID 
+								AND (c.Turnover_Accum <> l.AccumTurnover)
+								AND t.Diff_Amount = (c.Turnover_Accum - l.AccumTurnover)
+					) AS tmp
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 			FROM(
@@ -792,31 +778,26 @@ BEGIN
 
 		;WITH cte AS
 		(
-			SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
-			FROM (
-					SELECT h.transid, b.custid, h.EventTypeID
-						, MAX(h.PayoutAdjust) as PayoutAdjust
-						, MAX(h.TurnoverAdjust) as TurnoverAdjust
-					FROM dbo.bettrans b WITH (NOLOCK) 
-						INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
-						INNER JOIN dbo.CustLimitBetHistory_MBC h WITH(NOLOCK)
-							ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
-					WHERE b.ruben = 0
-						AND h.Matchid = 29 
-						AND b.oddsid IN (1,99)
-						AND b.betfrom <> 'p'
-					GROUP BY h.transid,b.custid, h.EventTypeID
-				) AS tmp
+			SELECT b.custid, m.EventTypeID
+				, SUM(b.stake) AS Turnover_Accum
+			FROM dbo.bettrans b WITH (NOLOCK) 
+				INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+			WHERE b.ruben = 0
+				AND m.Matchid = 29 
+				AND b.oddsid IN (1,99)
+				AND b.betfrom <> 'p'
+			GROUP BY b.custid, m.EventTypeID
 		)
-		INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout)
-		SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout, Diff_Amount)
+		SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout, (tmp.Turnover_Accum - t.AccumTurnover) AS Diff_Amount
 		FROM dbo.CustLimitBet_MBC t WITH(NOLOCK)
 			INNER JOIN CUSTDB.dbo.Customer cm WITH (NOLOCK) ON t.CustID = cm.custid
-			CROSS APPLY (SELECT	TOP 1 1 IsInvalid
-						 FROM cte c
-						 WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID
-								AND ( c.Turnover_Accum <> t.AccumTurnover OR c.Payout_Accum <> t.AccumPayout)
-								) AS tmp
+			CROSS APPLY (
+					SELECT TOP 1 c.Turnover_Accum
+					FROM cte c
+					WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID
+						AND ( c.Turnover_Accum <> t.AccumTurnover)
+			) AS tmp
 		WHERE t.matchid = 29
 			 AND t.EventTypeID IN (3,4)
 	
@@ -826,31 +807,27 @@ BEGIN
 			WAITFOR DELAY '00:00:03.000'
 			;WITH cte AS
 			(
-				SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
-				FROM (
-						SELECT h.transid, b.custid, h.EventTypeID
-							, MAX(h.PayoutAdjust) as PayoutAdjust
-							, MAX(h.TurnoverAdjust) as TurnoverAdjust
-						FROM dbo.bettrans b WITH (NOLOCK) 
-							INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
-							INNER JOIN dbo.CustLimitBetHistory_MBC h WITH(NOLOCK)
-								ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
-						WHERE b.ruben = 0
-							AND h.Matchid = 29 
-							AND b.oddsid IN (1,99)
-							AND b.betfrom <> 'p'
-						GROUP BY h.transid,b.custid, h.EventTypeID
-					) AS tmp
+				SELECT b.custid, m.EventTypeID
+					, SUM(b.stake) as Turnover_Accum
+				FROM dbo.bettrans b WITH (NOLOCK) 
+					INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+				WHERE b.ruben = 0
+					AND m.Matchid = 29 
+					AND b.oddsid IN (1,99)
+					AND b.betfrom <> 'p'
+				GROUP BY b.custid, m.EventTypeID
 			)
 			INSERT INTO #Final (custid, Currency,eventtypeid)
 			SELECT DISTINCT TOP (100) t.CustID, t.currency, t.EventTypeID
 			FROM #Result_Mismatch_tmp t WITH(NOLOCK)
 					INNER JOIN dbo.CustLimitBet_MBC l WITH(NOLOCK) ON t.custid = l.CustID AND t.matchid = l.Matchid AND t.eventtypeid = l.EventTypeID
-					CROSS APPLY (SELECT	TOP 1 1 IsInvalid
-									FROM cte c
-									WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID 
-										AND ( c.Turnover_Accum <> l.AccumTurnover OR c.Payout_Accum <> l.AccumPayout)
-										) AS tmp
+					CROSS APPLY (
+							SELECT	TOP 1 1 IsInvalid
+							FROM cte c
+							WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID 
+								AND (c.Turnover_Accum <> l.AccumTurnover)
+								AND t.Diff_Amount = (c.Turnover_Accum - l.AccumTurnover)
+					) AS tmp
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 			FROM(
@@ -891,31 +868,26 @@ BEGIN
 
 		;WITH cte AS
 		(
-			SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
-			FROM (
-					SELECT h.transid, b.custid, h.EventTypeID
-						, MAX(h.PayoutAdjust) as PayoutAdjust
-						, MAX(h.TurnoverAdjust) as TurnoverAdjust
-					FROM dbo.bettrans b WITH (NOLOCK) 
-						INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
-						INNER JOIN dbo.CustLimitBetHistory_LIC h WITH(NOLOCK)
-							ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
-					WHERE b.ruben = 0
-						AND h.Matchid = 29 
-						AND b.oddsid IN (1,99)
-						AND b.betfrom <> 'p'
-					GROUP BY h.transid,b.custid, h.EventTypeID
-				) AS tmp
+			SELECT b.custid, m.EventTypeID
+				, SUM(b.stake) AS Turnover_Accum
+			FROM dbo.bettrans b WITH (NOLOCK) 
+				INNER JOIN #CustLimitBet_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+			WHERE b.ruben = 0
+				AND m.Matchid = 29 
+				AND b.oddsid IN (1,99)
+				AND b.betfrom <> 'p'
+			GROUP BY b.custid, m.EventTypeID
 		)
-		INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout)
-		SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout
+		INSERT INTO #Result_Mismatch_tmp (custid, Currency,eventtypeid, AccumTurnover, AccumPayout, Diff_Amount)
+		SELECT TOP (100) t.CustID, cm.currency, t.EventTypeID, t.AccumTurnover, t.AccumPayout, (tmp.Turnover_Accum - t.AccumTurnover) AS Diff_Amount
 		FROM dbo.CustLimitBet_LIC t WITH(NOLOCK)
 			INNER JOIN CUSTDB.dbo.Customer cm WITH (NOLOCK) ON t.CustID = cm.custid
-			CROSS APPLY (SELECT	TOP 1 1 IsInvalid
-						 FROM cte c
-						 WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID
-								AND ( c.Turnover_Accum <> t.AccumTurnover OR c.Payout_Accum <> t.AccumPayout)
-								) AS tmp
+			CROSS APPLY (
+					SELECT TOP 1 c.Turnover_Accum
+					FROM cte c
+					WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID
+						AND ( c.Turnover_Accum <> t.AccumTurnover)
+			) AS tmp
 		WHERE t.matchid = 29
 			 AND t.EventTypeID IN (3,4)
 	
@@ -925,31 +897,27 @@ BEGIN
 			WAITFOR DELAY '00:00:03.000'
 			;WITH cte AS
 			(
-				SELECT custid, EventTypeID, SUM(PayoutAdjust) as Payout_Accum, SUM(TurnoverAdjust) as Turnover_Accum
-				FROM (
-						SELECT h.transid, b.custid, h.EventTypeID
-							, MAX(h.PayoutAdjust) as PayoutAdjust
-							, MAX(h.TurnoverAdjust) as TurnoverAdjust
-						FROM dbo.bettrans b WITH (NOLOCK) 
-							INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
-							INNER JOIN dbo.CustLimitBetHistory_LIC h WITH(NOLOCK)
-								ON h.Transid = b.transid AND b.custid = h.CustID AND h.Matchid = b.matchid
-						WHERE b.ruben = 0
-							AND h.Matchid = 29 
-							AND b.oddsid IN (1,99)
-							AND b.betfrom <> 'p'
-						GROUP BY h.transid,b.custid, h.EventTypeID
-					) AS tmp
+				SELECT b.custid, m.EventTypeID
+					, SUM(b.stake) as Turnover_Accum
+				FROM dbo.bettrans b WITH (NOLOCK) 
+					INNER JOIN #Result_Mismatch_tmp m ON b.matchid = m.matchid AND b.custid = m.custid 
+				WHERE b.ruben = 0
+					AND m.Matchid = 29 
+					AND b.oddsid IN (1,99)
+					AND b.betfrom <> 'p'
+				GROUP BY b.custid, m.EventTypeID
 			)
 			INSERT INTO #Final (custid, Currency,eventtypeid)
 			SELECT DISTINCT TOP (100) t.CustID, t.currency, t.EventTypeID
 			FROM #Result_Mismatch_tmp t WITH(NOLOCK)
 					INNER JOIN dbo.CustLimitBet_LIC l WITH(NOLOCK) ON t.custid = l.CustID AND t.matchid = l.Matchid AND t.eventtypeid = l.EventTypeID
-					CROSS APPLY (SELECT	TOP 1 1 IsInvalid
-									FROM cte c
-									WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID 
-										AND ( c.Turnover_Accum <> l.AccumTurnover OR c.Payout_Accum <> l.AccumPayout)
-										) AS tmp
+					CROSS APPLY (
+							SELECT	TOP 1 1 IsInvalid
+							FROM cte c
+							WHERE c.custid = t.CustID AND c.EventTypeID = t.EventTypeID 
+								AND (c.Turnover_Accum <> l.AccumTurnover)
+								AND t.Diff_Amount = (c.Turnover_Accum - l.AccumTurnover)
+					) AS tmp
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 			FROM(
@@ -977,9 +945,6 @@ BEGIN
 	DECLARE @matchIDs  VARCHAR(MAX) = ''
 	DECLARE @UUSmatchIDs  VARCHAR(MAX) = ''
 	DECLARE @UUSEventtypeIDs VARCHAR(1000) = ''
-
-	SET @StartTime   = DATEADD(MINUTE,-35,GETDATE())
-	SET @EndTime   = DATEADD(MINUTE, -2,GETDATE())
 
 	-------8. CustLimitBet_789: Eventtypeid 1,2,5 contains data mismatch with bettrans vs CustLimitBetHistory_789 tables -------------------------
 	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
