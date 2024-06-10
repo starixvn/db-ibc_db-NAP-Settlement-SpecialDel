@@ -32,14 +32,14 @@ BEGIN
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	(m.sporttype = @Sporttype OR @Sporttype IS NULL)
 			AND m.matchid = @MatchId 
-			AND 1 = CASE WHEN @Sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+			AND 1 = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 					     ELSE 1 END
 	UNION 
 	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode, m.parentid, m.kickofftime
 	FROM	dbo.match14 m WITH(NOLOCK)
 	WHERE	m.sporttype = @Sporttype 
 			AND m.matchid = @MatchId 
-			AND 1 = CASE WHEN @Sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+			AND 1 = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 					     ELSE 1 END
 
 	SELECT matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ISNULL(parentid,matchid) AS parentid, Kickofftime
