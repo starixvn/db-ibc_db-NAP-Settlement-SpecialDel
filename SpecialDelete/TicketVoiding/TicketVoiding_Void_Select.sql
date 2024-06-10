@@ -289,7 +289,7 @@ BEGIN
 		) tbl
 	WHERE f.value <> ''
 
-	IF @IssueTypeId IN (11,15,20) --11: AbnormalBet, 15: AB(RealMember)
+	IF @IssueTypeId IN (11,20) --11: AbnormalBet
 	BEGIN
 		IF @IssueTypeId IN (11,20)
 		BEGIN

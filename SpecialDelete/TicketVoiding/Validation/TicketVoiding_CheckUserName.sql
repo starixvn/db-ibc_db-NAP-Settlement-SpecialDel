@@ -435,8 +435,8 @@ BEGIN
 				)t
 		WHERE r.RequestId <> @RequestId 
 		AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
-		AND 1 = CASE WHEN r.IssueTypeId IN (11,15) AND t.StatusId NOT IN (111,112,113) THEN 1
-					 WHEN r.IssueTypeId NOT IN (11,15) THEN 1
+		AND 1 = CASE WHEN r.IssueTypeId IN (11) AND t.StatusId NOT IN (111,112,113) THEN 1
+					 WHEN r.IssueTypeId NOT IN (11) THEN 1
 					 ELSE 0 END
 					
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)

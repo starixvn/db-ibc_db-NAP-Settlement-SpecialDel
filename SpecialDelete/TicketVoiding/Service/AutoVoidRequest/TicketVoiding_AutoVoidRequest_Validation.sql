@@ -212,7 +212,7 @@ BEGIN
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (9,29,2799)
 		END
 	END
-	IF @IssueTypeId IN (1,10,3) 
+	IF @IssueTypeId IN (1,10,3,8,9) --Note For issuetype 1,10,3: case validate cancelCO & For issuetype 8,9: case auto void instant
 	BEGIN
 		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, betdaqid, MatchId, IssueTypeId, TicketType)
 		SELECT t.TransId
@@ -241,7 +241,7 @@ BEGIN
 		FROM #tmpTransIds t
 		WHERE t.TicketType = 3 AND t.betdaqid = -2 --NO CARE cancel CO -> running
 	END
-	IF @IssueTypeId IN (13,20,8,9)
+	IF @IssueTypeId IN (13,20)
 	BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType, transdate, winlostdate, statusId)
 		SELECT t.TransId
