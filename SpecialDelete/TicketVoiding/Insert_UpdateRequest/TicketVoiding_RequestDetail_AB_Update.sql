@@ -130,7 +130,7 @@ BEGIN
 		, m.awayid
 		, CASE WHEN @ActionId IN (4,8) THEN 1 ELSE 0 END
 		, @SubIssueTypeId
-		, CASE WHEN @IssueTypeId = 11 THEN @FilterBy ELSE NULL END
+		, @FilterBy
 	FROM @tmpMatchId_Info m
 	
 	IF @IsEditRequest = 1

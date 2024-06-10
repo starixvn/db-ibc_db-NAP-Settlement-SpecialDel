@@ -191,7 +191,7 @@ BEGIN
 				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END
-	ELSE IF @IssueTypeId IN (11,15)
+	ELSE IF @IssueTypeId IN (11)
 	BEGIN
 		EXEC dbo.TicketVoiding_RequestDetail_AB_Update
 				 @RequestId		 = @RequestId			
@@ -296,10 +296,10 @@ BEGIN
 								+ ', Sporttype: ' + CAST(@Sporttype AS VARCHAR(20))
 								+ ', IssueTypeId: ' + CAST(@IssueTypeId AS VARCHAR(20))
 								+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
-								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10,15,4,5,6,7,19,23) OR (@IssueTypeId = 11 AND @FilterBy IS NULL) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
+								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10,4,5,6,7,19,23) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
 															   ELSE '' END
 								+ ', DecidedBy: ' + CASE WHEN @DecidedBy IS NOT NULL THEN @DecidedBy ELSE 'NULL' END
-								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10,15) OR (@IssueTypeId = 11 AND @FilterBy IS NULL)
+								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10)
 															   THEN ', Operators: '+ CAST(@Operators AS VARCHAR(MAX))
 																  + ', Provider: ' + CASE WHEN @Provider IS NOT NULL THEN @Provider ELSE 'NULL' END
 																  + ', Source: ' + CASE WHEN @Source IS NOT NULL THEN @Source ELSE 'NULL' END
