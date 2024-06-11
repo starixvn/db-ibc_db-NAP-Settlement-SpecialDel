@@ -1,7 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_Admin_CustLimitBet_Negative_Checking]
-	@StartTime DATETIME OUTPUT,
-	@EndTime DATETIME OUTPUT,
 	@ErrorMessage VARCHAR(MAX) OUTPUT
 AS
 /*	
@@ -20,6 +18,9 @@ BEGIN
 	DECLARE @UUSCustIDs VARCHAR(MAX) = ''
 	DECLARE @EventtypeIDs VARCHAR(1000) = ''
 	DECLARE @CRLF CHAR(2)
+
+	SET @CRLF = CHAR(13)+CHAR(10)
+
 	CREATE TABLE #Result_Negative_tmp (custid INT, eventtypeid TINYINT )
 
 	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_789 -------------------------

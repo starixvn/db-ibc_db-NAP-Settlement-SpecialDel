@@ -18,13 +18,10 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @StartTime DATETIME = getdate(),
-			@EndTime DATETIME = getdate(),
-			@ErrorMessage VARCHAR(MAX) = 'error message'
-			
-	DECLARE @Subject	NVARCHAR(500) = ''
-		,@Body			NVARCHAR(MAX) = ''
-		,@Recipients	VARCHAR(MAX) = ''	
+	DECLARE @ErrorMessage	VARCHAR(MAX)	= 'error message'		
+			,@Subject		NVARCHAR(500)	= ''
+			,@Body			NVARCHAR(MAX)	= ''
+			,@Recipients	VARCHAR(MAX)	= ''	
 	
 	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
 	BEGIN
@@ -32,13 +29,12 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixsoft.com;qa@starixsoft.com'
+		SET @Recipients = 'dba_local@starixsoft.com;qa@starixsoft.com;louisa.vo@starixsoft.com'
 	END
 	
 	IF @Rule = 'Negative'
 	BEGIN
-		EXEC  [dbo].[Nap_Admin_CustLimitBet_Negative_Checking] @StartTime = @StartTime OUTPUT, @EndTime = @EndTime OUTPUT
-														 ,@ErrorMessage = @ErrorMessage OUTPUT
+		EXEC  [dbo].[Nap_Admin_CustLimitBet_Negative_Checking] @ErrorMessage = @ErrorMessage OUTPUT
 	END
 	IF @ErrorMessage <> ''
 	BEGIN
@@ -46,8 +42,7 @@ BEGIN
 		SET @Subject = 'NAP: CustLimitBet Failed !'	
 			
 		SET @Body = 'SP: Nap_Admin_CustLimitBet_Negative_Checking' + CHAR(13) + CHAR(10)
-		+ 'Check from ' + CONVERT(varchar, @StartTime, 120) + ' to ' + CONVERT(varchar, @EndTime, 120) + CHAR(13) + CHAR(10) + CHAR(13) + CHAR(10)
-		+ @ErrorMessage + CHAR(13) + CHAR(10)
+			+ @ErrorMessage + CHAR(13) + CHAR(10)
 		
 		EXEC msdb.dbo.sp_send_dbmail
 				@recipients= @Recipients
@@ -59,11 +54,14 @@ BEGIN
 				,@profile_name =DEFAULT;
 
 		-- send letstalk
+		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
+		BEGIN
 		EXECUTE  DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
 				  , @JobId = NULL
 				  , @JobName = N'bodb02 : Task Max Payout - Check Data'
 				  , @Message = @Body
 				  , @CaseId = 1;
+		END
 	END
 	
 END		
