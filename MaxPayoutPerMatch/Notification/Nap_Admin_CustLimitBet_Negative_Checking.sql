@@ -20,7 +20,7 @@ BEGIN
 	DECLARE @UUSCustIDs VARCHAR(MAX) = ''
 	DECLARE @EventtypeIDs VARCHAR(1000) = ''
 	DECLARE @CRLF CHAR(2)
-	CREATE TABLE #Result_Negative_tmp (custid INT,currency TINYINT, eventtypeid TINYINT )
+	CREATE TABLE #Result_Negative_tmp (custid INT, eventtypeid TINYINT )
 
 	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_789 -------------------------
 	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
@@ -29,10 +29,9 @@ BEGIN
 		
 		TRUNCATE TABLE #Result_Negative_tmp
 
-		INSERT INTO #Result_Negative_tmp (custid, Currency,eventtypeid)
-		SELECT DISTINCT TOP (100) l.custid, ci.currency,l.EventTypeID
+		INSERT INTO #Result_Negative_tmp (custid, eventtypeid)
+		SELECT DISTINCT TOP (100) l.custid, l.EventTypeID
 		FROM CustLimitBet_789 l WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = l.custid
 			CROSS APPLY (SELECT TOP 1 1 valid FROM bettrans b WITH (NOLOCK)
 						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID AND b.betfrom <> 'p'
 						 ) AS tmp
@@ -47,7 +46,8 @@ BEGIN
 			FROM(
 				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
-				WHERE b.Currency <> 20
+					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
+				WHERE c.Currency <> 20
 			) AS tmp
 
 			IF ISNULL(@CustIDs,'') <> ''
@@ -57,7 +57,8 @@ BEGIN
 			FROM(
 				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
-				WHERE b.Currency = 20
+					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
+				WHERE c.Currency = 20
 			) AS tmp
 
 			IF ISNULL(@UUSCustIDs,'') <> ''
@@ -72,10 +73,10 @@ BEGIN
 		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '1,2,3,4,5'
 		
 		TRUNCATE TABLE #Result_Negative_tmp
-		INSERT INTO #Result_Negative_tmp (custid, Currency,eventtypeid)
-		SELECT DISTINCT TOP (100) l.custid, ci.currency,l.EventTypeID
+		INSERT INTO #Result_Negative_tmp (custid, eventtypeid)
+		SELECT DISTINCT TOP (100) l.custid, l.EventTypeID
 		FROM CustLimitBet_MBC l WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = l.custid
+			
 			CROSS APPLY (SELECT TOP 1 1 valid FROM bettrans b WITH (NOLOCK)
 						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID AND b.betfrom <> 'p'
 						 ) AS tmp
@@ -90,7 +91,8 @@ BEGIN
 			FROM(
 				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
-				WHERE b.Currency <> 20
+					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
+				WHERE c.Currency <> 20
 			) AS tmp
 
 			IF ISNULL(@CustIDs,'') <> ''
@@ -100,7 +102,8 @@ BEGIN
 			FROM(
 				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
-				WHERE b.Currency = 20
+					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
+				WHERE c.Currency = 20
 			) AS tmp
 
 			IF ISNULL(@UUSCustIDs,'') <> ''
@@ -114,10 +117,9 @@ BEGIN
 		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '1,2,3,4,5'
 		
 		TRUNCATE TABLE #Result_Negative_tmp
-		INSERT INTO #Result_Negative_tmp (custid, Currency,eventtypeid)
-		SELECT DISTINCT TOP (100) l.custid, ci.currency,l.EventTypeID
+		INSERT INTO #Result_Negative_tmp (custid, eventtypeid)
+		SELECT DISTINCT TOP (100) l.custid, l.EventTypeID
 		FROM CustLimitBet_LIC l WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = l.custid
 			CROSS APPLY (SELECT TOP 1 1 valid FROM bettrans b WITH (NOLOCK)
 						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID AND b.betfrom <> 'p'
 						 ) AS tmp
@@ -132,7 +134,8 @@ BEGIN
 			FROM(
 				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
-				WHERE b.Currency <> 20
+					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
+				WHERE c.Currency <> 20
 			) AS tmp
 
 			IF ISNULL(@CustIDs,'') <> ''
@@ -142,7 +145,8 @@ BEGIN
 			FROM(
 				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
-				WHERE b.Currency = 20
+					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
+				WHERE c.Currency = 20
 			) AS tmp
 
 			IF ISNULL(@UUSCustIDs,'') <> ''
