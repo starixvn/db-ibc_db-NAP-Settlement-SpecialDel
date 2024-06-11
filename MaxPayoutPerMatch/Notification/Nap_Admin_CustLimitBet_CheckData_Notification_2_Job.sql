@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIG-bodb02" executers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_Admin_CustLimitBet_CheckData_Notification_2_Job]
 (
 	@Rule VARCHAR(50) = ''
@@ -8,7 +8,7 @@ AS
 /*	
 	Created: 20240610@Helen
     Task: Support check data for Max Payout Per Match setting - New Rule - New Job - [Redmine: #206245]
-    DB: DBTXN/bodb02
+    DB: DBSIG-bodb02
     Revisions:
 		- 20240610@Helen: Support check data for Max Payout Per Match setting - New Rule - New Job
 
@@ -18,7 +18,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @ErrorMessage	VARCHAR(MAX)	= 'Error message: '		
+	DECLARE @ErrorMessage	VARCHAR(MAX)	= 'Error message: '	+ CHAR(13) + CHAR(10)	
 			,@Subject		NVARCHAR(500)	= ''
 			,@Body			NVARCHAR(MAX)	= ''
 			,@Recipients	VARCHAR(MAX)	= ''	
@@ -42,7 +42,7 @@ BEGIN
 		SET @Subject = 'NAP: CustLimitBet Failed !'	
 			
 		SET @Body = 'SP: Nap_Admin_CustLimitBet_Negative_Checking' + CHAR(13) + CHAR(10)
-			+ @ErrorMessage + CHAR(13) + CHAR(10)
+			+ @ErrorMessage
 		
 		EXEC msdb.dbo.sp_send_dbmail
 				@recipients= @Recipients

@@ -1,11 +1,11 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIG-bodb02" executers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_Admin_CustLimitBet_Negative_Checking]
 	@ErrorMessage VARCHAR(MAX) OUTPUT
 AS
 /*	
 	Created: 20240610@Helen
     Task: Support check data for Max Payout Per Match setting - New Rule - New Job - [Redmine: #206245]
-    DB: DBTXN/bodb02
+    DB: DBSIG-bodb02
     Revisions:
 		- 20240610@Helen: Support check data for Max Payout Per Match setting - New Rule - New Job
 
