@@ -29,7 +29,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixsoft.com;qa@starixsoft.com;louisa.vo@starixsoft.com'
+		SET @Recipients = 'dba_local@starixsoft.com;qa@starixsoft.com;louisa.vo@starixsoft.com;gary.vu@starixsoft.com'
 	END
 	
 	IF @Rule = 'Negative'
