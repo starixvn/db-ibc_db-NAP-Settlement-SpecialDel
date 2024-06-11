@@ -18,7 +18,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @ErrorMessage	VARCHAR(MAX)	= 'Error message: '	+ CHAR(13) + CHAR(10)	
+	DECLARE @ErrorMessage	VARCHAR(MAX)	= ''
 			,@Subject		NVARCHAR(500)	= ''
 			,@Body			NVARCHAR(MAX)	= ''
 			,@Recipients	VARCHAR(MAX)	= ''	

@@ -130,7 +130,7 @@ BEGIN
 						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID 
 						 ) AS tmp
 		WHERE l.AccumTurnover < 0 
-			AND tmp.betfrom <> 'p' 
+			AND tmp.betfrom <> 'p'
 	
 		IF @@ROWCOUNT > 0
 		BEGIN
