@@ -44,8 +44,9 @@ BEGIN
 			WAITFOR DELAY '00:00:02.000'
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+					,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid
+				SELECT DISTINCT b.custid, b.eventtypeid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency <> 20
@@ -55,8 +56,9 @@ BEGIN
 				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_789 table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + '. Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+					,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid
+				SELECT DISTINCT b.custid, b.eventtypeid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency = 20
@@ -89,8 +91,9 @@ BEGIN
 			WAITFOR DELAY '00:00:02.000'
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+				  ,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid
+				SELECT DISTINCT b.custid, b.eventtypeid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency <> 20
@@ -100,8 +103,9 @@ BEGIN
 				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_MBC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + '. Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+				 ,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid
+				SELECT DISTINCT b.custid, b.eventtypeid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency = 20
@@ -132,8 +136,9 @@ BEGIN
 			WAITFOR DELAY '00:00:02.000'
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+					,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid
+				SELECT DISTINCT b.custid, b.eventtypeid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency <> 20
@@ -143,8 +148,9 @@ BEGIN
 				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_LIC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + '. Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
+				,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid
+				SELECT DISTINCT b.custid, b.eventtypeid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency = 20
