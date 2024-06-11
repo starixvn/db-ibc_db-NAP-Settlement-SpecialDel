@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_Admin_CustLimitBet_Negative_Checking]
 	@StartTime DATETIME OUTPUT,
 	@EndTime DATETIME OUTPUT,
