@@ -19,7 +19,7 @@ BEGIN
 	DECLARE @CustIDs VARCHAR(MAX) = ''
 	DECLARE @UUSCustIDs VARCHAR(MAX) = ''
 	DECLARE @EventtypeIDs VARCHAR(1000) = ''
-
+	DECLARE @CRLF CHAR(2)
 	CREATE TABLE #Result_Negative_tmp (custid INT,currency TINYINT, eventtypeid TINYINT )
 
 	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_789 -------------------------
