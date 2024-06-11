@@ -18,11 +18,6 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF(DATEPART(MINUTE, GETDATE()) NOT IN (5,35))
-	BEGIN
-		RETURN;
-	END
-
 	DECLARE @StartTime DATETIME = getdate(),
 			@EndTime DATETIME = getdate(),
 			@ErrorMessage VARCHAR(MAX) = 'error message'
@@ -53,7 +48,6 @@ BEGIN
 		SET @Body = 'SP: Nap_Admin_CustLimitBet_Negative_Checking' + CHAR(13) + CHAR(10)
 		+ 'Check from ' + CONVERT(varchar, @StartTime, 120) + ' to ' + CONVERT(varchar, @EndTime, 120) + CHAR(13) + CHAR(10) + CHAR(13) + CHAR(10)
 		+ @ErrorMessage + CHAR(13) + CHAR(10)
-		
 		
 		EXEC msdb.dbo.sp_send_dbmail
 				@recipients= @Recipients
