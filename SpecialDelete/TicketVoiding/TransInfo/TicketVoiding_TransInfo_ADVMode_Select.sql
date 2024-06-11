@@ -22,6 +22,7 @@ BEGIN
 	DECLARE @AdvancedModeInfoXML	XML
 		   ,@TransInfoJson		VARBINARY(MAX)
 		   ,@SiteDBGroupID		SMALLINT
+		   ,@MatchID			INT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -102,6 +103,8 @@ BEGIN
 		,AcceptModeCashOut  TINYINT
 	)
 
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+
 	SET @AdvancedModeInfoXML = CONVERT(XML, @AdvancedModeInfo)
 	INSERT INTO #FilterInfo (MatchId, Bettype)
 	SELECT t.c.value('@MatchId','INT')	
@@ -116,6 +119,15 @@ BEGIN
 			WITH( Id SMALLINT)
 		)bt
 	OPTION (OPTIMIZE FOR (@AdvancedModeInfoXML = NULL))
+
+	SET @MatchId = (SELECT TOP(1) MatchId FROM #FilterInfo)
+
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match m WITH(NOLOCK)
+	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
+				WHEN m.sporttype = 50 AND m.ChildMatchType = 200 AND m.ParentID = @MatchId THEN 1
+			ELSE 0 END
 
 	--Search single tickets
 	INSERT INTO #TransInfo(
@@ -247,17 +259,14 @@ BEGIN
 		,c.CheckTime AS CheckTimeCashOut
 		,c.AcceptMode AS AcceptModeCashOut
 	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid AND d.Bettype = b.bettype
+		INNER JOIN @tmpMatchId m ON m.MatchId = b.matchid
+		INNER JOIN #FilterInfo d ON d.Bettype = b.bettype
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806, 9, 29)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
-		--AND 1 = CASE WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-		--			 ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
-		--					   ELSE 0 END
-		--			 END
 		AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	--Search sub-parlay
@@ -394,16 +403,13 @@ BEGIN
 			,b.modds
 			,sub.SiteDBGroupID
 		FROM #FilterInfo d
-			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid AND d.Bettype = sub.bettype
+			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.Bettype = sub.bettype
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
+			INNER JOIN @tmpMatchId m ON m.MatchId = sub.matchid
 		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29
 			AND b.bettype = 29
-			--AND CASE WHEN d.FilterBy = 1 THEN sub.transdate
-			--			WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
-			--			WHEN d.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
-			--	END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
 			

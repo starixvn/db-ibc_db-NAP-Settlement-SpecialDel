@@ -12,7 +12,7 @@ AS
 /*	
 	Created by: 20240522@Max
 	Task: [TVS] Wrong Market Offered issue type [Redmine: #197051]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#197051]
@@ -179,6 +179,11 @@ BEGIN
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 	FROM @AdvancedModeInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AdvancedModeInfoXML = NULL))
+
+	INSERT INTO #FilterInfo (MatchId)
+	SELECT MatchId
+	FROM dbo.match WITH(NOLOCK)
+	WHERE (matchid = @MatchId OR ParentID = @MatchId)
 
 	INSERT INTO #tmpTransInfo( 
 		    matchid 
