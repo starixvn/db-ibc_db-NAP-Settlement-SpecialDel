@@ -52,7 +52,7 @@ BEGIN
 			) AS tmp
 
 			IF ISNULL(@CustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_789 table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + ' Eventtypeid(s): '+@EventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_789 table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + '. Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 			FROM(
@@ -63,7 +63,7 @@ BEGIN
 			) AS tmp
 
 			IF ISNULL(@UUSCustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_789 table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ' Eventtypeid(s): '+ @EventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_789 table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + '. Eventtypeid(s): '+ @EventtypeIDs + @CRLF
 		END
 	END
 	
@@ -97,7 +97,7 @@ BEGIN
 			) AS tmp
 
 			IF ISNULL(@CustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_MBC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + ' Eventtypeid(s): '+@EventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_MBC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + '. Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 			FROM(
@@ -108,7 +108,7 @@ BEGIN
 			) AS tmp
 
 			IF ISNULL(@UUSCustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_MBC table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ' Eventtypeid(s): '+ @EventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_MBC table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + '. Eventtypeid(s): '+ @EventtypeIDs + @CRLF
 		END
 	END
 
@@ -140,7 +140,7 @@ BEGIN
 			) AS tmp
 
 			IF ISNULL(@CustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_LIC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + ' Eventtypeid(s): '+@EventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_LIC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + '. Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 			FROM(
@@ -151,7 +151,7 @@ BEGIN
 			) AS tmp
 
 			IF ISNULL(@UUSCustIDs,'') <> ''
-				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_LIC table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + ' Eventtypeid(s): '+ @EventtypeIDs + @CRLF
+				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_LIC table contains negative amount for UUS currency. Top 100 custid(s): ' + @UUSCustIDs + '. Eventtypeid(s): '+ @EventtypeIDs + @CRLF
 		END
 	END
 END
