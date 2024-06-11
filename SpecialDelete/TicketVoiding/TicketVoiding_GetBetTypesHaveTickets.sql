@@ -57,6 +57,23 @@ BEGIN
         AND bt.bettype < 19000
 		AND (transdate BETWEEN @FromTransDate AND @ToTransDate OR (@FromTransDate IS NULL AND @ToTransDate IS NULL))
     GROUP BY bt.bettype, bt.transdesc
+
+	IF @FromTransDate IS NOT NULL AND @ToTransDate IS NOT NULL --New issuetype WMO, Technical Error
+	BEGIN
+		DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+		INSERT INTO @bettype_tmp (bettype)
+		SELECT DISTINCT pt.bettype
+		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+		WHERE pt.ProductID = 1 -- Sportsbook
+			AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
+			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
+			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+
+		DELETE t
+		FROM #TmpBettype t
+			LEFT JOIN @bettype_tmp bt ON bt.bettype = t.bettype
+		WHERE bt.bettype IS NULL
+	END
    
     SELECT t.bettype AS [Id]
 		 ,CASE WHEN bt.typeid = 9604 THEN 'Over/Under'
