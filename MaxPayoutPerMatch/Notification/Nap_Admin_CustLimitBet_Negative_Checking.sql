@@ -4,6 +4,16 @@ ALTER PROCEDURE [dbo].[Nap_Admin_CustLimitBet_Negative_Checking]
 	@EndTime DATETIME OUTPUT,
 	@ErrorMessage VARCHAR(MAX) OUTPUT
 AS
+/*	
+	Created: 20240610@Helen
+    Task: Support check data for Max Payout Per Match setting - New Rule - New Job - [Redmine: #206245]
+    DB: DBTXN/bodb02
+    Revisions:
+		- 20240610@Helen: Support check data for Max Payout Per Match setting - New Rule - New Job
+
+	Param's explanation:		
+		
+*/
 BEGIN	
 	--------------Rule to check negative amount for all eventtypeid (not for phone betting) --------------------
 	DECLARE @CustIDs VARCHAR(MAX) = ''
