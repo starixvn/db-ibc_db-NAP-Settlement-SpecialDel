@@ -74,6 +74,8 @@ BEGIN
 						FROM dbo.CustLimitBet_MBC cm
 						WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
 					END
+					ELSE
+						THROW;
 			END CATCH
 		END
 	END
@@ -103,6 +105,8 @@ BEGIN
 						FROM dbo.CustLimitBet_789 cm
 						WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
 					END
+					ELSE
+						THROW;
 			END CATCH
 		END
 	END
@@ -132,6 +136,8 @@ BEGIN
 						FROM dbo.CustLimitBet_LIC cm
 						WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
 					END
+					ELSE
+						THROW;
 			END CATCH
 		END
 	END
