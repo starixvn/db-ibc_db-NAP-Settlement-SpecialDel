@@ -21,7 +21,7 @@ BEGIN
 
 	SET @CRLF = CHAR(13)+CHAR(10)
 
-	CREATE TABLE #Result_Negative_tmp (custid INT, eventtypeid TINYINT )
+	CREATE TABLE #Result_Negative_tmp (custid INT)
 
 	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_789 -------------------------
 	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
@@ -30,8 +30,8 @@ BEGIN
 		
 		TRUNCATE TABLE #Result_Negative_tmp
 
-		INSERT INTO #Result_Negative_tmp (custid, eventtypeid)
-		SELECT DISTINCT TOP (100) l.custid, l.EventTypeID
+		INSERT INTO #Result_Negative_tmp (custid)
+		SELECT DISTINCT TOP (100) l.custid
 		FROM CustLimitBet_789 l WITH (NOLOCK)
 			CROSS APPLY (SELECT TOP 1 betfrom FROM bettrans b WITH (NOLOCK)
 						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID 
@@ -43,9 +43,8 @@ BEGIN
 		BEGIN
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
-					,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid, b.eventtypeid
+				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency <> 20
@@ -55,9 +54,8 @@ BEGIN
 				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_789 table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + '. Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
-					,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid, b.eventtypeid
+				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency = 20
@@ -75,8 +73,8 @@ BEGIN
 		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '1,2,3,4,5'
 		
 		TRUNCATE TABLE #Result_Negative_tmp
-		INSERT INTO #Result_Negative_tmp (custid, eventtypeid)
-		SELECT DISTINCT TOP (100) l.custid, l.EventTypeID
+		INSERT INTO #Result_Negative_tmp (custid)
+		SELECT DISTINCT TOP (100) l.custid
 		FROM CustLimitBet_MBC l WITH (NOLOCK)
 			CROSS APPLY (SELECT TOP 1 betfrom FROM bettrans b WITH (NOLOCK)
 						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID 
@@ -88,9 +86,8 @@ BEGIN
 		BEGIN
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
-				  ,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid, b.eventtypeid
+				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency <> 20
@@ -100,9 +97,8 @@ BEGIN
 				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_MBC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + '. Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
-				 ,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid, b.eventtypeid
+				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency = 20
@@ -119,8 +115,8 @@ BEGIN
 		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '1,2,3,4,5'
 		
 		TRUNCATE TABLE #Result_Negative_tmp
-		INSERT INTO #Result_Negative_tmp (custid, eventtypeid)
-		SELECT DISTINCT TOP (100) l.custid, l.EventTypeID
+		INSERT INTO #Result_Negative_tmp (custid)
+		SELECT DISTINCT TOP (100) l.custid
 		FROM CustLimitBet_LIC l WITH (NOLOCK)
 			CROSS APPLY (SELECT TOP 1 betfrom FROM bettrans b WITH (NOLOCK)
 						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID 
@@ -132,9 +128,8 @@ BEGIN
 		BEGIN
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
-					,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid, b.eventtypeid
+				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency <> 20
@@ -144,9 +139,8 @@ BEGIN
 				SET @ErrorMessage = @ErrorMessage + 'CustLimitBet_LIC table contains negative amount for real currency. Top 100 custid(s): ' + @CustIDs + '. Eventtypeid(s): '+@EventtypeIDs + @CRLF
 			----------------uus------------------------
 			SELECT @UUSCustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
-				,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
 			FROM(
-				SELECT DISTINCT b.custid, b.eventtypeid
+				SELECT DISTINCT b.custid
 				FROM #Result_Negative_tmp b 
 					INNER JOIN CUSTDB.dbo.Customer c WITH ( NOLOCK) ON b.custid = c.custid 
 				WHERE c.Currency = 20
