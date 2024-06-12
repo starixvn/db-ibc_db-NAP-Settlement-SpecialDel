@@ -77,9 +77,9 @@ BEGIN
 		  ,SiteDBGroupID
 		  ,IsCancelCashOut
 		)
-	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb ,isCCO
+	SELECT m_mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb ,isCCO
 	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isCCO BIT
+	WITH( m_mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isCCO BIT
 	) tbl
 
 	SET @TechnicalErrorXML = CONVERT(XML, @TechnicalErrorInfo)
