@@ -23,18 +23,13 @@ BEGIN
 		   ,@TransInfoJson		VARBINARY(MAX)
 		   ,@SiteDBGroupID		SMALLINT
 		   ,@MatchID			INT
+		   ,@AdvancedExtraInfo	NVARCHAR(MAX)
+		   ,@ValueDefault SMALLMONEY = 9999.00
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #FilterInfo(
 		MatchId				INT
-		,Bettype				SMALLINT
-		,FilterSet          NVARCHAR(50)
-        ,FilterRuns		    SMALLMONEY
-		,FilterTransdesc	NVARCHAR(2000)
-		,FilterLive			BIT
-		,FilterNonLive		BIT
-		,IsFancy			BIT DEFAULT (0)
 	)
 
 	CREATE TABLE #TransInfo (
@@ -59,8 +54,6 @@ BEGIN
 		,statusID TINYINT
 		,WalletType TINYINT
 		,RefCode BIGINT
-		,LiveBetAcceptTime SMALLINT
-		,SecAcceptTime TINYINT
 		,Subcustid INT        
 		,Sublivehomescore SMALLINT
 		,Subliveawayscore SMALLINT
@@ -72,8 +65,6 @@ BEGIN
 		,Subtransdate DATETIME
 		,Subchecktime DATETIME
 		,Subliveindicator BIT
-		,SubLiveBetAcceptTime SMALLINT
-		,SubSecAcceptTime TINYINT
 		,recommend INT
 		,mrecommend INT
 		,srecommend INT
@@ -101,33 +92,112 @@ BEGIN
 		,SiteDBGroupID SMALLINT
 		,CheckTimeCashOut  DATETIME
 		,AcceptModeCashOut  TINYINT
+		--For Advanced Mode
+		,FilterBettype	SMALLINT
+		,FilterBetteam NVARCHAR(10)
+		,FilterHdp1 SMALLMONEY
+		,FilterHdp2 SMALLMONEY
+		,FilterWicketOver  NVARCHAR(50)
+		,FilterQuarter  NVARCHAR(50)
+		,FilterSet  NVARCHAR(50)
+		,FilterGame  NVARCHAR(50)
+		,FilterMap  NVARCHAR(50)
+		,FilterRound  NVARCHAR(50)
+		,FilterPoint  NVARCHAR(50)
+		,FilterKill  NVARCHAR(50)
+		,FilterTower   SMALLMONEY
+		,FilterTurret  NVARCHAR(50)
+		,FilterBall  NVARCHAR(50)
+		,FilterDelivery NVARCHAR(50)
+		,FilterTransdesc NVARCHAR(1000)
+		,FilterPlayerAndOdds NVARCHAR(1000)	
 	)
 
-	DECLARE @tmpMatchId TABLE (MatchId INT)
+	DECLARE @bettype_detail AS TABLE (
+		Bettype				SMALLINT
+		,FilterBetteam      NVARCHAR(10)
+		,FilterHDP		    SMALLMONEY
+		,FilterSet          NVARCHAR(50)
+        ,FilterRuns		    SMALLMONEY
+		,FilterTransdesc	NVARCHAR(2000)
+		,IsFancy			BIT DEFAULT (0)
+		,FilterWicketOver  NVARCHAR(50)
+		,FilterQuarter  NVARCHAR(50)
+		,FilterGame  NVARCHAR(50)
+		,FilterMap  NVARCHAR(50)
+		,FilterRound  NVARCHAR(50)
+		,FilterPoint  NVARCHAR(50)
+		,FilterKill  NVARCHAR(50)
+		,FilterTower   SMALLMONEY
+		,FilterTurret  NVARCHAR(50)
+		,FilterBall  NVARCHAR(50)
+		,FilterDelivery NVARCHAR(50)
+		,FilterPlayerAndOdds NVARCHAR(1000)	
+	)
 
 	SET @AdvancedModeInfoXML = CONVERT(XML, @AdvancedModeInfo)
-	INSERT INTO #FilterInfo (MatchId, Bettype)
-	SELECT t.c.value('@MatchId','INT')	
-		, bt.bettype
+
+	SELECT @MatchID = t.c.value('@MatchId','INT')	
+		,@AdvancedExtraInfo = t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)')
 	FROM @AdvancedModeInfoXML.nodes('root/r') t(c)
-		CROSS APPLY (
-			SELECT t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)') AS AdvancedMode
-		)tmp
-		CROSS APPLY (
-			SELECT Id AS bettype
-			FROM OPENJSON(tmp.AdvancedMode) 
-			WITH( Id SMALLINT)
-		)bt
 	OPTION (OPTIMIZE FOR (@AdvancedModeInfoXML = NULL))
 
-	SET @MatchId = (SELECT TOP(1) MatchId FROM #FilterInfo)
-
-	INSERT INTO @tmpMatchId (MatchId)
+	INSERT INTO #FilterInfo (MatchId)
 	SELECT MatchId
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
 				WHEN m.sporttype = 50 AND m.ChildMatchType = 200 AND m.ParentID = @MatchId THEN 1
 			ELSE 0 END
+	
+	INSERT INTO @bettype_detail (Bettype
+		,FilterBetteam
+		,FilterHDP
+		,FilterMap
+		,FilterWicketOver
+		,FilterTransdesc
+		,FilterQuarter
+		,FilterGame  
+		,FilterRound 
+		,FilterPoint
+		,FilterKill 
+		,FilterTower   
+		,FilterTurret  
+		,FilterBall  
+		,FilterDelivery 
+		,FilterPlayerAndOdds 
+		,FilterSet
+		,FilterRuns
+	)
+	SELECT tmp.bettype, tmp.betteam
+		,CAST(CASE WHEN vhdp1.value = '' THEN @ValueDefault
+						ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
+		,map.value AS FilterMap
+		,'' AS FilterWicketOver
+		,pl.value AS FilterTransdesc
+		,'' AS FilterQuarter
+		,'' FilterGame  
+		,'' FilterRound 
+		,'' FilterPoint
+		,'' FilterKill 
+		,@ValueDefault FilterTower   
+		,'' FilterTurret  
+		,'' FilterBall  
+		,'' FilterDelivery 
+		,'' FilterPlayerAndOdds 
+		,'' AS FilterSet
+		,'' AS FilterRuns
+	FROM (
+		SELECT Id AS bettype
+			,ISNULL(Team, 'All') AS betteam
+			,ISNULL(Hdp, '') AS HDPs
+			,ISNULL(Map,'') AS Maps
+			,ISNULL(Player, '') AS Players
+		FROM OPENJSON(@AdvancedExtraInfo) 
+		WITH( Id SMALLINT, Team NVARCHAR(10), Hdp VARCHAR(100), Player VARCHAR(1000), Map VARCHAR(1000))
+	)tmp
+	CROSS APPLY STRING_SPLIT(tmp.HDPs, '&') vhdp1
+	CROSS APPLY STRING_SPLIT(tmp.Maps, ',') map
+	CROSS APPLY STRING_SPLIT(tmp.Players, ',') pl
 
 	--Search single tickets
 	INSERT INTO #TransInfo(
@@ -152,8 +222,6 @@ BEGIN
 			,statusID 
 			,WalletType 
 			,RefCode 
-			,LiveBetAcceptTime 
-			,SecAcceptTime 
 			,Subcustid         
 			,Sublivehomescore 
 			,Subliveawayscore 
@@ -165,8 +233,6 @@ BEGIN
 			,Subtransdate 
 			,Subchecktime 
 			,Subliveindicator 
-			,SubLiveBetAcceptTime 
-			,SubSecAcceptTime 
 			,recommend 
 			,mrecommend 
 			,srecommend 
@@ -194,6 +260,25 @@ BEGIN
 			,SiteDBGroupID
 			,CheckTimeCashOut
 			,AcceptModeCashOut
+			--For Advanced Mode
+			,FilterBettype	
+			,FilterBetteam 
+			,FilterHdp1 
+			,FilterHdp2 
+			,FilterWicketOver 
+			,FilterQuarter
+			,FilterSet  
+			,FilterGame  
+			,FilterMap 
+			,FilterRound  
+			,FilterPoint 
+			,FilterKill 
+			,FilterTower  
+			,FilterTurret  
+			,FilterBall 
+			,FilterDelivery 
+			,FilterTransdesc 
+			,FilterPlayerAndOdds 
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -216,8 +301,6 @@ BEGIN
 		,b.statusID 
 		,b.WalletType 
 		,b.RefCode 
-		,bi.LiveBetAcceptTime 
-		,bi.SecAcceptTime 
 		,b.custid Subcustid         
 		,b.livehomescore AS Sublivehomescore 
 		,b.liveawayscore AS Subliveawayscore 
@@ -229,8 +312,6 @@ BEGIN
 		,b.transdate AS Subtransdate 
 		,b.checktime AS Subchecktime 
 		,b.liveindicator AS Subliveindicator 
-		,bi.LiveBetAcceptTime AS SubLiveBetAcceptTime 
-		,bi.SecAcceptTime AS SubSecAcceptTime 
 		,b.recommend 
 		,b.mrecommend 
 		,b.srecommend 
@@ -258,17 +339,33 @@ BEGIN
 		,b.SiteDBGroupID
 		,c.CheckTime AS CheckTimeCashOut
 		,c.AcceptMode AS AcceptModeCashOut
+		,b.bettype AS FilterBettype	
+		,b.betteam AS FilterBetteam 
+		,b.hdp1 AS FilterHdp1 
+		,b.hdp2 AS FilterHdp2 
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterWicketOver 
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterQuarter 
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterSet  
+		,RIGHT(b.betid, 2) AS FilterGame
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterMap 
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterRound  
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterPoint 
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterKill 
+		,b.hdp1 AS FilterTower  
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterTurret  
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterBall 
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterDelivery 
+		,b.transdesc AS FilterTransdesc 
+		,b.oddsid AS FilterPlayerAndOdds 
 	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN @tmpMatchId m ON m.MatchId = b.matchid
-		INNER JOIN #FilterInfo d ON d.Bettype = b.bettype
-		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
+		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806, 9, 29)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
 		AND b.SiteDBGroupID = @SiteDBGroupID
-	
+
 	--Search sub-parlay
 	IF EXISTS (
 					SELECT TOP(1) 1
@@ -300,8 +397,6 @@ BEGIN
 				,statusID 
 				,WalletType 
 				,RefCode 
-				,LiveBetAcceptTime 
-				,SecAcceptTime 
 				,Subcustid         
 				,Sublivehomescore 
 				,Subliveawayscore 
@@ -313,8 +408,6 @@ BEGIN
 				,Subtransdate 
 				,Subchecktime 
 				,Subliveindicator 
-				,SubLiveBetAcceptTime 
-				,SubSecAcceptTime 
 				,recommend 
 				,mrecommend 
 				,srecommend 
@@ -340,6 +433,25 @@ BEGIN
 				,SubTransdesc  
 				,modds 
 				,SiteDBGroupID
+				--For Advanced Mode
+				,FilterBettype	
+				,FilterBetteam 
+				,FilterHdp1 
+				,FilterHdp2 
+				,FilterWicketOver 
+				,FilterQuarter
+				,FilterSet  
+				,FilterGame  
+				,FilterMap 
+				,FilterRound  
+				,FilterPoint 
+				,FilterKill 
+				,FilterTower  
+				,FilterTurret  
+				,FilterBall 
+				,FilterDelivery 
+				,FilterTransdesc 
+				,FilterPlayerAndOdds 
 			)
 		SELECT sub.matchid
 			,b.TransId
@@ -362,8 +474,6 @@ BEGIN
 			,b.statusID 
 			,b.WalletType 
 			,b.RefCode 
-			,NULL AS LiveBetAcceptTime 
-			,NULL AS SecAcceptTime 
 			,b.custid Subcustid         
 			,sub.livehomescore AS Sublivehomescore 
 			,sub.liveawayscore AS Subliveawayscore 
@@ -375,8 +485,6 @@ BEGIN
 			,sub.transdate AS Subtransdate 
 			,sub.checktime AS Subchecktime 
 			,sub.liveindicator AS Subliveindicator 
-			,sub.LiveBetAcceptTime AS SubLiveBetAcceptTime 
-			,sub.SecAcceptTime AS SubSecAcceptTime 
 			,b.recommend 
 			,b.mrecommend 
 			,b.srecommend 
@@ -402,16 +510,59 @@ BEGIN
 			,sub.transdesc SubTransdesc  
 			,b.modds
 			,sub.SiteDBGroupID
+			,sub.bettype AS FilterBettype	
+			,sub.betteam AS FilterBetteam 
+			,sub.hdp1 AS FilterHdp1 
+			,sub.hdp2 AS FilterHdp2 
+			,sub.betcheck AS FilterWicketOver 
+			,sub.betcheck AS FilterQuarter
+			,sub.betcheck AS FilterSet  
+			,RIGHT(sub.betcheck, 2) AS FilterGame
+			,sub.betcheck AS FilterMap 
+			,sub.betcheck AS FilterRound  
+			,sub.betcheck AS FilterPoint 
+			,sub.betcheck AS FilterKill 
+			,sub.hdp1 AS FilterTower  
+			,sub.betcheck AS FilterTurret  
+			,sub.betcheck AS FilterBall 
+			,sub.betcheck AS FilterDelivery 
+			,sub.transdesc AS FilterTransdesc 
+			,sub.oddsid AS FilterPlayerAndOdds 
 		FROM #FilterInfo d
-			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.Bettype = sub.bettype
+			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
-			INNER JOIN @tmpMatchId m ON m.MatchId = sub.matchid
 		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29
 			AND b.bettype = 29
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
+
+	--Remove invalid data
+	DELETE b
+	FROM #TransInfo b
+		OUTER APPLY (
+			SELECT TOP 1 Bettype
+			FROM @bettype_detail f
+			WHERE f.Bettype = b.FilterBettype
+				AND (f.FilterBetteam = 'All' OR b.FilterBetteam = f.FilterBetteam)
+				AND (f.FilterHDP = @ValueDefault OR b.FilterHdp1 = f.FilterHDP)
+				AND (f.FilterTower = @ValueDefault OR b.FilterHdp1 = f.FilterTower)
+				AND (f.FilterSet = '' OR b.FilterSet LIKE f.FilterSet + '%')
+				AND (f.FilterDelivery = '' OR b.FilterDelivery = f.FilterDelivery)
+				AND (f.FilterKill = '' OR b.FilterKill = f.FilterKill)
+				AND (f.FilterMap = '' OR b.FilterMap = f.FilterMap)
+				AND (f.FilterPoint = '' OR b.FilterPoint = f.FilterPoint)
+				AND (f.FilterRound = '' OR b.FilterRound = f.FilterRound)
+				AND (f.FilterTurret = '' OR b.FilterTurret = f.FilterTurret)
+				AND (f.FilterTransdesc = '' OR b.FilterTransdesc = f.FilterTransdesc)
+				AND 1 = CASE WHEN f.FilterRuns = '' THEN 1
+							WHEN f.FilterRuns <> '' AND f.IsFancy = 0 AND b.FilterHdp1 > FilterRuns THEN 1
+							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 > f.FilterRuns THEN 1
+							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'n' AND b.FilterHdp1 > f.FilterRuns THEN 1
+					ELSE 0 END
+		)t
+	WHERE t.Bettype IS NULL
 			
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
@@ -435,8 +586,6 @@ BEGIN
 		,statusID AS 'sid'
 		,WalletType AS 'wt'
 		,RefCode AS 'refc'
-		,LiveBetAcceptTime AS 'lbat'
-		,SecAcceptTime AS 'sat'
 		,Subcustid    AS     's_c' 
 		,Sublivehomescore AS 's_lh'
 		,Subliveawayscore AS 's_la'
@@ -448,8 +597,6 @@ BEGIN
 		,Subtransdate AS 's_tdate'
 		,Subchecktime AS 's_checkt'
 		,Subliveindicator AS 's_li'
-		,SubLiveBetAcceptTime AS 's_lbat'
-		,SubSecAcceptTime AS 's_sat'
 		,recommend AS 're'
 		,mrecommend AS 'mre'
 		,srecommend AS 'sre'
