@@ -21,6 +21,7 @@ AS
 		- 20220317@Max: Support Max Payout & Max Turnover for Deposit - [Redmine: #167898]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240118@Louisa: VS4 - Cock Fighting [Redmine:#199700]
+		- 20240612@Helen: Duplicate Key issue [Redmine:#00000]
 	
 	Param's explanation:	
 		
@@ -50,56 +51,89 @@ BEGIN
 	IF @sitetype = 1 --MBC
 	BEGIN
 		--CustLimitBet
-		IF NOT EXISTS (SELECT 1 FROM dbo.CustLimitBet_MBC cm WITH (NOLOCK) WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID)
-		BEGIN
-			INSERT INTO dbo.CustLimitBet_MBC (CustID, Matchid, AccumTurnover, AccumPayout, EventTypeID, ModifiedDate)
-			SELECT @custid, @MatchId, @turnover, @payout, @EventTypeID, GETDATE()
+		UPDATE cm WITH (ROWLOCK, UPDLOCK) 
+			SET cm.AccumTurnover = cm.AccumTurnover + @turnover
+				, cm.AccumPayout = cm.AccumPayout + @payout
+				, cm.ModifiedDate = GETDATE()
+		FROM dbo.CustLimitBet_MBC cm
+		WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
+
+		IF @@ROWCOUNT = 0
+		BEGIN 
+			BEGIN TRY
+				INSERT INTO dbo.CustLimitBet_MBC (CustID, Matchid, AccumTurnover, AccumPayout, EventTypeID, ModifiedDate)
+				SELECT @custid, @MatchId, @turnover, @payout, @EventTypeID, GETDATE()
+			END TRY
+			BEGIN CATCH
+					IF @@ERROR = 2627 --  duplicate key error
+					BEGIN	
+						UPDATE cm WITH (ROWLOCK, UPDLOCK) 
+							SET cm.AccumTurnover = cm.AccumTurnover + @turnover
+								, cm.AccumPayout = cm.AccumPayout + @payout
+								, cm.ModifiedDate = GETDATE()
+						FROM dbo.CustLimitBet_MBC cm
+						WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
+					END
+			END CATCH
 		END
-		ELSE
-		BEGIN
-			UPDATE cm WITH (ROWLOCK, UPDLOCK) 
-				SET cm.AccumTurnover = cm.AccumTurnover + @turnover
-					, cm.AccumPayout = cm.AccumPayout + @payout
-					, cm.ModifiedDate = GETDATE()
-			FROM dbo.CustLimitBet_MBC cm
-			WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
-		END		
 	END
 	ELSE IF @sitetype = 2 --789y
 	BEGIN
 		--CustLimitBet
-		IF NOT EXISTS (SELECT 1 FROM dbo.CustLimitBet_789 cm WITH (NOLOCK) WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID)
-		BEGIN
-			INSERT INTO dbo.CustLimitBet_789 (CustID, Matchid, AccumTurnover, AccumPayout, EventTypeID, ModifiedDate)
-			SELECT @custid, @MatchId, @turnover, @payout, @EventTypeID, GETDATE()
-		END
-		ELSE
-		BEGIN
-			UPDATE cm WITH (ROWLOCK, UPDLOCK) 
-				SET cm.AccumTurnover = cm.AccumTurnover + @turnover
-					, cm.AccumPayout = cm.AccumPayout + @payout
-					, cm.ModifiedDate = GETDATE()
-			FROM dbo.CustLimitBet_789 cm
-			WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
+		UPDATE cm WITH (ROWLOCK, UPDLOCK) 
+			SET cm.AccumTurnover = cm.AccumTurnover + @turnover
+				, cm.AccumPayout = cm.AccumPayout + @payout
+				, cm.ModifiedDate = GETDATE()
+		FROM dbo.CustLimitBet_789 cm
+		WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
+
+		IF @@ROWCOUNT = 0
+		BEGIN 
+			BEGIN TRY
+				INSERT INTO dbo.CustLimitBet_789(CustID, Matchid, AccumTurnover, AccumPayout, EventTypeID, ModifiedDate)
+				SELECT @custid, @MatchId, @turnover, @payout, @EventTypeID, GETDATE()
+			END TRY
+			BEGIN CATCH
+					IF @@ERROR = 2627 --  duplicate key error
+					BEGIN	
+						UPDATE cm WITH (ROWLOCK, UPDLOCK) 
+							SET cm.AccumTurnover = cm.AccumTurnover + @turnover
+								, cm.AccumPayout = cm.AccumPayout + @payout
+								, cm.ModifiedDate = GETDATE()
+						FROM dbo.CustLimitBet_789 cm
+						WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
+					END
+			END CATCH
 		END
 	END
 	ELSE IF @sitetype = 3 --licensee
 	BEGIN
 		--CustLimitBet
-		IF NOT EXISTS (SELECT 1 FROM dbo.CustLimitBet_LIC cm WITH (NOLOCK) WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID)
-		BEGIN
-			INSERT INTO dbo.CustLimitBet_LIC (CustID, Matchid, AccumTurnover, AccumPayout, EventTypeID, ModifiedDate)
-			SELECT @custid, @MatchId, @turnover, @payout, @EventTypeID, GETDATE()
+		UPDATE cm WITH (ROWLOCK, UPDLOCK) 
+			SET cm.AccumTurnover = cm.AccumTurnover + @turnover
+				, cm.AccumPayout = cm.AccumPayout + @payout
+				, cm.ModifiedDate = GETDATE()
+		FROM dbo.CustLimitBet_LIC cm
+		WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
+
+		IF @@ROWCOUNT = 0
+		BEGIN 
+			BEGIN TRY
+				INSERT INTO dbo.CustLimitBet_LIC (CustID, Matchid, AccumTurnover, AccumPayout, EventTypeID, ModifiedDate)
+				SELECT @custid, @MatchId, @turnover, @payout, @EventTypeID, GETDATE()
+			END TRY
+			BEGIN CATCH
+					IF @@ERROR = 2627 --  duplicate key error
+					BEGIN	
+						UPDATE cm WITH (ROWLOCK, UPDLOCK) 
+							SET cm.AccumTurnover = cm.AccumTurnover + @turnover
+								, cm.AccumPayout = cm.AccumPayout + @payout
+								, cm.ModifiedDate = GETDATE()
+						FROM dbo.CustLimitBet_LIC cm
+						WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
+					END
+			END CATCH
 		END
-		ELSE
-		BEGIN
-			UPDATE cm WITH (ROWLOCK, UPDLOCK) 
-				SET cm.AccumTurnover = cm.AccumTurnover + @turnover
-					, cm.AccumPayout = cm.AccumPayout + @payout
-					, cm.ModifiedDate = GETDATE()
-			FROM dbo.CustLimitBet_LIC cm
-			WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
-		END		
 	END
 END
 GO
