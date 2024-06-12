@@ -1,8 +1,6 @@
 --DROP TABLE [MaxPayout_CheckData]
 --DROP TABLE [MaxPayout_CheckData_History]
 --DROP TABLE [MaxPayout_CheckData_Problem]
-
-USE [bodb02]
 go
 CREATE TABLE [dbo].[MaxPayout_CheckData](
 	[custid] [int] NOT NULL,
@@ -26,24 +24,6 @@ GO
 
 ALTER TABLE [dbo].[MaxPayout_CheckData] ADD  CONSTRAINT [DF__MaxPayout_CheckData__CreatedDate]  DEFAULT (getdate()) FOR [CreatedDate]
 GO
-
-CREATE TABLE [dbo].[MaxPayout_CheckData_History](
-	[keyID] [int] IDENTITY(1,1) NOT NULL,
-	[custid] [int] NOT NULL,
-	[matchid] [int] NOT NULL,
-	[eventtypeid] [tinyint] NOT NULL,
-	[roundVerified] [int] NULL,
-	[DiffAmount] [money] NULL,
-	[createdDate] DATETIME NULL
- CONSTRAINT [PK_MaxPayout_CheckData_History] PRIMARY KEY CLUSTERED 
-(
-	[matchid] ASC
-	,[custid] ASC
-	,[eventtypeid] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [table_customer]
-) ON [table_customer]
-GO
-
 CREATE TABLE [dbo].[MaxPayout_CheckData_Problem](
 	[keyID] [int] IDENTITY(1,1) NOT NULL,
 	[UserName] [varchar](50) NULL,
@@ -70,3 +50,4 @@ GO
 
 ALTER TABLE [dbo].[MaxPayout_CheckData_Problem] ADD  CONSTRAINT [DF__MaxPayout__Remark]  DEFAULT ('') FOR [Remark]
 GO
+
