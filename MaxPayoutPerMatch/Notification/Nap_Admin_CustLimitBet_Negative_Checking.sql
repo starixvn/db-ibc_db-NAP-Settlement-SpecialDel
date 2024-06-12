@@ -41,8 +41,6 @@ BEGIN
 	
 		IF @@ROWCOUNT > 0
 		BEGIN
-			--retry one more time for sure
-			WAITFOR DELAY '00:00:02.000'
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 					,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
@@ -88,8 +86,6 @@ BEGIN
 	
 		IF @@ROWCOUNT > 0
 		BEGIN
-			--retry one more time for sure
-			WAITFOR DELAY '00:00:02.000'
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 				  ,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
@@ -134,8 +130,6 @@ BEGIN
 	
 		IF @@ROWCOUNT > 0
 		BEGIN
-			--retry one more time for sure
-			WAITFOR DELAY '00:00:02.000'
 
 			SELECT @CustIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.custid), ',') 
 					,@EventtypeIDs = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.eventtypeid), ',') 
