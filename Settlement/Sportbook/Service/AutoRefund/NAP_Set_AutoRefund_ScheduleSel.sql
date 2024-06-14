@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_AutoRefund_ScheduleSel
 	@sporttype TINYINT = 1
 AS
@@ -15,6 +15,7 @@ AS
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
+		- 20240614@Aries: Add fantasy leagueId [Redmine:#206489]
 */
 BEGIN
 	
@@ -56,7 +57,7 @@ BEGIN
 			AND ar.SourceId = 105
 			AND ar.StatusId = 0
 			AND ar.TypeId = 1
-			AND m.leagueid NOT IN (16371,65550,89611) -- Exclude Fantasy Match
+			AND m.leagueid NOT IN (16371,65550,89611,149675,149676) -- Exclude Fantasy Match
 	END
 	ELSE IF @sporttype = 5
 	BEGIN

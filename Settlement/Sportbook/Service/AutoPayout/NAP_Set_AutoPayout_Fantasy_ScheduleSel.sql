@@ -9,6 +9,7 @@ AS
 		- 20230616@Aries: Created [Redmine:#189493]
 		- 20230825@Aries: Direct Fantasy is run when parent match is not completed [Redmine:#193173]
 		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
+		- 20240614@Aries: Add fantasy leagueId [Redmine:#206489]
 
 	Param's Explanation:
  
@@ -68,7 +69,7 @@ BEGIN
 				) AS ar
 	WHERE m.eventstatus = 'running' 
 		AND m.eventdate BETWEEN @FromDate AND @ToDate
-		AND m.leagueid IN (16371,65550,89611)
+		AND m.leagueid IN (16371,65550,89611,149675,149676)
 		AND ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0))  & 16 > 0
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
 		AND r.IsCalculated IS NULL
