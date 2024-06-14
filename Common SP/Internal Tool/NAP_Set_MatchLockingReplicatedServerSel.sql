@@ -1,6 +1,7 @@
-/*<info serverAlias="SBSETTLE-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="SBSETTLE-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_MatchLockingReplicatedServerSel
 	@MatchId INT = 0
+	,@Mode VARCHAR(20) = 'single'
 AS
 /*
 	Created by: 20211111@Kathy
@@ -13,6 +14,10 @@ AS
 		- 20220927@Louisa: get more info [RedmineId:#177711]
 		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
 		- 20230208@Louisa: support queue 3rd [RedmineId:#179505]
+		- 20240514@Kathy: parlay settlement [RedmineId:#204985]
+
+	Param's Explanation:
+		@Mode = 'single', 'parlay'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -36,10 +41,16 @@ BEGIN
 	SET @checktime = DATEADD(HOUR,-6,SYSDATETIME())
 	SET @ServerName = @@SERVERNAME
 
-	INSERT INTO @tmpMatchLocked(MatchId, SessionId)
-	SELECT	MatchId, SessionId
-	FROM	dbo.SettlementLock WITH(NOLOCK)
-	WHERE	MatchId = CASE WHEN ISNULL(@MatchId,0) = 0 THEN MatchId ELSE @MatchId END
+	IF @Mode = 'single'
+		INSERT INTO @tmpMatchLocked(MatchId, SessionId)
+		SELECT	MatchId, SessionId
+		FROM	dbo.SettlementLock WITH(NOLOCK)
+		WHERE	MatchId = CASE WHEN ISNULL(@MatchId,0) = 0 THEN MatchId ELSE @MatchId END
+	ELSE IF @Mode = 'parlay'
+		INSERT INTO @tmpMatchLocked(MatchId, SessionId)
+		SELECT	MatchId, SessionId
+		FROM	dbo.ParlaySettlementLock WITH(NOLOCK)
+		WHERE	MatchId = CASE WHEN ISNULL(@MatchId,0) = 0 THEN MatchId ELSE @MatchId END
 
 	IF @@ROWCOUNT <> 0
 	BEGIN
@@ -100,9 +111,9 @@ BEGIN
 			,e.CreatedTime AS CreatedTime
 			,h.teamname AS HomeTeam
 			,a.teamname AS AwayTeam
-			,s.SportName
+			,st.SportName
 			,e.ErrorMessage
-			,ISNULL(p.TotalSettlementProcessing,0) AS TotalSettlementProcessing
+			,COALESCE(s.TotalSettlementProcessing,p.TotalParlaySettlementProcessing) AS TotalSettlementProcessing
 	FROM	@tmpErrorMessage e
 		FULL JOIN @tmpMatchLocked t
 			ON e.SessionId = t.SessionId
@@ -110,6 +121,13 @@ BEGIN
 			SELECT	COUNT(1) AS TotalSettlementProcessing
 			FROM	dbo.SettlementProcessing p WITH(NOLOCK)
 			WHERE	p.SessionId = ISNULL(t.SessionId,e.SessionId)
+					AND @Mode = 'single'
+		)s
+		OUTER APPLY(
+			SELECT	COUNT(1) AS TotalParlaySettlementProcessing
+			FROM	dbo.ParlaySettlementProcessing p WITH(NOLOCK)
+			WHERE	p.SessionId = ISNULL(t.SessionId,e.SessionId)
+					AND @Mode = 'parlay'
 		)p
 		LEFT JOIN dbo.match m WITH(NOLOCK)
 			ON t.MatchId = m.matchid
@@ -117,8 +135,8 @@ BEGIN
 			ON h.teamid = m.homeid
 		LEFT JOIN dbo.team a WITH(NOLOCK)
 			ON a.teamid = m.awayid
-		LEFT JOIN dbo.Sports s WITH(NOLOCK)
-			ON s.SportType = m.sporttype
+		LEFT JOIN dbo.Sports st WITH(NOLOCK)
+			ON st.SportType = m.sporttype
 
 
 	SELECT	@ServerName AS ServerName

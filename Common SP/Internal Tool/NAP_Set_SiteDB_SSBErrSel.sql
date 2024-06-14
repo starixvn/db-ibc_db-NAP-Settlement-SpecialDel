@@ -1,5 +1,6 @@
-/*<info serverAlias="DBCTG-bodb02,SBSETTLE-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,SBSETTLE-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_SiteDB_SSBErrSel
+	@mode VARCHAR(20) = 'single'
 AS
 /*
 	Created by: 20221122@Louisa
@@ -11,16 +12,18 @@ AS
 		- 20230208@Louisa: support queue 3rd [RedmineId:#179505]
 
 	Param's Explanation:
+		@mode: single/parlay
 */
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @checktime DATETIME2
 			,@ServerName VARCHAR(100) 
 
-	DECLARE @tmpErrorMessage TABLE (MessageId VARCHAR(128), MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(max), CreatedTime DATETIME2)
+	DECLARE @tmpErrorMessage TABLE (MessageId VARCHAR(128), MessageType VARCHAR(200), MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(max), CreatedTime DATETIME2)
 	DECLARE @tmpReturnTable TABLE 
 	(	 SessionId BIGINT
 		,MessageId VARCHAR(128)
+		,MessageType VARCHAR(200)
 		,ErrorMessage VARCHAR(max)
 		,CreatedTime DATETIME2
 		,HomeTeam NVARCHAR(200)
@@ -35,12 +38,14 @@ BEGIN
 	INSERT INTO @tmpReturnTable 
 		(	 SessionId  
 			,MessageId 
+			,MessageType
 			,ErrorMessage  
 			,CreatedTime
 			,SiteDBGroupId 
 		)
 		SELECT	s.SessionId
 				,s.MessageId
+				,s.MessageType
 				,s.ErrorMessage
 				,s.Starttime
 				,SiteDBGroupId
@@ -50,25 +55,42 @@ BEGIN
 				AND SiteDBGroupId > 0
 		 		AND s.StartTime >= @checktime
  
-	SELECT	@ServerName AS ServerName
-			,c.SessionId
-			,'' AS MessageId 
-			,(SELECT ErrorMessage + '\n' FROM @tmpReturnTable s WHERE s.SessionId = c.SessionId FOR XML PATH('')) AS ErrorMessage
-			,MIN(c.CreatedTime) AS CreatedTime
-			,c.SiteDBGroupId
-	FROM @tmpReturnTable c
-	WHERE c.SessionId > 0
-	GROUP BY c.SessionId,c.SiteDBGroupId 
-	
-	UNION ALL
-	SELECT	@ServerName AS ServerName
-			,c.SessionId
-			,c.MessageId 
-			,(SELECT ErrorMessage + '\n' FROM @tmpReturnTable s WHERE s.MessageId = c.MessageId FOR XML PATH('')) AS ErrorMessage
-			,MIN(c.CreatedTime) AS CreatedTime
-			,c.SiteDBGroupId
-	FROM @tmpReturnTable c
-	WHERE ISNULL(c.sessionid,0) = 0
-	GROUP BY c.SessionId,c.MessageId,c.SiteDBGroupId 
+	IF @mode = 'single'
+	BEGIN
+		SELECT	@ServerName AS ServerName
+				,c.SessionId
+				,'' AS MessageId 
+				,(SELECT ErrorMessage + '\n' FROM @tmpReturnTable s WHERE s.SessionId = c.SessionId FOR XML PATH('')) AS ErrorMessage
+				,MIN(c.CreatedTime) AS CreatedTime
+				,c.SiteDBGroupId
+		FROM @tmpReturnTable c
+		WHERE c.SessionId > 0
+			AND c.MessageType NOT LIKE '%parlaybet%'
+		GROUP BY c.SessionId,c.SiteDBGroupId 
+		
+		UNION ALL
+		SELECT	@ServerName AS ServerName
+				,c.SessionId
+				,c.MessageId 
+				,(SELECT ErrorMessage + '\n' FROM @tmpReturnTable s WHERE s.MessageId = c.MessageId FOR XML PATH('')) AS ErrorMessage
+				,MIN(c.CreatedTime) AS CreatedTime
+				,c.SiteDBGroupId
+		FROM @tmpReturnTable c
+		WHERE ISNULL(c.sessionid,0) = 0
+		GROUP BY c.SessionId,c.MessageId,c.SiteDBGroupId 
+	END 
+	ELSE IF @mode = 'parlay'
+	BEGIN
+		SELECT	@ServerName AS ServerName
+				,c.SessionId
+				,'' AS MessageId 
+				,(SELECT ErrorMessage + '\n' FROM @tmpReturnTable s WHERE s.SessionId = c.SessionId FOR XML PATH('')) AS ErrorMessage
+				,MIN(c.CreatedTime) AS CreatedTime
+				,c.SiteDBGroupId
+		FROM @tmpReturnTable c
+		WHERE c.SessionId > 0
+			AND c.MessageType LIKE '%parlaybet%'
+		GROUP BY c.SessionId,c.SiteDBGroupId 
+	END
 END
 GO
