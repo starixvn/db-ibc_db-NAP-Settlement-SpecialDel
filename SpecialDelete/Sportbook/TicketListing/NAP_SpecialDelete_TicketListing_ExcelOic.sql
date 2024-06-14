@@ -198,7 +198,8 @@ BEGIN
 		FilterHdp2	        SMALLMONEY,
 		FilterOddsSpread    MONEY,
 	    FilterOddsId		INT,
-		FilterTransdesc	    NVARCHAR(2000)
+		FilterTransdesc	    NVARCHAR(2000),
+		SessionId			NVARCHAR(100)
 	)
 
 	CREATE TABLE #TmpBallSequence (Seq TINYINT)
@@ -701,12 +702,20 @@ BEGIN
 	END
 
 	--RETURN DATA
-	SET @SessionID = CAST (NEWID() AS NVARCHAR(100))
+	;WITH cte AS
+	(
+		SELECT DISTINCT LicenseeName, NEWID() AS ssid
+ 		FROM #SpecialDeleteBets
+	)
+	UPDATE t SET t.SessionId = c.ssid
+	FROM #SpecialDeleteBets t
+	INNER JOIN cte c on c.LicenseeName = t.LicenseeName
+
 	SET @TransInfoSendOICJson = COMPRESS((SELECT TransId AS 't'
 		,CustId 'c'
 		,Recommend AS 're'
 		,LicenseeName AS 'ln'
-		,@SessionID AS 'ssid'
+		,SessionId AS 'ssid'
 	FROM #SpecialDeleteBets
 	FOR JSON PATH))
 
