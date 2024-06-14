@@ -14,6 +14,7 @@ AS
 	Revisions:  
 		- 20211119@July: Create new SP [Redmine: #159115]
 		- 20230623@July: Ticket listing - Enhance performance when sending data to many Licensees at a time [Redmine: #190071]
+		- 20240614@Max: [TVS] Ticket Listing - Insert data to DB053 [Redmine: #206452]
 
 	Param's explanation:	
 */   
@@ -32,26 +33,26 @@ BEGIN
 		, CustID		INT
 		, Recommend		INT
 		, LicenseeName  NVARCHAR(50)
+		, SessionID     NVARCHAR(100)
 	)
 	DECLARE @tmpResultInfo TABLE (LicenseeName NVARCHAR(50), SessionID NVARCHAR(100), IsFinish BIT)
 	
-	INSERT INTO @tmpResultAmendment (TransID, CustID, Recommend, LicenseeName)
-	SELECT t, c, re, ln
+	INSERT INTO @tmpResultAmendment (TransID, CustID, Recommend, LicenseeName, SessionID)
+	SELECT t, c, re, ln, ssid
 	FROM OPENJSON(@Decompress_TransInfoSendOICJson) 
-	WITH( t BIGINT, c INT, re INT, ln NVARCHAR(50)
+	WITH( t BIGINT, c INT, re INT, ln NVARCHAR(50), ssid NVARCHAR(100)
 	) tbl
 
-	INSERT INTO @tmpResultInfo (LicenseeName)
-	SELECT DISTINCT LicenseeName
+	INSERT INTO @tmpResultInfo (LicenseeName, SessionID)
+	SELECT DISTINCT LicenseeName, SessionID
 	FROM @tmpResultAmendment
 
 	WHILE (1=1)
 	BEGIN
-		SET @SessionID = CAST (NEWID() AS NVARCHAR(100))
 		
 		UPDATE TOP (1) t
 		SET t.IsFinish = 1
-			, t.SessionID = @SessionID
+			, @SessionID = t.SessionID
 			, @LicenseeName = t.LicenseeName
 		FROM @tmpResultInfo t
 		WHERE IsFinish IS NULL

@@ -61,6 +61,7 @@ AS
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
+		- 20240614@Max: [TVS] Ticket Listing - Insert data to DB053 [Redmine: #206452]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -116,6 +117,7 @@ BEGIN
 		   ,@SportType				SMALLINT = NULL
 		   ,@TransInfoSendOICJson	VARBINARY(MAX)
 		   ,@n						INT
+		   ,@SessionID				NVARCHAR(100)
 
 	SET @p_bettypes = @BetTypes
 	SET @n = 2147483647
@@ -196,7 +198,8 @@ BEGIN
 		FilterHdp2	        SMALLMONEY,
 		FilterOddsSpread    MONEY,
 	    FilterOddsId		INT,
-		FilterTransdesc	    NVARCHAR(2000)
+		FilterTransdesc	    NVARCHAR(2000),
+		SessionId			NVARCHAR(100)
 	)
 
 	CREATE TABLE #TmpBallSequence (Seq TINYINT)
@@ -699,10 +702,20 @@ BEGIN
 	END
 
 	--RETURN DATA
+	;WITH cte AS
+	(
+		SELECT DISTINCT LicenseeName, NEWID() AS ssid
+ 		FROM #SpecialDeleteBets
+	)
+	UPDATE t SET t.SessionId = c.ssid
+	FROM #SpecialDeleteBets t
+	INNER JOIN cte c on c.LicenseeName = t.LicenseeName
+
 	SET @TransInfoSendOICJson = COMPRESS((SELECT TransId AS 't'
 		,CustId 'c'
 		,Recommend AS 're'
 		,LicenseeName AS 'ln'
+		,SessionId AS 'ssid'
 	FROM #SpecialDeleteBets
 	FOR JSON PATH))
 
