@@ -25,6 +25,7 @@ AS
 		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 		- 20240115@Aries: Apply Direct Payout Corner Winner [Redmine:#198823]
 		- 20240502@Louisa: Direct for new league SABA [Redmine:#204369]
+		- 20240614@Aries: Add fantasy leagueId [Redmine:#206489]
 
 	Param's Explanation:
  
@@ -146,7 +147,7 @@ BEGIN
 																							ELSE 0
 								  															END
 								 WHEN (mr.SubType BETWEEN 2101 AND 2199 OR mr.SubType BETWEEN 2601 AND 2699) THEN IIF(f.TypeId = 2,1,0)  -- Child-match Next Corner
-								 WHEN l.leagueid IN (16371,65550,89611)	  THEN 0 -- Exclude Fantasy Match
+								 WHEN l.leagueid IN (16371,65550,89611,149675,149676)	  THEN 0 -- Exclude Fantasy Match
 								 ELSE 1
 								 END
 
