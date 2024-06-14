@@ -61,6 +61,7 @@ AS
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
+		- 20240614@Max: [TVS] Ticket Listing - Insert data to DB053 [Redmine: #206452]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -116,6 +117,7 @@ BEGIN
 		   ,@SportType				SMALLINT = NULL
 		   ,@TransInfoSendOICJson	VARBINARY(MAX)
 		   ,@n						INT
+		   ,@SessionID				NVARCHAR(100)
 
 	SET @p_bettypes = @BetTypes
 	SET @n = 2147483647
@@ -699,10 +701,12 @@ BEGIN
 	END
 
 	--RETURN DATA
+	SET @SessionID = CAST (NEWID() AS NVARCHAR(100))
 	SET @TransInfoSendOICJson = COMPRESS((SELECT TransId AS 't'
 		,CustId 'c'
 		,Recommend AS 're'
 		,LicenseeName AS 'ln'
+		,@SessionID AS 'ssid'
 	FROM #SpecialDeleteBets
 	FOR JSON PATH))
 
