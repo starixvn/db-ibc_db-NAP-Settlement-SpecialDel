@@ -12,7 +12,7 @@ GO
 
 ---start job 
 
-EXEC msdb..sp_update_job @job_name = N'bodb02 : Task Max Payout - Check Data', @enabled = 1 --Enable
+EXEC msdb..sp_update_job @job_name = N'bodb02 : Detect Data Consistency - Max Turnover/Payout', @enabled = 1 --Enable
 GO
-EXEC dbo.sp_start_job N'bodb02 : Task Max Payout - Check Data';
+EXEC dbo.sp_start_job N'bodb02 : Detect Data Consistency - Max Turnover/Payout';
 GO

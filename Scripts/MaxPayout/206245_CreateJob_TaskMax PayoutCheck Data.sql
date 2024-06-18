@@ -23,7 +23,7 @@ BEGIN
 END
 
 DECLARE @jobId BINARY(16)
-EXEC @ReturnCode =  msdb.dbo.sp_add_job @job_name=N'bodb02 : Task Max Payout - Check Data', 
+EXEC @ReturnCode =  msdb.dbo.sp_add_job @job_name=N'bodb02 : Detect Data Consistency - Max Turnover/Payout', 
 		@enabled=0, 
 		@notify_level_eventlog=0, 
 		@notify_level_email=0, 

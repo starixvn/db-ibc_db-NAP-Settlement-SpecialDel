@@ -11,7 +11,7 @@ USE msdb
 GO
 
 ---stop job 
-EXEC dbo.sp_stop_job N'bodb02 : Task Max Payout - Check Data';
+EXEC dbo.sp_stop_job N'bodb02 : Detect Data Consistency - Max Turnover/Payout';
 GO
-EXEC msdb..sp_update_job @job_name = N'bodb02 : Task Max Payout - Check Data', @enabled = 0 --Disable
+EXEC msdb..sp_update_job @job_name = N'bodb02 : Detect Data Consistency - Max Turnover/Payout', @enabled = 0 --Disable
 GO
