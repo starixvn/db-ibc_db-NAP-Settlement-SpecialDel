@@ -29,6 +29,7 @@ AS
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 		- 20240412@Aries: Direct Payout for Virtual Kabaddi [Redmine:#203590]
 		- 20270327@Aries: Support the Super Tiebreak match in Tennis  [Redmine: #202531]
+		- 20240605@Louisa:Notify if not yet refund [Redmine:#204909] 
 */
 BEGIN
 	SET NOCOUNT ON
@@ -52,7 +53,7 @@ BEGIN
 		,EventStatusReason	TINYINT
 		,LeagueGroupId	SMALLINT
 		,GameType	TINYINT ---for E-sports
-		,ParentID INT
+		,ParentID	INT
 		,GoalRecord VARCHAR(50)
 		,AutoSetting TINYINT
 		,GameSession TINYINT
@@ -60,6 +61,8 @@ BEGIN
 		,OverTimeSession	TINYINT
 		,hthomescore		INT
 		,htawayscore		INT
+		,finalhomescore		INT
+		,finalawayscore		INT
 		,ChildMatchType		TINYINT
 		,SessionTime FLOAT
 		)
@@ -88,6 +91,8 @@ BEGIN
 			,OverTimeSession
 			,hthomescore	
 			,htawayscore
+			,finalhomescore
+			,finalawayscore
 			,ChildMatchType
 			,SessionTime
 		)
@@ -112,6 +117,8 @@ BEGIN
 			,l.OverTimeSession
 			,m.hthomescore	
 			,m.htawayscore
+			,m.finalhomescore
+			,m.finalawayscore
 			,m.ChildMatchType
 			,l.SessionTime
 		 FROM dbo.[match] m WITH (NOLOCK)
@@ -149,6 +156,8 @@ BEGIN
 		,OverTimeSession
 		,hthomescore	
 		,htawayscore
+		,finalhomescore
+		,finalawayscore
 		,ChildMatchType
 		,SessionTime
 	)   
@@ -178,6 +187,8 @@ BEGIN
 		,l.OverTimeSession
 		,m.hthomescore	
 		,m.htawayscore
+		,m.finalhomescore
+		,m.finalawayscore
 		,m.ChildMatchType
 		,l.SessionTime
      FROM dbo.[match] m WITH (NOLOCK)
@@ -191,6 +202,7 @@ BEGIN
 
 	 SELECT matchId	
 		,matchcode	
+		,ParentId
 		,eventdate
 		,kickofftime
 		,playtime	
@@ -215,6 +227,8 @@ BEGIN
 		,OverTimeSession
 		,hthomescore AS HalfTimeHomeScore	
 		,htawayscore AS HalfTimeAwayScore
+		,FinalHomeScore
+		,FinalAwayScore
 		,ChildMatchType
 		,SessionTime
 	FROM @tmpMatchInfo
