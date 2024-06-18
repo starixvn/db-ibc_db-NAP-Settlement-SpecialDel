@@ -30,8 +30,10 @@ BEGIN
 
 	INSERT INTO @tmpMatchId (MatchId)
 	SELECT MatchId
-	FROM dbo.match WITH(NOLOCK)
-	WHERE (matchid = @MatchId OR ParentID = @MatchId)
+	FROM dbo.match m WITH(NOLOCK)
+	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
+				WHEN m.sporttype = 50 AND m.ChildMatchType = 200 AND ParentID = @MatchId THEN 1
+			ELSE 0 END
 
     -- Scan bettrans and bettransm to get bettype list
 	-- bettrans
