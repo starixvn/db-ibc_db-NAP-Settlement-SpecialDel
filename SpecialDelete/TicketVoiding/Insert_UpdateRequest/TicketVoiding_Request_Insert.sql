@@ -33,6 +33,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
 	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
+	,@SessionTime			INT = 0
 	,@RequestId				INT			  = 0 OUTPUT
 AS
 /*	Created by: 20181212@Kathy
@@ -71,6 +72,7 @@ AS
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240618@Max: [TVS] Set logs to check user behavior [Redmine: #204060]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -331,6 +333,7 @@ BEGIN
 															   ELSE '' END
 								+ ', Remark: ' + CASE WHEN @Remark IS NOT NULL THEN @Remark ELSE 'NULL' END
 								+ ', IsTest: ' + CASE WHEN @IsTest = 1 THEN 'True' ELSE 'False' END
+								+ ', SessionTime: ' + CAST(@SessionTime AS VARCHAR(50))
 							AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS NVARCHAR(MAX))
