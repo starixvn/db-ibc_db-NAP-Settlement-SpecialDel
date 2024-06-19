@@ -19,6 +19,7 @@ AS
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240521@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240618@July: [TVS] Support void wrong odds of Home/Away or Over/Under at the same time [Redmine: #205558]
 
 	Param's explanation:		
 */
@@ -41,8 +42,9 @@ BEGIN
 			AND 1 = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 					     ELSE 1 END
 
-	SELECT matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ISNULL(parentid,matchid) AS parentid, Kickofftime
-	FROM #MatchInfo
+	SELECT m.matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, CASE WHEN ISNULL(m.parentid,0) = 0 THEN m.matchid ELSE m.ParentId END AS parentid, Kickofftime, mr.SubType
+	FROM #MatchInfo m
+		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON m.matchid = mr.matchid
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #MatchInfo)
 	BEGIN
