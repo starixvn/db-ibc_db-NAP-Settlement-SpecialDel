@@ -27,7 +27,7 @@ AS
 	Param explanation:
 		@MessageGroupId 
 					1: Instant Settlement 
-					2: Comfirm Refund
+					2: Check comfirm Refund
 		@MessageTypeId
 					Warning
 					Error
@@ -40,6 +40,18 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON;
+
+	IF EXISTS (SELECt TOP 1 1 
+				FROM Settlement_LetstalkMessage m WITH(NOLOCK)
+				WHERE m.MatchId = @MatchId
+					AND m.MessageDetail = @MessageDetail
+					AND m.MessageGroupId = 2
+				)
+	BEGIN
+		SELECT @ErrCode = 100,
+				@ErrMsg = 'Existing data'
+		RETURN
+	END
 
 	BEGIN TRY
 		INSERT INTO [dbo].[Settlement_LetstalkMessage]
@@ -62,6 +74,7 @@ BEGIN
 			,@ActionName
 			,@MessageContent
 			, CASE WHEN @MessageGroupId = 1 THEN 'Inst Settlement'
+					WHEN @MessageGroupId = 2 THEN @MessageDetail
 					ELSE ''
 			  END
 			,@StatusId
