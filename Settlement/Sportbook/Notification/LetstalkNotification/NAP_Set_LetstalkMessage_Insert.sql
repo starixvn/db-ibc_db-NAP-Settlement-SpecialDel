@@ -41,11 +41,12 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	IF EXISTS (SELECt TOP 1 1 
+	IF EXISTS (SELECT TOP 1 1 
 				FROM Settlement_LetstalkMessage m WITH(NOLOCK)
 				WHERE m.MatchId = @MatchId
 					AND m.MessageDetail = @MessageDetail
 					AND m.MessageGroupId = 2
+					AND m.StatusId = 2
 				)
 	BEGIN
 		SELECT @ErrCode = 100,
