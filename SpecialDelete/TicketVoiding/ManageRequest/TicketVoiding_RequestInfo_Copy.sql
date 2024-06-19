@@ -163,12 +163,12 @@ BEGIN
 	IF @IssueTypeId IN (19,21,23,12,24) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error
 	BEGIN
 		INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, BetId, Betteam, OddsId)
-		SELECT s.TransId, b.Transdesc, b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
+		SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON s.TransId = b.TransId
 		WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
 		UNION ALL
-		SELECT s.TransId, b.Transdesc, b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
+		SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON s.TransId = b.TransId
 		WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
@@ -178,7 +178,7 @@ BEGIN
 				WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId)
 		BEGIN
 			INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, BetId, Betteam, OddsId)
-			SELECT s.TransId, b.Transdesc, b.Bettype, b.liveindicator, b.betcheck AS BetId, betteam, oddsid
+			SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, b.betcheck AS BetId, betteam, oddsid
 			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
 				INNER JOIN dbo.bettransm b WITH (NOLOCK) ON s.TransId = b.TransId
 			WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
@@ -259,15 +259,15 @@ BEGIN
 			INSERT INTO @tmpBettypeCount (BetTypeId, BetId, TicketsCount)
 			SELECT s.BetType, s.BetId, COUNT(1) AS TicketsCount
 			FROM  @tmpTicketInfo s 
-			WHERE s.Transdesc IS NULL
+			WHERE s.Transdesc = ''
 			GROUP BY s.BetType, s.BetId
 
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpTicketInfo WHERE Transdesc IS NOT NULL) --Cricket
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpTicketInfo WHERE Transdesc <> '') --Cricket
 			BEGIN
 				INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, TicketsCount)
 				SELECT s.BetType, s.Transdesc, COUNT(1) AS TicketsCount
 				FROM  @tmpTicketInfo s 
-				WHERE Transdesc IS NOT NULL AND s.Bettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
+				WHERE Transdesc <> '' AND s.Bettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
 				GROUP BY s.BetType, s.Transdesc
 			
 				UPDATE b
@@ -278,7 +278,7 @@ BEGIN
 				INSERT INTO @tmpBettypeCount (BetTypeId, PlayerAndOdds, TicketsCount)
 				SELECT s.BetType, s.Betteam +'$'+ s.OddsId, COUNT(1) AS TicketsCount
 				FROM  @tmpTicketInfo s 
-				WHERE Transdesc IS NOT NULL AND s.Bettype IN (9662, 9664, 9666, 9663, 9665, 9667)
+				WHERE Transdesc <> '' AND s.Bettype IN (9662, 9664, 9666, 9663, 9665, 9667)
 				GROUP BY s.BetType, s.Betteam +'$'+ s.OddsId
 
 			END
