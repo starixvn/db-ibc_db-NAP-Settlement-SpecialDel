@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_GetBetTypesHaveTickets] 
 (
     @MatchId    INT 
@@ -27,6 +27,16 @@ BEGIN
 
     CREATE TABLE #TmpBettype (bettype SMALLINT, transdesc NVARCHAR(2000))
 	DECLARE @tmpMatchId TABLE (MatchId INT)
+
+	DECLARE @tmpConsolidatedBettypes TABLE (
+        parentid        INT
+        ,typeid         INT PRIMARY KEY
+    )
+    
+    INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
+    SELECT f.GroupTypeId AS parentid
+		 , f.Bettype AS typeid
+    FROM [dbo].[f_SD_GroupDisplayBettype] () f
 
 	INSERT INTO @tmpMatchId (MatchId)
 	SELECT MatchId
@@ -75,6 +85,10 @@ BEGIN
 		FROM #TmpBettype t
 			LEFT JOIN @bettype_tmp bt ON bt.bettype = t.bettype
 		WHERE bt.bettype IS NULL
+
+		UPDATE t SET t.bettype = tb.parentid
+		FROM #TmpBettype t
+			INNER JOIN @tmpConsolidatedBettypes tb ON tb.typeid = t.bettype
 	END
    
     SELECT t.bettype AS [Id]
@@ -85,7 +99,8 @@ BEGIN
 		,f.GroupName
     FROM #TmpBettype t
 		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = t.bettype
-		LEFT JOIN f_SD_GetGroupBettypes() f ON f.BetType = t.bettype
+		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = t.bettype
+	GROUP BY t.bettype, bt.typeid, bt.typenamee, t.transdesc, f.GroupName
 
     DROP TABLE #TmpBettype
 END
