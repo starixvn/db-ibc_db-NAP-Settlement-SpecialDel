@@ -63,7 +63,8 @@ BEGIN
 			FilterBy			  TINYINT,
 			IsCancelCashOut		  BIT,
 			CheckTimeCashOut	  DATETIME,
-			liveindicator		  BIT
+			liveindicator		  BIT,
+			GroupDisplay		  INT
 	)
 
 	CREATE TABLE #logInfo (
@@ -169,6 +170,16 @@ BEGIN
 		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
+
+	DECLARE @tmpConsolidatedBettypes TABLE (
+        parentid        INT
+        ,typeid         INT PRIMARY KEY
+    )
+    
+    INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
+    SELECT f.GroupTypeId AS parentid
+		 , f.Bettype AS typeid
+    FROM [dbo].[f_SD_GroupDisplayBettype] () f
 
 	SET @AdvancedModeInfoXML = CONVERT(XML, @AdvancedModeInfo)
 	INSERT INTO #FilterInfo (MatchID, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId)
@@ -305,6 +316,7 @@ BEGIN
 			,IsCancelCashOut
 			,CheckTimeCashOut
 			,liveindicator
+			,GroupDisplay
 		)
 	SELECT   b.transid
 			,b.SubTransID
@@ -335,8 +347,10 @@ BEGIN
 				  END AS IsCancelCashOut
 			,b.CheckTimeCashOut
 			,b.liveindicator
+			,ISNULL(tb.parentid, b.bettype)
 	FROM #tmpTransInfo b
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
+		LEFT JOIN @tmpConsolidatedBettypes tb ON  tb.typeid = b.bettype
 	WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					ELSE 0 END
@@ -372,6 +386,7 @@ BEGIN
 				,IsCancelCashOut
 				,CheckTimeCashOut
 				,liveindicator
+				,GroupDisplay
 			)
 		SELECT   b.transid AS TransId
 				,b.SubTransID
@@ -399,8 +414,10 @@ BEGIN
 				,0 AS IsCancelCashOut
 				,NULL AS CheckTimeCashOut
 				,b.liveindicator
+				,ISNULL(tb.parentid, b.Subbettype)
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON b.matchid = d.MatchId AND b.IsMixParlay = 1 
+				LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.Subbettype
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END
@@ -752,8 +769,7 @@ BEGIN
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
 	-- 6. Count detail group by bettype
-	SELECT CASE WHEN b.IsMixParlay = 0 THEN b.bettype 
-				ELSE b.Subbettype END AS bettypeid
+	SELECT b.GroupDisplay AS bettypeid
 		, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
 			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
 			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END AS betid
@@ -761,8 +777,7 @@ BEGIN
 	FROM #TVSTicketBets b
 		INNER JOIN #tmpTransInfo t ON t.transid = b.transid
 	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-	GROUP BY CASE WHEN b.IsMixParlay = 0 THEN b.bettype 
-				ELSE b.Subbettype END
+	GROUP BY b.GroupDisplay
 		, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
 			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
 			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END 

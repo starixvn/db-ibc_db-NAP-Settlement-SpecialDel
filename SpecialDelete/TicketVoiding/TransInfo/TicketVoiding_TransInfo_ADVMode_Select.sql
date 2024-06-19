@@ -174,7 +174,7 @@ BEGIN
 		,map.value AS FilterMap
 		,wk.value AS FilterWicketOver
 		,pl.value AS FilterTransdesc
-		,'' AS FilterQuarter
+		,qt.value AS FilterQuarter
 		,'' FilterGame  
 		,'' FilterRound 
 		,'' FilterPoint
@@ -193,14 +193,16 @@ BEGIN
 			,ISNULL(Map,'') AS Maps
 			,ISNULL(Player, '') AS Players
 			,ISNULL(Wicket,'') AS Wickets
+			,ISNULL([Quarter],'') AS Quarters
 		FROM OPENJSON(@AdvancedExtraInfo) 
 		WITH( Id SMALLINT, Team NVARCHAR(10), Hdp VARCHAR(100), Player VARCHAR(1000), Map VARCHAR(1000)
-			, Wicket VARCHAR(100))
+			, Wicket VARCHAR(100), [Quarter] VARCHAR(100))
 	)tmp
 	CROSS APPLY STRING_SPLIT(tmp.HDPs, '&') vhdp1
 	CROSS APPLY STRING_SPLIT(tmp.Maps, ',') map
 	CROSS APPLY STRING_SPLIT(tmp.Players, ',') pl
 	CROSS APPLY STRING_SPLIT(tmp.Wickets, '&') wk
+	CROSS APPLY STRING_SPLIT(tmp.Quarters, ',') qt
 
 	--Search single tickets
 	INSERT INTO #TransInfo(
@@ -554,6 +556,7 @@ BEGIN
 				AND (f.FilterSet = '' OR b.FilterSet LIKE f.FilterSet + '%')
 				AND (f.FilterDelivery = '' OR b.FilterDelivery = f.FilterDelivery)
 				AND (f.FilterWicketOver = '' OR b.FilterWicketOver = f.FilterWicketOver)
+				AND (f.FilterQuarter = '' OR b.FilterQuarter = f.FilterQuarter)
 				AND (f.FilterKill = '' OR b.FilterKill = f.FilterKill)
 				AND (f.FilterMap = '' OR b.FilterMap = f.FilterMap)
 				AND (f.FilterPoint = '' OR b.FilterPoint = f.FilterPoint)

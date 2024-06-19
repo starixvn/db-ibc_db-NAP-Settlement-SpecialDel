@@ -1,4 +1,4 @@
-/*<info serverAlias="DBACC-bodb02,DBPRO-bodb02,DBBAH-bodb02" executers="" viewers="" isFunction="1" isNested="1"></info>*/
+/*<info serverAlias="DBACC-bodb02,DBPRO-bodb02,DBBAH-bodb02,DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="1" isNested="1"></info>*/
 CREATE FUNCTION [dbo].[f_SD_GroupDisplayBettype] ()
 RETURNS TABLE
 RETURN
@@ -10,6 +10,7 @@ RETURN
 		- 20191202@Raymond.Le: Create new function [124675]
 		- 20191226@Charles: Incorporate PHAIO 5 [123395]
 		- 20200924@July: TVS - Resettled Affected Tickets - Add server DBBAH  [Redmine: #138552]
+		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 
 	Param's Explanation:    
 		You need to use option: option (maxrecursion 0) at the statement if the lengh of string exceed 100 levels      
