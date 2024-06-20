@@ -1,9 +1,9 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_OtherSports]
     @matchid INT = 0
     ,@action                        VARCHAR(20)     = 'CAL'
     ,@ActionID				        INT             = 0
-    ,@strTransIds                   VARCHAR(MAX)    = NULL
+    ,@strTransIds                   VARCHAR(MAX)    = ''
     ,@CalledByBrokerService         BIT         = 0
     ,@RunOnServer                   VARCHAR(100) = NULL
 	,@EventTable					TINYINT = 1 -- match
@@ -41,15 +41,19 @@ AS
 */
 BEGIN
     SET NOCOUNT ON
-    DECLARE @isUndo BIT
-    DECLARE @sMessage NVARCHAR(MAX)
+    DECLARE  @isUndo BIT
+    DECLARE  @sMessage NVARCHAR(MAX)
             ,@IsEnableServiceBroker BIT 
+            ,@IsCentral             BIT
     
     SET @isUndo = CASE 
                     WHEN @action LIKE 'UNDO%' THEN 1
                     ELSE 0
                 END
     SET @IsEnableServiceBroker = 0
+
+    EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
     
     SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
 
@@ -74,7 +78,7 @@ BEGIN
         SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_OtherSports @matchid = ' + CONVERT(NVARCHAR(50), @matchid) + ','
             + '@action = ' + '''' + @action + '''' +  ','
             + '@ActionID = ' + CONVERT(NVARCHAR(50), @ActionID) + ','
-            + '@strTransIds = ' + '''' + @strTransIds + '''' +  ','
+            + '@strTransIds = ' + '''' + ISNULL(@strTransIds,'') + '''' +  ','
             + CASE WHEN @RunOnServer IS NULL THEN '' ELSE '@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END + ','
 			+ '@EventTable = ' + CAST(@EventTable AS VARCHAR(3)) +  ','
 			+ '@Is3rd = ' + CAST(@Is3rd AS VARCHAR(3)) +  ','
@@ -131,13 +135,15 @@ BEGIN
                 ,@Action                = @action
                 ,@ActionId              = @ActionID
                 ,@TransJson		        = @TransJson
-                ,@EventTable            = 1
-				,@Is3rd			        = 1
-				,@IsCalculateBalance	= 1
-				,@CWLBettype	        = 81
-				,@BalanceType	        = 4
+                ,@EventTable            = @EventTable
+				,@Is3rd			        = @Is3rd
+				,@IsCalculateBalance	= @IsCalculateBalance
+				,@CWLBettype	        = @CWLBettype
+				,@BalanceType	        = @BalanceType
                 ,@BroadcastSessionId    = @BroadcastSessionId
-
+                ,@IsCentral             = @IsCentral
+                ,@HasNoBalanceNegative  = 1
+ 
                 ,@ErrMessage			=   @ErrMessage			OUTPUT
 				,@ErrCode				=   @ErrCode			OUTPUT
         END

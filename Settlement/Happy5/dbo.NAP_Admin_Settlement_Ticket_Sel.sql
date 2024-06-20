@@ -4,7 +4,8 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_Ticket_Sel
 	,@Sporttype					TINYINT
 	,@Resources					VARCHAR(MAX)
 	,@Action					VARCHAR(20)		= 'CAL'
-	
+	,@IsCentral					BIT				= 0
+
 	,@MinCustId					INT
 	,@MinCustId_MinTransID		BIGINT
 	,@MinCustId_MaxTransID		BIGINT
@@ -26,15 +27,10 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE @IsCentral			BIT = 0	
+	DECLARE @tmpBettype			TABLE(pfID SMALLINT, BetType SMALLINT PRIMARY KEY (BetType))
 
-	DECLARE @tmpBettype			TABLE(pfID SMALLINT, BetType SMALLINT, BetID BIGINT PRIMARY KEY (BetType,BetID))
-
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
-
-	INSERT INTO @tmpBettype(pfID,BetType,BetID)
-	SELECT DISTINCT p.pfID,p.Bettype,p.BetID
+	INSERT INTO @tmpBettype(pfID,BetType)
+	SELECT DISTINCT p.pfID,p.Bettype
 	FROM STRING_SPLIT(@Resources,',') AS r
 		INNER JOIN SettlementSpecialBettypeProfile p WITH(NOLOCK) ON r.value = p.ResourceID AND p.sporttype = @Sporttype
 
@@ -42,10 +38,10 @@ BEGIN
 	BEGIN
 		SELECT b.transid
 			  ,b.custid
-			  ,bt.pfID AS ProfileId ,b.bettype,b.betid
-			  ,b.betteam,b.hdp1,b.hdp2,b.transdesc
+			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
+			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
-			  ,b.odds,b.oddsspread
+			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
 			  ,b.comstatus
@@ -59,7 +55,8 @@ BEGIN
 			  ,b.sComm,b.sdiscount
 			  ,b.ruben
 			  ,b.ExtraInfo
-			  ,b.transdate,b.SettlementTime
+			  ,b.transdate
+			  ,b.SiteDBGroupID
 		FROM bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype)) 
 			CROSS APPLY(SELECT TOP 1 tbt.pfID FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 		WHERE b.matchid = @MatchId 
@@ -74,10 +71,10 @@ BEGIN
 	BEGIN
 		SELECT b.transid
 			  ,b.custid
-			  ,bt.pfID AS ProfileId ,b.bettype,b.betid
-			  ,b.betteam,b.hdp1,b.hdp2,b.transdesc
+			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
+			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
-			  ,b.odds,b.oddsspread
+			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
 			  ,b.comstatus
@@ -91,7 +88,8 @@ BEGIN
 			  ,b.sComm,b.sdiscount
 			  ,b.ruben
 			  ,b.ExtraInfo
-			  ,b.transdate,b.SettlementTime
+			  ,b.transdate
+			  ,b.SiteDBGroupID
 		FROM bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype)) 
 			CROSS APPLY(SELECT TOP 1 tbt.pfID FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 		WHERE b.matchid = @MatchId 
@@ -104,10 +102,10 @@ BEGIN
 
 		SELECT b.transid
 			  ,b.custid
-			  ,bt.pfID AS ProfileId ,b.bettype,b.betid
-			  ,b.betteam,b.hdp1,b.hdp2,b.transdesc
+			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
+			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
-			  ,b.odds,b.oddsspread
+			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
 			  ,b.comstatus
@@ -121,7 +119,8 @@ BEGIN
 			  ,b.sComm,b.sdiscount
 			  ,b.ruben
 			  ,b.ExtraInfo
-			  ,b.transdate,b.SettlementTime
+			  ,b.transdate
+			  ,b.SiteDBGroupID
 		FROM bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype)) 
 			CROSS APPLY(SELECT TOP 1 tbt.pfID FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 		WHERE b.matchid = @MatchId 
@@ -133,10 +132,10 @@ BEGIN
 
 		SELECT b.transid
 			  ,b.custid
-			  ,bt.pfID AS ProfileId ,b.bettype,b.betid
-			  ,b.betteam,b.hdp1,b.hdp2,b.transdesc
+			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
+			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
-			  ,b.odds,b.oddsspread
+			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
 			  ,b.comstatus
@@ -150,7 +149,8 @@ BEGIN
 			  ,b.sComm,b.sdiscount
 			  ,b.ruben
 			  ,b.ExtraInfo
-			  ,b.transdate,b.SettlementTime
+			  ,b.transdate
+			  ,b.SiteDBGroupID
 		FROM bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype)) 
 			CROSS APPLY(SELECT TOP 1 tbt.pfID FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 		WHERE b.matchid = @MatchId 
@@ -164,10 +164,10 @@ BEGIN
 	BEGIN
 		SELECT b.transid
 			  ,b.custid
-			  ,bt.pfID AS ProfileId ,b.bettype,b.betid
-			  ,b.betteam,b.hdp1,b.hdp2,b.transdesc
+			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
+			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
-			  ,b.odds,b.oddsspread
+			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
 			  ,b.comstatus
@@ -181,7 +181,8 @@ BEGIN
 			  ,b.sComm,b.sdiscount
 			  ,b.ruben
 			  ,b.ExtraInfo
-			  ,b.transdate,b.SettlementTime
+			  ,b.transdate
+			  ,b.SiteDBGroupID
 		FROM bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype)) 
 			CROSS APPLY(SELECT TOP 1 tbt.pfID FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 		WHERE b.matchid = @MatchId 
@@ -196,10 +197,10 @@ BEGIN
 	BEGIN
 		SELECT b.transid
 			  ,b.custid
-			  ,bt.pfID AS ProfileId ,b.bettype,b.betid
-			  ,b.betteam,b.hdp1,b.hdp2,b.transdesc
+			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
+			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
-			  ,b.odds,b.oddsspread
+			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
 			  ,b.comstatus
@@ -213,7 +214,8 @@ BEGIN
 			  ,b.sComm,b.sdiscount
 			  ,b.ruben
 			  ,b.ExtraInfo
-			  ,b.transdate,b.SettlementTime
+			  ,b.transdate
+			  ,b.SiteDBGroupID
 		FROM bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype)) 
 			CROSS APPLY(SELECT TOP 1 tbt.pfID FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 		WHERE b.matchid = @MatchId 
@@ -226,10 +228,10 @@ BEGIN
 
 		SELECT b.transid
 			  ,b.custid
-			  ,bt.pfID AS ProfileId ,b.bettype,b.betid
-			  ,b.betteam,b.hdp1,b.hdp2,b.transdesc
+			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
+			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
-			  ,b.odds,b.oddsspread
+			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake 
 			  ,b.comstatus
@@ -243,7 +245,8 @@ BEGIN
 			  ,b.sComm,b.sdiscount
 			  ,b.ruben
 			  ,b.ExtraInfo
-			  ,b.transdate,b.SettlementTime
+			  ,b.transdate
+			  ,b.SiteDBGroupID
 		FROM bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype)) 
 			CROSS APPLY(SELECT TOP 1 tbt.pfID FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 		WHERE b.matchid = @MatchId 
@@ -255,10 +258,10 @@ BEGIN
 
 		SELECT b.transid
 			  ,b.custid
-			  ,bt.pfID AS ProfileId ,b.bettype,b.betid
-			  ,b.betteam,b.hdp1,b.hdp2,b.transdesc
+			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
+			  ,b.betteam,b.transdesc --,b.hdp1,b.hdp2
 			  ,b.currency
-			  ,b.odds,b.oddsspread
+			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
 			  ,b.comstatus
@@ -272,7 +275,8 @@ BEGIN
 			  ,b.sComm,b.sdiscount
 			  ,b.ruben
 			  ,b.ExtraInfo
-			  ,b.transdate,b.SettlementTime
+			  ,b.transdate
+			  ,b.SiteDBGroupID
 		FROM bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype)) 
 			CROSS APPLY(SELECT TOP 1 tbt.pfID FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 		WHERE b.matchid = @MatchId 

@@ -4,6 +4,7 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_BatchTicket_Sel
 	,@Sporttype			TINYINT
 	,@Resources			VARCHAR(MAX)
 	,@Action			VARCHAR(20)		= 'CAL'
+	,@IsCentral			BIT				= 0
 
 	,@LastCustId		INT				= 0
 	,@LastTransID		BIGINT			= 0
@@ -23,22 +24,19 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE @IsCentral			BIT = 0	
-		   ,@TotalTicket		INT = 0
+	DECLARE @TotalTicket		INT = 0
 		   ,@BatchCount			INT = 0
 	
+	CREATE TABLE #tmpBatchDataByCust(BatchNo SMALLINT,Custid INT, Transid BIGINT,PRIMARY KEY (BatchNo,Custid,Transid))
 	CREATE TABLE #tmpBatchData(BatchNo SMALLINT,Custid INT, Transid BIGINT,PRIMARY KEY (BatchNo,Custid,Transid))
 
 	DECLARE @tmpBatchData	TABLE(BatchNo SMALLINT, MinCustId INT, MaxCustId INT, MinCustId_MinTransID BIGINT, MinCustId_MaxTransID BIGINT,MaxCustId_MinTransID BIGINT,MaxCustId_MaxTransID BIGINT)
-	DECLARE @tmpBettype		TABLE(BetType SMALLINT, BetID BIGINT PRIMARY KEY (BetType,BetID))
+	DECLARE @tmpBettype		TABLE(BetType SMALLINT  PRIMARY KEY (BetType))
 
 	SET @TotalTicket = @BatchSize*@BatchTotal;
 
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
-
-	INSERT INTO @tmpBettype(BetType,BetID)
-	SELECT DISTINCT p.Bettype,p.BetID
+	INSERT INTO @tmpBettype(BetType)
+	SELECT DISTINCT p.Bettype
 	FROM STRING_SPLIT(@Resources,',') AS r
 		INNER JOIN SettlementSpecialBettypeProfile p WITH(NOLOCK) ON r.value = p.ResourceID AND p.sporttype = @Sporttype
 
@@ -63,7 +61,7 @@ BEGIN
 					) AS t1
 	
 		)
-	    INSERT INTO #tmpBatchData(BatchNo,custid,transid)
+	    INSERT INTO #tmpBatchDataByCust(BatchNo,custid,transid)
 		SELECT BatchNo,custid,transid
 		FROM CTE_Ticket
 		
@@ -71,7 +69,7 @@ BEGIN
 			   SELECT t2.BatchNo
 					  ,MIN(t2.custid)  AS MinCustId
 					  ,MAX(t2.custid)  AS MaxCustId
-				FROM #tmpBatchData AS t2
+				FROM #tmpBatchDataByCust AS t2
 				GROUP BY BatchNo
 		),
 		CTE_CustTrans AS (
@@ -79,7 +77,7 @@ BEGIN
 					,custid
 				  ,MIN(t2.TransID)  AS MinTransID
 				  ,MAX(t2.TransID)  AS MaxTransID
-			FROM #tmpBatchData AS t2
+			FROM #tmpBatchDataByCust AS t2
 			GROUP BY BatchNo,custid
 		)
 		INSERT INTO @tmpBatchData(BatchNo,MinCustId,MaxCustId,MinCustId_MinTransID,MinCustId_MaxTransID,MaxCustId_MinTransID,MaxCustId_MaxTransID)
@@ -122,7 +120,7 @@ BEGIN
 	
 		)
 	    INSERT INTO #tmpBatchData(BatchNo,custid,transid)
-		SELECT BatchNo,custid,transid
+		SELECT BatchNo + @BatchCount,custid,transid
 		FROM CTE_Ticket
 		
 		;WITH CTE_Cust AS (
@@ -178,7 +176,7 @@ BEGIN
 					) AS t1
 	
 		)
-	    INSERT INTO #tmpBatchData(BatchNo,custid,transid)
+	    INSERT INTO #tmpBatchDataByCust(BatchNo,custid,transid)
 		SELECT BatchNo,custid,transid
 		FROM CTE_Ticket
 		
@@ -186,7 +184,7 @@ BEGIN
 			   SELECT t2.BatchNo
 					  ,MIN(t2.custid)  AS MinCustId
 					  ,MAX(t2.custid)  AS MaxCustId
-				FROM #tmpBatchData AS t2
+				FROM #tmpBatchDataByCust AS t2
 				GROUP BY BatchNo
 		),
 		CTE_CustTrans AS (
@@ -194,7 +192,7 @@ BEGIN
 					,custid
 				  ,MIN(t2.TransID)  AS MinTransID
 				  ,MAX(t2.TransID)  AS MaxTransID
-			FROM #tmpBatchData AS t2
+			FROM #tmpBatchDataByCust AS t2
 			GROUP BY BatchNo,custid
 		)
 		INSERT INTO @tmpBatchData(BatchNo,MinCustId,MaxCustId,MinCustId_MinTransID,MinCustId_MaxTransID,MaxCustId_MinTransID,MaxCustId_MaxTransID)
@@ -238,7 +236,7 @@ BEGIN
 	
 		)
 	    INSERT INTO #tmpBatchData(BatchNo,custid,transid)
-		SELECT BatchNo,custid,transid
+		SELECT BatchNo + @BatchCount,custid,transid
 		FROM CTE_Ticket
 		
 		;WITH CTE_Cust AS (
@@ -273,7 +271,8 @@ BEGIN
 	END 
 
 	DROP TABLE #tmpBatchData;
-		
+	DROP TABLE #tmpBatchDataByCust;
+
 	SELECT BatchNo
 
 		  ,MinCustId

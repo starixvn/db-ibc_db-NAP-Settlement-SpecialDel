@@ -4,6 +4,7 @@ CREATE PROCEDURE dbo.NAP_Admin_Settlement_BalanceUpd
 	,@ActionID              INT  
 	,@BalanceType			TINYINT	 = 1 --sport
 	,@BroadcastSessionId	VARCHAR(50)	= NULL
+	,@HasNoBalanceNegative	BIT			= 0
 	,@ErrMessage			VARCHAR(300) = '' OUTPUT
 	,@ErrCode				INT			 = 0  OUTPUT
 )
@@ -18,6 +19,7 @@ AS
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
+		- 20240520@Aries: Transfer the logic business from the DB layer to the Application layer for Happy5 [Redmine:#202389]
 
 	Param's Explanation:
 
@@ -71,7 +73,7 @@ BEGIN
 		END
 
 		SET @StepNumber = 3		
-		IF @CheckNegativeBalance <> 0 AND OBJECT_ID('BalanceNegative','U') IS NOT NULL
+		IF @CheckNegativeBalance <> 0 AND OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @HasNoBalanceNegative != 1
 		BEGIN
 			INSERT INTO [dbo].[BalanceNegative] (
 				[ExecDate]

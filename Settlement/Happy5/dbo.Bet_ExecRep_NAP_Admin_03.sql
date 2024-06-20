@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_03]
 	 @MatchId			    INT             
 	,@TransJson		        VARCHAR(MAX)	
@@ -10,6 +10,8 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_03]
 	,@CWLBettype			SMALLINT        = 0
 	,@BalanceType			TINYINT         = 1 
 	,@BroadcastSessionId	VARCHAR(50)		= NULL
+	,@IsCentral			    BIT				= 0
+	,@HasNoBalanceNegative	BIT				= 0
 
 	,@ErrMessage			VARCHAR(300)	= ''	OUTPUT
 	,@ErrCode				INT				= 0		OUTPUT
@@ -33,9 +35,16 @@ BEGIN
 	DECLARE  @ServerName				SYSNAME 
 			,@AllowCalculation			BIT
 			,@IsSiteDB					BIT = 0
-			,@IsCentral					BIT = 0
 			,@transInfoJson				NVARCHAR(MAX)
 			,@BalanceChanged			TVP_BalanceWalletChange
+			,@SettlementTime			DATETIME
+			,@FcUpdateTime				DATETIME2
+
+	DECLARE  @StartTime DATETIME2
+			,@EndTime DATETIME2
+			,@AffectedTicket INT
+			,@MessageBody VARCHAR(MAX)
+
 
 	SET @ServerName = @@SERVERNAME
 
@@ -51,21 +60,17 @@ BEGIN
 		END
 
 	END
-
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT	
 	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd','U') IS NOT NULL
 	BEGIN
 		SET @IsSiteDB = 1
 	END
 
-	DECLARE @tmpTrans TABLE (
-				transId				BIGINT
+	CREATE TABLE #tmpTrans  (
+				transId				BIGINT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON)
 			   ,odds				SMALLMONEY
 			   ,modds				SMALLMONEY
 			   ,statuswinlost		TINYINT
-			   ,SettlementTime		DATETIME
 			   ,WinLost				MONEY
 			   ,aWinLost			MONEY
 			   ,mWinLost			MONEY
@@ -78,11 +83,10 @@ BEGIN
 			   ,StatusID			TINYINT
 			   ,ruben				TINYINT
 			   ,ExtraInfo			VARCHAR(1000)
-			   ,FcUpdateTime		DATETIME2
-	
+			   ,IsUpdateTime		BIT
 	)
 
-	DECLARE @tmpTransOutput TABLE (  transId BIGINT
+	CREATE TABLE #tmpTransOutput (  transId BIGINT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON)
 									,CustId INT, Balance MONEY
 									,modds MONEY, odds SMALLMONEY, statuswinlost TINYINT,SettlementTime DATETIME
 									,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
@@ -93,12 +97,11 @@ BEGIN
 									,betid BIGINT,refno BIGINT
 									,FcUpdateTime DATETIME2)
 	
-	INSERT INTO @tmpTrans(transId,odds,modds,statuswinlost,SettlementTime,WinLost,aWinLost,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,ExtraInfo,FcUpdateTime)
+	INSERT INTO #tmpTrans(transId,odds,modds,statuswinlost,WinLost,aWinLost,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,ExtraInfo,IsUpdateTime)
 	SELECT   t.t		AS transId
 			,t.o		AS odds
 			,t.mo	    AS modds 	
 			,t.sw	    AS statuswinlost 
-			,t.tm	    AS SettlementTime 
 			,t.wi	    AS WinLost 
 			,t.awi	    AS aWinLost 
 			,t.mwi	    AS mWinLost 
@@ -111,13 +114,12 @@ BEGIN
 			,t.sti	    AS StatusID
 			,t.r	    AS ruben
 			,t.e	    AS ExtraInfo
-			,t.ut		AS FcUpdateTime
+			,t.tm		AS IsUpdateTime
 	FROM OPENJSON(@TransJson) WITH (
 				t		BIGINT
 			   ,o		SMALLMONEY
 			   ,mo		SMALLMONEY
 			   ,sw		TINYINT
-			   ,tm		DATETIME
 			   ,wi		MONEY
 			   ,awi		MONEY
 			   ,mwi		MONEY
@@ -130,16 +132,20 @@ BEGIN
 			   ,sti		TINYINT
 			   ,r		TINYINT
 			   ,e		VARCHAR(1000)
-			   ,ut		DATETIME2
+			   ,tm		BIT
 	) AS t
+
+	SET @StartTime = SYSDATETIME()
 
 	IF @Action = 'CAL'
 	BEGIN
+		SET @SettlementTime = GETDATE();
+
 		UPDATE  b
 		SET  b.odds				= t.odds
 			,b.modds			= t.modds
 			,b.statuswinlost	= t.statuswinlost
-			,b.SettlementTime	= t.SettlementTime			
+			,b.SettlementTime	= IIF(t.IsUpdateTime = 1, @SettlementTime, b.SettlementTime)	
 			,b.WinLost			= t.WinLost
 			,b.aWinLost			= t.aWinLost				
 			,b.mWinLost			= t.mWinLost		
@@ -163,7 +169,7 @@ BEGIN
 				,deleted.bettype,deleted.betid,deleted.refno
 				,deleted.winlostdate
 				,deleted.actual_stake
-		INTO @tmpTransOutput (
+		INTO #tmpTransOutput (
 				transId
 				,custid, Balance
 				,modds, odds, statuswinlost
@@ -176,16 +182,19 @@ BEGIN
 				,winlostdate
 				,actual_stake
 			)
-		FROM @tmpTrans AS t
-			INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) ON  t.transid = b.transid
+		FROM dbo.bettrans AS b WITH (ROWLOCK, UPDLOCK)
+			INNER JOIN #tmpTrans AS t ON  t.transid = b.transid
 		WHERE ISNULL(b.betdaqid,0) <> -2
 	END
 	ELSE IF @Action = 'REFUND'
 	BEGIN
+		SET @SettlementTime = GETDATE();
+		SET @FcUpdateTime = SYSDATETIME()
+
 		UPDATE	b
 		SET	 b.Status			= t.Status
 			,b.statusID			= t.statusID	
-			,b.SettlementTime	= t.SettlementTime					
+			,b.SettlementTime	= @SettlementTime			
 			,b.winlost			= t.winlost
 			,b.awinlost			= t.awinlost
 			,b.mwinlost			= t.mwinlost
@@ -197,7 +206,7 @@ BEGIN
 			,b.ruben			= t.ruben
 			,b.statuswinlost	= t.statuswinlost
 			,b.odds				= t.odds
-			,b.FcUpdateTime		= t.FcUpdateTime
+			,b.FcUpdateTime		= @FcUpdateTime
 		OUTPUT	 inserted.transid
 				,deleted.custid, (inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 				,inserted.odds, inserted.statuswinlost
@@ -210,7 +219,7 @@ BEGIN
 				,deleted.bettype,deleted.betid,deleted.refno
 				,deleted.winlostdate
 				,deleted.actual_stake
-		INTO @tmpTransOutput (
+		INTO #tmpTransOutput (
 				 transId
 				,custid, Balance
 				,odds, statuswinlost
@@ -224,11 +233,13 @@ BEGIN
 				,winlostdate
 				,actual_stake
 		)
-		FROM @tmpTrans AS t
-			INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) ON  t.transid = b.transid
+		FROM dbo.bettrans AS b WITH (ROWLOCK, UPDLOCK) 
+			INNER JOIN #tmpTrans AS t  ON  t.transid = b.transid
 	END
 
-	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransOutput)
+	SET @EndTime = SYSDATETIME()
+
+	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM #tmpTransOutput)
 	BEGIN
 		SET @transInfoJson = (
 				SELECT	transId AS 't'
@@ -254,7 +265,7 @@ BEGIN
 						,betid AS 'bi' 
 						,refno AS 'rf' 
 				
-			FROM	@tmpTransOutput
+			FROM	#tmpTransOutput
 			FOR JSON AUTO
 		)
 
@@ -298,7 +309,7 @@ BEGIN
 				,SUM(IIF(t.ruben = 1,t.winlost - actual_stake,0)) AS after_winlost
 				,winlostdate
 				,bettype AS gametypeid
-			FROM @tmpTransOutput t
+			FROM #tmpTransOutput t
 			GROUP BY custid, winlostdate, bettype
 
 			INSERT INTO dbo.BalancePendingCreditGame (custid,winlostdate,bettype,GameTypeID,balance)
@@ -321,13 +332,14 @@ BEGIN
 
 		END
 
+		
 		INSERT INTO @BalanceChanged (matchid,custid, walletType, bonusId, balance)
 		SELECT	 @MatchId
 				,custid
 				,2 AS walletType
 				,0 AS bonusId
 				,SUM(balance)
-		FROM @tmpTransOutput
+		FROM #tmpTransOutput
 		GROUP BY custid
 		HAVING SUM(balance) != 0;
  
@@ -335,9 +347,44 @@ BEGIN
 											,@ActionID				=   @ActionID
 											,@BalanceType			=	@BalanceType
 											,@BroadcastSessionId	=	@BroadcastSessionId
+											,@HasNoBalanceNegative	=	@HasNoBalanceNegative
 											,@ErrMessage			=   @ErrMessage			OUTPUT
 											,@ErrCode				=   @ErrCode			OUTPUT
-	END
 	
+	END
+
+	SELECT @AffectedTicket = COUNT(1)
+	FROM	#tmpTransOutput
+
+	IF OBJECT_ID('SSB_Settlement_WriteLogs','P') IS NOT NULL 
+	BEGIN 
+		SET @MessageBody = 'EXEC Bet_ExecRep_NAP_Admin_03 @MatchId = ' + CAST(@MatchId AS VARCHAR)
+								+ ',@EventTable = ' + CAST(@EventTable AS VARCHAR)
+								+ ',@Is3rd = ' + CAST(@Is3rd AS VARCHAR)
+								+ CASE WHEN @ActionId IS NOT NULL THEN ',@ActionID = ' + CAST(@ActionID AS VARCHAR) ELSE '' END
+								+ ',@IsCalculateBalance = ' + CAST(@IsCalculateBalance AS VARCHAR)
+								+ ',@CWLBettype = ' + CAST(@CWLBettype AS VARCHAR)
+								+ ',@BalanceType = ' + CAST(@BalanceType AS VARCHAR)
+								+ CASE WHEN @BroadcastSessionId IS NOT NULL THEN ',@BroadcastSessionId = ''' + @BroadcastSessionId + '''' ELSE '' END
+								+ ',@TransJson = ''' + @TransJson + ''''
+								
+		exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL
+			, @MessageType			= NULL
+			, @MessageBody			= @MessageBody
+			, @StartTime			= @StartTime
+			, @EndTime				= @EndTime
+			, @SessionId			= NULL
+			, @ErrorMessage			= NULL
+			, @ConversationHandle	= NULL
+			, @QueueNo				= 0
+			, @SiteDBGroupId		= 0
+			, @matchid				= @matchid
+			, @AffectedTicket 		= @AffectedTicket 
+			, @TableType			= 1 -- bettrans
+			, @EventTable			= @EventTable
+	END
+
+	DROP TABLE #tmpTrans
+	DROP TABLE #tmpTransOutput
 END
 GO
