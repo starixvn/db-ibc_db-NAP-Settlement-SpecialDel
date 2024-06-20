@@ -781,6 +781,9 @@ BEGIN
 		, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
 			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
 			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END 
+	ORDER BY b.GroupDisplay, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
+			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
+			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END 
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

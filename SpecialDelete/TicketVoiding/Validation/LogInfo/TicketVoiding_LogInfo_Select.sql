@@ -106,8 +106,8 @@ BEGIN
 					+ CASE WHEN @WrongOddsInfo IS NULL THEN '' ELSE ',@WrongOddsInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOddsInfo) + '''' END
 					+ CASE WHEN @ReducedOverInfo IS NULL THEN '' ELSE ',@ReducedOverInfo = ''' + CONVERT(NVARCHAR(MAX), @ReducedOverInfo) + '''' END
 					+ CASE WHEN @NotParticipateInfo IS NULL THEN '' ELSE ',@NotParticipateInfo = ''' + CONVERT(NVARCHAR(MAX), @NotParticipateInfo) + '''' END
-					+ CASE WHEN @NotParticipateInfo IS NULL THEN '' ELSE ',@WrongMarketOfferedInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongMarketOfferedInfo) + '''' END
-					+ CASE WHEN @NotParticipateInfo IS NULL THEN '' ELSE ',@TechnicalErrorInfo = ''' + CONVERT(NVARCHAR(MAX), @TechnicalErrorInfo) + '''' END
+					+ CASE WHEN @WrongMarketOfferedInfo IS NULL THEN '' ELSE ',@WrongMarketOfferedInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongMarketOfferedInfo) + '''' END
+					+ CASE WHEN @TechnicalErrorInfo IS NULL THEN '' ELSE ',@TechnicalErrorInfo = ''' + CONVERT(NVARCHAR(MAX), @TechnicalErrorInfo) + '''' END
 					+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
