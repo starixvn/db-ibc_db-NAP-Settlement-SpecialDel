@@ -97,18 +97,9 @@ BEGIN
 		,FilterBetteam NVARCHAR(10)
 		,FilterHdp1 SMALLMONEY
 		,FilterHdp2 SMALLMONEY
-		,FilterWicketOver  NVARCHAR(50)
-		,FilterQuarter  NVARCHAR(50)
-		,FilterSet  NVARCHAR(50)
-		,FilterGame  NVARCHAR(50)
-		,FilterMap  NVARCHAR(50)
-		,FilterRound  NVARCHAR(50)
-		,FilterPoint  NVARCHAR(50)
-		,FilterKill  NVARCHAR(50)
-		,FilterTower   SMALLMONEY
-		,FilterTurret  NVARCHAR(50)
-		,FilterBall  NVARCHAR(50)
-		,FilterDelivery NVARCHAR(50)
+		,FilterX  NVARCHAR(50)
+		,FilterY  NVARCHAR(50)
+		,FilterXY  NVARCHAR(50)
 		,FilterTransdesc NVARCHAR(1000)
 		,FilterPlayerAndOdds NVARCHAR(1000)	
 	)
@@ -117,22 +108,13 @@ BEGIN
 		Bettype				SMALLINT
 		,FilterBetteam      NVARCHAR(10)
 		,FilterHDP		    SMALLMONEY
-		,FilterSet          NVARCHAR(50)
         ,FilterRuns		    SMALLMONEY
 		,FilterTransdesc	NVARCHAR(2000)
 		,IsFancy			BIT DEFAULT (0)
-		,FilterWicketOver  NVARCHAR(50)
-		,FilterQuarter  NVARCHAR(50)
-		,FilterGame  NVARCHAR(50)
-		,FilterMap  NVARCHAR(50)
-		,FilterRound  NVARCHAR(50)
-		,FilterPoint  NVARCHAR(50)
-		,FilterKill  NVARCHAR(50)
-		,FilterTower   SMALLMONEY
-		,FilterTurret  NVARCHAR(50)
-		,FilterBall  NVARCHAR(50)
-		,FilterDelivery NVARCHAR(50)
 		,FilterPlayerAndOdds NVARCHAR(1000)	
+		,FilterX  NVARCHAR(50)
+		,FilterY  NVARCHAR(50)
+		,FilterXY  NVARCHAR(50)
 	)
 
 	SET @AdvancedModeInfoXML = CONVERT(XML, @AdvancedModeInfo)
@@ -152,57 +134,36 @@ BEGIN
 	INSERT INTO @bettype_detail (Bettype
 		,FilterBetteam
 		,FilterHDP
-		,FilterMap
-		,FilterWicketOver
 		,FilterTransdesc
-		,FilterQuarter
-		,FilterGame  
-		,FilterRound 
-		,FilterPoint
-		,FilterKill 
-		,FilterTower   
-		,FilterTurret  
-		,FilterBall  
-		,FilterDelivery 
 		,FilterPlayerAndOdds 
-		,FilterSet
 		,FilterRuns
+		,FilterX
+		,FilterY
+		,FilterXY
 	)
 	SELECT tmp.bettype, tmp.betteam
 		,CAST(CASE WHEN vhdp1.value = '' THEN @ValueDefault
 						ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
-		,map.value AS FilterMap
-		,wk.value AS FilterWicketOver
 		,pl.value AS FilterTransdesc
-		,qt.value AS FilterQuarter
-		,'' FilterGame  
-		,'' FilterRound 
-		,'' FilterPoint
-		,'' FilterKill 
-		,@ValueDefault FilterTower   
-		,'' FilterTurret  
-		,'' FilterBall  
-		,'' FilterDelivery 
 		,'' FilterPlayerAndOdds 
-		,'' AS FilterSet
 		,'' AS FilterRuns
+		,CASE WHEN CHARINDEX('_', x.value) = 0 THEN x.value ELSE '' END
+		,CASE WHEN CHARINDEX('_', x.value) = 0 AND CHARINDEX('_',y.value) = 0 THEN y.value ELSE '' END
+		,CASE WHEN CHARINDEX('_', x.value) = 1 AND x.value + y.value <> '______' THEN x.value + y.value ELSE '' END
 	FROM (
 		SELECT Id AS bettype
 			,ISNULL(Team, 'All') AS betteam
 			,ISNULL(Hdp, '') AS HDPs
-			,ISNULL(Map,'') AS Maps
 			,ISNULL(Player, '') AS Players
-			,ISNULL(Wicket,'') AS Wickets
-			,ISNULL([Quarter],'') AS Quarters
+			,ISNULL(REPLACE(BetIdX,'&',','),'') AS betIdX
+			,ISNULL(REPLACE(BetIdY,'&',','),'') AS betIdY
 		FROM OPENJSON(@AdvancedExtraInfo) 
-		WITH( Id SMALLINT, Team NVARCHAR(10), Hdp VARCHAR(100), Player VARCHAR(1000), Map VARCHAR(1000)
-			, Wicket VARCHAR(100), [Quarter] VARCHAR(100))
+		WITH( Id SMALLINT, Team NVARCHAR(10), Hdp VARCHAR(100), Player VARCHAR(1000), BetIdX VARCHAR(1000), BetIdY VARCHAR(1000))
 	)tmp
 	CROSS APPLY STRING_SPLIT(tmp.HDPs, '&') vhdp1
-	CROSS APPLY STRING_SPLIT(tmp.Maps, ',') map
 	CROSS APPLY STRING_SPLIT(tmp.Players, ',') pl
-	CROSS APPLY STRING_SPLIT(tmp.Wickets, '&') wk
-	CROSS APPLY STRING_SPLIT(tmp.Quarters, ',') qt
+	CROSS APPLY STRING_SPLIT(tmp.betIdX, ',') x
+	CROSS APPLY STRING_SPLIT(tmp.betIdY, ',') y
 
 	--Search single tickets
 	INSERT INTO #TransInfo(
@@ -270,18 +231,9 @@ BEGIN
 			,FilterBetteam 
 			,FilterHdp1 
 			,FilterHdp2 
-			,FilterWicketOver 
-			,FilterQuarter
-			,FilterSet  
-			,FilterGame  
-			,FilterMap 
-			,FilterRound  
-			,FilterPoint 
-			,FilterKill 
-			,FilterTower  
-			,FilterTurret  
-			,FilterBall 
-			,FilterDelivery 
+			,FilterX
+			,FilterY
+			,FilterXY
 			,FilterTransdesc 
 			,FilterPlayerAndOdds 
 		)
@@ -348,18 +300,9 @@ BEGIN
 		,b.betteam AS FilterBetteam 
 		,b.hdp1 AS FilterHdp1 
 		,b.hdp2 AS FilterHdp2 
-		,CONVERT(NVARCHAR(50), b.betid) AS FilterWicketOver 
-		,CONVERT(NVARCHAR(50), b.betid) AS FilterQuarter 
-		,CONVERT(NVARCHAR(50), b.betid) AS FilterSet  
-		,RIGHT(b.betid, 2) AS FilterGame
-		,CONVERT(NVARCHAR(50), b.betid) AS FilterMap 
-		,CONVERT(NVARCHAR(50), b.betid) AS FilterRound  
-		,CONVERT(NVARCHAR(50), b.betid) AS FilterPoint 
-		,CONVERT(NVARCHAR(50), b.betid) AS FilterKill 
-		,b.hdp1 AS FilterTower  
-		,CONVERT(NVARCHAR(50), b.betid) AS FilterTurret  
-		,CONVERT(NVARCHAR(50), b.betid) AS FilterBall 
-		,CONVERT(NVARCHAR(50), b.betid) AS FilterDelivery 
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterX  
+		,RIGHT(b.betid, 2) AS FilterY
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterXY 
 		,b.transdesc AS FilterTransdesc 
 		,b.oddsid AS FilterPlayerAndOdds 
 	FROM dbo.bettrans b WITH (NOLOCK)
@@ -443,18 +386,9 @@ BEGIN
 				,FilterBetteam 
 				,FilterHdp1 
 				,FilterHdp2 
-				,FilterWicketOver 
-				,FilterQuarter
-				,FilterSet  
-				,FilterGame  
-				,FilterMap 
-				,FilterRound  
-				,FilterPoint 
-				,FilterKill 
-				,FilterTower  
-				,FilterTurret  
-				,FilterBall 
-				,FilterDelivery 
+				,FilterX
+				,FilterY
+				,FilterXY
 				,FilterTransdesc 
 				,FilterPlayerAndOdds 
 			)
@@ -519,18 +453,9 @@ BEGIN
 			,sub.betteam AS FilterBetteam 
 			,sub.hdp1 AS FilterHdp1 
 			,sub.hdp2 AS FilterHdp2 
-			,sub.betcheck AS FilterWicketOver 
-			,sub.betcheck AS FilterQuarter
-			,sub.betcheck AS FilterSet  
-			,RIGHT(sub.betcheck, 2) AS FilterGame
-			,sub.betcheck AS FilterMap 
-			,sub.betcheck AS FilterRound  
-			,sub.betcheck AS FilterPoint 
-			,sub.betcheck AS FilterKill 
-			,sub.hdp1 AS FilterTower  
-			,sub.betcheck AS FilterTurret  
-			,sub.betcheck AS FilterBall 
-			,sub.betcheck AS FilterDelivery 
+			,sub.betcheck AS FilterX 
+			,sub.betcheck AS FilterY
+			,RIGHT(sub.betcheck, 2) AS FilterXY
 			,sub.transdesc AS FilterTransdesc 
 			,sub.oddsid AS FilterPlayerAndOdds 
 		FROM #FilterInfo d
@@ -552,17 +477,10 @@ BEGIN
 			WHERE f.Bettype = b.FilterBettype
 				AND (f.FilterBetteam = 'All' OR b.FilterBetteam = f.FilterBetteam)
 				AND (f.FilterHDP = @ValueDefault OR b.FilterHdp1 = f.FilterHDP)
-				AND (f.FilterTower = @ValueDefault OR b.FilterHdp1 = f.FilterTower)
-				AND (f.FilterSet = '' OR b.FilterSet LIKE f.FilterSet + '%')
-				AND (f.FilterDelivery = '' OR b.FilterDelivery = f.FilterDelivery)
-				AND (f.FilterWicketOver = '' OR b.FilterWicketOver = f.FilterWicketOver)
-				AND (f.FilterQuarter = '' OR b.FilterQuarter = f.FilterQuarter)
-				AND (f.FilterKill = '' OR b.FilterKill = f.FilterKill)
-				AND (f.FilterMap = '' OR b.FilterMap = f.FilterMap)
-				AND (f.FilterPoint = '' OR b.FilterPoint = f.FilterPoint)
-				AND (f.FilterRound = '' OR b.FilterRound = f.FilterRound)
-				AND (f.FilterTurret = '' OR b.FilterTurret = f.FilterTurret)
 				AND (f.FilterTransdesc = '' OR b.FilterTransdesc = f.FilterTransdesc)
+				AND (f.FilterX = '' OR b.FilterX LIKE f.FilterX + '%')
+				AND (f.FilterY = '' OR (f.FilterY LIKE '>%' AND b.FilterY > RIGHT(f.FilterY, 2)) OR (b.FilterY = f.FilterY))
+				AND (f.FilterXY = '' OR b.FilterXY LIKE f.FilterXY + '%')
 				AND 1 = CASE WHEN f.FilterRuns = '' THEN 1
 							WHEN f.FilterRuns <> '' AND f.IsFancy = 0 AND b.FilterHdp1 > FilterRuns THEN 1
 							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 > f.FilterRuns THEN 1
