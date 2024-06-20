@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_UserActionLog_Update]
 (
 	@Userid	INT = 0
-	,@LogDate SMALLDATETIME = NULL
 	,@FunctionName VARCHAR(500) = NULL
 	,@LogContent NVARCHAR(MAX) = NULL
 	,@IsActionCount BIT = 0
@@ -23,7 +22,27 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	RETURN 
+	DECLARE @LogDate SMALLDATETIME 
+
+	IF @IsActionCount = 1
+	BEGIN
+		SET @LogDate = (SELECT CONVERT(DATE,GETDATE()))
+
+		UPDATE t SET t.[ActionCount] += t.[ActionCount]
+		FROM [dbo].[TicketVoiding_UserActionLog_Tracking] t WITH (ROWLOCK, UPDLOCK)
+		WHERE t.UserId = @Userid AND t.LogDate = @LogDate AND t.FunctionName = @FunctionName
+
+		IF @@ROWCOUNT = 0
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_UserActionLog_Tracking (UserId, LogDate, FunctionName, ActionCount)
+			SELECT @Userid, @LogDate, @FunctionName, 1
+		END
+	END
+	ELSE
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_UserActionLog_Tracking (UserId, LogDate, FunctionName, ActionCount, LogContent)
+		SELECT @Userid, GETDATE(), @FunctionName, 0, @LogContent
+	END
 
 	SET NOCOUNT OFF
 END
