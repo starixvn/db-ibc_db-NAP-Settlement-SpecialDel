@@ -65,6 +65,7 @@ AS
 			- 20240311@Helen: SP Tuning [Redmine:#202131]
 			- 20240408@Aries: Cannot insert duplicate key in object dbo.#tmpAllParentChildMatch [Redmine:#203558]
 			- 20240503@Louisa: Enhance-separate code DBTXN and DBPRO [Redmine:#204370]
+			- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -603,6 +604,7 @@ BEGIN
 			,m.OfferLive
 			,ISNULL(s.WaitingTime, 300) AS AutoWaitingTime
 			,ISNULL(s2.RetryTime, AP_RetryTime) AS AutoRetryTime
+			,ISNULL(s4.WaitingTime, 0) AS RefundWaitingTime
 	FROM	#tmpMatchIds m
 		OUTER APPLY (
 			SELECT TOP 1 ss.WaitingTime
@@ -616,6 +618,12 @@ BEGIN
 			WHERE	s1.LeagueId = m.leagueid
 					AND AutoType = 6			
 		)s2
+		OUTER APPLY (
+			SELECT TOP 1 s3.WaitingTime
+			FROM	bodb02.dbo.SettlementSetting s3 WITH (NOLOCK)
+			WHERE	s3.LeagueId = m.leagueid
+					AND AutoType = 7			
+		)s4
 
 	SELECT matchid, ResourceID, OverStatus
 	FROM @tmpMatchOverStatus 

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayout_MatchSel
 	  @FromDate 			DATETIME
 	, @ToDate 				DATETIME
@@ -67,6 +67,7 @@ AS
 	- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 	- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 	- 20231025@Aries: Cannot insert duplicate key in object 'dbo.#matchList' [Redmine:#196002]
+	- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 
  Param explanation:  
 	@MatchCode: match code
@@ -884,6 +885,7 @@ BEGIN
 		, m.IsExistRunningTicket
 		, m.IsExistMarkedTicket
 		, ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
+		, ISNULL(ssRefund.WaitingTime, 0) AS RefundWaitingTime
 		, m.EventStatusReason
 		, m.ChildMatchType
 	FROM #matchList m
@@ -901,6 +903,12 @@ BEGIN
 			WHERE	ss.LeagueId = m.leagueid
 					AND AutoType = 5
 		)ssDirect
+		OUTER APPLY (
+			SELECT TOP 1 s1.WaitingTime
+			FROM	DBPRO.bodb02.dbo.SettlementSetting s1 WITH (NOLOCK)
+			WHERE	s1.LeagueId = m.leagueid
+					AND AutoType = 7
+		)ssRefund
 	WHERE 1 = CASE WHEN @IsHTOverOnly = 1 OR @IsOverOnly = 1 THEN CASE WHEN m.BetCount > 0 THEN 1 ELSE 0 END
 				ELSE 1 END
 	ORDER BY CASE 

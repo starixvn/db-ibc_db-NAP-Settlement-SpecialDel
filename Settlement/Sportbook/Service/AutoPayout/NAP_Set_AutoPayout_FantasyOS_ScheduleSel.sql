@@ -8,6 +8,7 @@ AS
 	Revisions:
 		- 20240305@Aries: Created [Redmine:#199768]
 		- 20240422@Aries: Fix a issue due to the insufficient Leagueid of Fantasy matches for Basketball [Redmine:#204170]
+		- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 
 	Param's Explanation:
  
@@ -208,8 +209,16 @@ BEGIN
 			WHERE ss.LeagueId = m.LeagueId
 				AND ss.AutoType = 5
 		) AS ss
-	WHERE m.Action IN ('CAL','REFUND') 
-		AND m.LastParentCalculateDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,300), @CurrTime)
+		OUTER APPLY(
+			SELECT TOP 1 ssr.WaitingTime
+			FROM dbo.SettlementSetting AS ssr WITH (NOLOCK)
+			WHERE ssr.LeagueId = m.LeagueId
+				AND ssr.AutoType = 7
+		) AS ssr
+	WHERE 1 = CASE WHEN m.Action = 'CAL' AND m.LastParentCalculateDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,300), @CurrTime) THEN 1
+				   WHEN m.Action = 'REFUND' AND m.LastParentCalculateDate <= DATEADD(SECOND, - ISNULL(ssr.WaitingTime,0), @CurrTime) THEN 1
+				   ELSE 0
+			  END
 		 
 END
 GO
