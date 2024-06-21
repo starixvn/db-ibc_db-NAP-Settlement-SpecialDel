@@ -4,7 +4,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_MatchInfo_Select]
 	@EventDate		DATETIME		= NULL
 	,@Sporttype		SMALLINT		= NULL	
 	,@MatchId		INT				= NULL
-	,@IsUpdRequest	BIT 			= 0
 	,@ErrorCode		INT				= 0		OUTPUT
 	,@ErrorMsg		NVARCHAR(200)	= ''	OUTPUT
 )
@@ -45,11 +44,11 @@ BEGIN
 	SELECT matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ISNULL(parentid,matchid) AS parentid, Kickofftime
 	FROM #MatchInfo
 
-	IF NOT EXISTS (SELECT TOP 1 1 FROM #MatchInfo) AND @IsUpdRequest = 0
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #MatchInfo)
 	BEGIN
 		SELECT @ErrorCode = 1, @ErrorMsg = 'Invalid MatchId.'
 	END
-	ELSE IF EXISTS (SELECT TOP 1 1 FROM #MatchInfo WHERE @EventDate IS NOT NULL AND eventdate <> @EventDate) AND @IsUpdRequest = 0
+	ELSE IF EXISTS (SELECT TOP 1 1 FROM #MatchInfo WHERE @EventDate IS NOT NULL AND eventdate <> @EventDate)
 	BEGIN
 		SELECT @ErrorCode = 1, @ErrorMsg = 'Wrong Event Date.'
 	END

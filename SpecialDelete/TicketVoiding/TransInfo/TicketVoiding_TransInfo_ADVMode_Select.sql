@@ -155,10 +155,10 @@ BEGIN
 			,ISNULL(Team, 'All') AS betteam
 			,ISNULL(Hdp, '') AS HDPs
 			,ISNULL(Player, '') AS Players
-			,ISNULL(REPLACE(BetIdX,'&',','),'') AS betIdX
-			,ISNULL(REPLACE(BetIdY,'&',','),'') AS betIdY
+			,ISNULL(REPLACE(FilterBetIdX,'&',','),'') AS betIdX
+			,ISNULL(REPLACE(FilterBetIdY,'&',','),'') AS betIdY
 		FROM OPENJSON(@AdvancedExtraInfo) 
-		WITH( Id SMALLINT, Team NVARCHAR(10), Hdp VARCHAR(100), Player VARCHAR(1000), BetIdX VARCHAR(1000), BetIdY VARCHAR(1000))
+		WITH( Id SMALLINT, Team NVARCHAR(10), Hdp VARCHAR(100), Player VARCHAR(1000), FilterBetIdX VARCHAR(1000), FilterBetIdY VARCHAR(1000))
 	)tmp
 	CROSS APPLY STRING_SPLIT(tmp.HDPs, '&') vhdp1
 	CROSS APPLY STRING_SPLIT(tmp.Players, ',') pl
