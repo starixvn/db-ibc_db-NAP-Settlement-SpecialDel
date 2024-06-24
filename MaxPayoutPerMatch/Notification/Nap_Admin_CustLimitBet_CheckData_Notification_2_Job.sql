@@ -25,7 +25,7 @@ BEGIN
 	
 	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
 	BEGIN
-		SET @Recipients = 'dbaadmin@starixsoft.com;member_core@onelab.tw;steve.liao@onelab.tw'
+		SET @Recipients = 'dbaadmin@starixsoft.com;member_core@onelab.tw;steve.liao@onelab.tw;infinity_product@onelab.tw;infinity_service@onelab.tw'
 	END
 	ELSE
 	BEGIN
