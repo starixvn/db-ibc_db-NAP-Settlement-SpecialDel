@@ -315,12 +315,14 @@ BEGIN
 
 	-- 2. Table infor bettypes 
 	SELECT BetTypeId
+		  ,b.typenamee AS OriginalBetTypeName
 		  ,InputtedRuns
 		  ,BetId
 		  ,PlayerName
 		  ,PlayerAndOdds
 		  ,TicketsCount
 	FROM @tmpBettypeCount c
+		INNER JOIN dbo.bettype b WITH (NOLOCK) ON c.BetTypeId = b.typeid
 	WHERE ISNULL(TicketsCount,0) <> 0
 	ORDER BY BetTypeId, InputtedRuns, BetId ASC
 
