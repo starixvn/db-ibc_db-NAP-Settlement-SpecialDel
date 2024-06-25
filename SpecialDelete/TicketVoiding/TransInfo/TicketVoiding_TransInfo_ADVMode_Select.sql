@@ -111,7 +111,7 @@ BEGIN
         ,FilterRuns		    SMALLMONEY
 		,FilterTransdesc	NVARCHAR(2000)
 		,IsFancy			BIT DEFAULT (0)
-		,FilterPlayerAndOdds NVARCHAR(1000)	
+		,FilterPlayerAndOdds NVARCHAR(2000)	
 		,FilterX  NVARCHAR(50)
 		,FilterY  NVARCHAR(50)
 		,FilterXY  NVARCHAR(50)
@@ -141,11 +141,12 @@ BEGIN
 		,FilterY
 		,FilterXY
 	)
-	SELECT tmp.bettype, tmp.betteam
+	SELECT tmp.bettype
+		, tmp.betteam
 		,CAST(CASE WHEN vhdp1.value = '' THEN @ValueDefault
 						ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
 		,pl.value AS FilterTransdesc
-		,'' FilterPlayerAndOdds 
+		,plo.value FilterPlayerAndOdds 
 		,'' AS FilterRuns
 		,CASE WHEN CHARINDEX('_', x.value) = 0 THEN x.value ELSE '' END
 		,CASE WHEN CHARINDEX('_', x.value) = 0 AND CHARINDEX('_',y.value) = 0 THEN y.value ELSE '' END
@@ -157,13 +158,16 @@ BEGIN
 			,ISNULL(Player, '') AS Players
 			,ISNULL(REPLACE(FilterBetIdX,'&',','),'') AS betIdX
 			,ISNULL(REPLACE(FilterBetIdY,'&',','),'') AS betIdY
+			,ISNULL(PlayerAndOdds, '') AS PlayerAndOdds
 		FROM OPENJSON(@AdvancedExtraInfo) 
-		WITH( Id SMALLINT, Team NVARCHAR(10), Hdp VARCHAR(100), Player VARCHAR(1000), FilterBetIdX VARCHAR(1000), FilterBetIdY VARCHAR(1000))
+		WITH( Id SMALLINT, Team NVARCHAR(10), Hdp VARCHAR(100), Player VARCHAR(1000)
+			, FilterBetIdX VARCHAR(1000), FilterBetIdY VARCHAR(1000), PlayerAndOdds VARCHAR(2000))
 	)tmp
 	CROSS APPLY STRING_SPLIT(tmp.HDPs, '&') vhdp1
 	CROSS APPLY STRING_SPLIT(tmp.Players, ',') pl
 	CROSS APPLY STRING_SPLIT(tmp.betIdX, ',') x
 	CROSS APPLY STRING_SPLIT(tmp.betIdY, ',') y
+	CROSS APPLY STRING_SPLIT(tmp.PlayerAndOdds, ',') plo
 
 	--Search single tickets
 	INSERT INTO #TransInfo(
@@ -454,8 +458,8 @@ BEGIN
 			,sub.hdp1 AS FilterHdp1 
 			,sub.hdp2 AS FilterHdp2 
 			,sub.betcheck AS FilterX 
-			,sub.betcheck AS FilterY
-			,RIGHT(sub.betcheck, 2) AS FilterXY
+			,RIGHT(sub.betcheck, 2) AS FilterY
+			,sub.betcheck AS FilterXY
 			,sub.transdesc AS FilterTransdesc 
 			,sub.oddsid AS FilterPlayerAndOdds 
 		FROM #FilterInfo d
@@ -481,6 +485,9 @@ BEGIN
 				AND (f.FilterX = '' OR b.FilterX LIKE f.FilterX + '%')
 				AND (f.FilterY = '' OR (f.FilterY LIKE '>%' AND b.FilterY > RIGHT(f.FilterY, 2)) OR (b.FilterY = f.FilterY))
 				AND (f.FilterXY = '' OR b.FilterXY LIKE f.FilterXY + '%')
+				AND (f.FilterPlayerAndOdds = '' 
+						OR (b.FilterBetteam = LEFT(f.FilterPlayerAndOdds, 2) AND b.FilterPlayerAndOdds = SUBSTRING(FilterPlayerAndOdds,4,LEN(FilterPlayerAndOdds)))
+					)
 				AND 1 = CASE WHEN f.FilterRuns = '' THEN 1
 							WHEN f.FilterRuns <> '' AND f.IsFancy = 0 AND b.FilterHdp1 > FilterRuns THEN 1
 							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 > f.FilterRuns THEN 1
