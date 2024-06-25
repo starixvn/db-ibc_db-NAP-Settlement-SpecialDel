@@ -573,13 +573,16 @@ BEGIN
 		SELECT bt.bettypeid
 			,bt.betid
 			,bt.bettypecount
+			,t.typenamee AS originalBetTypeName
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			CROSS APPLY (
 				SELECT bettypeid AS bettypeid, betid AS betid , bettypecount AS bettypecount
 				FROM OPENJSON(NULLIF(rd.TransIds,'')) 
 				WITH( BetTypeId SMALLINT, BetId NVARCHAR(50),  BetTypeCount INT)
 			)bt
+			INNER JOIN dbo.bettype t WITH (NOLOCK) ON t.typeid = bt.bettypeid
 		WHERE rd.RequestId = @RequestId
+		ORDER BY t.typenamee
 
 		RETURN;
 	END
@@ -774,14 +777,18 @@ BEGIN
 			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
 			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END AS betid
 		,COUNT(b.transid) AS bettypecount
+		,bt.typenamee AS originalBetTypeName
 	FROM #TVSTicketBets b
 		INNER JOIN #tmpTransInfo t ON t.transid = b.transid
+		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
 	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-	GROUP BY b.GroupDisplay
+	GROUP BY b.GroupDisplay, bt.typenamee
 		, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
 			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
 			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END 
-	ORDER BY b.GroupDisplay, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
+	ORDER BY bt.typenamee
+			,b.GroupDisplay
+			,CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
 			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
 			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END 
 

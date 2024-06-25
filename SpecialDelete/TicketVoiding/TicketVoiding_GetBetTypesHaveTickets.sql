@@ -101,6 +101,7 @@ BEGIN
 		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = t.bettype
 		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = t.bettype
 	GROUP BY t.bettype, bt.typeid, bt.typenamee, t.transdesc, f.GroupName
+	ORDER BY f.GroupName, bt.typenamee
 
     DROP TABLE #TmpBettype
 END
