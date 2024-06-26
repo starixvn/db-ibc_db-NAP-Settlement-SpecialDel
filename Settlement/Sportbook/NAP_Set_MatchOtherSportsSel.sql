@@ -107,9 +107,10 @@ BEGIN
 	DECLARE @tmpMatchStatus TABLE (MatchStatus TINYINT)
 	DECLARE @tmpOverStatus  TABLE (OverStatus TINYINT)
 	DECLARE @tmpHoldStatus  TABLE (HoldStatus TINYINT)
-	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), OverStatus INT DEFAULT(0) )
+	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, ResourceID VARCHAR(20), OverStatus INT DEFAULT(0) )
+	DECLARE @tmpMainResult TABLE ( ResourceID VARCHAR(20) )
 
-	CREATE TABLE #ConfirmedResources ( MatchId INT,sporttype SMALLINT, ResourceId VARCHAR(20), IsEarly BIT, ResultStatusID TINYINT )
+	CREATE TABLE #ConfirmedResources ( MatchId INT, ResourceId VARCHAR(20), ResultStatusID TINYINT, OverStatus TINYINT )
 
 	CREATE TABLE #tmpMatchIds (
 		 matchid						INT
@@ -144,7 +145,6 @@ BEGIN
 		,ExternalResultTable			TINYINT	
 		,AP_RetryTime					INT
 	)
-
 
 	BEGIN TRY
 	IF ISNUMERIC(@MatchCode) = 1
@@ -181,6 +181,11 @@ BEGIN
 	FROM	STRING_SPLIT(@Sporttypes, ',') f
 		INNER JOIN dbo.SettlementResultTableSetting s WITH(NOLOCK) 
 			ON f.[value] = s.sporttype
+	
+	INSERT INTO @tmpMainResult ( ResourceID )
+	SELECT DISTINCT f.ResourceId
+		FROM @tmpSporttypes s
+			CROSS APPLY ( SELECT f.ResourceId FROM dbo.f_Set_MajorRound (s.sporttype) as f ) f
 
 	INSERT INTO @tmpLeagueIds(LeagueId)
 	SELECT	DISTINCT [value]
@@ -415,35 +420,6 @@ BEGIN
 				   	END
 
 	END	
-
-	---ESports Early ( special behavior #204370)
-	INSERT INTO #ConfirmedResources ( MatchId, sporttype, ResourceId, IsEarly, ResultStatusID )
-	SELECT m.MatchId,m.sporttype,rs.ResourceId, 1, rs.ResultStatusID
-	FROM #tmpMatchIds AS m
-		INNER JOIN dbo.ResultDetailES AS rs WITH(NOLOCK) ON rs.matchid = m.matchid AND rs.ResultStatusID IN (2,3,5)
-	WHERE m.ResultTable  = 3
-	
-	INSERT INTO #ConfirmedResources ( MatchId, sporttype, ResourceId, IsEarly )
-	SELECT m.MatchId,m.sporttype, p.ResourceID, 1
-	FROM dbo.ProviderExternalResultDetailES AS p WITH(NOLOCK)
-		INNER JOIN #tmpMatchIds AS m ON m.matchid = p.matchid
-		LEFT JOIN #ConfirmedResources c ON p.MatchId = c.MatchId AND p.ResourceId = c.ResourceId
-	WHERE  m.ResultTable  = 3
-		AND p.SourceId < 1001
-		AND p.SourceId NOT IN (98, 99)
-		AND c.ResourceId IS NULL
-		AND p.ResourceID NOT IN (SELECT f.ResourceID FROM dbo.f_Set_MajorRound (43) as f )
-		
-	DELETE FROM #ConfirmedResources WHERE ResultStatusID IN (2,5)
-	---/END ESports Early
-
-	INSERT INTO @tmpMatchOverStatus (matchid, bettype, betid, OverStatus)
-	SELECT r.matchid,sp.bettype, sp.betid, 1
-	FROM #ConfirmedResources r
-			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
-	WHERE sp.SettleType = 'EAR'
-			AND sp.sporttype = 43
-			AND (@IsOverEarly = 1 OR @OverStatus = '0')
 	
 	IF @IsOver = 1
 	BEGIN
@@ -459,62 +435,57 @@ BEGIN
 							ELSE 0
 						END		
 	END
-
 	IF (@IsOverEarly = 1 OR @IsMainOver = 1 )
 	BEGIN
-		INSERT INTO #ConfirmedResources ( MatchId,sporttype, ResourceId )
-		SELECT m.MatchId,m.sporttype, r.ResourceId 
+		INSERT INTO @tmpMatchOverStatus ( MatchId, ResourceId, OverStatus)
+		SELECT m.MatchId, r.ResourceId, r.OverStatus
 		FROM #tmpMatchIds AS m
-			INNER JOIN dbo.ResultDetail AS r WITH(NOLOCK) ON r.matchid = m.matchid AND r.SettlementStatusID = 0 AND r.ResultStatusID = 3		
-		WHERE m.ResultTable  = 1
-		UNION
-		SELECT m.MatchId,m.sporttype, ro.ResourceId 
+			CROSS APPLY ( SELECT  r.ResourceId, CASE WHEN mr.ResourceID IS NULL THEN 1 ELSE 2 END AS OverStatus
+						  FROM dbo.ResultDetail AS r WITH(NOLOCK)
+							LEFT JOIN @tmpMainResult mr ON r.ResourceId = mr.ResourceID
+						  WHERE r.matchid = m.matchid
+							AND r.ResultStatusID = 3
+							AND 1 = CASE WHEN @IsOverEarly = 1 AND  mr.ResourceID IS NULL THEN 1 
+										 WHEN @IsMainOver = 1 AND m.eventstatus <> 'Completed' THEN 1									 
+										 ELSE 0
+										 END
+						) r
+		WHERE m.ResultTable  = 1		
+		UNION ALL
+		SELECT m.MatchId, r.ResourceId, r.OverStatus 
 		FROM #tmpMatchIds AS m
-			INNER JOIN dbo.ResultDetailOS AS ro WITH(NOLOCK) ON ro.matchid = m.matchid AND ro.SettlementStatusID = 0 AND ro.ResultStatusID = 3		
+			CROSS APPLY ( SELECT  r.ResourceId, CASE WHEN mr.ResourceID IS NULL THEN 1 ELSE 2 END AS OverStatus
+						  FROM dbo.ResultDetailOS AS r WITH(NOLOCK)
+							LEFT JOIN @tmpMainResult mr ON r.ResourceId = mr.ResourceID
+						  WHERE r.matchid = m.matchid
+							AND r.ResultStatusID = 3
+							AND 1 = CASE WHEN @IsOverEarly = 1 AND  mr.ResourceID IS NULL THEN 1 
+										 WHEN @IsMainOver = 1 AND m.eventstatus <> 'Completed' THEN 1									 
+										 ELSE 0
+										 END
+						) r
 		WHERE m.ResultTable  = 2
 
-		DELETE c
-		FROM #ConfirmedResources AS c
-			CROSS APPLY(SELECT TOP  1 1 AS IsMain 
-						FROM dbo.f_Set_MajorRound (c.sporttype) as f
-						WHERE c.ResourceId = f.ResourceId
-			) AS mr
-		WHERE 1 = CASE WHEN @IsOverEarly = 1 AND mr.IsMain IS NULL THEN 1
-						WHEN @IsMainOver = 1 AND mr.IsMain = 1 THEN 1
-						ELSE 0
-					END
-
-		INSERT INTO @tmpMatchOverStatus (matchid, bettype, betid, OverStatus)
-		SELECT m.matchid,sp.bettype, sp.betid, 1
-		FROM #tmpMatchIds m
-			INNER JOIN #ConfirmedResources r ON r.matchId = m.matchid
-				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
-		WHERE sp.sporttype = m.sporttype
-				AND sp.SettleType = 'EAR'
-				AND m.sporttype <> 43
-
+		;WITH cte_matchMainOver AS ( SELECT DISTINCT MatchId FROM @tmpMatchOverStatus WHERE OverStatus = 2)
+		DELETE 
+		FROM @tmpMatchOverStatus
+		WHERE @IsMainOver = 1  AND @IsOverEarly = 0
+			AND MatchId NOT IN (SELECT MatchId FROM cte_matchMainOver)
+		
+		---for sport not use ResultDetailX
 		IF @IsMainOver = 1
 		BEGIN
-			INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
-			SELECT DISTINCT r.matchid , 2
+			INSERT INTO @tmpMatchOverStatus (matchid, ResourceID, OverStatus)
+			SELECT m.MatchId, r.ResourceID, 2
 			FROM #tmpMatchIds m
-				INNER JOIN #ConfirmedResources r ON r.matchId = m.matchid
-				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
-			WHERE sp.sporttype = m.sporttype
-				AND sp.SettleType = 'MNL'
-				AND m.eventstatus <> 'Completed'
-
-			INSERT INTO @tmpMatchOverStatus (matchid,  OverStatus)
-			SELECT m.MatchId, 2
-			FROM #tmpMatchIds m
-				CROSS APPLY (	SELECT gb.BetType 
-								FROM [dbo].[f_Set_GetGroupBettypes]() gb
-								WHERE  (gb.GroupId = 1 AND m.ConfirmHT > 0)
-									OR (gb.GroupId = 2 AND m.ConfirmFT > 0) 
-							) gb
-			WHERE m.matchid NOT IN (SELECT matchid FROM @tmpMatchOverStatus)
-				AND 1 = CASE WHEN m.eventstatus <> 'Completed'
-							 THEN CASE  WHEN m.ConfirmFT > 0 THEN 1
+				CROSS APPLY (	SELECT r.ResourceID FROM  ( VALUES('00'),('01')) r(ResourceID)
+								WHERE (	
+										r.ResourceID = '00' AND m.ConfirmHT > 0)
+										OR (r.ResourceID = '01' AND m.ConfirmFT > 0
+									   ) 
+							) r
+			WHERE 1 = CASE WHEN m.eventstatus <> 'Completed'
+								THEN CASE  WHEN m.ConfirmFT > 0 THEN 1
 										WHEN m.ConfirmHT > 0 AND ISNULL(m.IsHalfTimeCal,0) = 0 THEN 1
 										END
 							ELSE 0
@@ -529,6 +500,49 @@ BEGIN
 		SELECT m.MatchId, 4
 		FROM #tmpMatchIds m
 		WHERE 	m.eventstatus = 'Completed'
+	END
+
+	--ESports: special behavior for filter Over #204370
+	IF @OverStatus = '0' OR ( @IsOverEarly = 1 AND EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE sporttype = 43) )
+	BEGIN
+		TRUNCATE TABLE #ConfirmedResources
+		INSERT INTO #ConfirmedResources ( MatchId, ResourceId, ResultStatusID, OverStatus )
+		SELECT m.MatchId, r.ResourceId, r.ResultStatusID, CASE WHEN mr.ResourceID IS NULL THEN 1 ELSE 2 END
+		FROM #tmpMatchIds AS m
+			INNER JOIN dbo.ResultDetailES AS r WITH(NOLOCK) ON m.matchid = r.MatchId
+			LEFT JOIN @tmpMainResult mr ON r.ResourceId = mr.ResourceID
+		WHERE mr.ResourceID IS NULL
+			AND m.sporttype = 43
+			AND 1 =  CASE WHEN ( @IsOverEarly = 1 OR @OverStatus = '0' ) AND  mr.ResourceID IS NULL THEN 1 
+						  WHEN @IsMainOver = 1 AND m.eventstatus <> 'Completed' THEN 1
+						  ELSE 0
+						  END
+			AND r.ResultStatusID IN ( 2,3,5 )			
+		
+		;WITH cte_matchMainOver AS ( SELECT DISTINCT MatchId FROM #ConfirmedResources WHERE OverStatus = 2 )
+		DELETE 
+		FROM #ConfirmedResources
+		WHERE @IsMainOver = 1  AND @IsOverEarly = 0
+			AND MatchId NOT IN (SELECT MatchId FROM cte_matchMainOver)
+
+		INSERT INTO #ConfirmedResources ( MatchId, ResourceId, ResultStatusID , OverStatus)
+		SELECT DISTINCT m.MatchId, p.ResourceID, 3, 1
+		FROM dbo.ProviderExternalResultDetailES AS p WITH(NOLOCK)
+			INNER JOIN #tmpMatchIds AS m ON m.matchid = p.matchid
+			LEFT JOIN #ConfirmedResources c ON p.MatchId = c.MatchId AND p.ResourceId = c.ResourceId
+			LEFT JOIN @tmpMainResult mr ON c.ResourceId = mr.ResourceID
+		WHERE  m.sporttype = 43
+			AND p.SourceId < 1001
+			AND p.SourceId NOT IN (98, 99)
+			AND c.ResourceId IS NULL
+			AND mr.ResourceId IS NULL
+	
+		DELETE FROM #ConfirmedResources WHERE ResultStatusID IN (2,5)
+
+		INSERT INTO @tmpMatchOverStatus (matchid,ResourceID, OverStatus)
+		SELECT r.matchid,ResourceID, OverStatus
+		FROM #ConfirmedResources r
+
 	END
 
 	IF @OverStatus <> '0'
@@ -581,7 +595,7 @@ BEGIN
 					AND AutoType = 6			
 		)s2
 
-	SELECT matchid, bettype, betid, OverStatus
+	SELECT matchid, ResourceID, OverStatus
 	FROM @tmpMatchOverStatus 
 
 	DROP TABLE #ConfirmedResources
