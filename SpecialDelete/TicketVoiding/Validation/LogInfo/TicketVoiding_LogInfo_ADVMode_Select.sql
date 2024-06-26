@@ -74,15 +74,13 @@ BEGIN
 		,VoidToTime				DATETIME
 		,SingleCount			INT
 		,CashOutCount			INT
-		,InstantlySettleCount	INT
 		,SettleCount            INT
 		,MainParlayCount		INT
-		,HighLightMinTime		DATETIME
 		,CancelCashOutCount		INT
 	)
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, CreatedBy INT)
-	CREATE TABLE #logInfoVoidPage (RequestId INT, MatchId INT, CashOutCount INT, InstantlySettleCount INT, SettleCount INT, CancelCashOutCount INT)
+	CREATE TABLE #logInfoVoidPage (RequestId INT, MatchId INT, SettleCount INT, CancelCashOutCount INT)
 
 	CREATE TABLE #FilterInfo (
 		 MatchId				INT
@@ -456,12 +454,13 @@ BEGIN
 	END
 
 	--Data Section
-	INSERT INTO #logInfo (MatchId, VoidFromTime, VoidToTime, SingleCount, MainParlayCount)
+	INSERT INTO #logInfo (MatchId, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, SettleCount)
 	SELECT @MatchId AS MatchId
 		,MIN(b.transdate) AS VoidFromTime
 		,MAX(b.transdate) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
 		,COUNT(CASE WHEN b.transid <> b.SubTransid THEN b.transid ELSE NULL END) AS MainParlayCount
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount
 	FROM #TVSTicketBets b
 	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
 	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)), b.matchid
@@ -473,7 +472,6 @@ BEGIN
 		SET CancelCashOutCount = b.CancelCashOutCount
 		   ,VoidFromTime = CASE WHEN b.MIN_CheckTimeCashOut < li.VoidFromTime THEN b.MIN_CheckTimeCashOut ELSE li.VoidFromTime END
 		   ,VoidToTime = CASE WHEN b.MAX_CheckTimeCashOut >  li.VoidToTime THEN b.MAX_CheckTimeCashOut ELSE li.VoidToTime END
-		   ,HighLightMinTime = CASE WHEN b.MIN_CheckTimeCashOut < li.HighLightMinTime THEN b.MIN_CheckTimeCashOut ELSE li.HighLightMinTime END
 		FROM #logInfo li
 			CROSS APPLY(
 				SELECT COUNT(b.transid) AS CancelCashOutCount
@@ -503,10 +501,11 @@ BEGIN
 		FROM #TransidInRequest
 
 		/*Get log info for Void Page*/
-		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CancelCashOutCount)
+		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CancelCashOutCount, SettleCount)
 		SELECT @RequestId
 			  ,s.matchid
 			  ,COUNT(CASE WHEN s.IsCancelCO = 1 THEN s.transid ELSE NULL END) AS CancelCashOutCount
+			  ,COUNT(CASE WHEN ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS SettleCount
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets b ON b.transid = s.transid AND s.MatchId = @MatchId AND b.IsMixParlay = 0
 		WHERE s.RequestId = @RequestId 
@@ -553,6 +552,7 @@ BEGIN
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			,t.CancelCashOutCount
+			,t.SettleCount
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
 			CROSS APPLY(
@@ -748,6 +748,7 @@ BEGIN
 		,SUM(SingleCount) AS SingleCount
 		,SUM(ISNULL(CancelCashOutCount,0)) AS CancelCashOutCount
 		,SUM(MainParlayCount) AS MainParlayCount
+		,SUM(SettleCount) AS SettleCount
 	FROM #logInfo l
 
 	-- 4. List ticket unmark/mark (if any)
