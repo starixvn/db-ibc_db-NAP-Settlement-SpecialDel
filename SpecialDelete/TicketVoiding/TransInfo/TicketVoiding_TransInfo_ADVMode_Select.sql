@@ -25,11 +25,15 @@ BEGIN
 		   ,@MatchID			INT
 		   ,@AdvancedExtraInfo	NVARCHAR(MAX)
 		   ,@ValueDefault SMALLMONEY = 9999.00
+		   ,@FilterFromTransTime DATETIME = NULL
+		   ,@FilterToTransTime DATETIME = NULL
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #FilterInfo(
 		MatchId				INT
+		,FilterFromTransTime DATETIME
+		,FilterToTransTime DATETIME
 	)
 
 	CREATE TABLE #TransInfo (
@@ -121,11 +125,13 @@ BEGIN
 
 	SELECT @MatchID = t.c.value('@MatchId','INT')	
 		,@AdvancedExtraInfo = t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)')
+		,@FilterFromTransTime = t.c.value('@FilterFromTransTime','DATETIME')
+		,@FilterToTransTime = t.c.value('@FilterToTransTime','DATETIME')
 	FROM @AdvancedModeInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AdvancedModeInfoXML = NULL))
 
-	INSERT INTO #FilterInfo (MatchId)
-	SELECT MatchId
+	INSERT INTO #FilterInfo (MatchId, FilterFromTransTime, FilterToTransTime)
+	SELECT MatchId, @FilterFromTransTime, @FilterToTransTime
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
 				WHEN m.sporttype = 50 AND m.ChildMatchType = 200 AND m.ParentID = @MatchId THEN 1
@@ -316,6 +322,10 @@ BEGIN
 		AND b.bettype NOT IN (805, 806, 9, 29)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
+		AND 1 = CASE WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+				ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
+					ELSE 0 END
+			END
 		AND b.SiteDBGroupID = @SiteDBGroupID
 
 	--Search sub-parlay
@@ -469,6 +479,7 @@ BEGIN
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29
 			AND b.bettype = 29
+			AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
 
