@@ -62,6 +62,7 @@ AS
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
 		- 20240614@Max: [TVS] Ticket Listing - Insert data to DB053 [Redmine: #206452]
+		- 20240626@Max: [TVS] Ticket Listing - Adjust code Send Data to OIC [Redmine: #207035]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -117,7 +118,6 @@ BEGIN
 		   ,@SportType				SMALLINT = NULL
 		   ,@TransInfoSendOICJson	VARBINARY(MAX)
 		   ,@n						INT
-		   ,@SessionID				NVARCHAR(100)
 
 	SET @p_bettypes = @BetTypes
 	SET @n = 2147483647
@@ -125,7 +125,7 @@ BEGIN
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpMatchId TABLE (MatchId INT PRIMARY KEY, sporttype SMALLINT)
 	DECLARE @tmpSelectionSubParlay TABLE (Id VARCHAR(10))
-	DECLARE @tmpLicenseeName TABLE (LicenseeName NVARCHAR(50))
+	DECLARE @tmpLicenseeName TABLE (LicenseeName NVARCHAR(50), SessionId NVARCHAR(100))
 	
 	INSERT INTO @tmpMatchId (MatchId, sporttype)
 	SELECT MatchId, sporttype
@@ -142,8 +142,8 @@ BEGIN
 
 	IF @LicenseeName <> 'All'
 	BEGIN
-		INSERT INTO @tmpLicenseeName (LicenseeName)
-		SELECT value
+		INSERT INTO @tmpLicenseeName (LicenseeName, SessionId)
+		SELECT DISTINCT value, NEWID()
 		FROM STRING_SPLIT(@LicenseeName, ',')
 	END
 
@@ -198,8 +198,7 @@ BEGIN
 		FilterHdp2	        SMALLMONEY,
 		FilterOddsSpread    MONEY,
 	    FilterOddsId		INT,
-		FilterTransdesc	    NVARCHAR(2000),
-		SessionId			NVARCHAR(100)
+		FilterTransdesc	    NVARCHAR(2000)
 	)
 
 	CREATE TABLE #TmpBallSequence (Seq TINYINT)
@@ -702,21 +701,13 @@ BEGIN
 	END
 
 	--RETURN DATA
-	;WITH cte AS
-	(
-		SELECT DISTINCT LicenseeName, NEWID() AS ssid
- 		FROM #SpecialDeleteBets
-	)
-	UPDATE t SET t.SessionId = c.ssid
-	FROM #SpecialDeleteBets t
-	INNER JOIN cte c on c.LicenseeName = t.LicenseeName
-
 	SET @TransInfoSendOICJson = COMPRESS((SELECT TransId AS 't'
 		,CustId 'c'
 		,Recommend AS 're'
-		,LicenseeName AS 'ln'
-		,SessionId AS 'ssid'
-	FROM #SpecialDeleteBets
+		,s.LicenseeName AS 'ln'
+		,l.SessionId AS 'ssid'
+	FROM #SpecialDeleteBets s
+		INNER JOIN @tmpLicenseeName l ON l.LicenseeName = s.LicenseeName
 	FOR JSON PATH))
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoSendOICJson, 1) AS TransInfoSendOICJson
