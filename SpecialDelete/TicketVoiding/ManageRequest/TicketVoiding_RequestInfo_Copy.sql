@@ -194,19 +194,51 @@ BEGIN
 			FROM @tmpTicketInfo
 		)kq
 		
+		
+		SELECT @TotalCancelCashOutCount = SUM(CASE WHEN s.IsCancelCO = 1 THEN 1 ELSE 0 END)
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+		WHERE RequestId = @RequestId AND MatchId = @MatchId
+
+		INSERT INTO @tmpBettypeCount (BetTypeId, BetId, TicketsCount)
+		SELECT s.BetType, s.BetId, COUNT(1) AS TicketsCount
+		FROM  @tmpTicketInfo s 
+		WHERE s.Transdesc = ''
+		GROUP BY s.BetType, s.BetId
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpTicketInfo WHERE Transdesc <> '') --Cricket
+		BEGIN
+			INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, TicketsCount)
+			SELECT s.BetType, s.Transdesc, COUNT(1) AS TicketsCount
+			FROM  @tmpTicketInfo s 
+			WHERE Transdesc <> '' AND s.Bettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
+			GROUP BY s.BetType, s.Transdesc
+			
+			UPDATE b
+			SET b.PlayerName = t.teamname
+			FROM @tmpBettypeCount b
+				INNER JOIN dbo.Team t WITH(NOLOCK) ON b.PlayerId = t.teamid
+
+			INSERT INTO @tmpBettypeCount (BetTypeId, PlayerAndOdds, TicketsCount)
+			SELECT s.BetType, s.Betteam +'$'+ s.OddsId, COUNT(1) AS TicketsCount
+			FROM  @tmpTicketInfo s 
+			WHERE Transdesc <> '' AND s.Bettype IN (9662, 9664, 9666, 9663, 9665, 9667)
+			GROUP BY s.BetType, s.Betteam +'$'+ s.OddsId
+
+		END
+			
 		IF @IssueTypeId IN (19, 23, 21)
 		BEGIN
-			INSERT INTO @tmpBettypeCount (BetTypeId, InputtedRuns, PlayerId, BetId)
-			SELECT DISTINCT b.BetTypeId, infor.Runs, infor.PlayerId, infor.WicketOver
+			DECLARE @tmpInputtedRuns TABLE (BetTypeId SMALLINT, InputtedRuns VARCHAR(100))
+			
+			INSERT INTO @tmpInputtedRuns (BetTypeId, InputtedRuns)
+			SELECT DISTINCT b.BetTypeId, infor.Runs
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 					CROSS APPLY (
 							SELECT CONVERT(XML, rd.TransIds)
 						) AS t1(xDATA)
 					CROSS APPLY (
-							SELECT ISNULL(t.c.value('@PlayerId','VARCHAR(MAX)'),0) AS PlayerId	
-								  ,ISNULL(t.c.value('@BetTypeIds','VARCHAR(MAX)'),0) AS BetTypeIds
+							SELECT ISNULL(t.c.value('@BetTypeIds','VARCHAR(MAX)'),0) AS BetTypeIds
 								  ,ISNULL(t.c.value('@Runs','VARCHAR(20)'),NULL) AS Runs
-								  ,ISNULL(t.c.value('@WicketOver','VARCHAR(20)'),NULL) AS WicketOver
 							FROM t1.xDATA.nodes('/r') t(c)
 						) AS infor
 					CROSS APPLY (
@@ -215,75 +247,14 @@ BEGIN
 							WHERE value <> ''
 						) b
 			WHERE rd.RequestId = @RequestId AND rd.MatchId = @MatchId
-
-			IF @IssueTypeId IN (19, 23)
-			BEGIN
-				UPDATE b
-				SET b.TicketsCount = a.TicketsCount
-				FROM @tmpBettypeCount b
-				CROSS APPLY  (
-					SELECT s.BetType, c.BetId, COUNT(1) AS TicketsCount
-					FROM  @tmpBettypeCount c
-						INNER JOIN @tmpTicketInfo s ON c.BetTypeId = s.Bettype  
-					WHERE (c.BetId = '' OR s.BetId LIKE '%' + c.BetId)
-					GROUP BY s.BetType, c.BetId
-				)a WHERE b.bettypeid = a.BetType AND b.BetId = a.BetId
-			
-			END
-			IF @IssueTypeId = 21
-			BEGIN
-				UPDATE b
-				SET b.TicketsCount = a.TicketsCount
-				FROM @tmpBettypeCount b
-				CROSS APPLY  (
-					SELECT s.BetType, s.transdesc, COUNT(1) AS TicketsCount
-					FROM  @tmpBettypeCount c
-						INNER JOIN @tmpTicketInfo s ON c.BetTypeId = s.Bettype
-					WHERE s.transdesc = c.PlayerId
-					GROUP BY s.BetType, s.transdesc
-				)a WHERE b.bettypeid = a.BetType AND a.transdesc = b.PlayerId
-			
-				UPDATE b
-				SET b.PlayerName = t.teamname
-				FROM @tmpBettypeCount b
-					INNER JOIN dbo.Team t WITH(NOLOCK) ON b.PlayerId = t.teamid
-			END
-		END
 		
-		IF @IssueTypeId IN (12,24)
-		BEGIN
-			SELECT @TotalCancelCashOutCount = SUM(CASE WHEN s.IsCancelCO = 1 THEN 1 ELSE 0 END)
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-			WHERE RequestId = @RequestId AND MatchId = @MatchId
-
-			INSERT INTO @tmpBettypeCount (BetTypeId, BetId, TicketsCount)
-			SELECT s.BetType, s.BetId, COUNT(1) AS TicketsCount
-			FROM  @tmpTicketInfo s 
-			WHERE s.Transdesc = ''
-			GROUP BY s.BetType, s.BetId
-
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpTicketInfo WHERE Transdesc <> '') --Cricket
-			BEGIN
-				INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, TicketsCount)
-				SELECT s.BetType, s.Transdesc, COUNT(1) AS TicketsCount
-				FROM  @tmpTicketInfo s 
-				WHERE Transdesc <> '' AND s.Bettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
-				GROUP BY s.BetType, s.Transdesc
 			
-				UPDATE b
-				SET b.PlayerName = t.teamname
-				FROM @tmpBettypeCount b
-					INNER JOIN dbo.Team t WITH(NOLOCK) ON b.PlayerId = t.teamid
-
-				INSERT INTO @tmpBettypeCount (BetTypeId, PlayerAndOdds, TicketsCount)
-				SELECT s.BetType, s.Betteam +'$'+ s.OddsId, COUNT(1) AS TicketsCount
-				FROM  @tmpTicketInfo s 
-				WHERE Transdesc <> '' AND s.Bettype IN (9662, 9664, 9666, 9663, 9665, 9667)
-				GROUP BY s.BetType, s.Betteam +'$'+ s.OddsId
-
-			END
+			UPDATE b
+			SET b.InputtedRuns = r.InputtedRuns
+			FROM @tmpBettypeCount b
+				LEFT JOIN @tmpInputtedRuns r ON b.BetTypeId = r.BetTypeId
+			WHERE r.InputtedRuns IS NOT NULL
 		END
-	
 	END
 	/*****************Return table **************************/
 	-- 1. Table infor request
