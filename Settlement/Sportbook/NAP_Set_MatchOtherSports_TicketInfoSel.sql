@@ -23,10 +23,6 @@ BEGIN
 				,@n									INT 
 				,@minBettype						SMALLINT
 				,@maxBettype						SMALLINT
-				,@IsOverEarly						BIT = 0
-				,@IsMainOver						BIT = 0
-				,@IsOver							BIT = 0		
-				,@IsCompletedWithRunningTicket		BIT = 0 
 
 	DECLARE @tmpMatchOverStatus TABLE(MatchId INT, sporttype SMALLINT, ResourceID VARCHAR(20), OverStatus INT DEFAULT(0) )
 	DECLARE @tmpSettlementtProfile  TABLE(MatchId INT, bettype INT, betid BIGINT, OverStatus INT )
@@ -125,12 +121,6 @@ BEGIN
 						) sp  
 	END
 
-	SELECT	 @IsOverEarly	=  MAX(CASE WHEN s.OverStatus = 1 THEN 1 ELSE 0 END)
-			,@IsMainOver	=  MAX(CASE WHEN s.OverStatus = 2 THEN 1 ELSE 0 END)
-			,@IsOver		=  MAX(CASE WHEN s.OverStatus = 3 THEN 1 ELSE 0 END)
-			,@IsCompletedWithRunningTicket = MAX(CASE WHEN s.OverStatus = 4 THEN 1 ELSE 0 END)
-	FROM ( SELECT CAST ([value]  AS TINYINT) AS OverStatus	FROM STRING_SPLIT(@OverStatus, ',')	 )s
-
 	IF ISNULL(@MatchCode,'')  <> '' ---if search by matchcode, dont care another condition
 	SET @OverStatus = '0'
 
@@ -139,13 +129,13 @@ BEGIN
 		INSERT INTO @CheckingDisplay ( matchid, IsEarly)
 		SELECT DISTINCT m.matchid, IsEarly
 		FROM @tmpSettlementtProfile m	
-		CROSS APPLY (	SELECT TOP 1 b.matchid, @IsOverEarly AS IsEarly
+		CROSS APPLY (	SELECT TOP 1 b.matchid, CASE WHEN m.OverStatus = 1 THEN 1 ELSE 0 END AS IsEarly
 						FROM bettrans b WITH (nolock)
 						WHERE m.matchid = b.matchid
 							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN CAST(0 AS SMALLINT) ELSE b.SiteDBGroupID END
-							AND 1 = CASE WHEN m.OverStatus = 2 OR OverStatus = 3 THEN 1
+							AND 1 = CASE 	WHEN OverStatus = 1 AND b.bettype = m.bettype AND (b.betid = 0 OR b.betid = m.betid ) THEN 1
+											WHEN m.OverStatus = 2 OR OverStatus = 3 THEN 1
 											WHEN OverStatus = 4 AND b.statusId = 0 THEN 1
-											WHEN OverStatus = 1 AND b.bettype = m.bettype AND (b.betid = 0 OR b.betid = m.betid ) THEN 1
 									ELSE 0
 									END
 						) AS tmp
@@ -155,13 +145,14 @@ BEGIN
 		INSERT INTO @CheckingDisplay ( matchid, IsEarly)
 		SELECT DISTINCT m.matchid, IsEarly
 		FROM @tmpSettlementtProfile m	
-		CROSS APPLY (	SELECT TOP 1 b.matchid, @IsOverEarly AS IsEarly
+		CROSS APPLY (	SELECT TOP 1 b.matchid
+									, CASE WHEN m.OverStatus = 1 THEN 1 ELSE 0 END AS IsEarly
 						FROM bettransm b WITH (nolock)
 						WHERE m.matchid = b.matchid
 							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN CAST(0 AS SMALLINT) ELSE b.SiteDBGroupID END
-							AND 1 = CASE WHEN m.OverStatus = 2 OR OverStatus = 3  THEN 1
+							AND 1 = CASE	WHEN m.OverStatus = 1 AND b.bettype = m.bettype AND (b.betcheck = 0 OR b.betcheck = m.betid ) THEN 1
+											WHEN m.OverStatus = 2 OR OverStatus = 3  THEN 1
 											WHEN m.OverStatus = 4 AND b.statusId = 0 THEN 1
-											WHEN m.OverStatus = 1 AND b.bettype = m.bettype AND (b.betcheck = 0 OR b.betcheck = m.betid ) THEN 1
 									ELSE 0
 									END
 						) AS tmp
