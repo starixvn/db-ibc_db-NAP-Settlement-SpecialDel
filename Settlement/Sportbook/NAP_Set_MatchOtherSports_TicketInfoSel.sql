@@ -1,6 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_MatchOtherSports_TicketInfoSel
 	 @MatchInfo				VARCHAR(MAX)    = NULL
+	,@ChildMatchInfo		VARCHAR(MAX)    = NULL
 	,@MatchOverStatus		VARCHAR(MAX)	= NULL
 	,@OverStatus			VARCHAR(MAX)	= '0'
 	,@MatchCode				NVARCHAR(50)	= ''
@@ -76,22 +77,23 @@ BEGIN
 		   ,cmt	    TINYINT		
 		   ,e		NVARCHAR(100)
 		   ,cfht	INT		
-		   ,cfFt	INT
+		   ,cfft	INT
 	) AS tbl
 
-	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatch WHERE Sporttype = 50 AND ISNULL(childmatchtype,0) <> 200 )
+	IF ISNULL(@ChildMatchInfo,'') <> ''
 	BEGIN
 		INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, eventstatus)
-		SELECT	DISTINCT m.matchid, m.ParentId,  t.eventstatus
-		FROM	#tmpMatch t
-			CROSS APPLY (
-				SELECT	m.matchid, m.ParentId
-				FROM	dbo.match m WITH(NOLOCK)
-				WHERE	m.sporttype = 50
-						AND m.ChildMatchType = 200
-						AND m.ParentID = t.matchid
-			)m
+		SELECT tbl.m		AS MatchId
+			  ,tbl.p		AS ParentId	
+			  ,tbl.e		AS EventStatus
+		FROM OPENJSON(@ChildMatchInfo) WITH (
+				m		INT
+			   ,p		INT	
+			   ,e		NVARCHAR(100)
+		) AS tbl
 	END
+
+
 
 	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, eventstatus)
 	SELECT DISTINCT m.matchid, m.matchid,  m.eventstatus 

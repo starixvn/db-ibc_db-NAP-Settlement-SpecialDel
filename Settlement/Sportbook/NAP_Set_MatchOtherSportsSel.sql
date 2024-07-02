@@ -109,6 +109,7 @@ BEGIN
 	DECLARE @tmpHoldStatus  TABLE (HoldStatus TINYINT)
 	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, ResourceID VARCHAR(20), OverStatus INT DEFAULT(0) )
 	DECLARE @tmpMainResult TABLE ( ResourceID VARCHAR(20) )
+	DECLARE @tmpAllParentChildMatch TABLE(MatchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON), ParentId INT, eventstatus NVARCHAR(50))
 
 	CREATE TABLE #ConfirmedResources ( MatchId INT, ResourceId VARCHAR(20), ResultStatusID TINYINT, OverStatus TINYINT )
 
@@ -420,8 +421,22 @@ BEGIN
 				   	END
 
 	END	
-	
-	IF @IsOver = 1
+
+	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatchIds WHERE Sporttype = 50 AND ISNULL(childmatchtype,0) <> 200 )
+	BEGIN
+		INSERT INTO @tmpAllParentChildMatch (MatchId, ParentId, eventstatus)
+		SELECT	DISTINCT m.matchid, m.ParentId,  t.eventstatus
+		FROM	#tmpMatchIds AS t
+			CROSS APPLY (
+				SELECT	m.matchid, m.ParentId
+				FROM	dbo.match m WITH(NOLOCK)
+				WHERE	m.sporttype = 50
+						AND m.ChildMatchType = 200
+						AND m.ParentID = t.matchid
+			)m
+	END
+
+	IF @IsOver = 1 AND ISNULL(@MatchCode,'') = ''
 	BEGIN
 		INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
 		SELECT m.MatchId, 3
@@ -435,7 +450,8 @@ BEGIN
 							ELSE 0
 						END		
 	END
-	IF (@IsOverEarly = 1 OR @IsMainOver = 1 )
+
+	IF (@IsOverEarly = 1 OR @IsMainOver = 1 ) AND ISNULL(@MatchCode,'') = ''
 	BEGIN
 		INSERT INTO @tmpMatchOverStatus ( MatchId, ResourceId, OverStatus)
 		SELECT m.MatchId, r.ResourceId, r.OverStatus
@@ -471,7 +487,7 @@ BEGIN
 		FROM @tmpMatchOverStatus
 		WHERE @IsMainOver = 1  AND @IsOverEarly = 0
 			AND MatchId NOT IN (SELECT MatchId FROM cte_matchMainOver)
-		
+			AND OverStatus = 1
 		---for sport not use ResultDetailX
 		IF @IsMainOver = 1
 		BEGIN
@@ -494,7 +510,7 @@ BEGIN
 		END
 	END
 
-	IF @IsCompletedWithRunningTicket = 1
+	IF @IsCompletedWithRunningTicket = 1 AND ISNULL(@MatchCode,'') = ''
 	BEGIN
 		INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
 		SELECT m.MatchId, 4
@@ -503,7 +519,7 @@ BEGIN
 	END
 
 	--ESports: special behavior for filter Over #204370
-	IF @OverStatus = '0' OR ( @IsOverEarly = 1 AND EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE sporttype = 43) )
+	IF  ISNULL(@MatchCode,'') = ''  AND (@OverStatus = '0' OR ((@IsOverEarly = 1 OR @IsMainOver = 1)  AND EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE sporttype = 43) ))
 	BEGIN
 		TRUNCATE TABLE #ConfirmedResources
 		INSERT INTO #ConfirmedResources ( MatchId, ResourceId, ResultStatusID, OverStatus )
@@ -511,13 +527,19 @@ BEGIN
 		FROM #tmpMatchIds AS m
 			INNER JOIN dbo.ResultDetailES AS r WITH(NOLOCK) ON m.matchid = r.MatchId
 			LEFT JOIN @tmpMainResult mr ON r.ResourceId = mr.ResourceID
-		WHERE mr.ResourceID IS NULL
-			AND m.sporttype = 43
+		WHERE m.sporttype = 43
 			AND 1 =  CASE WHEN ( @IsOverEarly = 1 OR @OverStatus = '0' ) AND  mr.ResourceID IS NULL THEN 1 
 						  WHEN @IsMainOver = 1 AND m.eventstatus <> 'Completed' THEN 1
 						  ELSE 0
 						  END
-			AND r.ResultStatusID IN ( 2,3,5 )			
+			AND r.ResultStatusID IN ( 2,3,5 )	
+		
+		DELETE r 
+		OUTPUT deleted.matchid, deleted.ResourceID, deleted.OverStatus
+		INTO  @tmpMatchOverStatus (matchid,ResourceID, OverStatus)
+		FROM #ConfirmedResources r
+		WHERE  OverStatus = 2
+			AND ResultStatusID = 3
 		
 		;WITH cte_matchMainOver AS ( SELECT DISTINCT MatchId FROM #ConfirmedResources WHERE OverStatus = 2 )
 		DELETE 
@@ -597,6 +619,9 @@ BEGIN
 
 	SELECT matchid, ResourceID, OverStatus
 	FROM @tmpMatchOverStatus 
+
+	SELECT MatchId, ParentId, eventstatus
+	FROM @tmpAllParentChildMatch
 
 	DROP TABLE #ConfirmedResources
 	DROP TABLE #tmpMatchIds
