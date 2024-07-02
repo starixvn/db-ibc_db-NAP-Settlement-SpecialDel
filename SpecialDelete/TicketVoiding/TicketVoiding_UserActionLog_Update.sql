@@ -28,7 +28,7 @@ BEGIN
 	BEGIN
 		SET @LogDate = (SELECT CONVERT(DATE,GETDATE()))
 
-		UPDATE t SET t.[ActionCount] += t.[ActionCount]
+		UPDATE t SET t.[ActionCount] = t.[ActionCount] + 1
 		FROM [dbo].[TicketVoiding_UserActionLog_Tracking] t WITH (ROWLOCK, UPDLOCK)
 		WHERE t.UserId = @Userid AND t.LogDate = @LogDate AND t.FunctionName = @FunctionName
 
