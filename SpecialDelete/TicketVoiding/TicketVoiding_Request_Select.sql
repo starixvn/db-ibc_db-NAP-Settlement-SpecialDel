@@ -86,7 +86,8 @@ BEGIN
 		END
 	END
 	
-	SELECT	r.Sporttype
+	SELECT	@RequestId AS RequestId
+			,r.Sporttype
 			,r.IssueTypeId
 			,r.ActionId
 			,r.MistakenBy
