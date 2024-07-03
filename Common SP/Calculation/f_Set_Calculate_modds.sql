@@ -79,8 +79,7 @@ RETURN
 								 WHEN fm < -0.25 THEN 1
 								 ELSE -1
 								 END
-					ELSE -1 END
-					
+					ELSE -1 END	
 			WHEN @pfID = 20 THEN --Moneyline
 				CASE WHEN @betteam = 'h' AND fm > 0 THEN 1
 					WHEN @betteam = 'a' AND fm < 0 THEN 1
@@ -327,9 +326,9 @@ RETURN
 					END
 			WHEN @pfID = 24 THEN
 				CASE
-					WHEN tbl.fm >= 0 AND @betteam = 'hd' THEN 1
-					WHEN tbl.fm <= 0 AND @betteam = 'da' THEN 1
-					WHEN tbl.fm <> 0 AND @betteam = 'ha' THEN 1
+					WHEN tbl.fm >= 0 AND @betteam IN ('hd','1x') THEN 1
+					WHEN tbl.fm <= 0 AND @betteam IN ('da','2x') THEN 1
+					WHEN tbl.fm <> 0 AND @betteam IN ('ha','12') THEN 1
 					ELSE -1
 					END
 			WHEN @pfID = 633 THEN

@@ -1,6 +1,7 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_VS_TicketInfo_Sel
 	@MatchId		INT  = 0 
+   ,@Sporttype		SMALLINT = 0
    ,@TransIDs		VARCHAR(MAX) = '' 
 AS
 /*  
@@ -20,7 +21,6 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE  @Sporttype			INT
 	DECLARE  @parlayBettype		SMALLINT
 	DECLARE  @tmpBettype 		TABLE (bettype SMALLINT)
 	DECLARE  @IsCentral			BIT = 0
@@ -33,16 +33,13 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-	SELECT @sportType 	= sportType 
-	FROM dbo.match m WITH(NOLOCK) 
-	WHERE m.matchid = @MatchId
-
 	SELECT @parlayBettype  = CASE WHEN @Sporttype = 188 THEN 10449
-								WHEN @Sporttype IN (190,191,192,194,195,196,197,193) THEN 2799
-						  ELSE 0
-						  END
+								  WHEN @Sporttype IN (190,191,192,194,195,196,197,193) THEN 2799
+								  WHEN @Sporttype IN (147,148) THEN 11099	
+						          ELSE 0
+						      END
 
-	IF @Sporttype IN (178,179, 188) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
+	IF @Sporttype IN (147,148,178,179, 188) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
 	BEGIN
 		IF @Sporttype =  188
 		BEGIN

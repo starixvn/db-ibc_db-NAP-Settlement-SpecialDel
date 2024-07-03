@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE  NAP_Admin_Settlement_s178
 	@AdminId			INT		
 	,@MatchId			INT
@@ -56,14 +56,14 @@ BEGIN
 	DECLARE @tmpMaxWinLimit	TABLE( CustId INT, MaxWinLimit MONEY)
 	DECLARE @tmpTransIDMaxPO TABLE (TransID BIGINT, custid INT, actualPO MONEY, winlost MONEY, transdate DATETIME, bettype SMALLINT )
 
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, winlost MONEY, actualPO MONEY, IsApplyMaxPO BIT) 
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, winlost MONEY, actualPO MONEY, IsApplyMaxPO BIT,OddsType SMALLINT) 
 	DECLARE @tmpSelectedResources TABLE ( ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 										  BetType SMALLINT,OddsType SMALLINT,  BetID BIGINT, pfID SMALLINT ,PRIMARY KEY (BetType,BetID)
 										  )
 
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT
 		,custid INT, currency TINYINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
-		,transdate DATETIME, bettype SMALLINT
+		,transdate DATETIME, bettype SMALLINT,OddsType SMALLINT
 	)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT) 
 	
@@ -122,7 +122,7 @@ BEGIN
 	BEGIN TRY
 		IF @Action = 'CAL'
 		BEGIN
-			INSERT INTO #tmpTransID (TransID, modds, custid, currency, actualPO, transdate, bettype)
+			INSERT INTO #tmpTransID (TransID, modds, custid, currency, actualPO, transdate, bettype,OddsType)
 			SELECT	transid
 				   ,m.modds
 				   ,b.custid					
@@ -140,6 +140,7 @@ BEGIN
 				    END actualPO		
 				   ,b.transdate
 				   ,b.bettype
+				   ,sr.OddsType
 			FROM	dbo.bettrans b WITH (NOLOCK)
 			CROSS APPLY(
 							SELECT TOP 1 pfID, HomeValue, AwayValue, OddsType
@@ -212,8 +213,8 @@ BEGIN
 			
 			UPDATE TOP(@batchCount) t
 			SET isFinish = 1
-			OUTPUT deleted.transid, deleted.modds, deleted.winlost, deleted.actualPO, deleted.IsApplyMaxPO
-			INTO @tmpTransIDBatch(transid, modds, winlost, actualPO, IsApplyMaxPO)
+			OUTPUT deleted.transid, deleted.modds, deleted.winlost, deleted.actualPO, deleted.IsApplyMaxPO,deleted.OddsType
+			INTO @tmpTransIDBatch(transid, modds, winlost, actualPO, IsApplyMaxPO,OddsType)
 			FROM #tmpTransID t 
 			WHERE isFinish IS NULL
 
@@ -224,7 +225,7 @@ BEGIN
 			--filter selectedRID by current Profile and BetType
 			SET @strTransIds = (SELECT transid		AS '@t'
 										,modds		AS '@m'
-										,0			AS '@ot'
+										,ISNULL(OddsType,0) AS '@ot'
 										,CASE WHEN IsApplyMaxPO = 1 THEN winlost ELSE NULL END AS '@wl'
 										,CASE WHEN IsApplyMaxPO = 1 THEN actualPO ELSE NULL END AS '@apo'
 										,IsApplyMaxPO AS '@iMPO'
