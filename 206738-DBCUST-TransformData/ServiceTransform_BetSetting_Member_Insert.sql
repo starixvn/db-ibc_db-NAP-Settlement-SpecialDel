@@ -63,8 +63,8 @@ BEGIN
 	END TRY
 	BEGIN CATCH
 
-		SELECT @ErrorCode = @@ERROR
-			  ,@ErrorMessage = ERROR_MESSAGE()
+		SET @ErrorCode = @@ERROR
+		SET @ErrorMessage = ERROR_MESSAGE()
 
 		ROLLBACK TRANSACTION
 		RETURN
