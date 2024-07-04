@@ -26,7 +26,7 @@ BEGIN
 	END
 
 	SELECT @TransformJson = COMPRESS(( SELECT TOP(@BatchSize)
-										rID					AS 'rID'
+										rID					AS 'rid'
 										,CustID				AS 'cid'
 										,SportType			AS 's'
 										,BetType			AS 'bt'

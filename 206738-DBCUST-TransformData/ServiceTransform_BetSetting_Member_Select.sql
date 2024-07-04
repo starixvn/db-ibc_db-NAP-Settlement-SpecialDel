@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCUST-CustDB_History" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE ServiceTransform_BetSetting_Member_Select
+ALTER PROCEDURE ServiceTransform_BetSetting_Member_Select
 (
 	@TableName		VARCHAR(200)
 	,@BatchSize		INT = 1000
@@ -26,7 +26,7 @@ BEGIN
 	END
 
 	SELECT @TransformJson = COMPRESS(( SELECT TOP(@BatchSize)
-										rID					AS 'rID'
+										rID					AS 'rid'
 										,CustID				AS 'cid'
 										,SportType			AS 's'
 										,BetType			AS 'bt'
