@@ -1,0 +1,43 @@
+/*<info serverAlias="DBCUST-CustDB_History" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+CREATE PROCEDURE ServiceTransform_BetSetting_Member_Select
+(
+	@TableName		VARCHAR(200)
+	,@BatchSize		INT = 1000
+	,@rID			INT
+	,@TransformJson VARBINARY(MAX) = '' OUTPUT 
+	,@ErrorCode		INT = 0 OUTPUT
+	,@ErrorMessage	VARCHAR(MAX) = '' OUTPUT
+)
+AS
+/*
+	 Created by: 20240628@Louisa
+	 Task: init [Redmine:#204370]
+	 DB: DBCUST-CustDB_History
+
+	 Revision:
+		- 20240628@Louisa: Initial [Redmine:#204370]
+*/
+BEGIN
+	IF OBJECT_ID(@TableName) IS NULL OR @TableName <> 'BetSetting_Member_History'
+	BEGIN
+		SELECT @ErrorCode = 100
+			 ,@ErrorMessage = 'Objects is not exists!'
+		RETURN;
+	END
+
+	SELECT @TransformJson = ( SELECT TOP(@BatchSize)
+										CustID				AS 'cid'
+										,SportType			AS 's'
+										,BetType			AS 'bt'
+										,MinBet				AS 'mb'
+										,MaxBet				AS 'mxb'
+										,MaxPerMatch		AS 'mpm'
+										,MaxPayoutPerMatch	AS 'mppm'
+										,UpdateTime			AS 'ut'
+								FROM BetSetting_Member_History WITH(NOLOCK)
+								WHERE rID > @rID 
+								ORDER BY rID
+								FOR JSON AUTO
+							 )
+END
+GO
