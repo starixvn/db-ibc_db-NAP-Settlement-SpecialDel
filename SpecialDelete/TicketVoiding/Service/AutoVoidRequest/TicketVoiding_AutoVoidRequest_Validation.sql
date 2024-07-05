@@ -58,13 +58,16 @@ BEGIN
 		, Matchid INT
 		, IssueTypeId TINYINT
 		, TicketType TINYINT
+		, transdate DATETIME
+		, winlostdate DATETIME
+		, CheckTimeCancelCashOut DATETIME
 	)
 
 	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
 	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
 	CREATE TABLE #SingleTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT)
 	CREATE TABLE #ParlayTickets_ReSettle (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
-	CREATE TABLE #CancelCashOutTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
+	CREATE TABLE #CancelCashOutTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, CheckTimeCancelCashOut DATETIME)
 	--Void14 (Abnormal Account only)
 	CREATE TABLE #SingleTickets_14 (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
 	CREATE TABLE #ParlayTickets_14 (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
@@ -79,6 +82,7 @@ BEGIN
 		, winlostdate DATETIME
 		, statusId INT
 		, ValidationType TINYINT
+		, CheckTimeCancelCashOut DATETIME
 	)
 	CREATE INDEX IX_ValidationType ON #Tickets_Result (ValidationType)
 
@@ -215,7 +219,7 @@ BEGIN
 	END
 	IF @IssueTypeId IN (1,10,3,8,9,12,24) --Note For issuetype 1,10,3: case validate cancelCO & For issuetype 8,9: case auto void instant
 	BEGIN
-		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, betdaqid, MatchId, IssueTypeId, TicketType)
+		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, betdaqid, MatchId, IssueTypeId, TicketType, transdate, winlostdate, CheckTimeCancelCashOut)
 		SELECT t.TransId
 			,t.RequestId
 			,b.statusID
@@ -223,22 +227,27 @@ BEGIN
 			,b.MatchId
 			,t.IssueTypeId
 			,t.TicketType
+			,b.transdate
+			,b.winlostdate
+			,CASE WHEN t.TicketType = 3 AND b.betdaqid = -2 THEN c.CheckTime ELSE NULL END
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+			LEFT JOIN dbo.CashOutSelling c WITH (NOLOCK) ON c.TransID = t.TransId 
 		WHERE t.TicketType IN (1,3) AND b.statusID NOT IN (101,102,103)
 		
-		INSERT INTO #SingleTickets (TransId, RequestId, MatchId, IssueTypeId, TicketType)
-		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, TicketType
+		INSERT INTO #SingleTickets (TransId, RequestId, MatchId, IssueTypeId, TicketType, transdate, winlostdate)
+		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, TicketType, t.transdate, t.winlostdate
 		FROM #tmpTransIds t
 		WHERE t.TicketType = 1
 
-		INSERT INTO #ParlayTickets (TransId, RequestId, MatchId, IssueTypeId)
-		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId
+		INSERT INTO #ParlayTickets (TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate)
+		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, bm.transdate, bm.winlostdate
 		FROM #tmpInputTransId t
+			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 		WHERE t.TicketType = 2
 
-		INSERT INTO #CancelCashOutTickets (TransId, RequestId, MatchId, IssueTypeId)
-		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId
+		INSERT INTO #CancelCashOutTickets (TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, CheckTimeCancelCashOut)
+		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, transdate, winlostdate, CheckTimeCancelCashOut
 		FROM #tmpTransIds t
 		WHERE t.TicketType = 3 AND t.betdaqid = -2 --NO CARE cancel CO -> running
 	END
@@ -343,8 +352,8 @@ BEGIN
 	INSERT INTO #Tickets_Result (TransId, RequestId, Matchid, IssueTypeId, ValidationType)
 	SELECT TransId, RequestId, Matchid, IssueTypeId, 6 FROM #SingleTickets_ReSettle WHERE TicketType = 4 --CricketReSettle
 
-	INSERT INTO #Tickets_Result (TransId, RequestId, MatchId, IssueTypeId, ValidationType)
-	SELECT TransId, RequestId, MatchId, IssueTypeId, 7 FROM #CancelCashOutTickets --CancelCO
+	INSERT INTO #Tickets_Result (TransId, RequestId, MatchId, IssueTypeId, ValidationType, transdate, winlostdate, CheckTimeCancelCashOut)
+	SELECT TransId, RequestId, MatchId, IssueTypeId, 7, transdate, winlostdate, CheckTimeCancelCashOut FROM #CancelCashOutTickets --CancelCO
 
 	INSERT INTO #Tickets_Result (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
 	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, 8 FROM #SingleTickets_14 --Single_14Void
@@ -361,6 +370,8 @@ BEGIN
 		, winlostdate 
 		, statusId 
 		, ValidationType
+		, winlostdate
+		, CheckTimeCancelCashOut
 	FROM #Tickets_Result
 	ORDER BY ValidationType
 
