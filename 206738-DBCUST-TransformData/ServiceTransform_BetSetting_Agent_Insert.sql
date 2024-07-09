@@ -57,16 +57,13 @@ BEGIN
 			UPDATE Dest_ServiceTransform 
 			SET rID = @MaxID
 			WHERE TableName = @TableName
-
-			SELECT @ErrorCode = @@ERROR
-				  ,@ErrorMessage = ERROR_MESSAGE()
 		
 		COMMIT TRANSACTION
 	END TRY
 	BEGIN CATCH
 
-		SELECT @ErrorCode = @@ERROR
-			  ,@ErrorMessage = ERROR_MESSAGE()
+		SET @ErrorCode = @@ERROR
+		SET @ErrorMessage = ERROR_MESSAGE()
 
 		ROLLBACK TRANSACTION
 	END CATCH
