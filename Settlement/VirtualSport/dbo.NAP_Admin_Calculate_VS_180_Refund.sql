@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_180_Refund]
 	@MatchId			INT
 	,@IsCentral			BIT = 0
@@ -13,26 +13,30 @@ AS
 	Param's Explanation:
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]    
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
-		
+		- 20240710@Kathy: Add SettlementTime [Redmine:#207749]
 */
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @TransInfoJson	NVARCHAR(MAX)
 			,@rowcnt INT = 0
-
+			,@settlementTime DATETIME
+			
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			, statuswinlost TINYINT
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,SettlementTime DATETIME
 			,bef_winlost MONEY ,bef_statusid TINYINT
 		)
 	
 	WHILE 1 = 1
 	BEGIN
 		DELETE FROM @tmpTransInfo
-
+		
+		SET @settlementTime = GETDATE();
+		
 		UPDATE TOP (10000) dbo.bettrans WITH (ROWLOCK, UPDLOCK)
 			SET [status] = N'Refund'
 				,statusID = 103
@@ -46,6 +50,7 @@ BEGIN
 				,scomm = 0
 				,ruben = 1
 				,statuswinlost = 0
+				,SettlementTime = CASE WHEN winlost <> actual_stake OR statusID <> 103 THEN @settlementTime ELSE SettlementTime END
 		OUTPUT inserted.transid		
 			,inserted.statuswinlost
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
@@ -53,13 +58,15 @@ BEGIN
 			,inserted.status 			
 			,inserted.statusID 	
 			,inserted.ruben 
+			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 			,deleted.winlost
 			,deleted.statusid
+			
 		INTO @tmpTransInfo (transId 
 			, statuswinlost
 			,WinLost,aWinLost,mWinLost,sWinLost 
 			,PlayerComm, Comm,aComm,sComm 
-			,Status ,StatusID ,ruben 
+			,Status ,StatusID ,ruben, SettlementTime
 			,bef_winlost  ,bef_statusid )
 		WHERE	matchid = @matchid
 				AND statusID NOT IN (103, 101, 102) 
@@ -86,6 +93,7 @@ BEGIN
 						,Status AS 's' 
 						,StatusID AS 'sid' 
 						,ruben AS 'r' 
+						,SettlementTime AS 'st' 
 						,bef_winlost AS 'bef_w' 
 						,bef_statusid AS 'bef_sid' 				
 				FROM	@tmpTransInfo
