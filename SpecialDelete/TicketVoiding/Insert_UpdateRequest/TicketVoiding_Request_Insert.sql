@@ -1,7 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
-	@Sporttype				SMALLINT	  = NULL
-	,@SubIssueTypeId		SMALLINT	  = 0
+	 @SubIssueTypeId		SMALLINT	  = 0
 	,@ActionId				TINYINT		  
 	,@MistakenBy			NVARCHAR(200) = NULL
 	,@DecidedBy				NVARCHAR(200) = NULL
@@ -73,6 +72,7 @@ AS
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		- 20240618@Max: [TVS] Set logs to check user behavior [Redmine: #204060]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -92,8 +92,8 @@ BEGIN
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90000
 	SET @SB_Error = 0
-	INSERT INTO dbo.TicketVoiding_Request (Sporttype, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
-	SELECT @Sporttype, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId, @IsTest, @IssueTypeId
+	INSERT INTO dbo.TicketVoiding_Request (ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
+	SELECT @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId, @IsTest, @IssueTypeId
 
 	SET @RequestId = SCOPE_IDENTITY()
 
@@ -320,7 +320,6 @@ BEGIN
 							,@UserId AS '@UserId'							
 							,@IP AS '@IP'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
-								+ ', Sporttype: ' + CAST(@Sporttype AS VARCHAR(20))
 								+ ', IssueTypeId: ' + CAST(@IssueTypeId AS VARCHAR(20))
 								+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
 								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10,4,5,6,7,19,23) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END

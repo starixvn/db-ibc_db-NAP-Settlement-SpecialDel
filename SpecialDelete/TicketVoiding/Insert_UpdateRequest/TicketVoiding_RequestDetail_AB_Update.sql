@@ -24,6 +24,7 @@ AS
 		- 20240315@July: [TVS] Abnormal Bet - Support void System Parlay tickets [Redmine: #196462]
 		- 20240327@Max: [CTS] - [TVS] - Missing Void Info - Not auto-mark PA [Redmine: #201993]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet
@@ -85,13 +86,13 @@ BEGIN
 	-- get match info
 	IF @FilterBy IS NULL
 	BEGIN
-		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid)
-		SELECT DISTINCT m.matchid, homeid, awayid, leagueid
+		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid, sporttype)
+		SELECT DISTINCT m.matchid, homeid, awayid, leagueid, m.sporttype
 		FROM #tmpTransInfo t 
 			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 
 		UNION 
-		SELECT DISTINCT m.matchid, homeid, awayid, leagueid
+		SELECT DISTINCT m.matchid, homeid, awayid, leagueid, m.sporttype
 		FROM #tmpTransInfo t 
 			INNER JOIN dbo.match14 m WITH(NOLOCK) ON m.matchid = t.matchid
 	END
@@ -119,6 +120,7 @@ BEGIN
 		, LeagueId
 		, HomeId
 		, AwayId
+		, Sporttype
 		, RequestType
 		, SubIssueTypeId
 		, FilterBy
@@ -128,6 +130,7 @@ BEGIN
 		, m.leagueid
 		, m.homeid
 		, m.awayid
+		, m.sporttype
 		, CASE WHEN @ActionId IN (4,8) THEN 1 ELSE 0 END
 		, @SubIssueTypeId
 		, @FilterBy

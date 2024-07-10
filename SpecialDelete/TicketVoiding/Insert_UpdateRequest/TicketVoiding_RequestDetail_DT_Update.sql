@@ -20,6 +20,7 @@ AS
 		- 20230717@Max: Create new SP [Redmine:#187835]
 		- 20231031@Max: [TVS] - Hot fix - Duplicate ticket missing void parlay virtual sport [Redmine: #196241]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 */
@@ -31,9 +32,6 @@ BEGIN
 			,@LogData			 NVARCHAR(MAX)
 			,@LogDataContent	 NVARCHAR(MAX)
 			,@SB_Error			 BIT = 0
-			,@LeagueId			 INT = 0
-			,@HomeId			 INT = 0
-			,@AwayId			 INT = 0
 			,@RequestDetailId	 INT
 			,@MatchId			INT
 			,@SubIssueTypeId  SMALLINT
@@ -85,13 +83,6 @@ BEGIN
 	FROM @DuplicateTicketsInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@DuplicateTicketsInfoXML = NULL))
 
-	-- get match info
-	SELECT	@LeagueId = leagueid
-			,@HomeId = homeid
-			,@AwayId = awayid
-	FROM	dbo.match WITH(NOLOCK)
-	WHERE	matchid = @MatchId
-
 	IF @ActionId = 4
 	BEGIN
 		INSERT INTO @tmp_TransIds (Remained, Voided)
@@ -135,6 +126,7 @@ BEGIN
 		, LeagueId
 		, HomeId
 		, AwayId
+		, Sporttype
 		, RequestType
 		, SubIssueTypeId
 		, FilterBy
@@ -142,13 +134,16 @@ BEGIN
 	)
 	SELECT @RequestId
 		, @MatchId
-		, @LeagueId
-		, @HomeId
-		, @AwayId
+		, m.leagueid
+		, m.homeid
+		, m.awayid
+		, m.sporttype
 		, CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
 		, @SubIssueTypeId
 		, @FilterBy
 		, CONVERT(VARCHAR(MAX), @xmlTransIds)
+	FROM dbo.match m WITH (NOLOCK)
+	WHERE m.matchid = @MatchId
 
 	SET @RequestDetailId = SCOPE_IDENTITY()
 	
@@ -163,7 +158,7 @@ BEGIN
 	FROM #tmpTransInfo t
 	WHERE matchid = @MatchId
 		AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
-						WHEN @FilterBy = 1 AND t.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END
+					 WHEN @FilterBy = 1 AND t.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END
 		AND IsOrg <> 1
 
 	-- Get content of log data 

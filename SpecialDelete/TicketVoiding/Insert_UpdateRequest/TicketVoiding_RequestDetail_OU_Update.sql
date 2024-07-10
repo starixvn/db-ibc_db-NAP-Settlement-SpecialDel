@@ -21,6 +21,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230403@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
 		- 20230802@July: Remove code get list bettype Poolhouse [Redmine: #190441]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 		+ @IssueTypeId : 6 - Wrong OU, 7 - Wrong 1st OU
@@ -151,7 +152,7 @@ BEGIN
 		, LeagueId
 		, HomeId
 		, AwayId
-		, KickOffTime
+		, Sporttype
 		, FilterFromTransTime
 		, FilterToTransTime
 		, SingleCount
@@ -167,7 +168,7 @@ BEGIN
 		, m.leagueid
 		, m.homeid
 		, m.awayid
-		, m.kickofftime
+		, m.sporttype
 		, l.FilterFromTransTime
 		, l.FilterToTransTime
 		, l.SingleCount

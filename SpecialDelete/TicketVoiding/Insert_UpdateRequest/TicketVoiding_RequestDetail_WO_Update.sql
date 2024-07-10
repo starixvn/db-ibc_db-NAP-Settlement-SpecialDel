@@ -20,6 +20,7 @@ AS
 		- 20230802@July: Remove code get list bettype Poolhouse [Redmine: #190441]
 		- 20231214@July: Extend datatype [Redmine: #196467]
 		- 20240618@July: [TVS] Support void wrong odds of Home/Away or Over/Under at the same time [Redmine: #205558]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 		+ @IssueTypeId : 2
@@ -154,7 +155,7 @@ BEGIN
 		, LeagueId
 		, HomeId
 		, AwayId
-		, KickOffTime
+		, Sporttype
 		, FilterFromTransTime
 		, FilterToTransTime
 		, SingleCount
@@ -170,7 +171,7 @@ BEGIN
 		, m.leagueid
 		, m.homeid
 		, m.awayid
-		, m.kickofftime
+		, m.Sporttype
 		, l.FilterFromTransTime
 		, l.FilterToTransTime
 		, l.SingleCount

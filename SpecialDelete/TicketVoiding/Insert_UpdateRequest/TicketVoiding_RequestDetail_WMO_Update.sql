@@ -13,10 +13,11 @@ AS
 /*	
 	Created by: 20240522@Max
 	Task: [TVS] Wrong Market Offered issue type [Redmine: #197051]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#197051]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -142,7 +143,7 @@ BEGIN
 		, LeagueId
 		, HomeId
 		, AwayId
-		, KickOffTime
+		, Sporttype
 		, FilterFromTransTime
 		, FilterToTransTime
 		, FilterBy
@@ -161,7 +162,7 @@ BEGIN
 		, m.leagueid
 		, m.homeid
 		, m.awayid
-		, m.kickofftime
+		, m.Sporttype
 		, l.FilterFromTransTime
 		, l.FilterToTransTime
 		, l.FilterBy

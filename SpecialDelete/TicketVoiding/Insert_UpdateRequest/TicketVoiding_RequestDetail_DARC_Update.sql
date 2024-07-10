@@ -24,6 +24,7 @@ AS
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 		- 20230405@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 		+ @IssueTypeId: 1 - Danger Accepted, 10 - Red Card
@@ -155,7 +156,7 @@ BEGIN
 		, LeagueId
 		, HomeId
 		, AwayId
-		, KickOffTime
+		, Sporttype
 		, FilterFromTransTime
 		, FilterToTransTime
 		, FilterBy
@@ -174,7 +175,7 @@ BEGIN
 		, m.leagueid
 		, m.homeid
 		, m.awayid
-		, m.kickofftime
+		, m.sporttype
 		, l.FilterFromTransTime
 		, l.FilterToTransTime
 		, l.FilterBy

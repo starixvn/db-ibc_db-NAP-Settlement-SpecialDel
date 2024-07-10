@@ -16,6 +16,7 @@ AS
 		- 20230629@Max: [TVS] Enhance 'Manage Request' performance [Redmine: #190508]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 		
@@ -23,8 +24,7 @@ AS
 BEGIN 
     SET NOCOUNT ON 
 
-	DECLARE @RequestInfoActive		VARBINARY(MAX) = NULL
-	      , @RequestInfoArchive		VARBINARY(MAX) = NULL
+	DECLARE @RequestInfoArchive		VARBINARY(MAX) = NULL
 		  , @FromDate_Request		DATETIME
 
 	SET @FromDate_Request = DATEADD(MONTH,-3, @FromDate)
@@ -38,24 +38,18 @@ BEGIN
 			AND s.Winlostdate BETWEEN @FromDate AND @ToDate
     GROUP  BY s.RequestID
 
-	;WITH CTE_MatchInfo AS
-	(
-		SELECT matchid,eventdate
-		FROM dbo.match_bk WITH(NOLOCK)
-		WHERE eventdate BETWEEN @FromDate AND @ToDate
-		UNION all 
-		SELECT orid, eventdate
-		FROM dbo.outright_bk WITH(NOLOCK)
-		WHERE eventdate BETWEEN @FromDate AND @ToDate
-	) 
 	INSERT INTO @tmpResult (RequestID,  Eventdate)
     SELECT r.RequestID
-		  ,MIN(c.Eventdate) AS Eventdate
+		  ,MIN(rd.Eventdate) AS Eventdate
 	FROM  TicketVoiding_Request_bk  r WITH(NOLOCK)
-		INNER LOOP JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) ON rd.requestid = r.RequestId
-		INNER JOIN CTE_MatchInfo c ON c.matchid = rd.matchid
-	where r.CreatedDate >= @FromDate_Request  
-	GROUP  BY r.RequestID
+		CROSS APPLY (
+					SELECT rd.Eventdate
+					FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
+					WHERE rd.requestid = r.RequestId
+						AND rd.Eventdate BETWEEN @FromDate AND @ToDate
+				)rd
+	WHERE r.CreatedDate >= @FromDate_Request  
+	GROUP BY r.RequestID
 
 	/***********************************************************************/
 	-- Return table request archive

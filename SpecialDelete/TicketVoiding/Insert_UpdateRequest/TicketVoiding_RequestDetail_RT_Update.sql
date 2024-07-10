@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_RT_Update]
+ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_RT_Update]
 (
 	@RequestId				INT
 	,@IssueTypeId			TINYINT	= 22
@@ -18,7 +18,8 @@ AS
 	Revisions: 
 		- 20240102@July: Create new SP [Redmine:#196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
-		
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+
 	Param's explanation:	
 		
 */
@@ -112,12 +113,13 @@ BEGIN
 		
 	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE IsOutright = 0 AND IsMoved14 = 0) --match
 	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
+		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, Sporttype)
 		SELECT @RequestId
 				, t.MatchId 
 				, ISNULL(m.leagueid, 0) 
 				, ISNULL(m.homeid, 0) 
 				, ISNULL(m.awayid, 0) 
+				, m.sporttype
 		FROM #tmpMatch t
 			INNER JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid 
 		WHERE t.IsOutright = 0 AND t.IsMoved14 = 0
@@ -126,12 +128,13 @@ BEGIN
 		
 	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE IsOutright = 0 AND IsMoved14 = 1) --match14
 	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
+		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, Sporttype)
 		SELECT @RequestId
 				, t.MatchId 
 				, ISNULL(m.leagueid, 0) 
 				, ISNULL(m.homeid, 0) 
 				, ISNULL(m.awayid, 0) 
+				, m.sporttype
 		FROM #tmpMatch t
 			INNER JOIN dbo.match14 m WITH(NOLOCK) ON t.MatchId = m.matchid
 		WHERE t.IsOutright = 0 AND t.IsMoved14 = 1
@@ -139,27 +142,31 @@ BEGIN
 		
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatch WHERE IsOutright = 1 AND IsMoved14 = 0) -- outright
 	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
+		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, Sporttype)
 		SELECT @RequestId
 				, t.MatchId 
 				, ISNULL(m.leagueid, 0) 
 				, ISNULL(m.teamid, 0) 
 				, 0
+				, l.sporttype
 		FROM #tmpMatch t
 			INNER JOIN dbo.outright m WITH(NOLOCK) ON t.MatchId = m.orid
+			INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
 		WHERE t.IsOutright = 1 AND t.IsMoved14 = 0
 	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatch WHERE IsOutright = 1 AND IsMoved14 = 1) -- outright14
 	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
+		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, Sporttype)
 		SELECT @RequestId
 				, t.MatchId 
 				, ISNULL(m.leagueid, 0) 
 				, ISNULL(m.teamid, 0) 
 				, 0
+				, l.sporttype
 		FROM #tmpMatch t
 			INNER JOIN dbo.outright14 m WITH(NOLOCK) ON t.MatchId = m.orid
+			INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
 		WHERE t.IsOutright = 1 AND t.IsMoved14 = 1
 	END
 		

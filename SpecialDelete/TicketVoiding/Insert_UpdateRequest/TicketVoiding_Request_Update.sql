@@ -14,7 +14,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@UserId				INT			  
 	,@IP					VARCHAR(50)	  = NULL
 	,@IsTest				BIT			  = NULL
-	,@SportType				INT			  = NULL
 	,@IssueTypeId			TINYINT		  = NULL
 	,@MatchId				INT			  = 0
 	,@TransIds				VARCHAR(MAX)  = NULL
@@ -81,6 +80,7 @@ AS
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -96,7 +96,6 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			NVARCHAR(MAX)
 			,@SB_Error			BIT
-			,@OldSportType		INT
 			,@OldActionId		TINYINT
 			,@OldCheckedBy		INT
 			,@OldMistakenBy		NVARCHAR(200)
@@ -120,7 +119,6 @@ BEGIN
 	UPDATE	dbo.TicketVoiding_Request WITH(ROWLOCK, UPDLOCK)
 		SET @OldActionId = ActionId
 			,@OldCheckedBy = CheckedBy
-			,@OldSportType = Sporttype
 			,@OldMistakenBy = MistakenBy
 			,@OldDecidedBy = DecidedBy
 			,@OldProvider = Provider
@@ -135,7 +133,6 @@ BEGIN
 			,CheckedBy = CASE WHEN @SubIssueTypeId IS NULL THEN @CheckedBy ELSE CheckedBy END 
 			,Remark = ISNULL(@Remark, Remark)
 			,IsTest = ISNULL(@IsTest, IsTest)
-			,Sporttype =  ISNULL(@SportType, Sporttype)
 			,LastModifiedBy = ISNULL(@UserId, LastModifiedBy)
 			,LastModifiedDate = GETDATE()
 	WHERE	RequestId = @RequestId
@@ -381,7 +378,6 @@ BEGIN
 							,@UserId AS '@UserId'
 							,@IP AS '@IP'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ CASE WHEN @SportType IS NOT NULL AND (ISNULL(@SportType, 0) <> ISNULL(@OldSportType,0)) THEN ' Old SportType: ' + CAST(@OldSportType AS VARCHAR(20)) + ' New SportType: ' + CAST(@SportType AS VARCHAR(20)) ELSE '' END
 								+ CASE WHEN @ActionId IS NOT NULL AND (ISNULL(@ActionId, 0) <> ISNULL(@OldActionId, 0)) THEN ', Old ActionId: ' + CAST(@OldActionId AS VARCHAR(20)) + ' New ActionId: ' + CAST(@ActionId AS VARCHAR(20)) ELSE '' END
 								+ CASE WHEN ISNULL(@CheckedBy, 0) <> ISNULL(@OldCheckedBy,0) THEN ', Old CheckedBy: ' + CASE WHEN @OldCheckedBy IS NULL THEN 'NULL' ELSE CAST(@OldCheckedBy AS VARCHAR(20)) END
 								+ ' New CheckedBy: ' + CASE WHEN @CheckedBy IS NULL THEN 'NULL' ELSE CAST(@CheckedBy AS VARCHAR(20)) END ELSE '' END

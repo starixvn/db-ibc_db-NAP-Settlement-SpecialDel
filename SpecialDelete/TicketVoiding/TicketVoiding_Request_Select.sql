@@ -87,7 +87,6 @@ BEGIN
 	END
 	
 	SELECT	@RequestId AS RequestId
-			,r.Sporttype
 			,r.IssueTypeId
 			,r.ActionId
 			,r.MistakenBy
@@ -200,6 +199,7 @@ BEGIN
 				,rd.HomeId
 				,rd.AwayId
 				,rd.KickOffTime
+				,rd.Sporttype
 				,STUFF(ts.TransIds,1,1,'') AS TransIds
 				,m.hthomescore
 				,m.htawayscore

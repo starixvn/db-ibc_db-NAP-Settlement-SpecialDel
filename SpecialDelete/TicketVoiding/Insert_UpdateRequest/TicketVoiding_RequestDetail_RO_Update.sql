@@ -22,6 +22,7 @@ AS
 		- 20230912@Max: [TVS] - Update the rules to get void ticket for Reduced Over issue type [Redmine: #193824]
 		- 20231207@Max: [TVS] Not Participate - Support user select exact bet type [Redmine: #197018]
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 		+ @IssueTypeId : 19 - Reduced Over
@@ -130,7 +131,7 @@ BEGIN
 		, LeagueId
 		, HomeId
 		, AwayId
-		, KickOffTime
+		, Sporttype
 		, SingleCount
 		, MainParlayCount
 		, VoidFromTime
@@ -145,7 +146,7 @@ BEGIN
 		, m.leagueid
 		, m.homeid
 		, m.awayid
-		, m.kickofftime
+		, m.sporttype
 		, l.SingleCount
 		, l.MainParlayCount
 		, l.VoidFromTime
