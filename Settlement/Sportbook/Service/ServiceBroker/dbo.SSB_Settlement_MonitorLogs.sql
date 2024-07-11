@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02,SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
 alter procedure dbo.SSB_Settlement_MonitorLogs @MonitorDurationWithInMin int = 120
 as
 /*  Created: Patrick@20210801
@@ -8,6 +8,7 @@ as
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
 		- 2022011@Louisa: hardcode job name for DBTrans and SiteDB [Redmine:#182771]
 		- 20230113@Kathy: extend errorMessage [Redmine:#182763]
+		- 20240710@Kathy: Change instance name [Redmine:#207768]
 */
 begin
 	set nocount on
@@ -19,7 +20,7 @@ begin
 	select @__fromDate = dateadd(minute, -@MonitorDurationWithInMin, sysdatetime())
 	select @__serverName =  @@SERVERNAME
 
-	if @__serverName = 'DBTRANS' OR @__serverName LIKE 'DBGRP%'
+	if @__serverName = 'DBTRANS' OR @__serverName LIKE 'DBGRP%' OR @__serverName LIKE 'DBSITEC%'  OR @__serverName LIKE 'SITDBSITEC%'  
 	begin
 		set @__JobName = 'vndba:Check slowly running or failed processes'
 	end

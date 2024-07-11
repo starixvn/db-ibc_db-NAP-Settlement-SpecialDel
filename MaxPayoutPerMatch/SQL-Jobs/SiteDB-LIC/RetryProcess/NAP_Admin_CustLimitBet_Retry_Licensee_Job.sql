@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSID-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Retry_Licensee_Job]
 AS
 /*	
@@ -7,6 +7,7 @@ AS
     DB: DBSID/bodb02
     Revisions:
 		- 20230712@Max: Clone from DBTRANS - [Redmine: #181595]
+		- 20240710@Kathy: Change instance name [Redmine:#207768]
 	
 	Param's explanation:		
 		
@@ -82,7 +83,7 @@ BEGIN
 	--For local Testing, input email need to test
 	--SET @Recipients = 'max.tran@starixvn.com;susan.le@starixvn.com'
 
-	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
+	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%'  OR @@SERVERNAME LIKE 'SITDBSITEC%'  
 	BEGIN
 		SET @Recipients = 'dbaadmin@starixsoft.com'
 	END
