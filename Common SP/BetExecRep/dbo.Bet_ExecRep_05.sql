@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_05] 
 	 @IgnoreList VARCHAR(200)
 	,@updatetype 	TINYINT = 1  -- 1, 2, 3, 4
@@ -32,6 +32,7 @@ AS
 		- 20230908@Louisa: Apply Company Max Payout for Non-sports [Redmine:#193259]
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20240710@Kathy: Add SettlementTime [Redmine:#207749]
 		
 	Param: 
 		+ @updatetype: 
@@ -59,6 +60,7 @@ BEGIN
 			,@MessageBody		VARCHAR(MAX)
 			,@TableType			TINYINT
 			,@AffectedTicket	INT
+			,@SettlementTime	DATETIME
 
 	SET @ServerName = @@SERVERNAME
 	
@@ -105,7 +107,8 @@ BEGIN
 	BEGIN
 		SET @StartTime =SYSDATETIME()
 		SET @TableType = 1 -- bettrans
-
+		SET @SettlementTime = GETDATE() 
+		 
 		;WITH sourceData AS (
 			SELECT	
 				T.C.value('./@q', 'bigint') as transid
@@ -145,17 +148,23 @@ BEGIN
 				WHEN s.statusid IN (111,112,113,103) THEN 1
 				ELSE 0 END	
 			,ExtraInfo = CASE WHEN s.IsApplyMaxPO = 1 THEN ISNULL(bettrans.ExtraInfo,'') + '<l255 apo="'+ CAST(s.actualPO AS VARCHAR(100)) +'" />' ELSE  bettrans.ExtraInfo END
+			,SettlementTime = CASE 
+								WHEN bettrans.winlost <> s.winlost OR bettrans.statusID <> s.statusId THEN @SettlementTime 
+								ELSE bettrans.SettlementTime
+							END
 		OUTPUT	inserted.transid
 			,inserted.modds
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID,inserted.ruben,deleted.winlost ,deleted.statusid		
 			,inserted.extrainfo
+			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 		INTO @tmpTransInfo ( transid,modds
 			,WinLost,aWinLost,mWinLost,sWinLost
 			,PlayerComm,Comm,aComm,sComm
 			,Status,StatusID,ruben,bef_winlost ,bef_statusid 
 			,extrainfo
+			,SettlementTime
 			)			
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
@@ -181,6 +190,7 @@ BEGIN
 						,bef_winlost AS 'bef_w' 
 						,bef_statusid AS 'bef_sid' 		
 						,extrainfo AS 'ex'
+						,SettlementTime AS 'st' 
 				FROM	@tmpTransInfo
 				FOR JSON AUTO
 			)
@@ -640,7 +650,6 @@ BEGIN
 	END
 	ELSE IF @updatetype = 7 -- outright settlement
 	BEGIN
-		DECLARE @settlementTime DATETIME
 		SET @settlementTime = GETDATE(); 
 		SET @StartTime =SYSDATETIME()
 		SET @TableType = 1 -- bettrans

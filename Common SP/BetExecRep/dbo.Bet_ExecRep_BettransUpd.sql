@@ -20,7 +20,8 @@ AS
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20240410@Kathy: support parlay - write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
-
+		- 20240710@Kathy: Add SettlementTime [Redmine:#207749]
+		
 	Param's Explanation:
 		- ExecRep SP: DBTrans_Bet
 					
@@ -38,6 +39,7 @@ BEGIN
 			,@MessageBody		VARCHAR(MAX)
 			,@TableType			TINYINT
 			,@AffectedTicket	INT
+			,@SettlementTime	DATETIME
 			
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,modds MONEY, statuswinlost TINYINT, winlostdate SMALLDATETIME
@@ -46,6 +48,7 @@ BEGIN
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
 			,bef_winlost MONEY ,bef_statusid TINYINT
 			,extrainfo VARCHAR(1000)
+			,SettlementTime DATETIME
 		)
 	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd','U') IS NOT NULL 
@@ -136,6 +139,7 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@xmlTicket = NULL))
 
 	SET @StartTime = SYSDATETIME()
+	SET @SettlementTime = GETDATE()
 
 	UPDATE b 
 		SET winlost 		= s.winlost
@@ -165,6 +169,10 @@ BEGIN
 								ELSE b.statuswinlost 
 							END
 			,ExtraInfo = CASE WHEN s.isMaxPayout = 1 THEN ISNULL(b.ExtraInfo,'') + '<l255 apo="'+ CAST(s.actualPO AS VARCHAR(100)) +'" />' ELSE  b.ExtraInfo END
+			,SettlementTime = CASE 
+								WHEN b.winlost <> s.winlost OR b.statusID <> s.statusId THEN @SettlementTime 
+								ELSE b.SettlementTime
+							END
 	OUTPUT inserted.transid		
 			,inserted.modds ,inserted.statuswinlost	,inserted.winlostdate 
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
@@ -175,13 +183,15 @@ BEGIN
 			,deleted.winlost
 			,deleted.statusid
 			,inserted.extrainfo
+			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 	INTO @tmpTransInfo (transId 
 			,modds, statuswinlost, winlostdate 
 			,WinLost,aWinLost,mWinLost,sWinLost 
 			,PlayerComm, Comm,aComm,sComm 
 			,Status ,StatusID ,ruben 
 			,bef_winlost  ,bef_statusid
-			,extrainfo)
+			,extrainfo
+			,SettlementTime)
 	FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN @sourceTicket s 
 		ON b.matchid 		= s.matchid
@@ -209,8 +219,10 @@ BEGIN
 					,StatusID AS 'sid' 
 					,ruben AS 'r' 
 					,extrainfo AS 'ex'
+					,SettlementTime AS 'st' 	
 					,bef_winlost AS 'bef_w' 
-					,bef_statusid AS 'bef_sid' 				
+					,bef_statusid AS 'bef_sid' 	
+									
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
 		)
