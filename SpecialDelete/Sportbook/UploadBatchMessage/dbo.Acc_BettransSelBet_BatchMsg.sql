@@ -27,6 +27,7 @@ AS
   - 20190228@Alan: Implement Bet Builder - [106898]
   - 20220909@July: Change function STRING_SPLIT & remove code Metric Gaming [Redmine: #175412]
   - 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+  - 20240715@July: HotFix - Cannot upload message for SA Gaming [Redmine: #207967]
   
 Explanation's Param:  
 	- @ProductIds: [1-99]
@@ -57,6 +58,7 @@ BEGIN
 		, mrecommend INT
 		, srecommend INT
 		, betfrom NVARCHAR(4)
+	
 	)
 	
 	-- set balanUpDate
@@ -189,41 +191,84 @@ BEGIN
 	*/
 	IF @GroupName = 'Group 3'
 	BEGIN
-		INSERT INTO #BetDelete (
-			transid
-			, refno
-			, bettype
-			, custid
-			, recommend
-			, mrecommend
-			, srecommend
-			, betfrom
-		)
-		SELECT b.transid
-			, b.RefNo
-			, b.gameid
-			, b.custid
-			, b.recommend
-			, b.mrecommend
-			, b.srecommend
-			, b.betfrom
-		FROM dbo.bettransLC b WITH (NOLOCK)
-			INNER JOIN #transIdList t ON b.transid = t.transid
-			INNER JOIN #productBettype bt ON b.gameid = bt.bettype
+		IF EXISTS (SELECT TOP 1 1 FROM #productIdList WHERE ProductId = 39) --SA Gaming
+		BEGIN
+			INSERT INTO #BetDelete (
+				transid
+				, refno
+				, bettype
+				, custid
+				, recommend
+				, mrecommend
+				, srecommend
+				, betfrom
+			)
+			SELECT t.transid
+				, b.RefNo
+				, b.gameid
+				, b.custid
+				, b.recommend
+				, b.mrecommend
+				, b.srecommend
+				, b.betfrom
+			FROM #transIdList t 
+				INNER JOIN dbo.bettransG btg WITH (NOLOCK) ON t.transId = btg.transid  
+				INNER JOIN dbo.bettransLC b WITH (NOLOCK) ON btg.refno = b.transId
+				INNER JOIN #productBettype bt ON b.gameid = bt.bettype
 			
-		UNION ALL
-		SELECT b.transid
-			, b.RefNo
-			, b.gameid
-			, b.custid
-			, b.recommend
-			, b.mrecommend
-			, b.srecommend
-			, b.betfrom
-		FROM dbo.bettransLC14 b WITH (NOLOCK)
-			INNER JOIN #transIdList t ON b.transid = t.transid
-			INNER JOIN #productBettype bt ON b.gameid = bt.bettype			
-		WHERE b.winlostdate  >= @balanUpDate
+			UNION ALL
+			SELECT t.transid
+				, b.RefNo
+				, b.gameid
+				, b.custid
+				, b.recommend
+				, b.mrecommend
+				, b.srecommend
+				, b.betfrom
+			FROM #transIdList t 
+				INNER JOIN dbo.bettransG14 btg WITH (NOLOCK) ON t.transId = btg.transid  
+				INNER JOIN dbo.bettransLC14 b WITH (NOLOCK) ON btg.refno = b.transId
+				INNER JOIN #productBettype bt ON b.gameid = bt.bettype
+			WHERE b.winlostdate  >= @balanUpDate
+		END
+		ELSE IF EXISTS (SELECT TOP 1 1 FROM #productIdList WHERE ProductId <> 39) 
+		BEGIN
+			INSERT INTO #BetDelete (
+				transid
+				, refno
+				, bettype
+				, custid
+				, recommend
+				, mrecommend
+				, srecommend
+				, betfrom
+			)
+			SELECT b.transid
+				, b.RefNo
+				, b.gameid
+				, b.custid
+				, b.recommend
+				, b.mrecommend
+				, b.srecommend
+				, b.betfrom
+			FROM dbo.bettransLC b WITH (NOLOCK)
+				INNER JOIN #transIdList t ON b.transid = t.transid
+				INNER JOIN #productBettype bt ON b.gameid = bt.bettype
+			
+			UNION ALL
+			SELECT b.transid
+				, b.RefNo
+				, b.gameid
+				, b.custid
+				, b.recommend
+				, b.mrecommend
+				, b.srecommend
+				, b.betfrom
+			FROM dbo.bettransLC14 b WITH (NOLOCK)
+				INNER JOIN #transIdList t ON b.transid = t.transid
+				INNER JOIN #productBettype bt ON b.gameid = bt.bettype			
+			WHERE b.winlostdate  >= @balanUpDate
+		END
 	END
 	
 	-- search by group 4
