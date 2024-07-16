@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Settlement_Betbuilder_Validation_Event
 (
 	 @matchid			INT			= 0
@@ -9,6 +9,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_Betbuilder_Validation_Event
 	,@ErrCode			INT			= 0			OUTPUT
 	,@ErrMsg			NVARCHAR(300) = ''		OUTPUT
 	,@InvalidMarketId	VARCHAR(MAX)= ''		OUTPUT
+	,@NoResultMarketId	VARCHAR(MAX)= ''		OUTPUT
 )
 AS
 /*
@@ -18,6 +19,7 @@ AS
 	
 	Revisions:
 		- 20220719@Louisa: Validation event before settle 3rd [Redmine:#175251]
+		- 20240625@Aries: Enhance the error message when settle with the NULL result for Bebuilder [Redmine:#206992]
 
 	Param's Explanation:
 	@SelectedMarket
@@ -33,7 +35,7 @@ BEGIN
 			,@maxNumProcessBB	INT = 50000
 	
 	CREATE TABLE #tblMarketPush (marketID VARCHAR(20), Result VARCHAR(20), ResultStatusID TINYINT)
-	CREATE TABLE #tblInvalidMarketID (marketID VARCHAR(20))
+	CREATE TABLE #tblInvalidMarketID (marketID VARCHAR(20), Flag TINYINT)
 	DECLARE @tblMarketBB TABLE (marketID VARCHAR(20), Result VARCHAR(20), ResultStatusID TINYINT)
 
 	SET @xmlData = CAST(@SelectedMarket AS XML)
@@ -85,21 +87,31 @@ BEGIN
 
 		------------------------------check settled marketIDs-------------------
 		DELETE r
-		OUTPUT DELETED.MarketID INTO #tblInvalidMarketID
+		OUTPUT DELETED.MarketID, 1
+		INTO #tblInvalidMarketID(MarketID,Flag)
 		FROM #tblMarketPush r
 		WHERE r.ResultStatusID IN (2,5) --Manually settled, Auto Settled
 				
 		--delete marketID does not have Result
 		DELETE r
-		OUTPUT DELETED.MarketID INTO #tblInvalidMarketID
+		OUTPUT DELETED.MarketID,2
+		INTO #tblInvalidMarketID(MarketID,Flag)
 		FROM #tblMarketPush r
 		WHERE r.Result IS NULL
 
 		SELECT @InvalidMarketId = ISNULL(@InvalidMarketId,'') + ',' + CAST(marketID AS VARCHAR(20))
 		FROM #tblInvalidMarketID
+		WHERE Flag = 1
 			
 		IF ISNULL(@InvalidMarketId,'') <> ''
 			SET @InvalidMarketId = SUBSTRING(@InvalidMarketId, 2 , LEN(@InvalidMarketId))
+
+		SELECT @NoResultMarketId = ISNULL(@NoResultMarketId,'') + ',' + CAST(marketID AS VARCHAR(20))
+		FROM #tblInvalidMarketID
+		WHERE Flag = 2
+			
+		IF ISNULL(@NoResultMarketId,'') <> ''
+			SET @NoResultMarketId = SUBSTRING(@NoResultMarketId, 2 , LEN(@NoResultMarketId))
 	END
 END
 GO
