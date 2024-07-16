@@ -231,7 +231,7 @@ BEGIN
 				INNER JOIN #productBettype bt ON b.gameid = bt.bettype
 			WHERE b.winlostdate  >= @balanUpDate
 		END
-		ELSE IF EXISTS (SELECT TOP 1 1 FROM #productIdList WHERE ProductId <> 39) 
+		IF EXISTS (SELECT TOP 1 1 FROM #productIdList WHERE ProductId <> 39) 
 		BEGIN
 			INSERT INTO #BetDelete (
 				transid
