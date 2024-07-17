@@ -521,6 +521,9 @@ BEGIN
 	--ESports: special behavior for filter Over #204370
 	IF  ISNULL(@MatchCode,'') = ''  AND (@OverStatus = '0' OR ((@IsOverEarly = 1 OR @IsMainOver = 1)  AND EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE sporttype = 43) ))
 	BEGIN
+		DECLARE @MatchInvalid TABLE(MatchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON))
+
+
 		TRUNCATE TABLE #ConfirmedResources
 		INSERT INTO #ConfirmedResources ( MatchId, ResourceId, ResultStatusID, OverStatus )
 		SELECT m.MatchId, r.ResourceId, r.ResultStatusID, CASE WHEN mr.ResourceID IS NULL THEN 1 ELSE 2 END
@@ -534,31 +537,28 @@ BEGIN
 						  END
 			AND r.ResultStatusID IN ( 2,3,5 )	
 		
-		DELETE r 
-		OUTPUT deleted.matchid, deleted.ResourceID, deleted.OverStatus
-		INTO  @tmpMatchOverStatus (matchid,ResourceID, OverStatus)
-		FROM #ConfirmedResources r
-		WHERE  OverStatus = 2
-			AND ResultStatusID = 3
-		
-		;WITH cte_matchMainOver AS ( SELECT DISTINCT MatchId FROM #ConfirmedResources WHERE OverStatus = 2 )
-		DELETE 
-		FROM #ConfirmedResources
+		;WITH cte_matchMainOver AS ( SELECT DISTINCT MatchId FROM #ConfirmedResources WHERE OverStatus = 2 AND ResultStatusID = 3 )
+		DELETE m
+		OUTPUT deleted.matchid
+		INTO  @MatchInvalid (matchid)
+		FROM #ConfirmedResources AS m
 		WHERE @IsMainOver = 1  AND @IsOverEarly = 0
 			AND MatchId NOT IN (SELECT MatchId FROM cte_matchMainOver)
-
+		
 		INSERT INTO #ConfirmedResources ( MatchId, ResourceId, ResultStatusID , OverStatus)
 		SELECT DISTINCT m.MatchId, p.ResourceID, 3, 1
 		FROM dbo.ProviderExternalResultDetailES AS p WITH(NOLOCK)
 			INNER JOIN #tmpMatchIds AS m ON m.matchid = p.matchid
 			LEFT JOIN #ConfirmedResources c ON p.MatchId = c.MatchId AND p.ResourceId = c.ResourceId
 			LEFT JOIN @tmpMainResult mr ON c.ResourceId = mr.ResourceID
+			LEFT JOIN @MatchInvalid  as mi ON mi.MatchId = p.MatchId
 		WHERE  m.sporttype = 43
 			AND p.SourceId < 1001
 			AND p.SourceId NOT IN (98, 99)
 			AND c.ResourceId IS NULL
 			AND mr.ResourceId IS NULL
-	
+			AND mi.MatchId IS NULL
+
 		DELETE FROM #ConfirmedResources WHERE ResultStatusID IN (2,5)
 
 		INSERT INTO @tmpMatchOverStatus (matchid,ResourceID, OverStatus)

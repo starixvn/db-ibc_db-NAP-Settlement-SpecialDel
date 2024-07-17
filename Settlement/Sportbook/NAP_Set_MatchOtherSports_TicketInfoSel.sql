@@ -116,7 +116,7 @@ BEGIN
 		SELECT o.MatchId, sp.bettype, sp.BetID, o.OverStatus 
 		FROM @tmpMatchOverStatus o
 			OUTER APPLY ( SELECT bettype, betid  
-							FROM settlementSpecialBettypeProfile sp 
+							FROM SettlementSpecialBettypeProfile sp  WITH(NOLOCK)
 							WHERE o.ResourceID = sp.ResourceID
 								AND sp.SettleType = 'EAR'
 								AND o.OverStatus  = 1
@@ -135,7 +135,7 @@ BEGIN
 						FROM bettrans b WITH (nolock)
 						WHERE m.matchid = b.matchid
 							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN CAST(0 AS SMALLINT) ELSE b.SiteDBGroupID END
-							AND 1 = CASE 	WHEN OverStatus = 1 AND b.bettype = m.bettype AND (b.betid = 0 OR b.betid = m.betid ) THEN 1
+							AND 1 = CASE 	WHEN OverStatus = 1 AND b.bettype = m.bettype AND (b.betid = 0 OR b.betid = m.betid ) AND b.statusID = 0 THEN 1
 											WHEN m.OverStatus = 2 OR OverStatus = 3 THEN 1
 											WHEN OverStatus = 4 AND b.statusId = 0 THEN 1
 									ELSE 0
@@ -152,7 +152,7 @@ BEGIN
 						FROM bettransm b WITH (nolock)
 						WHERE m.matchid = b.matchid
 							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN CAST(0 AS SMALLINT) ELSE b.SiteDBGroupID END
-							AND 1 = CASE	WHEN m.OverStatus = 1 AND b.bettype = m.bettype AND (b.betcheck = 0 OR b.betcheck = m.betid ) THEN 1
+							AND 1 = CASE	WHEN m.OverStatus = 1 AND b.bettype = m.bettype AND (b.betcheck = 0 OR b.betcheck = m.betid ) AND b.statusID = 0 THEN 1
 											WHEN m.OverStatus = 2 OR OverStatus = 3  THEN 1
 											WHEN m.OverStatus = 4 AND b.statusId = 0 THEN 1
 									ELSE 0
@@ -173,7 +173,10 @@ BEGIN
 		INNER JOIN @tmpSettlementtProfile m	ON tmp.MatchId = m.MatchId
 		CROSS APPLY (	SELECT TOP 1 1 AS IsEarly
 						FROM bettrans b WITH (NOLOCK)
-						WHERE b.bettype = m.bettype AND (b.betid = 0 OR b.betid = m.betid)
+						WHERE b.matchid = tmp.matchid 
+							AND b.bettype = m.bettype 
+							AND (b.betid = 0 OR b.betid = m.betid)
+							AND b.statusID = 0
 						) AS b
 		WHERE IsExistsConfirmedEarly = 0
 
@@ -183,7 +186,10 @@ BEGIN
 		INNER JOIN @tmpSettlementtProfile m	ON tmp.MatchId = m.MatchId
 		CROSS APPLY (	SELECT TOP 1 1 AS IsEarly
 						FROM bettransm b WITH (NOLOCK)
-						WHERE b.bettype = m.bettype AND (b.betcheck = 0 OR b.betcheck = m.betid)
+						WHERE b.matchid = tmp.matchid 
+							AND  b.bettype = m.bettype 
+							AND (b.betcheck = 0 OR b.betcheck = m.betid)
+							AND b.statusID = 0
 						) AS b
 		WHERE IsExistsConfirmedEarly = 0
 	END
