@@ -567,6 +567,7 @@ BEGIN
 		,SiteDBGroupID AS 'sitedb'
 		,CheckTimeCashOut AS 'checktCO' 
 		,AcceptModeCashOut  AS 'amCO' 
+		,FilterPlayerAndOdds AS 'f_oid'
 	FROM #TransInfo
 	FOR JSON PATH))
 

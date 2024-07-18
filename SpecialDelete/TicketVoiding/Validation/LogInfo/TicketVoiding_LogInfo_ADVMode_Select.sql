@@ -64,7 +64,12 @@ BEGIN
 			IsCancelCashOut		  BIT,
 			CheckTimeCashOut	  DATETIME,
 			liveindicator		  BIT,
-			GroupDisplay		  INT
+			GroupDisplay		  INT,
+			GroupBettype		  SMALLINT,
+			GroupTransdesc        NVARCHAR(1000),
+			GroupBetteam		  NVARCHAR(10),
+			Groupbetid			  NVARCHAR(50),
+			GroupOddsId			  INT		  
 	)
 
 	CREATE TABLE #logInfo (
@@ -156,6 +161,7 @@ BEGIN
 	  ,SubSecAcceptTime TINYINT
 	  ,CheckTimeCashOut DATETIME
 	  ,AcceptModeCashOut  TINYINT
+	  ,OddsId			INT
 	)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
@@ -259,6 +265,7 @@ BEGIN
 	       ,SubSecAcceptTime 
 		   ,CheckTimeCashOut
 		   ,AcceptModeCashOut
+		   ,OddsId
 	)
 	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate , checkt ,bid
@@ -266,7 +273,7 @@ BEGIN
 		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate , s_checkt ,s_tdes ,s_sid ,sre
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
-		,lbat ,sat ,s_lbat ,s_sat ,checktCO ,amCO
+		,lbat ,sat ,s_lbat ,s_sat ,checktCO ,amCO, f_oid
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -276,7 +283,7 @@ BEGIN
 					  ,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,CASE WHEN s_checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE s_checkt END AS s_checkt ,s_tdes ,s_sid ,sre
 					  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 					  ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
-					  ,lbat ,sat ,s_lbat ,s_sat ,CASE WHEN checktCO = '1900-01-01 00:00:00.000' THEN NULL ELSE checktCO END AS checktCO ,amCO
+					  ,lbat ,sat ,s_lbat ,s_sat ,CASE WHEN checktCO = '1900-01-01 00:00:00.000' THEN NULL ELSE checktCO END AS checktCO ,amCO, CONVERT(INT, f_oid) AS f_oid
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
 					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(4) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
@@ -284,7 +291,7 @@ BEGIN
 					 ,s_bfr NVARCHAR(4) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
 					 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
 					 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
-					 ,lbat SMALLINT ,sat TINYINT ,s_lbat SMALLINT ,s_sat TINYINT ,checktCO DATETIME ,amCO TINYINT
+					 ,lbat SMALLINT ,sat TINYINT ,s_lbat SMALLINT ,s_sat TINYINT ,checktCO DATETIME ,amCO TINYINT, f_oid NVARCHAR(1000)
 				)
 		) tbl
 	WHERE f.value <> ''
@@ -315,6 +322,11 @@ BEGIN
 			,CheckTimeCashOut
 			,liveindicator
 			,GroupDisplay
+			,GroupBettype
+			,GroupBetteam
+			,GroupTransdesc
+			,Groupbetid
+			,GroupOddsId
 		)
 	SELECT   b.transid
 			,b.SubTransID
@@ -346,6 +358,11 @@ BEGIN
 			,b.CheckTimeCashOut
 			,b.liveindicator
 			,ISNULL(tb.parentid, b.bettype)
+			,b.bettype
+			,b.betteam
+			,b.Transdesc
+			,CONVERT(NVARCHAR(50), b.betid)
+			,b.OddsId
 	FROM #tmpTransInfo b
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN @tmpConsolidatedBettypes tb ON  tb.typeid = b.bettype
@@ -385,6 +402,11 @@ BEGIN
 				,CheckTimeCashOut
 				,liveindicator
 				,GroupDisplay
+				,GroupBettype
+				,GroupBetteam
+				,GroupTransdesc
+				,Groupbetid
+				,GroupOddsId
 			)
 		SELECT   b.transid AS TransId
 				,b.SubTransID
@@ -413,6 +435,11 @@ BEGIN
 				,NULL AS CheckTimeCashOut
 				,b.liveindicator
 				,ISNULL(tb.parentid, b.Subbettype)
+				,b.Subbettype
+				,b.Subbetteam
+				,b.SubTransdesc
+				,b.Subbetcheck
+				,b.OddsId
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON b.matchid = d.MatchId AND b.IsMixParlay = 1 
 				LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.Subbettype
@@ -773,25 +800,63 @@ BEGIN
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
 	-- 6. Count detail group by bettype
-	SELECT b.GroupDisplay AS bettypeid
-		, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
-			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
-			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END AS betid
-		,COUNT(b.transid) AS bettypecount
-		,bt.typenamee AS originalBetTypeName
-	FROM #TVSTicketBets b
-		INNER JOIN #tmpTransInfo t ON t.transid = b.transid
-		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
-	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-	GROUP BY b.GroupDisplay, bt.typenamee
-		, CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
-			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
-			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END 
-	ORDER BY bt.typenamee
-			,b.GroupDisplay
-			,CASE WHEN b.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN NULL
-			WHEN b.IsMixParlay = 0 THEN CONVERT(NVARCHAR(50), t.betid) 
-			WHEN b.IsMixParlay = 1 THEN t.Subbetcheck END 
+	SELECT bt.bettypeid
+		,bt.originalBetTypeName
+		,bt.bettypecount
+		,bt.betid
+		,bt.PlayerName
+		,bt.PlayerAndOdds
+	FROM (
+		SELECT b.GroupDisplay AS bettypeid
+			,b.Groupbetid AS betid
+			,COUNT(b.transid) AS bettypecount
+			,bt.typenamee AS originalBetTypeName
+			,NULL AS PlayerName
+			,NULL AS PlayerAndOdds
+		FROM #TVSTicketBets b
+			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
+		WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
+			AND ISNULL(b.GroupTransdesc,'') = ''
+		GROUP BY b.GroupDisplay, bt.typenamee, Groupbetid 
+	
+		UNION ALL
+		SELECT b.GroupDisplay AS bettypeid
+			,NULL AS betid
+			,COUNT(b.transid) AS bettypecount
+			,bt.typenamee AS originalBetTypeName
+			,NULL AS PlayerName
+			,b.GroupBetteam +'$'+ CONVERT(NVARCHAR(1000),b.GroupOddsId) AS PlayerAndOdds
+		FROM #TVSTicketBets b
+			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
+		WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
+			AND b.GroupTransdesc <> ''
+			AND b.GroupBettype IN (9662, 9664, 9666, 9663, 9665, 9667)
+		GROUP BY b.GroupDisplay, bt.typenamee, b.GroupBetteam +'$'+ CONVERT(NVARCHAR(1000),b.GroupOddsId)
+
+		UNION ALL
+		SELECT t1.bettypeid
+			,NULL AS betid
+			,t1.bettypecount
+			,t1.originalBetTypeName
+			,t.teamname AS PlayerName
+			,NULL AS PlayerAndOdds
+		FROM
+		(
+			SELECT b.GroupDisplay AS bettypeid
+				,COUNT(b.transid) AS bettypecount
+				,bt.typenamee AS originalBetTypeName
+				,CONVERT(INT, b.GroupTransdesc) AS PlayerId
+			FROM #TVSTicketBets b
+				INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
+			WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
+				AND b.GroupTransdesc <> ''
+				AND b.GroupBettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
+			GROUP BY b.GroupDisplay, bt.typenamee,CONVERT(INT, b.GroupTransdesc) 
+		)t1
+		INNER JOIN dbo.Team t WITH (NOLOCK) ON t.teamid = t1.PlayerId
+	)bt
+	ORDER BY bt.originalBetTypeName
+			,bt.bettypeid 
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
