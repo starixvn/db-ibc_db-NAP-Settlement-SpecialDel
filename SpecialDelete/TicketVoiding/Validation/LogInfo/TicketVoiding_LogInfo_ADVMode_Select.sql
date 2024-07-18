@@ -802,10 +802,10 @@ BEGIN
 	-- 6. Count detail group by bettype
 	SELECT bt.bettypeid
 		,bt.originalBetTypeName
-		,bt.bettypecount
+		,bt.bettypecount AS TicketsCount
 		,bt.betid
 		,bt.PlayerName
-		,bt.PlayerAndOdds
+		,bt.PlayerAndOdds 
 	FROM (
 		SELECT b.GroupDisplay AS bettypeid
 			,b.Groupbetid AS betid
