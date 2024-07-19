@@ -599,13 +599,14 @@ BEGIN
 		-- 6. Count detail group by bettype
 		SELECT bt.bettypeid
 			,bt.betid
-			,bt.bettypecount
+			,bt.TicketsCount
 			,t.typenamee AS originalBetTypeName
+			,bt.PlayerName
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			CROSS APPLY (
-				SELECT bettypeid AS bettypeid, betid AS betid , bettypecount AS bettypecount
+				SELECT bettypeid AS bettypeid, betid AS betid , TicketsCount AS TicketsCount, PlayerName AS PlayerName
 				FROM OPENJSON(NULLIF(rd.TransIds,'')) 
-				WITH( BetTypeId SMALLINT, BetId NVARCHAR(50),  BetTypeCount INT)
+				WITH( BetTypeId SMALLINT, BetId NVARCHAR(50),  TicketsCount INT, PlayerName NVARCHAR(MAX))
 			)bt
 			INNER JOIN dbo.bettype t WITH (NOLOCK) ON t.typeid = bt.bettypeid
 		WHERE rd.RequestId = @RequestId
