@@ -53,7 +53,7 @@ BEGIN
 		WHERE Matchid IN (SELECT MatchId FROM @tmpMatchId)
 
 		INSERT INTO #tmpAffectTickets(Transid)
-		SELECT bt.transid
+		SELECT DISTINCT bt.transid
 		FROM #tblSettlementHistory bt
 		OUTER APPLY ( 
 			SELECT  bt1.SettlementType, bt1.Rownumber --get settle before
@@ -72,9 +72,13 @@ BEGIN
 			GROUP BY bt2.SettlementType
 		)bt2
 		WHERE bt.Rownumber = 1 
-		AND 1 = CASE WHEN bt.SettlementType = 3 OR bt.Pre_SettlementType = 3 THEN 1 
-					 WHEN (bt.SettlementType = 2 OR bt.Pre_SettlementType = 2)
-								 AND bt.BalanceChanged + ISNULL(bt2.sumbalance,0) <> 0 THEN 1
+		AND 1 = CASE WHEN bt.SettlementType = 3 THEN 1 
+					 WHEN bt.SettlementType = 5 AND bt.Pre_SettlementType = 3 THEN 1 
+					 WHEN (
+							bt.SettlementType = 2 
+							 OR (bt.SettlementType = 5 AND bt.Pre_SettlementType = 2)
+						   )
+							AND bt.BalanceChanged + ISNULL(bt2.sumbalance,0) <> 0 THEN 1
 					 ELSE 0
 				END
 	END
