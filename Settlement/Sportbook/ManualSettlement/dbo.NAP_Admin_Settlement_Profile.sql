@@ -16,7 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@RefResultStatus	TINYINT			= 0
 	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@AutoType				TINYINT		= 0
-	,@DeterminedType		TINYINT		= 0
+	,@DeterminedType		BIGINT		= 0
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 	,@IsPingoal			BIT				= 0
 	,@IsSettleRelated	BIT				= 0
@@ -90,6 +90,7 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240409@Aries: Enhance Refund Game Winner matches for Tennis [Redmine: #203638]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -476,7 +477,7 @@ BEGIN
 									FROM @tmpSelectedRID t
 									WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 								) sr
-					CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, NULL) m
+					CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betid) m
 				WHERE b.matchid = @MatchId
 					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND b.statusID NOT IN (101)
@@ -1139,7 +1140,7 @@ BEGIN
 		END
 	END
 
-	IF @MatchAutoSetting & 2 > 0 AND @Action LIKE 'CAL%' AND @DeterminedType > 0 AND @DeterminedType & 4 = 0
+	IF  @Action LIKE 'CAL%' AND @DeterminedType > 0 AND ((@Sporttype = 2 AND @MatchAutoSetting & 2 > 0 AND @DeterminedType & 4 = 0) OR @Sporttype = 8)
 	BEGIN
 		SET @sqlCommand = 'EXEC [dbo].[NAP_Admin_Settlement_Profile_Instant] @MatchID = ' + CONVERT(NVARCHAR(50), @MatchId) 
 									+ ', @AdminId = '				+ CONVERT(NVARCHAR(50), @creator) 

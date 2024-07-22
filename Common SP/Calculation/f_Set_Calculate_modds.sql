@@ -36,6 +36,7 @@ AS
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220629@Louisa: Volleyball AIO ( 27 bettype ) [Redmineid:#173862]
 		- 20221011@Louisa: Arithmetic OverFLow when  settle bettype 9115,9116,9117,9118,9119,9120 [Redmine:#178978]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 */
 RETURN
 (
@@ -316,11 +317,11 @@ RETURN
 					WHEN RIGHT(CAST(tbl.fm AS INT),1) = @betteam THEN 1
 					ELSE -1
 					END
-			WHEN @pfID = 5 THEN
+			WHEN @pfID IN (5, 8805) THEN
 				CASE 
-					WHEN tbl.fm > 0 AND @betteam = '1' THEN 1
-					WHEN tbl.fm = 0 AND @betteam = 'x' THEN 1
-					WHEN tbl.fm < 0 AND @betteam = '2' THEN 1
+					WHEN tbl.fm > 0 AND @betteam IN ('1', 'h') THEN 1
+					WHEN tbl.fm = 0 AND @betteam IN ('x', 'd') THEN 1
+					WHEN tbl.fm < 0 AND @betteam IN ('2', 'a') THEN 1
 					ELSE -1
 					END
 			WHEN @pfID = 24 THEN
@@ -514,9 +515,49 @@ RETURN
 					ELSE -1
 				END
 			WHEN @pfID = 9662 THEN --betteam = homevalue
-			   CASE WHEN @betteam = @HomeValue THEN 1
+			   CASE 
+					WHEN @betteam = @HomeValue THEN 1
 					WHEN @HomeValue IN ('n', 'd') THEN 0
-					ELSE -1 END
+					ELSE -1 
+				END
+			WHEN @pfID = 8813 THEN
+				CASE 
+					WHEN @betteam = '0' AND fm = 0 THEN 1
+					WHEN @betteam = '1' AND fm = 1 THEN 1
+					WHEN @betteam = '3+' AND fm >= 3 THEN 1 
+					ELSE -1
+				END
+			WHEN @pfID = 8814 THEN
+				CASE 
+					WHEN @betteam = 'y' AND fm >= CAST(@betcheck AS INT) THEN 1
+					WHEN @betteam = 'n' AND fm < CAST(@betcheck AS INT) THEN 1
+					ELSE -1
+				END
+			WHEN @pfID = 8822 THEN
+				CASE 
+					WHEN fm = 0 THEN 0
+					WHEN @betteam = 'h1' AND fm = 1 THEN 1
+					WHEN @betteam = 'h2' AND fm = 2 THEN 1
+					WHEN @betteam = 'h3' AND fm = 3 THEN 1
+					WHEN @betteam = 'h4+' AND fm >= 4 THEN 1
+					WHEN @betteam = 'a1' AND fm = -1 THEN 1
+					WHEN @betteam = 'a2' AND fm = -2 THEN 1
+					WHEN @betteam = 'a3' AND fm = -3 THEN 1
+					WHEN @betteam = 'a4+' AND fm <= -4 THEN 1
+					ELSE -1
+				END
+			WHEN @pfID = 8826 THEN
+				CASE 
+					WHEN @betteam = '1-2' AND fm BETWEEN 1 AND 2 THEN 1
+					WHEN @betteam = '3-4' AND fm BETWEEN 3 AND 4 THEN 1
+					WHEN @betteam = '5-6' AND fm BETWEEN 5 AND 6 THEN 1
+					WHEN @betteam = '7-8' AND fm BETWEEN 7 AND 8 THEN 1
+					WHEN @betteam = '9-10' AND fm BETWEEN 9 AND 10 THEN 1
+					WHEN @betteam = '11-12' AND fm BETWEEN 11 AND 12 THEN 1
+					WHEN @betteam = '13-14' AND fm BETWEEN 13 AND 14 THEN 1
+					WHEN @betteam = '15+' AND fm >= 15 THEN 1
+					ELSE -1
+				END
 			ELSE -1 
 		END AS modds
 		,CASE 
@@ -543,7 +584,7 @@ RETURN
 					WHEN @pfID = 9118 THEN CAST(@HomeValue AS MONEY) - @hdp1 * 1000
 					WHEN @pfID = 9119 THEN CAST(@AwayValue AS MONEY) - @hdp1 * 1000
 					
-					WHEN @pfID IN (20,711, 608, 614, 5, 24, 3911) THEN CAST(@HomeValue AS MONEY) - CAST(@AwayValue AS MONEY)
+					WHEN @pfID IN (20,711, 608, 614, 5, 24, 3911, 8805, 8822) THEN CAST(@HomeValue AS MONEY) - CAST(@AwayValue AS MONEY)
 
 					WHEN @pfID = 3915 THEN CASE WHEN @HomeValue = 'N' THEN 99
 												ELSE CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
@@ -564,7 +605,7 @@ RETURN
 
 					WHEN @pfID = 620 THEN CAST(@AwayValue AS SMALLMONEY)
 					--PHAIO 5
-					WHEN @pfID IN (391, 618) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (391, 618, 8813, 8814, 8826) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID IN (387, 386, 7901) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
 					WHEN @pfID IN (401, 9128) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
 					WHEN @pfID IN (402,9096) THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1

@@ -113,7 +113,7 @@ RETURN
 	        UNION ALL SELECT 45, '803', '3S', '0103', 'SP', 0, 3, 0,3
 	        UNION ALL SELECT 45, '00' , 'FT', '00', 'FT', 1, 99,  1,0
 
-	        --Sporttype, RoundID, RoundName, ResourceID, GroupType, isFinal, OrdNo, AllowDirectly
+	        --Sporttype, RoundID, RoundName, ResourceID, GroupType, isFinal, OrdNo, AllowDirectly, IntervalNo
 	        UNION ALL SELECT 6, '801', '1S', '0101', 'SP', 0, 1,  0,1
 	        UNION ALL SELECT 6, '802', '2S', '0102', 'SP', 0, 2,  0,2
 	        UNION ALL SELECT 6, '803', '3S', '0103', 'SP', 0, 3,  0,3
@@ -136,6 +136,17 @@ RETURN
 			UNION ALL SELECT 18, '06', '6S',  '0106'  , 'SP', 1, 6,  0,6
 			UNION ALL SELECT 18, '07', '7S',  '0107'  , 'SP', 1, 7,  0,7
 			UNION ALL SELECT 18, '00', 'FT',  '00'    , 'FT', 1, 99, 1,0
+			UNION ALL SELECT 8, '801', 'Inn1', '0101', 'SP', 0, 1,  0,1
+            UNION ALL SELECT 8, '802', 'Inn2', '0102', 'SP', 0, 2,  0,2
+			UNION ALL SELECT 8, '803', 'Inn3', '0103', 'SP', 0, 3,  0,3
+			UNION ALL SELECT 8, '804', 'Inn4', '0104', 'SP', 0, 4,  0,4
+			UNION ALL SELECT 8, '805', 'Inn5', '0105', 'SP', 0, 5,  0,5
+			UNION ALL SELECT 8, '806', 'Inn6', '0106', 'SP', 0, 6,  0,6
+			UNION ALL SELECT 8, '807', 'Inn7', '0107', 'SP', 0, 7,  0,7
+			UNION ALL SELECT 8, '808', 'Inn8', '0108', 'SP', 0, 8,  0,8
+			UNION ALL SELECT 8, '809', 'Inn9', '0109', 'SP', 0, 9,  0,9
+			UNION ALL SELECT 8, 'EI' , 'EI'  , 'EI'  , 'EI', 0, 10,	0,0
+			UNION ALL SELECT 8, '00', 'FT',  '00'  , 'FT', 1, 99, 1,0
 			)		  					
 	SELECT os1.Sporttype, os1.RoundID, os1.RoundName, os1.ResourceID, os1.GroupType, os1.isFinal, os1.OrdNo, os1.AllowDirectly, os1.IntervalNo
 	FROM os1 
@@ -149,7 +160,7 @@ RETURN
 		AND os2.Sporttype = @Sporttype 
 	UNION ALL 
 	SELECT os.Sporttype, st.RoundID, st.RoundName, st.ResourceID, st.GroupType, st.isFinal, st.OrdNo, st.AllowDirectly,st.IntervalNo
-	FROM (VALUES(3),(8),(26),(32),(47),(49),(56)) AS os (Sporttype)
+	FROM (VALUES(3),(26),(32),(47),(49),(56)) AS os (Sporttype)
 		CROSS APPLY (VALUES('01' ,'HT','01','HT',0,1,0,0)) AS st(RoundID, RoundName, ResourceID, GroupType, isFinal, OrdNo, AllowDirectly,IntervalNo)
 	WHERE Sporttype = @Sporttype  
 )

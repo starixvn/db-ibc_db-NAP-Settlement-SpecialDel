@@ -17,7 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@IsReSettledTickets	BIT			= 1
 	,@LockedByRefno			BIT			= 0
 	,@IsCentral				BIT			= 0
-	,@DeterminedType		TINYINT		= 0
+	,@DeterminedType		BIGINT		= 0
 	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@ParlayKeyId			INT			= 0
 	,@ErrCode				INT				= 0	OUTPUT
@@ -52,6 +52,7 @@ AS
 		- 20230131@Kathy: Support generate BetParlayDetail/BetParlayResult for voiding ticket [Redmine:#200440]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240729@Kathy: get eventdate before settlement [Redmine:#208293]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 		
 		- 20231214@Aries: Result Amendment [Redmine: #196401]

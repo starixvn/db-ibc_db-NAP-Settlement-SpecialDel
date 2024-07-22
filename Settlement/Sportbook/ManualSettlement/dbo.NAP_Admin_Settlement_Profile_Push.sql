@@ -16,7 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@AutoType			TINYINT			= 0
-	,@DeterminedType	TINYINT			= 0
+	,@DeterminedType	BIGINT			= 0
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 	,@IsPingoal			BIT				= 0
 	,@IsSettleRelated	BIT				= 0
@@ -61,6 +61,7 @@ AS
 		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 		- 20240409@Aries: Enhance Refund Game Winner matches for Tennis [Redmine: #203638]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>

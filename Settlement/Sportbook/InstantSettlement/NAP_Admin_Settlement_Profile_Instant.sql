@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Instant]
 	,@SelectedResources			VARCHAR(MAX)
 	,@IP						VARCHAR(15)
 	,@IsReSettledTickets		BIT				= 0
-	,@DeterminedType			TINYINT			= 0
+	,@DeterminedType			BIGINT			= 0
 	,@hth						INT				= NULL
 	,@hta						INT				= NULL
 	,@fth						INT				= NULL
@@ -29,6 +29,7 @@ AS
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 		- 20231213@Aries: Enhance Recalculation and Instant Settle for Basketball [Redmine:#198283]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
     Param's Explanation:
         - @Action: 'CAL', 'CAL-INST'
@@ -244,7 +245,7 @@ BEGIN
 						 ELSE 0
 					END
 		
-		IF @Action = 'CAL' AND @IsReSettledTickets = 1 
+		IF @Sporttype = 2 AND @Action = 'CAL' AND @IsReSettledTickets = 1 
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoInstantOS_LastResultSel 
 				  @MatchId	= @matchid 

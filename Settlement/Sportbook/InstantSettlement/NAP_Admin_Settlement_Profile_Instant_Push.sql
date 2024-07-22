@@ -5,7 +5,7 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_Profile_Instant_Push
 	,@Action					VARCHAR(20)		= 'CAL-INST'
 	,@SelectedResources			VARCHAR(MAX)
 	,@IP						VARCHAR(15)
-	,@DeterminedType			TINYINT			= 0
+	,@DeterminedType			BIGINT			= 0
 	,@BroadcastSessionId		VARCHAR(50)		= NULL
     ,@ErrCode					INT             = 0     OUTPUT
     ,@ErrMsg					NVARCHAR(200)   = ''    OUTPUT
@@ -16,6 +16,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:	
 		- 20230801@Aries: Created [Redmine:#189662]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 */
 BEGIN
