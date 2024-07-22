@@ -1,7 +1,7 @@
 ﻿/*<info serverAlias="DBPRO-bodb02" executers="" isFunction="0"></info>*/
 /*
     Created: 20240503@Aries
-	Task: Support Auto Payout 2 for Basketball [Redmine:#203520]
+	Task: Support Auto Payout 2 for Basketball - Turn ON setting [Redmine:#203520]
 	DB: DBPRO/bodb02
 */
  
