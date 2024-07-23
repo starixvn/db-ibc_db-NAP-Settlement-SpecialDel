@@ -21,6 +21,7 @@ AS
 		- 20240123@Max: TVS - Wrong Odds - Wrongly converting odds to search ticket [Redmine: #200123]
 		- 20240124@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240618@July: [TVS] Support void wrong odds of Home/Away or Over/Under at the same time [Redmine: #205558] 
+		- 20240722@July: [TVS] Add Details function for traders of LG/Early teams [Redmine: #206715]
 		
 	Param's explanation:
 		+ @WrongOddsInfo:
@@ -42,6 +43,8 @@ BEGIN
 			,@TransInfoJson_Output	  VARBINARY(MAX) = NULL
 			,@PHBettypes			  VARCHAR(MAX) =''
 			,@PoolHouseCheckedBetTypes VARCHAR(MAX) = ''
+			,@MatchId				   INT
+			,@LiveGameEarlyTicketsJson VARBINARY(MAX) = NULL
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -173,6 +176,18 @@ BEGIN
 	  ,statuswinlost TINYINT
       ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
+	  ,homeid INT
+      ,awayid INT
+	  ,leagueid INT
+	  ,isNeutral BIT
+	  ,matchcode NVARCHAR(50)
+	  ,sporttype SMALLINT
+	  ,eventstatus NVARCHAR(50)
+	  ,SettlementStatus TINYINT
+	  ,username NVARCHAR(50)
+	  ,IsDeposit BIT
+	  ,WalletType TINYINT
+	  ,RefCode BIGINT
 	)
 
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
@@ -181,9 +196,12 @@ BEGIN
 			,IsExistedInOtherRequest BIT DEFAULT(0) 
 			,MatchId                 INT
 			,IsPoolHouseAffected	 BIT DEFAULT(0)
+			,LiveGameEarlyTicketsJson VARCHAR(MAX)
+		    ,IsFinish BIT
 		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tmpLiveGameEarlyTickets TABLE (TransId BIGINT)
 
 	SET @WrongOddsInfoXML = CONVERT(XML, @WrongOddsInfo)
 	INSERT INTO #FilterInfo(
@@ -316,6 +334,8 @@ BEGIN
 	       ,statuswinlost 
            ,IsMixParlay 
 	       ,SiteDBGroupID 
+	       ,WalletType 
+	       ,RefCode
 	)
 	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,checkt ,bid
@@ -323,6 +343,7 @@ BEGIN
 		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,s_checkt ,s_tdes ,s_sid ,sre
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
+	    ,wt ,refc
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -332,6 +353,7 @@ BEGIN
 					  ,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,CASE WHEN s_checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE s_checkt END AS s_checkt ,s_tdes ,s_sid ,sre
 					  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 					  ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
+				      ,wt ,refc
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
 					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(4) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
@@ -339,9 +361,34 @@ BEGIN
 					 ,s_bfr NVARCHAR(4) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
 					 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
 					 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
+				     ,wt TINYINT ,refc BIGINT
 				)
 		) tbl
 	WHERE f.value <> ''
+
+	---UPDATE column show LG/Early details
+	BEGIN
+		UPDATE s
+		SET matchcode 	= m.matchcode
+			,homeid 	= m.homeid
+			,awayid 	= m.awayid
+			,leagueid 	= m.leagueid
+			,sporttype 	= m.sporttype
+			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+			,eventstatus = ISNULL(m.eventstatus,'')
+			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
+			,username = ci.username
+		FROM #tmpTransInfo s
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	s.matchid = m.matchid
+			INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK) ON s.custid = ci.custid
+		WHERE s.IsMixParlay <> 1
+	
+		-- update Isdeposit
+		UPDATE s 
+			SET IsDeposit = 1
+		FROM	#tmpTransInfo s
+		WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = s.srecommend)
+	END
 
 	--Init Validation
 	INSERT INTO @Validation (MatchId, IsPoolHouseAffected)
@@ -682,6 +729,82 @@ BEGIN
 			WHERE MatchId = v.MatchId
 			GROUP BY MatchId
 		)l 
+	
+	IF @IsShowLogOnly = 0
+	BEGIN
+		INSERT INTO @tmpLiveGameEarlyTickets (TransId)
+		SELECT TransId
+		FROM #TVSTicketBets WHERE GroupName = 'LG/Early'
+	END
+	ELSE --Edit request
+	BEGIN
+		INSERT INTO @tmpLiveGameEarlyTickets (TransId)
+		SELECT TransId
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK) 
+		WHERE RequestId = @RequestId
+			AND 1 = CASE WHEN SubIssueTypeId = 6   AND bettype = 1 THEN 1
+			             WHEN SubIssueTypeId = 119 AND bettype = 7 THEN 1
+						 WHEN SubIssueTypeId = 120 AND bettype = 3 THEN 1
+						 WHEN SubIssueTypeId = 121 AND bettype = 8 THEN 1
+						 ELSE 0 END
+	END
+
+	WHILE (1=1)
+	BEGIN
+		UPDATE TOP (1) v
+		SET v.IsFinish = 1, @MatchId = v.MatchId
+		FROM @Validation v
+		WHERE IsFinish IS NULL 
+
+		IF @@ROWCOUNT = 0 BREAK;
+
+		SET @LiveGameEarlyTicketsJson = COMPRESS((SELECT m.transid AS 'transid'
+			   ,m.refno AS 'refno'		
+			   ,m.username AS 'username'		
+			   ,m.transdate AS 'transdate'	
+			   ,m.Stake AS 'Stake'	
+			   ,m.odds AS 'odds'	
+			   ,m.oddsspread AS 'oddsspread'	
+			   ,m.OddsType AS 'OddsType'
+			   ,m.bettype AS 'bettype'
+			   ,m.STATUS AS 'STATUS'
+			   ,m.currencyname AS 'currencyname'
+			   ,m.betteam AS 'betteam'
+			   ,m.hdp1 AS 'hdp1'
+			   ,m.hdp2 AS 'hdp2'
+			   ,m.livehomescore AS 'livehomescore'
+			   ,m.liveawayscore AS 'liveawayscore'
+			   ,m.betid AS 'betid'
+			   ,m.betcheck AS 'betcheck'
+			   ,m.Transdesc AS 'Transdesc'
+			   ,m.betdaqid AS 'betdaqid'
+			   ,m.WalletType AS 'WalletType'
+			   ,m.RefCode AS 'RefCode'
+			   ,CAST(m.winlost AS VARCHAR) AS 'winlost'
+			   ,m.LiveIndicator AS 'IsLiveIndicator' 
+			   ,m.actual_stake AS 'ActualStake'
+			   ,m.ExtraInfo AS 'ExtraInfo'
+			   ,m.winlostdate AS 'winlostdate'
+			   ,m.IsDeposit AS 'IsDeposit'
+			   ,m.matchid AS 'matchid'
+			   ,m.homeid AS 'homeid'
+			   ,m.awayid AS 'awayid'
+			   ,m.leagueid AS 'leagueid'
+			   ,m.IsNeutral AS 'IsNeutral'
+			   ,m.matchcode AS 'matchcode'
+			   ,m.SettlementStatus AS 'SettlementStatus'
+			   ,m.sporttype AS 'sporttype'
+		FROM @tmpLiveGameEarlyTickets s
+			INNER JOIN #tmpTransInfo m ON s.transid = m.transid
+		WHERE m.matchid = @MatchId
+		FOR JSON PATH))
+
+		UPDATE v
+		SET v.LiveGameEarlyTicketsJson = CONVERT(VARCHAR(MAX), @LiveGameEarlyTicketsJson, 1)
+		FROM @Validation v
+		WHERE MatchId = @MatchId
+
+	END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
@@ -772,6 +895,7 @@ BEGIN
 			,rd.MainParlayCount AS PoolHouseMainParlayCount
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
+		    ,v.LiveGameEarlyTicketsJson
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
 			CROSS APPLY(
@@ -786,6 +910,7 @@ BEGIN
 				WHERE l.MatchId = rd.MatchId
 				FOR XML PATH('')
 			)sm(ScoreOfMatch)
+			INNER JOIN @Validation v ON rd.MatchId = v.MatchId
 		WHERE rd.RequestId = @RequestId
 
 		-- 4. Unmark table (No need -> return table)
@@ -940,7 +1065,7 @@ BEGIN
 	END
 
 	-- 3. Loginfo table
-	SELECT MatchId
+	SELECT l.MatchId
 		,STUFF(w.scores,1,1,'') AS LiveScores
 		,MIN(VoidFromTime) AS VoidFromTime
 		,MAX(VoidToTime) AS VoidToTime
@@ -953,6 +1078,7 @@ BEGIN
 		,SUM(PoolHouseSettleCount) AS PoolHouseSettleCount
 		,SUM(PoolHouseInstantlySettleCount) AS PoolHouseInstantlySettleCount
 		,SUM(PoolHouseMainParlayCount) AS PoolHouseMainParlayCount
+		,v.LiveGameEarlyTicketsJson
 	FROM #logInfo l
 		CROSS APPLY(
 					SELECT '|' + LiveScores
@@ -960,7 +1086,8 @@ BEGIN
 					where l.MatchId = rd.MatchId
 					FOR XML PATH('')
 					)w (scores) 
-	GROUP BY MatchId, w.scores
+		INNER JOIN @Validation v ON l.MatchId = v.MatchId
+	GROUP BY l.MatchId, w.scores, v.LiveGameEarlyTicketsJson
 
 	-- 4. List ticket unmark/mark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
