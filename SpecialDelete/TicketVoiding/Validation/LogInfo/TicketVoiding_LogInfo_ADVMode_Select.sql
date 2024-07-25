@@ -819,7 +819,7 @@ BEGIN
 			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
 		WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
 			AND ISNULL(b.GroupTransdesc,'') = ''
-		GROUP BY b.GroupDisplay, bt.typenamee, Groupbetid 
+		GROUP BY b.GroupDisplay, bt.typenamee, CASE WHEN ISNULL(b.Groupbetid,'') = '' THEN '0' ELSE b.Groupbetid END 
 	
 		UNION ALL
 		SELECT b.GroupDisplay AS bettypeid
