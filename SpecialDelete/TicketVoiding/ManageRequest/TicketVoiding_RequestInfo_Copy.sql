@@ -178,7 +178,7 @@ BEGIN
 				WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId)
 		BEGIN
 			INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, BetId, Betteam, OddsId)
-			SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, b.betcheck AS BetId, betteam, oddsid
+			SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CASE WHEN ISNULL(b.betcheck,'') = '' THEN 0 ELSE b.betcheck END AS BetId, betteam, oddsid
 			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
 				INNER JOIN dbo.bettransm b WITH (NOLOCK) ON s.TransId = b.TransId
 			WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
