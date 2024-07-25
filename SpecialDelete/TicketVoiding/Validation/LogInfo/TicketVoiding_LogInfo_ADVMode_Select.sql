@@ -15,7 +15,8 @@ AS
 	DB: DBCTG/bodb02
 	
 	Revisions: 
-		- 20220727@Max: Create new SP [Redmine:#197051]
+		- 20240522@Max: Create new SP [Redmine:#197051]
+		- 20240727@Max: Modify betid return [Redmine:#197051]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -809,7 +810,7 @@ BEGIN
 		,bt.PlayerAndOdds 
 	FROM (
 		SELECT b.GroupDisplay AS bettypeid
-			,b.Groupbetid AS betid
+			,CASE WHEN ISNULL(b.Groupbetid,'') = '' THEN '0' ELSE b.Groupbetid END AS betid
 			,COUNT(b.transid) AS bettypecount
 			,bt.typenamee AS originalBetTypeName
 			,NULL AS PlayerName
