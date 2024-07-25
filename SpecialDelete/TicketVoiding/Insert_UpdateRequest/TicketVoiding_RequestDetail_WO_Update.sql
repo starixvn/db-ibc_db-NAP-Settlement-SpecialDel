@@ -19,6 +19,8 @@ AS
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20230802@July: Remove code get list bettype Poolhouse [Redmine: #190441]
 		- 20231214@July: Extend datatype [Redmine: #196467]
+		- 20240618@July: [TVS] Support void wrong odds of Home/Away or Over/Under at the same time [Redmine: #205558]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 		+ @IssueTypeId : 2
@@ -47,7 +49,7 @@ BEGIN
 			,MainParlayCount		INT 
 			,VoidFromTime			DATETIME 
 			,VoidToTime				DATETIME
-			,LiveScores				NVARCHAR(300)
+			,IssueDetail			NVARCHAR(300)
 			,SubIssueTypeId			SMALLINT
 			,WrongOdds				VARCHAR(MAX)
 			)
@@ -89,7 +91,7 @@ BEGIN
 			,MainParlayCount		
 			,VoidFromTime			
 			,VoidToTime	
-			,LiveScores				
+			,IssueDetail				
 			,SubIssueTypeId
 			,WrongOdds
 		)
@@ -104,28 +106,24 @@ BEGIN
 			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' 
 					+ ';LiveGameEarlySingleCount:' + CAST(t.c.value('@LiveGameEarlySingleCount','INT') AS VARCHAR(50))
 					+ ';PoolHouseSingleCount:' + CAST(t.c.value('@PoolHouseSingleCount','INT') AS VARCHAR(50))
-					+ ';PoolHouseMainParlayCount:' + CAST(t.c.value('@PoolHouseMainParlayCount','INT') AS VARCHAR(50)) AS LiveScores
+					+ ';PoolHouseMainParlayCount:' + CAST(t.c.value('@PoolHouseMainParlayCount','INT') AS VARCHAR(50)) AS IssueDetail
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,'<r FilterOddsType="' + t.c.value('@FilterOddsType','VARCHAR(20)')
-					+ '" FromOdds="' + t.c.value('@FromOdds','VARCHAR(20)')
-					+ '" ToOdds="' + t.c.value('@ToOdds','VARCHAR(20)')
-					+ '" OddsValue="' + REPLACE(t.c.value('@OddsValue','VARCHAR(MAX)'), '&', '&amp;')
-					+ '" BetTeam="' + t.c.value('@BetTeam', 'VARCHAR(10)')
-					+ '" FilterFavoriteType="' + t.c.value('@FilterFavoriteType', 'VARCHAR(10)')
-					+ '" FavoriteValue="' + REPLACE(t.c.value('@FavoriteValue','VARCHAR(MAX)') , '&', '&amp;') 
-					+ '" FilterOuType="' + t.c.value('@FilterOuType', 'VARCHAR(10)')
-					+ '" OuValue="' + REPLACE(t.c.value('@OuValue','VARCHAR(MAX)') , '&', '&amp;')
-					+ '" CorrectOdds="' + t.c.value('@CorrectOdds','VARCHAR(20)')
-					+ CASE WHEN t.c.value('@IsMainMatch','VARCHAR(10)') = 'False' 
-						THEN '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10)) 
-							+ '" />'
-						ELSE 
-							'" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10))
-							+ '" IsLinkGroup1X2="' + CAST(t.c.value('@IsLinkGroup1X2','BIT') AS VARCHAR(10))
-							+ '" IsLinkGroupAIO="' + CAST(t.c.value('@IsLinkGroupAIO','BIT') AS VARCHAR(10))
-							+ '" PoolHouseCheckedBetTypes="' + t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') 
-							+ '" />'
-						END
+			,'<r IsLinkGroup1X2="' + CAST(t.c.value('@IsLinkGroup1X2','BIT') AS VARCHAR(10))
+					+ '" IsLinkGroupAIO="' + CAST(t.c.value('@IsLinkGroupAIO','BIT') AS VARCHAR(10))
+					+ '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10))
+					+ '" FilterFavoriteType="' + t.c.value('@FilterFavoriteType','VARCHAR(10)')
+					+ '" FavoriteValue="' + t.c.value('@FavoriteValue','VARCHAR(10)')
+					+ '" WrongOU="' + t.c.value('@WrongOU','VARCHAR(10)')
+					+ '" Spread="' + t.c.value('@Spread','VARCHAR(10)')
+					+ '" AllowanceRate="' + t.c.value('@AllowanceRate','VARCHAR(10)')
+					+ '" CorrectOddsHomeOver="' +  CAST(t.c.value('@CorrectOddsHomeOver','SMALLMONEY') AS VARCHAR(10))
+					+ '" CorrectOddsAwayUnder="' +  CAST(t.c.value('@CorrectOddsAwayUnder','SMALLMONEY') AS VARCHAR(10))
+					+ '" FromOddsNotVoidHomeOver="' +  CAST(t.c.value('@FromOddsNotVoidHomeOver','SMALLMONEY') AS VARCHAR(10))
+					+ '" ToOddsNotVoidHomeOver="' +  CAST(t.c.value('@ToOddsNotVoidHomeOver','SMALLMONEY') AS VARCHAR(10))
+					+ '" FromOddsNotVoidAwayUnder="' +  CAST(t.c.value('@FromOddsNotVoidAwayUnder','SMALLMONEY') AS VARCHAR(10))
+					+ '" ToOddsNotVoidAwayUnder="' +  CAST(t.c.value('@ToOddsNotVoidAwayUnder','SMALLMONEY') AS VARCHAR(10))
+					+ '" PoolHouseCheckedBetTypes="' + t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') 
+				+ '" />'
 					AS WrongOdds
 	FROM @WrongOddsInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongOddsInfoXML = NULL))
@@ -144,7 +142,7 @@ BEGIN
 			, MainParlayCount = l.MainParlayCount
 			, VoidFromTime = l.VoidFromTime
 			, VoidToTime = l.VoidToTime
-			, IssueDetail = l.LiveScores
+			, IssueDetail = l.IssueDetail
 			, SubIssueTypeId = l.SubIssueTypeId
 			, TransIds = l.WrongOdds
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
@@ -157,7 +155,7 @@ BEGIN
 		, LeagueId
 		, HomeId
 		, AwayId
-		, KickOffTime
+		, Sporttype
 		, FilterFromTransTime
 		, FilterToTransTime
 		, SingleCount
@@ -173,14 +171,14 @@ BEGIN
 		, m.leagueid
 		, m.homeid
 		, m.awayid
-		, m.kickofftime
+		, m.Sporttype
 		, l.FilterFromTransTime
 		, l.FilterToTransTime
 		, l.SingleCount
 		, l.MainParlayCount
 		, l.VoidFromTime
 		, l.VoidToTime
-		, l.LiveScores
+		, l.IssueDetail
 		, l.SubIssueTypeId
 		, l.WrongOdds
 	FROM #tblGetLogInfo l

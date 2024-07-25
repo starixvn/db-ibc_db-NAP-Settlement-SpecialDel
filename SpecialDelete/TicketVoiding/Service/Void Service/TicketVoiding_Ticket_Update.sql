@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 (
 	@RequestId			INT
@@ -19,7 +19,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 AS
 /*	Created by: 20181212@Kathy
 	Task: view voided ticket [Redmine:#90155]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
@@ -35,6 +35,7 @@ AS
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835] 
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
+		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 	
 	Param's explanation:	
 		
@@ -42,7 +43,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF (@IssueTypeId = 17) OR (@IssueTypeId IN (11,15,13) AND @VoidingTypeId IN (5,6)) --Void 14
+	IF (@IssueTypeId = 17) OR (@IssueTypeId IN (11,13) AND @VoidingTypeId IN (5,6)) --Void 14
 	BEGIN
 		EXEC dbo.TicketVoiding_VoidHistorical_Update
 			@RequestId				= @RequestId

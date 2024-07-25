@@ -17,6 +17,7 @@ AS
 		- 20230330@July: [TVS] Send problem customer in Abnormal Account request to CTS [Redmine:#185238]
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240327@Max: [CTS] - [TVS] - Missing Void Info - Not auto-mark PA [Redmine: #201993]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 		
@@ -34,10 +35,10 @@ BEGIN
 	DECLARE @tmp_Request_Retry AS TABLE (RequestId INT, Detail_count INT)
 
 	INSERT INTO @tmp_Request (RequestId, Detail_count, Actual_count, CreatedBy, CreatedDate, Sporttype, IssueTypeId)
-	SELECT r.RequestId, dt.Detail_count, act.Actual_count, r.LastModifiedBy, r.LastModifiedDate, r.Sporttype, r.IssueTypeId
+	SELECT r.RequestId, dt.Detail_count, act.Actual_count, r.LastModifiedBy, r.LastModifiedDate, CASE WHEN rd.cnt = 1 THEN dt.Sporttype ELSE NULL END AS Sporttype, r.IssueTypeId
 	FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
 	CROSS APPLY (
-		SELECT TOP 1 rd.SingleCount AS Detail_count
+		SELECT TOP 1 rd.SingleCount AS Detail_count, rd.Sporttype
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 		WHERE rd.RequestId = r.RequestId 
 	)dt
@@ -46,6 +47,12 @@ BEGIN
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 		WHERE s.RequestId = r.RequestId 
 	)act
+	OUTER APPLY (
+		SELECT rd.RequestId, COUNT(DISTINCT rd.Sporttype) cnt
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+		WHERE rd.RequestId = r.RequestId  AND r.IssueTypeId = 11
+		GROUP BY rd.RequestId
+	)rd
 	WHERE r.IssueTypeId IN (11,13) AND r.LastModifiedDate > @Datetime
 
 	--Apply retry process for some requests delayed

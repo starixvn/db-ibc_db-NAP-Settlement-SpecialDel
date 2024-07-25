@@ -1,7 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Insert]
 (
-	 @RequestIds			VARCHAR(MAX) = NULL
+	 @RequestsJson			VARCHAR(MAX) = NULL
 	,@SiteDBGroupID			SMALLINT = NULL
 	,@BroadcastSessionId	VARCHAR(100) = NULL
 	,@VoidData				XML = NULL
@@ -22,6 +22,7 @@ AS
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
+		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		
 	Param's explanation:	
 		
@@ -35,7 +36,9 @@ BEGIN
 	DECLARE @RequestId_tmp AS TABLE (RequestId INT)	
 
 	INSERT INTO @RequestId_tmp (RequestId)
-	SELECT value FROM STRING_SPLIT (@RequestIds, ',')
+	SELECT RequestId
+	FROM OPENJSON(@RequestsJson) 
+	WITH( RequestId INT)
 
 	--Add attribute for void instant abnormal account, reduced over
 	SET @DecidedBy = (SELECT TOP(1) r.DecidedBy

@@ -1,28 +1,30 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Select] 
 (
-	@IssueTypeId		  INT
-	,@KickOffInfo	      VARCHAR(MAX) = NULL
-	,@WrongScoreInfo	  VARCHAR(MAX) = NULL
-	,@DangerAcceptedInfo  VARCHAR(MAX) = NULL
-	,@RedCardInfo		  VARCHAR(MAX) = NULL
-	,@WrongHDPInfo		  VARCHAR(MAX) = NULL
-	,@Wrong1stHDPInfo	  VARCHAR(MAX) = NULL
-	,@WrongOUInfo		  VARCHAR(MAX) = NULL
-	,@Wrong1stOUInfo	  VARCHAR(MAX) = NULL
-	,@AbnormalBetTransIds VARCHAR(MAX) = NULL
-	,@AbnormalAccounts	  VARCHAR(MAX) = NULL
-	,@ArchivedTransIds	  VARCHAR(MAX) = NULL
-	,@WrongOddsInfo       VARCHAR(MAX) = NULL
-	,@ReducedOverInfo	  VARCHAR(MAX) = NULL
-	,@NotParticipateInfo  VARCHAR(MAX) = NULL
-	,@RecoverTicketInfo   VARCHAR(MAX) = NULL
+	@IssueTypeId			INT
+	,@KickOffInfo			VARCHAR(MAX) = NULL
+	,@WrongScoreInfo		VARCHAR(MAX) = NULL
+	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
+	,@RedCardInfo			VARCHAR(MAX) = NULL
+	,@WrongHDPInfo			VARCHAR(MAX) = NULL
+	,@Wrong1stHDPInfo		VARCHAR(MAX) = NULL
+	,@WrongOUInfo			VARCHAR(MAX) = NULL
+	,@Wrong1stOUInfo		VARCHAR(MAX) = NULL
+	,@AbnormalBetTransIds	VARCHAR(MAX) = NULL
+	,@AbnormalAccounts		VARCHAR(MAX) = NULL
+	,@ArchivedTransIds		VARCHAR(MAX) = NULL
+	,@WrongOddsInfo			VARCHAR(MAX) = NULL
+	,@ReducedOverInfo		VARCHAR(MAX) = NULL
+	,@NotParticipateInfo	VARCHAR(MAX) = NULL
+	,@RecoverTicketInfo		VARCHAR(MAX) = NULL
+	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
+	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
 )
 AS
 /*	
 	Created by: 20220727@Max
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
@@ -32,6 +34,8 @@ AS
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
+		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
+		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 
 	Param's explanation:	
 		
@@ -111,11 +115,19 @@ BEGIN
 	END
 	/*-----------------*/
 
-	/*---AbnormalBet / AB RealMember---*/
-	IF @IssueTypeId IN (11,15)
+	/*---AbnormalBet---*/
+	IF @IssueTypeId IN (11)
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_AB_Select
 			@AbnormalBetTransIds = @AbnormalBetTransIds
+	END
+	/*-----------------*/
+
+	/*---Wrong Market Offered---*/
+	IF @IssueTypeId IN (12)
+	BEGIN
+		EXEC dbo.TicketVoiding_TransInfo_ADVMode_Select
+			@AdvancedModeInfo = @WrongMarketOfferedInfo
 	END
 	/*-----------------*/
 
@@ -156,6 +168,14 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_RT_Select
 			@RecoverTicketInfo = @RecoverTicketInfo
+	END
+	/*-----------------*/
+
+	/*---Technical Error---*/
+	IF @IssueTypeId IN (24)
+	BEGIN
+		EXEC dbo.TicketVoiding_TransInfo_ADVMode_Select
+			@AdvancedModeInfo = @TechnicalErrorInfo
 	END
 	/*-----------------*/
 

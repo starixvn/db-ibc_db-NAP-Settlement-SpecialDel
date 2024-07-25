@@ -1,4 +1,4 @@
-/*<info serverAlias="DBARC-bodb_Archive" executers="bodbSPUNet" isFunction="0"></info>*/
+/*<info serverAlias="DBARC-bodb_Archive" executers="wsv_cts" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_CTS_ProblemCustomerSelect_Archive]
 	@Datetime		DATETIME = NULL
 AS
@@ -11,6 +11,7 @@ AS
 		- 20220614@July: Remove '=' support CTS [Redmine:#172634]
 		- 20230330@July: [TVS] Send problem customer in Abnormal Account request to CTS [Redmine:#185238]
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 		
@@ -28,10 +29,21 @@ BEGIN
 		 , r.LastModifiedBy AS CreatedBy
 		 , r.LastModifiedDate AS CreatedDate
 		 , CASE WHEN r.IssueTypeId = 11 AND s.MatchId = 29 THEN 1 ELSE NULL END AS IsParlay
-		 , CASE WHEN r.IssueTypeId = 11 AND s.MatchId <> 29 THEN r.Sporttype ELSE NULL END AS Sporttype
+		 , CASE WHEN rd.cnt = 1 THEN dt.Sporttype ELSE NULL END AS Sporttype
 		 , r.IssueTypeId
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)  
 		INNER JOIN dbo.TicketVoiding_Request_bk r WITH (NOLOCK) ON r.RequestId = s.RequestId
+		OUTER APPLY (
+			SELECT TOP 1 rd.Sporttype
+			FROM dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK)
+			WHERE rd.RequestId = r.RequestId AND r.IssueTypeId = 11 
+		)dt
+		OUTER APPLY (
+			SELECT rd.RequestId, COUNT(DISTINCT rd.Sporttype) cnt
+			FROM dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK)
+			WHERE rd.RequestId = r.RequestId  AND r.IssueTypeId = 11
+			GROUP BY rd.RequestId
+		)rd
 	WHERE r.IssueTypeId IN (11,13) AND r.LastModifiedDate > @Datetime
 		AND s.CustId IS NOT NULL
 

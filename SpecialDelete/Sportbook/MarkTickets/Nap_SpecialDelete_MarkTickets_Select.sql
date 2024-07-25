@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Select] 
 	@Status          SMALLINT     = 0,
     @SearchBy        SMALLINT     = 0,
@@ -15,10 +15,9 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Select]
 AS
 
 /*
-    Created by: Alan
-	Date: 20190325
+    Created by: 20190325@Alan
 	Task: Mark Ticket for Settlement Exclusion
-	DB: DBTXN/BODB02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Explanation's Param:
 		- @Status: 

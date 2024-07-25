@@ -1,7 +1,9 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_GetBetTypesHaveTickets] 
 (
     @MatchId    INT 
+	,@FromTransDate DATETIME = NULL
+	,@ToTransDate DATETIME = NULL
 )
 AS
 /*  
@@ -12,6 +14,7 @@ AS
     Revisions:      
         - 20230608@Max: Create SP - [Redmine: #185833]
 		- 20231207@Max: [TVS] Not Participate - Support user select exact bet type [Redmine: #197018]
+		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 
     Param's Explanation:  
 
@@ -25,10 +28,22 @@ BEGIN
     CREATE TABLE #TmpBettype (bettype SMALLINT, transdesc NVARCHAR(2000))
 	DECLARE @tmpMatchId TABLE (MatchId INT)
 
+	DECLARE @tmpConsolidatedBettypes TABLE (
+        parentid        INT
+        ,typeid         INT PRIMARY KEY
+    )
+    
+    INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
+    SELECT f.GroupTypeId AS parentid
+		 , f.Bettype AS typeid
+    FROM [dbo].[f_SD_GroupDisplayBettype] () f
+
 	INSERT INTO @tmpMatchId (MatchId)
 	SELECT MatchId
-	FROM dbo.match WITH(NOLOCK)
-	WHERE (matchid = @MatchId OR ParentID = @MatchId)
+	FROM dbo.match m WITH(NOLOCK)
+	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
+				WHEN m.sporttype = 50 AND m.ChildMatchType = 200 AND ParentID = @MatchId THEN 1
+			ELSE 0 END
 
     -- Scan bettrans and bettransm to get bettype list
 	-- bettrans
@@ -39,6 +54,7 @@ BEGIN
 		AND SiteDBGroupID = @SiteDBGroupID
 		AND bettype NOT IN (10,29,38,500)
 		AND bettype < 19000
+		AND (transdate BETWEEN @FromTransDate AND @ToTransDate OR (@FromTransDate IS NULL AND @ToTransDate IS NULL))
 	GROUP BY bettype, transdesc
 
     -- bettransm
@@ -51,15 +67,41 @@ BEGIN
         FROM #TmpBettype tb WHERE bt.bettype = tb.bettype)
         AND bt.bettype NOT IN (10,29,38,500)
         AND bt.bettype < 19000
+		AND (transdate BETWEEN @FromTransDate AND @ToTransDate OR (@FromTransDate IS NULL AND @ToTransDate IS NULL))
     GROUP BY bt.bettype, bt.transdesc
+
+	IF @FromTransDate IS NOT NULL AND @ToTransDate IS NOT NULL --New issuetype WMO, Technical Error
+	BEGIN
+		DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+		INSERT INTO @bettype_tmp (bettype)
+		SELECT DISTINCT pt.bettype
+		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+		WHERE pt.ProductID = 1 -- Sportsbook
+			AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
+			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
+			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+
+		DELETE t
+		FROM #TmpBettype t
+			LEFT JOIN @bettype_tmp bt ON bt.bettype = t.bettype
+		WHERE bt.bettype IS NULL
+
+		UPDATE t SET t.bettype = tb.parentid
+		FROM #TmpBettype t
+			INNER JOIN @tmpConsolidatedBettypes tb ON tb.typeid = t.bettype
+	END
    
     SELECT t.bettype AS [Id]
 		 ,CASE WHEN bt.typeid = 9604 THEN 'Over/Under'
 			  WHEN bt.typeid = 9605 THEN 'Odd/Even'
 		ELSE bt.typenamee END AS [Name]
 		,transdesc
+		,f.GroupName
     FROM #TmpBettype t
 		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = t.bettype
+		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = t.bettype
+	GROUP BY t.bettype, bt.typeid, bt.typenamee, t.transdesc, f.GroupName
+	ORDER BY f.GroupName, bt.typenamee
 
     DROP TABLE #TmpBettype
 END

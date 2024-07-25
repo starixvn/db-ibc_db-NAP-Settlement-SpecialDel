@@ -1,11 +1,11 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_CustNegativeBalance_Sel] 	
 	@CustIds			  VARCHAR(MAX)	= '',
     @NegativeBalanceUsers VARCHAR(MAX) OUTPUT
 AS
 /*
 	Created: 20161111@Kent
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 		
 		- 20161026@Kent: Check negative balance after recovering voided Parlay tickets [Redmine:#65531]
@@ -16,7 +16,8 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20230331@July: TVS changes for new process of BU [Redmine: #184000]
 		- 20240111@July: [TVS] Negative Balance - Don't Send Notification to Single Wallet Licensee [Redmine: #199097]
-		
+		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
+
 */
 BEGIN
 	SET NOCOUNT ON		
@@ -134,7 +135,7 @@ BEGIN
 								   CASE WHEN @NegativeBalanceUsers <> '' THEN ',' ELSE '' END + 
 								   bal.username			
 	FROM @balanceCust bal
-		INNER JOIN DBCUST.custDB.dbo.custInfo c WITH(NOLOCK ) 
+		INNER JOIN CustDB.dbo.custInfo c WITH(NOLOCK ) 
 			ON	bal.custid = c.custid
 		INNER JOIN custDB.dbo.Customer ag WITH(NOLOCK) 
 			ON	ag.custid = c.recommend AND ag.site <> 'CN88'

@@ -12,7 +12,8 @@ AS
 	Revisions:	
 		- 20221110@Max: Create SP [Redmine: #180225]
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
-		
+		- 20240529@July: [TVS] Ticket Listing - Get affected tickets of Result Amendment for Bet Builder and Other Sports [Redmine: #203615]
+
 	Param's Explanation:
 */
 BEGIN
@@ -28,20 +29,31 @@ BEGIN
 					ELSE 0 END
 
 	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
-	CREATE TABLE #tblSettlementHistory (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, CreatedDate DATETIME , BalanceChanged MONEY, Rownumber INT, RN_settle INT)
+	CREATE TABLE #tblSettlementHistory (
+		  transid BIGINT
+		, winlost MONEY
+		, StatusId TINYINT
+		, SettlementType TINYINT
+		, CreatedDate DATETIME
+		, BalanceChanged MONEY
+		, Rownumber INT
+		, RN_settle INT
+		, Pre_SettlementType TINYINT
+	)
 	CREATE CLUSTERED INDEX IDX_tblSettlementHistory_transid ON #tblSettlementHistory (transid)
 
 	IF EXISTS (SELECT TOP 1 1 FROM bodb02.dbo.settlementhistory WITH(NOLOCK) WHERE MatchId IN (SELECT MatchId FROM @tmpMatchId))
 	BEGIN
-		INSERT INTO #tblSettlementHistory (transid, winlost, StatusId, SettlementType, CreatedDate, BalanceChanged, Rownumber, RN_settle)
+		INSERT INTO #tblSettlementHistory (transid, winlost, StatusId, SettlementType, CreatedDate, BalanceChanged, Rownumber, RN_settle, Pre_SettlementType)
 		SELECT transid, winlost, StatusId, SettlementType, CreatedDate, BalanceChanged
 				, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CreatedDate DESC) Rownumber
-				, CASE WHEN SettlementType <> 0 THEN ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CASE WHEN SettlementType <> 0 THEN 1 ELSE 0 END DESC, CreatedDate DESC) ELSE 0 END AS RN_settle
+				, CASE WHEN SettlementType NOT IN (0,5) THEN ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CASE WHEN SettlementType NOT IN (0,5) THEN 1 ELSE 0 END DESC, CreatedDate DESC) ELSE 0 END AS RN_settle
+				, LAG (SettlementType,1) OVER (PARTITION BY transid ORDER BY CreatedDate ASC) AS Pre_SettlementType
 		FROM bodb02.dbo.settlementhistory WITH(NOLOCK) 
 		WHERE Matchid IN (SELECT MatchId FROM @tmpMatchId)
 
 		INSERT INTO #tmpAffectTickets(Transid)
-		SELECT bt.transid
+		SELECT DISTINCT bt.transid
 		FROM #tblSettlementHistory bt
 		OUTER APPLY ( 
 			SELECT  bt1.SettlementType, bt1.Rownumber --get settle before
@@ -61,8 +73,13 @@ BEGIN
 		)bt2
 		WHERE bt.Rownumber = 1 
 		AND 1 = CASE WHEN bt.SettlementType = 3 THEN 1 
-						WHEN bt.SettlementType = 2 AND bt.BalanceChanged + bt2.sumbalance <> 0 THEN 1
-						ELSE 0
+					 WHEN bt.SettlementType = 5 AND bt.Pre_SettlementType = 3 THEN 1 
+					 WHEN (
+							bt.SettlementType = 2 
+							 OR (bt.SettlementType = 5 AND bt.Pre_SettlementType = 2)
+						   )
+							AND bt.BalanceChanged + ISNULL(bt2.sumbalance,0) <> 0 THEN 1
+					 ELSE 0
 				END
 	END
 

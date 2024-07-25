@@ -21,6 +21,7 @@ AS
 		- 20220808@July: Create new SP - Split code issuetype Archived ticket [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 */
@@ -78,6 +79,7 @@ BEGIN
 					, LeagueId
 					, HomeId
 					, AwayId
+					, Sporttype
 					, SubIssueTypeId
 					, FilterBy
 			)
@@ -86,6 +88,7 @@ BEGIN
 					, ISNULL(m14.leagueid, 0) 
 					, ISNULL(m14.homeid, 0) 
 					, ISNULL(m14.awayid, 0) 
+					, m14.sporttype
 					, @SubIssueTypeId
 					, @FilterBy
 			FROM #TempMatch t
@@ -101,6 +104,7 @@ BEGIN
 					, LeagueId
 					, HomeId
 					, AwayId
+					, Sporttype
 					, SubIssueTypeId
 					, FilterBy
 			)
@@ -109,10 +113,12 @@ BEGIN
 					, ISNULL(o14.leagueid, 0) 
 					, ISNULL(o14.teamid, 0) 
 					, 0
+					, l.sporttype
 					, @SubIssueTypeId
 					, @FilterBy
 			FROM #TempMatch t
 				INNER JOIN dbo.outright14 o14 WITH(NOLOCK) ON t.MatchId = o14.orid
+				INNER JOIN dbo.league l WITH (NOLOCK) ON o14.leagueid = l.leagueid
 			WHERE t.IsOutright = 1
 		END
 	END
@@ -154,6 +160,7 @@ BEGIN
 					, LeagueId
 					, HomeId
 					, AwayId
+					, Sporttype
 					, SubIssueTypeId
 				)
 				SELECT @RequestId
@@ -161,6 +168,7 @@ BEGIN
 					, ISNULL(m14.leagueid, 0) 
 					, ISNULL(m14.homeid, 0) 
 					, ISNULL(m14.awayid, 0) 
+					, m14.sporttype
 					, @SubIssueTypeId
 				FROM #TempEditMatchID e 
 					LEFT JOIN dbo.match14 m14 WITH(NOLOCK) ON e.MatchID = m14.matchid 
@@ -175,6 +183,7 @@ BEGIN
 					, LeagueId
 					, HomeId
 					, AwayId
+					, Sporttype
 					, SubIssueTypeId
 				)
 				SELECT @RequestId
@@ -182,9 +191,11 @@ BEGIN
 					, o14.leagueid
 					, o14.teamid
 					, 0
+					, l.sporttype
 					, @SubIssueTypeId
 				FROM #TempEditMatchID e 
 					INNER JOIN dbo.outright14 o14 WITH(NOLOCK) ON e.MatchID = o14.orid
+					INNER JOIN dbo.league l WITH (NOLOCK) ON o14.leagueid = l.leagueid
 				WHERE e.IsFlag = 1	AND e.IsOutright = 1		
 		END  
 

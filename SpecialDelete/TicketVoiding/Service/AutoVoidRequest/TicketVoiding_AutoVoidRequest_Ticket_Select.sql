@@ -19,6 +19,7 @@ AS
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
+		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		
 	Param's explanation:
 		+ Both @RequestIds, @SiteDBGroupID IS NULL: Service scan signal settle 5p/time
@@ -26,7 +27,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT, bettype SMALLINT, CustId INT, VoidActionId TINYINT)
+	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT, bettype SMALLINT, CustId INT, VoidActionId TINYINT, IsCancelCO BIT)
 	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT, VoidActionId TINYINT)
 	
 	IF @RequestIds IS NOT NULL
@@ -36,8 +37,8 @@ BEGIN
 		SELECT value FROM STRING_SPLIT (@RequestIds, ',')
 
 		--Single
-		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, bettype, CustId, VoidActionId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, rds.Bettype, rds.CustId, r.ActionId
+		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, bettype, CustId, VoidActionId, IsCancelCO)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, rds.Bettype, rds.CustId, r.ActionId, ISNULL(rds.IsCancelCO,0)
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
@@ -101,7 +102,7 @@ BEGIN
 			AND rds.IsProcessed IS NULL
 	END
 
-	--Single ticket exclude cricket bettype 501 of credit (NP)
+	--Single ticket exclude cricket bettype 501 of credit (NP) & CancelCO
 	SELECT TransId, RequestId, IssueTypeId, MatchId, s.SiteDBGroupId, s.VoidActionId
 	FROM #SingleTickets s
 		INNER JOIN CustDB.dbo.custinfo c WITH (NOLOCK) ON c.custid = s.CustId
@@ -109,6 +110,7 @@ BEGIN
 	WHERE 1 = CASE WHEN s.bettype <> 501 THEN 1
 				WHEN s.bettype = 501 AND ds.custid IS NOT NULL THEN 1 
 			ELSE 0 END
+			AND ISNULL(s.IsCancelCO, 0) = 0
 
 	--Parlay
 	SELECT TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, VoidActionId FROM #ParlayTickets
@@ -119,6 +121,12 @@ BEGIN
 		INNER JOIN CustDB.dbo.custinfo c WITH (NOLOCK) ON c.custid = s.CustId
 		LEFT JOIN CustDB.dbo.Dep_CustSuper ds WITH (NOLOCK) ON ds.custid = c.srecommend
 	WHERE s.bettype = 501 AND ds.custid IS NULL
+		AND ISNULL(s.IsCancelCO, 0) = 0
+
+	--CancelCO Ticket
+	SELECT TransId, RequestId, IssueTypeId, MatchId, s.SiteDBGroupId, s.VoidActionId
+	FROM #SingleTickets s
+	WHERE ISNULL(s.IsCancelCO, 0) = 1
 
 	DROP TABLE #SingleTickets
 	DROP TABLE #ParlayTickets

@@ -20,6 +20,7 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
+		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 
 	Param's explanation:
 		+ @IssueTypeId : 8 - Early Kick Off, 9 - Wrong Kick Off Time
@@ -33,7 +34,7 @@ BEGIN
 			,@SB_Error			 BIT = 0
 			,@LogDataContent	 NVARCHAR(MAX)
 			,@KickOffInfoXML	 XML = NULL	
-			,@topBatch			  INT = 4500
+			,@topBatch			 INT = 4500
 					
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -42,16 +43,6 @@ BEGIN
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
 			,MatchID				INT
-			,FilterFromTransTime	DATETIME 
-			,FilterToTransTime		DATETIME 
-			,FilterBy				TINYINT 
-			,SingleCount			INT 
-			,MainParlayCount		INT 
-			,VoidFromTime			DATETIME 
-			,VoidToTime				DATETIME
-			,LiveHomeScore			INT
-			,LiveAwayScore			INT
-			,LiveScores				NVARCHAR(300)
 			,TypeAccept				VARCHAR(2000)
 			,SubIssueTypeId			SMALLINT
 			,KickOffTime		 DATETIME
@@ -121,6 +112,7 @@ BEGIN
 		, HomeId
 		, AwayId
 		, KickOffTime
+		, Sporttype
 		, TransIds
 		, SubIssueTypeId
 		)
@@ -130,6 +122,7 @@ BEGIN
 		, m.homeid
 		, m.awayid
 		, l.kickofftime
+		, m.sporttype
 		, l.TypeAccept
 		, l.SubIssueTypeId
 	FROM #tblGetLogInfo l
