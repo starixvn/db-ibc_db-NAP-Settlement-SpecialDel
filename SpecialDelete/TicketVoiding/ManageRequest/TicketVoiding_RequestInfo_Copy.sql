@@ -17,6 +17,7 @@ AS
 		- 20230817@Max: [TVS] Support Suspenders quickly copy request info to send mail/lestalk [Redmine: #185493]
 		- 20240415@July: [TVS] Quickly copy request info for Traders of Cricket [Redmine: #202943]
 		- 20240523@July: [TVS] New issue type Wrong Market Offered & Technical Error [Redmine: #197051/194093]
+		- 20240727@July: Modify betid return [Redmine:#197051]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
