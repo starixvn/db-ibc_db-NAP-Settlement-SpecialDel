@@ -17,6 +17,7 @@ AS
 		- 20230817@Max: [TVS] Support Suspenders quickly copy request info to send mail/lestalk [Redmine: #185493]
 		- 20240415@July: [TVS] Quickly copy request info for Traders of Cricket [Redmine: #202943]
 		- 20240523@July: [TVS] New issue type Wrong Market Offered & Technical Error [Redmine: #197051/194093]
+		- 20240727@July: Modify betid return [Redmine:#197051]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -178,7 +179,7 @@ BEGIN
 				WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId)
 		BEGIN
 			INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, BetId, Betteam, OddsId)
-			SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, b.betcheck AS BetId, betteam, oddsid
+			SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CASE WHEN ISNULL(b.betcheck,'') = '' THEN 0 ELSE b.betcheck END AS BetId, betteam, oddsid
 			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
 				INNER JOIN dbo.bettransm b WITH (NOLOCK) ON s.TransId = b.TransId
 			WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId

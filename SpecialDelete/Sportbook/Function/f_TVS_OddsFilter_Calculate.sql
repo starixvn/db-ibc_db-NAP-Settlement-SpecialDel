@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_TVS_OddsFilter_Calculate] (
 	@Odds_str VARCHAR(100)
 	,@OddsType_Input VARCHAR(20)
@@ -13,12 +13,13 @@ AS
 	Created by: Max
 	Date 20220727
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	DB: DBCTG/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20231214@July: Fix Divide by zero [Redmine: #196467]
+		- 20240725@July: Fix case odds = 0 then 0 avoid Divide by zero [Redmine: #205983]
 
 	Param's explanation:
 */
@@ -42,6 +43,7 @@ BEGIN
 		(
 			--MY -> DEC
 			SELECT CASE WHEN c.OddsValue > 0 THEN CONVERT(DECIMAL(18,2), ROUND(1 + c.OddsValue, 2, 1))
+						WHEN c.OddsValue = 0 THEN 0 
 						ELSE  CONVERT(DECIMAL(18,2), ROUND(1 + (1 / ABS(c.OddsValue)), 2, 1)) END AS OddsValue
 					, CONVERT(TINYINT, 1) AS OddsType
 			FROM cte c
@@ -49,13 +51,15 @@ BEGIN
 			--MY -> HK
 			UNION ALL
 			SELECT CASE WHEN c.OddsValue > 0 THEN c.OddsValue
+						WHEN c.OddsValue = 0 THEN 0 
 						ELSE CONVERT(DECIMAL(18,2), ROUND(1 / ABS(c.OddsValue), 2, 1)) END AS OddsValue
 					, 2 AS OddsType
 			FROM cte c
 
 			--MY -> INDO
 			UNION ALL
-			SELECT CONVERT(DECIMAL(18,2),-1 / c.OddsValue) AS OddsValue
+			SELECT CASE WHEN c.OddsValue = 0 THEN 0
+					    ELSE CONVERT(DECIMAL(18,2),-1 / c.OddsValue) END AS OddsValue
 					, 3 AS OddsType
 			FROM cte c
 
@@ -67,7 +71,8 @@ BEGIN
 
 			--MY -> US: because values US odds storage, so must /100 after converted
 			UNION ALL
-			SELECT CONVERT(DECIMAL(18,2), (-100 / c.OddsValue) / 100) AS OddsValue
+			SELECT CASE WHEN c.OddsValue = 0 THEN 0
+						ELSE CONVERT(DECIMAL(18,2), (-100 / c.OddsValue) / 100) END AS OddsValue
 					, 5 AS OddsType
 			FROM cte c
 

@@ -40,6 +40,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230818@Max: [TVS] Cancel Cash Out Action - Search by BetID [Redmine: #186624]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240725@Max: [TVS] Return betid to call remoting ref [Redmine: #205983]
 
 	Explanation's Param:
 
@@ -130,7 +131,8 @@ BEGIN
 		ActualStake			MONEY,
 		statuswinlost		TINYINT,
 		modds				SMALLMONEY,
-		SiteDBGroupID		SMALLINT
+		SiteDBGroupID		SMALLINT,
+		BetId				BIGINT,
 	)
 	CREATE INDEX IDX_SpecialDeleteBets_RefNo_Bettype_matchid_custid	
 	ON #SpecialDeleteBets(RefNo, BetType, matchid, custid) INCLUDE(stake)
@@ -219,7 +221,8 @@ BEGIN
 					ActualStake,
 					statuswinlost,
 					modds,
-					SiteDBGroupID
+					SiteDBGroupID,
+					BetId
 			)
 	SELECT 	sub.TransId,
 			sub.BetType,
@@ -259,7 +262,8 @@ BEGIN
 			sub.actual_stake AS ActualStake,
 			sub.statuswinlost,
 			sub.modds,
-			sub.SiteDBGroupID
+			sub.SiteDBGroupID,
+			sub.betid
 	FROM dbo.bettrans sub WITH(NOLOCK)
 		 INNER JOIN dbo.match m WITH(NOLOCK) 
 				 ON m.matchid = sub.matchid
@@ -543,7 +547,8 @@ BEGIN
 			d.MatchCode ,
 			d.ActualStake,
 			d.modds AS MasterOdds,
-			d.SiteDBGroupID
+			d.SiteDBGroupID,
+			d.BetId
 	FROM #SpecialDeleteBets AS d
 	LEFT JOIN #tblCustInfo AS ci ON d.custid = ci.custid
 	LEFT JOIN #tblCustInfo AS ag ON d.recommend = ag.custid	

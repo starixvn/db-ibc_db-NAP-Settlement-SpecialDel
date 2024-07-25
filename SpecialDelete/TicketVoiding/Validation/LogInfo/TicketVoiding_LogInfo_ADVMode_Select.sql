@@ -15,7 +15,8 @@ AS
 	DB: DBCTG/bodb02
 	
 	Revisions: 
-		- 20220727@Max: Create new SP [Redmine:#197051]
+		- 20240522@Max: Create new SP [Redmine:#197051]
+		- 20240727@Max: Modify betid return [Redmine:#197051]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -809,7 +810,7 @@ BEGIN
 		,bt.PlayerAndOdds 
 	FROM (
 		SELECT b.GroupDisplay AS bettypeid
-			,b.Groupbetid AS betid
+			,CASE WHEN ISNULL(b.Groupbetid,'') = '' THEN '0' ELSE b.Groupbetid END AS betid
 			,COUNT(b.transid) AS bettypecount
 			,bt.typenamee AS originalBetTypeName
 			,NULL AS PlayerName
@@ -818,7 +819,7 @@ BEGIN
 			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
 		WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
 			AND ISNULL(b.GroupTransdesc,'') = ''
-		GROUP BY b.GroupDisplay, bt.typenamee, Groupbetid 
+		GROUP BY b.GroupDisplay, bt.typenamee, CASE WHEN ISNULL(b.Groupbetid,'') = '' THEN '0' ELSE b.Groupbetid END 
 	
 		UNION ALL
 		SELECT b.GroupDisplay AS bettypeid
