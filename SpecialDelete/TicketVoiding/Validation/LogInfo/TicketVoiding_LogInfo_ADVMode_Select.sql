@@ -848,13 +848,13 @@ BEGIN
 			SELECT b.GroupDisplay AS bettypeid
 				,COUNT(b.transid) AS bettypecount
 				,bt.typenamee AS originalBetTypeName
-				,CONVERT(INT, b.GroupTransdesc) AS PlayerId
+				,CONVERT(BIGINT, b.GroupTransdesc) AS PlayerId
 			FROM #TVSTicketBets b
 				INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
 			WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
 				AND ISNUMERIC(b.GroupTransdesc) = 1
 				AND b.GroupBettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
-			GROUP BY b.GroupDisplay, bt.typenamee,CONVERT(INT, b.GroupTransdesc) 
+			GROUP BY b.GroupDisplay, bt.typenamee,CONVERT(BIGINT, b.GroupTransdesc) 
 		)t1
 		INNER JOIN dbo.Team t WITH (NOLOCK) ON t.teamid = t1.PlayerId
 	)bt
