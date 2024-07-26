@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02,DBARC-bodb_Archive" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02,DBPRO-bodb02,DBARC-bodb_Archive" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_SD_GetGroupBettypes] ()
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -27,6 +27,7 @@ AS
 		- 20220810@July: Integrate new bet types of Volleyball AIO [Redmine: #175281]
 		- 20230605@Max: [TVS] Integrate more of Cricket's bet types for Special Delete [Redmine: #188969]
 		- 20230831@Max: [TVS] Integrate 4 new bet types of Basketball [Redmine: #192608]
+		- 20240726@Max: [TVS] Integrate new bet type of Baseball AiO [Redmine: #207034]
 
     Parameters Explanation:    
     
@@ -842,6 +843,36 @@ RETURN (
 	UNION ALL SELECT 649,'2H',0
 	UNION ALL SELECT 647,'FT',0
 	UNION ALL SELECT 650,'Special',1
+
+	--Baseball AiO [Redmine: #207034]
+	UNION ALL SELECT 8800,'FT',0
+	UNION ALL SELECT 8801,'FT',0
+	UNION ALL SELECT 8802,'FT',0
+	UNION ALL SELECT 8803,'FT',0
+	UNION ALL SELECT 8804,'Special',1
+	UNION ALL SELECT 8805,'Special',1
+	UNION ALL SELECT 8806,'Special',1
+	UNION ALL SELECT 8807,'Special',1
+	UNION ALL SELECT 8808,'Special',1
+	UNION ALL SELECT 8809,'Special',1
+	UNION ALL SELECT 8810,'Special',1
+	UNION ALL SELECT 8811,'Special',1
+	UNION ALL SELECT 8812,'Special',1
+	UNION ALL SELECT 8813,'Special',1
+	UNION ALL SELECT 8814,'Special',1
+	UNION ALL SELECT 8815,'FT',0
+	UNION ALL SELECT 8816,'FT',0
+	UNION ALL SELECT 8817,'FT',0
+	UNION ALL SELECT 8818,'FT',0
+	UNION ALL SELECT 8819,'Speical',1
+	UNION ALL SELECT 8820,'Speical',1
+	UNION ALL SELECT 8821,'FT',0
+	UNION ALL SELECT 8822,'FT',0
+	UNION ALL SELECT 8823,'Special',1
+	UNION ALL SELECT 8824,'Special',1
+	UNION ALL SELECT 8825,'FT',0
+	UNION ALL SELECT 8826,'FT',0
+	UNION ALL SELECT 8827,'FT',0
 	
 	)
 
