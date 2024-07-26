@@ -17,6 +17,7 @@ AS
 	Revisions: 
 		- 20240522@Max: Create new SP [Redmine:#197051]
 		- 20240727@Max: Modify betid return [Redmine:#197051]
+		- 202407256@Max: Change validation for transdesc [Redmine: #197051]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -818,12 +819,12 @@ BEGIN
 		FROM #TVSTicketBets b
 			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
 		WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-			AND ISNULL(b.GroupTransdesc,'') = ''
+			AND b.GroupBettype NOT IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc())
 		GROUP BY b.GroupDisplay, bt.typenamee, CASE WHEN ISNULL(b.Groupbetid,'') = '' THEN '0' ELSE b.Groupbetid END 
 	
 		UNION ALL
 		SELECT b.GroupDisplay AS bettypeid
-			,NULL AS betid
+			,'0' AS betid
 			,COUNT(b.transid) AS bettypecount
 			,bt.typenamee AS originalBetTypeName
 			,NULL AS PlayerName
@@ -831,13 +832,12 @@ BEGIN
 		FROM #TVSTicketBets b
 			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
 		WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-			AND b.GroupTransdesc <> ''
-			AND b.GroupBettype IN (9662, 9664, 9666, 9663, 9665, 9667)
+			AND b.GroupBettype IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc() WHERE TypeId = 1)
 		GROUP BY b.GroupDisplay, bt.typenamee, b.GroupBetteam +'$'+ CONVERT(NVARCHAR(1000),b.GroupOddsId)
 
 		UNION ALL
 		SELECT t1.bettypeid
-			,NULL AS betid
+			,'0' AS betid
 			,t1.bettypecount
 			,t1.originalBetTypeName
 			,t.teamname AS PlayerName
@@ -847,15 +847,14 @@ BEGIN
 			SELECT b.GroupDisplay AS bettypeid
 				,COUNT(b.transid) AS bettypecount
 				,bt.typenamee AS originalBetTypeName
-				,CONVERT(INT, b.GroupTransdesc) AS PlayerId
+				,CONVERT(BIGINT, b.GroupTransdesc) AS PlayerId
 			FROM #TVSTicketBets b
 				INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
 			WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-				AND b.GroupTransdesc <> ''
-				AND b.GroupBettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
-			GROUP BY b.GroupDisplay, bt.typenamee,CONVERT(INT, b.GroupTransdesc) 
+				AND b.GroupBettype IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc() WHERE TypeId = 0)
+			GROUP BY b.GroupDisplay, bt.typenamee,CONVERT(BIGINT, b.GroupTransdesc) 
 		)t1
-		INNER JOIN dbo.Team t WITH (NOLOCK) ON t.teamid = t1.PlayerId
+		LEFT JOIN dbo.Team t WITH (NOLOCK) ON t.teamid = t1.PlayerId
 	)bt
 	ORDER BY bt.originalBetTypeName
 			,bt.bettypeid 
