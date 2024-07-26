@@ -17,6 +17,7 @@ AS
 	Revisions: 
 		- 20240522@Max: Create new SP [Redmine:#197051]
 		- 20240727@Max: Modify betid return [Redmine:#197051]
+		- 202407256@Max: Change validation for transdesc [Redmine: #197051]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -818,7 +819,7 @@ BEGIN
 		FROM #TVSTicketBets b
 			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
 		WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-			AND ISNULL(b.GroupTransdesc,'') = ''
+			AND ISNUMERIC(b.GroupTransdesc) = 0
 		GROUP BY b.GroupDisplay, bt.typenamee, CASE WHEN ISNULL(b.Groupbetid,'') = '' THEN '0' ELSE b.Groupbetid END 
 	
 		UNION ALL
@@ -831,7 +832,7 @@ BEGIN
 		FROM #TVSTicketBets b
 			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
 		WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-			AND b.GroupTransdesc <> ''
+			AND ISNUMERIC(b.GroupTransdesc) = 0
 			AND b.GroupBettype IN (9662, 9664, 9666, 9663, 9665, 9667)
 		GROUP BY b.GroupDisplay, bt.typenamee, b.GroupBetteam +'$'+ CONVERT(NVARCHAR(1000),b.GroupOddsId)
 
@@ -851,7 +852,7 @@ BEGIN
 			FROM #TVSTicketBets b
 				INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
 			WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-				AND b.GroupTransdesc <> ''
+				AND ISNUMERIC(b.GroupTransdesc) = 1
 				AND b.GroupBettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
 			GROUP BY b.GroupDisplay, bt.typenamee,CONVERT(INT, b.GroupTransdesc) 
 		)t1

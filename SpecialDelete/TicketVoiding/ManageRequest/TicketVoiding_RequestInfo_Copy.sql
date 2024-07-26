@@ -18,6 +18,7 @@ AS
 		- 20240415@July: [TVS] Quickly copy request info for Traders of Cricket [Redmine: #202943]
 		- 20240523@July: [TVS] New issue type Wrong Market Offered & Technical Error [Redmine: #197051/194093]
 		- 20240727@July: Modify betid return [Redmine:#197051]
+		- 202407256@Max: Change validation for transdesc [Redmine: #197051]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -203,7 +204,7 @@ BEGIN
 		INSERT INTO @tmpBettypeCount (BetTypeId, BetId, TicketsCount)
 		SELECT s.BetType, s.BetId, COUNT(1) AS TicketsCount
 		FROM  @tmpTicketInfo s 
-		WHERE s.Transdesc = ''
+		WHERE ISNUMERIC(s.Transdesc) = 0
 		GROUP BY s.BetType, s.BetId
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpTicketInfo WHERE Transdesc <> '') --Cricket
@@ -211,7 +212,7 @@ BEGIN
 			INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, TicketsCount)
 			SELECT s.BetType, s.Transdesc, COUNT(1) AS TicketsCount
 			FROM  @tmpTicketInfo s 
-			WHERE Transdesc <> '' AND s.Bettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
+			WHERE ISNUMERIC(Transdesc) = 1 AND s.Bettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
 			GROUP BY s.BetType, s.Transdesc
 			
 			UPDATE b
