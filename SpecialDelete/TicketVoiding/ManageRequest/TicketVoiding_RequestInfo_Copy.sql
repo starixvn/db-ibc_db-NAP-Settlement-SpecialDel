@@ -204,15 +204,15 @@ BEGIN
 		INSERT INTO @tmpBettypeCount (BetTypeId, BetId, TicketsCount)
 		SELECT s.BetType, s.BetId, COUNT(1) AS TicketsCount
 		FROM  @tmpTicketInfo s 
-		WHERE ISNUMERIC(s.Transdesc) = 0
+		WHERE s.Bettype NOT IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc())
 		GROUP BY s.BetType, s.BetId
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpTicketInfo WHERE Transdesc <> '') --Cricket
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpTicketInfo WHERE Bettype IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc())) --Cricket
 		BEGIN
 			INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, TicketsCount)
 			SELECT s.BetType, s.Transdesc, COUNT(1) AS TicketsCount
 			FROM  @tmpTicketInfo s 
-			WHERE ISNUMERIC(Transdesc) = 1 AND s.Bettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
+			WHERE s.Bettype IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc() WHERE TypeId = 0)
 			GROUP BY s.BetType, s.Transdesc
 			
 			UPDATE b
@@ -223,7 +223,7 @@ BEGIN
 			INSERT INTO @tmpBettypeCount (BetTypeId, PlayerAndOdds, TicketsCount)
 			SELECT s.BetType, s.Betteam +'$'+ s.OddsId, COUNT(1) AS TicketsCount
 			FROM  @tmpTicketInfo s 
-			WHERE Transdesc <> '' AND s.Bettype IN (9662, 9664, 9666, 9663, 9665, 9667)
+			WHERE s.Bettype IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc() WHERE TypeId = 1)
 			GROUP BY s.BetType, s.Betteam +'$'+ s.OddsId
 
 		END
