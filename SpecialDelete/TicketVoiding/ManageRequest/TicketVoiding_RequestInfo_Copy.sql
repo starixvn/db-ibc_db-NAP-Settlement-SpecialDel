@@ -218,7 +218,7 @@ BEGIN
 			UPDATE b
 			SET b.PlayerName = t.teamname
 			FROM @tmpBettypeCount b
-				INNER JOIN dbo.Team t WITH(NOLOCK) ON b.PlayerId = t.teamid
+				LEFT JOIN dbo.Team t WITH(NOLOCK) ON b.PlayerId = t.teamid
 
 			INSERT INTO @tmpBettypeCount (BetTypeId, PlayerAndOdds, TicketsCount)
 			SELECT s.BetType, s.Betteam +'$'+ s.OddsId, COUNT(1) AS TicketsCount

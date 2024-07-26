@@ -805,7 +805,7 @@ BEGIN
 	-- 6. Count detail group by bettype
 	SELECT bt.bettypeid
 		,bt.originalBetTypeName
-		,bt.bettypecount AS TicketsCount
+		,SUM(bt.bettypecount) AS TicketsCount
 		,bt.betid
 		,bt.PlayerName
 		,bt.PlayerAndOdds 
@@ -824,7 +824,7 @@ BEGIN
 	
 		UNION ALL
 		SELECT b.GroupDisplay AS bettypeid
-			,NULL AS betid
+			,'0' AS betid
 			,COUNT(b.transid) AS bettypecount
 			,bt.typenamee AS originalBetTypeName
 			,NULL AS PlayerName
@@ -832,13 +832,13 @@ BEGIN
 		FROM #TVSTicketBets b
 			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
 		WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-			AND ISNUMERIC(b.GroupTransdesc) = 0
+			AND b.GroupTransdesc <> ''
 			AND b.GroupBettype IN (9662, 9664, 9666, 9663, 9665, 9667)
 		GROUP BY b.GroupDisplay, bt.typenamee, b.GroupBetteam +'$'+ CONVERT(NVARCHAR(1000),b.GroupOddsId)
 
 		UNION ALL
 		SELECT t1.bettypeid
-			,NULL AS betid
+			,'0' AS betid
 			,t1.bettypecount
 			,t1.originalBetTypeName
 			,t.teamname AS PlayerName
@@ -856,8 +856,13 @@ BEGIN
 				AND b.GroupBettype NOT IN (9662, 9664, 9666, 9663, 9665, 9667)
 			GROUP BY b.GroupDisplay, bt.typenamee,CONVERT(BIGINT, b.GroupTransdesc) 
 		)t1
-		INNER JOIN dbo.Team t WITH (NOLOCK) ON t.teamid = t1.PlayerId
+		LEFT JOIN dbo.Team t WITH (NOLOCK) ON t.teamid = t1.PlayerId
 	)bt
+	GROUP BY  bt.bettypeid
+		,bt.originalBetTypeName
+		,bt.betid
+		,bt.PlayerName
+		,bt.PlayerAndOdds 
 	ORDER BY bt.originalBetTypeName
 			,bt.bettypeid 
 
