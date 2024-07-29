@@ -126,7 +126,7 @@ BEGIN
 
 	SET @parlayBettype =   CASE WHEN @Sporttype = 188 THEN 10449
 								WHEN @Sporttype IN (190,191,192,194,195,196,197,193) THEN 2799
-								WHEN @Sporttype IN (147,148) THEN 11099
+								WHEN @Sporttype IN (147) THEN 11099
 								ELSE 10449
 						  END
 	

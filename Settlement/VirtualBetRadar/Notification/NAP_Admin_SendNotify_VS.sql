@@ -1,7 +1,6 @@
-/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_SendNotify_VS
 	@MatchId			INT 
-   ,@Sporttype			SMALLINT = 0
 AS
 /*	Creator: 20231215@Louisa
 	Task: Moving function send email to web [Redmine:#194949]
@@ -10,11 +9,11 @@ AS
 	Revisions:
 		- 20231215@Louisa: Initialize
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine:#199700]
-		- 20240704@Aries: VS5 - Virtually Sports [Redmine:#207309]
 */
 BEGIN
 	
 	DECLARE  @totalTicket		INT
+			,@SportType			TINYINT
 			,@MatchIDMainParlay	INT = 0
 			,@BettypeMainParlay	SMALLINT = 0
 
@@ -25,15 +24,11 @@ BEGIN
 		SET @MatchIDMainParlay = 10449
 		SET @BettypeMainParlay = @MatchIDMainParlay
 	END
-	ELSE IF @sportType BETWEEN 190 AND 199
+
+	IF @sportType BETWEEN 190 AND 199
 	BEGIN
 		SET @MatchIDMainParlay = 2799
 		SET @BettypeMainParlay = @MatchIDMainParlay
-	END
-	ELSE IF @SportType IN (147,148)
-	BEGIN
-		SET @MatchIdMainParlay = 11099
-		SET @BettypeMainParlay = @MatchIdMainParlay
 	END
  
 	DECLARE @betTicket	TABLE

@@ -61,7 +61,7 @@ BEGIN
 
     UPDATE  dbo.Match3rd WITH(ROWLOCK, UPDLOCK)
     SET   eventstatus		= @EventStatus
-	     ,BetStatus			= COALESCE(@BetStatus,BetStatus)
+	     ,BetStatus			= @BetStatus
 		 ,hthomescore		= IIF(@HasHTScore = 1, @HTHome, hthomescore)
 		 ,htawayscore		= IIF(@HasHTScore = 1, @HTAway, htawayscore)
 		 ,finalhomescore	= IIF(@HasFTScore = 1, @FTHome, finalhomescore)

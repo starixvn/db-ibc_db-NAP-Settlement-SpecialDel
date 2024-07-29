@@ -12,6 +12,7 @@ AS
 	Revisions:  
 		- 20231016@Aries: Created [Redmine:#195333]
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
+		- 20240704@Aries: VS5 - Virtually Sports [Redmine:#207309]
 		
 	Param explanation:  
 		- @MatchId: Get list ticket running, won, lose, draw
@@ -35,11 +36,11 @@ BEGIN
 
 	SELECT @parlayBettype  = CASE WHEN @Sporttype = 188 THEN 10449
 								  WHEN @Sporttype IN (190,191,192,194,195,196,197,193) THEN 2799
-								  WHEN @Sporttype IN (147,148) THEN 11099	
+								  WHEN @Sporttype IN (147) THEN 11099	
 						          ELSE 0
 						      END
 
-	IF @Sporttype IN (147,148,178,179, 188) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
+	IF @Sporttype IN (147,178,179, 188) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
 	BEGIN
 		IF @Sporttype =  188
 		BEGIN
