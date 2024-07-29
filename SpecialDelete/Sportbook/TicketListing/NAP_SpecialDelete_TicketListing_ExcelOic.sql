@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_ExcelOic]
 	@MatchId					INT,
 	@LicenseeName				VARCHAR(MAX)	= 'ALL',
-	@BetTypes					VARCHAR(1000)	= '',	
+	@BetTypes					VARCHAR(MAX)	= '',	
 	@LiveType					SMALLINT		= 2,	
 	@LiveHomeScore				SMALLINT		= NULL,
     @LiveAwayScore				SMALLINT		= NULL,
@@ -13,7 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_ExcelOic]
     @BallSequence				VARCHAR(200)	= '',
 	@BetTeams					XML				= NULL,
 	@SingleOrSubParlay			VARCHAR(20)	    = 'All',
-	@SelectionType				VARCHAR(200)	= '',
+	@SelectionType				VARCHAR(MAX)	= '',
 	@IsReSettled				BIT				= 0,
 	@AffectTickets				XML				= NULL,
 	@SelectionSubParlays		VARCHAR(200)    = ''
@@ -64,6 +64,7 @@ AS
 		- 20240529@July: [TVS] Ticket Listing - Get affected tickets of Result Amendment for Bet Builder and Other Sports [Redmine: #203615]
 		- 20240614@Max: [TVS] Ticket Listing - Insert data to DB053 [Redmine: #206452]
 		- 20240626@Max: [TVS] Ticket Listing - Adjust code Send Data to OIC [Redmine: #207035]
+		- 20240729@July: Fix data length  [Redmine: #208544]
 
 	Param's Explanation:
 	- @Type: sports type
