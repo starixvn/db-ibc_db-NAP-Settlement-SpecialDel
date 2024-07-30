@@ -13,6 +13,7 @@ AS
 	Revisions: 
 		- 20200309@Raymond: Create new SP [Redmine:#129973]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		
 	Param's explanation:	
 	
@@ -36,7 +37,7 @@ BEGIN
 	SELECT b.transid AS transid
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 	WHERE b.statusID = @TicketStatus
-		AND b.bettype NOT IN (9, 29, 2799, 10449) -- main parlay
+		AND b.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) -- main parlay
 		AND b.bettype NOT IN (911, 912, 913, 914) -- cash out sub ticket
 		AND b.bettype NOT BETWEEN 801 AND 899  -- metric gaming
 		AND b.custid = @MemberId

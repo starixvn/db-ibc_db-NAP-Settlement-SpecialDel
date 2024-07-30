@@ -27,6 +27,8 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+
 
 	Param's Explanation:				
 		- @TransIds : Main transids.				
@@ -50,7 +52,7 @@ BEGIN
 		  , @ErrCode					INT				= 0	
 		  , @SiteDBGroupID				SMALLINT
 		  , @IsExistsVS2				BIT = 0
-		  , @IsExistsVS4				BIT = 0
+		  , @IsExistsVS				BIT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 		  
@@ -258,10 +260,17 @@ BEGIN
 		FROM bettrans b WITH (NOLOCK) 
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK)
 						ON b.refno = bm.refno 
-				INNER JOIN dbo.Match m WITH(NOLOCK)
-						ON bm.matchid = m.matchid			 
-		WHERE b.matchid IN (2799, 10449)
-			AND b.bettype IN (2799, 10449)
+				CROSS APPLY (
+					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode
+					FROM match m WITH (NOLOCK)
+					WHERE m.matchid = @MatchId
+					UNION 
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode
+					FROM Match3rd m WITH (NOLOCK)
+					WHERE m.Match3rdId = @MatchId
+				 )m				 
+		WHERE b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
+			AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
 			AND bm.matchid = @MatchId
 			AND b.statusID NOT IN (101, 102) -- reject, void	
 			AND bm.statusID NOT IN (101, 102) -- reject, void
@@ -280,7 +289,7 @@ BEGIN
 		END
 		
 		SELECT @IsExistsVS2 = CASE WHEN b.SportType BETWEEN 190 AND 199 THEN 1 ELSE 0 END
-			  ,@IsExistsVS4 = CASE WHEN b.SportType = 188 THEN 1 ELSE 0 END
+			  ,@IsExistsVS = CASE WHEN b.SportType IN (188,147) THEN 1 ELSE 0 END
 		FROM #BetDelete b
 
 		IF @IsExistsVS2 = 1 
@@ -293,15 +302,15 @@ BEGIN
 					, @ErrCode = @ErrCode OUTPUT
 					, @ErrMsg	= @ErrMsg OUTPUT
 		END
-		IF @IsExistsVS4 = 1 
+		IF @IsExistsVS = 1 
 		BEGIN
 			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
 			SELECT @MatchId, refno
 			FROM #BetDelete
-			WHERE SportType = 188
+			WHERE SportType IN (188,147)
 
 			EXEC [dbo].[NAP_Admin_CheckingProcess]
-					 @IsLockingByRefnoVS	= @IsExistsVS4	
+					 @IsLockingByRefnoVS	= @IsExistsVS	
 					, @spName = @spName
 					, @IsReleased	= 0
 					, @AvaiableProcess = @AvaiableProcess OUTPUT
@@ -376,7 +385,7 @@ BEGIN
 				, @ErrCode			= @ErrCode OUTPUT
 				, @ErrMsg			= @ErrMsg OUTPUT
 		END
-		IF @IsExistsVS4 = 1 
+		IF @IsExistsVS = 1 
 		BEGIN
 			EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update]
 				  @MatchId			= @MatchId
@@ -409,7 +418,7 @@ BEGIN
 					@IsExistParlayVSBetradar = 1			
 					, @IsReleased	= 1 
 		END
-		IF @IsExistsVS4 = 1 
+		IF @IsExistsVS = 1 
 		BEGIN
 			EXEC [dbo].[NAP_Admin_CheckingProcess]
 					@IsLockingByRefnoVS = 1			
@@ -511,7 +520,7 @@ BEGIN
 						@IsExistParlayVSBetradar = 1			
 					  , @IsReleased	= 1
 			END
-			IF @IsExistsVS4  = 1
+			IF @IsExistsVS  = 1
 			BEGIN
 				EXEC [dbo].[NAP_Admin_CheckingProcess]
 					@IsLockingByRefnoVS = 1			

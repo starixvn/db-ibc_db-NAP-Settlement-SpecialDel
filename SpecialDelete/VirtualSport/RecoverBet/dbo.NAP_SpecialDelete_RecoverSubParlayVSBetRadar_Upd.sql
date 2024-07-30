@@ -23,6 +23,7 @@ AS
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240315@July: Fix null winlostdate follow settle [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -56,7 +57,7 @@ BEGIN
 		  , @SiteDBGroupID				SMALLINT
 		  , @transInfo					VARBINARY(MAX) 
 		  , @IsExistsVS2				BIT = 0
-		  , @IsExistsVS4				BIT = 0
+		  , @IsExistsVS				BIT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT)
@@ -132,7 +133,13 @@ BEGIN
 				, @betstatus = betstatus
 		FROM dbo.match (NOLOCK)
 		WHERE matchid = @MatchId
-			 
+		UNION
+		SELECT @matchdate = eventdate
+			, @eventstatus = eventstatus
+			, @betstatus = betstatus
+		FROM dbo.match3rd (NOLOCK)
+		WHERE Match3rdId = @MatchId 
+
 		/*Modify the way to get move bet date*/
 		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 		
@@ -257,13 +264,20 @@ BEGIN
 		FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN bettransm bm WITH (NOLOCK)
 						ON b.refno = bm.refno				
-				INNER JOIN dbo.Match m WITH(NOLOCK)
-						ON	m.matchid = bm.matchid
+				 CROSS APPLY (
+					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode, m.eventdate
+					FROM match m WITH (NOLOCK)
+					WHERE m.matchid = @MatchId
+					UNION 
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode, m.EventDate
+					FROM Match3rd m WITH (NOLOCK)
+					WHERE m.Match3rdId = @MatchId
+				 )m	
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 			AND bm.matchid = @MatchId	
 			AND bm.winlostdate >= @before_yesterday
-			AND b.bettype IN (2799, 10449)
-			AND b.matchid IN (2799, 10449)
+			AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
+			AND b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
 			AND bm.statusid = 102
 			AND b.statusID NOT IN (101, 102) -- reject, void
 			AND b.SiteDBGroupID = @SiteDBGroupID
@@ -283,20 +297,20 @@ BEGIN
 		--> Check Concurrency
 		
 		SELECT @IsExistsVS2 = CASE WHEN b.SportType BETWEEN 190 AND 199 THEN 1 ELSE 0 END
-			  ,@IsExistsVS4 = CASE WHEN b.SportType = 188 THEN 1 ELSE 0 END
+			  ,@IsExistsVS = CASE WHEN b.SportType IN (188,147) THEN 1 ELSE 0 END
 		FROM #RecoverBet b
 
-		IF @IsExistsVS4 = 1
+		IF @IsExistsVS = 1
 		BEGIN
 			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
 			SELECT @MatchId, refno
 			FROM #RecoverBet
-			WHERE SportType = 188
+			WHERE SportType IN (188,147)
 		END
 				
 		EXEC dbo.NAP_Admin_CheckingProcess
 			  @IsExistParlayVSBetradar	= @IsExistsVS2		
-			, @IsLockingByRefnoVS		= @IsExistsVS4
+			, @IsLockingByRefnoVS		= @IsExistsVS
 			, @spName					= @spName
 			, @avaiableProcess 			= @avaiableProcess OUTPUT
 			, @ErrCode					= @ErrCode OUTPUT
@@ -384,7 +398,7 @@ BEGIN
 							, @ErrCode = @ErrCode OUTPUT
 							, @ErrMsg = @ErrMsg OUTPUT
 				END
-				IF @IsExistsVS4 = 1
+				IF @IsExistsVS = 1
 				BEGIN
 					EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update] 
 							  @mode = 'RECOVER'
@@ -414,7 +428,7 @@ BEGIN
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg			= @ErrMsg OUTPUT		
 		END
-		IF @IsExistsVS4 = 1
+		IF @IsExistsVS = 1
 		BEGIN
 			EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update]
 					 @MatchId			= @matchId
@@ -466,7 +480,7 @@ BEGIN
 		--> Release Concurrency process
 		EXEC dbo.NAP_Admin_CheckingProcess
 				@IsExistParlayVSBetradar	= @IsExistsVS2
-			, @IsLockingByRefnoVS		= @IsExistsVS4
+			, @IsLockingByRefnoVS		= @IsExistsVS
 			, @IsReleased				= 1	
 			
 		--> Build list of customer name with negative balance
@@ -589,7 +603,7 @@ BEGIN
 			--> Release Concurrency process
 			EXEC dbo.NAP_Admin_CheckingProcess
 				  @IsExistParlayVSBetradar	= @IsExistsVS2
-				, @IsLockingByRefnoVS		= @IsExistsVS4
+				, @IsLockingByRefnoVS		= @IsExistsVS
 				, @IsReleased				= 1	
 
 		SELECT @ErrCode AS ErrorCode

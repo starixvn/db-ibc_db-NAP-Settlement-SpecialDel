@@ -23,6 +23,7 @@ AS
 		- 20230606@July: Void permission - Add bet types of SABA Time Machine to Instant Settle list [Redmine: #188454]
 	    - 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's Explanation:
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
@@ -200,7 +201,7 @@ BEGIN
 		END
 	FROM #tmpTransInfo b
 		LEFT JOIN @SupportInstantSettleSABABettype ib ON b.bettype = ib.bettype
-	WHERE b.matchid NOT IN (9, 29, 2799, 10449) 
+	WHERE b.matchid NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
 		AND ISNULL(b.betdaqid,0) <> -2
 		AND b.statusID IN (111, 112, 113) 
 

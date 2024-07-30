@@ -15,6 +15,7 @@ AS
 		- 20230526@July: Create new SP [Redmine:#188152]
 		- 20230706@Kathy: Add new column winlostdate [Redmine:#190978]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
     Param's explanation:
        
@@ -170,12 +171,12 @@ BEGIN
 		IF @transInfo IS NOT NULL
 		BEGIN
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-			SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo, CASE WHEN @MatchId IN (29, 2799, 10449) THEN 'p' ELSE 's' END
+			SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo, CASE WHEN @MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'p' ELSE 's' END
 		END
 		IF @transInfo3rd IS NOT NULL
 		BEGIN
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-			SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo3rd, CASE WHEN @MatchId IN (29, 2799, 10449) THEN 'p' ELSE 's' END, 2
+			SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo3rd, CASE WHEN @MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'p' ELSE 's' END, 2
 		END
 	END
 	

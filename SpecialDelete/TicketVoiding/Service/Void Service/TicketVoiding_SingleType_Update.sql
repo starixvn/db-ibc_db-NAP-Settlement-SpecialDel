@@ -57,6 +57,7 @@ AS
 		- 20230712@Max: Scale out credit - Fix issue child match cricket [Redmine: #181595]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:	
@@ -209,7 +210,7 @@ BEGIN
 	END
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799, 10449)))
+	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
@@ -219,7 +220,7 @@ BEGIN
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
 		
-		WHERE bettype NOT IN (9, 29, 2799, 10449)
+		WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 			
 	END
 	
@@ -262,17 +263,17 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
-	IF EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (9,29,2799,10449))
+	IF EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)))
 	BEGIN
 		UPDATE #tmpTransId
 		SET eventdate = winlostdate
-		WHERE bettype IN (9,29,2799,10449)	
+		WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))	
 	END
 
 	-- remove un-supported sports & bettype
 	DELETE bd
 	FROM #tmpTransId bd
-	WHERE bettype NOT IN (9, 29, 2799, 10449)
+	WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		AND (
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
@@ -290,11 +291,11 @@ BEGIN
 		WHERE eventdate <= @Movebetdate
 
 		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
-									  , CASE WHEN t.MatchId IN (9,29,2799,10449) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
+									  , CASE WHEN t.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
 								FROM @tblTransId_MoveBet t
 									OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 													FROM @tblTransId_MoveBet s
-													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799,10449)
+													WHERE s.MatchId = t.MatchId AND t.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 													FOR XML PATH('')
 												)ts	 (TransIds)
 								FOR XML PATH('r'), ROOT('root')
@@ -309,7 +310,7 @@ BEGIN
 		RETURN
 	END
 
-	IF @MatchId IN (9,29,10449)
+	IF @MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1) AND bettype <> 2799)
 	BEGIN
 		SET @isExistParlay = 1
 
@@ -339,7 +340,7 @@ BEGIN
 				,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 				,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 				,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
-				,@IsExistParlayVS4			= MAX (CASE WHEN bettype = 10449 THEN 1 ELSE 0 END)
+				,@IsExistParlayVS4			= MAX (CASE WHEN bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1) AND bettype <> 2799) THEN 1 ELSE 0 END)
 				,@IsExistVS4				= MAX (CASE WHEN sporttype = 188 THEN 1 ELSE 0 END)
 		FROM	#tmpTransId b
 			OUTER APPLY (
@@ -355,7 +356,7 @@ BEGIN
 		INSERT INTO #tblMatchProcess(matchid, KeyID)
 		SELECT DISTINCT matchid
 			, CASE 
-				WHEN Bettype NOT IN (9, 29, 2799, 10449, 10, 38) 
+				WHEN Bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes()) 
 						AND Bettype NOT BETWEEN 801 AND 899
 						AND f.GroupId IS NULL
 						AND Bettype NOT IN (1231,1232,1233)
@@ -480,6 +481,7 @@ BEGIN
 			OR b.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
+			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -681,6 +683,7 @@ BEGIN
 			OR tmp.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
+			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -850,7 +853,7 @@ BEGIN
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = c.site
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
-				WHERE b.MainMatchId = @MatchId AND b.sporttype = @sporttype AND b.bettype NOT IN (9,29,2799,10449)
+				WHERE b.MainMatchId = @MatchId AND b.sporttype = @sporttype AND b.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 				FOR XML PATH('r'), ROOT('root')
 			)
 

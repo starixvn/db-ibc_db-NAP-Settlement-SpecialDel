@@ -12,6 +12,7 @@ AS
 	
 	Revisions: 
 		- 20240219@July: Create new SP - [Redmine: #200317]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 */
 BEGIN
@@ -31,9 +32,13 @@ BEGIN
 				FROM dbo.VSOutright o WITH (NOLOCK)
 					INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) ON r.EventID = o.EventID
 				WHERE s.SportType = r.sporttype AND o.Orid = @MatchId
-					 AND r.sporttype BETWEEN 181 AND 185 -- Inspired VS 181		
+					 AND r.sporttype BETWEEN 181 AND 185 -- Inspired VS 181	
+				UNION ALL	 
+				SELECT TOP 1 m.sporttype
+				FROM dbo.Match3rd m WITH (NOLOCK) 
+				WHERE s.SportType = m.sporttype AND m.Match3rdId = @MatchId
 			)m
-		WHERE s.ProductID IN (5,27,77,83)
+		WHERE s.ProductID IN (5,27,77,83,88)
 		)
         
     IF @ProductId IS NULL
@@ -54,6 +59,8 @@ BEGIN
 		 INSERT INTO #betTypesTemp (bettype) VALUES (2799)
 	IF @ProductId = 83 --VS4
 		 INSERT INTO #betTypesTemp (bettype) VALUES (10449)
+	IF @ProductId = 88 --VS5
+		INSERT INTO #betTypesTemp (bettype) VALUES (11099)
 		
     SELECT b.typeid AS Id
          , b.typenamee AS Name

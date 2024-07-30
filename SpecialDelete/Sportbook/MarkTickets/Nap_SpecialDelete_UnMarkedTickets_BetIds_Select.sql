@@ -26,6 +26,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Explanation's Param:
 */
@@ -44,9 +45,9 @@ BEGIN
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 	WHERE pt.ProductID = 1 -- Sportsbook
-		AND pt.bettype NOT IN (10, 9, 29, 2799, 10449) -- Outright, Mix Parlay
+		AND pt.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes()) -- Outright, Mix Parlay,Bet Builder
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
-		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+		AND pt.SubProduct NOT IN ('MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND pt.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
 

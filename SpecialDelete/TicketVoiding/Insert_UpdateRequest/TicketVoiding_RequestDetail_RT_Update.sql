@@ -19,6 +19,7 @@ AS
 		- 20240102@July: Create new SP [Redmine:#196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's explanation:	
 		
@@ -99,7 +100,7 @@ BEGIN
 		WHERE RequestId = @RequestId
 	END
 
-	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE MatchId IN (9,29,2799, 10449)) --parlay
+	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))) --parlay
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
 		SELECT DISTINCT @RequestId
@@ -108,7 +109,7 @@ BEGIN
 				, 0
 				, 0
 		FROM #tmpMatch
-		WHERE matchid IN (9,29,2799, 10449)
+		WHERE matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 		
 	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE IsOutright = 0 AND IsMoved14 = 0) --match

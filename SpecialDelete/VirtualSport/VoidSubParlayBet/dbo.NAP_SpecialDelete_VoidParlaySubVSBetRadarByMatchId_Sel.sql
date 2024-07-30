@@ -16,6 +16,7 @@ AS
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's Explanation:		
 		
@@ -76,8 +77,15 @@ BEGIN
 	FROM bettrans b WITH (NOLOCK) 
 		 INNER JOIN dbo.bettransm bm WITH (NOLOCK)
 				 ON b.refno = bm.refno 
-		 INNER JOIN match m WITH (NOLOCK)
-				 ON bm.matchid = m.matchid
+		 CROSS APPLY (
+			SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode
+			FROM match m WITH (NOLOCK)
+			WHERE m.matchid = @MatchId
+			UNION 
+			SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode
+			FROM Match3rd m WITH (NOLOCK)
+			WHERE m.Match3rdId = @MatchId
+		 )m
 		 INNER JOIN #tblBettype bt
 				 ON bm.bettype = bt.bettype
 		 OUTER APPLY (SELECT CAST(CASE 
@@ -100,8 +108,8 @@ BEGIN
 											THEN 'Deposit'																			
 								ELSE ''							
 							 END AS GroupName) AS T2
-	WHERE b.matchid IN (2799, 10449)
-	  AND b.bettype IN (2799, 10449)
+	WHERE b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
+	  AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
 	  AND bm.matchid = @MatchId
 	  AND b.statusID NOT IN (101, 102) -- reject, void	
 	  AND bm.statusID NOT IN (101, 102) -- reject, void	

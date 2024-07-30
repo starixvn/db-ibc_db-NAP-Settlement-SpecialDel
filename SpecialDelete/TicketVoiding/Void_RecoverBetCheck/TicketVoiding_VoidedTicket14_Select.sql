@@ -15,6 +15,7 @@ AS;
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's explanation:	
 		
@@ -157,7 +158,7 @@ BEGIN
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799, 10449)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE t
 		SET  matchcode 	= m.matchcode
@@ -170,7 +171,7 @@ BEGIN
 		FROM #tmpTicket t
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
 			ON	t.matchid = m.matchid
-		WHERE t.bettype NOT IN (9, 29, 2799, 10449)
+		WHERE t.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 	-- UPDATE eventtype = 2 [Outright bettype]
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (10)))
@@ -207,12 +208,12 @@ BEGIN
 		WHERE t.bettype IN (1231,1232,1233,1237,1238)
 	END
 	-- UPDATE IsMixParlay
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (9, 29, 2799, 10449)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE t
 		SET IsMixParlay = 1
 		FROM #tmpTicket t
-		WHERE t.bettype IN (9, 29, 2799, 10449)
+		WHERE t.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN

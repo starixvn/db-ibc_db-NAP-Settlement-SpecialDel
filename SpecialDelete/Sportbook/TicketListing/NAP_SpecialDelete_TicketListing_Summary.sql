@@ -85,6 +85,7 @@ AS
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
 		- 20240529@July: [TVS] Ticket Listing - Get affected tickets of Result Amendment for Bet Builder and Other Sports [Redmine: #203615]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240729@July: Fix data length  [Redmine: #208544]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
@@ -785,7 +786,7 @@ BEGIN
 	END
 	
 	-- System parlay - Virtual Sports (VS2: 2799 & VS4: 10449) -- NOTE: bettypes don't have filter Advance Mode 
-	IF EXISTS (SELECT 1 FROM @tmpBettypes WHERE bettype IN (2799, 10449))
+	IF EXISTS (SELECT 1 FROM @tmpBettypes WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)))
 	BEGIN
 		INSERT INTO #CTE_ParlayVSTickets(
 				TransId
@@ -804,8 +805,8 @@ BEGIN
 			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 		WHERE b.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
-			AND b.bettype IN (2799, 10449)
-			AND b.matchid IN (2799, 10449)
+			AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+			AND b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 			AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END

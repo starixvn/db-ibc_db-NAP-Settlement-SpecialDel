@@ -21,6 +21,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -51,7 +52,7 @@ BEGIN
 		  , @SiteDBGroupID				SMALLINT
 		  , @transInfo					VARBINARY(MAX) 
 		  , @IsExistsVS2				BIT = 0
-		  , @IsExistsVS4				BIT = 0
+		  , @IsExistsVS				BIT = 0
 		  , @bettype					SMALLINT
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
@@ -245,8 +246,8 @@ BEGIN
 						AND z.bettype = b.bettype			 
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)		
 			AND z.winlostdate >= @before_yesterday
-			AND z.matchid IN (2799, 10449)
-			AND z.bettype IN (2799, 10449)	
+			AND z.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
+			AND z.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))	
 			AND z.SiteDBGroupID = @SiteDBGroupID
 				
 		IF @@ROWCOUNT = 0
@@ -279,20 +280,20 @@ BEGIN
 			
 		--> Check Concurrency
 		SELECT @IsExistsVS2 = CASE WHEN z.bettype = 2799 THEN 1 ELSE 0 END
-			  ,@IsExistsVS4 = CASE WHEN z.bettype = 10449 THEN 1 ELSE 0 END
+			  ,@IsExistsVS = CASE WHEN z.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1) AND Bettype <> 2799) THEN 1 ELSE 0 END
 		FROM #RecoverBet z
 
-		IF @IsExistsVS4 = 1
+		IF @IsExistsVS = 1
 		BEGIN
 			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-			SELECT 10449, refno
+			SELECT bettype, refno
 			FROM #RecoverBet
-			WHERE bettype = 10449
+			WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1) AND Bettype <> 2799)
 		END
 				
 		EXEC dbo.NAP_Admin_CheckingProcess
 			  @IsExistParlayVSBetradar	= @IsExistsVS2	
-			, @IsLockingByRefnoVS		= @IsExistsVS4
+			, @IsLockingByRefnoVS		= @IsExistsVS
 			, @spName					= @spName
 			, @avaiableProcess 			= @avaiableProcess OUTPUT
 			, @ErrCode					= @ErrCode OUTPUT
@@ -380,16 +381,15 @@ BEGIN
 			END	
 			DELETE FROM #MatchInfo
 		END
-		IF @IsExistsVS4 = 1
+		IF @IsExistsVS = 1
 		BEGIN
-			SET @bettype = 10449
-
+			--VS4
 			--> Update Bettrans	to running
 			SET @_xml = (
 				SELECT t.transid '@q' -- transid			 
 						, t.creator '@cr' -- creator			 
 				FROM #RecoverBet t					 
-				WHERE t.BetType = @bettype
+				WHERE t.BetType = 10449
 				FOR XML PATH('r'), ROOT('root'), TYPE
 			) 
 			SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
@@ -399,6 +399,23 @@ BEGIN
 				, @updatetype 	= 6
 				, @_sXML 		= @_sXML
 				, @matchId		= 10449
+
+			--VS5
+			--> Update Bettrans	to running
+			SET @_xml = (
+				SELECT t.transid '@q' -- transid			 
+						, t.creator '@cr' -- creator			 
+				FROM #RecoverBet t					 
+				WHERE t.BetType = 11099
+				FOR XML PATH('r'), ROOT('root'), TYPE
+			) 
+			SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+			
+			EXEC dbo.Bet_ExecRep_05 
+				  @IgnoreList 	= @IgnoreList
+				, @updatetype 	= 6
+				, @_sXML 		= @_sXML
+				, @matchId		= 11099
 			
 			--> get match list
 			INSERT INTO #MatchInfo(matchid, matchdate)
@@ -409,7 +426,7 @@ BEGIN
 							ON bm.refno = t.refno
 					INNER JOIN match m (NOLOCK)
 							ON bm.matchid = m.matchid
-			WHERE t.BetType = @bettype
+			WHERE t.BetType IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1) AND Bettype <> 2799)
 			GROUP BY bm.matchid, m.eventdate
 			
 			SET @cnt_match = @@ROWCOUNT
@@ -418,7 +435,7 @@ BEGIN
 			SELECT @strRefnos = CAST((
 					SELECT refno AS '@rn'
 					FROM #RecoverBet				
-					WHERE bettype = @bettype
+					WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1) AND Bettype <> 2799)
 					FOR XML PATH('r'), ROOT('root'), TYPE
 			) AS VARCHAR(MAX))						 
 						 
@@ -503,7 +520,7 @@ BEGIN
 		--> Release Concurrency process
 		EXEC dbo.NAP_Admin_CheckingProcess
 				 @IsExistParlayVSBetradar	= @IsExistsVS2	
-			, @IsLockingByRefnoVS		= @IsExistsVS4			
+			, @IsLockingByRefnoVS		= @IsExistsVS		
 			, @IsReleased				= 1	
 			
 		--> Build list of customer name with negative balance
@@ -626,7 +643,7 @@ BEGIN
 			--> Release Concurrency process
 			EXEC dbo.NAP_Admin_CheckingProcess
 				   @IsExistParlayVSBetradar	= @IsExistsVS2	
-				, @IsLockingByRefnoVS		= @IsExistsVS4		
+				, @IsLockingByRefnoVS		= @IsExistsVS		
 				, @IsReleased				= 1	
 
 		SELECT @ErrCode AS ErrorCode

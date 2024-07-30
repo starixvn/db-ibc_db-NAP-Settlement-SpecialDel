@@ -26,6 +26,7 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's Explanation:				
 		- @SubTransIds : TransIds of sub parlay tickets				
@@ -54,7 +55,7 @@ BEGIN
 		  , @SiteDBGroupID		SMALLINT
 		  , @Sporttype					SMALLINT
 		  , @IsExistsVS2				BIT = 0
-		  , @IsExistsVS4				BIT = 0
+		  , @IsExistsVS				BIT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
@@ -317,10 +318,17 @@ BEGIN
 			 INNER JOIN bettrans b WITH (NOLOCK) 
 			  		 ON b.refno = bm.refno 
 					    AND b.custid = bm.custid
-			 INNER JOIN match m WITH(NOLOCK)
-					 ON bm.matchid = m.matchid			 
-		WHERE b.matchid IN (2799, 10449)
-		  AND b.bettype IN (2799, 10449)	
+			 CROSS APPLY (
+					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode, m.eventdate
+					FROM match m WITH (NOLOCK)
+					WHERE m.matchid = @MatchId
+					UNION 
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode, m.EventDate
+					FROM Match3rd m WITH (NOLOCK)
+					WHERE m.Match3rdId = @MatchId
+				 )m			 
+		WHERE b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
+		  AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))	
 		  AND b.statusID NOT IN (101, 102) -- reject, void		
 		OPTION(OPTIMIZE FOR (@SubTickets_Count = 1))			
 			  
@@ -352,10 +360,10 @@ BEGIN
 
 		--> Check Concurrency
 		SELECT @IsExistsVS2 = CASE WHEN Sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END
-			  ,@IsExistsVS4 = CASE WHEN Sporttype = 188 THEN 1 ELSE 0 END
+			  ,@IsExistsVS = CASE WHEN Sporttype = 188 THEN 1 ELSE 0 END
 		FROM #tmpBetDelete
 
-		IF @IsExistsVS4 = 1
+		IF @IsExistsVS = 1
 		BEGIN
 			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
 			SELECT DISTINCT bm.matchid, bm.refno
@@ -365,7 +373,7 @@ BEGIN
 
 		EXEC [dbo].[NAP_Admin_CheckingProcess]
 				@IsExistParlayVSBetradar = @IsExistsVS2		
-				, @IsLockingByRefnoVS		= @IsExistsVS4
+				, @IsLockingByRefnoVS		= @IsExistsVS
 				, @spName		= @spName
 				, @IsReleased	= 0
 				, @AvaiableProcess = @AvaiableProcess OUTPUT
@@ -459,7 +467,7 @@ BEGIN
 					, @ErrCode			= @ErrCode OUTPUT
 					, @ErrMsg			= @ErrMsg OUTPUT
 			END
-			IF @sporttype = 188 --VS4
+			IF @sporttype IN (188,147) --VS4, VS5
 			BEGIN
 				EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update]
 					  @MatchId			= @MatchId
@@ -490,7 +498,7 @@ BEGIN
 		--> Release Concurrency process	
 		EXEC [dbo].[NAP_Admin_CheckingProcess]
 				@IsExistParlayVSBetradar = @IsExistsVS2		
-				, @IsLockingByRefnoVS		= @IsExistsVS4		
+				, @IsLockingByRefnoVS		= @IsExistsVS		
 				, @IsReleased	= 1 
 		
 		--> Get list of customer name with negative balance
@@ -584,7 +592,7 @@ BEGIN
 			--> Release Concurrency process	
 			EXEC [dbo].[NAP_Admin_CheckingProcess]
 					@IsExistParlayVSBetradar = @IsExistsVS2		
-				, @IsLockingByRefnoVS		= @IsExistsVS4
+				, @IsLockingByRefnoVS		= @IsExistsVS
 				  , @IsReleased	= 1	
 
 		SELECT @ErrCode AS ErrorCode

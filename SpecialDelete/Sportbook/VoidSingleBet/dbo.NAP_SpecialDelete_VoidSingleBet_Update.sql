@@ -139,6 +139,7 @@ AS
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
 		- 20240321@Max: [TVS] Remove parameters when calling SP for settling parlay tickets [Redmine: #202022]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's Explanation: Special bet delete option
@@ -599,7 +600,7 @@ BEGIN
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT DISTINCT b.matchid
 			, CASE 
-				WHEN Bettype NOT IN (9, 29, 2799, 10449, 10, 38) 
+				WHEN Bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes()) 
 						AND Bettype NOT BETWEEN 801 AND 899
 						AND f.GroupId IS NULL
 						AND Bettype NOT IN (1231,1232,1233)
@@ -1372,7 +1373,7 @@ BEGIN
 	END	
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE d
 		SET eventstatus = ISNULL(m.eventstatus,'')
@@ -1380,7 +1381,7 @@ BEGIN
 		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
+		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -1959,7 +1960,7 @@ BEGIN
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 						INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = c.site
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
-					WHERE bettype NOT IN (29,2799, 10449)
+					WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 					FOR XML PATH('r'), ROOT('root')
 				)
 

@@ -19,6 +19,7 @@ AS
 	Revisions:  				
 		- 20240220@July: Create new SP - Support re-cal sub & main parlay  [Redmine: #200087]
 		- 20240315@July: Fix null winlostdate follow settle [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's Explanation:				
 		- @strRefnos : Refno Maintransids.
@@ -262,7 +263,8 @@ BEGIN
 		, StatusID, modds, winlostdate
 		, currency, transdate
 	FROM dbo.bettrans b WITH(NOLOCK)
-	WHERE b.matchid = 10449 AND b.bettype = 10449
+	WHERE b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1) AND bettype <> 2799)
+		AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1) AND bettype <> 2799)
 		AND b.statusID NOT IN (101,102) --('VOID','REJECT')	
 		AND EXISTS (SELECT 1 FROM @tmpRefnos WHERE refno = b.refno)
 
