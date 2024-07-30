@@ -25,6 +25,7 @@ AS
 		- 20231030@July: [TVS] Integrate a new sport type "Virtual Football League" [Redmine: #195313]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -43,7 +44,7 @@ BEGIN
 		  , @IsExistVSBetradar			  BIT = 0
 		  , @IsExistInspiredVS			  BIT = 0
 		  , @IsExistVS3					  BIT = 0
-		  , @IsExistVS4					  BIT = 0
+		  , @IsExistVS4_5				  BIT = 0
 		  , @isITAdmin					  BIT = 0
 		  , @before_yesterday			  DATETIME
 		  , @cnt_Ticket					  INT = 0
@@ -307,6 +308,7 @@ BEGIN
 					WHEN m.sporttype IN (180, 186) THEN 2 -- Inspired VS 180
 					WHEN m.sporttype IN (178, 179) THEN 4 -- VS 3 (Leap Gaming)
 					WHEN m.sporttype IN (188) THEN 5 -- VS 4 (Edge Gaming)
+					WHEN m.sporttype IN (147) THEN 6 -- VS 5
 					ELSE NULL
 				END AS TicketType
 				,b.currency
@@ -316,15 +318,22 @@ BEGIN
 						AND z.custid = b.custid
 						AND z.matchid = b.matchid					
 						AND z.bettype = b.bettype
-			 INNER JOIN dbo.match m WITH(NOLOCK)
-					 ON m.matchid = b.matchid						 
+			  CROSS APPLY (
+					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode, m.eventdate
+					FROM match m WITH (NOLOCK)
+					WHERE m.matchid = z.matchid
+					UNION 
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode, m.EventDate
+					FROM Match3rd m WITH (NOLOCK)
+					WHERE m.Match3rdId = z.matchid
+				 )m							 
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 		  AND z.winlostdate >= @before_yesterday
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
-				OR m.sporttype IN (180, 186, 178, 179, 188) -- Inspired VS 180, VS3(Leap Gaming), VS4(Edge Gaming)
+				OR m.sporttype IN (180, 186, 178, 179, 188, 147) -- Inspired VS 180, VS3(Leap Gaming), VS4(Edge Gaming), VS5
 			 )
-		  AND z.bettype NOT IN (2799, 10449)
+		  AND z.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
 		  AND z.SiteDBGroupID = @SiteDBGroupID
 		  
 		SET @cnt_Ticket = @cnt_Ticket + @@ROWCOUNT	
@@ -475,7 +484,7 @@ BEGIN
 			 , @IsExistVS		  = MAX(CASE WHEN TicketType = 3 THEN 1 ELSE 0 END)			 
 			 , @IsExistVSBetradar = MAX(CASE WHEN TicketType = 1 THEN 1 ELSE 0 END)
 			 , @IsExistVS3		  = MAX(CASE WHEN TicketType = 4 THEN 1 ELSE 0 END)
-			 , @IsExistVS4		  = MAX(CASE WHEN TicketType = 5 THEN 1 ELSE 0 END)
+			 , @IsExistVS4_5	  = MAX(CASE WHEN TicketType = 5 THEN 1 ELSE 0 END)
 			 , @IsExistInspiredVS = MAX(CASE WHEN TicketType IN (2, 3) THEN 1 ELSE 0 END)
 		FROM #RecoverBet
 			
@@ -729,7 +738,7 @@ BEGIN
 			END						
 		END	
 		
-		IF @IsExistVS3 = 1 OR @IsExistVS4 = 1
+		IF @IsExistVS3 = 1 OR @IsExistVS4_5 = 1
 		BEGIN	
 			INSERT INTO @tmpMatchId (MatchId)
 			SELECT DISTINCT b.MatchId
@@ -749,7 +758,7 @@ BEGIN
 			) AS tbl
 				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 				ON	sp.ResourceID = tbl.Id
-			WHERE sp.SportType IN (178, 179, 188)
+			WHERE sp.SportType IN (178, 179, 188, 147)
 
 			UPDATE r SET 
 				 r.actualPO = CASE

@@ -20,6 +20,7 @@ AS
 		- 20231030@July: [TVS] Integrate a new sport type "Virtual Football League" [Redmine: #195313]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -190,16 +191,23 @@ BEGIN
 						AND z.custid = b.custid
 						AND z.matchid = b.matchid					
 						AND z.bettype = b.bettype
-			 INNER JOIN dbo.match m WITH(NOLOCK)
-					 ON m.matchid = b.matchid
+			  CROSS APPLY (
+					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode, m.eventdate
+					FROM match m WITH (NOLOCK)
+					WHERE m.matchid = @MatchId
+					UNION 
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode, m.EventDate
+					FROM Match3rd m WITH (NOLOCK)
+					WHERE m.Match3rdId = @MatchId
+				 )m
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 		  AND z.winlostdate >= @before_yesterday
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
 				OR m.sporttype IN (180, 186) -- Inspired VS 
-				OR m.sporttype IN (178, 179, 188) -- VS3(Leap Gaming), VS4(Edge Gaming) 
+				OR m.sporttype IN (178, 179, 188, 147) -- VS3(Leap Gaming), VS4(Edge Gaming) 
 			  )
-		  AND z.bettype NOT IN (2799, 10449)		  		
+		  AND z.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))		  		
 		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
 
 		--> Inspired VS 181
@@ -434,8 +442,8 @@ BEGIN
 						AND z.bettype = b.bettype			 
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 		  AND z.winlostdate >= @before_yesterday
-		  AND z.matchid IN (2799, 10449)	
-		  AND z.bettype IN (2799, 10449)	  
+		  AND z.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))	
+		  AND z.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))	  
 		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
 
 		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
@@ -570,13 +578,20 @@ BEGIN
 		FROM dbo.bettrans b WITH (NOLOCK)
 			 INNER JOIN bettransm bm WITH (NOLOCK)
 					 ON b.refno = bm.refno			 			
-			 INNER JOIN dbo.match m WITH(NOLOCK)
-					 ON	m.matchid = bm.matchid
+			 CROSS APPLY (
+					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode, m.eventdate
+					FROM match m WITH (NOLOCK)
+					WHERE m.matchid = @MatchId
+					UNION 
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode, m.EventDate
+					FROM Match3rd m WITH (NOLOCK)
+					WHERE m.Match3rdId = @MatchId
+				 )m
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 		  AND bm.matchid = @MatchId	
 		  AND bm.winlostdate >= @before_yesterday
-		  AND b.bettype IN (2799, 10449)	
-		  AND b.matchid IN (2799, 10449)	
+		  AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))	
+		  AND b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))	
 		  AND bm.statusid = 102
 		  AND b.statusID NOT IN (101, 102) -- reject, void		  		  		
 		  AND b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = b.SiteDBGroupID

@@ -11,6 +11,7 @@ AS
 	
 	Revisions: 
 		- 20240102@July: Create new SP [Redmine:#196020]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		
 	Param's explanation:	
@@ -187,7 +188,7 @@ BEGIN
 	SET d.matchid = m.ParentID
 	FROM #TransInfo d
 		INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
-	WHERE d.bettype NOT IN (9, 29, 2799, 10449)
+	WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 
 	IF EXISTS (SELECT TOP(1) 1 
 				FROM #transIdTemp t
@@ -288,7 +289,7 @@ BEGIN
 			AND b.betfrom <> 'p'
 			AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
 			AND ISNULL(z.comstatus,'') <> 'CO'
-			AND 1 = CASE WHEN b.bettype NOT IN (9,29,2799,10449) AND b.statuswinlost IS NULL THEN 0 ELSE 1 END --not support recover ticket single do not have statuswinlost in range 14
+			AND 1 = CASE WHEN b.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) AND b.statuswinlost IS NULL THEN 0 ELSE 1 END --not support recover ticket single do not have statuswinlost in range 14
 
 		--exclude main parlay with refno not exists in BetParlayResults & all combine not completed
 		DELETE t
@@ -300,7 +301,7 @@ BEGIN
 				)rs
 		WHERE rs.refno IS NULL
 			AND t.IsMoved14 = 1
-			AND t.matchid IN (9,29,2799,10449)
+			AND t.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 
 		DELETE t
 		FROM #TransInfo t
@@ -311,14 +312,14 @@ BEGIN
 						AND b.statusid = 0
 				)rs
 		WHERE t.IsMoved14 = 1
-			AND t.matchid IN (9,29,2799,10449)
+			AND t.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 
 		--Update Main MatchID for child match cricket (Sporttype = 50)
 		UPDATE d
 		SET d.matchid = m.ParentID
 		FROM #TransInfo d
 			INNER JOIN dbo.match14 m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
-		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
+		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 
 	END
 						

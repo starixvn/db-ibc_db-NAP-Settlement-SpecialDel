@@ -73,6 +73,7 @@ AS;
 		- 20240223@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240229@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240826@July: [TVS] Void By Bet ID - Support void abnormal bet for main parlay ticket [Redmine: #209348]
 
@@ -187,10 +188,8 @@ BEGIN
 		WHERE 1 = CASE WHEN @AbnormalBetType IS NULL THEN 1
 					   WHEN @AbnormalBetType = 0 AND pt.ProductID = 1 
 							AND pt.bettype < 19001
-							AND pt.bettype NOT IN (9, 29) -- Parlay Tickets
-							AND pt.bettype NOT IN (10) -- outright tickets
+							AND pt.bettype NOT IN (SELECT Bettype FROM f_TVS_SpeciallyBettypes()) -- Parlay Tickets, outright, Bet Builder
 							AND pt.bettype NOT IN (1231, 1232, 1233, 1237, 1238) -- virtual sport
-							AND pt.bettype NOT IN (38) -- Bet Builder
 					   THEN 1 --Only Sportsbook
 					   WHEN @AbnormalBetType = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
 					   ELSE 0 END
@@ -382,11 +381,11 @@ BEGIN
 	IF(@IncludeMainParlay = 0 AND @Products IS NULL AND @AbnormalBetType IS NULL)
 	BEGIN
 			DELETE b FROM #SpecialDeleteBets b 
-			WHERE  b.bettype IN (9, 29, 2799, 10449, 38)
+			WHERE  b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1,3))
 	END
 	
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -400,10 +399,10 @@ BEGIN
 		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
+		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 	-- UPDATE eventtype = 2 [Outright bettype]
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (10)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (2))))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= odds.matchcode
@@ -418,7 +417,7 @@ BEGIN
 			ON	d.matchid = odds.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
 			ON	odds.leagueid = l.leagueid
-		WHERE d.bettype IN (10)
+		WHERE d.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (2))
 	END
 	-- UPDATE eventtype = 3 [VS range  bettypes]
 	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238)))
@@ -447,8 +446,8 @@ BEGIN
 			ON d.bettype = sb.BetType
 		WHERE sb.ProductID = 37
 	END
-	-- UPDATE Sportype, Endtime for Bitcoin 
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype BETWEEN 7901 AND 7999))
+	-- UPDATE Sportype, Endtime for Bitcoin, VS5
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype BETWEEN 7901 AND 7999 OR bettype BETWEEN 11050 AND 11099))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo
@@ -463,16 +462,16 @@ BEGIN
 			ON d.matchid = m.Match3rdId
 	END
 
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (9,29,2799,10449)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE #SpecialDeleteBets
 		SET eventdate = winlostdate
-		WHERE bettype IN (9,29,2799,10449)
+		WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 	--- Remove invalid sporttype
 	DELETE 
 	FROM #SpecialDeleteBets
-	WHERE bettype NOT IN (9, 29, 2799,10449)
+	WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		AND (
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/

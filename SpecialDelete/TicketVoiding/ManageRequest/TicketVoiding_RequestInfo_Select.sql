@@ -28,6 +28,7 @@ AS
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20240520@July: HotFix - [TVS] Wrong display No. of Tickets [Redmine: #205304]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's explanation:
 		
@@ -72,11 +73,11 @@ BEGIN
 		;WITH CTE_Single AS(
 			SELECT vh.RequestId
 					,SUM( CASE 
-							WHEN @IssueTypeId NOT IN (1,10,3,12,24) AND z.bettype NOT IN (9,29,2799,10449) THEN 1
+							WHEN @IssueTypeId NOT IN (1,10,3,12,24) AND z.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1
 							WHEN @IssueTypeId IN (1,10,3,12,24) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 							ELSE 0 END
 					) AS TotalVoidedSingle
-					,SUM(CASE WHEN z.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalVoidedParlay
+					,SUM(CASE WHEN z.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END) AS TotalVoidedParlay
 					,SUM(CASE WHEN @IssueTypeId IN (1,10,3,12,24) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut -- Apply for DA,RC,WC
 			FROM #tmpResult vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) 
@@ -124,8 +125,8 @@ BEGIN
 			,TotalResettleProcessed= ISNULL(rt.TotalResettleProcessed,0) 
 		FROM	#tmpResult t
 		CROSS APPLY (SELECT 
-						SUM(CASE WHEN s.MatchId NOT IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						,SUM(CASE WHEN s.MatchId IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						SUM(CASE WHEN s.MatchId NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						,SUM(CASE WHEN s.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END) AS TotalParlayProcessed
 						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
 					FROM @tmp_TransId s
 					WHERE s.RequestId = t.RequestId

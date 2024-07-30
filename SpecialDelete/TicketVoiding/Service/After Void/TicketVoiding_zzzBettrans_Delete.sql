@@ -13,6 +13,7 @@ AS
 	Revisions: 
 		- 20231227@Max: Create new SP [Redmine: #196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's explanation:
 		@Type: 
@@ -85,7 +86,7 @@ BEGIN
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
 					SELECT 'TVS'
-						, CASE WHEN @MatchId NOT IN (9,29,2799,10449) THEN 'RecoverSingleBet' ELSE 'RecoverMainParlayBet' END
+						, CASE WHEN @MatchId NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'RecoverSingleBet' ELSE 'RecoverMainParlayBet' END
 						, 'zzzbettrans', 'D', @matchid, @TransInfo, 's'
 				END
 

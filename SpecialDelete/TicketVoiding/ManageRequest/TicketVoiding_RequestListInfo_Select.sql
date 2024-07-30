@@ -16,6 +16,7 @@ AS
 		- 20230224@July: Change config DBTXN -> DBCTG [Redmine: #180625]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's explanation:
 	
@@ -37,14 +38,14 @@ BEGIN
 
     IF EXISTS (SELECT TOP 1 1 
                FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
-               WHERE  matchid IN ( 9, 29, 2799, 10449 )) 
+               WHERE  matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))) 
     BEGIN 
 		--BETTRANS
         INSERT INTO @tmpResult (RequestID, Eventdate) 
         SELECT s.requestid, MIN(b.winlostdate)
         FROM   dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
 				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.transid = b.transid
-        WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
+        WHERE  s.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
 				AND b.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
         GROUP  BY s.requestid
             
@@ -53,7 +54,7 @@ BEGIN
         SELECT s.requestid, MIN(b14.winlostdate)
         FROM   dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
 				INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON s.transid = b14.transid 
-        WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
+        WHERE  s.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
                 AND b14.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
         GROUP  BY s.requestid
     END 

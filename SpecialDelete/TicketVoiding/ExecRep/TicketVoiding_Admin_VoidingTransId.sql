@@ -36,6 +36,7 @@ AS
 		- 20230522@July: Check transid before insert table MarkedTransaction [Redmine: #187052]
 	    - 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
     Param's explanation:
         Version 1: Only use for Void Ticket via TVS
@@ -362,7 +363,7 @@ BEGIN
 					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
 					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 				WHERE tp.matchid = @matchid
-					AND 1 = CASE WHEN (b.bettype IN (10, 38)
+					AND 1 = CASE WHEN (b.bettype IN (10,38)
 										OR b.bettype BETWEEN 1201 AND 1299 
 										OR b.bettype BETWEEN 2700 AND 2799 
 										OR b.bettype BETWEEN 5302 AND 5399 --Virtual Sports 3 (Leap Gaming)
@@ -371,6 +372,7 @@ BEGIN
 										OR b.bettype BETWEEN 8101 AND 8105
 										OR b.bettype BETWEEN 7901 AND 7999
 										OR b.bettype BETWEEN 17000 AND 17005
+										OR b.bettype BETWEEN 11050 AND 11099 --Virtual Sports 5
 										)
 							THEN 0 ELSE 1 END
 				FOR JSON PATH))
@@ -378,7 +380,7 @@ BEGIN
 				IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, CASE WHEN @matchid IN (29, 2799, 10449) THEN 'p' ELSE 's' END
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, CASE WHEN @matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'p' ELSE 's' END
 				END
 
 				--For match table; EventTable = 1
@@ -410,6 +412,7 @@ BEGIN
 										OR b.bettype BETWEEN 10400 AND 10449 --Virtual Sports 4 (Edge Gaming)
 										OR b.bettype BETWEEN 81 AND 120 --Number Game
 										OR b.bettype BETWEEN 8101 AND 8105 --Happy 5
+										OR b.bettype BETWEEN 11050 AND 11099 --Virtual Sports 5
 										)
 						THEN 1 ELSE 0 END
 				FOR JSON PATH))
@@ -417,7 +420,7 @@ BEGIN
 				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799, 10449) THEN 'p' ELSE 's' END, 1
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'p' ELSE 's' END, 1
 				END
 
 				--For outright table; EventTable = 2
@@ -449,7 +452,7 @@ BEGIN
 				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799, 10449) THEN 'p' ELSE 's' END, 2
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'p' ELSE 's' END, 2
 				END
 			END
 
@@ -555,6 +558,7 @@ BEGIN
 									OR b.bettype BETWEEN 8101 AND 8105
 									OR b.bettype BETWEEN 7901 AND 7999
 									OR b.bettype BETWEEN 17000 AND 17005
+									OR b.bettype BETWEEN 11050 AND 11099 --Virtual Sports 5
 									)
 								THEN 0 ELSE 1 END
 				FOR JSON PATH))
@@ -562,7 +566,7 @@ BEGIN
 				IF @IsSiteDB = 1 AND @transInfo IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, CASE WHEN @matchid IN (29, 2799, 10449) THEN 'p' ELSE 's' END
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, CASE WHEN @matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'p' ELSE 's' END
 				END
 
 				--For match table; EventTable = 1
@@ -593,6 +597,7 @@ BEGIN
 									OR b.bettype BETWEEN 10400 AND 10449 --Virtual Sports 4 (Edge Gaming)
 									OR b.bettype BETWEEN 81 AND 120 --Number Game
 									OR b.bettype BETWEEN 8101 AND 8105 --Happy 5
+									OR b.bettype BETWEEN 11050 AND 11099 --Virtual Sports 5
 									)
 								THEN 1 ELSE 0 END
 				FOR JSON PATH))			
@@ -600,7 +605,7 @@ BEGIN
 				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799, 10449) THEN 'p' ELSE 's' END, 1
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'p' ELSE 's' END, 1
 				END
 
 				SET @transInfo3rd = NULL
@@ -631,7 +636,7 @@ BEGIN
 				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799, 10449) THEN 'p' ELSE 's' END, 2
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'p' ELSE 's' END, 2
 				END
 
 				SET @transInfo3rd = NULL
@@ -662,7 +667,7 @@ BEGIN
 				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799, 10449) THEN 'p' ELSE 's' END, 3
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'p' ELSE 's' END, 3
 				END
 
 				SET @transInfo3rd = NULL
@@ -693,7 +698,7 @@ BEGIN
 				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799, 10449) THEN 'p' ELSE 's' END, 0
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'p' ELSE 's' END, 0
 				END
 			END
 
