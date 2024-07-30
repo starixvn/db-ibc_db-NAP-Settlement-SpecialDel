@@ -10,6 +10,7 @@ AS
 		- 20230825@Aries: Direct Fantasy is run when parent match is not completed [Redmine:#193173]
 		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 		- 20240614@Aries: Add fantasy leagueId [Redmine:#206489]
+		- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 
 	Param's Explanation:
  
@@ -182,7 +183,15 @@ BEGIN
 			WHERE ss.LeagueId = m.LeagueId
 				AND ss.AutoType = 5
 		) AS ss
-	WHERE m.Action IN ('CAL','REFUND') 
-		AND m.LastParentCalculateDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,300), @CurrTime)
+		OUTER APPLY(
+			SELECT TOP 1 ssr.WaitingTime
+			FROM dbo.SettlementSetting AS ssr WITH (NOLOCK)
+			WHERE ssr.LeagueId = m.LeagueId
+				AND ssr.AutoType = 7
+		) AS ssr
+	WHERE 1 = CASE WHEN m.Action = 'CAL' AND m.LastParentCalculateDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,300), @CurrTime) THEN 1
+				   WHEN m.Action = 'REFUND' AND m.LastParentCalculateDate <= DATEADD(SECOND, - ISNULL(ssr.WaitingTime,0), @CurrTime) THEN 1
+				   ELSE 0
+			  END
 END
 GO

@@ -16,6 +16,7 @@ AS
 		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
 		- 20240614@Aries: Add fantasy leagueId [Redmine:#206489]
+		- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 */
 BEGIN
 	
@@ -25,7 +26,7 @@ BEGIN
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting BIT = 0
 	
-	DECLARE  @returntable TABLE (MatchId INT,ParentID INT,  leagueid INT, TypeId TINYINT,SourceId TINYINT, ResourceId VARCHAR(20), ResultStatusID TINYINT, SettlementStatusId TINYINT)
+	DECLARE  @returntable TABLE (MatchId INT,ParentID INT,  leagueid INT, TypeId TINYINT,SourceId TINYINT, ResourceId VARCHAR(20), ResultStatusID TINYINT, SettlementStatusId TINYINT, CreateDate DATETIME)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		@SPName = @procName
@@ -44,12 +45,13 @@ BEGIN
 
 	IF @sporttype = 1
 	BEGIN
-		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID)
+		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID,CreateDate)
 		SELECT ar.MatchId
 			 , m.leagueid
 			 , ar.TypeId
 			 , '00' AS ResourceId
 			 , NULL AS ResultStatusID
+			 , ar.CreateDate
 		FROM dbo.AutoRefundResult ar WITH(NOLOCK)
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON m.matchid = ar.matchid
@@ -61,7 +63,7 @@ BEGIN
 	END
 	ELSE IF @sporttype = 5
 	BEGIN
-		INSERT INTO @returntable (MatchId,ParentID, leagueid, TypeId,SourceId, ResourceId, ResultStatusID, SettlementStatusId)
+		INSERT INTO @returntable (MatchId,ParentID, leagueid, TypeId,SourceId, ResourceId, ResultStatusID, SettlementStatusId,CreateDate)
 		SELECT ar.MatchId
 			 , m.ParentID
 			 , m.leagueid
@@ -70,6 +72,7 @@ BEGIN
 			 , ar.ResourceId
 			 ,ISNULL(r.ResultStatusID, 0) AS  ResultStatusID
 			 ,ISNULL(r.SettlementStatusID,0) AS SettlementStatusID
+			 , ar.CreateDate
 		FROM dbo.AutoRefundResultOS ar WITH(NOLOCK)
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON m.matchid = ar.matchid
@@ -82,13 +85,14 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID, SettlementStatusId)
+		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID, SettlementStatusId,CreateDate)
 		SELECT ar.MatchId
 			 , m.leagueid
 			 , ar.TypeId
 			 , ar.ResourceId
 			 ,ISNULL(r.ResultStatusID, 0) AS  ResultStatusID
 			 ,ISNULL(r.SettlementStatusID,0) AS SettlementStatusID
+			 , ar.CreateDate
 		FROM dbo.AutoRefundResultOS ar WITH(NOLOCK)
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON m.matchid = ar.matchid
@@ -100,8 +104,17 @@ BEGIN
 			AND ar.TypeId = 1
 	END
 
-	SELECT MatchId,ParentID, @sporttype AS Sporttype, leagueid, TypeId,SourceId, ResourceId, ResultStatusID, SettlementStatusId
-	FROM @returntable
+	DECLARE @CurrTime DATETIME = GETDATE()
+
+	SELECT m.MatchId,m.ParentID, @sporttype AS Sporttype, m.leagueid, m.TypeId,m.SourceId, m.ResourceId, m.ResultStatusID, m.SettlementStatusId
+	FROM @returntable AS m
+		OUTER APPLY(
+			SELECT TOP 1 ssr.WaitingTime
+			FROM dbo.SettlementSetting AS ssr WITH (NOLOCK)
+			WHERE ssr.LeagueId = m.LeagueId
+				AND ssr.AutoType = 7
+		) AS ssr
+	WHERE  m.CreateDate <= DATEADD(SECOND, - ISNULL(ssr.WaitingTime,0), @CurrTime)
 
 END
 GO
