@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_MatchOtherSports_TicketInfoSel
 	 @MatchInfo				VARCHAR(MAX)    = NULL
 	,@ChildMatchInfo		VARCHAR(MAX)    = NULL
@@ -13,6 +13,7 @@ AS
 	 
 	 Revisions:  
 			- 20240503@Louisa: Enhance-separate code DBTXN and DBPRO [Redmine:#204370]
+			- 20240719@Aries: Filter Over Status = Settle with Running TIcket, Complete match with betbulder running ticket is shown [Redmine:#208511]
 
 	Parameters Explanation: 
 		@MatchInfo='[{"m":83541400,"s":9,"cmt":0,"e":"running","cfht":0,"cfft":4635582},{"m":83541402,"s":9,"cmt":0,"e":"running","cfht":0,"cfft":0}]'
@@ -137,7 +138,7 @@ BEGIN
 							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN CAST(0 AS SMALLINT) ELSE b.SiteDBGroupID END
 							AND 1 = CASE 	WHEN OverStatus = 1 AND b.bettype = m.bettype AND (b.betid = 0 OR b.betid = m.betid ) AND b.statusID = 0 THEN 1
 											WHEN m.OverStatus = 2 OR OverStatus = 3 THEN 1
-											WHEN OverStatus = 4 AND b.statusId = 0 THEN 1
+											WHEN OverStatus = 4 AND b.statusId = 0 AND  b.bettype <> 38  AND b.bettype NOT BETWEEN 801 AND 806 THEN 1
 									ELSE 0
 									END
 						) AS tmp
@@ -154,7 +155,7 @@ BEGIN
 							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN CAST(0 AS SMALLINT) ELSE b.SiteDBGroupID END
 							AND 1 = CASE	WHEN m.OverStatus = 1 AND b.bettype = m.bettype AND (b.betcheck = 0 OR b.betcheck = m.betid ) AND b.statusID = 0 THEN 1
 											WHEN m.OverStatus = 2 OR OverStatus = 3  THEN 1
-											WHEN m.OverStatus = 4 AND b.statusId = 0 THEN 1
+											WHEN m.OverStatus = 4 AND b.statusId = 0 AND  b.bettype <> 38  AND b.bettype NOT BETWEEN 801 AND 806 THEN 1
 									ELSE 0
 									END
 						) AS tmp
