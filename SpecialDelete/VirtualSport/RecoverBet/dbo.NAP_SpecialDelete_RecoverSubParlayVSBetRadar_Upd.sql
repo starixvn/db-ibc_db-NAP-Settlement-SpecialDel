@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSubParlayVSBetRadar_Upd] 
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSubParlayVSBetRadar_Upd_xtest] 
 	@MatchId					INT,		
 	@TransIds					VARCHAR(MAX),
     @UserID						INT,
@@ -133,12 +133,15 @@ BEGIN
 				, @betstatus = betstatus
 		FROM dbo.match (NOLOCK)
 		WHERE matchid = @MatchId
-		UNION
-		SELECT @matchdate = eventdate
-			, @eventstatus = eventstatus
-			, @betstatus = betstatus
-		FROM dbo.match3rd (NOLOCK)
-		WHERE Match3rdId = @MatchId 
+		
+		IF @@ROWCOUNT = 0 AND EXISTS (SELECT TOP 1 1 FROM dbo.match3rd (NOLOCK) WHERE Match3rdId = @MatchId )
+		BEGIN
+			SELECT @matchdate = eventdate
+				, @eventstatus = eventstatus
+				, @betstatus = betstatus
+			FROM dbo.match3rd (NOLOCK)
+			WHERE Match3rdId = @MatchId 
+		END
 
 		/*Modify the way to get move bet date*/
 		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
