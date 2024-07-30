@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSubParlayVSBetRadar_Upd_xtest] 
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSubParlayVSBetRadar_Upd] 
 	@MatchId					INT,		
 	@TransIds					VARCHAR(MAX),
     @UserID						INT,
