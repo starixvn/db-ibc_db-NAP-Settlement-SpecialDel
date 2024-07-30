@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail] 
 	@MatchId					INT,
     @LicenseeName				VARCHAR(MAX)  = 'ALL',
-    @BetTypes					VARCHAR(1000) = '',
+    @BetTypes					VARCHAR(MAX) = '',
     @LiveType					SMALLINT      = 2,
     @LiveHomeScore				SMALLINT      = NULL,
     @LiveAwayScore				SMALLINT      = NULL,
@@ -13,7 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail]
     @BallSequence				VARCHAR(200)  = '',
 	@BetTeams					XML			  = NULL,
 	@SingleOrSubParlay			VARCHAR(20)   = 'All',
-	@SelectionType				VARCHAR(200)  = '',
+	@SelectionType				VARCHAR(MAX)  = '',
 	@IsReSettled				BIT			  = 0,
 	@AffectTickets				XML				= NULL,
 	@SelectionSubParlays		VARCHAR(200)    = ''
@@ -91,6 +91,7 @@ AS;
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240529@July: [TVS] Ticket Listing - Get affected tickets of Result Amendment for Bet Builder and Other Sports [Redmine: #203615]
+		- 20240729@July: Fix data length  [Redmine: #208544]
 
 	Param's Explanation:
 	- @Type: sports type
