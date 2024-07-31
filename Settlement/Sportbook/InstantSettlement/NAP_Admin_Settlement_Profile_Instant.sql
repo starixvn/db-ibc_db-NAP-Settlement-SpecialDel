@@ -116,10 +116,7 @@ BEGIN
 	SELECT	@ResultTable = ResultTable
 	FROM	dbo.SettlementResultTableSetting WITH(NOLOCK)
 	WHERE	Sporttype = @Sporttype
-	
-	IF @Sporttype = 8
-		SET @ResultTable = 2
-		
+
 	EXEC sp_xml_preparedocument @Handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpResources (SDTResourceId, HomeValue, AwayValue)
 	SELECT	Id
