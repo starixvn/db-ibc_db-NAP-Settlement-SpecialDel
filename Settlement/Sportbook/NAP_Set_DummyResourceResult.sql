@@ -2319,6 +2319,25 @@ BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880803'))
 			BEGIN
 				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId, isCalculated)
+				SELECT	'880803', SUM(CAST(HomeValue AS INT)) AS HomeValue, MIN(ssid) AS ssid, MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+				FROM	@tmpResultDetail
+				WHERE	ResourceId LIKE '010[1-3]'
+			END
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880707'))
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated)
+				SELECT 	'880707'
+						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
+						,SUM(CASE WHEN ssid = 4 THEN CAST(AwayValue AS INT) ELSE 0 END) AS AwayValue
+						,MIN(ssid) AS ssid
+						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+				FROM 	@tmpResultDetail
+				WHERE	ResourceId LIKE '010[1-7]'
+			END
+			
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880803'))
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId, isCalculated)
 				SELECT 	'880803'
 						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
 						,MIN(ssid) AS ssid
