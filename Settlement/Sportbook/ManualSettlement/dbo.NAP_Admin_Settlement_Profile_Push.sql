@@ -16,7 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@AutoType			TINYINT			= 0
-	,@DeterminedType	BIGINT			= 0
+	,@DeterminedType	INT			= 0
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 	,@IsPingoal			BIT				= 0
 	,@IsSettleRelated	BIT				= 0

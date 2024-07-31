@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_SDT_OS_modds] (
 		 @pfID			SMALLINT
 		,@betteam 		NVARCHAR(10)
@@ -6,7 +6,7 @@ ALTER FUNCTION [dbo].[f_Set_SDT_OS_modds] (
 		,@HomeValue		VARCHAR(2000)
 		,@AwayValue		VARCHAR(2000)		
 		,@Transdesc		NVARCHAR(1000)
-		,@MinusValue	SMALLMONEY
+		,@MinusValue	SMALLMONEY		
 		)
 RETURNS TABLE
 AS  
@@ -112,7 +112,7 @@ RETURN
 				CASE WHEN @betteam IN ('hu', 'au') AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) > 0 THEN -1
 					 ELSE NULL END	
 			WHEN @pfID = 8814 THEN
-				CASE WHEN (CAST(@HomeValue AS INT) - @hdp1 >= 0) AND (CAST(@AwayValue AS INT) - @hdp1 >= 0) THEN CASE WHEN @betteam = 'y' THEN 1 ELSE -1 END
+				CASE WHEN (CAST(@HomeValue AS INT) - (CAST(@hdp1 AS INT)%800) >= 0) AND (CAST(@AwayValue AS INT) - (CAST(@hdp1 AS INT)%800) >= 0) THEN CASE WHEN @betteam = 'y' THEN 1 ELSE -1 END
 					 ELSE NULL END	
 			ELSE NULL
 		END AS modds

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultUpd 
 	  @MatchId 				INT
 	, @TypeId 				TINYINT
@@ -23,6 +23,7 @@ AS
 		- 20230214@Aries: Apply Settlement by Profile for Remaining Sports - Prepare data for table tennis [Redmine: #182677]
 		- 20230407@Aries: Apply Settlement by Profile for Remaining Sports - Remove code [Redmine: #182677]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		
 	Param's Explanation:
 		- @StatusId: 0: New
@@ -100,6 +101,30 @@ BEGIN
 			  AND EXISTS (SELECT 1 FROM @tmpResourcesWeb AS rs WHERE p.ResourceID = rs.ResourceID)
 			  AND p.SourceID = 98
 		END 
+	END
+	ELSE IF @IsUndoMatch = 1 AND @SportType = 8
+	BEGIN
+		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+		INSERT INTO @tmpResourcesWeb(ResourceID)
+		SELECT tbl.Id
+		FROM OPENXML(@handle,'Resources/Resource',1) WITH(Id VARCHAR(20)) AS tbl
+			INNER JOIN dbo.f_Set_MajorRound(@SportType) mr
+				ON tbl.Id = mr.ResourceID
+		
+		EXEC sp_xml_removedocument @handle
+
+		IF NOT EXISTS (SELECT 1 FROM @tmpResourcesWeb)
+		BEGIN
+			RETURN
+		END
+
+		UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
+		SET AutoSetting =  (CASE WHEN AutoSetting & 2 > 0 THEN AutoSetting ^ 2 
+								 WHEN AutoSetting IS NULL THEN 0
+								 ELSE AutoSetting 
+							END)
+			,changetime = GETDATE()
+		WHERE matchid = @MatchId
 	END
 	ELSE
 	BEGIN

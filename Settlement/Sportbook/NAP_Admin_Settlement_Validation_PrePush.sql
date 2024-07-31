@@ -82,7 +82,7 @@ BEGIN
 	WHERE	m.matchid = @MatchId
 
 	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5, 4,47,18 )	THEN 1 --Odds
-							 WHEN @sporttype IN ( 9, 45, 50, 6 )	THEN 2 --OddsOS
+							 WHEN @sporttype IN ( 9, 45, 50, 6, 8 )	THEN 2 --OddsOS
 							 WHEN @sporttype = 43					THEN 3 --OddsES
 							 ELSE 0 END -- not checking
 

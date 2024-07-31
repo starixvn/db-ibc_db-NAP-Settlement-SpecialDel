@@ -1,0 +1,2 @@
+Settlement\Sportbook\NAP_Set_MatchSelDetail_Resources_Ticket.sql
+Common SP\Calculation\NAP_Admin_MajorRound_Sel.sql

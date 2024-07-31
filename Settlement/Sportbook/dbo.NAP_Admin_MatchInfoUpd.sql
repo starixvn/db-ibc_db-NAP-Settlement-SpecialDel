@@ -21,7 +21,7 @@ ALTER PROCEDURE dbo.NAP_Admin_MatchInfoUpd
 	,@IsAuto			BIT				= 0
 	,@IsHTTicketSettled BIT				= 0
 	,@AdminId			INT
-	,@DeterminedType	TINYINT			= 0
+	,@DeterminedType	INT			= 0
 AS
 /*
     Created: 20220719@Kathy
@@ -38,6 +38,7 @@ AS
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR, 'CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT'
@@ -103,6 +104,9 @@ BEGIN
 	SELECT	@ResultTable = ResultTable
 	FROM	dbo.SettlementResultTableSetting s WITH(NOLOCK)
 	WHERE	s.Sporttype = @SportType
+	
+	IF @Sporttype = 8
+		SET @ResultTable = 2
 
 	IF @SportType = 1
 	BEGIN
@@ -490,7 +494,7 @@ BEGIN
 				,@Sporttype			= @Sporttype
 				,@creator 			= @AdminId	
 			
-			IF @SportType = 2
+			IF @SportType IN (2,8)
 			BEGIN
 				EXEC dbo.NAP_Set_AutoPayoutResultUpd 
 						@MatchId = @matchid
@@ -619,7 +623,7 @@ BEGIN
 
 			END
 
-			IF @SportType = 2
+			IF @SportType IN (2,8)
 			BEGIN
 				EXEC dbo.NAP_Set_AutoPayoutResultUpd 
 						@MatchId = @matchid

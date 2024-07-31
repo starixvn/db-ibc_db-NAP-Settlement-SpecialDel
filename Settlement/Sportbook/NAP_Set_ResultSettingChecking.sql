@@ -26,6 +26,7 @@ AS
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20230214@Louisa: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -52,6 +53,9 @@ BEGIN
 	SELECT @ResultTable = r.ResultTable
 	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
 	WHERE r.Sporttype = @SportType
+	
+	IF @SportType = 8
+		SET @ResultTable = 2
 	
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 

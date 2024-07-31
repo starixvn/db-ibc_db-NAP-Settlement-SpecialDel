@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingOtherSportSel] 
 	@MatchIds	VARCHAR(MAX)
 AS
@@ -27,6 +27,7 @@ AS
 		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
 		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
 		- 20230920@Aries: Remove remote query [Redmine:#194359]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Param's explanation:  
 		
@@ -61,6 +62,8 @@ BEGIN
 		,isRunningSingle	BIT DEFAULT(0)
 		,isWaitingSingle	BIT DEFAULT(0)
 	)
+	
+	DECLARE @tmpEarlyBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
 
 	DECLARE @tmpMatchIds TABLE (
 		MatchId							INT
@@ -134,9 +137,15 @@ BEGIN
 	INNER JOIN #MatchIdList tmp 
 		ON q.matchid = tmp.MatchId
 	
+	INSERT INTO @tmpEarlyBettypes(Bettype)
+	SELECT	DISTINCT bettype
+	FROM	dbo.SettlementSpecialBettypeProfile WITH(NOLOCK)
+	WHERE	SettleType = 'EAR'
+			AND SportType <> 1
+
 	SELECT	@minBettype = MIN(bettype)
 			,@maxBettype = MAX(bettype)
-	FROM	dbo.f_Set_GetEarlyBettypes()
+	FROM	@tmpEarlyBettypes
 	
 	INSERT INTO @tmpMatchIds(MatchId
 		,Sporttype
@@ -241,8 +250,7 @@ BEGIN
 					AND bm.bettype BETWEEN @minBettype AND @maxBettype
 			GROUP BY bm.matchid, bm.bettype
 		)b
-		INNER JOIN dbo.f_Set_GetEarlyBettypes() f
-			ON b.bettype = f.bettype
+	WHERE	EXISTS (SELECT TOP 1 1 FROM @tmpEarlyBettypes bt WHERE bt.Bettype = b.bettype)
 	GROUP BY m.ParentId
 	OPTION(OPTIMIZE FOR (@n = 1))
 

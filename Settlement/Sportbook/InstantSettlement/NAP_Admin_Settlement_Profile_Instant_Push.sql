@@ -1,11 +1,11 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Settlement_Profile_Instant_Push
 	 @MatchID					INT 
 	,@AdminId 					INT
 	,@Action					VARCHAR(20)		= 'CAL-INST'
 	,@SelectedResources			VARCHAR(MAX)
 	,@IP						VARCHAR(15)
-	,@DeterminedType			BIGINT			= 0
+	,@DeterminedType			INT			= 0
 	,@BroadcastSessionId		VARCHAR(50)		= NULL
     ,@ErrCode					INT             = 0     OUTPUT
     ,@ErrMsg					NVARCHAR(200)   = ''    OUTPUT

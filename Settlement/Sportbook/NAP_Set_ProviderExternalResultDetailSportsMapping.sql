@@ -13,6 +13,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:
 		- 20211223@Louisa: mapping between in-house and external match [Redmine:#166449]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		
 	Param's Explanation:
 		@EnvFlag: -1: UAT, 0:PROD
@@ -22,7 +23,7 @@ BEGIN
 	
 	DECLARE @ExternalResultTable TINYINT
 	
-	SELECT  @ExternalResultTable = ss.ExternalResultTable 
+	SELECT  @ExternalResultTable = CASE WHEN ss.sporttype = 8 THEN 2 ELSE ss.ExternalResultTable END
 	FROM dbo.SettlementResultTableSetting ss WITH(NOLOCK)
 	WHERE ss.Sporttype = @Sporttype
 

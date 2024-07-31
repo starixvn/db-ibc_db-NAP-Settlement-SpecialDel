@@ -230,6 +230,13 @@ BEGIN
 	FROM dbo.f_Set_MajorRound(@Sporttype) mr
 		LEFT JOIN @tmpTicketStatus bt ON bt.ResourceID = mr.ResourceID
 	WHERE bt.ResourceID IS NULL
+	
+	-- INSERT Total hits
+	IF @Sporttype = 8 AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpTicketStatus WHERE ResourceID = '8816')
+	BEGIN
+		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InWaiting, InRunning, OrdNo)
+		SELECT '8816', 0, 0, 0, 100		
+	END
 
 	IF @SportType = 43 AND @BestOfMap IS NOT NULL
 		BEGIN

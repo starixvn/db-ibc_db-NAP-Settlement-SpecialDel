@@ -13,6 +13,7 @@ AS
 		- 20220719@Louisa: Initial [Redmine:#175251]
 		- 20230920@Aries: Remove remote query [Redmine:#194359]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -36,6 +37,9 @@ BEGIN
 	SELECT @ResultTable =  r.ResultTable
 	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK)
 	WHERE r.Sporttype = @SportType
+	
+	IF @SportType = 8
+		SET @ResultTable = 2
 
 	 --Use @BestOfMap for E-sport only
 	SELECT @BestOfMap = BestOfMap

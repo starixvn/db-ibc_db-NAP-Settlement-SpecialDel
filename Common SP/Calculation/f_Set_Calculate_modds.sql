@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_Calculate_modds] (
 		@pfID			SMALLINT
 		,@betteam 		NVARCHAR(10)
@@ -98,7 +98,7 @@ RETURN
 			   CASE WHEN @betteam IN ('h', 'a', 'c', 'nc', 'm', 'nm', 't', 'b', 'nb', 'nt', 'o' ) AND @betteam = @HomeValue THEN 1
 					WHEN @HomeValue IN ('n', 'd') THEN 0
 					ELSE -1 END
-
+					
 			WHEN @pfID = 9636 THEN
 				CASE WHEN @betteam IN ('c', 'b', 'lbw', 'ro', 's', 'ot') AND @betteam = @HomeValue THEN 1
 					 ELSE -1 END
@@ -445,6 +445,16 @@ RETURN
 					WHEN @betteam = 'au' AND (CAST(@HomeValue AS INT) - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) < 0 THEN 1
 					ELSE -1
 				END
+				
+			WHEN @pfID = 8825 THEN
+				CASE
+					WHEN @betteam = 'ho' AND (CAST(@HomeValue AS INT) - CAST(@AwayValue AS INT)) > 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) > 0 THEN 1
+					WHEN @betteam = 'hu' AND (CAST(@HomeValue AS INT) - CAST(@AwayValue AS INT)) > 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) < 0 THEN 1
+					WHEN (CAST(@HomeValue AS INT) - CAST(@AwayValue AS INT)) = 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) = 0 THEN 0
+					WHEN @betteam = 'ao' AND (CAST(@HomeValue AS INT) - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) > 0 THEN 1
+					WHEN @betteam = 'au' AND (CAST(@HomeValue AS INT) - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) < 0 THEN 1
+					ELSE -1
+				END
 
 			WHEN @pfID = 9538 THEN
 				CASE
@@ -524,14 +534,18 @@ RETURN
 				CASE 
 					WHEN @betteam = '0' AND fm = 0 THEN 1
 					WHEN @betteam = '1' AND fm = 1 THEN 1
+					WHEN @betteam = '2' AND fm = 2 THEN 1
 					WHEN @betteam = '3+' AND fm >= 3 THEN 1 
 					ELSE -1
 				END
 			WHEN @pfID = 8814 THEN
 				CASE 
-					WHEN @betteam = 'y' AND fm >= CAST(@betcheck AS INT) THEN 1
-					WHEN @betteam = 'n' AND fm < CAST(@betcheck AS INT) THEN 1
-					ELSE -1
+					WHEN (CAST(@HomeValue AS INT) - (CAST(@betcheck AS INT)%800) >= 0) AND (CAST(@AwayValue AS INT) - (CAST(@betcheck AS INT)%800) >= 0) 
+						THEN CASE 
+								WHEN @betteam = 'y' THEN 1 
+								ELSE -1 
+							END
+					ELSE CASE WHEN @betteam = 'n' THEN 1 ELSE -1 END
 				END
 			WHEN @pfID = 8822 THEN
 				CASE 
@@ -548,6 +562,7 @@ RETURN
 				END
 			WHEN @pfID = 8826 THEN
 				CASE 
+					WHEN fm = 0 THEN 0
 					WHEN @betteam = '1-2' AND fm BETWEEN 1 AND 2 THEN 1
 					WHEN @betteam = '3-4' AND fm BETWEEN 3 AND 4 THEN 1
 					WHEN @betteam = '5-6' AND fm BETWEEN 5 AND 6 THEN 1
@@ -605,7 +620,7 @@ RETURN
 
 					WHEN @pfID = 620 THEN CAST(@AwayValue AS SMALLMONEY)
 					--PHAIO 5
-					WHEN @pfID IN (391, 618, 8813, 8814, 8826) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (391, 618, 8813, 8826) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID IN (387, 386, 7901) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
 					WHEN @pfID IN (401, 9128) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
 					WHEN @pfID IN (402,9096) THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1

@@ -23,6 +23,8 @@ AS
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+
    
     Parameters Explanation:        
     

@@ -26,7 +26,7 @@ BEGIN
 
 	DECLARE @ExternalResultTable TINYINT
 	
-	SELECT  @ExternalResultTable = ss.ExternalResultTable 
+	SELECT  @ExternalResultTable = CASE WHEN ss.Sporttype = 8 THEN 2 ELSE sS.ExternalResultTable END
 	FROM dbo.SettlementResultTableSetting ss WITH(NOLOCK)
 	WHERE ss.Sporttype = @Sporttype
 

@@ -2,4 +2,4 @@
 USE bodb02
 GO
 
-ALTER TABLE dbo.settlementspecialbettypeprofile ALTER COLUMN DeterminedType BIGINT
+ALTER TABLE dbo.settlementspecialbettypeprofile ALTER COLUMN DeterminedType INT

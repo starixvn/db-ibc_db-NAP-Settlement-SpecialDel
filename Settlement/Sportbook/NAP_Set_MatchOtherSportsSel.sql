@@ -67,6 +67,7 @@ AS
 			- 20240503@Louisa: Enhance-separate code DBTXN and DBPRO [Redmine:#204370]
 			- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 			- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
+			- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -181,7 +182,7 @@ BEGIN
 	END
 
 	INSERT INTO @tmpSporttypes( Sporttype, ResultTable, ExternalResultTable, AP_RetryTime )
-	SELECT	DISTINCT f.[value], s.ResultTable, s.ExternalResultTable, s.AP_Main_WaitingTime
+	SELECT	DISTINCT f.[value], CASE WHEN s.sporttype = 8 THEN 2 ELSE s.ResultTable END, CASE WHEN s.Sporttype = 8 THEN 2 ELSE s.ExternalResultTable END, s.AP_Main_WaitingTime
 	FROM	STRING_SPLIT(@Sporttypes, ',') f
 		INNER JOIN dbo.SettlementResultTableSetting s WITH(NOLOCK) 
 			ON f.[value] = s.sporttype

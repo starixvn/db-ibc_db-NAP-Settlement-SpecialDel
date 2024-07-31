@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_ExternalResultDetailOSIns
 (
 	 @MatchId INT   
@@ -23,6 +23,7 @@ AS
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Param's Explanation:
 		@OutsideSources : any scores(OutsideSource) have changed by user
@@ -79,6 +80,9 @@ BEGIN
 	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK)
 	WHERE r.Sporttype = @SportType
 		AND IsAppliedSOP = 1
+		
+	IF @SportType = 8
+		SELECT @ExternalResultTable = 2
 
 	SELECT @ActionID =  CASE WHEN ISNULL(@IsTrader,0) = 1 THEN 81027 ELSE 81016 END
 	

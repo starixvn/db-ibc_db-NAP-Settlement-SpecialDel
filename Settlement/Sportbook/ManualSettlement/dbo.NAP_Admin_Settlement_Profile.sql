@@ -16,7 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@RefResultStatus	TINYINT			= 0
 	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@AutoType				TINYINT		= 0
-	,@DeterminedType		BIGINT		= 0
+	,@DeterminedType		INT		= 0
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 	,@IsPingoal			BIT				= 0
 	,@IsSettleRelated	BIT				= 0
@@ -251,7 +251,11 @@ BEGIN
 		   ,@AutoSetting  = ISNULL(Setting,0)
 	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
 	WHERE ss.Sporttype = @sportType
-
+	
+	IF @sporttype = 8
+		SELECT @IsAppliedSOP = 1
+				,@AutoSetting = 1
+				
 	SET @HasAutoPayout = IIF(@AutoSetting & 2 > 0,1,0)
 	SET @HasAutoRefund = IIF(@AutoSetting & 4 > 0,1,0)
 
@@ -646,7 +650,7 @@ BEGIN
 									FROM @tmpSelectedRID AS t
 									WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 								) AS sr
-					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, sr.HomeValue, sr.AwayValue, b.transdesc,0) AS m
+					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, CASE WHEN b.bettype = 8814 THEN b.betid ELSE b.hdp1 END, sr.HomeValue, sr.AwayValue, b.transdesc,0) AS m
 				WHERE b.matchid = @MatchId
 					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND statusID NOT IN (101)

@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Instant]
 	,@SelectedResources			VARCHAR(MAX)
 	,@IP						VARCHAR(15)
 	,@IsReSettledTickets		BIT				= 0
-	,@DeterminedType			BIGINT			= 0
+	,@DeterminedType			INT			= 0
 	,@hth						INT				= NULL
 	,@hta						INT				= NULL
 	,@fth						INT				= NULL
@@ -87,7 +87,7 @@ BEGIN
 			,@FTHome_Inst					INT
 			,@FTAway_Inst					INT
 		
-	DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20),RefResourceID VARCHAR(20),ResourceID VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), OddsType TINYINT, isCalculated BIT, MinusValue SMALLMONEY   DEFAULT(0),IsInstHTFT BIT, PRIMARY KEY (BetType,BetID))	
+	DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20),RefResourceID VARCHAR(20),ResourceID VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), OddsType TINYINT, isCalculated BIT DEFAULT(0), MinusValue SMALLMONEY   DEFAULT(0),IsInstHTFT BIT, PRIMARY KEY (BetType,BetID))	
     DECLARE @tmpResources TABLE(SDTResourceId VARCHAR(20),HomeValue VARCHAR(2000),AwayValue VARCHAR(2000))
 	DECLARE @tmpParlayAffectedBettypes TABLE (BetType SMALLINT, TotalTicket INT)	
 
@@ -116,7 +116,10 @@ BEGIN
 	SELECT	@ResultTable = ResultTable
 	FROM	dbo.SettlementResultTableSetting WITH(NOLOCK)
 	WHERE	Sporttype = @Sporttype
-
+	
+	IF @Sporttype = 8
+		SET @ResultTable = 2
+		
 	EXEC sp_xml_preparedocument @Handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpResources (SDTResourceId, HomeValue, AwayValue)
 	SELECT	Id
@@ -187,27 +190,41 @@ BEGIN
 			,bt.MinusValue = IIF(@IsInstant = 1 AND @SportType = 2, 6, 0)
 		FROM @tmpSelectedRID AS bt
 			INNER JOIN OPENXML(@Handle,'root/r',1) WITH( Id VARCHAR(20),Home VARCHAR(2000),Away VARCHAR(2000),isCal BIT) AS tbl ON tbl.Id = bt.SDTResourceId
+		
+		IF @Sporttype = 2
+		BEGIN
+			SELECT TOP 1 @HTDone = isCalculated
+			FROM @tmpSelectedRID
+			WHERE SDTResourceId  = '01'
+
+			SELECT TOP 1 @FTDone = isCalculated
+			FROM @tmpSelectedRID
+			WHERE SDTResourceId  = '00'
+
+			UPDATE @tmpSelectedRID
+			SET isCalculated = IIF(RefResourceID = '00',@FTDone,@HTDone)
+			WHERE RefResourceID  IN ('00','01')
+			
+			SELECT	 @fthSDT = ISNULL(SUM(CASE WHEN tbl.SDTResourceId = '00' THEN tbl.HomeValue ELSE 0 END), 0)
+					,@ftaSDT = ISNULL(SUM(CASE WHEN tbl.SDTResourceId = '00' THEN tbl.AwayValue ELSE 0 END), 0)
+					,@hthSDT = ISNULL(SUM(CASE WHEN tbl.SDTResourceId = '01' THEN tbl.HomeValue ELSE 0 END), 0)
+					,@htaSDT = ISNULL(SUM(CASE WHEN tbl.SDTResourceId = '01' THEN tbl.AwayValue ELSE 0 END), 0)
+			FROM (SELECT DISTINCT SDTResourceId,HomeValue,AwayValue
+				  FROM @tmpSelectedRID
+				  WHERE SDTResourceId IN ('01', '00')
+				) AS tbl
+			  
+		END
+		ELSE IF @SportType = 8
+		BEGIN
+			SELECT	@fthSDT = SUM(CAST(tbl.Home AS INT))
+					,@ftaSDT = SUM(CAST(tbl.Away AS INT))
+			FROM	OPENXML(@Handle,'root/r',1) WITH( Id VARCHAR(20),Home VARCHAR(2000),Away VARCHAR(2000),isCal BIT) AS tbl
+			WHERE	tbl.isCal = 1
+					AND tbl.Id LIKE '010[1-9]'
+		END
+		
 		EXEC sp_xml_removedocument @Handle
-
-		SELECT TOP 1 @HTDone = isCalculated
-		FROM @tmpSelectedRID
-		WHERE SDTResourceId  = '01'
-
-		SELECT TOP 1 @FTDone = isCalculated
-		FROM @tmpSelectedRID
-		WHERE SDTResourceId  = '00'
-
-		UPDATE @tmpSelectedRID
-		SET isCalculated = IIF(RefResourceID = '00',@FTDone,@HTDone)
-		WHERE RefResourceID  IN ('00','01')
-
-		SELECT	 @fthSDT = ISNULL(SUM(CASE WHEN tbl.SDTResourceId = '00' THEN tbl.HomeValue ELSE 0 END), 0)
-				,@ftaSDT = ISNULL(SUM(CASE WHEN tbl.SDTResourceId = '00' THEN tbl.AwayValue ELSE 0 END), 0)
-				,@hthSDT = ISNULL(SUM(CASE WHEN tbl.SDTResourceId = '01' THEN tbl.HomeValue ELSE 0 END), 0)
-				,@htaSDT = ISNULL(SUM(CASE WHEN tbl.SDTResourceId = '01' THEN tbl.AwayValue ELSE 0 END), 0)
-		FROM (SELECT DISTINCT SDTResourceId,HomeValue,AwayValue
-              FROM @tmpSelectedRID
-              WHERE SDTResourceId IN ('01', '00')) AS tbl
 
 	    INSERT INTO #tmpTransSDT(TransID, CustID, modds, OddsType, srecommend, bettype, IsMarked,BetdaqId, currentStatuswinlost,betteam,hdp1,IsInstHTFT)
 	    SELECT	b.transid
@@ -229,11 +246,11 @@ BEGIN
 	    					WHERE	t.TransId = b.transId
 	    	) AS mt
 	    	CROSS APPLY(
-	    					SELECT TOP 1 t.SDTpfId, t.HomeValue,t. AwayValue, t.OddsType, t.isCalculated, t.MinusValue,  t.IsInstHTFT
+	    					SELECT TOP 1 t.SDTpfId, t.HomeValue,t. AwayValue, t.OddsType, ISNULL(t.isCalculated, 0) AS isCalculated , t.MinusValue,  t.IsInstHTFT
 	    					FROM @tmpSelectedRID AS t
 	    					WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	    				) AS sr
-	    	CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, sr.HomeValue, sr.AwayValue, b.transdesc,sr.MinusValue) AS m
+	    	CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, CASE WHEN b.bettype = 8814 THEN b.betid ELSE b.hdp1 END, sr.HomeValue, sr.AwayValue, b.transdesc,sr.MinusValue) AS m
 	    WHERE b.matchid = @MatchId
 	    	AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			AND b.statusID NOT IN (1,101)
@@ -444,14 +461,25 @@ BEGIN
 		   ,@IsReleased		= 1
 
 	SELECT @Stop = CURRENT_TIMESTAMP
-
-	IF @SportType = 2 AND (@DeterminedType & 8 = 8 OR  @DeterminedType & 16 = 16) AND @DeterminedType & 1 = 0
+	
+	IF @Sporttype = 2
 	BEGIN
-		SET @RemarkSDT = @RemarkSDT + 'SDT_HT(' + CAST(@hthSDT AS VARCHAR(50)) + '-' + CAST(@htaSDT AS VARCHAR(50)) + '), '
+		IF (@DeterminedType & 8 = 8 OR  @DeterminedType & 16 = 16) AND @DeterminedType & 1 = 0
+		BEGIN
+			SET @RemarkSDT = @RemarkSDT + 'SDT_HT(' + CAST(@hthSDT AS VARCHAR(50)) + '-' + CAST(@htaSDT AS VARCHAR(50)) + '), '
+		END
+
+		SET @RemarkSDT = @RemarkSDT + 'SDT_FT(' + CAST(@fthSDT AS VARCHAR(50)) + '-' + CAST(@ftaSDT AS VARCHAR(50)) + ')'
 	END
-
-	SET @RemarkSDT = @RemarkSDT + 'SDT_FT(' + CAST(@fthSDT AS VARCHAR(50)) + '-' + CAST(@ftaSDT AS VARCHAR(50)) + ')'
-
+	ELSE IF @SportType = 8 
+	BEGIN
+		SELECT	@RemarkSDT = STRING_AGG (sd.RoundName + '(' + CAST(@fthSDT AS VARCHAR) + '-' + CAST(@ftaSDT AS VARCHAR) + ')',', ')
+		FROM	dbo.f_Set_MajorRound(@SportType) sd
+		WHERE	(sd.ResourceID LIKE '010[3,5,7]'
+					AND sd.ResourceID > (SELECT	MAX(r.SDTResourceID) FROM	@tmpResources r WHERE	r.SDTResourceId LIKE '010[1-9]')
+				)
+				OR sd.ResourceID = '00'	
+	END
 	
 	BEGIN
 		IF @IsInstant = 1
@@ -464,8 +492,9 @@ BEGIN
 				,@SourceID			= 98
 		END
 
-		SELECT @Selected = STRING_AGG (SDTResourceId + '(' + HomeValue + '-' + AwayValue  + ')',', ')
-		FROM @tmpResources
+		SELECT @Selected = STRING_AGG (ISNULL(sd.RoundName,CAST(SDTResourceId AS VARCHAR)) + '(' + HomeValue + '-' + AwayValue  + ')',', ')
+		FROM @tmpResources r
+			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.SDTResourceId = sd.ResourceID
 		WHERE	HomeValue != ''
             AND AwayValue != ''
 

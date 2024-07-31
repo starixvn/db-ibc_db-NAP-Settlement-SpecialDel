@@ -16,6 +16,7 @@ AS
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192]
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Param's explanation:
 		
@@ -38,6 +39,10 @@ BEGIN
 		 , @IsAppliedSOP		= r.IsAppliedSOP
 	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
 	WHERE r.Sporttype = @SportType
+	
+	IF @SportType = 8
+		SELECT @ExternalResultTable =2
+				,@IsAppliedSOP = 1
 
 	IF @IsAppliedSOP = 1
 	BEGIN
