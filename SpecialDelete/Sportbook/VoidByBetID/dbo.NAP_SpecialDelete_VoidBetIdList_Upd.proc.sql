@@ -568,7 +568,7 @@ BEGIN
 			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
 			,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
 			,@IsExistVS4				= MAX (CASE WHEN sporttype = 188 THEN 1 ELSE 0 END)
-			,@IsExistParlayVS			= MAX (CASE WHEN bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId = 1 AND Bettype <> 2799) THEN 1 ELSE 0 END)
+			,@IsExistParlayVS			= MAX (CASE WHEN fs.SpecialBettypes IS NOT NULL THEN 1 ELSE 0 END)
 			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
 			,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
 			,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
@@ -582,6 +582,13 @@ BEGIN
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 					WHERE Bettype = b.Bettype
 			)f
+		OUTER APPLY (
+				SELECT bettype AS SpecialBettypes
+				FROM f_TVS_SpeciallyBettypes() f
+				WHERE f.TypeId = 1 
+					AND f.Bettype <> 2799
+					AND f.Bettype = b.Bettype
+		)fs
 	
 	--- CHECKING SETTLEMENT PROCESS IN PROGRESS OR NOT ?????  
 	DECLARE @avaiableProcess BIT
