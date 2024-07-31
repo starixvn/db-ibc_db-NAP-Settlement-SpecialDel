@@ -44,7 +44,7 @@ BEGIN
 		  , @IsExistVSBetradar			  BIT = 0
 		  , @IsExistInspiredVS			  BIT = 0
 		  , @IsExistVS3					  BIT = 0
-		  , @IsExistVS4_5				  BIT = 0
+		  , @IsExistVS_3rd				  BIT = 0
 		  , @isITAdmin					  BIT = 0
 		  , @before_yesterday			  DATETIME
 		  , @cnt_Ticket					  INT = 0
@@ -307,8 +307,7 @@ BEGIN
 					WHEN m.sporttype BETWEEN 190 AND 199 THEN 1 -- VS Betradar
 					WHEN m.sporttype IN (180, 186) THEN 2 -- Inspired VS 180
 					WHEN m.sporttype IN (178, 179) THEN 4 -- VS 3 (Leap Gaming)
-					WHEN m.sporttype IN (188) THEN 5 -- VS 4 (Edge Gaming)
-					WHEN m.sporttype IN (147) THEN 6 -- VS 5
+					WHEN m.sporttype IN (188, 147) THEN 5 -- VS 4 (Edge Gaming), VS5
 					ELSE NULL
 				END AS TicketType
 				,b.currency
@@ -484,7 +483,7 @@ BEGIN
 			 , @IsExistVS		  = MAX(CASE WHEN TicketType = 3 THEN 1 ELSE 0 END)			 
 			 , @IsExistVSBetradar = MAX(CASE WHEN TicketType = 1 THEN 1 ELSE 0 END)
 			 , @IsExistVS3		  = MAX(CASE WHEN TicketType = 4 THEN 1 ELSE 0 END)
-			 , @IsExistVS4_5	  = MAX(CASE WHEN TicketType = 5 THEN 1 ELSE 0 END)
+			 , @IsExistVS_3rd	  = MAX(CASE WHEN TicketType = 5 THEN 1 ELSE 0 END)
 			 , @IsExistInspiredVS = MAX(CASE WHEN TicketType IN (2, 3) THEN 1 ELSE 0 END)
 		FROM #RecoverBet
 			
@@ -492,7 +491,7 @@ BEGIN
 		SELECT DISTINCT 
 				matchid
 			  , CASE 
-					WHEN TicketType IN (1, 2, 4, 5) THEN 1 -- VS Betradar, Inspired VS 180, VS3(Leap Gaming), VS4(Edge Gaming) 
+					WHEN TicketType IN (1, 2, 4, 5) THEN 1 -- VS Betradar, Inspired VS 180, VS3(Leap Gaming), VS4(Edge Gaming) , VS5
 					ELSE 4 -- Inspired VS 181
 				END AS KeyId
 		FROM #RecoverBet
@@ -738,7 +737,7 @@ BEGIN
 			END						
 		END	
 		
-		IF @IsExistVS3 = 1 OR @IsExistVS4_5 = 1
+		IF @IsExistVS3 = 1 OR @IsExistVS_3rd = 1
 		BEGIN	
 			INSERT INTO @tmpMatchId (MatchId)
 			SELECT DISTINCT b.MatchId

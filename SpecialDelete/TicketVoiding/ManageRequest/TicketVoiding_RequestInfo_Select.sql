@@ -73,11 +73,11 @@ BEGIN
 		;WITH CTE_Single AS(
 			SELECT vh.RequestId
 					,SUM( CASE 
-							WHEN @IssueTypeId NOT IN (1,10,3,12,24) AND z.bettype <> f.bettype THEN 1
+							WHEN @IssueTypeId NOT IN (1,10,3,12,24) AND f.bettype IS NULL THEN 1
 							WHEN @IssueTypeId IN (1,10,3,12,24) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 							ELSE 0 END
 					) AS TotalVoidedSingle
-					,SUM(CASE WHEN z.bettype = f.bettype THEN 1 ELSE 0 END) AS TotalVoidedParlay
+					,SUM(CASE WHEN f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalVoidedParlay
 					,SUM(CASE WHEN @IssueTypeId IN (1,10,3,12,24) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut -- Apply for DA,RC,WC
 			FROM #tmpResult vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) 
@@ -126,8 +126,8 @@ BEGIN
 			,TotalResettleProcessed= ISNULL(rt.TotalResettleProcessed,0) 
 		FROM	#tmpResult t
 		CROSS APPLY (SELECT 
-						SUM(CASE WHEN s.MatchId <> f.bettype THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						,SUM(CASE WHEN s.MatchId = f.bettype THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						SUM(CASE WHEN f.bettype IS NULL THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						,SUM(CASE WHEN f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
 						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
 					FROM @tmp_TransId s
 						LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.bettype = s.MatchId

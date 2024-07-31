@@ -360,7 +360,7 @@ BEGIN
 
 		--> Check Concurrency
 		SELECT @IsExistsVS2 = CASE WHEN Sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END
-			  ,@IsExistsVS = CASE WHEN Sporttype = 188 THEN 1 ELSE 0 END
+			  ,@IsExistsVS = CASE WHEN Sporttype IN (188,147) THEN 1 ELSE 0 END
 		FROM #tmpBetDelete
 
 		IF @IsExistsVS = 1

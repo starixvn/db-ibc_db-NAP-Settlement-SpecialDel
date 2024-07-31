@@ -340,7 +340,7 @@ BEGIN
 				,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 				,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 				,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
-				,@IsExistParlayVS4			= MAX (CASE WHEN bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1) AND bettype <> 2799) THEN 1 ELSE 0 END)
+				,@IsExistParlayVS4			= MAX (CASE WHEN fs.SpcialBettypes IS NOT NULL THEN 1 ELSE 0 END)
 				,@IsExistVS4				= MAX (CASE WHEN sporttype = 188 THEN 1 ELSE 0 END)
 		FROM	#tmpTransId b
 			OUTER APPLY (
@@ -348,6 +348,13 @@ BEGIN
 						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 						WHERE Bettype = b.Bettype
 				)f
+			OUTER APPLY (
+					SELECT Bettype AS SpcialBettypes
+						FROM dbo.f_TVS_SpeciallyBettypes() f
+						WHERE TypeId IN (1) 
+							AND f.bettype <> 2799
+							AND b.bettype = f.bettype
+				)fs
 
 		INSERT INTO #tblMatchProcess(matchid, KeyID)
 		SELECT matchid, KeyID
