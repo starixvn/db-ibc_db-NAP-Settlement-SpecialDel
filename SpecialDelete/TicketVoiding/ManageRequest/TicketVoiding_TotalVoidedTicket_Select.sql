@@ -84,7 +84,7 @@ BEGIN
 			FROM #tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId AND z.VoidingHistoryId IS NOT NULL
-				LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) f.Bettype = z.bettype
+				LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.Bettype = z.bettype
 			WHERE z.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (22) --Recover Ticket
 			GROUP BY vh.RequestId, vh.MatchId
 	)
