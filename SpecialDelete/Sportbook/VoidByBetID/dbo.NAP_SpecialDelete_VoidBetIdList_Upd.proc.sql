@@ -606,7 +606,7 @@ BEGIN
 			WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
 			WHEN Bettype = 38 THEN 5 -- Bet Builder
 			WHEN f.GroupId = 2 THEN 7 -- FM 228
-			WHEN Bettype BETWEEN 7901 AND 7999 THEN 8 --Bitcoin
+			WHEN (Bettype BETWEEN 7901 AND 7999 OR Bettype BETWEEN 11050 AND 11099) THEN 8 --Bitcoin, VS5
 			ELSE 0
 		END AS KeyID
 	FROM #SpecialDeleteBets b

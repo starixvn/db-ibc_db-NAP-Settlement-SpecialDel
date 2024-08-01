@@ -86,6 +86,19 @@ BEGIN
 			INNER JOIN dbo.match14 m14 WITH(NOLOCK) ON rd.matchid = m14.matchid 
 	WHERE m14.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 					
     GROUP  BY rd.requestid
+
+	INSERT INTO @tmpResult (RequestID, Eventdate) 
+    SELECT rd.requestid, MIN(m.eventdate)
+    FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+			INNER JOIN dbo.Match3rd m WITH(NOLOCK) ON rd.matchid = m.Match3rdId 
+	WHERE m.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 						
+    GROUP  BY rd.requestid
+	UNION ALL
+	SELECT rd.requestid, MIN(m14.eventdate)
+    FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+			INNER JOIN dbo.Match3rd14 m14 WITH(NOLOCK) ON rd.matchid = m14.Match3rdId 
+	WHERE m14.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 					
+    GROUP  BY rd.requestid
     
 	SET @RequestInfo = COMPRESS((
 		SELECT DISTINCT RequestId AS 'req'

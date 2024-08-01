@@ -199,6 +199,21 @@ BEGIN
 					) m
 		WHERE rd.RequestId = @RequestId
 		GROUP BY rd.RequestId
+
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT rd.RequestId, MIN(m.eventdate)
+		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		CROSS APPLY (
+					SELECT m.Match3rdId, m.eventdate
+					FROM	dbo.Match3rd m WITH(NOLOCK)
+					WHERE rd.MatchId = m.Match3rdId
+					UNION ALL
+					SELECT	m14.Match3rdId, m14.eventdate
+					FROM	dbo.Match3rd14 m14 WITH(NOLOCK)
+					WHERE rd.MatchId = m14.Match3rdId
+					) m
+		WHERE rd.RequestId = @RequestId
+		GROUP BY rd.RequestId
 	END
 	ELSE
 	IF @FilteredBy = 2
@@ -248,6 +263,21 @@ BEGIN
 					SELECT	m14.MatchId, m14.eventdate
 					FROM	dbo.match14 m14 WITH(NOLOCK)
 					WHERE rd.MatchId = m14.matchid
+					) m
+		WHERE rd.MatchId = @MatchId 
+		GROUP BY rd.RequestId
+
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT rd.RequestId, MIN(m.eventdate)
+		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		CROSS APPLY (
+					SELECT m.Match3rdId, m.eventdate
+					FROM	dbo.Match3rd m WITH(NOLOCK)
+					WHERE rd.MatchId = m.Match3rdId
+					UNION
+					SELECT	m14.Match3rdId, m14.eventdate
+					FROM	dbo.Match3rd14 m14 WITH(NOLOCK)
+					WHERE rd.MatchId = m14.Match3rdId
 					) m
 		WHERE rd.MatchId = @MatchId 
 		GROUP BY rd.RequestId

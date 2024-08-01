@@ -143,8 +143,16 @@ BEGIN
 		, @SubIssueTypeId
 		, @FilterBy
 		, CONVERT(VARCHAR(MAX), @xmlTransIds)
-	FROM dbo.match m WITH (NOLOCK)
-	WHERE m.matchid = @MatchId
+	FROM (
+		SELECT m.leagueid, m.homeid, m.awayid, m.sporttype
+		FROM dbo.match m WITH (NOLOCK)
+		WHERE m.matchid = @MatchId
+
+		UNION
+		SELECT m.League3rdId, m.homeid, m.awayid, m.sporttype
+		FROM dbo.Match3rd m WITH (NOLOCK)
+		WHERE m.Match3rdId = @MatchId
+	)m
 
 	SET @RequestDetailId = SCOPE_IDENTITY()
 	

@@ -20,6 +20,7 @@ AS
 		- 20230112@July: [TVS] Add more send Letstalk info when an abnormal request added [Redmine: #182392]
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 		- 20230427@July: Invalid matchid when input child match Cricket [Redmine: #187052]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's explanation:	
 		- @Type: 0 - Normal (get match from match table)
@@ -110,6 +111,24 @@ BEGIN
 			WHERE	m14.matchid = @matchID	
 				AND 1 = CASE WHEN @IsExcludeChildMatchCricket = 1 AND m14.sporttype = 50 AND m14.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 							 ELSE 1 END 
+
+			UNION  --VS5
+			SELECT 
+					match.Match3rdId AS matchid,
+					match.homeid,
+					match.awayid,
+					NULL AS matchcode, 
+					match.eventdate, 
+					match.League3rdId leagueid,
+					NULL AS IsNeutral,
+					NULL AS showtime,
+					NULL AS kickofftime,
+					match.sporttype,
+					NULL AS LeagueGroupID,
+					match.StartTime,
+					NULL AS NumberOfCorner
+				FROM dbo.Match3rd AS match WITH (NOLOCK) 
+				WHERE match.Match3rdId = @matchID
 		END
 		ELSE IF @Type = 1
 		BEGIN
