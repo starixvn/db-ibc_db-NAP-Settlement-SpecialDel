@@ -28,6 +28,7 @@ AS
 		- 20240301@Aries: Direct payout run before waiting time [Redmine:#201698]
 		- 20240308@Aries: Direct Ice Hockey [Redmine:#201836]
 		- 20240412@Aries: Direct Payout for Virtual Kabaddi [Redmine:#203590]
+		- 20240108@Aries: Auto Payout Table Tennis - AP Full Time Failed for Main match [Redmine:#208869]
 
 	Param's Explanation:
 		- @AutoSetting: 
@@ -192,11 +193,12 @@ BEGIN
 				INNER JOIN dbo.ProviderExternalResultDetail r WITH(NOLOCK)
 					ON m.matchid = r.MatchId				
 			WHERE m.sporttype = @Sporttype
-			AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 1 = 1
+				AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 1 = 1
 				AND ISNULL(m.SettlementStatus,0) & 87 = 0
 				AND m.eventstatus = 'running'
 				AND ISNULL(m.IsDeleted,0) = 0
 				AND r.SourceId = 1 --SBO
+				AND 1 = IIF(@Sporttype = 18 AND  r.ResourceId != '00',0,1)
 		END 
 		ELSE IF @ExternalResultTable = 2 
 		BEGIN
