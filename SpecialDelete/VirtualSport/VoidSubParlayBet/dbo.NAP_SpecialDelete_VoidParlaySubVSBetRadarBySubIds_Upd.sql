@@ -321,11 +321,11 @@ BEGIN
 			 CROSS APPLY (
 					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode, m.eventdate
 					FROM match m WITH (NOLOCK)
-					WHERE m.matchid = @MatchId
+					WHERE m.matchid = bm.matchid
 					UNION 
 					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode, m.EventDate
 					FROM Match3rd m WITH (NOLOCK)
-					WHERE m.Match3rdId = @MatchId
+					WHERE m.Match3rdId = bm.matchid
 				 )m			 
 		WHERE b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
 		  AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))	
