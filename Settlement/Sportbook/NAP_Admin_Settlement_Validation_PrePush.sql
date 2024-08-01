@@ -31,6 +31,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider [Redmine:#195768]
 		- 20240502@204698: Direct Payout- Kabadi/Icehockey- missing check live odds are closed [Redmine:#204698]
+		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
      
     Param's Explanation:
 
@@ -80,7 +81,7 @@ BEGIN
 	FROM	dbo.match m WITH (NOLOCK)
 	WHERE	m.matchid = @MatchId
 
-	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5, 4,47 )		THEN 1 --Odds
+	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5, 4,47,18 )	THEN 1 --Odds
 							 WHEN @sporttype IN ( 9, 45, 50, 6 )	THEN 2 --OddsOS
 							 WHEN @sporttype = 43					THEN 3 --OddsES
 							 ELSE 0 END -- not checking
@@ -97,7 +98,7 @@ BEGIN
 	CREATE TABLE #SelectedMatchResource ( Matchid INT, ResourceId VARCHAR(20) )
 	CREATE NONCLUSTERED INDEX IX_SelectedMatchResource ON #SelectedMatchResource (ResourceId)
 
-	CREATE TABLE #Bettypes ( Bettype SMALLINT, BetID BIGINT )
+	CREATE TABLE #Bettypes ( Bettype SMALLINT, BetID BIGINT, ResourceId VARCHAR(20)  )
 
 
 	SET @XmlData =  CONVERT(XML, @SelectedResource)
@@ -115,13 +116,13 @@ BEGIN
 	OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )	
 
 	----------------- Checking running Odds
-	INSERT INTO #Bettypes ( Bettype , BetID )
-	SELECT   BetType, BetID
+	INSERT INTO #Bettypes ( Bettype , BetID,ResourceId )
+	SELECT   BetType, BetID, r.ResourceId
 	FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
         INNER JOIN #SelectedMatchResource AS r ON  sp.RefResourceID = r.ResourceId 
 	WHERE sp.sporttype = @sporttype		
     UNION 
-	SELECT   BetType, BetID
+	SELECT   BetType, BetID, r.ResourceId
 	FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
         INNER  JOIN #SelectedMatchResource AS r ON  sp.ResourceId = r.ResourceId 
 	WHERE sp.sporttype = @sporttype		
@@ -175,7 +176,7 @@ BEGIN
 
 	END
 	
-	ELSE IF @CheckType = 1 AND @sporttype = 6
+	ELSE IF @CheckType = 1 AND @sporttype IN (6,18)
 	BEGIN
 		INSERT INTO @tmpMatchRunningOdds ( Matchid )
 				SELECT DISTINCT o.matchid
@@ -191,6 +192,7 @@ BEGIN
 						AND o.liveindicator = 1
 						AND o.oddsstatus <> 'closed'
 						AND ISNULL(o.IsDeleted,0) = 0
+						AND b.Resourceid = mr.Resourceid
 				) r
 
 		INSERT INTO @tmpMatchRunningOdds ( Matchid )
@@ -207,6 +209,7 @@ BEGIN
 						AND o.liveindicator = 1
 						AND o.oddsstatus <> 'closed'
 						AND ISNULL(o.IsDeleted,0) = 0
+						AND b.Resourceid = mr.Resourceid
 				) r
 
 				IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchRunningOdds WHERE Matchid = @Matchid)

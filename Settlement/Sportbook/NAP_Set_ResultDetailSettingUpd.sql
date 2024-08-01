@@ -28,6 +28,7 @@ AS
 		- 20230915@Louisa: Remove code WriteLog_UserLog [Redmine:#193920]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
+		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		  	
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -73,7 +74,7 @@ BEGIN
 	IF @ActionId IS NULL OR ( @Type = 2 AND @IsValidateSOPRefund = 0 )
 	RETURN
 
-	IF @SportType = 58 --get all ResourceID from web
+	IF @SportType IN (18,58) --get all ResourceID from web
 	BEGIN
 		INSERT INTO @tmpResultDetail ( ResourceId)
 		SELECT DISTINCT	fs.value FROM STRING_SPLIT(@ResourceIds,',') fs

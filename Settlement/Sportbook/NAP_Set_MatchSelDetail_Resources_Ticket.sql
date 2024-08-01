@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources_Ticket]
 	@matchid INT
 	,@SportType INT = 0
@@ -13,9 +13,10 @@ AS
 		- 20220719@Louisa: Initial- Get ResourceId and Count ticket Status [Redmine:#175251]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
+		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 */
 BEGIN
-	SET NOCOUNT ON
+	SET NOCOUNT ON 
     
 	DECLARE  @BestOfMap			TINYINT = NULL
 			,@OpenQuery			NVARCHAR(MAX) 

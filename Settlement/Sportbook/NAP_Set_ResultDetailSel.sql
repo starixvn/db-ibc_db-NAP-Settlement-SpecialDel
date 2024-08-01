@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02 " executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02 " executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_ResultDetailSel]
 	@matchidList 		   VARCHAR(MAX)
 AS
@@ -15,6 +15,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
+		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
 
 	Param's explanation:
 		
