@@ -51,6 +51,7 @@ AS
 		- 20231213@Kathy: Enhance Recalculation and Instant Settle for Basketball [Redmine:#198283]
 		- 20230131@Kathy: Support generate BetParlayDetail/BetParlayResult for voiding ticket [Redmine:#200440]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20240729@Kathy: get eventdate before settlement [Redmine:#208293]
 
 		
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
@@ -159,7 +160,7 @@ BEGIN
 
   	--get info of match
   	SELECT	@sportType	= sportType
-			,@eventdate	= eventdate
+			--,@eventdate	= eventdate
 			,@ParentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL AND sporttype = 50 THEN ParentID ELSE NULL END
 			,@IsABANDONEDHT = CASE WHEN sporttype = 1 AND betstatus LIKE '%ABANDONED 1H%' THEN 1 ELSE 0 END
   	FROM	DBPRO.bodb02.dbo.match WITH (NOLOCK)
@@ -717,6 +718,10 @@ BEGIN
 	BEGIN TRY
 		-- settle parlay
 		BEGIN
+  			SELECT	@eventdate	= eventdate
+  			FROM	DBPRO.bodb02.dbo.match WITH (NOLOCK)
+  			WHERE   matchid = @matchid
+
 			IF @IsSDT = 1
 			BEGIN
 				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets)
