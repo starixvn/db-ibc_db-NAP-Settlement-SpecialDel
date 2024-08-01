@@ -15,6 +15,7 @@ AS
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20230522@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20240220@July: Merge VS1, VS2, VS3 into Virtual Sports - Remove code unused [Redmine: #200317]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
     Param's Explanation:  
@@ -40,6 +41,10 @@ BEGIN
 		WHERE  1 = CASE WHEN sporttype NOT IN (50,8) AND matchid = @MatchId THEN 1
 						WHEN sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1 -- Get main/child matchid
 						ELSE 0 END
+		UNION --VS5
+		SELECT Match3rdId
+		FROM dbo.Match3rd WITH(NOLOCK)
+		WHERE  Match3rdId = @MatchId
 		
 		INSERT INTO #TmpBettype(bettype)
 		SELECT b.bettype

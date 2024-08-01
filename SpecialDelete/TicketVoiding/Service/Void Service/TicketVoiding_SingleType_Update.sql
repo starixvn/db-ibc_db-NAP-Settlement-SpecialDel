@@ -100,6 +100,7 @@ BEGIN
 			,@IsExistVS3 				BIT = 0
 			,@IsExistParlayVS4 			BIT = 0
 			,@IsExistVS4 				BIT = 0
+			,@isExistMatch3rd			BIT = 0
 			,@avaiableProcessRefNo		BIT
 			,@ErrCodeRefNo				BIT = 0
 			,@ErrMsgRefNo				VARCHAR(300) = '' 
@@ -253,6 +254,17 @@ BEGIN
 		WHERE b.bettype IN (1231,1232,1233,1237,1238)
 	END
 
+	-- UPDATE Sportype for VS5
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransId WHERE bettype BETWEEN 11050 AND 11099))
+	BEGIN
+		UPDATE d
+		SET  sporttype 	= m.SportType
+			,eventdate  = m.EventDate
+		FROM #tmpTransId d
+			INNER JOIN dbo.Match3rd m WITH (NOLOCK) 
+			ON d.matchid = m.Match3rdId
+	END
+
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
 		UPDATE b
@@ -342,6 +354,7 @@ BEGIN
 				,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
 				,@IsExistParlayVS4			= MAX (CASE WHEN fs.SpcialBettypes IS NOT NULL THEN 1 ELSE 0 END)
 				,@IsExistVS4				= MAX (CASE WHEN sporttype = 188 THEN 1 ELSE 0 END)
+				,@isExistMatch3rd			= MAX (CASE WHEN sporttype = 147 THEN 1 ELSE 0 END)
 		FROM	#tmpTransId b
 			OUTER APPLY (
 						SELECT GroupId
@@ -374,6 +387,7 @@ BEGIN
 				WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
 				WHEN Bettype = 38 THEN 5 -- Bet Builder
 				WHEN f.GroupId = 2 THEN 7 -- FM 228
+				WHEN Bettype BETWEEN 11050 AND 11099 THEN 8 --VS5
 				ELSE 0
 			END AS KeyID
 		FROM #tmpTransId b
@@ -446,6 +460,7 @@ BEGIN
 				, @isExistBB				= @isExistBB
 				, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 				, @isExistFM2				= @isExistFM2
+				, @isExistMatch3rd			= @isExistMatch3rd
 				, @spName					= @spName
 				, @avaiableProcess 			= @avaiableProcess OUTPUT
 				, @ErrCode					= @ErrCode OUTPUT
@@ -466,7 +481,7 @@ BEGIN
 						 ELSE 0 END
 
 	--Get data before update
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1 OR @isExistMatch3rd = 1)
 	BEGIN
 		INSERT INTO #balanceGameBefore(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -668,7 +683,7 @@ BEGIN
 	END
 
 	--Get data after update
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1 OR @isExistMatch3rd = 1)
 	BEGIN
 		INSERT INTO #balanceGameAfter(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -751,7 +766,7 @@ BEGIN
 		INNER JOIN #tmpTransId b ON c.TransID = b.transid AND c.MatchID = b.matchid
 	WHERE b.betdaqid = -2 
 
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1 OR @isExistMatch3rd = 1)
 	BEGIN	
 		CREATE TABLE #balanceGameChange (
 			custid 			INT
@@ -840,6 +855,7 @@ BEGIN
 			, @isExistBB				= @isExistBB
 			, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 			, @isExistFM2				= @isExistFM2
+			, @isExistMatch3rd			= @isExistMatch3rd
 			, @IsReleased				= 1
 	END
 		

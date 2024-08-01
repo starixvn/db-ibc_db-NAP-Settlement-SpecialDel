@@ -1,11 +1,11 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02,DBACC-bodb02,DBARC-bodb_Archive" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02,DBACC-bodb02,DBARC-bodb_Archive,DBRPT-bodb_Report" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_TVS_SpeciallyBettypes] ()
 RETURNS TABLE
 AS
 /*
     Created: 20240718@Max
     Task: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
-	DB: DBCTG/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02,DBACC-bodb02,DBARC-bodb_Archive,DBRPT-bodb_Report
 
     Revisions:
 		- 20240718@Max: Create function [Redmine: #207545]
