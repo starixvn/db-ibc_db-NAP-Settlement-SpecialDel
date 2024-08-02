@@ -27,6 +27,7 @@ AS
 		- 20240502@Louisa: Direct for new league SABA [Redmine:#204369]
 		- 20240614@Aries: Add fantasy leagueId [Redmine:#206489]
 		- 20240619@Aries: Direct Payout for SABA ELITE FRIENDLY Virtual PES 23 - PENALTY SHOOTOUTS [Redmine:#206740]
+		- 20240731@Aries: Apply Direct Payout for SABA CLUB FRIENDLY and SABA ENGLISH PREMIER LEAGUE - Virtual FC 24 - 16 Mins Play [Redmine:#208347]
 
 	Param's Explanation:
  
@@ -140,11 +141,11 @@ BEGIN
 					AND m.eventdate BETWEEN @fromdate AND @todate 
 					AND GlobalShowTime <= @checktime
 					AND ISNULL(m.ChildMatchType,0) <> 201
-					AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND l.leagueid IN (95730,95731,96666,135822,147230) AND f.TypeId = 2 THEN 1
+					AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND l.leagueid IN (95730,95731,96666,135822,147230,114806,150217) AND f.TypeId = 2 THEN 1
 																						   ELSE 0
 																						   END								 
 								 WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74, 108) THEN CASE WHEN f.TypeId = 2 THEN 1
-																							WHEN l.leagueid IN (95730,95731,96666,135822,147230) AND f.TypeId = 1 THEN 1
+																							WHEN l.leagueid IN (95730,95731,96666,135822,147230,114806,150217) AND f.TypeId = 1 THEN 1
 																							ELSE 0
 								  															END
 								 WHEN (mr.SubType BETWEEN 2101 AND 2199 OR mr.SubType BETWEEN 2601 AND 2699) THEN IIF(f.TypeId = 2,1,0)  -- Child-match Next Corner
