@@ -52,7 +52,7 @@ BEGIN
 		  , @SiteDBGroupID				SMALLINT
 		  , @transInfo					VARBINARY(MAX) 
 		  , @IsExistsVS2				BIT = 0
-		  , @IsExistsVS				BIT = 0
+		  , @IsExistsVS					BIT = 0
 		  , @bettype					SMALLINT
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
@@ -424,8 +424,15 @@ BEGIN
 			FROM bettransm bm (NOLOCK)
 					INNER JOIN #RecoverBet t
 							ON bm.refno = t.refno
-					INNER JOIN match m (NOLOCK)
-							ON bm.matchid = m.matchid
+					CROSS APPLY (
+						SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode, m.eventdate
+						FROM match m WITH (NOLOCK)
+						WHERE m.matchid = bm.matchid
+						UNION 
+						SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode, m.EventDate
+						FROM Match3rd m WITH (NOLOCK)
+						WHERE m.Match3rdId = bm.matchid
+					 )m	
 			WHERE t.BetType IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1) AND Bettype <> 2799)
 			GROUP BY bm.matchid, m.eventdate
 			

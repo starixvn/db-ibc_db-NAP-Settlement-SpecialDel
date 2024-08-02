@@ -44,14 +44,15 @@ BEGIN
 		  , @IsExistVSBetradar			  BIT = 0
 		  , @IsExistInspiredVS			  BIT = 0
 		  , @IsExistVS3					  BIT = 0
-		  , @IsExistVS_3rd				  BIT = 0
+		  , @IsExistVS4					  BIT = 0
 		  , @isITAdmin					  BIT = 0
 		  , @before_yesterday			  DATETIME
 		  , @cnt_Ticket					  INT = 0
 		  , @CustIds					  VARCHAR(MAX) = ''			  		 
 		  , @i							  INT = 0
 		  , @matchId					  INT
-		  , @TicketType					  TINYINT		  
+		  , @TicketType					  TINYINT	
+		  , @isExistMatch3rd			  BIT = 0
 	
 	DECLARE @cnt_RecalMatchInspiredVS	  INT = 0	
 		  , @cnt_RefundMatchInspiredVS	  INT = 0		 
@@ -136,7 +137,7 @@ BEGIN
 		BetFrom				NVARCHAR(4),
 		matchid				INT,
 		[Action]			VARCHAR(100),
-		TicketType			TINYINT, -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181, 4 : VS3(Leap Gaming), 5: VS4(Edge Gaming)
+		TicketType			TINYINT, -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181, 4 : VS3(Leap Gaming), 5: VS4(Edge Gaming), 6: VS5
 		currency			TINYINT,
 		actualPO			MONEY,
 		IsApplyMaxPO		BIT
@@ -308,6 +309,7 @@ BEGIN
 					WHEN m.sporttype IN (180, 186) THEN 2 -- Inspired VS 180
 					WHEN m.sporttype IN (178, 179) THEN 4 -- VS 3 (Leap Gaming)
 					WHEN m.sporttype IN (188, 147) THEN 5 -- VS 4 (Edge Gaming), VS5
+					WHEN m.sporttype IN (147) THEN 6 -- VS5
 					ELSE NULL
 				END AS TicketType
 				,b.currency
@@ -483,15 +485,17 @@ BEGIN
 			 , @IsExistVS		  = MAX(CASE WHEN TicketType = 3 THEN 1 ELSE 0 END)			 
 			 , @IsExistVSBetradar = MAX(CASE WHEN TicketType = 1 THEN 1 ELSE 0 END)
 			 , @IsExistVS3		  = MAX(CASE WHEN TicketType = 4 THEN 1 ELSE 0 END)
-			 , @IsExistVS_3rd	  = MAX(CASE WHEN TicketType = 5 THEN 1 ELSE 0 END)
+			 , @IsExistVS4	      = MAX(CASE WHEN TicketType = 5 THEN 1 ELSE 0 END)
 			 , @IsExistInspiredVS = MAX(CASE WHEN TicketType IN (2, 3) THEN 1 ELSE 0 END)
+			 , @isExistMatch3rd	  = MAX(CASE WHEN TicketType = 6 THEN 1 ELSE 0 END)
 		FROM #RecoverBet
 			
 		INSERT INTO #tblMatchProcess (matchid, KeyID)
 		SELECT DISTINCT 
 				matchid
 			  , CASE 
-					WHEN TicketType IN (1, 2, 4, 5) THEN 1 -- VS Betradar, Inspired VS 180, VS3(Leap Gaming), VS4(Edge Gaming) , VS5
+					WHEN TicketType IN (1, 2, 4, 5) THEN 1 -- VS Betradar, Inspired VS 180, VS3(Leap Gaming), VS4(Edge Gaming)
+					WHEN TicketType IN (6) THEN 8 --VS5
 					ELSE 4 -- Inspired VS 181
 				END AS KeyId
 		FROM #RecoverBet
@@ -500,6 +504,7 @@ BEGIN
 			  @isExistMatch				= @isExistMatch								
 			, @spName					= @spName
 			, @IsExistVS				= @IsExistVS
+			, @isExistMatch3rd			= @isExistMatch3rd
 			, @avaiableProcess 			= @avaiableProcess OUTPUT
 			, @ErrCode					= @ErrCode OUTPUT
 			, @ErrMsg					= @ErrMsg OUTPUT																		
@@ -537,7 +542,12 @@ BEGIN
 								 INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 										 ON r.EventID = o.EventID
 							WHERE t.oddsid = o.Orid
-							  AND t.TicketType = 3											 
+							  AND t.TicketType = 3	
+							UNION ALL
+							SELECT TOP 1 m3.eventstatus, m3.betstatus
+							FROM dbo.Match3rd m3 WITH (NOLOCK)											 
+							WHERE t.matchid = m3.Match3rdId
+							  AND t.TicketType = 3	
 						 ) AS m						 							 																								
 		
 		--> Capture balance before
@@ -737,12 +747,16 @@ BEGIN
 			END						
 		END	
 		
-		IF @IsExistVS3 = 1 OR @IsExistVS_3rd = 1
+		IF @IsExistVS3 = 1 OR @IsExistVS4 = 1
 		BEGIN	
+			DELETE @tmpMatchId
+			DELETE @tmpSelectedResources
+			DELETE @tmpMaxWinLimit
+
 			INSERT INTO @tmpMatchId (MatchId)
 			SELECT DISTINCT b.MatchId
 			FROM #RecoverBet b
-			WHERE b.TicketType IN (4, 5)
+			WHERE b.TicketType IN (4,5)
 
 			INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID,OddsType )  
 			SELECT DISTINCT Id, ISNULL(Home,''), ISNULL(Away,''), sp.BetType, sp.BetID, sp.pfID , sp.OddsType
@@ -757,7 +771,7 @@ BEGIN
 			) AS tbl
 				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 				ON	sp.ResourceID = tbl.Id
-			WHERE sp.SportType IN (178, 179, 188, 147)
+			WHERE sp.SportType IN (178, 179, 188)
 
 			UPDATE r SET 
 				 r.actualPO = CASE
@@ -818,7 +832,7 @@ BEGIN
 					WHERE	t.actualPO > m.MaxWinLimit
 						AND t.TicketType IN (4, 5)
 
-					SET @TotalTransMaxPO = @@ROWCOUNT
+					SET @TotalTransMaxPO = @TotalTransMaxPO + @@ROWCOUNT
 				END
 					
 			END
@@ -898,6 +912,173 @@ BEGIN
 						   ,@BalanceType		 = 0		
 			END
 		END		
+
+		--VS5
+		IF @isExistMatch3rd = 1
+		BEGIN	
+			DELETE @tmpMatchId
+			DELETE @tmpSelectedResources
+			DELETE @tmpMaxWinLimit
+
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT DISTINCT b.MatchId
+			FROM #RecoverBet b
+			WHERE b.TicketType IN (6)
+
+			INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID,OddsType )  
+			SELECT DISTINCT Id, ISNULL(Home,''), ISNULL(Away,''), sp.BetType, sp.BetID, sp.pfID , sp.OddsType
+			FROM (
+				SELECT '00' AS Id, m.finalhomescore AS Home, m.finalawayscore AS Away
+				FROM @tmpMatchId t
+					INNER JOIN dbo.Match3rd m WITH (NOLOCK) ON t.matchId = m.Match3rdId
+				UNION ALL
+				SELECT '01' AS Id, m.hthomescore AS Home, m.htawayscore AS Away
+				FROM @tmpMatchId t
+					INNER JOIN dbo.Match3rd m WITH (NOLOCK) ON t.matchId = m.Match3rdId
+			) AS tbl
+				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
+				ON	sp.ResourceID = tbl.Id
+			WHERE sp.SportType IN (147)
+
+			UPDATE r SET 
+				 r.actualPO = CASE
+				   		WHEN m.modds >  0.25 THEN b.actual_stake + b.stake * (CASE WHEN b.odds < 0 THEN 1  
+																				   WHEN sr.oddstype = 1 THEN b.odds - 1 
+																				   ELSE b.odds 
+																				END)
+				   		WHEN m.modds =  0.25 THEN b.actual_stake + b.stake * 0.5 * (CASE WHEN b.odds < 0 THEN 1  
+																						 WHEN sr.oddstype = 1 THEN b.odds - 1 
+																						 ELSE b.odds 
+																					END)
+				   		ELSE NULL
+				    END 		
+			FROM	#RecoverBet r
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = r.TransId
+			CROSS APPLY(
+							SELECT TOP 1 pfID, HomeValue, AwayValue, OddsType
+							FROM @tmpSelectedResources t
+							WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
+						) sr
+					CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, NULL) m
+			WHERE	r.TicketType IN (6)
+					AND b.statusID <> 101
+					AND b.SiteDBGroupID = @SiteDBGroupID
+					AND r.Action = @Action_Recal
+
+			-- check if winlost reaches the maxpayout
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.f_NAP_Site_MaxPayoutSetting() WHERE SiteDBGroupId = @SiteDBGroupId)
+			BEGIN
+				;WITH cteCustIds
+				AS(
+					SELECT DISTINCT custid, currency
+					FROM	#RecoverBet t
+					WHERE	modds >= 0.25
+						AND  t.TicketType IN (6)
+				)
+				INSERT INTO @tmpMaxWinLimit (CustId, MaxWinLimit)
+				SELECT	t.custid, fc.MaxWinLimit
+				FROM	CustDB.dbo.Customer c WITH(NOLOCK)
+					INNER JOIN cteCustIds t
+						ON t.custid = c.custid
+					INNER JOIN CustDB.dbo.Site s WITH(NOLOCK)
+						ON s.site = c.site
+					INNER JOIN dbo.f_NAP_Site_MaxPayoutSetting() fs
+						ON s.siteid = fs.siteid
+					INNER JOIN dbo.f_NAP_Currency_MaxPayoutSetting() fc
+						ON	t.currency = fc.ExchangeId
+							AND fc.SiteDBGroupId = @SiteDBGroupId
+
+				IF @@ROWCOUNT > 0
+				BEGIN
+					UPDATE t 
+						SET IsApplyMaxPO = 1
+							,winlost = m.MaxWinLimit
+					FROM	#RecoverBet t
+						INNER JOIN	@tmpMaxWinLimit m
+							ON t.CustId = m.CustId
+					WHERE	t.actualPO > m.MaxWinLimit
+						AND t.TicketType IN (6)
+
+					SET @TotalTransMaxPO = @TotalTransMaxPO + @@ROWCOUNT
+				END
+					
+			END
+
+			WHILE (1=1)
+			BEGIN
+				SET @_sXML = NULL
+
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId
+				FROM @tmpMatchId m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+
+				--> Update Bettrans	to running
+				SET @_xml = (
+					SELECT transid '@q' -- transid			 
+						 , creator '@cr' -- creator
+					FROM #RecoverBet	
+					WHERE TicketType IN (6) AND matchid = @matchId	 					 
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) 
+				SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+		
+				EXEC dbo.Bet_ExecRep_05 
+					  @IgnoreList 	= @IgnoreList
+					, @updatetype 	= 6
+					, @_sXML 		= @_sXML
+					, @matchId = @matchId
+			
+				--> Re-cal	
+				SET @_xml = (
+					SELECT transid AS '@t'
+						  ,modds AS '@m'
+						  ,0 AS '@ot'
+						  ,CASE WHEN IsApplyMaxPO = 1 THEN winlost ELSE NULL END AS '@wl'
+						  ,CASE WHEN IsApplyMaxPO = 1 THEN actualPO ELSE NULL END AS '@apo'
+						  ,IsApplyMaxPO AS '@iMPO'
+					FROM #RecoverBet
+					WHERE TicketType IN (6) AND matchid = @matchid
+					  AND [Action] = @Action_Recal
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) 
+				SELECT @TicketInfos_Recal = CONVERT(VARCHAR(MAX), @_xml)											
+		
+				EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
+							@matchid			 = @matchid 
+						   ,@action				 = 'CAL'  
+						   ,@strTransIds		 = @TicketInfos_Recal
+						   ,@EventTable			 = 1
+						   ,@Is3rd				 = 1 
+						   ,@IsCalculateBalance  = 0
+						   ,@CWLBettype			 = 0
+						   ,@BalanceType		 = 0				
+		
+				--> Refund		
+				SET @_xml = (
+					SELECT transid AS '@t'
+						  ,modds AS '@m'
+						  ,0 AS '@ot'
+					FROM #RecoverBet
+					WHERE TicketType IN (6) AND matchid = @matchid 
+					  AND [Action] = @Action_Refund
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) 
+				SELECT @TicketInfos_Refund = CONVERT(VARCHAR(MAX), @_xml)											
+		
+				EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
+							@matchid			 = @matchid 
+						   ,@action				 = 'REFUND'  
+						   ,@strTransIds		 = @TicketInfos_Refund
+						   ,@EventTable			 = 1
+						   ,@Is3rd				 = 1 
+						   ,@IsCalculateBalance  = 0
+						   ,@CWLBettype			 = 0
+						   ,@BalanceType		 = 0		
+			END
+		END	
 
 		--> Capture balance after
 		INSERT INTO #afterUpd(custid										  
@@ -1008,6 +1189,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess
 			  @IsExistVS				= 1
 			, @isExistMatch				= 1
+			, @isExistMatch3rd          = 1
 			, @IsReleased				= 1	
 		
 		
@@ -1235,6 +1417,7 @@ BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess
 				  @IsExistVS				= 1
 				, @isExistMatch				= 1
+				, @isExistMatch3rd          = 1
 				, @IsReleased				= 1	
 		
 		SELECT @ErrCode AS ErrorCode
