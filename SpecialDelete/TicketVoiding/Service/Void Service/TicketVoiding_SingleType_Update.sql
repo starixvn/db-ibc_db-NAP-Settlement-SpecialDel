@@ -380,6 +380,7 @@ BEGIN
 						AND Bettype NOT BETWEEN 801 AND 899
 						AND f.GroupId IS NULL
 						AND Bettype NOT IN (1231,1232,1233)
+						AND sporttype NOT IN (147)
 					THEN 1 --SB,NG,LC
 				WHEN Bettype = 10 THEN 2	-- Outright
 				WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
@@ -387,7 +388,7 @@ BEGIN
 				WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
 				WHEN Bettype = 38 THEN 5 -- Bet Builder
 				WHEN f.GroupId = 2 THEN 7 -- FM 228
-				WHEN Bettype BETWEEN 11050 AND 11099 THEN 8 --VS5
+				WHEN sporttype IN (147) THEN 8 --VS5
 				ELSE 0
 			END AS KeyID
 		FROM #tmpTransId b
