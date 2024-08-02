@@ -42,7 +42,7 @@ BEGIN
 
 	IF @Sporttype IN (147,178,179, 188) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
 	BEGIN
-		IF @Sporttype =  188
+		IF @Sporttype IN (147, 188)
 		BEGIN
 			INSERT INTO #tmpRefno (refno,statusID)
 			SELECT bm.refno, bm.statusID

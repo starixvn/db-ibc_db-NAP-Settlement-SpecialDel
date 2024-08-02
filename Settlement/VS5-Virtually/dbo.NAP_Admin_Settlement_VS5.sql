@@ -210,7 +210,7 @@ BEGIN
 				@matchid			 = @MatchId 
 			   ,@action				 = @Action  
 			   ,@strTransIds		 = @strTransIds
-			   ,@EventTable			 = 1
+			   ,@EventTable			 = 3
 			   ,@Is3rd				 = 1 
 			   ,@IsCalculateBalance  = 1
 			   ,@CWLBettype			 = 1201

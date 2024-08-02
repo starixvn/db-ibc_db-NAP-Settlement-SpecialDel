@@ -38,6 +38,7 @@ AS
 		- 20221011@Louisa: Arithmetic OverFLow when  settle bettype 9115,9116,9117,9118,9119,9120 [Redmine:#178978]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#208026]
+		- 20240808@Aries: VS5 - Virtually Sports [Redmine:#207309]
 */
 RETURN
 (
