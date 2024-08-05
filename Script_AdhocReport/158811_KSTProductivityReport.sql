@@ -25,6 +25,7 @@ GO
 	 2022-12-19: release Pingoal ESports
 	 2023-04-12: release Table Tennis - move auto from AutoPayoutResultDetail to AutoPayoutResultDetailOS
 	 2024-01-12: Separate 2 column AutoCal and AutoRefund from column AutoSettle
+	 2024-08-05: release Table Tennis - move settle form table match to AutoPayoutResultDetail, add Auto Payout Kabaddi
 
 	 *** Scope: SportBook
 	 *** Exclude: hedge match, child match of Cricket Test Match, test match
@@ -331,38 +332,40 @@ GO
 		GROUP BY r.MatchId
 	END
 
-	------------------------ Table Tennis -------------------------------
+	------------------------ Table Tennis old version and Auto Kabaddi-------------------------------
+	BEGIN
+		INSERT INTO #MatchIdAuto (matchid)	
+		SELECT DISTINCT  MatchId 
+		FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
+		WHERE (
+					(p.starttime < '2024-08-01' AND p.sporttype = 18 )
+					OR p.sporttyep = 47
+			 )
+			AND p.IsAuto = 1
 
-	INSERT INTO #MatchIdAuto (matchid)	
-	SELECT DISTINCT  MatchId 
-	FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
-	WHERE p.starttime BETWEEN @fromDate AND @toDate
-		AND p.sporttype = 18
-		AND p.IsAuto = 1
-
-	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
-	SELECT
-			m.MatchId
-			, CASE WHEN  r.MatchId IS NOT NULL THEN 0 
-					WHEN m.betstatus = 'Refund;' THEN 0 
-					ELSE 1 
-					END	AS ManualCal
-			, CASE WHEN  r.MatchId IS NOT NULL THEN 0
-				   WHEN  m.betstatus = 'Refund;' THEN 1 
-				   ELSE 0 
-				   END	AS ManualRefund
-			, CASE WHEN r.MatchId IS NOT NULL THEN 1 
-					ELSE 0
-					END AS IsAuto
-			, 0 AS AutoRefund
-			FROM #MatchId m
-		OUTER APPLY (	
-						SELECT r.MatchId FROM #MatchIdAuto r
-						WHERE m.matchid = r.MatchId
-							AND m.betstatus <> 'Refund;'
-					) r
-		WHERE m.sporttype = 18
-	
+		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
+		SELECT
+				m.MatchId
+				, CASE WHEN  r.MatchId IS NOT NULL THEN 0 
+						WHEN m.betstatus = 'Refund;' THEN 0 
+						ELSE 1 
+						END	AS ManualCal
+				, CASE WHEN  r.MatchId IS NOT NULL THEN 0
+						WHEN  m.betstatus = 'Refund;' THEN 1 
+						ELSE 0 
+						END	AS ManualRefund
+				, CASE WHEN r.MatchId IS NOT NULL THEN 1 
+						ELSE 0
+						END AS IsAuto
+				, 0 AS AutoRefund
+				FROM #MatchId m
+			OUTER APPLY (	
+							SELECT r.MatchId FROM #MatchIdAuto r ---Table Tennis and Kabaddi has FT only
+							WHERE m.matchid = r.MatchId
+								AND m.betstatus <> 'Refund;'
+						) r
+			WHERE m.sporttype IN ( 18, 47)
+	END
 	------------------------ Other sports: Result is saved in dbo.match -------
 	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
 	SELECT	m.MatchId
@@ -371,7 +374,7 @@ GO
 		, 0 AS AutoCal
 		, 0 AS AutoRefund
 	FROM #MatchId m
-	WHERE m.sporttype <> 18
+	WHERE m.sporttype NOT IN ( 18, 47)
 		AND 1 = CASE WHEN m.ResultTable = 0 THEN 1
 					WHEN m.sporttype = 50 AND m.eventdate < '2021-04-08' THEN 1 -- 2021-04-08: Move Cricket to ResultDetailOS
 					WHEN m.sporttype = 45 AND m.eventdate < '2021-07-19' THEN 1 -- 2021-07-19: Move Beach Volleyball to ResultDetailOS
