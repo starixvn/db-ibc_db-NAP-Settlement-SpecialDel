@@ -15,6 +15,7 @@ AS
 			- 20240503@Louisa: Enhance-separate code DBTXN and DBPRO [Redmine:#204370]
 			- 20240719@Aries: Filter Over Status = Settle with Running TIcket, Complete match with betbulder running ticket is shown [Redmine:#208511]
 			- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
+			- 20240608@Aries: Filter Over Status Table Tennis - Don't show parent match when child match has no ticket [Redmine:#208972]
 
 	Parameters Explanation: 
 		@MatchInfo='[{"m":83541400,"s":9,"cmt":0,"e":"running","cfht":0,"cfft":4635582},{"m":83541402,"s":9,"cmt":0,"e":"running","cfht":0,"cfft":0}]'
@@ -174,7 +175,7 @@ BEGIN
                             SELECT TOP 1 1
                             FROM @tmpMatchOverStatus AS mp
                             WHERE  m.matchid = mp.matchid
-                                AND mp.ResourceID = '00')  
+                                AND ISNULL(mp.ResourceID, '00') = '00')  
                )
 
         DELETE m
