@@ -35,11 +35,7 @@ BEGIN
 		INSERT INTO #Result_Negative_tmp (custid,eventtypeid)
 		SELECT DISTINCT TOP (100) l.custid,l.eventtypeid
 		FROM CustLimitBet_789 l WITH (NOLOCK)
-			CROSS APPLY (SELECT TOP 1 betfrom FROM bettrans b WITH (NOLOCK)
-						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID 
-						 ) AS tmp
 		WHERE l.AccumTurnover < 0 
-			AND tmp.betfrom <> 'p'
 	
 		IF @@ROWCOUNT > 0
 		BEGIN
@@ -93,11 +89,9 @@ BEGIN
 		INSERT INTO #Result_Negative_tmp (custid,eventtypeid)
 		SELECT DISTINCT TOP (100) l.custid,l.eventtypeid
 		FROM CustLimitBet_MBC l WITH (NOLOCK)
-			CROSS APPLY (SELECT TOP 1 betfrom FROM bettrans b WITH (NOLOCK)
-						 WHERE b.matchid = l.Matchid AND b.custid = l.CustID 
-						 ) AS tmp
+			INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = l.CustID
 		WHERE l.AccumTurnover < 0 
-			AND tmp.betfrom <> 'p'
+			AND c.site NOT IN ('Special','BEST-ODDS','Hedging')
 	
 		IF @@ROWCOUNT > 0
 		BEGIN
