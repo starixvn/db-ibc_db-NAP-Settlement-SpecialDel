@@ -368,7 +368,7 @@ BEGIN
 			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
 			SELECT DISTINCT bm.matchid, bm.refno
 			FROM #tmpBettransm bm
-				INNER JOIN #tmpBetDelete b ON b.RefNo = bm.refno AND b.SportType = 188
+				INNER JOIN #tmpBetDelete b ON b.RefNo = bm.refno AND b.SportType IN (188,147)
 		END
 
 		EXEC [dbo].[NAP_Admin_CheckingProcess]

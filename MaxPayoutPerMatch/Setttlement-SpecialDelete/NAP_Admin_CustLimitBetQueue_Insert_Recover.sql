@@ -17,6 +17,7 @@ AS
 		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240118@Louisa: VS4 - Cock Fighting [Redmine:#199700]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 	
 	Param's explanation:	
 		
@@ -71,8 +72,8 @@ BEGIN
 	
 	DELETE t
 	FROM #CustLimitBet_tmp t
-	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188) AND @sporttype NOT BETWEEN 190 AND 197)
-		OR (t.bettype IN(29, 2799, 10449) OR (t.bettype BETWEEN 801 AND 806)) 
+	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188,147) AND @sporttype NOT BETWEEN 190 AND 197)
+		OR (t.bettype IN(SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1)) OR (t.bettype BETWEEN 801 AND 806)) 
 	
 	SET @CreatedDate = GETDATE()
 	IF EXISTS (SELECT TOP (1) 1 FROM #CustLimitBet_tmp WHERE bettype = 10)
