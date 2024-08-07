@@ -308,7 +308,7 @@ BEGIN
 					WHEN m.sporttype BETWEEN 190 AND 199 THEN 1 -- VS Betradar
 					WHEN m.sporttype IN (180, 186) THEN 2 -- Inspired VS 180
 					WHEN m.sporttype IN (178, 179) THEN 4 -- VS 3 (Leap Gaming)
-					WHEN m.sporttype IN (188, 147) THEN 5 -- VS 4 (Edge Gaming), VS5
+					WHEN m.sporttype IN (188) THEN 5 -- VS 4 (Edge Gaming), VS5
 					WHEN m.sporttype IN (147) THEN 6 -- VS5
 					ELSE NULL
 				END AS TicketType
@@ -547,7 +547,7 @@ BEGIN
 							SELECT TOP 1 m3.eventstatus, m3.betstatus
 							FROM dbo.Match3rd m3 WITH (NOLOCK)											 
 							WHERE t.matchid = m3.Match3rdId
-							  AND t.TicketType = 3	
+							  AND t.TicketType = 6	
 						 ) AS m						 							 																								
 		
 		--> Capture balance before
@@ -784,7 +784,8 @@ BEGIN
 																						 ELSE b.odds 
 																					END)
 				   		ELSE NULL
-				    END 		
+				    END 
+				,r.OddsType = sr.OddsType
 			FROM	#RecoverBet r
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = r.TransId
 			CROSS APPLY(
@@ -868,7 +869,7 @@ BEGIN
 				SET @_xml = (
 					SELECT transid AS '@t'
 						  ,modds AS '@m'
-						  ,0 AS '@ot'
+						  ,ISNULL(OddsType,0) AS '@ot'
 						  ,CASE WHEN IsApplyMaxPO = 1 THEN winlost ELSE NULL END AS '@wl'
 						  ,CASE WHEN IsApplyMaxPO = 1 THEN actualPO ELSE NULL END AS '@apo'
 						  ,IsApplyMaxPO AS '@iMPO'
@@ -893,7 +894,7 @@ BEGIN
 				SET @_xml = (
 					SELECT transid AS '@t'
 						  ,modds AS '@m'
-						  ,0 AS '@ot'
+						  ,ISNULL(OddsType,0) AS '@ot'
 					FROM #RecoverBet
 					WHERE TicketType IN (4, 5) AND matchid = @matchid 
 					  AND [Action] = @Action_Refund
@@ -951,7 +952,8 @@ BEGIN
 																						 ELSE b.odds 
 																					END)
 				   		ELSE NULL
-				    END 		
+				    END 	
+				, r.OddsType = sr.OddsType
 			FROM	#RecoverBet r
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = r.TransId
 			CROSS APPLY(
@@ -1035,7 +1037,7 @@ BEGIN
 				SET @_xml = (
 					SELECT transid AS '@t'
 						  ,modds AS '@m'
-						  ,0 AS '@ot'
+						  ,ISNULL(OddsType,0) AS '@ot'
 						  ,CASE WHEN IsApplyMaxPO = 1 THEN winlost ELSE NULL END AS '@wl'
 						  ,CASE WHEN IsApplyMaxPO = 1 THEN actualPO ELSE NULL END AS '@apo'
 						  ,IsApplyMaxPO AS '@iMPO'
@@ -1060,7 +1062,7 @@ BEGIN
 				SET @_xml = (
 					SELECT transid AS '@t'
 						  ,modds AS '@m'
-						  ,0 AS '@ot'
+						  ,ISNULL(OddsType,0) AS '@ot'
 					FROM #RecoverBet
 					WHERE TicketType IN (6) AND matchid = @matchid 
 					  AND [Action] = @Action_Refund

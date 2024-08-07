@@ -112,23 +112,40 @@ BEGIN
 				AND 1 = CASE WHEN @IsExcludeChildMatchCricket = 1 AND m14.sporttype = 50 AND m14.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 							 ELSE 1 END 
 
-			UNION  --VS5
+			UNION ALL --VS5
 			SELECT 
-					match.Match3rdId AS matchid,
-					match.homeid,
-					match.awayid,
-					NULL AS matchcode, 
-					match.eventdate, 
-					match.League3rdId leagueid,
-					NULL AS IsNeutral,
-					NULL AS showtime,
-					NULL AS kickofftime,
-					match.sporttype,
-					NULL AS LeagueGroupID,
-					match.StartTime,
-					NULL AS NumberOfCorner
-				FROM dbo.Match3rd AS match WITH (NOLOCK) 
-				WHERE match.Match3rdId = @matchID
+				match.Match3rdId AS matchid,
+				match.homeid,
+				match.awayid,
+				NULL AS matchcode, 
+				match.eventdate, 
+				match.League3rdId leagueid,
+				NULL AS IsNeutral,
+				NULL AS showtime,
+				NULL AS kickofftime,
+				match.sporttype,
+				NULL AS LeagueGroupID,
+				match.StartTime,
+				NULL AS NumberOfCorner
+			FROM dbo.Match3rd AS match WITH (NOLOCK) 
+			WHERE match.Match3rdId = @matchID
+			UNION ALL --VS5
+			SELECT 
+				match.Match3rdId AS matchid,
+				match.homeid,
+				match.awayid,
+				NULL AS matchcode, 
+				match.eventdate, 
+				match.League3rdId leagueid,
+				NULL AS IsNeutral,
+				NULL AS showtime,
+				NULL AS kickofftime,
+				match.sporttype,
+				NULL AS LeagueGroupID,
+				match.StartTime,
+				NULL AS NumberOfCorner
+			FROM dbo.Match3rd14 AS match WITH (NOLOCK) 
+			WHERE match.Match3rdId = @matchID
 		END
 		ELSE IF @Type = 1
 		BEGIN

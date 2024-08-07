@@ -121,38 +121,66 @@ BEGIN
 		WHERE RequestId = @RequestId
 	END
 
-	INSERT INTO dbo.TicketVoiding_RequestDetail (
-		RequestId
-		, MatchId
-		, LeagueId
-		, HomeId
-		, AwayId
-		, Sporttype
-		, RequestType
-		, SubIssueTypeId
-		, FilterBy
-		, TransIds
-	)
-	SELECT @RequestId
-		, @MatchId
-		, m.leagueid
-		, m.homeid
-		, m.awayid
-		, m.sporttype
-		, CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
-		, @SubIssueTypeId
-		, @FilterBy
-		, CONVERT(VARCHAR(MAX), @xmlTransIds)
-	FROM (
-		SELECT m.leagueid, m.homeid, m.awayid, m.sporttype
-		FROM dbo.match m WITH (NOLOCK)
-		WHERE m.matchid = @MatchId
+	IF @MatchId NOT IN (SELECT Bettype FROM f_TVS_SpeciallyBettypes())
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_RequestDetail (
+			RequestId
+			, MatchId
+			, LeagueId
+			, HomeId
+			, AwayId
+			, Sporttype
+			, RequestType
+			, SubIssueTypeId
+			, FilterBy
+			, TransIds
+		)
+		SELECT @RequestId
+			, @MatchId
+			, m.leagueid
+			, m.homeid
+			, m.awayid
+			, m.sporttype
+			, CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
+			, @SubIssueTypeId
+			, @FilterBy
+			, CONVERT(VARCHAR(MAX), @xmlTransIds)
+		FROM (
+			SELECT m.leagueid, m.homeid, m.awayid, m.sporttype
+			FROM dbo.match m WITH (NOLOCK)
+			WHERE m.matchid = @MatchId
 
-		UNION
-		SELECT m.League3rdId, m.homeid, m.awayid, m.sporttype
-		FROM dbo.Match3rd m WITH (NOLOCK)
-		WHERE m.Match3rdId = @MatchId
-	)m
+			UNION
+			SELECT m.League3rdId, m.homeid, m.awayid, m.sporttype
+			FROM dbo.Match3rd m WITH (NOLOCK)
+			WHERE m.Match3rdId = @MatchId
+		)m
+	END
+	ELSE
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_RequestDetail (
+			RequestId
+			, MatchId
+			, LeagueId
+			, HomeId
+			, AwayId
+			, Sporttype
+			, RequestType
+			, SubIssueTypeId
+			, FilterBy
+			, TransIds
+		)
+		SELECT @RequestId
+			, @MatchId
+			, NULL
+			, NULL
+			, NULL
+			, NULL
+			, CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
+			, @SubIssueTypeId
+			, @FilterBy
+			, CONVERT(VARCHAR(MAX), @xmlTransIds)
+	END
 
 	SET @RequestDetailId = SCOPE_IDENTITY()
 	

@@ -152,6 +152,13 @@ BEGIN
 		FROM dbo.match (NOLOCK)
 		WHERE matchid = @MatchId
 
+		IF @@ROWCOUNT = 0 AND EXISTS (SELECT TOP 1 1 FROM dbo.Match3rd m WITH (NOLOCK) WHERE m.Match3rdId = @MatchId)
+		BEGIN
+			SELECT @matchdate = eventdate			 
+			FROM dbo.match3rd (NOLOCK)
+			WHERE Match3rdId = @MatchId
+		END
+
 		/*Modify the way to get move bet date*/
 		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 
