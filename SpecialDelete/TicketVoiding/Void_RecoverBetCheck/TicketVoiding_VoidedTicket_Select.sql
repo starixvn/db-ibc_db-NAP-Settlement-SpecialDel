@@ -44,7 +44,7 @@ BEGIN
 	DECLARE  @SiteDBGroupID SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT, IsOutright BIT)
+	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT, IsOutright BIT, IsMatch3rd BIT)
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 	DECLARE @tmpChildMatchCricket TABLE (
 		MatchId			INT
@@ -239,16 +239,25 @@ BEGIN
 
 	END
 
-	INSERT INTO #TmpMatch (Matchid, SettlementStatus, IsOutright)
-	SELECT DISTINCT t.MatchId, m.SettlementStatus, CASE WHEN t.Bettype = 10 THEN 1 ELSE 0 END
+	INSERT INTO #TmpMatch (Matchid, SettlementStatus, IsOutright, IsMatch3rd)
+	SELECT DISTINCT t.MatchId, m.SettlementStatus, CASE WHEN t.Bettype = 10 THEN 1 ELSE 0 END, ISNULL(m.IsMatch3rd,0)
 	FROM #tmpTicket t
-		LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
+		OUTER APPLY(
+			SELECT m.SettlementStatus, 0 AS IsMatch3rd
+			FROM dbo.match m WITH(NOLOCK) 
+			WHERE t.MatchId = m.matchid
+			UNION ALL
+			SELECT 0 AS SettlementStatus, 1 AS IsMatch3rd
+			FROM dbo.Match3rd m WITH(NOLOCK) 
+			WHERE t.matchid = m.Match3rdId
+		)m
 
 	--@IsMovebet = 0
 	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch 
 				 WHERE (SettlementStatus IS NOT NULL 
 						OR (SettlementStatus IS NULL AND matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)))
-						OR (SettlementStatus IS NULL AND IsOutright = 1))
+						OR (SettlementStatus IS NULL AND IsOutright = 1)
+						OR (IsMatch3rd = 1))
 			)
 	BEGIN
 		UPDATE t 
@@ -518,6 +527,20 @@ BEGIN
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
 		WHERE d.bettype IN (1231,1232,1233,1237,1238)
+	END
+
+	-- UPDATE VS5
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype BETWEEN 11050 AND 11099))
+	BEGIN
+		UPDATE d
+		SET  matchcode 	= m.MatchNo
+			,homeid 	= m.HomeId
+			,awayid 	= m.AwayId
+			,leagueid 	= m.League3rdId
+			,sporttype 	= m.SportType
+		FROM #tmpTicket d
+			INNER JOIN dbo.Match3rd m WITH (NOLOCK) 
+			ON d.matchid = m.Match3rdId
 	END
 	
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
