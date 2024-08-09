@@ -121,7 +121,7 @@ BEGIN
 		WHERE RequestId = @RequestId
 	END
 
-	IF @MatchId NOT IN (SELECT Bettype FROM f_TVS_SpeciallyBettypes())
+	IF @MatchId NOT IN (SELECT Bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetail (
 			RequestId
