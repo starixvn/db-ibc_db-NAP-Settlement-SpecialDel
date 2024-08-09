@@ -260,6 +260,7 @@ BEGIN
 		UPDATE d
 		SET  sporttype 	= m.SportType
 			,eventdate  = m.EventDate
+			,MainMatchId = m.Match3rdId
 		FROM #tmpTransId d
 			INNER JOIN dbo.Match3rd m WITH (NOLOCK) 
 			ON d.matchid = m.Match3rdId
