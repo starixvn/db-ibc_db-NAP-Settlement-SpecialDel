@@ -21,6 +21,7 @@ AS
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240813@Max: [TVS] Manage Request - Enhancements [Redmine: #208623]
 		- 20240828@Max: [TVS] Manage Request - Enhancements - Fix Issue [Redmine: #208623]
 
@@ -49,6 +50,7 @@ BEGIN
 		,KickOffTime DATETIME
 		,IssuetypeId TINYINT 
 		,RecoveredTime DATETIME
+		,Sporttype SMALLINT
 	);
 	
 	CREATE TABLE #tmpVoidingHistory
@@ -72,7 +74,7 @@ BEGIN
 	FROM string_split (@MatchIds, ',')
 	WHERE value <> ''
 
-	INSERT INTO #tmpMatch (RequestId, MatchId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId, RecoveredTime)
+	INSERT INTO #tmpMatch (RequestId, MatchId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId, RecoveredTime, Sporttype)
 	SELECT DISTINCT 
 			 rd.RequestId
 			,CASE WHEN r.IssueTypeId = 13 THEN 0 ELSE rd.MatchId END
@@ -84,16 +86,26 @@ BEGIN
 			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.kickofftime END 
 			,r.IssueTypeId
 			,CASE WHEN r.IssuetypeId IN (22) THEN r.CreatedDate ELSE NULL END AS RecoveredTime
+			,m.sporttype
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		OUTER APPLY (
-					SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.kickofftime
+					SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.kickofftime, sporttype
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE rd.MatchId = m.matchid
 					UNION
-					SELECT	m14.MatchId, m14.homeid, m14.awayid, m14.leagueid, m14.kickofftime
+					SELECT	m14.MatchId, m14.homeid, m14.awayid, m14.leagueid, m14.kickofftime, sporttype
 					FROM	dbo.match14 m14 WITH(NOLOCK)
 					WHERE rd.MatchId = m14.matchid
+
+					UNION
+					SELECT m.Match3rdId, m.homeid, m.awayid, m.League3rdId, m.StartTime, Sporttype
+					FROM	dbo.Match3rd m WITH(NOLOCK)
+					WHERE rd.MatchId = m.Match3rdId
+					UNION
+					SELECT	m14.Match3rdId, m14.homeid, m14.awayid, m14.League3rdId, m14.StartTime, Sporttype
+					FROM	dbo.match3rd14 m14 WITH(NOLOCK)
+					WHERE rd.MatchId = m14.Match3rdId
 					) m
 	WHERE rd.RequestId = @RequestId 
 		AND (rd.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR @MatchIds = '')
@@ -206,6 +218,7 @@ BEGIN
 		,@VoidingHistoryIds AS VoidingHistoryIds
 		,@SingleTransIds AS SingleTransIds
 		,t.RecoveredTime
+		,t.Sporttype
 	FROM #tmpMatch t
 		LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK)
 			ON t.RequestedBy = v.CustId
