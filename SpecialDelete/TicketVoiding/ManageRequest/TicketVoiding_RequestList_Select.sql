@@ -152,7 +152,7 @@ BEGIN
 	IF @FilteredBy = 1
 	BEGIN
 		IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-					WHERE matchid IN (9, 29, 2799, 10449) AND RequestId = @RequestId
+					WHERE matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) AND RequestId = @RequestId
 		)
 		BEGIN
 			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
