@@ -50,6 +50,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240813@Max: [TVS] Manage Request - Enhancements [Redmine: #208623]
 
 	Param's explanation:	
 	
@@ -103,14 +104,8 @@ BEGIN
 			,cr.username AS RequestedBy
 			,cv.username AS VoidedBy
 			,r.UserId
-			,CASE WHEN r.ActionId = 1 THEN 'AddRequest' 
-				  WHEN r.ActionId = 4 THEN 'VoidInstant'
-				  WHEN r.ActionId = 8 THEN 'VoidInstantNopolicy'
-				  WHEN r.ActionId = 9 THEN 'VoidResultKeyed'
-				  WHEN r.ActionId = 10 THEN 'VoidInstantPolicy'
-				  WHEN r.ActionId = 11 THEN 'RecoverInstant'
-				ELSE '' END AS ActionName
 			,@IsHasResettledTicket AS IsHasResettledTicket
+			,r.BriefInfoNote
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 		LEFT JOIN CustDB.dbo.Customer cr WITH (NOLOCK) ON cr.custid = r.UserId
 		OUTER APPLY (SELECT TOP 1 1 AS isVoided, tv.UserId AS VoidBy, tv.RequestId
