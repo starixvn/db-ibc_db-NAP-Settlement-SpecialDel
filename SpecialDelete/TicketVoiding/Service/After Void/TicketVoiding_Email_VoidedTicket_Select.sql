@@ -375,6 +375,20 @@ BEGIN
 		WHERE t.bettype IN (1231,1232,1233,1237,1238) AND IsVoidArchived = 0
 	END
 
+	-- UPDATE Sportype, Endtime VS5
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype BETWEEN 11050 AND 11099))
+	BEGIN
+		UPDATE d
+		SET  matchcode 	= m.MatchNo
+			,homeid 	= m.HomeId
+			,awayid 	= m.AwayId
+			,leagueid 	= m.League3rdId
+			,sporttype 	= m.SportType
+		FROM #tmpTicket d
+			INNER JOIN dbo.Match3rd m WITH (NOLOCK) 
+			ON d.matchid = m.Match3rdId
+	END
+
 	--For void14 abnormal account only (only single + main parlay)
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE IsMixParlay = 0 AND IsVoidArchived = 1))
 	BEGIN
