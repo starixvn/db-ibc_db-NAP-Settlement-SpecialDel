@@ -114,10 +114,17 @@ RETURN
 			WHEN @pfID = 8814 THEN
 				CASE WHEN (CAST(@HomeValue AS INT) - (CAST(@hdp1 AS INT)%800) >= 0) AND (CAST(@AwayValue AS INT) - (CAST(@hdp1 AS INT)%800) >= 0) THEN CASE WHEN @betteam = 'y' THEN 1 ELSE -1 END
 					 ELSE NULL END	
+			WHEN @pfID = 8813 THEN 
+				CASE WHEN @betteam = '0' AND fm = 1 THEN -1
+					 WHEN @betteam IN ('0','1') AND fm = 2 THEN -1
+					 WHEN @betteam IN ('0', '1', '2') AND fm >= 3 THEN -1
+					 WHEN @betteam = '3+' AND fm >= 3 THEN 1
+					 ELSE NULL
+				END
 			ELSE NULL
 		END AS modds
 	FROM(
-		SELECT (CASE WHEN @pfID IN (3,646) THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @MinusValue - @hdp1)				
+		SELECT (CASE WHEN @pfID IN (3,646, 8813) THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @MinusValue - @hdp1)				
 					 WHEN @pfID IN (401,638) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1 - @MinusValue
 					 WHEN @pfID IN (402) THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1 - @MinusValue
 					 WHEN @pfID IN (8826) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)

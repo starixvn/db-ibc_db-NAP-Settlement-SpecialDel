@@ -1,6 +1,6 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_Set_AutoInstantOS_ScheduleSel_xpre
-	@Sporttype SMALLINT 
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE dbo.NAP_Set_AutoInstantOS_ScheduleSel
+	@Sporttypes VARCHAR(MAX) = '' 
 AS
 /*
 	Creator: 20230801@Aries
@@ -8,6 +8,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:	
 		- 20230801@Aries: Created [Redmine:#189662]
+		- 20240910@Kathy: Instant Baseball [Redmine:#208026]
 
 */
 
@@ -22,7 +23,9 @@ BEGIN
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting		BIT = 0
 			,@ExternalResultTable INT
-			
+	
+	DECLARE @tmpSporttypes TABLE (SportType SMALLINT, ExternalResultTable INT)
+	
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		 @SPName		= @procName
 		,@WaitingTime	= @WaitingTime	OUTPUT
@@ -33,16 +36,22 @@ BEGIN
 		RETURN
 	END
 	
-	SELECT @ExternalResultTable = CASE WHEN ss.Sporttype = 8 THEN 2 ELSE ss.ExternalResultTable END
-	FROM dbo.SettlementResultTableSetting ss WITH(NOLOCK)
-	WHERE ss.Sporttype = @Sporttype
+	INSERT INTO @tmpSporttypes (SportType)
+	SELECT val
+	FROM STRING_SPLIT(@Sporttypes,',')
+	
+	UPDATE t 
+		SET ExternalResultTable = ss.ExternalResultTable
+	FROM 	@tmpSporttypes t
+		INNER JOIN dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+			ON ss.Sporttype = t.Sporttype
 
 	SELECT	 @CurrentDate	= CAST(GETDATE() AS DATE)
 	SELECT	 @FromDate		= DATEADD(DAY,-1,@CurrentDate)
 			,@ToDate		= DATEADD(DAY,1,@CurrentDate)
 			,@Checktime		= DATEADD(HOUR, 3, GETDATE())
 
-	IF @ExternalResultTable = 1
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpSporttypes WHERE ExternalResultTable = 1)
 	BEGIN
 		SELECT m.MatchID,m.LeagueID, r.HomeValue, r.AwayValue, r.ResourceId
 		FROM dbo.Match m WITH (NOLOCK)
@@ -60,8 +69,10 @@ BEGIN
 				FROM	dbo.ProviderExternalResultDetail AS pr WITH (NOLOCK)
 				WHERE	pr.ProviderExternalId  = mpr.MaxProviderExternalID
 			) AS r
-		WHERE m.SportType = @Sporttype
-		 AND m.EventStatus = 'running' 
+			INNER JOIN @tmpSporttypes s 
+				ON m.SportType = s.SportType
+		WHERE m.EventStatus = 'running' 
+		 AND s.ExternalResultTable = 1
 		 AND m.eventdate BETWEEN @FromDate AND @ToDate
 		 AND GlobalShowTime <= @Checktime
 		 AND m.SettlementStatus & 87 = 0 --Bit: 1: Pending, 2: Undecided, 3: UnderSettlement, 5: MTDHold, 7: Hold Key
@@ -81,7 +92,7 @@ BEGIN
 							AND a.SourceID = 98)
 		AND  1 = IIF(@Sporttype = 2 AND CAST(ISNULL(r.HomeValue, 0) AS INT) + CAST(ISNULL(r.AwayValue, 0) AS INT) < 6,0,1)
 	END 
-	ELSE IF @ExternalResultTable = 2
+	ELSE IF EXISTS (SELECT TOP 1 1 FROM @tmpSporttypes WHERE ExternalResultTable = 2)
 	BEGIN
 		IF @SportType = 8
 		BEGIN
@@ -101,8 +112,10 @@ BEGIN
 					FROM	dbo.ProviderExternalResultDetailOS AS pr WITH (NOLOCK)
 					WHERE	pr.ProviderExternalId  = mpr.MaxProviderExternalID
 				) AS r
-			WHERE m.SportType = @Sporttype
-			 AND m.EventStatus = 'running' 
+				INNER JOIN @tmpSporttypes s 
+					ON m.SportType = s.SportType
+			WHERE  m.EventStatus = 'running' 
+			 AND s.ExternalResultTable = 2
 			 AND m.eventdate BETWEEN @FromDate AND @ToDate
 			 AND GlobalShowTime <= @Checktime
 			 AND m.SettlementStatus & 87 = 0 --Bit: 1: Pending, 2: Undecided, 3: UnderSettlement, 5: MTDHold, 7: Hold Key
