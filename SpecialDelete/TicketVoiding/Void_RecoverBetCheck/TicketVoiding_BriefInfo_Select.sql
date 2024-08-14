@@ -112,21 +112,23 @@ BEGIN
 	FROM #tmpTicket al
 	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = al.srecommend)
 
-	SELECT tbl.AffectedLicenseeNames
+	SELECT DISTINCT tmp.matchid
+		, tbl.AffectedLicenseeNames
 		,tbl.CancelCashOutLicenseesNames
 		,tbl.ChinaViewLicenseesNames
-	FROM (
+	FROM #tmpTicket tmp
+	CROSS APPLY (
 		SELECT STUFF((SELECT DISTINCT  ',' + site
 									FROM #tmpTicket t
-									WHERE t.IsDeposit = 1
+									WHERE t.IsDeposit = 1 AND t.matchid = tmp.matchid
 									FOR XML PATH ('')),1,1,'') AS AffectedLicenseeNames
 			,STUFF((SELECT DISTINCT  ',' + site
 									FROM #tmpTicket t
-									WHERE t.IsCancelCashOut = 1
+									WHERE t.IsCancelCashOut = 1 AND t.matchid = tmp.matchid
 									FOR XML PATH ('')),1,1,'') AS CancelCashOutLicenseesNames
 			,STUFF((SELECT DISTINCT  ',' + site
 									FROM #tmpTicket t
-									WHERE t.IsChinaView = 1
+									WHERE t.IsChinaView = 1 AND t.matchid = tmp.matchid
 									FOR XML PATH ('')),1,1,'') AS ChinaViewLicenseesNames
 	)tbl
 	
