@@ -1006,9 +1006,9 @@ BEGIN
 			,SubLeagueId = m.leagueid
 	FROM #SpecialDeleteBets b
 		INNER JOIN #T_Match m WITH (NOLOCK) 
-			ON CASE WHEN b.bettype IN (7901) THEN 'match3rd' -- 7901: Bitcoin Over/Under
+			ON CASE WHEN (b.bettype IN (7901) OR bettype BETWEEN 11050 AND 11099) THEN 'match3rd' -- 7901: Bitcoin Over/Under
 											ELSE 'match' 
-								END = m.matchtype 
+								END = m.matchtype  
 
 	SELECT  s.username,
 			bettype,		
