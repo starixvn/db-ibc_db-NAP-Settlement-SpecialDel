@@ -34,6 +34,7 @@ SELECT   MessageId
 			  OR Content_en LIKE '%Due to%a goal was scored from a penalty awarded%%considered VOID%'
 			  OR Content_en LIKE '%Due to%an official decision to award%considered VOID%'
 			  OR Content_en LIKE '%Due to%1st Half has been completed%considered VOID%'
+			  OR Content_en LIKE '%Due to%wrong market offered caused by penalty retaken%considered VOID%'
 			THEN 'Danger Accepted'
 			WHEN Content_en LIKE '%Due to%wrong odds displayed%considered VOID%' THEN 'Wrong Odds'
 			WHEN Content_en LIKE '%Due to%wrong score displayed%considered VOID%' 
@@ -45,7 +46,8 @@ SELECT   MessageId
 			WHEN Content_en LIKE '%Due to%wrong%OU displayed%considered VOID%' THEN 'Wrong 1st OU'
 			WHEN Content_en LIKE '%Due to%early%considered VOID%' THEN 'Early Kick Off'
 			WHEN Content_en LIKE '%Due to%wrong%time displayed%considered VOID%' THEN 'Wrong Kick Off Time'
-			WHEN Content_en LIKE '%Due to%wrong market offered caused by%considered VOID%'
+			WHEN Content_en LIKE '%Due to%wrong market offered caused by no indication%considered VOID%'
+				OR Content_en LIKE '%Due to%wrong market offered caused by wrong indication%considered VOID%'
 				OR Content_en LIKE '%Due to%red card being awarded to%considered VOID%'
 				OR Content_en LIKE '%Due to%wrong odds offered on replacement of%considered VOID%' 
 				OR Content_en LIKE '%Due to%an official decision to cancel%team%after reviewing VAR for the match between%considered VOID%'
@@ -53,8 +55,6 @@ SELECT   MessageId
 			WHEN Content_en LIKE '%Due to%abandoned%considered VOID%' THEN 'Abandoned'
 			WHEN Content_en LIKE '%Due to%scheduled overs being reduced%considered VOID%' THEN 'Reduced Over'
 			WHEN Content_en LIKE '%Due to%Player%did not participate%considered VOID%' THEN 'Not Participate'
-			
-			
 			WHEN Content_en LIKE '%Due to%wrong market offered%match%considered VOID%' THEN 'Wrong Market Offered'
 			WHEN Content_en LIKE '%Due to%Wicket%has been completed%considered VOID%' THEN 'Match Completed'
 			WHEN Content_en LIKE '%Due to%wrong%team name displayed%considered VOID'THEN 'Wrong Team Name'
