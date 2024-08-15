@@ -21,6 +21,7 @@ AS
 		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 		- 20230712@Max: Scale out credit [Redmine: #181595]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
+		- 20240808@Max: Max Payout - Integrate Virtually Sports (VS5) [Redmine: #209070]
 
 	Param's explanation:		
 		
@@ -57,12 +58,17 @@ BEGIN
 		AND (m.sporttype <= 99 OR m.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197))
 	UNION ALL
 	SELECT 29 matchid, NULL sporttype
+	UNION ALL
+	SELECT m.Match3rdId, m.sporttype
+	FROM dbo.[Match3rd] m WITH (NOLOCK)
+	WHERE m.eventstatus = 'running'
+		AND m.sporttype IN (147)
 
 	INSERT INTO #NonSBRunningMatch(matchid)
 	SELECT m.matchid
 	FROM dbo.[match] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
-		AND m.sporttype > 99 AND m.sporttype NOT IN (164,178,179,180,186,190,191,192,193,194,195,196,197)
+		AND m.sporttype > 99 AND m.sporttype NOT IN (164,178,179,180,186,190,191,192,193,194,195,196,197,147)
 
 	----------------------------------------------------------Inserted data for excluded sporttype ---------------------------------------------------------
 	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL

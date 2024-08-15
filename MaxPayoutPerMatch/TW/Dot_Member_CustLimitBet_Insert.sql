@@ -37,15 +37,15 @@ BEGIN
 	END
 	
 
-	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186,188,147,177) AND (@sporttype NOT BETWEEN 190 AND 198))
-		OR (@bettype IN(2799,10449,11099)) OR (@bettype BETWEEN 801 AND 806)
+	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186,188,147) AND (@sporttype NOT BETWEEN 190 AND 197))
+		OR (@bettype IN(2799,10449)) OR (@bettype BETWEEN 801 AND 806)
 	BEGIN
 		RETURN
 	END
 	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) 
 		OR (@sporttype IN (43,44) AND @sitetype <> 3)
-		OR (@sporttype IN (164,178,179,180,186,188,147,177)) 
-		OR (@sporttype BETWEEN 190 AND 198)
+		OR (@sporttype IN (164,178,179,180,186,188,147)) 
+		OR (@sporttype BETWEEN 190 AND 197)
 	BEGIN
 		SET @payout = 0
 	END
