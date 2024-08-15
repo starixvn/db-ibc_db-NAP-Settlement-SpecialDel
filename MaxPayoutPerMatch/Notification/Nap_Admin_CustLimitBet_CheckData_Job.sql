@@ -68,7 +68,7 @@ BEGIN
 	SELECT m.matchid
 	FROM dbo.[match] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
-		AND m.sporttype > 99 AND m.sporttype NOT IN (164,178,179,180,186,190,191,192,193,194,195,196,197,147)
+		AND m.sporttype > 99 AND m.sporttype NOT IN (164,178,179,180,186,190,191,192,193,194,195,196,197)
 
 	----------------------------------------------------------Inserted data for excluded sporttype ---------------------------------------------------------
 	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
