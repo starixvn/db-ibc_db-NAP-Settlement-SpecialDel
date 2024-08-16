@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LastTime_Select]
 (	
 	@MatchId				INT
@@ -10,7 +10,7 @@ AS
 /*	
 	Created by: 20210616@Max
 	Task: [TVS] Wrong Score Enhancement 1 [Redmine: #140953]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20210616@Max: Create new SP [Redmine: #156349]
