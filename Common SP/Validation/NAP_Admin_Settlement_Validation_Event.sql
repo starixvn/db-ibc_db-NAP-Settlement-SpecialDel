@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event
 (
 	 @matchid				INT = 0
@@ -31,6 +31,7 @@ AS
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20231219@Louisa: RedCat88 [Redmine:#198365]
 		- 20231229@Aries: Enhancement of Auto Settlement [Redmine:#199004]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
@@ -126,7 +127,7 @@ BEGIN
 
 	SELECT @IsResultSettingChecking =  CASE WHEN  @SportType = 2 AND @LeagueGroupID = 122						THEN 0
 											WHEN  @SportType = 43 AND @LeagueGroupID IN (151, 215)				THEN 0
-											WHEN  @Sporttype = 50 AND @ChildMatchType = 200  					THEN 0
+											WHEN  @sporttype IN (8, 50) AND @ChildMatchType = 200  					THEN 0
 											WHEN  Setting & 4 > 0 AND @Action = 'REFUND' AND @IsAuto = 1		THEN 0	
 											ELSE  1
 										END
@@ -393,7 +394,7 @@ BEGIN
 			SELECT 1
 			WHERE 1 = CASE 
 						WHEN @betstatus LIKE 'Abandoned 1H%' THEN CASE WHEN (@hthomescore IS NULL OR @htawayscore IS NULL) THEN 1 ELSE 0 END
-						WHEN @MatchId = CASE WHEN @SportType =50 AND ISNULL(@childMatchType,0) = 200 THEN @ParentId 
+						WHEN @MatchId = CASE WHEN @SportType IN (8,50) AND ISNULL(@childMatchType,0) = 200 THEN @ParentId 
 											 ELSE @matchId END 
 							AND (@finalhomescore IS NULL OR @finalawayscore IS NULL OR @hthomescore IS NULL OR @htawayscore IS NULL) THEN 1
 						ELSE 0

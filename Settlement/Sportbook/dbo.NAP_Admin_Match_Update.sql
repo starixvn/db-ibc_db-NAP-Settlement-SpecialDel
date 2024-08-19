@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet,wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
 (
     @Command                    VARCHAR(100),
@@ -76,7 +76,8 @@ AS
 		- 20230704@Louisa:  Integrate Virtual Leap Gaming - VS3 [Redmine:#189854]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
-
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
+		
     Parameters Explanation:
 		 @SelectedResources = <Resources>
                                     <Resource Id="00" Home="1" Away="3" /> 
@@ -97,7 +98,7 @@ BEGIN
 
     SET @BetStatus = ISNULL(@BetStatus, N'')
 
-	SELECT	@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
+	SELECT	@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype IN (8, 50) THEN m.ParentID ELSE NULL END
 			,@sporttype = m.sporttype
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchID

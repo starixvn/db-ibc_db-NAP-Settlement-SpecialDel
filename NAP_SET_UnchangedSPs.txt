@@ -1,2 +1,3 @@
-Settlement\Sportbook\NAP_Set_MatchSelDetail_Resources_Ticket.sql
-Common SP\Calculation\NAP_Admin_MajorRound_Sel.sql
+Settlement\Sportbook\Service\ServiceBroker\DBTXN\dbo.SSB_ParlaySettlement_UpdateData.sql
+Settlement\Sportbook\Calculation\Parlay\dbo.NAP_Admin_Calculate_MP_broker.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
