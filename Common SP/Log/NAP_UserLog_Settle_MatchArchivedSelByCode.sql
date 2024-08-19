@@ -1,4 +1,4 @@
-/*<info serverAlias="DBARC-bodb_Archive" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBARC-bodb_Archive" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [NAP_UserLog_Settle_MatchArchivedSelByCode] 
 	@MatchCode varchar(50) = '',
 	@FromDate DATETIME = NULL,
@@ -14,6 +14,7 @@ AS
 	
 	Revisions: 	
 		- 20230620@Kathy: view info in archive [Redmine:#186616]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 
 	Example: 
 		@ProductType = 'BBD' -- BetBuilder
@@ -58,7 +59,7 @@ BEGIN
 							WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
 							ELSE 0
 						END
-				AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
+				AND 1 = CASE WHEN sporttype IN (8, 50) AND ISNULL(ChildMatchType,0) = 200 THEN 0
 							ELSE 1
 						END
 	END
@@ -80,7 +81,7 @@ BEGIN
 								WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
 								ELSE 0
 							END
-					AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
+					AND 1 = CASE WHEN sporttype IN (8, 50) AND ISNULL(ChildMatchType,0) = 200 THEN 0
 								ELSE 1
 							END
 		END
@@ -97,7 +98,7 @@ BEGIN
 								WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
 								ELSE 0
 							END
-					AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
+					AND 1 = CASE WHEN sporttype IN (8, 50) AND ISNULL(ChildMatchType,0) = 200 THEN 0
 								ELSE 1
 							END
 		END

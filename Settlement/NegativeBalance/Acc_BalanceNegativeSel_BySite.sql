@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBCTG-bodb02, DBSID-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02, DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.Acc_BalanceNegativeSel_BySite
   @Site		VARCHAR(50) = 'Haifa'
  ,@isTest	BIT			= 0
@@ -19,6 +19,7 @@ AS
 		- 20230523@Kathy: change metadata [Redmine:#188452]
 		- 20231108@Louisa: HF-missing info when send mail for child match Cricket [Redmine:#196508]
 		- 20231229@Louisa: Fix issue missing data outright [Redmine: #199060]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 
 	Param's Explanation: 
 		@isTest: 0: Real Currency; 1: UUS Currency 
@@ -51,7 +52,7 @@ BEGIN
 			, Username2
 	FROM ( SELECT h.LogID
 				, h.LogDate
-				, CASE WHEN ISNULL(m.sporttype,0) = 50 AND ISNULL(m.childmatchType,0) = 200 THEN m.ParentID 
+				, CASE WHEN ISNULL(m.sporttype,0) IN (8, 50) AND ISNULL(m.childmatchType,0) = 200 THEN m.ParentID 
 					   ELSE h.MatchID
 				  END AS MatchID
 				, h.GroupID
@@ -99,6 +100,7 @@ BEGIN
 		SELECT	DISTINCT LogDate, MatchID, GroupID, CustID, Username, TotalBalance, CurrencyName, Site, username2 AS CustomInfo1
 		FROM @BalanceNegative
 	END
+	
 
 	SELECT LogID FROM @BalanceNegative
 

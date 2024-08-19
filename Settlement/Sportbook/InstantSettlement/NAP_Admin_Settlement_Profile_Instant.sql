@@ -204,8 +204,7 @@ BEGIN
 			UPDATE @tmpSelectedRID
 			SET isCalculated = IIF(RefResourceID = '00',@FTDone,@HTDone)
 			WHERE RefResourceID  IN ('00','01')
-		END
-			
+		
 			SELECT	 @fthSDT = ISNULL(SUM(CASE WHEN tbl.SDTResourceId = '00' THEN tbl.HomeValue ELSE 0 END), 0)
 					,@ftaSDT = ISNULL(SUM(CASE WHEN tbl.SDTResourceId = '00' THEN tbl.AwayValue ELSE 0 END), 0)
 					,@hthSDT = ISNULL(SUM(CASE WHEN tbl.SDTResourceId = '01' THEN tbl.HomeValue ELSE 0 END), 0)

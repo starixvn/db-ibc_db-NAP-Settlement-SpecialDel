@@ -68,6 +68,7 @@ AS
 			- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 			- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
 			- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+			- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -182,7 +183,7 @@ BEGIN
 	END
 
 	INSERT INTO @tmpSporttypes( Sporttype, ResultTable, ExternalResultTable, AP_RetryTime )
-	SELECT	DISTINCT f.[value], CASE WHEN s.sporttype = 8 THEN 2 ELSE s.ResultTable END, CASE WHEN s.Sporttype = 8 THEN 2 ELSE s.ExternalResultTable END, s.AP_Main_WaitingTime
+	SELECT	DISTINCT f.[value], s.ResultTable, s.ExternalResultTable, s.AP_Main_WaitingTime
 	FROM	STRING_SPLIT(@Sporttypes, ',') f
 		INNER JOIN dbo.SettlementResultTableSetting s WITH(NOLOCK) 
 			ON f.[value] = s.sporttype
@@ -293,11 +294,17 @@ BEGIN
 				ON m.sporttype = s.Sporttype	
 		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
 				AND m.eventdate BETWEEN @FromDate AND @ToDate
-				AND 1 = CASE m.sporttype WHEN 50 THEN CASE  WHEN ( ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL ) THEN 0
-															WHEN @Page = 1 AND  ISNULL(l.LeagueGroupID,0) = 42 THEN 0
-															ELSE 1 
-															END
-						ELSE 1 
+				AND 1 = CASE 
+							WHEN m.sporttype IN (8, 50) THEN 
+								CASE  
+									WHEN ( ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL ) THEN 0
+									WHEN @Page = 1 THEN CASE 
+															WHEN ISNULL(l.LeagueGroupID,0) = 42 THEN 0
+															WHEN m.sporttype = 8 AND ISNULL(l.SessionTime,0) <> 1 THEN 0 -- show Series match only: SessionTime = 1
+															ELSE 1 END
+									ELSE 1 
+									END
+							ELSE 1 
 						END
 				AND ISNULL(m.IsDeleted,0) = 0
 	END
@@ -404,10 +411,18 @@ BEGIN
 											ELSE 0
 										END > 0
 								)
-				AND 1 = CASE m.sporttype WHEN 50 THEN CASE  WHEN ( ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL ) THEN 0
-															WHEN @Page = 1 AND  ISNULL(l.LeagueGroupID,0) = 42 THEN 0
+				AND 1 = CASE 
+							WHEN m.sporttype IN (8, 50) THEN 
+								CASE  
+									WHEN ( ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL ) THEN 0
+									WHEN @Page = 1 THEN CASE 
+															WHEN ISNULL(l.LeagueGroupID,0) = 42 THEN 0
+															WHEN m.sporttype = 8 AND ISNULL(l.SessionTime,0) <> 1 THEN 0 -- show Series match only: SessionTime = 1
 															ELSE 1 END
-									ELSE 1 END		
+									ELSE 1 
+									END
+							ELSE 1 
+						END
 				AND EXISTS (	SELECT TOP 1 1 FROM @tmpHoldStatus h
 								WHERE  CASE WHEN h.HoldStatus = 0 THEN 1
 										WHEN h.HoldStatus = 87 THEN  
@@ -430,7 +445,7 @@ BEGIN
 
 	END	
 
-	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatchIds WHERE Sporttype = 50 AND ISNULL(childmatchtype,0) <> 200 )
+	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatchIds WHERE Sporttype IN (50, 8) AND ISNULL(childmatchtype,0) <> 200 )
 	BEGIN
 		INSERT INTO @tmpAllParentChildMatch (MatchId, ParentId, eventstatus)
 		SELECT	DISTINCT m.matchid, m.ParentId,  t.eventstatus
@@ -438,7 +453,7 @@ BEGIN
 			CROSS APPLY (
 				SELECT	m.matchid, m.ParentId
 				FROM	dbo.match m WITH(NOLOCK)
-				WHERE	m.sporttype = 50
+				WHERE	m.sporttype IN (8, 50)
 						AND m.ChildMatchType = 200
 						AND m.ParentID = t.matchid
 			)m

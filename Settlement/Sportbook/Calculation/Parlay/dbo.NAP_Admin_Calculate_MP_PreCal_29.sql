@@ -49,6 +49,7 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240425@Kathy: enhance parlay [Redmine:#199518]
 		- 20240521@Kathy: write log [Redmine:#199518]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 
 
 	Param's Explanation:
@@ -266,7 +267,7 @@ BEGIN
 			CROSS APPLY
 				(
 					SELECT	TOP 1 CASE 
-									WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID 
+									WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype IN (8, 50) THEN m.ParentID 
 									ELSE bm.matchid 
 								END AS mainmatch
 					FROM dbo.match m WITH (NOLOCK)									

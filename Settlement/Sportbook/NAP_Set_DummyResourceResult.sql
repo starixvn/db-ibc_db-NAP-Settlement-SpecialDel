@@ -32,6 +32,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230727@Aries: Basketball AIO  [Redmine:#191381]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 */
 
 BEGIN
@@ -102,6 +103,7 @@ BEGIN
 			,@MaxValue INT
 			,@ResultTable TINYINT
 			,@xmlWebResourceResult XML
+			,@ParentMatchId INT
 
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT, isCalculated BIT)
@@ -112,9 +114,10 @@ BEGIN
 	FROM	dbo.SettlementResultTableSetting WITH(NOLOCK)
 	WHERE	Sporttype = @Sporttype
 	
-	IF @Sporttype = 8
-		SET @ResultTable = 2
-
+	SELECT @ParentMatchId = CASE WHEN m.ChildMatchType = 200 AND m.ParentID IS NOT NULL AND m.sporttype IN (8, 50) THEN m.ParentID ELSE NULL END
+  	FROM	DBPRO.BODB02.dbo.match m WITH (NOLOCK)
+  	WHERE   m.matchid = @matchid
+	
 	SET @xmlWebResourceResult = CAST(@WebResourceResult AS XML)
 	SET @CorrectQuaterOddEven = ''
 	
@@ -189,6 +192,15 @@ BEGIN
 		WHERE	MatchId = @MatchId
 			AND ResultStatusID  IN ( 2, 5 )	
 			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail t WHERE t.ResourceId = r.ResourceId)
+			
+		IF @ParentMatchId IS NOT NULL
+			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+			SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.SettlementStatusID
+			FROM	DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
+				INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+			WHERE	MatchId = @ParentMatchId
+				AND ResultStatusID  IN ( 2, 5 )	
+				AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail t WHERE t.ResourceId = r.ResourceId)
 	END
 	
 	IF @Sporttype = 2
@@ -2203,6 +2215,41 @@ BEGIN
 					) r
 				WHERE t.ResourceId LIKE '88190_'
 			END
+			
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '8832')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	t.ResourceId
+						,Sum_HomeValue
+						,Sum_AwayValue
+						,4 AS ssId
+				FROM	@tmpDummyResourceIds t
+					CROSS APPLY (
+						SELECT	SUM(CASE WHEN CAST(r.HomeValue AS INT) > CAST(r.AwayValue AS INT) THEN 1 ELSE 0 END) AS Sum_HomeValue
+								,SUM(CASE WHEN CAST(r.AwayValue AS INT) > CAST(r.HomeValue AS INT) THEN 1 ELSE 0 END) AS Sum_AwayValue
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId LIKE '010[1-3]' -- Inning
+					) r
+				WHERE t.ResourceId = '8832'
+			END
+			
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '8833')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	t.ResourceId
+						,Sum_HomeValue
+						,Sum_AwayValue
+						,4 AS ssId
+				FROM	@tmpDummyResourceIds t
+					CROSS APPLY (
+						SELECT	SUM(CASE WHEN CAST(r.HomeValue AS INT) > CAST(r.AwayValue AS INT) THEN 1 ELSE 0 END) AS Sum_HomeValue
+								,SUM(CASE WHEN CAST(r.AwayValue AS INT) > CAST(r.HomeValue AS INT) THEN 1 ELSE 0 END) AS Sum_AwayValue
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId LIKE '010[1-4]' -- Inning
+					) r
+				WHERE t.ResourceId = '8833'
+			END
+			
 		END
 		ELSE IF @IsDetermined = 1
 		BEGIN

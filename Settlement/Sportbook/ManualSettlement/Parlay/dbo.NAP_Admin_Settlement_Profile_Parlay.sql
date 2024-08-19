@@ -53,6 +53,7 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240729@Kathy: get eventdate before settlement [Redmine:#208293]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 
 		
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
@@ -162,7 +163,7 @@ BEGIN
   	--get info of match
   	SELECT	@sportType	= sportType
 			--,@eventdate	= eventdate
-			,@ParentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL AND sporttype = 50 THEN ParentID ELSE NULL END
+			,@ParentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL AND sporttype IN (8, 50) THEN ParentID ELSE NULL END
 			,@IsABANDONEDHT = CASE WHEN sporttype = 1 AND betstatus LIKE '%ABANDONED 1H%' THEN 1 ELSE 0 END
   	FROM	DBPRO.bodb02.dbo.match WITH (NOLOCK)
   	WHERE   matchid = @matchid

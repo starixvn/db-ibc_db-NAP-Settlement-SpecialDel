@@ -37,6 +37,7 @@ AS
 		- 20220629@Louisa: Volleyball AIO ( 27 bettype ) [Redmineid:#173862]
 		- 20221011@Louisa: Arithmetic OverFLow when  settle bettype 9115,9116,9117,9118,9119,9120 [Redmine:#178978]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#208026]
 */
 RETURN
 (
@@ -571,6 +572,11 @@ RETURN
 					WHEN @betteam = '11-12' AND fm BETWEEN 11 AND 12 THEN 1
 					WHEN @betteam = '13-14' AND fm BETWEEN 13 AND 14 THEN 1
 					WHEN @betteam = '15+' AND fm >= 15 THEN 1
+					ELSE -1
+				END
+			WHEN @pfID = 8831 THEN 
+				CASE 
+					WHEN @betteam = @HomeValue + '-' + @AwayValue THEN 1
 					ELSE -1
 				END
 			ELSE -1 
