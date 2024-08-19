@@ -59,6 +59,7 @@ BEGIN
 		,MatchId INT
 		,NegativeBalanceUsers VARCHAR(MAX)
 		,MessageId INT
+		,MessageIdSpecial INT
 		,IsFinish BIT
 	)
 
@@ -126,6 +127,7 @@ BEGIN
 		   ,vh.matchid = s.matchID
 		   ,vh.NegativeBalanceUsers = s.NegativeBalanceUsers
 		   ,vh.MessageId = ISNULL(s.MessageId,s.MessageIdSpecial)
+		   ,vh.MessageIdSpecial = s.MessageIdSpecial
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID 
 		WHERE s.MatchId IN (SELECT MatchId FROM @tmp_MatchId)
@@ -137,12 +139,14 @@ BEGIN
 			,vh.matchid = s.matchid
 		    ,vh.NegativeBalanceUsers = s.NegativeBalanceUsers
 		    ,vh.MessageId = ISNULL(s.MessageId,s.MessageIdSpecial)
+			,vh.MessageIdSpecial = s.MessageIdSpecial
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistoryId
 		WHERE s.MatchId IN (SELECT MatchId FROM @tmp_MatchId)
 		
 		DELETE FROM #tmpVoidingHistory WHERE MatchId IS NULL
 	END
+	
 	
 	SET @NegativeBalanceUsers = STUFF((SELECT DISTINCT ',' + a.NegativeBalanceUser
 									FROM #tmpVoidingHistory t
@@ -171,6 +175,22 @@ BEGIN
 		FROM	@xmlVoidResults.nodes('/VoidResults/VoidResult') as [T](C)
 		OPTION (OPTIMIZE FOR (@xmlVoidResults = NULL ))
 	END
+
+	-- For case 1 match both normal & special site (2 rows) => Get normal messgae
+	;WITH CTE_cntMessageId AS 
+	(
+		SELECT matchid, COUNT(1) AS cntMessageId FROM #tmpVoidingHistory t GROUP BY matchid HAVING COUNT(1) >= 2
+	)
+	,CTE_cntMessageIdSpecial AS
+	(
+		SELECT matchid, COUNT(1) AS cntMessageIdSpecial FROM #tmpVoidingHistory WHERE MessageIdSpecial IS NOT NULL GROUP BY matchid 
+	)
+	DELETE  vh
+	FROM #tmpVoidingHistory vh
+	    INNER JOIN CTE_cntMessageId m ON vh.matchid = m.matchid
+		LEFT JOIN CTE_cntMessageIdSpecial ms ON vh.matchid = ms.matchid
+	WHERE vh.MessageIdSpecial IS NOT NULL 
+		AND m.cntMessageId > ISNULL(ms.cntMessageIdSpecial,0)
 
 	SELECT DISTINCT
 		@RequestId AS RequestId
