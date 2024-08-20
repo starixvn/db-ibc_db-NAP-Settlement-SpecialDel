@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_ExternalResult_Ins
 (
 @MatchId3rd	INT = 0
@@ -19,6 +19,7 @@ AS
 		- 20201206@Louisa: Support QC Insert data Test for SBO result [Redmine:#146239]
 		- 20210519@Louisa: Support QC Insert data Test for Weverdat result [Redmine:#153915]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Param's Explanation:
 		@SourceId: 1 - SBO
@@ -60,7 +61,7 @@ BEGIN
 		RETURN
 	END
 
-	SELECT @ExternalResultTable = ss.ExternalResultTable 
+	SELECT @ExternalResultTable = case when ss.sporttype = 8 then 2 else ss.ExternalResultTable end
 	FROM dbo.SettlementResultTableSetting ss WITH(NOLOCK)
 	WHERE ss.Sporttype = @Sporttype
 
