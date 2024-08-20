@@ -7,7 +7,7 @@ AS
 /*	
 	Created by: 20240814@Max
 	Task: [TVS] Manage Request - Enhancements [Redmine: #208623]
-	DB: DBACC/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions:	
 		- 20240814@Max: Create SP [Redmine: #208623]
@@ -21,7 +21,7 @@ BEGIN
 	DECLARE @SiteDBGroupID			 SMALLINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-
+	
 	CREATE TABLE #tmpTicket (
 		TransId			BIGINT
 		,subTransId     BIGINT
@@ -124,11 +124,11 @@ BEGIN
 									FOR XML PATH ('')),1,1,'') AS AffectedLicenseeNames
 			,STUFF((SELECT DISTINCT  ',' + site
 									FROM #tmpTicket t
-									WHERE t.IsCancelCashOut = 1 AND t.matchid = tmp.matchid
+									WHERE t.IsCancelCashOut = 1 AND t.matchid = tmp.matchid AND t.IsDeposit = 1
 									FOR XML PATH ('')),1,1,'') AS CancelCashOutLicenseesNames
 			,STUFF((SELECT DISTINCT  ',' + site
 									FROM #tmpTicket t
-									WHERE t.IsChinaView = 1 AND t.matchid = tmp.matchid
+									WHERE t.IsChinaView = 1 AND t.matchid = tmp.matchid AND t.IsDeposit = 1
 									FOR XML PATH ('')),1,1,'') AS ChinaViewLicenseesNames
 	)tbl
 	
