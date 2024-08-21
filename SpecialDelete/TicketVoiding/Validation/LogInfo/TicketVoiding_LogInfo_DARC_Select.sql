@@ -102,7 +102,7 @@ BEGIN
 	)
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, CreatedBy INT)
-	CREATE TABLE #logInfoVoidPage (RequestId INT, MatchId INT, CashOutCount INT, InstantlySettleCount INT, SettleCount INT, CancelCashOutCount INT, TransVoidToTime DATETIME)
+	CREATE TABLE #logInfoVoidPage (RequestId INT, MatchId INT, CashOutCount INT, InstantlySettleCount INT, SettleCount INT, CancelCashOutCount INT)
 
 	CREATE TABLE #FilterInfo (
 		 MatchId				INT
@@ -772,14 +772,13 @@ BEGIN
 		FROM #TransidInRequest
 
 		/*Get log info for Void Page*/
-		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CashOutCount, InstantlySettleCount, SettleCount, CancelCashOutCount, TransVoidToTime)
+		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CashOutCount, InstantlySettleCount, SettleCount, CancelCashOutCount)
 		SELECT @RequestId
 			  ,s.matchid
 			  ,COUNT(CASE WHEN b.IsCancelCashOut = 0 AND ISNULL(b.betdaqid, -1) = -2 THEN s.TransId ELSE NULL END) AS CashOutCount
 			  ,COUNT(CASE WHEN i.bettype IS NOT NULL AND ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS InstantlySettleCount
 			  ,COUNT(CASE WHEN i.bettype IS NULL AND ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS SettleCount
 			  ,COUNT(CASE WHEN s.IsCancelCO = 1 THEN s.transid ELSE NULL END) AS CancelCashOutCount
-			  ,MAX(b.transdate) AS TransVoidToTime
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets b ON b.transid = s.transid AND b.matchid = s.MatchId AND b.IsMixParlay = 0
 			LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = s.MatchId
@@ -835,7 +834,7 @@ BEGIN
 			,t.CancelCashOutCount
 			,a.MinTransId
 			,a.ActionType
-		    ,t.TransVoidToTime
+		    ,a.TransVoidToTime
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			CROSS APPLY (
 					SELECT CONVERT(XML, rd.TransIds)
@@ -845,6 +844,7 @@ BEGIN
 						,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
 						,t.c.value('@MinTransId','BIGINT') AS  MinTransId
 						,t.c.value('@ActionType','VARCHAR(100)') AS  ActionType
+						,NULLIF(t.c.value('@TransVoidToTime','DATETIME'),'') AS TransVoidToTime
 					FROM t1.xDATA.nodes('/r') t(c)
 				) a
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
