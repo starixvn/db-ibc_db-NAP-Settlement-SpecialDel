@@ -2,7 +2,7 @@
 CREATE PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_SendOIC]
 (
 	 @MatchID				INT
-	,@Globalshowtime		DATETIME --apply all sports 
+	,@EventDate				DATETIME
 	,@TransInfoSendOICJson	VARCHAR(MAX) = NULL 
 )
 AS
@@ -15,7 +15,6 @@ AS
 		- 20211119@July: Create new SP [Redmine: #159115]
 		- 20230623@July: Ticket listing - Enhance performance when sending data to many Licensees at a time [Redmine: #190071]
 		- 20240614@Max: [TVS] Ticket Listing - Insert data to DB053 [Redmine: #206452]
-		- 20240726@Max: [TVS] Integrate new bet type of Baseball AiO [Redmine: #207034]
 
 	Param's explanation:	
 */   
@@ -61,7 +60,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 BREAK;
 
 		INSERT INTO dbo.LicenseeResultAmendment (SiteName, SessionID, MatchID, EventDate)
-		SELECT @LicenseeName, @SessionID, @MatchID, @Globalshowtime
+		SELECT @LicenseeName, @SessionID, @MatchID, @EventDate
 
 		SET @ResultID = SCOPE_IDENTITY()
 
