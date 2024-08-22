@@ -28,6 +28,7 @@ AS
 		- 20240110@Louisa: Allow update Auto Payout when match completed [Redmine:#198710]
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
+		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -40,16 +41,12 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @AutoSetting 		TINYINT
-		, @StarTime 			DATETIME
-		, @EndTime 				DATETIME
 		, @Remark 				VARCHAR(1024)
 		, @LeagueId 			INT
-		, @actionLogId			INT
 		, @Sporttype			SMALLINT
 		, @HasAP2				BIT = 0
-	
-	SELECT	@StarTime 			= GETDATE()
-			,@actionLogId = CASE 
+	/*
+	SELECT	@actionLogId = CASE 
 									WHEN @AutoType = 1 THEN 160
 									WHEN @AutoType = 2 THEN 181
 									WHEN @AutoType = 3 THEN 184
@@ -57,7 +54,7 @@ BEGIN
 									WHEN @AutoType = 5 THEN 160
 									ELSE -1 
 								END
-	
+	*/
 	SELECT	@AutoSetting = AutoSetting
 			,@LeagueId = leagueid
 			,@Sporttype = sporttype
@@ -84,9 +81,11 @@ BEGIN
 	IF @Sporttype = 1 OR @HasAP2 = 1
 		SELECT @AutoSetting =
 								CASE WHEN @AutoType IN (1, 5) THEN 
-																	CASE WHEN @IsEnabled = 1 THEN @AutoSetting & (238 + POWER(2,@AutoType - 1)) 
-																		ELSE @AutoSetting & 238
-																	END
+																CASE WHEN @AutoType = 1 THEN IIF(@IsEnabled = 1,@AutoSetting & (238 + POWER(2,@AutoType - 1)),@AutoSetting & 238)
+																	 WHEN @AutoType = 5 THEN IIF(@IsEnabled = 1,@AutoSetting & (206 + POWER(2,@AutoType - 1)),@AutoSetting & 206)
+																	 WHEN @AutoType = 6	THEN IIF(@IsEnabled = 1,@AutoSetting & (207 + POWER(2,@AutoType - 1)),@AutoSetting & 207)		 			
+																	 ELSE @AutoSetting & 206
+																END
 									ELSE @AutoSetting 
 								END
 
@@ -109,42 +108,5 @@ BEGIN
 				AND IsConfirmed = 0
 				AND SourceId = 100
 	END 
-
-	SELECT @EndTime = GETDATE()
-	SELECT @Remark = 'NAP: Update auto setting on match:' + CAST(@MatchId AS NVARCHAR(10)) 
-		+ ' AutoSetting:' + CAST(ISNULL(@AutoSetting, 0) AS NVARCHAR(10))
-		+ ' AutoType:' + CAST(ISNULL(@AutoType, 0) AS NVARCHAR(10))
-		+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @StarTime, @EndTime) AS NVARCHAR(50)) + ' ms'
-
-	BEGIN TRY
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			, @Matchid			= @MatchId
-			, @ActionID			= @actionLogId
-			, @finalhomescore	= NULL
-			, @finalawayscore	= NULL
-			, @hthomescore		= NULL
-			, @htawayscore		= NULL
-			, @GoalRecord		= NULL
-			, @betstatus		= NULL
-			, @Remark			= @Remark
-			, @IP				= @IP
-	END TRY
-
-	BEGIN CATCH
-		SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
-
-		EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			, @Matchid			= @MatchId
-			, @ActionID			= @actionLogId
-			, @finalhomescore	= NULL
-			, @finalawayscore	= NULL
-			, @hthomescore		= NULL
-			, @htawayscore		= NULL
-			, @GoalRecord		= NULL
-			, @betstatus		= NULL
-			, @Remark			= @Remark
-			, @IP				= @IP
-	END CATCH 
-
 END
 GO

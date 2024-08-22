@@ -16,6 +16,7 @@ AS
 		- 20210913@Louisa: Cleanup data ES if matchid not exists in table dbo.match[Redmine:##161455]
 		- 20220512@Louisa: Cleanup data for AutoRefundResultOS [Redmine:#171676]
 		- 20231120@louisa: Keep data in ProviderExternalResultDetailES/OS for report [Redmine:#197548]
+		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 
 	Param's Explanation: 
 
@@ -28,6 +29,7 @@ BEGIN
 	DECLARE @compareDate DATETIME
 			,@DeletedateOS_ES DATETIME
 	CREATE TABLE #tmpDataNotExits  ( ProviderExternalId INT)
+	CREATE TABLE #tmpSettingNotExits  (Id INT)
 
 	SET @compareDate =  CONVERT(VARCHAR(10),DATEADD (DAY, -7, GETDATE()), 102)
 	SET @DeletedateOS_ES =  CONVERT(VARCHAR(10),DATEADD (DAY, -10, GETDATE()), 102)
@@ -127,5 +129,29 @@ BEGIN
 		WAITFOR DELAY '00:00:00:280'
 	END
 
+	DECLARE @14DaysBefore DATETIME = DATEADD (DD, -14, GETDATE())	
+
+	INSERT INTO #tmpSettingNotExits (Id)
+	SELECT s.Id 
+	FROM dbo.AutoPayoutSetting AS s WITH(NOLOCK)
+		LEFT JOIN dbo.Match AS m WITH(NOLOCK) ON s.MatchId = m.MatchId
+		LEFT JOIN dbo.Match14 AS m14 WITH(NOLOCK) ON s.MatchId = m.MatchId
+	WHERE m.matchid IS NULL 
+		AND m14.matchid IS NULL 
+		AND s.RepUpdateTime < @14DaysBefore
+	
+	WHILE (1=1)
+	BEGIN
+		DELETE TOP(@batch) 
+		FROM dbo.AutoPayoutSetting 
+        OUTPUT deleted.Id,dbo.f_GetDateTime2()
+		INTO dbo.AutoPayoutSetting_Del_InHouse(Id,RepUpdateTime)
+		WHERE Id IN (SELECT Id FROM #tmpSettingNotExits)
+	
+		IF @@ROWCOUNT = 0
+			BREAK			
+
+		WAITFOR DELAY '00:00:00:280'
+	END
 END
 GO

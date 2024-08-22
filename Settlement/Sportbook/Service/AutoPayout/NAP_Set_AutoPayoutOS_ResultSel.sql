@@ -18,6 +18,7 @@ AS
 		- 20240503@Aries: Support Auto Payout 2 for Basketball [Redmine:#203520]
 		- 20241118@Aries: Fix an issue which is wrong settlement due to the lack of consistency when calculating Innnings [Redmine:#213767]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
+		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 
 
 	Param's Explanation:
@@ -29,6 +30,8 @@ BEGIN
 	DECLARE  @ResultTable				TINYINT = 0
 			,@ExternalResultTable		TINYINT = 0
 			,@GameType					TINYINT  = 0
+			,@Main_InactiveProvider		VARCHAR(500)
+			,@EAR_InactiveProvider		VARCHAR(500)
 			
 	DECLARE @Resource TABLE (ResourceId	VARCHAR(20), PRIMARY KEY (ResourceId))
 	DECLARE @Result TABLE (MatchId INT, SourceId SMALLINT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT, ResultStatusID TINYINT, CreateDate DATETIME)
@@ -38,9 +41,13 @@ BEGIN
 	FROM dbo.SettlementResultTableSetting r (NOLOCK)
 	WHERE r.Sporttype = @Sporttype
 
-	SELECT @GameType =  CASE WHEN m.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END
+	SELECT	 @GameType =  CASE WHEN m.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END
+			,@Main_InactiveProvider = COALESCE(ms.Main_InactiveProvider,ss.Main_InactiveProvider,'') 
+			,@EAR_InactiveProvider = COALESCE(ms.EAR_InactiveProvider,ss.EAR_InactiveProvider,'') 
 	FROM match AS m WITH(NOLOCK)
 		INNER JOIN League l WITH(NOLOCK) ON m.LeagueId = l.LeagueId	
+		LEFT JOIN	dbo.SettlementSetting AS ss WITH(NOLOCK) ON m.leagueid = ss.leagueid AND ss.AutoType = 6	
+		LEFT JOIN	dbo.AutoPayoutSetting AS ms WITH(NOLOCK) ON m.matchId = ms.matchId AND ms.AutoType = 6
 	WHERE m.MatchId	 = @MatchId	
 
 	INSERT INTO @Resource(ResourceId)
@@ -162,6 +169,12 @@ BEGIN
 						AND p.GameType = @GameType) AS pm
 	WHERE (pm.IsMapped IS NOT NULL OR m.SourceId IS NULL)
 		AND  (ss.pfID IS NOT NULL OR mr.ResourceId IS NOT NULL)
+		AND 1 = CASE WHEN ISNULL(m.SourceId,0) > 0 
+						  AND IIF(mr.ResourceId IS NOT NULL,@Main_InactiveProvider,@EAR_InactiveProvider) != '' 
+						  AND CHARINDEX(','+CAST(m.SourceID AS VARCHAR)+',',','+ IIF(mr.ResourceId IS NOT NULL,@Main_InactiveProvider,@EAR_InactiveProvider) +',') > 0 THEN 0
+					 ELSE 1
+				END
+
 		
 END
 GO

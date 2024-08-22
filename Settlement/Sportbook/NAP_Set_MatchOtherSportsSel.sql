@@ -70,6 +70,7 @@ AS
 			- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 			- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 			- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
+			- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -629,7 +630,8 @@ BEGIN
 			,m.BestOfMap
 			,m.OfferLive
 			,ISNULL(s.WaitingTime, 300) AS AutoWaitingTime
-			,ISNULL(s2.RetryTime, AP_RetryTime) AS AutoRetryTime
+			,ISNULL(s2.WaitingTime, AP_RetryTime) AS AutoMainWaitingTime
+			,ISNULL(s2.EAR_WaitingTime, AP_RetryTime) AS AutoEarlyWaitingTime
 			,ISNULL(s4.WaitingTime, 0) AS RefundWaitingTime
 	FROM	#tmpMatchIds m
 		OUTER APPLY (
@@ -639,7 +641,7 @@ BEGIN
 					AND AutoType IN (1,5)					
 		)s
 		OUTER APPLY (
-			SELECT TOP 1 s1.RetryTime
+			SELECT TOP 1 s1.WaitingTime,s1.EAR_WaitingTime
 			FROM	bodb02.dbo.SettlementSetting s1 WITH (NOLOCK)
 			WHERE	s1.LeagueId = m.leagueid
 					AND AutoType = 6			

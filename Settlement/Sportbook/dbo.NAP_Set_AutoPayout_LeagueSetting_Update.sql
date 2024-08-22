@@ -2,23 +2,25 @@
 ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_LeagueSetting_Update]
 	 @LeagueId						INT
 	,@AutoType						TINYINT			= 6
-	,@RetryTime						INT				= NULL
 
+	,@Main_WaitingTime				INT				= NULL
 	,@Main_HasTrader				BIT				= NULL
 	,@Main_NumberProvider			TINYINT			= NULL
 	,@Main_PrimaryProvider			VARCHAR(500)	= NULL
 	,@Main_TotalPrimaryProvider		TINYINT			= NULL
 	,@Main_SecondaryProvider		VARCHAR(500)	= NULL
 	,@Main_TotalSecondaryProvider	TINYINT			= NULL
+	,@Main_InactiveProvider			VARCHAR(500)	= NULL
 													
+	,@EAR_WaitingTime				INT				= NULL
 	,@EAR_HasTrader					BIT				= NULL
 	,@EAR_NumberProvider			TINYINT			= NULL
 	,@EAR_PrimaryProvider			VARCHAR(500)	= NULL
 	,@EAR_TotalPrimaryProvider		TINYINT			= NULL
 	,@EAR_SecondaryProvider			VARCHAR(500)	= NULL
 	,@EAR_TotalSecondaryProvider	TINYINT			= NULL
-
 	,@Action						VARCHAR(20)		= 'Update'
+	,@EAR_InactiveProvider			VARCHAR(500)	= NULL
 AS
 /*	Creator: 20231211@Aries
 	Task: Auto Payout for Tennis sport using Sofascore provider
@@ -27,6 +29,7 @@ AS
 	Revisions:
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
+		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -58,21 +61,29 @@ BEGIN
 
 	IF NOT EXISTS (SELECT 1 FROM	dbo.SettlementSetting WITH(NOLOCK) WHERE LeagueId = @LeagueId AND AutoType = @AutoType)
 	BEGIN
-		INSERT INTO dbo.SettlementSetting (LeagueId, AutoType,RetryTime,WaitingTime
-										  ,Main_HasTrader,Main_NumberProvider
+		INSERT INTO dbo.SettlementSetting (LeagueId, AutoType
+											
+										  ,Main_HasTrader,Main_NumberProvider,WaitingTime
 										  ,Main_PrimaryProvider,Main_TotalPrimaryProvider,Main_SecondaryProvider,Main_TotalSecondaryProvider
-										  ,EAR_HasTrader,EAR_NumberProvider
-										  ,EAR_PrimaryProvider,EAR_TotalPrimaryProvider,EAR_SecondaryProvider,EAR_TotalSecondaryProvider)
-		SELECT @LeagueId, @AutoType,@RetryTime,0
-		      ,@Main_HasTrader,@Main_NumberProvider
+										  ,Main_InactiveProvider
+
+										  ,EAR_HasTrader,EAR_NumberProvider,EAR_WaitingTime
+										  ,EAR_PrimaryProvider,EAR_TotalPrimaryProvider,EAR_SecondaryProvider,EAR_TotalSecondaryProvider
+										  ,EAR_InactiveProvider)
+		SELECT @LeagueId, @AutoType
+
+		      ,@Main_HasTrader,@Main_NumberProvider,@Main_WaitingTime
 			  ,@Main_PrimaryProvider,@Main_TotalPrimaryProvider, @Main_SecondaryProvider,@Main_TotalSecondaryProvider
-			  ,@EAR_HasTrader,@EAR_NumberProvider
+			  ,@Main_InactiveProvider
+
+			  ,@EAR_HasTrader,@EAR_NumberProvider,@EAR_WaitingTime
 			  ,@EAR_PrimaryProvider,@EAR_TotalPrimaryProvider,@EAR_SecondaryProvider,@EAR_TotalSecondaryProvider
+			  ,@EAR_InactiveProvider
 	END
 	ELSE
 	BEGIN
 		UPDATE	dbo.SettlementSetting
-			SET  RetryTime						= ISNULL(@RetryTime,RetryTime)
+			SET  WaitingTime					= ISNULL(@Main_WaitingTime,WaitingTime)
 
 				,Main_HasTrader					= ISNULL(@Main_HasTrader,Main_HasTrader)
 				,Main_NumberProvider			= ISNULL(@Main_NumberProvider,Main_NumberProvider)
@@ -81,7 +92,9 @@ BEGIN
 				,Main_TotalPrimaryProvider		= ISNULL(@Main_TotalPrimaryProvider,Main_TotalPrimaryProvider)
 				,Main_SecondaryProvider			= ISNULL(@Main_SecondaryProvider,Main_SecondaryProvider)
 				,Main_TotalSecondaryProvider	= ISNULL(@Main_TotalSecondaryProvider,Main_TotalSecondaryProvider)
-				 							   	 
+				,Main_InactiveProvider			= ISNULL(@Main_InactiveProvider,Main_InactiveProvider)
+		
+				,EAR_WaitingTime				= ISNULL(@EAR_WaitingTime,EAR_WaitingTime)
 				,EAR_HasTrader					= ISNULL(@EAR_HasTrader,EAR_HasTrader)
 				,EAR_NumberProvider				= ISNULL(@EAR_NumberProvider,EAR_NumberProvider)
 												 
@@ -89,6 +102,7 @@ BEGIN
 				,EAR_TotalPrimaryProvider		= ISNULL(@EAR_TotalPrimaryProvider,EAR_TotalPrimaryProvider)
 				,EAR_SecondaryProvider			= ISNULL(@EAR_SecondaryProvider,EAR_SecondaryProvider)
 				,EAR_TotalSecondaryProvider		= ISNULL(@EAR_TotalSecondaryProvider,EAR_TotalSecondaryProvider)
+				,EAR_InactiveProvider			= ISNULL(@EAR_InactiveProvider,EAR_InactiveProvider)
 		WHERE	LeagueId = @LeagueId
 				AND AutoType = @AutoType
 	END
