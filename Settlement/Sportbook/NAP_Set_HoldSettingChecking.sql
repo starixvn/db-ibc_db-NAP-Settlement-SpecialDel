@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_HoldSettingChecking
 	@MatchId	INT
 	,@Action	VARCHAR(20) = 'CAL'
@@ -18,6 +18,7 @@ AS
 		-  20210122@Louisa: Cricket AIO [Redmine:#148870]
 		-  20210706@Louisa: Letstalk message [Redmine:#157540]
 		-  20220629@Louisa: Volleyball AIO [Redmineid:#173862]
+		-  20240807@Aries: Add hold match info [Redmineid:#200934]
 		
 	Parameters Explanation:    
 		@IsEarly = 0 : Check dbo.Match.SettlementStatus bit[1]-Pending, bit[2]-Undecided, bit[3]-UnderSettlement, bit[5]-MTDHold, bit[7]-Hold Key
@@ -75,7 +76,7 @@ BEGIN
 		 ----Soccer, Basketball
 		IF @ResultTable = 1
 		BEGIN
-			SELECT @ErrCode = 1001039 , @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again.	'	
+			SELECT @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again. ResourceIDs: ' + STRING_AGG(CONVERT(VARCHAR(MAX),r.ResourceId),',')	
 			FROM ResultDetail r WITH(NOLOCK)
 				INNER JOIN @tmpResourceID rs
 					ON r.ResourceId = rs.ResourceID
@@ -86,7 +87,7 @@ BEGIN
 		---- Badminton
 		ELSE IF @ResultTable = 2
 		BEGIN
-			SELECT @ErrCode = 1001039 , @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again.	'
+			SELECT @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again. ResourceIDs: ' + STRING_AGG(CONVERT(VARCHAR(MAX),r.ResourceId),',')	
 			FROM ResultDetailOS r WITH(NOLOCK)
 				INNER JOIN @tmpResourceID rs
 					ON r.ResourceId = rs.ResourceID
@@ -97,12 +98,17 @@ BEGIN
 		----E-Sports
 		ELSE IF @ResultTable = 3
 		BEGIN
-			SELECT @ErrCode = 1001039 , @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again.	'
+			SELECT @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again. ResourceIDs: ' + STRING_AGG(CONVERT(VARCHAR(MAX),r.ResourceId),',')	
 			FROM ResultDetailES r WITH(NOLOCK)
 			INNER JOIN @tmpResourceID rs
 				ON r.ResourceId = rs.ResourceID
 			WHERE r.MatchId  = @MatchId
 				AND ISNULL(r.ResultSetting,0) & 1 = 1 
+		END
+
+		IF @ErrMsg IS NOT NULL AND @ErrMsg != ''
+		BEGIN
+			SET @ErrCode = 1001039 
 		END
 	END
 
