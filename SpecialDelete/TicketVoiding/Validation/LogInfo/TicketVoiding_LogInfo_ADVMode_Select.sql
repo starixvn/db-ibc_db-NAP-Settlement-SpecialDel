@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_ADVMode_Select]
 	,@IssueTypeId		  INT = 1
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
-	,@AdvancedModeInfo		  VARCHAR(MAX) = NULL
+	,@AdvancedModeInfo	  VARCHAR(MAX) = NULL
 	,@TransInfoJson		  VARCHAR(MAX) = NULL
 )
 AS
@@ -17,7 +17,8 @@ AS
 	Revisions: 
 		- 20240522@Max: Create new SP [Redmine:#197051]
 		- 20240727@Max: Modify betid return [Redmine:#197051]
-		- 202407256@Max: Change validation for transdesc [Redmine: #197051]
+		- 20240727@Max: Change validation for transdesc [Redmine: #197051]
+		- 20240823@July: WMKO/TE - Add Details of bet list for issue types [Redmine: #208628]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -30,19 +31,11 @@ BEGIN
 			,@UnmarkTransIds		VARCHAR(MAX) =''
 			,@MarkTransIds		    VARCHAR(MAX) =''
 			,@OldActionId			TINYINT
+			,@LogInfoTicketsJson	VARBINARY(MAX) = NULL
 
-	DECLARE	@AdvancedModeInfoXML		XML = NULL
-		   ,@VoidFromTime			DATETIME = NULL
-		   ,@VoidToTime				DATETIME = NULL
+	DECLARE	@AdvancedModeInfoXML	XML = NULL
 		   ,@MatchId				INT	= 0
-		   ,@FilterFromTransTime	DATETIME = NULL
-		   ,@FilterToTransTime		DATETIME = NULL
-		   ,@FilterBy				TINYINT = 1
-		   ,@SubIssueTypeId			INT	= NULL
 		   ,@TransInfoJson_Output	VARBINARY(MAX) = NULL
-		   ,@VoidFromTime_tmp		DATETIME = NULL
-		   ,@CancelCOFromTime		DATETIME = NULL
-		   ,@CancelCOToTime		    DATETIME = NULL
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -95,8 +88,6 @@ BEGIN
 		,FilterToTransTime		DATETIME
 		,FilterBy				TINYINT
 		,SubIssueTypeId			SMALLINT
-		,FilterVoidFromTime		DATETIME
-		,FilterVoidToTime		DATETIME
 		,isFinish				BIT
 	)
 
@@ -163,19 +154,32 @@ BEGIN
 	  ,SubSecAcceptTime TINYINT
 	  ,CheckTimeCashOut DATETIME
 	  ,AcceptModeCashOut  TINYINT
-	  ,OddsId			INT
+	  ,OddsId INT
+	  ,WalletType TINYINT
+	  ,RefCode BIGINT
+	  ,homeid INT
+      ,awayid INT
+	  ,leagueid INT
+	  ,isNeutral BIT
+	  ,matchcode NVARCHAR(50)
+	  ,sporttype SMALLINT
+	  ,eventstatus NVARCHAR(50)
+	  ,SettlementStatus TINYINT
+	  ,username NVARCHAR(50)
+	  ,IsDeposit BIT
 	)
-	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 
 	DECLARE @Validation AS TABLE (
 			 IsInValidTotalTickets   BIT DEFAULT(0) 
 			,IsExistedInOtherRequest BIT DEFAULT(0) 
-			,IsExistsSecondAccept	BIT DEFAULT(0) 	
+			,IsExistsSecondAccept	 BIT DEFAULT(0) 	
 			,MatchId                 INT	
+			,LogInfoTicketsJson		 NVARCHAR(MAX)
 		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
 
 	DECLARE @tmpConsolidatedBettypes TABLE (
         parentid        INT
@@ -268,6 +272,8 @@ BEGIN
 		   ,CheckTimeCashOut
 		   ,AcceptModeCashOut
 		   ,OddsId
+		   ,WalletType 
+	       ,RefCode 
 	)
 	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate , checkt ,bid
@@ -276,6 +282,7 @@ BEGIN
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
 		,lbat ,sat ,s_lbat ,s_sat ,checktCO ,amCO, f_oid
+		,wt ,refc
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -286,6 +293,7 @@ BEGIN
 					  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 					  ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
 					  ,lbat ,sat ,s_lbat ,s_sat ,CASE WHEN checktCO = '1900-01-01 00:00:00.000' THEN NULL ELSE checktCO END AS checktCO ,amCO, CONVERT(INT, f_oid) AS f_oid
+					  ,wt ,refc
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
 					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(4) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
@@ -294,10 +302,34 @@ BEGIN
 					 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
 					 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
 					 ,lbat SMALLINT ,sat TINYINT ,s_lbat SMALLINT ,s_sat TINYINT ,checktCO DATETIME ,amCO TINYINT, f_oid NVARCHAR(1000)
+					 ,wt TINYINT ,refc BIGINT	
 				)
 		) tbl
 	WHERE f.value <> ''
 	
+	---UPDATE column show loginfo details
+	BEGIN
+		UPDATE s
+		SET matchcode 	= m.matchcode
+			,homeid 	= m.homeid
+			,awayid 	= m.awayid
+			,leagueid 	= m.leagueid
+			,sporttype 	= m.sporttype
+			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+			,eventstatus = ISNULL(m.eventstatus,'')
+			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
+			,username = ci.username
+		FROM #tmpTransInfo s
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	s.matchid = m.matchid
+			INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK) ON s.custid = ci.custid
+	
+		-- update Isdeposit
+		UPDATE s 
+			SET IsDeposit = 1
+		FROM	#tmpTransInfo s
+		WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = s.srecommend)
+	END
+
 	--Init Validation
 	INSERT INTO @Validation (MatchId)
 	SELECT @MatchId
@@ -519,10 +551,87 @@ BEGIN
 		FROM #logInfo l
 	END
 
+	IF @IsShowLogOnly = 0
+	BEGIN
+		INSERT INTO @tmpLogInfoTickets (TransId)
+		SELECT SubTransid
+		FROM #TVSTicketBets
+	END
+	ELSE --Edit request
+	BEGIN
+		INSERT INTO @tmpLogInfoTickets (TransId)
+		SELECT TransId
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK) 
+		WHERE RequestId = @RequestId
+		UNION ALL
+		SELECT TransId
+		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK) 
+		WHERE RequestId = @RequestId
+			
+	END
+
+	SET @LogInfoTicketsJson = COMPRESS((SELECT m.transid AS 'transid'
+			,m.refno AS 'refno'		
+			,m.SubTransId AS 'SubTransId'	
+			,m.username AS 'username'		
+			,m.transdate AS 'transdate'	
+			,m.Stake AS 'Stake'	
+			,m.odds AS 'odds'	
+			,m.SubOdds AS 'SubOdds'
+			,m.oddsspread AS 'oddsspread'	
+			,m.OddsType AS 'OddsType'
+			,m.bettype AS 'bettype'
+			,m.SubBettype AS 'SubBettype'
+			,m.STATUS AS 'STATUS'
+			,m.SubStatus AS 'SubStatus'
+			,m.currencyname AS 'currencyname'
+			,m.betteam AS 'betteam'
+			,m.SubBetTeam AS 'SubBetTeam'
+			,m.Subhdp1 AS 'Subhdp1'
+			,m.Subhdp2 AS 'Subhdp2'
+			,m.hdp1 AS 'hdp1'
+			,m.hdp2 AS 'hdp2'
+			,m.livehomescore AS 'livehomescore'
+			,m.liveawayscore AS 'liveawayscore'
+			,m.betid AS 'betid'
+			,m.betcheck AS 'betcheck'
+			,m.Subchecktime AS 'Subchecktime'
+			,m.IsMixParlay AS 'IsMixParlay'
+			,m.Transdesc AS 'Transdesc'
+			,m.betdaqid AS 'betdaqid'
+			,m.WalletType AS 'WalletType'
+			,m.RefCode AS 'RefCode'
+			,CAST(m.winlost AS VARCHAR) AS 'winlost'
+			,m.LiveIndicator AS 'IsLiveIndicator' 
+			,m.actual_stake AS 'ActualStake'
+			,m.ExtraInfo AS 'ExtraInfo'
+			,m.winlostdate AS 'winlostdate'
+			,m.IsDeposit AS 'IsDeposit'
+			,m.matchid AS 'matchid'
+			,m.homeid AS 'homeid'
+			,m.awayid AS 'awayid'
+			,m.leagueid AS 'leagueid'
+			,m.IsNeutral AS 'IsNeutral'
+			,m.matchcode AS 'matchcode'
+			,m.SettlementStatus AS 'SettlementStatus'
+			,m.sporttype AS 'sporttype'
+		    ,ISNULL(tb.parentid, m.Subbettype) AS 'GroupBettypeId' --Return for web filter bettype
+	FROM @tmpLogInfoTickets s
+		INNER JOIN #tmpTransInfo m ON s.transid = m.Subtransid
+		LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = m.Subbettype
+	FOR JSON PATH))
+
+	UPDATE v
+	SET v.LogInfoTicketsJson = CONVERT(VARCHAR(MAX), @LogInfoTicketsJson, 1)
+	FROM @Validation v
+
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
 		-- 1. Validate table
-		SELECT MatchId, IsInValidTotalTickets, IsExistedInOtherRequest, IsExistsSecondAccept
+		SELECT MatchId
+			 , IsInValidTotalTickets
+			 , IsExistedInOtherRequest
+			 , IsExistsSecondAccept
 		FROM @Validation
 
 		-- 2. TransId in request table
@@ -582,6 +691,7 @@ BEGIN
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			,t.CancelCashOutCount
 			,t.SettleCount
+			,v.LogInfoTicketsJson
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
 			CROSS APPLY(
@@ -590,6 +700,7 @@ BEGIN
 			CROSS APPLY(
 				SELECT DISTINCT '|' + l.ScoreOfMatch FROM @tblScoreMessage l WHERE l.MatchId = rd.MatchId FOR XML PATH('')
 			)sm(ScoreOfMatch)
+			INNER JOIN @Validation v ON rd.MatchId = v.MatchId
 		WHERE rd.RequestId = @RequestId
 
 		-- 4. Unmark table (No need -> return table)
@@ -772,14 +883,17 @@ BEGIN
 	END
 
 	-- 3. Loginfo table
-	SELECT @MatchId AS MatchId
+	SELECT l.MatchId 
 		,MIN(VoidFromTime) AS VoidFromTime
 		,MAX(VoidToTime) AS VoidToTime
 		,SUM(SingleCount) AS SingleCount
 		,SUM(ISNULL(CancelCashOutCount,0)) AS CancelCashOutCount
 		,SUM(MainParlayCount) AS MainParlayCount
 		,SUM(SettleCount) AS SettleCount
+		,v.LogInfoTicketsJson
 	FROM #logInfo l
+		INNER JOIN @Validation v ON l.MatchId = v.MatchId
+	GROUP BY l.MatchId, v.LogInfoTicketsJson
 
 	-- 4. List ticket unmark/mark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
