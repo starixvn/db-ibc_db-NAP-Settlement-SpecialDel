@@ -11,6 +11,7 @@ AS
     Revisions:
 		- 20210726@Max: Hard code list of bettypes that not offered AccumPayout  [Redmine: #158846]
 		- 20240808@Max: Max Payout - Integrate Baseball AIO - Phase 1 [Redmine: #209069]
+		- 20240822@Max: Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
     Parameters Explanation: 
 */
@@ -69,6 +70,13 @@ RETURN (
 	UNION ALL SELECT 8823
 	UNION ALL SELECT 8824
 	UNION ALL SELECT 8827
+
+	--Baseball AiO Phase 2
+	UNION ALL SELECT 8828
+	UNION ALL SELECT 8829
+	UNION ALL SELECT 8830
+	UNION ALL SELECT 8832
+	UNION ALL SELECT 8833
 
 )
 GO
