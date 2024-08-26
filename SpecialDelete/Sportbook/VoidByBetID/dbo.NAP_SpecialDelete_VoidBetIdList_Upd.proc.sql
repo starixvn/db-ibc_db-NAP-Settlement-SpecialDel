@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Upd]  
 	@TransIds			VARCHAR(MAX) =''
 	,@UserName			VARCHAR(30) --login username
@@ -7,7 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Upd]
 	,@IP				VARCHAR(15)
 	,@Reason			NVARCHAR(500) = ''
 	,@ReasonSC			NVARCHAR(500) = ''
-	,@IsAbnormalBet		BIT = 0
+	,@AbnormalBetType   TINYINT		= NULL --NULL: Uncheck AbnormalBet UI, 0: single, 1: main parlay
 	,@FilterUserName	VARCHAR(30) = NULL -- input username
 	,@Products			VARCHAR(50)	= NULL
 	,@StatusIds			VARCHAR(50) = NULL
@@ -17,7 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Upd]
 AS 
 	/* Created by: Jamie  
 	 Task:  VOID BY BET ID (Running & Settled tickets)  
-	 DB: DBTXN/bodb02  
+	 DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	 Original: NAP_BettransSpecialDelBetID_Del
 	   
 	 Revisions:  
@@ -112,6 +112,7 @@ AS
 	  - 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 	  - 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 	  - 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+	  - 20240826@July: [TVS] Void By Bet ID - Support void abnormal bet for main parlay ticket [Redmine: #209348]
 
 	 Param's Explanation:   
 */
@@ -135,7 +136,7 @@ BEGIN
 					+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 					+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
 					+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
-					+ CASE WHEN @IsAbnormalBet IS NULL THEN '' ELSE ',@IsAbnormalBet = ' + CONVERT(NVARCHAR(50), @IsAbnormalBet) END
+					+ ',@AbnormalBetType = ' + CONVERT(NVARCHAR(50), CASE WHEN @AbnormalBetType IS NULL THEN 'NULL' ELSE @AbnormalBetType END)
 					+ CASE WHEN @FilterUserName IS NULL THEN '' ELSE '@FilterUserName = ''' + CONVERT(NVARCHAR(50), @FilterUserName) + '''' END
 					+ CASE WHEN @Products IS NULL THEN '' ELSE '@Products = ''' + CONVERT(NVARCHAR(50), @Products) + '''' END
 					+ CASE WHEN @StatusIds IS NULL THEN '' ELSE '@StatusIds = ''' + CONVERT(NVARCHAR(50), @StatusIds) + '''' END
@@ -864,8 +865,10 @@ BEGIN
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, BetId BIGINT, Actual_stake MONEY, betdaqid BIGINT, Sporttype SMALLINT)
 	DECLARE @TransIds_tmp VARCHAR(MAX) = ''
 		, @IssueTypeId INT = 0
+		,@IsAbnormalMixParlay BIT = 0
 
-	SET @IssueTypeId = CASE WHEN @IsAbnormalBet = 1 THEN 11 ELSE 0 END
+	SET @IssueTypeId = CASE WHEN @AbnormalBetType IN (0,1) THEN 11 ELSE 0 END
+	SET @IsAbnormalMixParlay = CASE WHEN @AbnormalBetType = 1 THEN 1 ELSE 0 END
 
 	-- STEP 2 : Update bettrans
 	-- 2.1. Update bettrans	for normal ticket
@@ -905,6 +908,7 @@ BEGIN
 			@TransIds = @TransIds_tmp,
 			@UserId = @UserId,
 			@IssueTypeId = @IssueTypeId,
+			@IsAbnormalMixParlay = @IsAbnormalMixParlay,
 			@strTransCashout = @strTransCashout OUTPUT
 
 		-- Adjust BL before for affected cashout tickets

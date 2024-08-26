@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] 
 (
 	@CustID            VARCHAR(MAX) = NULL,
@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel]
     @IncludeMainParlay BIT          = 0,
 	@Products		   VARCHAR(50)  = NULL,
 	@StatusIds		   VARCHAR(50)  = NULL,
-	@IsAbnormalBet	   BIT = 0
+	@AbnormalBetType   TINYINT		= NULL --NULL: Uncheck AbnormalBet UI, 0: single, 1: main parlay
 
 )
 AS;
@@ -17,7 +17,7 @@ AS;
 	Date: 20160225
 	Task: Get tickets by Bet ID/CustID : 
 		  Normal SB, Outright, Mix Parlay (Allow to delete Running & Refunded), NG, and Live Casino 
-	DB: DBTXN/bodb02   
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02 
 	Original:NAP_BettransSpecialDelBetID_Sel     
 
 	Revisions:  
@@ -73,11 +73,12 @@ AS;
 		- 20240223@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240229@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240826@July: [TVS] Void By Bet ID - Support void abnormal bet for main parlay ticket [Redmine: #209348]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
-		+ @@Products : 1 - Sportbook
+		+ @Products : 1 - Sportbook
 					2 - Parlay
 					3 - Bet Builder
 					4 - Outright
@@ -182,14 +183,15 @@ BEGIN
 		INSERT INTO @bettype_tmp (bettype)
 		SELECT DISTINCT pt.bettype
 		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
-		WHERE 1 = CASE WHEN @IsAbnormalBet = 0 THEN 1
-					   WHEN @IsAbnormalBet = 1 AND pt.ProductID = 1 
+		WHERE 1 = CASE WHEN @AbnormalBetType IS NULL THEN 1
+					   WHEN @AbnormalBetType = 0 AND pt.ProductID = 1 
 							AND pt.bettype < 19001
-							AND pt.bettype NOT IN (9, 29, 2799, 10449) -- Parlay Tickets
+							AND pt.bettype NOT IN (9, 29) -- Parlay Tickets
 							AND pt.bettype NOT IN (10) -- outright tickets
 							AND pt.bettype NOT IN (1231, 1232, 1233, 1237, 1238) -- virtual sport
 							AND pt.bettype NOT IN (38) -- Bet Builder
 					   THEN 1 --Only Sportsbook
+					   WHEN @AbnormalBetType = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
 					   ELSE 0 END
 			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
 			AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
@@ -376,7 +378,7 @@ BEGIN
 	END			
 
 	-- delete main parlay tickets
-	IF(@IncludeMainParlay = 0 AND @Products IS NULL)
+	IF(@IncludeMainParlay = 0 AND @Products IS NULL AND @AbnormalBetType IS NULL)
 	BEGIN
 			DELETE b FROM #SpecialDeleteBets b 
 			WHERE  b.bettype IN (9, 29, 2799, 10449, 38)
