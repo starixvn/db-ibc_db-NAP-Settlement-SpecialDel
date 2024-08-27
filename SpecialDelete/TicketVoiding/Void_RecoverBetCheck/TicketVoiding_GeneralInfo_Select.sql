@@ -187,7 +187,7 @@ BEGIN
 	)
 	DELETE  vh
 	FROM #tmpVoidingHistory vh
-	    INNER JOIN CTE_cntMessageId m ON vh.matchid = m.matchid OR vh.MatchId IN (0,29)
+	    INNER JOIN CTE_cntMessageId m ON vh.matchid = m.matchid
 		LEFT JOIN CTE_cntMessageIdSpecial ms ON vh.matchid = ms.matchid
 	WHERE vh.MessageIdSpecial IS NOT NULL 
 		AND m.cntMessageId > ISNULL(ms.cntMessageIdSpecial,0)
