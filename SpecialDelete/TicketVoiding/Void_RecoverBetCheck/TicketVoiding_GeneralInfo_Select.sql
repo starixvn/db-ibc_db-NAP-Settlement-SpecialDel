@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_GeneralInfo_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_GeneralInfo_Select_UAT1]
 ( 
 	 @RequestId	INT
 	,@MatchIds   VARCHAR(MAX) = ''
@@ -130,7 +130,7 @@ BEGIN
 		   ,vh.MessageIdSpecial = s.MessageIdSpecial
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID 
-		WHERE (s.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR @MatchIds = '')
+		WHERE (s.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR s.MatchId IN (0,29))
 	END
 	ELSE --Many voidinghistory 1 request -> matches
 	begin
@@ -142,7 +142,7 @@ BEGIN
 			,vh.MessageIdSpecial = s.MessageIdSpecial
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistoryId
-		WHERE (s.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR @MatchIds = '')
+		WHERE (s.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR s.MatchId IN (0,29))
 		
 		DELETE FROM #tmpVoidingHistory WHERE MatchId IS NULL
 	END
