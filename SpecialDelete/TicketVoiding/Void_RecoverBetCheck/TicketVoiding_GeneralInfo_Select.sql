@@ -215,7 +215,7 @@ BEGIN
 		,msg.Content_en AS ContentEnglish
 		,s.MatchId
 	FROM #tmpVoidingHistory s
-	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId AND s.MatchId = m.MatchId
+	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId AND (s.MatchId = m.MatchId OR s.MatchId = 0)
 	INNER JOIN CustDB.dbo.Customer v WITH(NOLOCK) ON s.VoidedBy = v.CustId
 	LEFT JOIN DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) ON s.MessageId = msg.MessageId
 	WHERE 1 = CASE WHEN m.IssuetypeId <> 17 THEN 1 ELSE 0 END
