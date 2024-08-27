@@ -213,7 +213,7 @@ BEGIN
 		v.Username AS VoidedBy
 		,msg.Content_cs AS ContentChineseSimplified
 		,msg.Content_en AS ContentEnglish
-		,s.MatchId
+		,m.MatchId
 	FROM #tmpVoidingHistory s
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId AND (s.MatchId = m.MatchId OR s.MatchId IN (0,29))
 	INNER JOIN CustDB.dbo.Customer v WITH(NOLOCK) ON s.VoidedBy = v.CustId
