@@ -116,7 +116,7 @@ BEGIN
 									FROM #tmpVoidingHistory
 									FOR XML PATH ('')),1,1,'')
 
-	SELECT @cnt_matchid = COUNT(matchid)
+	SELECT @cnt_matchid = COUNT(DISTINCT matchid)
 	FROM  Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 	WHERE RequestId = @RequestId
 
@@ -187,7 +187,7 @@ BEGIN
 	)
 	DELETE  vh
 	FROM #tmpVoidingHistory vh
-	    INNER JOIN CTE_cntMessageId m ON vh.matchid = m.matchid
+	    INNER JOIN CTE_cntMessageId m ON vh.matchid = m.matchid OR vh.MatchId IN (0,29)
 		LEFT JOIN CTE_cntMessageIdSpecial ms ON vh.matchid = ms.matchid
 	WHERE vh.MessageIdSpecial IS NOT NULL 
 		AND m.cntMessageId > ISNULL(ms.cntMessageIdSpecial,0)
