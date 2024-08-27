@@ -95,7 +95,7 @@ BEGIN
 					WHERE rd.MatchId = m14.matchid
 					) m
 	WHERE rd.RequestId = @RequestId 
-		AND rd.MatchId IN (SELECT MatchId FROM @tmp_MatchId)
+		AND (rd.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR @MatchIds = '')
 	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatch WHERE IssuetypeId = 22) --Recover Ticket
 	BEGIN
@@ -130,7 +130,7 @@ BEGIN
 		   ,vh.MessageIdSpecial = s.MessageIdSpecial
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID 
-		WHERE s.MatchId IN (SELECT MatchId FROM @tmp_MatchId)
+		WHERE (s.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR @MatchIds = '')
 	END
 	ELSE --Many voidinghistory 1 request -> matches
 	begin
@@ -142,7 +142,7 @@ BEGIN
 			,vh.MessageIdSpecial = s.MessageIdSpecial
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistoryId
-		WHERE s.MatchId IN (SELECT MatchId FROM @tmp_MatchId)
+		WHERE (s.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR @MatchIds = '')
 		
 		DELETE FROM #tmpVoidingHistory WHERE MatchId IS NULL
 	END
