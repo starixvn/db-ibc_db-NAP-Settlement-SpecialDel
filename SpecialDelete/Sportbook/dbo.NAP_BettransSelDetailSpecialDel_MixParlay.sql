@@ -20,6 +20,7 @@ AS
 		- 20210315@July: Integrate Cricket AIO - [Redmine: #150075]
 		- 20220816@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20240304@July: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's Explanation:
 			
@@ -112,7 +113,7 @@ BEGIN
 			OR m.sporttype = 188 --VS4
 			)
 			AND b.SiteDBGroupID = @SiteDBGroupID
-	ORDER BY CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END
+	ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END
 		
 	IF EXISTS (
 			SELECT	TOP 1 1
@@ -177,7 +178,7 @@ BEGIN
 				OR m.sporttype = 188 --VS4
 				)
 			AND b.SiteDBGroupID = @SiteDBGroupID
-		ORDER BY CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END
+		ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END
 	END	
 
 	SELECT TransID

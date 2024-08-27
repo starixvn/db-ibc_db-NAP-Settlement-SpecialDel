@@ -28,6 +28,7 @@ AS
 		- 20230605@Max: [TVS] Integrate more of Cricket's bet types for Special Delete [Redmine: #188969]
 		- 20230831@Max: [TVS] Integrate 4 new bet types of Basketball [Redmine: #192608]
 		- 20240726@Max: [TVS] Integrate new bet type of Baseball AiO [Redmine: #207034]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
     Parameters Explanation:    
     
@@ -873,7 +874,17 @@ RETURN (
 	UNION ALL SELECT 8825,'FT',0
 	UNION ALL SELECT 8826,'FT',0
 	UNION ALL SELECT 8827,'FT',0
-	
+
+	--Baseball AiO phase 2 [Redmine: #209441]
+	UNION ALL SELECT 8828,'FT',0
+	UNION ALL SELECT 8829,'FT',0
+	UNION ALL SELECT 8830,'FT',0
+	UNION ALL SELECT 8831,'FT',0
+	UNION ALL SELECT 8832,'FT',0
+	UNION ALL SELECT 8833,'FT',0
+	UNION ALL SELECT 8834,'FT',0
+	UNION ALL SELECT 8835,'FT',0
+
 	)
 
 GO
