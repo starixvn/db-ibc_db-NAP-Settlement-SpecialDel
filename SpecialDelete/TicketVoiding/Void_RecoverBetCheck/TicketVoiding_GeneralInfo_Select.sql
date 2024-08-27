@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_GeneralInfo_Select_UAT1]
+ALTER PROCEDURE [dbo].[TicketVoiding_GeneralInfo_Select]
 ( 
 	 @RequestId	INT
 	,@MatchIds   VARCHAR(MAX) = ''
