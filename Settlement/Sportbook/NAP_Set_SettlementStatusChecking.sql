@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [NAP_Set_SettlementStatusChecking]
 	@MatchId				INT
 	,@Action				VARCHAR(20)
@@ -22,6 +22,7 @@ AS
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+		- 20240108@Aries: Refund-SDT only when the match is 'Suspend' (from Admin-site) for Soccer [Redmine:#208512]
 		
 	Parameters Explanation:    
 		@Action: CAL, CAL-HT, CAL-FT, REFUND, REFUND-HT, REFUND-FT
@@ -80,7 +81,7 @@ BEGIN
 						WHEN @Action IN ('CAL', 'CAL-FT') AND @EventStatusReason IN ( 2, 4) THEN 1
 						
 						WHEN @Action LIKE 'CAL%' AND @IsMarkedRefund = 1 THEN 1
-						
+
 						ELSE 0
 					END
 
@@ -101,7 +102,12 @@ BEGIN
 		RETURN
 
 	END
-
+	ELSE IF  @EventStatusReason <> 4 AND @EventStatus = 'running' AND @IsEarly = 0 AND @IsAutoRefund = 0 AND  @IsSettleAbandonedMatchIBC = 1 AND  @Action IN ('REFUND', 'REFUND-FT')
+	BEGIN
+		SELECT   @ErrCode = 1001068							
+				,@ErrMsg = 'The match must be marked as "Suspend" to Refund SDT. Please contact Event Team then try again.'
+		RETURN 						
+	END
 	ELSE IF @IsMarkedRefund = 1 OR (@Action = 'REFUND' AND @EventStatus = 'Postponed')
 	BEGIN
 		IF @Action LIKE 'CAL%' 
