@@ -204,7 +204,7 @@ BEGIN
 			 	,rd.FilterFromTransTime
 				,rd.FilterToTransTime
 				,rd.FilterBy
-				,rd.TransIds AS RequestExtraInfo
+				,CASE WHEN @IssueTypeId = 20 THEN NULL ELSE rd.TransIds END AS RequestExtraInfo
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore
 				,CASE WHEN @IssueTypeId = 3 THEN SUBSTRING(rd.IssueDetail, CHARINDEX(';Act:',rd.IssueDetail) + 5, LEN(rd.IssueDetail)) ELSE NULL END AS ActualScore
 				,rd.VoidFromTime
