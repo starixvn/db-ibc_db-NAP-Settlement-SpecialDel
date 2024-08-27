@@ -29,6 +29,7 @@ AS
 		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
+		- 20240819@July: Add more info for users to add requests with correct issue type [Redmine: #208659]
 		
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
@@ -97,6 +98,7 @@ BEGIN
 		,MainParlayCount		INT
 		,HighLightMinTime		DATETIME
 		,CancelCashOutCount		INT
+		,TransVoidToTime		DATETIME	
 	)
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, CreatedBy INT)
@@ -673,7 +675,7 @@ BEGIN
 	END
 
 	--Data Section
-	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, InstantlySettleCount, SettleCount, MainParlayCount, HighLightMinTime)
+	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, InstantlySettleCount, SettleCount, MainParlayCount, HighLightMinTime, TransVoidToTime)
 	SELECT b.matchid AS MatchId
 		,CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
 		,MIN(act.VoidTime) AS VoidFromTime
@@ -684,6 +686,7 @@ BEGIN
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND i.bettype IS NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount --Exclude InstantlySettleCount,CO
 		,COUNT(CASE WHEN b.transid <> b.SubTransid THEN b.transid ELSE NULL END) AS MainParlayCount
 		,MIN(act.VoidTime) AS HighLightMinTime
+		,MAX(act.transdate) AS TransVoidToTime
 	FROM #TVSTicketBets b
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
 		CROSS APPLY (SELECT CASE 
@@ -691,6 +694,7 @@ BEGIN
 								WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
 								WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
 							 END AS VoidTime
+							 ,b.transdate
 					)act
 	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
 	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)), b.matchid
@@ -703,6 +707,7 @@ BEGIN
 		   ,VoidFromTime = CASE WHEN b.MIN_CheckTimeCashOut < li.VoidFromTime THEN b.MIN_CheckTimeCashOut ELSE li.VoidFromTime END
 		   ,VoidToTime = CASE WHEN b.MAX_CheckTimeCashOut >  li.VoidToTime THEN b.MAX_CheckTimeCashOut ELSE li.VoidToTime END
 		   ,HighLightMinTime = CASE WHEN b.MIN_CheckTimeCashOut < li.HighLightMinTime THEN b.MIN_CheckTimeCashOut ELSE li.HighLightMinTime END
+		   ,TransVoidToTime = CASE WHEN b.MAX_CheckTimeCashOut > li.TransVoidToTime THEN b.MAX_CheckTimeCashOut ELSE li.TransVoidToTime END
 		FROM #logInfo li
 			CROSS APPLY(
 				SELECT COUNT(b.transid) AS CancelCashOutCount
@@ -829,6 +834,7 @@ BEGIN
 			,t.CancelCashOutCount
 			,a.MinTransId
 			,a.ActionType
+		    ,a.TransVoidToTime
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			CROSS APPLY (
 					SELECT CONVERT(XML, rd.TransIds)
@@ -838,6 +844,7 @@ BEGIN
 						,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
 						,t.c.value('@MinTransId','BIGINT') AS  MinTransId
 						,t.c.value('@ActionType','VARCHAR(100)') AS  ActionType
+						,NULLIF(t.c.value('@TransVoidToTime','DATETIME'),'') AS TransVoidToTime
 					FROM t1.xDATA.nodes('/r') t(c)
 				) a
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
@@ -1025,6 +1032,7 @@ BEGIN
 				,SUM(MainParlayCount) AS MainParlayCount
 				,MIN(HighLightMinTime) AS HighLightMinTime
 				,MIN(CancelCashOutCount) AS CancelCashOutCount
+				,MAX(TransVoidToTime) AS TransVoidToTime
 			FROM #logInfo l
 				CROSS APPLY(
 							SELECT '|' + LiveScores
@@ -1048,6 +1056,7 @@ BEGIN
 		,CancelCashOutCount
 		,h.MinTransId
 		,CASE WHEN h.IsCancelCashOut = 1 THEN '(Cancel Cash Out)' ELSE NULL END AS ActionType
+		,l.TransVoidToTime
 	FROM _cte l
 		OUTER APPLY (SELECT TOP 1 b.accepttype AS HighlightAcceptType, b.transid AS MinTransId, b.IsCancelCashOut
 						 FROM #TVSTicketBets b 

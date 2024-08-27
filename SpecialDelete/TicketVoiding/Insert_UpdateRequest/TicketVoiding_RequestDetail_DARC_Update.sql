@@ -121,6 +121,7 @@ BEGIN
 				+ '" MinType="' + t.c.value('@MinType','VARCHAR(10)') 
 				+ '" MinTransId="' + t.c.value('@MinTransId','VARCHAR(50)') 
 				+ '" ActionType="' + t.c.value('@ActionType','VARCHAR(100)') 
+				+ '" TransVoidToTime="' + ISNULL(CONVERT(VARCHAR(50),NULLIF(t.c.value('@TransVoidToTime','DATETIME'),''), 121),'')
 				+ '" />' AS TypeAccept
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 	FROM @DARCInfoXML.nodes('root/r') t(c)
