@@ -27,7 +27,7 @@ AS
 	Param explanation:
 		@MessageGroupId 
 					1: Instant Settlement 
-					2: Check comfirm Refund
+					3: Check comfirm Refund
 		@MessageTypeId
 					Warning
 					Error
@@ -45,8 +45,8 @@ BEGIN
 				FROM Settlement_LetstalkMessage m WITH(NOLOCK)
 				WHERE m.MatchId = @MatchId
 					AND m.MessageDetail = @MessageDetail
-					AND m.MessageGroupId = 2
-					AND m.StatusId = 2
+					AND m.MessageGroupId = 3
+					AND m.StatusId = 1
 				)
 	BEGIN
 		SELECT @ErrCode = 100,
@@ -75,7 +75,7 @@ BEGIN
 			,@ActionName
 			,@MessageContent
 			, CASE WHEN @MessageGroupId = 1 THEN 'Inst Settlement'
-					WHEN @MessageGroupId = 2 THEN @MessageDetail
+					WHEN @MessageGroupId = 3 THEN @MessageDetail
 					ELSE ''
 			  END
 			,@StatusId
