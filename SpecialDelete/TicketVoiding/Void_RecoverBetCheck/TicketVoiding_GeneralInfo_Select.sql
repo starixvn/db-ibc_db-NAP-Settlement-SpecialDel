@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_GeneralInfo_Select]
 ( 
 	 @RequestId	INT
-	,@MatchId   INT = 0
+	,@MatchIds   VARCHAR(MAX) = ''
 )
 AS
 /*	Created by: 20201207@July
@@ -21,6 +21,7 @@ AS
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
+		- 20240813@Max: [TVS] Manage Request - Enhancements [Redmine: #208623]
 
 	Param's explanation:
 		
@@ -38,6 +39,7 @@ BEGIN
 	CREATE TABLE #tmpMatch 
 	(
 		 RequestId INT
+		,MatchId INT
 		,Homeid INT
 		,Awayid INT
 		,Leagueid INT
@@ -57,14 +59,22 @@ BEGIN
 		,MatchId INT
 		,NegativeBalanceUsers VARCHAR(MAX)
 		,MessageId INT
+		,MessageIdSpecial INT
 		,IsFinish BIT
 	)
 
 	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type INT)
+	DECLARE @tmp_MatchId AS TABLE (MatchId INT)
 
-	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId, RecoveredTime)
+	INSERT INTO @tmp_MatchId (MatchId)
+	SELECT value
+	FROM string_split (@MatchIds, ',')
+	WHERE value <> ''
+
+	INSERT INTO #tmpMatch (RequestId, MatchId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId, RecoveredTime)
 	SELECT DISTINCT 
 			 rd.RequestId
+			,rd.MatchId
 			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.homeid END
 			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.awayid END
 			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.leagueid END
@@ -84,7 +94,8 @@ BEGIN
 					FROM	dbo.match14 m14 WITH(NOLOCK)
 					WHERE rd.MatchId = m14.matchid
 					) m
-	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId IN (0,29))
+	WHERE rd.RequestId = @RequestId 
+		AND (rd.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR @MatchIds = '')
 	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatch WHERE IssuetypeId = 22) --Recover Ticket
 	BEGIN
@@ -105,7 +116,7 @@ BEGIN
 									FROM #tmpVoidingHistory
 									FOR XML PATH ('')),1,1,'')
 
-	SELECT @cnt_matchid = COUNT(matchid)
+	SELECT @cnt_matchid = COUNT(DISTINCT matchid)
 	FROM  Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 	WHERE RequestId = @RequestId
 
@@ -116,9 +127,10 @@ BEGIN
 		   ,vh.matchid = s.matchID
 		   ,vh.NegativeBalanceUsers = s.NegativeBalanceUsers
 		   ,vh.MessageId = ISNULL(s.MessageId,s.MessageIdSpecial)
+		   ,vh.MessageIdSpecial = s.MessageIdSpecial
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID 
-		WHERE (s.MatchId = @MatchId OR @MatchId IN (0,29))
+		WHERE (s.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR s.MatchId IN (0,29))
 	END
 	ELSE --Many voidinghistory 1 request -> matches
 	begin
@@ -127,12 +139,14 @@ BEGIN
 			,vh.matchid = s.matchid
 		    ,vh.NegativeBalanceUsers = s.NegativeBalanceUsers
 		    ,vh.MessageId = ISNULL(s.MessageId,s.MessageIdSpecial)
+			,vh.MessageIdSpecial = s.MessageIdSpecial
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistoryId
-		WHERE (s.MatchId = @MatchId OR @MatchId IN (0,29))
+		WHERE (s.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR s.MatchId IN (0,29))
 		
 		DELETE FROM #tmpVoidingHistory WHERE MatchId IS NULL
 	END
+	
 	
 	SET @NegativeBalanceUsers = STUFF((SELECT DISTINCT ',' + a.NegativeBalanceUser
 									FROM #tmpVoidingHistory t
@@ -162,8 +176,25 @@ BEGIN
 		OPTION (OPTIMIZE FOR (@xmlVoidResults = NULL ))
 	END
 
+	-- For case 1 match both normal & special site (2 rows) => Get normal messgae
+	;WITH CTE_cntMessageId AS 
+	(
+		SELECT matchid, COUNT(1) AS cntMessageId FROM #tmpVoidingHistory t GROUP BY matchid HAVING COUNT(1) >= 2
+	)
+	,CTE_cntMessageIdSpecial AS
+	(
+		SELECT matchid, COUNT(1) AS cntMessageIdSpecial FROM #tmpVoidingHistory WHERE MessageIdSpecial IS NOT NULL GROUP BY matchid 
+	)
+	DELETE  vh
+	FROM #tmpVoidingHistory vh
+	    INNER JOIN CTE_cntMessageId m ON vh.matchid = m.matchid
+		LEFT JOIN CTE_cntMessageIdSpecial ms ON vh.matchid = ms.matchid
+	WHERE vh.MessageIdSpecial IS NOT NULL 
+		AND m.cntMessageId > ISNULL(ms.cntMessageIdSpecial,0)
+
 	SELECT DISTINCT
 		@RequestId AS RequestId
+		,MatchId
 		,t.Homeid
 		,t.Awayid
 		,t.Leagueid 
@@ -182,8 +213,9 @@ BEGIN
 		v.Username AS VoidedBy
 		,msg.Content_cs AS ContentChineseSimplified
 		,msg.Content_en AS ContentEnglish
+		,m.MatchId
 	FROM #tmpVoidingHistory s
-	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
+	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId AND (s.MatchId = m.MatchId OR s.MatchId IN (0,29))
 	INNER JOIN CustDB.dbo.Customer v WITH(NOLOCK) ON s.VoidedBy = v.CustId
 	LEFT JOIN DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) ON s.MessageId = msg.MessageId
 	WHERE 1 = CASE WHEN m.IssuetypeId <> 17 THEN 1 ELSE 0 END

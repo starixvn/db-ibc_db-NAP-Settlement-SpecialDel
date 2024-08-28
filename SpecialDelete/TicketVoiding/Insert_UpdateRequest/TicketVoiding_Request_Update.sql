@@ -35,6 +35,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@AbnormalBetInfo		VARCHAR(MAX) = NULL
 	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
 	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
+	,@BriefInfoNote			NVARCHAR(MAX) = NULL
 	,@IsVoided				BIT			  = 0
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
 )
@@ -81,6 +82,7 @@ AS
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20240813@Max: [TVS] Manage Request - Enhancements [Redmine: #208623]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -105,6 +107,7 @@ BEGIN
 			,@OldRemark			NVARCHAR(MAX)
 			,@OldIsTest			BIT
 			,@IsEditRequest     INT = 1
+			,@OldBriefInfoNote	NVARCHAR(MAX)
 
 	CREATE TABLE #OperatorInfo(
 		[RequestId] [int] NOT NULL,
@@ -125,6 +128,7 @@ BEGIN
 			,@OldSource = Source
 			,@OldRemark = Remark
 			,@OldIsTest = IsTest
+			,@OldBriefInfoNote = BriefInfoNote
 			,ActionId = ISNULL(@ActionId, ActionId)
 			,Provider = ISNULL(@Provider, Provider)
 			,Source = ISNULL(@Source, Source)
@@ -133,6 +137,7 @@ BEGIN
 			,CheckedBy = CASE WHEN @SubIssueTypeId IS NULL THEN @CheckedBy ELSE CheckedBy END 
 			,Remark = ISNULL(@Remark, Remark)
 			,IsTest = ISNULL(@IsTest, IsTest)
+			,BriefInfoNote = ISNULL(@BriefInfoNote, BriefInfoNote)
 			,LastModifiedBy = ISNULL(@UserId, LastModifiedBy)
 			,LastModifiedDate = GETDATE()
 	WHERE	RequestId = @RequestId

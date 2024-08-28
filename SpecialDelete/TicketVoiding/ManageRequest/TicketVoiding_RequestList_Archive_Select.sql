@@ -455,7 +455,7 @@ BEGIN
 			,t.TotalParlayProcessed
 			,t.TotalCancelCashOutProcessed
 			,t.TotalResettleProcessed 
-			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch, m.ParentID AS ParentMatchId
+			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch, m.ParentID AS ParentMatchId, m.matchcode
 			,t.Provider, t.Source, t.Remark, t.Trader, t.LA, t.Message
 	FROM	#tmpResult t
 		LEFT JOIN #CTE_CustInfo c ON t.UserId = c.CustId

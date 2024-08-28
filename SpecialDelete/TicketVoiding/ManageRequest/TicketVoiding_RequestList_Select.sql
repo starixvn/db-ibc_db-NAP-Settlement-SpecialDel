@@ -533,7 +533,7 @@ BEGIN
 			,mr.SettlementStatus
 			,CASE WHEN t.IssueTypeId IN (1,10,3,2,8,9) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
 			,CASE WHEN CHARINDEX('1',t.ProductIds) > 0 THEN 'Sportsbook' ELSE NULL END AS Products -- Apply issuetype Recover Ticket
-			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch, m.ParentID AS ParentMatchId
+			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch, m.ParentID AS ParentMatchId, m.matchcode
 			,t.Provider, t.Source, t.Remark, t.Trader, t.LA, t.Message
 	FROM	#tmpResult t
 		LEFT JOIN #CTE_CustInfo c ON t.UserId = c.CustId
