@@ -22,6 +22,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240813@Max: [TVS] Manage Request - Enhancements [Redmine: #208623]
+		- 20240828@Max: [TVS] Manage Request - Enhancements - Fix Issue [Redmine: #208623]
 
 	Param's explanation:
 		
@@ -74,7 +75,7 @@ BEGIN
 	INSERT INTO #tmpMatch (RequestId, MatchId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId, RecoveredTime)
 	SELECT DISTINCT 
 			 rd.RequestId
-			,rd.MatchId
+			,CASE WHEN r.IssueTypeId = 13 THEN 0 ELSE rd.MatchId END
 			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.homeid END
 			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.awayid END
 			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.leagueid END
