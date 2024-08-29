@@ -86,7 +86,6 @@ BEGIN
 			,@cornerCommand VARCHAR(100)
 			,@undoResultDetailCommand	VARCHAR(100)
 			,@IsResultHTCal	BIT
-			,@HoldInfo	VARCHAR(MAX) = ''
 
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	
@@ -560,16 +559,6 @@ BEGIN
 				,@hta			= @HalfTimeAway
 				,@ResourceResult = @ResourceResult
 				,@Action        = @Action
-
-			IF EXISTS (SELECT TOP 1 1 FROM dbo.match WITH(NOLOCK) WHERE matchid = @MatchId AND ISNULL(SettlementStatus,0) & 32 > 0)
-			BEGIN
-				SET @HoldInfo = '<root><r t="6" s="false" /></root>'
-				EXEC dbo.[NAP_Set_SettlementStatusUpd]
-					@MatchId	= @MatchId
-					,@HoldInfo  = @HoldInfo
-					,@AdminId = @AdminId
-			END
-
 		END
 		ELSE IF @SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NOT NULL -- early settlement 
 		BEGIN
