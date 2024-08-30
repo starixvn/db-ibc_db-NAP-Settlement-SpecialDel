@@ -7,7 +7,8 @@
 
 */
 DECLARE @MatchId INT = xxxxx
-
+	, @HomeValue VARCHAR(2000) = 'x'
+	, @AwayValue VARCHAR(2000) ='y' 
 DECLARE @IsReSettledTickets BIT = 1, @DeterminedType INT	= 0
 	, @strTransIds VARCHAR(MAX)	= ''
 	, @ActionID			INT = 100
@@ -24,13 +25,13 @@ DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), A
 								,PRIMARY KEY (BetType,BetID))
 
 INSERT INTO @tmpSelectedRID(pfID,BetType, ResourceID, HomeValue, AwayValue,  BetID, OddsType)
-SELECT	10,	7, '01', x, y, 0,0
+SELECT	10,	7, '01', @HomeValue, @AwayValue, 0, 0
 UNION ALL
-SELECT	3,	8 , '01', x, y, 0,0
+SELECT	3,	8 , '01', @HomeValue, @AwayValue, 0, 0
 UNION ALL
-SELECT	5,	15, '01', x, y, 0,1
+SELECT	5,	15, '01', @HomeValue, @AwayValue, 0, 1
 UNION ALL
-SELECT	20,	21, '01', x, y, 0,0
+SELECT	20,	21, '01', @HomeValue, @AwayValue, 0, 0
 
 INSERT INTO #tmpTransID(TransID, CustID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId, DeadHeat, currentStatuswinlost)
 SELECT	b.transid
