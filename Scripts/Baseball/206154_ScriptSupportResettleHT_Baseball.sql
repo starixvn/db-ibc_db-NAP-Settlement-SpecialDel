@@ -23,14 +23,14 @@ DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), A
 								isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT, RefResourceId VARCHAR(20), IsWeb BIT
 								,PRIMARY KEY (BetType,BetID))
 
-INSERT INTO @tmpSelectedRID(pfID,BetType, ResourceID, HomeValue, AwayValue,  BetID)
-SELECT	10,	7, '01', x, y, 0
+INSERT INTO @tmpSelectedRID(pfID,BetType, ResourceID, HomeValue, AwayValue,  BetID, OddsType)
+SELECT	10,	7, '01', x, y, 0,0
 UNION ALL
-SELECT	3,	8 , '01', x, y, 0
+SELECT	3,	8 , '01', x, y, 0,0
 UNION ALL
-SELECT	5,	15, '01', x, y, 0
+SELECT	5,	15, '01', x, y, 0,1
 UNION ALL
-SELECT	20,	21, '01', x, y, 0
+SELECT	20,	21, '01', x, y, 0,0
 
 INSERT INTO #tmpTransID(TransID, CustID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId, DeadHeat, currentStatuswinlost)
 SELECT	b.transid
