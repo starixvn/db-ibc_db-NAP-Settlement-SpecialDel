@@ -9,7 +9,8 @@
 DECLARE @MatchId INT = xxxxx
 	, @HomeValue VARCHAR(2000) = 'x'
 	, @AwayValue VARCHAR(2000) ='y' 
-DECLARE @IsReSettledTickets BIT = 1, @DeterminedType INT	= 0
+DECLARE @IsReSettledTickets BIT = 1
+	, @DeterminedType INT	= 0
 	, @strTransIds VARCHAR(MAX)	= ''
 	, @ActionID			INT = 100
 	, @BroadcastSessionId	VARCHAR(50)	= NULL
@@ -32,6 +33,8 @@ UNION ALL
 SELECT	5,	15, '01', @HomeValue, @AwayValue, 0, 1
 UNION ALL
 SELECT	20,	21, '01', @HomeValue, @AwayValue, 0, 0
+UNION ALL
+SELECT	2,	12, '01', @HomeValue, @AwayValue, 0, 0
 
 INSERT INTO #tmpTransID(TransID, CustID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId, DeadHeat, currentStatuswinlost)
 SELECT	b.transid
@@ -63,25 +66,25 @@ WHERE b.matchid = @MatchId
 				WHEN @IsReSettledTickets = 1 THEN 1
 				ELSE 0
 			END
-	AND b.bettype IN (7,8,15,21)
+	AND b.bettype IN (7,8,15,21,12)
 
 --filter selectedRID by current Profile and BetType
-SET @strTransIds 		= (SELECT transid	AS '@t'
-							,modds	AS '@m'
-							,OddsType	AS '@ot'
-							,srecommend AS '@sr'
-							,bettype AS '@bt'
-							,IsMarked AS '@im'
-							,DeadHeat AS '@dh'
-					FROM #tmpTransID
-					FOR XML PATH('r'), ROOT( 'root' ))
+SET @strTransIds = (SELECT transid	AS '@t'
+					,modds	AS '@m'
+					,OddsType	AS '@ot'
+					,srecommend AS '@sr'
+					,bettype AS '@bt'
+					,IsMarked AS '@im'
+					,DeadHeat AS '@dh'
+			FROM #tmpTransID
+			FOR XML PATH('r'), ROOT( 'root' ))
 
 EXEC dbo.NAP_Admin_Calculate_TransID
-						  @transIds   			= @strTransIds						  
-						  ,@matchid				= @matchid
-						  ,@ActionId			= @ActionId
-						  ,@IsCalculateBalance	= @IsCalculateBalance
-                          ,@BroadcastSessionId  = @BroadcastSessionId
-						  ,@ErrCode				= @ErrCode OUTPUT
-						  ,@ErrMessage			= @ErrMessage OUTPUT
+	@transIds   			= @strTransIds						  
+	,@matchid				= @matchid
+	,@ActionId			= @ActionId
+	,@IsCalculateBalance	= @IsCalculateBalance
+    ,@BroadcastSessionId  = @BroadcastSessionId
+	,@ErrCode				= @ErrCode OUTPUT
+	,@ErrMessage			= @ErrMessage OUTPUT
 
