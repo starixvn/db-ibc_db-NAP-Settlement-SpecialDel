@@ -61,6 +61,7 @@ AS
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 		- 20240514@July: [TVS] EKO/WKOT - Add message template to the Add Request page [Redmine: #203776]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240823@July: WMKO/TE - Add Details of bet list for issue types [Redmine: #208628]
 
 	Param's explanation:	
 		
@@ -2167,7 +2168,7 @@ BEGIN
 		   ,s.hdp2
 		   ,s.livehomescore
 		   ,s.liveawayscore
-		   ,s.betid
+		   ,CASE WHEN s.bettype = 501 THEN 0 ELSE s.betid END AS betid
 		   ,s.betcheck
 		   ,s.SubBetcheck
 		   ,s.IsMixParlay
