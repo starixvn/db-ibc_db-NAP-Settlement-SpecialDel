@@ -21,7 +21,7 @@ AS
 	Revisions:
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20231006@Aries: Enhance instant Settlement [Redmine:#195162]
-		- 20240901@Kathy: missing @matchid [Redmine:#]
+		- 20240901@Kathy: missing @matchid when sending data to SSB [Redmine:210264]
 	Param's Explanation:  
 		@Params: <Params><Params/>
 		   
