@@ -21,7 +21,7 @@ AS
 	Revisions:
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20231006@Aries: Enhance instant Settlement [Redmine:#195162]
-		
+		- 20240901@Kathy: missing @matchid when sending data to SSB [Redmine:210264]
 	Param's Explanation:  
 		@Params: <Params><Params/>
 		   
@@ -235,6 +235,8 @@ BEGIN
 		
 		IF @TotalBatch > 0
 		BEGIN
+			SET @MessageBody = CAST(@matchid AS VARCHAR) + '^' + CAST(@SessionId AS VARCHAR)
+
 			IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT_' 
 				OR @RunExecDataBySSB = 0
 			BEGIN
@@ -242,7 +244,7 @@ BEGIN
 		
 				EXEC dbo.SSB_Settlement_UpdateData @ConversationHandle = NULL
 					,@MessageType = @MessageType
-					,@MessageBody = @SessionId
+					,@MessageBody = @MessageBody
 					,@MessageId = NULL
 			END
 			ELSE
@@ -254,7 +256,7 @@ BEGIN
 				BEGIN
 					SELECT @MessageType = @MessageTypePattern + CAST(@QueueExecNo AS VARCHAR)
 		
-					EXEC [dbo].[SSB_Send_Message] @MessageContent = @SessionId
+					EXEC [dbo].[SSB_Send_Message] @MessageContent = @MessageBody
 						, @FunctionName = 'settlement'
 						, @MessageType = @MessageType
 			
@@ -278,4 +280,3 @@ BEGIN
 		WHERE	Id = @SettlementProcessingId
 	END CATCH
 END
-
