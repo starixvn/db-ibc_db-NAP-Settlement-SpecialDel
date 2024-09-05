@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_ChangedMarket_Sel]
 	@matchID						INT
 	,@VendorID						SMALLINT		= 34
@@ -14,6 +14,7 @@ AS
 	Revision
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]		
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20240905@Aries: Enhance the settlement by Selection for Betbuilder  [Redmine:#208782]
 
 	Param's Explanation:
 			@SelectedSelection = '<Resources>
@@ -33,7 +34,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @xml XML
-		, @ResultDefault VARCHAR(5) = 'Lose'
+		, @ResultDefault VARCHAR(6) = 'Refund'
 
 	DECLARE @tblSelectionType TABLE (selectionType INT, result VARCHAR(20))
 	CREATE TABLE #tblMarketChecking (MarketID VARCHAR(20) PRIMARY KEY, result VARCHAR(20), ResultStatusID TINYINT)
@@ -64,23 +65,23 @@ BEGIN
 						WHEN sl.selectionType IS NULL THEN
 								CASE 
 									WHEN ms.ResultStatusID IN (0,1) THEN '0_' + ms.Result
-									WHEN ms.Result = 'REFUND' 		THEN '9_' + ms.Result
+									WHEN ms.Result = 'REFUND' 		THEN '7_' + ms.Result
 									WHEN ms.Result IS NULL 			THEN '8_NULL'
-									WHEN ms.Result = 'LOSE' 		THEN '7_' + ms.Result
+									WHEN ms.Result = 'LOSE' 		THEN '9_' + ms.Result
 									WHEN ms.Result = 'WON'			THEN '6_' + ms.Result
 									ELSE '7_' + @ResultDefault END
 						ELSE 
 								CASE
-									WHEN sl.Result = 'REFUND'	THEN '9_' + ms.Result
+									WHEN sl.Result = 'REFUND'	THEN '7_' + ms.Result
 									WHEN sl.Result IS NULL 		THEN '8_NULL'
-									WHEN sl.Result = 'LOSE' 	THEN '7_' + ms.Result
+									WHEN sl.Result = 'LOSE' 	THEN '9_' + ms.Result
 									WHEN sl.Result = 'WON'		THEN '6_' + ms.Result
 									ELSE '7_' + @ResultDefault END
 						END
-					) AS Result --priority: REFUND, RUNNING, LOSE, WON
+					) AS Result --priority: LOSE,RUNNING,REFUND, WON
 				, MAX(CASE 
-							WHEN sl.Result = 'REFUND' 								 THEN '9_5'
-							WHEN ms.Result = 'REFUND' AND ResultStatusID NOT IN(0,1) THEN '8_5' --+ CAST(ResultStatusID AS VARCHAR)
+							WHEN sl.Result = 'LOSE' 								 THEN '9_5'
+							WHEN ms.Result = 'LOSE' AND ms.ResultStatusID NOT IN(0,1) THEN '8_5' --+ CAST(ResultStatusID AS VARCHAR)
 							WHEN sl.SelectionType IS NOT NULL AND @Action='CAL'		 THEN '0_5'
 							WHEN sl.SelectionType IS NOT NULL AND @Action='UNDO'	 THEN '7_3'
 							WHEN ms.ResultStatusID = 3 								 THEN '7_3'
@@ -114,10 +115,8 @@ BEGIN
 		INNER JOIN dbo.SMP_Market mk WITH (NOLOCK) ON mk.marketID = mc.MarketID
 	WHERE mk.MatchID = @MatchID
 		AND mk.VendorID = @VendorID
-		AND 1 = CASE --WHEN mk.Result IS NULL AND mc.Result IS NULL AND mk.ResultStatusID = mc.ResultStatusID THEN 0
-					 WHEN @action = 'UNDO' AND mk.Result = 'REFUND' AND mc.Result = 'REFUND' THEN 0
+		AND 1 = CASE WHEN @action = 'UNDO' AND mk.Result = 'LOSE' AND mc.Result = 'LOSE' THEN 0
 					 WHEN mc.ResultStatusID IN (3,5) THEN 1
-					 --WHEN mc.Result IS NOT NULL AND mk.ResultStatusID IN (0,1) THEN 1
 					 ELSE 0 END
 
 END

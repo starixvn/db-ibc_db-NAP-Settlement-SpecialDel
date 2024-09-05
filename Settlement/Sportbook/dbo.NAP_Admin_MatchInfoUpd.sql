@@ -39,6 +39,7 @@ AS
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20240905@Aries: Enhance the settlement by Selection for Betbuilder  [Redmine:#208782]
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR, 'CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT'
@@ -226,28 +227,20 @@ BEGIN
 						WHEN @Action = 'UNDO' THEN 3	--undo
 						WHEN @IsAuto = 1 THEN 2 		--auto cal
 						ELSE 5 END 						--manual cal
+		
+		EXEC dbo.NAP_Admin_SMPMarketSelection_Update 
+			@matchID 			= @matchID
+			,@action			= @action
+			,@resultStatusID 	= @ResultStatusID
+			,@SelectedSelection	= @SelectedSelection
+			
 
 		EXEC dbo.NAP_Admin_SMPMarket_Update 
 			@matchID 			= @matchID
 			,@VendorID			= 34
-			,@action			= @action
+			,@resultStatusID 	= @ResultStatusID
 			,@SelectedMarket 	= @SelectedMarket
-			,@resultStatusID 	= @ResultStatusID
-			,@mode				= 'ResultStatusID'
-
-		EXEC dbo.NAP_Admin_SMPMarketSelection_Update 
-			@matchID 			= @matchID
-			,@action			= @action
-			,@SelectedMarket	= @SelectedMarket
-			,@SelectedSelection	= @SelectedSelection
-			,@resultStatusID 	= @ResultStatusID
-
-		IF @IsAuto = 0
-			EXEC dbo.NAP_Admin_SMPMarket_Update 
-				@matchID 			= @matchID
-				,@action			= @action
-				,@SelectedMarket	= @SelectedMarket
-				,@resultStatusID 	= @ResultStatusID
+			
 
 		RETURN
 	END
