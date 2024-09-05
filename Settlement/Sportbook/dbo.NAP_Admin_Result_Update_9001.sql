@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_9001]
  ,@Sporttype		SMALLINT
  ,@IsDirectly		BIT				   = 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
  ,@IsAuto			BIT				   = 0
- ,@DeterminedType	TINYINT			   = 0
+ ,@DeterminedType	INT			   = 0
 
 AS 
 /*
@@ -45,6 +45,7 @@ AS
 		- 20230817@Aries: Basketball - Enhance Generating Result 2H [Redmine:#192864]
 		- 20230727@Aries: Basketball AIO  [Redmine:#191381]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		
     Param's Explanation: 
     
@@ -111,6 +112,12 @@ BEGIN
 				2: ResultDetailOS
 				3: ResultDetailES
 		*/
+		
+	IF @sporttype = 8
+		SELECT @ResultTable = 2
+				,@AutoSetting = 1
+				,@IsApplyRefundSOP = 1
+		
 	SET @HasAutoPayout = IIF(@AutoSetting & 2 > 0,1,0)
     --parse XML   
     EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedRID
@@ -255,6 +262,14 @@ BEGIN
 			WHERE	r.MatchId = @MatchID
 					AND r.ResourceId IN ( 'ET', 'PEN' )
 					AND sr.ResourceID IS NULL
+		END
+		
+		IF @sporttype = 8 AND @action = 'REFUND' AND @DeterminedType = 0 AND EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
+		BEGIN
+			DELETE
+			FROM	dbo.ResultDetailOS WITH(ROWLOCK, UPDLOCK)
+			WHERE	MatchId = @MatchID
+					AND ResourceId = 'EI'
 		END
     END 
     ELSE IF @ResultTable = 1 

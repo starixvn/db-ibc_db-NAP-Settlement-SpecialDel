@@ -13,6 +13,7 @@ AS
     Revisions:            
 		- 20240122@Aries: Provider Result Log [Redmine:#199100]
 		- 20240307@Aries: Enhance the Provider Result Logs Phase 2 [Redmine: #201480]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -29,7 +30,7 @@ BEGIN
 	FROM match AS m WITH(NOLOCK)
 	WHERE m.matchid = @MatchID
 
-	SELECT @ExternalResultTable = ExternalResultTable
+	SELECT @ExternalResultTable = CASE WHEN st.sporttype = 8 THEN 2 ELSE ExternalResultTable END
 	FROM SettlementResultTableSetting AS st WITH(NOLOCK)
 	WHERE st.Sporttype = @Sporttype
 

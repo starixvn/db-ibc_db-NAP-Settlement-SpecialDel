@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_DummyResourceResult]
 	@MatchId INT
 	,@Sporttype SMALLINT
@@ -31,6 +31,7 @@ AS
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230727@Aries: Basketball AIO  [Redmine:#191381]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 */
 
 BEGIN
@@ -97,7 +98,7 @@ BEGIN
 			,@result NVARCHAR(200)
 			,@string VARCHAR(50)
 			,@ResourceId VARCHAR(20) 
-			,@DeterminedType TINYINT
+			,@DeterminedType INT
 			,@MaxValue INT
 			,@ResultTable TINYINT
 			,@xmlWebResourceResult XML
@@ -110,6 +111,9 @@ BEGIN
 	SELECT	@ResultTable = ResultTable
 	FROM	dbo.SettlementResultTableSetting WITH(NOLOCK)
 	WHERE	Sporttype = @Sporttype
+	
+	IF @Sporttype = 8
+		SET @ResultTable = 2
 
 	SET @xmlWebResourceResult = CAST(@WebResourceResult AS XML)
 	SET @CorrectQuaterOddEven = ''
@@ -136,7 +140,7 @@ BEGIN
 			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID, 1
 			FROM	cteResourceResult
 		END
-		ELSE IF @Sporttype = 2 AND @IsDetermined = 1
+		ELSE IF (@Sporttype = 2 AND @IsDetermined = 1) OR @Sporttype = 8
 		BEGIN
 			;WITH cteResourceSelected
 			AS
@@ -184,6 +188,7 @@ BEGIN
 			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
 		WHERE	MatchId = @MatchId
 			AND ResultStatusID  IN ( 2, 5 )	
+			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail t WHERE t.ResourceId = r.ResourceId)
 	END
 	
 	IF @Sporttype = 2
@@ -2054,6 +2059,260 @@ BEGIN
 					,MIN(ssId)
 			FROM @tmpResultDetail r
 			GROUP BY ResourceId
+		END
+	END
+	ELSE IF @Sporttype = 8
+	BEGIN	
+		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+		SELECT	sd.ResourceID, 0, 0, 0
+		FROM	f_Set_MajorRound(@sporttype) sd
+		WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail WHERE ResourceId = sd.ResourceId)
+
+		IF @IsDetermined = 0
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '8801')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'8801', HomeValue, AwayValue, ssid
+				FROM	@tmpResultDetail t
+				WHERE	ResourceId = '00'				
+			END
+			
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId LIKE '88040[3,5]')
+			BEGIN	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT t.ResourceId, r.Sum_HomeValue, r.Sum_AwayValue, 4
+				FROM  @tmpDummyResourceIds t
+					CROSS APPLY (
+						SELECT	SUM(CAST(HomeValue AS INT)) AS Sum_HomeValue
+								,SUM(CAST(AwayValue AS INT)) AS Sum_AwayValue
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId LIKE '010[1-' + RIGHT(t.ResourceId,1) + ']'
+					)r
+				WHERE t.ResourceId LIKE '88040[3,5]'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '880505')
+			BEGIN	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT t.ResourceId, r.Sum_HomeValue, r.Sum_AwayValue, 4
+				FROM  @tmpDummyResourceIds t
+					CROSS APPLY (
+						SELECT	SUM(CAST(HomeValue AS INT)) AS Sum_HomeValue
+								,SUM(CAST(AwayValue AS INT)) AS Sum_AwayValue
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId LIKE '010[1-5]'
+					)r
+				WHERE t.ResourceId = '880505'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId LIKE '88060[3,5,7]')
+			BEGIN	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT t.ResourceId, r.Sum_HomeValue, r.Sum_AwayValue, 4
+				FROM  @tmpDummyResourceIds t
+					CROSS APPLY (
+						SELECT	SUM(CAST(HomeValue AS INT)) AS Sum_HomeValue
+								,SUM(CAST(AwayValue AS INT)) AS Sum_AwayValue
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId LIKE '010[1-' + RIGHT(t.ResourceId,1) + ']'
+					)r
+				WHERE t.ResourceId LIKE '88060[3,5,7]'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId LIKE '88070[3,5,7]')
+			BEGIN	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated)
+				SELECT t.ResourceId, r.Sum_HomeValue, r.Sum_AwayValue, r.ssId, CASE WHEN r.ssId = 4 THEN 1 ELSE 0 END AS isCalculated
+				FROM  @tmpDummyResourceIds t
+					CROSS APPLY (
+						SELECT	SUM(CAST(HomeValue AS INT)) AS Sum_HomeValue
+								,SUM(CAST(AwayValue AS INT)) AS Sum_AwayValue
+								,MIN(ssId) AS ssId
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId LIKE '010[1-' + RIGHT(t.ResourceId,1) + ']'
+					)r
+					
+				WHERE t.ResourceId LIKE '88070[3,5,7]'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId LIKE '88080[3,5]')
+			BEGIN	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT t.ResourceId, r.Sum_HomeValue, r.Sum_AwayValue, 4
+				FROM  @tmpDummyResourceIds t
+					CROSS APPLY (
+						SELECT	SUM(CAST(HomeValue AS INT)) AS Sum_HomeValue
+								,SUM(CAST(AwayValue AS INT)) AS Sum_AwayValue
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId LIKE '010[1-' + RIGHT(t.ResourceId,1) + ']'
+					)r
+				WHERE t.ResourceId LIKE '88080[3,5]'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId LIKE '88090[3,5]')
+			BEGIN	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT t.ResourceId, r.Sum_HomeValue, r.Sum_AwayValue, 4
+				FROM  @tmpDummyResourceIds t
+					CROSS APPLY (
+						SELECT	SUM(CAST(HomeValue AS INT)) AS Sum_HomeValue
+								,SUM(CAST(AwayValue AS INT)) AS Sum_AwayValue
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId LIKE '010[1-' + RIGHT(t.ResourceId,1) + ']'
+					)r
+				WHERE t.ResourceId LIKE '88090[3,5]'
+			END
+
+			-- Team with Higest Scoring Innings
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '8818')
+			BEGIN	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT '8818' AS ResourceId
+						,CASE 
+							WHEN Max_HomeValue > Max_AwayValue THEN 'h'
+							WHEN Max_HomeValue < Max_AwayValue THEN 'a'
+							ELSE 'd'
+						END AS HomeValue 
+						,4 AS ssId
+				FROM	(
+					SELECT	MAX(CAST(HomeValue AS INT)) AS Max_HomeValue
+							,MAX(CAST(AwayValue AS INT)) AS Max_AwayValue
+					FROM	@tmpResultDetail
+					WHERE	ResourceId LIKE '010[1-9]'
+				) t
+			END
+
+			-- Lead After X Innings 
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId LIKE '88190[2,3,4,6,7]')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	t.ResourceId
+						,CASE 
+							WHEN r.Sum_HomeValue > r.Sum_AwayValue THEN 'h'
+							WHEN r.Sum_HomeValue < r.Sum_AwayValue THEN 'a'
+							ELSE 'd'
+						END AS Result
+						,4 AS ssId
+				FROM	@tmpDummyResourceIds t
+					CROSS APPLY (
+						SELECT	SUM(CAST(r.HomeValue AS INT)) AS Sum_HomeValue
+								,SUM(CAST(r.AwayValue AS INT)) AS Sum_AwayValue
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId LIKE '010[1-' + RIGHT(t.ResourceId,1) + ']' -- Inning
+					) r
+				WHERE t.ResourceId LIKE '88190_'
+			END
+		END
+		ELSE IF @IsDetermined = 1
+		BEGIN
+			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, isCalculated)
+			SELECT	 r.ResourceId 
+					,r.HomeValue 
+					,r.AwayValue 
+					,1 AS  isCalculated
+			FROM	@tmpResultDetail AS r
+				INNER JOIN f_Set_MajorRound(@sporttype) sd
+					ON r.ResourceId = sd.ResourceID
+			WHERE r.ssId = 4  
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '8801')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated)
+				SELECT	ResourceId, r.HomeValue, r.AwayValue, r.ssid, ISNULL(ft.isCalculated, 0) AS isCalculated
+				FROM	@tmpDummyResourceIds t
+					CROSS APPLY (
+						SELECT	SUM(CAST(HomeValue AS INT)) AS HomeValue, SUM(CAST(AwayValue AS INT)) AS AwayValue, MIN(ssid) AS ssid
+						FROM	@tmpResultDetail
+						WHERE	ResourceId LIKE '010[1-9]'
+								AND ssId = 4
+					)r
+					OUTER APPLY (
+						SELECT 	CASE WHEN ssid = 4 THEN 1 ELSE 0 END AS isCalculated
+						FROM 	@tmpResultDetail
+						WHERE	ResourceID = '00'
+					) ft
+				WHERE	ResourceId = '8801'				
+			END
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880703'))
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated)
+				SELECT 	'880703'
+						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
+						,SUM(CASE WHEN ssid = 4 THEN CAST(AwayValue AS INT) ELSE 0 END) AS AwayValue
+						,MIN(ssid) AS ssid
+						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+				FROM 	@tmpResultDetail
+				WHERE	ResourceId LIKE '010[1-3]'
+			END
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880705'))
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated)
+				SELECT 	'880705'
+						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
+						,SUM(CASE WHEN ssid = 4 THEN CAST(AwayValue AS INT) ELSE 0 END) AS AwayValue
+						,MIN(ssid) AS ssid
+						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+				FROM 	@tmpResultDetail
+				WHERE	ResourceId LIKE '010[1-5]'
+				
+			END
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880707'))
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated)
+				SELECT 	'880707'
+						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
+						,SUM(CASE WHEN ssid = 4 THEN CAST(AwayValue AS INT) ELSE 0 END) AS AwayValue
+						,MIN(ssid) AS ssid
+						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+				FROM 	@tmpResultDetail
+				WHERE	ResourceId LIKE '010[1-7]'
+			END
+			
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880803'))
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId, isCalculated)
+				SELECT 	'880803'
+						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
+						,MIN(ssid) AS ssid
+						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+				FROM 	@tmpResultDetail
+				WHERE	ResourceId LIKE '010[1-3]'
+				
+			END
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880805'))
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId, isCalculated)
+				SELECT 	'880805'
+						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
+						,MIN(ssid) AS ssid
+						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+				FROM 	@tmpResultDetail
+				WHERE	ResourceId LIKE '010[1-5]'
+				
+			END
+			
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880903'))
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, AwayValue, ssId, isCalculated)
+				SELECT 	'880903'
+						,SUM(CASE WHEN ssid = 4 THEN CAST(AwayValue AS INT) ELSE 0 END) AS AwayValue
+						,MIN(ssid) AS ssid
+						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+				FROM 	@tmpResultDetail
+				WHERE	ResourceId LIKE '010[1-3]'
+			END
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880905'))
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, AwayValue, ssId, isCalculated)
+				SELECT 	'880905'
+						,SUM(CASE WHEN ssid = 4 THEN CAST(AwayValue AS INT) ELSE 0 END) AS AwayValue
+						,MIN(ssid) AS ssid
+						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+				FROM 	@tmpResultDetail
+				WHERE	ResourceId LIKE '010[1-5]'
+				
+			END
 		END
 	END
 

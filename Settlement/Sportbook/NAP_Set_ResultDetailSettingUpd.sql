@@ -29,6 +29,7 @@ AS
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		  	
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -70,6 +71,10 @@ BEGIN
 			2: ResultDetailOS
 			3: ResultDetailES
 	*/
+	
+	IF @SportType = 8
+		SELECT @ResultTable = 2
+				,@IsValidateSOPRefund = 1
 
 	IF @ActionId IS NULL OR ( @Type = 2 AND @IsValidateSOPRefund = 0 )
 	RETURN
@@ -81,12 +86,27 @@ BEGIN
 	END
 	ELSE
 	BEGIN ---get ResourceID has offer bettype
-		INSERT INTO @tmpResultDetail ( ResourceId)
-		SELECT DISTINCT
-		sp.ResourceID
-		FROM dbo.SettlementSpecialBettypeProfile sp  WITH (NOLOCK)
-			INNER JOIN STRING_SPLIT(@ResourceIds,',') fs ON sp.ResourceID = fs.value
-			AND sp.SportType  = @SportType
+		;WITH cteResourceIds
+		AS (
+			SELECT	fs.value AS ResourceID
+			FROM	STRING_SPLIT(@ResourceIds,',') fs
+		)
+		,cteResourceOffer
+		AS (
+			SELECT DISTINCT sp.ResourceID
+			FROM	dbo.SettlementSpecialBettypeProfile sp  WITH (NOLOCK)
+				INNER JOIN cteResourceIds fs  
+					ON	sp.ResourceID = fs.ResourceID
+						AND sp.SportType  = @SportType
+			UNION 
+			SELECT	ResourceID
+			FROM	cteResourceIds
+			WHERE	@SportType = 8
+					AND ResourceID = '0109'
+		)
+		INSERT INTO @tmpResultDetail(ResourceId)
+		SELECT	ResourceID
+		FROM	cteResourceOffer
 	END
 
 	IF @Type = 3 OR ISNULL(@SelectedResources,'') != ''

@@ -17,7 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@IsReSettledTickets	BIT			= 1
 	,@LockedByRefno			BIT			= 0
 	,@IsCentral				BIT			= 0
-	,@DeterminedType		TINYINT		= 0
+	,@DeterminedType		INT		= 0
 	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@ParlayKeyId			INT			= 0
 	,@ErrCode				INT				= 0	OUTPUT
@@ -52,6 +52,7 @@ AS
 		- 20230131@Kathy: Support generate BetParlayDetail/BetParlayResult for voiding ticket [Redmine:#200440]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240729@Kathy: get eventdate before settlement [Redmine:#208293]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 		
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
@@ -118,7 +119,7 @@ BEGIN
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 		HomeRound TINYINT, AwayRound TINYINT,
 		BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT
-		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), DeterminedType TINYINT DEFAULT(0)
+		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), DeterminedType INT DEFAULT(0)
 		, IsCalculated BIT
 		, IsWeb BIT
 		, MinusValue SMALLMONEY  DEFAULT(0)
@@ -197,7 +198,7 @@ BEGIN
 															,IsSDT BIT
 															,HomeRound TINYINT
 															,AwayRound TINYINT
-															,DeterminedType TINYINT
+															,DeterminedType INT
 															,IsCalculated BIT
 															,IsWeb BIT
 															,MinusValue SMALLMONEY
@@ -367,11 +368,11 @@ BEGIN
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked, sr.IsInstHTFT, bm.bettype, bm.hdp1, bm.betteam
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
-						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, IsCalculated, MinusValue, IsInstHTFT
+						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, ISNULL(IsCalculated, 0) AS IsCalculated, MinusValue, IsInstHTFT
 						FROM	@tmpSelectedRID t
 						WHERE	t.BetType = bm.bettype AND (t.BetID = 0 OR t.BetID = bm.betcheck)
 					)sr
-					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, bm.hdp1,sr.HomeValue, sr.AwayValue, bm.transdesc,sr.MinusValue) m
+					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, CASE WHEN bm.bettype = 8814 THEN bm.betcheck ELSE bm.hdp1 END,sr.HomeValue, sr.AwayValue, bm.transdesc,sr.MinusValue) m
 					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
 						ON	b.matchid = 29
 							AND b.bettype = 29

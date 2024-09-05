@@ -1,9 +1,9 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [NAP_Set_CashoutSel]
 	 @MatchId INT
 	,@SelectedResources VARCHAR(MAX)
 	,@Action					VARCHAR(20)		
-	,@DeterminedType			TINYINT			= 0
+	,@DeterminedType			INT			= 0
 AS
 /*
 	Created by: 20220531@Kathy
@@ -15,6 +15,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#184124]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>

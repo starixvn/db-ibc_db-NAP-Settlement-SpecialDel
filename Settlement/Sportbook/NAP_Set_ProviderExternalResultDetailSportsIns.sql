@@ -21,6 +21,7 @@ AS
 		- 20210805@Louisa: Insert all remain Other sports into ProviderExternalResultDetailOS [Redmine:#159307]
 		- 20210818@Louisa: Add more Option [Redmine:#159307]
 		- 20210820@Louisa: Fix bug check ISNULL [Redmine:#159307]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Param's Explanation:
 		@SourceId: 1  - SBO
@@ -52,7 +53,7 @@ BEGIN
 		,@UserId	= @UserId
 	END
 
-	ELSE IF @Sporttype IN (1,2,3,4,6,8,18,19,24,25) ---Soccer + (1,2,3,4,6,8,18,19,24,25)
+	ELSE IF @Sporttype IN (1,2,3,4,6,18,19,24,25) ---Soccer + (1,2,3,4,6,18,19,24,25)
 	BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailIns
 		@MatchId3rd = @MatchId3rd

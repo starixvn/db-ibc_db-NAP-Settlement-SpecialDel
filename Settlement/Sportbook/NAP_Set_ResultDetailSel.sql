@@ -16,7 +16,8 @@ AS
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
-
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		
 	Param's explanation:
 		
 */
@@ -51,8 +52,8 @@ BEGIN
 	INSERT INTO #tblMatchID (MatchId, SportType, ResultTable, ExternalResultTable)
 	SELECT f.Value
 		  ,m.sporttype
-		  ,r.ResultTable
-		  ,CASE WHEN m.sporttype =  1 OR ISNULL(r.IsAppliedSOP,0) = 1THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
+		  ,CASE WHEN m.sporttype = 8 THEN 2 ELSE r.ResultTable END AS ResultTable
+		  ,CASE WHEN m.sporttype IN (1,8) OR ISNULL(r.IsAppliedSOP,0) = 1 THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
 				ELSE r.ExternalResultTable
 				END
 	FROM STRING_SPLIT(@matchidList, ',') f

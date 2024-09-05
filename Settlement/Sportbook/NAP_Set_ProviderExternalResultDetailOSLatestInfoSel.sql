@@ -15,6 +15,7 @@ AS
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
+		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Param's Explanation:
 		
@@ -34,7 +35,10 @@ BEGIN
 	SELECT @ExternalResultTable  = s.ExternalResultTable
 	FROM dbo.SettlementResultTableSetting s WITH(NOLOCK)
 	WHERE s.Sporttype = @SportType
-
+	
+	IF @SportType = 8
+		SELECT @ExternalResultTable =2
+				
 	DECLARE @tmpLatestResult AS TABLE ( SourceId SMALLINT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50)	)
 	DECLARE @tmpProviderExternalResult AS TABLE (SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
 	DECLARE @tmpSourceId AS TABLE ( SourceId SMALLINT,SourceName VARCHAR(50), Remark NVARCHAR(1000) , OrderNo INT )
@@ -78,7 +82,13 @@ BEGIN
 		INSERT INTO @tmpLatestResult (SourceId, ResourceId, HomeValue, AwayValue)
 		SELECT l.SourceId ,l.ResourceId, l.HomeValue, l.AwayValue
 		FROM cteLatestOS l	
-			LEFT JOIN dbo.f_Set_MajorRound(@SportType) fsmr
+			LEFT JOIN (
+				SELECT 	ResourceId 
+				FROM 	dbo.f_Set_MajorRound(@SportType)
+				UNION ALL
+				SELECT '8816' AS ResourceId -- total hits
+				WHERE @SportType = 8
+			) fsmr
 				ON l.ResourceId = fsmr.ResourceId
 		WHERE rn = 1
 			AND 1 = CASE WHEN @SettleType = 'MNL' AND fsmr.ResourceId IS NOT NULL THEN 1

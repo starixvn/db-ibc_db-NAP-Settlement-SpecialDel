@@ -19,6 +19,7 @@ AS
 	
 	Revisions:
 		 - 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		 - 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 
 	Param's Explanation:  
 	
@@ -113,7 +114,7 @@ BEGIN
 				,@SelectedResources VARCHAR(MAX)
 				,@fth INT
 				,@fta INT
-				,@DeterminedType TINYINT		= 0
+				,@DeterminedType INT		= 0
 				,@ParentMatchId		INT
 				,@RemarkSDT			VARCHAR(500) = ''
 				,@Remark VARCHAR(MAX)
@@ -138,7 +139,7 @@ BEGIN
 				,@SelectedResources = T.C.value('@SelectedResources','VARCHAR(MAX)')
 				,@fth = T.C.value('@fth','INT')
 				,@fta = T.C.value('@fta','INT')
-				,@DeterminedType = T.C.value('@DeterminedType','TINYINT')
+				,@DeterminedType = T.C.value('@DeterminedType','INT')
 				,@ParentMatchId = T.C.value('@ParentMatchId','INT')
 				,@RemarkSDT = T.C.value('@RemarkSDT','VARCHAR(MAX)')
 				,@ResultRemarkLog = T.C.value('@ResultRemarkLog','VARCHAR(MAX)')
