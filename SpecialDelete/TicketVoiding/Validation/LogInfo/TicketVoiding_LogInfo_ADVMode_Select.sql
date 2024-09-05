@@ -179,7 +179,7 @@ BEGIN
 		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
-	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
+	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT, IsCancelCashOut BIT)
 
 	DECLARE @tmpConsolidatedBettypes TABLE (
         parentid        INT
@@ -553,18 +553,18 @@ BEGIN
 
 	IF @IsShowLogOnly = 0
 	BEGIN
-		INSERT INTO @tmpLogInfoTickets (TransId)
-		SELECT SubTransid
+		INSERT INTO @tmpLogInfoTickets (TransId, IsCancelCashOut)
+		SELECT SubTransid, IsCancelCashOut
 		FROM #TVSTicketBets
 	END
 	ELSE --Edit request
 	BEGIN
-		INSERT INTO @tmpLogInfoTickets (TransId)
-		SELECT TransId
+		INSERT INTO @tmpLogInfoTickets (TransId, IsCancelCashOut)
+		SELECT TransId, IsCancelCO
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK) 
 		WHERE RequestId = @RequestId
 		UNION ALL
-		SELECT TransId
+		SELECT TransId, 0
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK) 
 		WHERE RequestId = @RequestId
 			
@@ -616,6 +616,7 @@ BEGIN
 			,m.SettlementStatus AS 'SettlementStatus'
 			,m.sporttype AS 'sporttype'
 		    ,ISNULL(tb.parentid, m.Subbettype) AS 'GroupBettypeId' --Return for web filter bettype
+			,s.IsCancelCashOut AS 'IsCancelCashOut'
 	FROM @tmpLogInfoTickets s
 		INNER JOIN #tmpTransInfo m ON s.transid = m.Subtransid
 		LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = m.Subbettype
