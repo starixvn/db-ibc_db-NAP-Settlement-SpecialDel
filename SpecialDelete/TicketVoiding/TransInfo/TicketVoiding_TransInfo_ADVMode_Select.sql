@@ -11,6 +11,7 @@ AS
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#197051]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -134,7 +135,7 @@ BEGIN
 	SELECT MatchId, @FilterFromTransTime, @FilterToTransTime
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
-				WHEN m.sporttype = 50 AND m.ChildMatchType = 200 AND m.ParentID = @MatchId THEN 1
+				WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID = @MatchId THEN 1
 			ELSE 0 END
 	
 	INSERT INTO @bettype_detail (Bettype

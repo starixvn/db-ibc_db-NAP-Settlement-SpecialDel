@@ -102,6 +102,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -379,7 +380,7 @@ BEGIN
 	SELECT MatchId, Sporttype
 	FROM dbo.match WITH(NOLOCK)
 	WHERE  1 = CASE WHEN Sporttype <> 50 AND matchid = @MatchId THEN 1
-					WHEN Sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					WHEN Sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
 	
 	SELECT	@SportType = Sporttype FROM @tmpMatchId WHERE matchid = @matchid

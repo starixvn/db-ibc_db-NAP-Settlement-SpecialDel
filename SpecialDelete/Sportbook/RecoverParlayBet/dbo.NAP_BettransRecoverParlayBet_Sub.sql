@@ -31,6 +31,7 @@ AS
 		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's Explanation:			
 			- @BetType:
@@ -185,7 +186,7 @@ BEGIN
 	SELECT MatchId, m.eventdate
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE  1 = CASE WHEN @sporttype <> 50 AND matchid = @MatchId THEN 1
-					WHEN @sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					WHEN @sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
 
 	IF @MatchDate <= @Movebetdate

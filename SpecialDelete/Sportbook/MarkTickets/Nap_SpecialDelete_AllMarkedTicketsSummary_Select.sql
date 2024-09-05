@@ -19,6 +19,7 @@ AS
 		- 20220627@Max: [TVS] Tuning perforamance of Unmark All function [Redmine: #174560]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230427@July: [TVS] Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Explanation's Param:
 */
@@ -88,8 +89,8 @@ BEGIN
 	OPTION (MAXDOP 1)
 
 	UPDATE t
-	SET  MatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
-	    ,ChildMatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN t.MatchId ELSE NULL END
+	SET  MatchId = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
+	    ,ChildMatchId = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN t.MatchId ELSE NULL END
 	FROM #Tickets t
 		  INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.matchid
 

@@ -20,6 +20,7 @@ AS
 		- 20210923@Zane: Change data type of filter time [Redmine: #160209]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:
 */
@@ -38,7 +39,7 @@ BEGIN
 	SELECT MatchId
 	FROM bodb02.dbo.match WITH(NOLOCK)
 	WHERE  1 = CASE WHEN sporttype <> 50 AND MatchId = @MatchId THEN 1
-					WHEN sporttype = 50 AND (MatchId = @MatchId OR ParentID = @MatchId) THEN 1 -- Get main/child matchid
+					WHEN sporttype IN (50,8) AND (MatchId = @MatchId OR ParentID = @MatchId) THEN 1 -- Get main/child matchid
 						ELSE 0 END
 
 	CREATE TABLE #LogResult (

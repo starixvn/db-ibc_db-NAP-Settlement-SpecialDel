@@ -73,6 +73,7 @@ AS;
 		- 20240223@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240229@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240826@July: [TVS] Void By Bet ID - Support void abnormal bet for main parlay ticket [Redmine: #209348]
 
 	Param's Explanation:
@@ -494,7 +495,7 @@ BEGIN
 	BEGIN
 		INSERT INTO  @tmpMatchId (MatchId)
 		SELECT DISTINCT 
-			   CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE s.matchid END AS MatchId
+			   CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.ParentID ELSE s.matchid END AS MatchId
 		FROM #SpecialDeleteBets s
 			INNER JOIN dbo.match m WITH (NOLOCK) ON s.matchid = m.matchid 
 

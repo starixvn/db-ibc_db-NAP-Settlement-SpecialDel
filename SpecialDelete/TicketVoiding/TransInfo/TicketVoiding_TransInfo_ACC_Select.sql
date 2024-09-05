@@ -21,6 +21,7 @@ AS
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 		- 20240305@Max: [TVS] Abnormal Account - Void full range of archived tickets [Redmine: #201130]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:	
 		- @AbnormalAccounts: <roor><r @UserNames = 'abc,xyz' @ProductIds="1,2" @StatusIds="112,111" @FromDate="" @ToDate=""/></root>
@@ -244,7 +245,7 @@ BEGIN
 	UPDATE d
 	SET d.matchid = m.ParentID
 	FROM #TransInfo d
-		INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+		INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 	WHERE d.bettype NOT IN (9, 29, 2799, 10449) AND d.IsVoid14 = 0
 
 	IF @FromWinlostDate_14 IS NOT NULL

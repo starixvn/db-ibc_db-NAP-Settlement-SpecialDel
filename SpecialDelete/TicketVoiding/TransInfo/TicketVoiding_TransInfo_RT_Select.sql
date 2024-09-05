@@ -11,6 +11,7 @@ AS
 	
 	Revisions: 
 		- 20240102@July: Create new SP [Redmine:#196020]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		
 	Param's explanation:	
 		
@@ -185,7 +186,7 @@ BEGIN
 	UPDATE d
 	SET d.matchid = m.ParentID
 	FROM #TransInfo d
-		INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+		INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 	WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 
 	IF EXISTS (SELECT TOP(1) 1 
@@ -316,7 +317,7 @@ BEGIN
 		UPDATE d
 		SET d.matchid = m.ParentID
 		FROM #TransInfo d
-			INNER JOIN dbo.match14 m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+			INNER JOIN dbo.match14 m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 
 	END

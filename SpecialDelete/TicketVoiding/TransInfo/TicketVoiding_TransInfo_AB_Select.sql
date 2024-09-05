@@ -18,6 +18,7 @@ AS
 		- 20231115@July: [TVS] Abnormal Bet - Export the list of tickets that the user inputs to a request before Save it [Redmine: #194133]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:	
 		- @AbnormalBetTransIds: '12343091763609600,12343108943478784'
@@ -183,7 +184,7 @@ BEGIN
 		SET d.ChildMatchid = d.matchid
 			,d.matchid = m.ParentID
 		FROM #TransInfo d
-			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 	END
 
@@ -291,7 +292,7 @@ BEGIN
 			SET d.ChildMatchid = d.matchid
 				,d.matchid = m.ParentID
 			FROM #TransInfo d
-				INNER JOIN dbo.match14 m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+				INNER JOIN dbo.match14 m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 			WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 		END
 	END

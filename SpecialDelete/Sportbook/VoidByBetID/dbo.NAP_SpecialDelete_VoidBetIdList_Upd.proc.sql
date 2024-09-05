@@ -112,6 +112,7 @@ AS
 	  - 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 	  - 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 	  - 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+	  - 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 	  - 20240826@July: [TVS] Void By Bet ID - Support void abnormal bet for main parlay ticket [Redmine: #209348]
 
 	 Param's Explanation:   
@@ -416,8 +417,8 @@ BEGIN
 			,isNeutral 	= ISNULL(m.IsNeutral,CAST(0 AS BIT))
 			,showtime 	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') 
 			,sporttype 	= m.sporttype
-			,ParentID	= CASE WHEN m.sporttype = 50 THEN ISNULL(m.ParentID,0) ELSE 0 END
-			,ChildMatchType = CASE WHEN m.sporttype = 50 THEN ISNULL(m.ChildMatchType, 0) ELSE 0 END
+			,ParentID	= CASE WHEN m.sporttype IN (50,8) THEN ISNULL(m.ParentID,0) ELSE 0 END
+			,ChildMatchType = CASE WHEN m.sporttype IN (50,8) THEN ISNULL(m.ChildMatchType, 0) ELSE 0 END
 			,LeagueGroupID = l.LeagueGroupID
 		FROM	#SpecialDeleteBets b
 			INNER JOIN dbo.match m WITH(NOLOCK)
@@ -1225,7 +1226,7 @@ BEGIN
 				FOR XML PATH('r'), ROOT('root')
 			)
 
-		SET @MatchId_MaxPO = CASE WHEN @sporttype = 50 AND @ParentID <> 0 AND @ChildMatchType = 200 THEN @ParentID ELSE @MatchId_MaxPO END
+		SET @MatchId_MaxPO = CASE WHEN @sporttype IN (50,8) AND @ParentID <> 0 AND @ChildMatchType = 200 THEN @ParentID ELSE @MatchId_MaxPO END
 
 		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Void
 			@MatchId = @MatchId_MaxPO
@@ -1427,7 +1428,7 @@ BEGIN
 		END AS IsInstantSettlementTicket
 		,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
 		,b.EndTime --Support bitcoin
-		,CASE WHEN b.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE b.matchid END AS ParentMatchId -- send letstalk
+		,CASE WHEN b.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.ParentID ELSE b.matchid END AS ParentMatchId -- send letstalk
 		,b.LeagueGroupID
 		,ISNULL(si.IsChinaView,0) AS IsChinaView
 		,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView

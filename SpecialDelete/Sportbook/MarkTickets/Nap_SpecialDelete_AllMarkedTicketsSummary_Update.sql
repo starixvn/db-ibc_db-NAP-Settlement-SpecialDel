@@ -22,6 +22,7 @@ AS
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Explanation's Param:
 		@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
@@ -363,7 +364,7 @@ BEGIN
 
 	TRUNCATE TABLE #Match
 	INSERT INTO #Match (MatchId, HomeId, AwayId, SportType, IsNeutral)
-	SELECT DISTINCT CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
+	SELECT DISTINCT CASE WHEN sporttype IN (50,8) AND ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
 		, HomeId
 		, AwayId
 		, SportType
@@ -371,12 +372,12 @@ BEGIN
 	FROM #Tickets t
 		INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.MatchId
 
-	IF EXISTS ( SELECT TOP 1 1 FROM #Match WHERE SportType = 50)
+	IF EXISTS ( SELECT TOP 1 1 FROM #Match WHERE SportType IN (50,8))
 	BEGIN
 		UPDATE d
 		SET d.matchid = m.ParentID
 		FROM #Tickets d
-			INNER JOIN dbo.match m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+			INNER JOIN dbo.match m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 	END
 
 	------------------------------------------------------------------------------

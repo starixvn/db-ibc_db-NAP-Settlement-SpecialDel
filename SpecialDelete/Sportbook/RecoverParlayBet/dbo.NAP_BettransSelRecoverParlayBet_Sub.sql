@@ -19,6 +19,7 @@ AS
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's Explanation:			
 			- @BetType:
@@ -80,7 +81,7 @@ BEGIN
 	SELECT MatchId
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE  1 = CASE WHEN m.sporttype <> 50 AND matchid = @MatchId THEN 1
-					WHEN m.sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					WHEN m.sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
 
 	INSERT INTO @tblTransIds(transid)

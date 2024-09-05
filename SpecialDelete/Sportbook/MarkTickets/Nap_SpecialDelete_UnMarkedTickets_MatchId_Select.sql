@@ -43,6 +43,7 @@ AS;
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -99,7 +100,7 @@ BEGIN
 	SELECT MatchId
 	FROM dbo.match WITH(NOLOCK)
 	WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
-				    WHEN @SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+				    WHEN @SportType IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
 
    CREATE TABLE #tblBetType

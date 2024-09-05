@@ -16,6 +16,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 		- 20231013@July: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		
 	Param's explanation:	
 		- @KickOffInfo: <root><r MatchId="" KickOffTime=""/></root>
@@ -112,7 +113,7 @@ BEGIN
 			SELECT m.matchid, m.ParentID, m.ChildMatchType, m.sporttype
 			FROM dbo.match m WITH(NOLOCK)
 			WHERE 1 = CASE WHEN m.sporttype <> 50 AND m.matchid = d.MatchId THEN 1
-						WHEN m.sporttype = 50 
+						WHEN m.sporttype IN (50,8) 
 							AND ((m.matchid = d.MatchId) 
 								OR (m.ChildMatchType = 200 AND m.ParentID = d.MatchId)) THEN 1
 					ELSE 0 END
@@ -390,12 +391,12 @@ BEGIN
 	END
 
 	--Update Main MatchID for child match cricket (Sporttype = 50)
-	IF EXISTS(SELECT TOP 1 1 FROM @tmpMatchId WHERE Sporttype = 50)
+	IF EXISTS(SELECT TOP 1 1 FROM @tmpMatchId WHERE Sporttype IN (50,8))
 	BEGIN
 		UPDATE d
 		SET d.matchid = m.ParentID
 		FROM #TransInfo d
-			INNER JOIN @tmpMatchId m ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+			INNER JOIN @tmpMatchId m ON	d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 	END
 
 	--RETURN DATA

@@ -27,6 +27,7 @@ AS
 		- 20220628@Max: Confirm Auto Unmark - Auto unmark select Error converting data type nvarchar to bigint [Redmine: #172277]
 		- 20220831@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:	
 		@TransInfo: <root><r mid="0" t="1" btype ="" us="" crdate="" mt="" bid=""/></root>
@@ -87,8 +88,8 @@ BEGIN
 		,f.BetId
 
 	UPDATE t
-	SET  MatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
-	    ,ChildMatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN t.MatchId ELSE NULL END
+	SET  MatchId = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
+	    ,ChildMatchId = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN t.MatchId ELSE NULL END
 	FROM #MarkedTransaction_tmp t
 		  INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.matchid
 

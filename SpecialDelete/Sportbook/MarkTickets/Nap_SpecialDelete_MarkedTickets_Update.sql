@@ -36,6 +36,7 @@ AS
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230303@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -360,17 +361,17 @@ BEGIN
 	END
 
 	INSERT INTO #Match (MatchId, SportType)
-	SELECT DISTINCT CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
+	SELECT DISTINCT CASE WHEN sporttype IN (50,8) AND ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
 		, SportType
 	FROM #Tickets t
 		INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.MatchId
 
-	IF EXISTS ( SELECT TOP 1 1 FROM #Match WHERE SportType = 50)
+	IF EXISTS ( SELECT TOP 1 1 FROM #Match WHERE SportType IN (50,8))
 	BEGIN
 		UPDATE d
 		SET d.matchid = m.ParentID
 		FROM #Tickets d
-			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 	END
 
 	-- Write Log
