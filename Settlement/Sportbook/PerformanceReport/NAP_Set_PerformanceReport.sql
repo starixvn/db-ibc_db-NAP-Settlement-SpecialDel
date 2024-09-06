@@ -19,6 +19,7 @@ AS
 		- 20230605@Louisa: Get data group by SiteDBGroupId [Redmine:#185675]
 		- 20230906@Kathy: list detail SettleAction
 		- 20240403@Louisa: New hold match Action [Redmine:#203333]
+		- 20240906@Kathy: Baseball AIO [Redmine:#206154]
 */
 BEGIN
 	DECLARE @maxdate DATETIME
@@ -176,6 +177,7 @@ BEGIN
 									END
 						WHEN f.RoundID = '01' THEN 1 -- ht
 						WHEN f.RoundID = '00' THEN 2 -- ft
+						WHEN f.RoundId = 'EI' THEN 2 -- extra inning -- FT
 						ELSE 100 + f.RoundID%800 -- 101-->130
 					END AS ActionId
 			FROM	dbo.f_Set_MajorRound(m.SportType) f
