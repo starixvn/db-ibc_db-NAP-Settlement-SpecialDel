@@ -18,6 +18,7 @@ AS
 		- 20230628@Kathy: Add IsLive [Redmine:#190396]
 		- 20231219@Louisa: Exclude RedCat88 [Redmine:#198365]
 		- 20240409@Louisa: Enhancement [Redmine:#203596]
+		- 20240905@Kathy: get info from all sitedbgroupid [Redmine:#210398]
 
 	Param's explaination:
 		@UserGroup: 0-send to internal
@@ -58,16 +59,24 @@ BEGIN
 
 	;WITH cteSettlementPerformanceLog
 	AS (
-		SELECT *
+		
+		SELECT 	LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, ActionId, IsAuto
+				,AdminId, HomeScore, AwayScore, ConfirmScoreDate, MIN(Starttime) AS Starttime
+				, MIN(Exectime) AS Exectime, MAX(Duration) AS Duration
+				, MIN(CreatedDate) AS CreatedDate
+				, Sporttype, IsHold
 		FROM (
-			SELECT ROW_NUMBER() OVER(PARTITION BY matchid, action, actionid, homescore, awayscore ORDER BY starttime ) AS rn
+			SELECT ROW_NUMBER() OVER(PARTITION BY ISNULL(sitedbgroupid,0), matchid, action, actionid, homescore, awayscore ORDER BY starttime ) AS rn
+				,ISNULL(SiteDBGroupId,0) AS SiteDBGroupId
 				,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, ActionId, IsAuto
 				,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Starttime, Exectime, Duration, CreatedDate, Sporttype, IsHold
 			FROM	bodb_Account.dbo.SettlementPerformanceLog WITH(NOLOCK)
-			WHERE ISNULL(SiteDBGroupID,0) = 0
-				AND CreatedDate >= @FromDate
+			WHERE  CreatedDate >= @FromDate
+					AND ISNULL(sitedbgroupid,0) <> 0
 		)s
 		WHERE s.rn = 1
+		GROUP BY LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, ActionId, IsAuto
+				,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Sporttype, IsHold
 	)
 	, cteSuspenderConfirm
 	AS(

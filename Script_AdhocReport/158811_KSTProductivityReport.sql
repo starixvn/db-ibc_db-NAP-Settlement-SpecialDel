@@ -7,7 +7,18 @@
 	Revision:
 		20211026@Louisa: Modify for Auto Settle Cricket + get configuration from SettlementResultTableSetting
 		20231219@Louisa: Exclude RedCat88 [Redmine:#198365]
-
+		2021-04-08: Move Cricket to ResultDetailOS
+		2021-05-31: Release Soccer PinGoal
+		2021-07-19: Move Beach Volleyball to ResultDetailOS
+		2021-08-18: Release Auto settle Virtual Cricket
+		2021-10-07: Move Volleyball to ResultDetailOS
+		2022-02-17: release Pingoal basketball
+		2022-12-19: release Pingoal ESports
+		2023-04-12: release Table Tennis - move auto from AutoPayoutResultDetail to AutoPayoutResultDetailOS
+		2024-01-12: Separate 2 column AutoCal and AutoRefund from column AutoSettle
+		2024-08-05: release Table Tennis - move settle form table match to AutoPayoutResultDetail, add Auto Payout Kabaddi
+		20240905@Kathy: - fix bug table tennis, kabaddi
+						- correct the way to get @movebet, @BU of system [Redmine:#210398]
 */
 
 USE bodb02
@@ -16,38 +27,28 @@ GO
 /*
 	*** Note: Whenever Sporttype transforms settle result from dbo.match to dbo.resultDetailXX, need to update block code "Other sports..."
 
-	 2021-04-08: Move Cricket to ResultDetailOS
-	 2021-05-31: Release Soccer PinGoal
-	 2021-07-19: Move Beach Volleyball to ResultDetailOS
-	 2021-08-18: Release Auto settle Virtual Cricket
-	 2021-10-07: Move Volleyball to ResultDetailOS
-	 2022-02-17: release Pingoal basketball
-	 2022-12-19: release Pingoal ESports
-	 2023-04-12: release Table Tennis - move auto from AutoPayoutResultDetail to AutoPayoutResultDetailOS
-	 2024-01-12: Separate 2 column AutoCal and AutoRefund from column AutoSettle
-	 2024-08-05: release Table Tennis - move settle form table match to AutoPayoutResultDetail, add Auto Payout Kabaddi
-
 	 *** Scope: SportBook
 	 *** Exclude: hedge match, child match of Cricket Test Match, test match
 	 *** Exclude : result of FastMarkets, Time Machine, Goal Record, Pingoal
 */
 
 
-	DECLARE @fromDate DATETIME = '2023-12-01'
-			,@toDate  DATETIME = '2024-01-12 23:59:59'
-			,@maxEventDate14 DATETIME
-			,@maxEventDateBK DATETIME
+	DECLARE @fromDate DATETIME = '2024-08-01'
+			,@toDate  DATETIME = '2024-08-31 23:59:59'
+			
+			,@MovebetDate SMALLDATETIME
+			,@BUDate SMALLDATETIME
 
-	SELECT @maxEventDate14 = MAX(EventDate) FROM dbo.match14 m WITH(NOLOCK)
-	SELECT @maxEventDateBK = MAX(EventDate) FROM bodb_archive.dbo.match_bk m WITH(NOLOCK)
+	SELECT @MovebetDate = CONVERT(SMALLDATETIME, VValue)
+    FROM dbo.SystemSettings
+    WHERE VName = 'MovebetDate'
 
-----============|================|=======================================================
-	----------
-		-------------
-					---------
-						----------------
-										-----------
-			-------------------------------------------
+	-- BU
+	SELECT @BUDate = CONVERT(SMALLDATETIME, VValue)
+    FROM dbo.MBUSettings with(nolock)
+	where VName like 'BalanceUpDate'
+
+	-------------------------------------------
 
 	IF OBJECT_ID ('tempdb..#TempMatchInfo' ) IS NOT NULL	DROP TABLE #TempMatchInfo
 	IF OBJECT_ID ('tempdb..#TempResultDetail') IS NOT NULL	DROP TABLE #TempResultDetail
@@ -58,10 +59,10 @@ GO
 	CREATE TABLE #TempMatchInfo (
 		matchid INT, eventdate VARCHAR(10), sporttype TINYINT, SportName NVARCHAR(100)
 		 ,HomeName NVARCHAR(200), AwayName  NVARCHAR(200)
-		 ,leagueid INT, leaguename  NVARCHAR(1000), LeagueGroupID SMALLINT, LeagueGroupName NVARCHAR(400), betstatus NVARCHAR(100)
+		 ,leagueid INT, leaguename  NVARCHAR(1000), LeagueGroupID SMALLINT, LeagueGroupName NVARCHAR(400), betstatus NVARCHAR(100), [range] tinyint
 		)
 
-	CREATE TABLE #MatchId (matchid INT, sporttype TINYINT, ResultTable TINYINT, eventdate VARCHAR(10),  betstatus NVARCHAR(100)	)
+	CREATE TABLE #MatchId (matchid INT, sporttype TINYINT, ResultTable TINYINT, eventdate VARCHAR(10),  betstatus NVARCHAR(100), [range] tinyint)
 	CREATE TABLE #TempResultDetail ( MatchId INT, ManualCalculated INT , ManualRefunded INT, AutoCal INT, AutoRefund INT )
 	CREATE TABLE #ResultTableSetting ( sporttype SMALLINT, ResultTable TINYINT )
 	CREATE TABLE #MatchIdAuto (matchid INT )
@@ -73,14 +74,15 @@ GO
 	WHERE ResultTable > 0 ---- 0: match  1:ResultDetail  2:ResultDetailOS  3:ResultDetailES
 
 	-- match
-	IF @toDate > @maxEventDate14
+	IF @toDate > @MovebetDate
 	BEGIN
-		INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, HomeName, AwayName, leagueid , leaguename , LeagueGroupID, LeagueGroupName, betstatus )
+		INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, HomeName, AwayName, leagueid , leaguename , LeagueGroupID, LeagueGroupName, betstatus, [range] )
 		SELECT	m.matchid, CONVERT(  VARCHAR(10), m.eventdate, 120 ) AS eventdate
 				,m.sporttype, s.SportName
 				,home.teamname AS HomeName, away.teamname AS AwayName
 				,m.leagueid, l.leaguename, l.LeagueGroupID, lg.GroupName AS LeagueGroupName
 				,m.betstatus
+				,1 -- match
 		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.sports s WITH(NOLOCK) ON m.sporttype = s.SportType
 			INNER JOIN League l WITH(NOLOCK) ON m.leagueid = l.leagueid
@@ -88,6 +90,7 @@ GO
 			INNER JOIN dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
 			INNER JOIN dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
 		WHERE m.eventdate BETWEEN @fromDate AND @toDate
+			AND m.eventdate > @MovebetDate and m.eventdate <= @toDate
 			AND l.isTest = 0 --exclude test match
 			AND 1 =  CASE WHEN m.ParentID IS NOT NULL AND ISNULL(m.ChildMatchType,'')  IN( 100, 200) THEN 0 ---exclude hedge match, child match Cricket
 					  ELSE 1 END
@@ -101,14 +104,15 @@ GO
 	END
 	
 	--match14
-	IF @fromDate <= @maxEventDate14 AND @toDate > @maxEventDateBK
+	IF @fromDate <= @MovebetDate 
 	BEGIN
-		INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, HomeName, AwayName, leagueid , leaguename , LeagueGroupID, LeagueGroupName, betstatus )
+		INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, HomeName, AwayName, leagueid , leaguename , LeagueGroupID, LeagueGroupName, betstatus, [range] )
 		SELECT	m.matchid, CONVERT(  VARCHAR(10), m.eventdate, 120 ) AS eventdate
 				,m.sporttype, s.SportName
 				,home.teamname AS HomeName, away.teamname AS AwayName
 				,m.leagueid, l.leaguename, l.LeagueGroupID, lg.GroupName AS LeagueGroupName
 				,m.betstatus
+				,2 -- match14
 		FROM dbo.match14 m WITH(NOLOCK)
 			INNER JOIN dbo.sports s WITH(NOLOCK) ON m.sporttype = s.SportType
 			INNER JOIN League l WITH(NOLOCK) ON m.leagueid = l.leagueid
@@ -116,6 +120,7 @@ GO
 			INNER JOIN dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
 			INNER JOIN dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
 		WHERE m.eventdate BETWEEN @fromDate AND @toDate
+			AND m.eventdate >= @BUDate AND m.eventdate <= @MovebetDate
 			AND l.isTest = 0 --exclude test match
 			AND 1 =  CASE WHEN m.ParentID IS NOT NULL AND ISNULL(m.ChildMatchType,'')  IN( 100, 200) THEN 0 ---exclude hedge match, child match Cricket
 					  ELSE 1 END
@@ -129,14 +134,15 @@ GO
 	END
 
 	--match_bk
-	IF @fromDate < @maxEventDateBK
+	IF @fromDate < @BUDate
 	BEGIN
-		INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, HomeName, AwayName, leagueid , leaguename , LeagueGroupID, LeagueGroupName, betstatus )
+		INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, HomeName, AwayName, leagueid , leaguename , LeagueGroupID, LeagueGroupName, betstatus, [range] )
 		SELECT	m.matchid, CONVERT(  VARCHAR(10), m.eventdate, 120 ) AS eventdate
 				,m.sporttype, s.SportName
 				,home.teamname AS HomeName, away.teamname AS AwayName
 				,m.leagueid, l.leaguename, l.LeagueGroupID, lg.GroupName AS LeagueGroupName
 				,m.betstatus
+				,3 -- match_bk
 		FROM bodb_archive.dbo.match_bk m WITH(NOLOCK)
 			INNER JOIN dbo.sports s WITH(NOLOCK) ON m.sporttype = s.SportType
 			INNER JOIN League l WITH(NOLOCK) ON m.leagueid = l.leagueid
@@ -144,6 +150,7 @@ GO
 			INNER JOIN dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
 			INNER JOIN dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
 		WHERE m.eventdate BETWEEN @fromDate AND @toDate
+			AND m.eventdate < @BUDate
 			AND l.isTest = 0 --exclude test match
 			AND 1 =  CASE WHEN m.ParentID IS NOT NULL AND ISNULL(m.ChildMatchType,'')  IN( 100, 200) THEN 0 ---exclude hedge match, child match Cricket
 					  ELSE 1 END
@@ -156,13 +163,13 @@ GO
 			AND m.sporttype <= 99
 	END
 
-	INSERT INTO #MatchId (matchid, sporttype, ResultTable, eventdate, betstatus )
-	SELECT DISTINCT m.matchid, m.sporttype, ISNULL(ss.ResultTable,0), m.eventdate, m.betstatus
+	INSERT INTO #MatchId (matchid, sporttype, ResultTable, eventdate, betstatus, [range])
+	SELECT DISTINCT m.matchid, m.sporttype, ISNULL(ss.ResultTable,0), m.eventdate, m.betstatus, m.[range]
 	FROM #TempMatchInfo m
 		LEFT JOIN #ResultTableSetting ss ON m.sporttype = ss.sporttype
 
 	--Result
-	IF @toDate > @maxEventDate14
+	IF EXISTS (SELECT 1 FROM #MatchId WHERE [range] = 1)
 	BEGIN
 		--ResultDetail
 		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
@@ -174,6 +181,7 @@ GO
 		FROM #MatchId m 
 			INNER JOIN dbo.ResultDetail r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable  = 1
+			AND m.[range] = 1
 			AND r.ResultStatusID  IN ( 2, 5) ---settled
 			AND r.SettlementStatusID > 0
 			AND m.matchid = r.MatchId
@@ -193,6 +201,7 @@ GO
 		FROM #MatchId m 
 			INNER JOIN  dbo.ResultDetailOS r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 2
+			AND m.[range] = 1
 			AND r.ResultStatusID  IN ( 2, 5) ---settled
 			AND r.SettlementStatusID > 0
 			AND m.matchid = r.MatchId
@@ -212,6 +221,7 @@ GO
 		FROM #MatchId m 
 			INNER JOIN  dbo.ResultDetailES r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 3
+			AND m.[range] = 1
 			AND r.ResultStatusID  IN ( 2, 5) ---settled
 			AND r.SettlementStatusID > 0
 			AND m.matchid = r.MatchId
@@ -219,7 +229,7 @@ GO
 	END
 	
 	--Result14
-	IF @fromDate <= @maxEventDate14 AND @toDate > @maxEventDateBK
+	IF EXISTS (SELECT 1 FROM #MatchId WHERE [range] = 2)
 	BEGIN
 		--ResultDetail14
 		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
@@ -231,6 +241,7 @@ GO
 		FROM #MatchId m 
 			INNER JOIN dbo.ResultDetail14 r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable  = 1
+			AND m.[range] = 2
 			AND r.ResultStatusID  IN ( 2, 5) ---settled
 			AND r.SettlementStatusID > 0
 			AND m.matchid = r.MatchId
@@ -250,6 +261,7 @@ GO
 		FROM #MatchId m 
 			INNER JOIN  dbo.ResultDetailOS14 r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 2
+			AND m.[range] = 2
 			AND r.ResultStatusID  IN ( 2, 5) ---settled
 			AND r.SettlementStatusID > 0
 			AND m.matchid = r.MatchId
@@ -269,6 +281,7 @@ GO
 		FROM #MatchId m 
 			INNER JOIN  dbo.ResultDetailES14 r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 3
+			AND m.[range] = 2
 			AND r.ResultStatusID  IN ( 2, 5) ---settled
 			AND r.SettlementStatusID > 0
 			AND m.matchid = r.MatchId
@@ -276,7 +289,7 @@ GO
 	END
 
 	--ResultBK
-	IF @fromDate < @maxEventDateBK
+	IF EXISTS (SELECT 1 FROM #MatchId WHERE [range] = 3)
 	BEGIN
 		--ResultDetail_bk
 		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal , AutoRefund)
@@ -288,6 +301,7 @@ GO
 		FROM #MatchId m 
 			INNER JOIN bodb_archive.dbo.ResultDetail_bk r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable  = 1
+			AND m.[range] = 3
 			AND r.ResultStatusID  IN ( 2, 5) ---settled
 			AND r.SettlementStatusID > 0
 			AND m.matchid = r.MatchId
@@ -307,6 +321,7 @@ GO
 		FROM #MatchId m 
 			INNER JOIN  bodb_archive.dbo.ResultDetailOS_bk r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 2
+			AND m.[range] = 3
 			AND r.ResultStatusID  IN ( 2, 5) ---settled
 			AND r.SettlementStatusID > 0
 			AND m.matchid = r.MatchId
@@ -326,6 +341,7 @@ GO
 		FROM #MatchId m 
 			INNER JOIN  bodb_archive.dbo.ResultDetailES_bk r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 3
+			AND m.[range] = 3
 			AND r.ResultStatusID  IN ( 2, 5) ---settled
 			AND r.SettlementStatusID > 0
 			AND m.matchid = r.MatchId
@@ -334,37 +350,37 @@ GO
 
 	------------------------ Table Tennis old version and Auto Kabaddi-------------------------------
 	BEGIN
-		INSERT INTO #MatchIdAuto (matchid)	
-		SELECT DISTINCT  MatchId 
-		FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
-		WHERE (
-					(p.starttime < '2024-08-01' AND p.sporttype = 18 )
-					OR p.sporttyep = 47
-			 )
-			AND p.IsAuto = 1
-
+		-- table tennis
 		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
-		SELECT
-				m.MatchId
-				, CASE WHEN  r.MatchId IS NOT NULL THEN 0 
-						WHEN m.betstatus = 'Refund;' THEN 0 
-						ELSE 1 
-						END	AS ManualCal
-				, CASE WHEN  r.MatchId IS NOT NULL THEN 0
-						WHEN  m.betstatus = 'Refund;' THEN 1 
-						ELSE 0 
-						END	AS ManualRefund
-				, CASE WHEN r.MatchId IS NOT NULL THEN 1 
-						ELSE 0
-						END AS IsAuto
-				, 0 AS AutoRefund
-				FROM #MatchId m
-			OUTER APPLY (	
-							SELECT r.MatchId FROM #MatchIdAuto r ---Table Tennis and Kabaddi has FT only
-							WHERE m.matchid = r.MatchId
-								AND m.betstatus <> 'Refund;'
-						) r
-			WHERE m.sporttype IN ( 18, 47)
+		SELECT DISTINCT  MatchId, 0, 0, 1, 0 
+		FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
+		WHERE (p.starttime < '2024-08-01' AND p.sporttype = 18 )				
+			AND p.IsAuto = 1
+			AND p.starttime between @fromDate and @toDate
+
+		-- kabaddi
+		DECLARE @tmpKabaddi TABLE (MatchId INT, ManualCalculated INT, ManualRefunded INT, AutoCal INT)
+		
+		INSERT INTO @tmpKabaddi(MatchId, ManualCalculated, AutoCal)
+		SELECT DISTINCT  MatchId, CASE WHEN p.IsAuto = 0 THEN 1 ELSE 0 END AS ManualCalculated, CASE WHEN p.IsAuto = 1 THEN 1 ELSE 0 END AS AutoCal
+		FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
+		WHERE p.sporttype = 47
+			AND p.starttime between @fromDate and @toDate
+			
+		IF @@ROWCOUNT <> 0
+		BEGIN
+			UPDATE t 
+				SET ManualCalculated = CASE WHEN m.betstatus = 'Refund;' THEN 0 ELSE 1 END
+					,ManualRefunded = CASE WHEN m.betstatus = 'Refund;' THEN 1 ELSE 0 END
+			FROM 	@tmpKabaddi t 
+				INNER JOIN #MatchId m 
+					ON t.MatchId = m.MatchId 	
+
+			INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )	
+			SELECT MatchId, ManualCalculated, ManualRefunded, AutoCal, 0
+			FROM @tmpKabaddi
+		END
+
 	END
 	------------------------ Other sports: Result is saved in dbo.match -------
 	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
@@ -392,7 +408,6 @@ GO
 		INNER JOIN #TempMatchInfo m ON r.MatchId = m.matchid
 	GROUP BY m.eventdate,   m.sportName ,  m.LeagueGroupName
 	ORDER BY eventdate,  m.sportName ,  m.LeagueGroupName
-
 		
 	--Match vs Result	
 	SELECT  YEAR(m.eventdate) AS Y
