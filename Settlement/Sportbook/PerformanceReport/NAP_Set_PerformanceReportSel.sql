@@ -64,7 +64,7 @@ BEGIN
 				,AdminId, HomeScore, AwayScore, ConfirmScoreDate, MIN(Starttime) AS Starttime
 				, MIN(Exectime) AS Exectime, MAX(Duration) AS Duration
 				, MIN(CreatedDate) AS CreatedDate
-				, Sporttype, IsHold
+				, Sporttype, IsHold, rn
 		FROM (
 			SELECT ROW_NUMBER() OVER(PARTITION BY ISNULL(sitedbgroupid,0), matchid, action, actionid, homescore, awayscore ORDER BY starttime ) AS rn
 				,ISNULL(SiteDBGroupId,0) AS SiteDBGroupId
@@ -76,7 +76,7 @@ BEGIN
 		)s
 		WHERE s.rn = 1
 		GROUP BY LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, ActionId, IsAuto
-				,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Sporttype, IsHold
+				,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Sporttype, IsHold, rn
 	)
 	, cteSuspenderConfirm
 	AS(
@@ -407,3 +407,4 @@ DROP TABLE #tmpData
 DROP TABLE #MatchLive
 		
 END
+    

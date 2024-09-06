@@ -33,8 +33,8 @@ GO
 */
 
 
-	DECLARE @fromDate DATETIME = '2024-08-01'
-			,@toDate  DATETIME = '2024-08-31 23:59:59'
+	DECLARE @fromDate DATETIME = '2024-05-01'
+			,@toDate  DATETIME = '2024-07-31 23:59:59'
 			
 			,@MovebetDate SMALLDATETIME
 			,@BUDate SMALLDATETIME
@@ -348,40 +348,33 @@ GO
 		GROUP BY r.MatchId
 	END
 
-	------------------------ Table Tennis old version and Auto Kabaddi-------------------------------
-	BEGIN
-		-- table tennis
-		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
-		SELECT DISTINCT  MatchId, 0, 0, 1, 0 
-		FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
-		WHERE (p.starttime < '2024-08-01' AND p.sporttype = 18 )				
-			AND p.IsAuto = 1
-			AND p.starttime between @fromDate and @toDate
-
-		-- kabaddi
-		DECLARE @tmpKabaddi TABLE (MatchId INT, ManualCalculated INT, ManualRefunded INT, AutoCal INT)
-		
-		INSERT INTO @tmpKabaddi(MatchId, ManualCalculated, AutoCal)
-		SELECT DISTINCT  MatchId, CASE WHEN p.IsAuto = 0 THEN 1 ELSE 0 END AS ManualCalculated, CASE WHEN p.IsAuto = 1 THEN 1 ELSE 0 END AS AutoCal
-		FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
-		WHERE p.sporttype = 47
-			AND p.starttime between @fromDate and @toDate
-			
-		IF @@ROWCOUNT <> 0
-		BEGIN
-			UPDATE t 
-				SET ManualCalculated = CASE WHEN m.betstatus = 'Refund;' THEN 0 ELSE 1 END
-					,ManualRefunded = CASE WHEN m.betstatus = 'Refund;' THEN 1 ELSE 0 END
-			FROM 	@tmpKabaddi t 
-				INNER JOIN #MatchId m 
-					ON t.MatchId = m.MatchId 	
-
-			INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )	
-			SELECT MatchId, ManualCalculated, ManualRefunded, AutoCal, 0
-			FROM @tmpKabaddi
-		END
-
-	END
+	------------------------ Auto Kabaddi, table tennis-------------------------------
+	DECLARE @tmpAuto TABLE (MatchId INT)
+	
+	INSERT INTO @tmpAuto(MatchId)
+	SELECT DISTINCT  MatchId
+	FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
+	WHERE (p.sporttype = 47 OR (p.sporttype = 18 AND p.starttime <'20240801'))
+		AND p.starttime between @fromDate and @toDate
+		AND p.IsAuto = 1
+	
+	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
+	SELECT	m.MatchId
+		, CASE 
+				WHEN ka.matchid IS NOT NULL THEN 0 
+				WHEN m.betstatus = 'Refund;' THEN 0 
+				ELSE 1 END	AS ManualCal
+		, CASE 
+				WHEN ka.matchid IS NOT NULL THEN 0 
+				WHEN  m.betstatus = 'Refund;' THEN 1 
+				ELSE 0 END	AS ManualRefund
+		, CASE WHEN ka.matchid IS NOT NULL THEN 1 ELSE 0 END AS AutoCal
+		, 0 AS AutoRefund
+	FROM #MatchId m
+		LEFT JOIN @tmpAuto ka 
+			ON m.matchid  = ka.matchid
+	WHERE m.sporttype IN (47, 18)
+	
 	------------------------ Other sports: Result is saved in dbo.match -------
 	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
 	SELECT	m.MatchId
@@ -390,13 +383,16 @@ GO
 		, 0 AS AutoCal
 		, 0 AS AutoRefund
 	FROM #MatchId m
-	WHERE m.sporttype NOT IN ( 18, 47)
+	WHERE m.sporttype NOT IN (18, 47)
 		AND 1 = CASE WHEN m.ResultTable = 0 THEN 1
 					WHEN m.sporttype = 50 AND m.eventdate < '2021-04-08' THEN 1 -- 2021-04-08: Move Cricket to ResultDetailOS
 					WHEN m.sporttype = 45 AND m.eventdate < '2021-07-19' THEN 1 -- 2021-07-19: Move Beach Volleyball to ResultDetailOS
 					WHEN m.sporttype = 6	AND m.eventdate < '2021-10-07' THEN 1 --2021-10-07: Move Volleyball to ResultDetailOS
+					WHEN m.sporttype = 8 AND m.eventdate < '2024-08-15' THEN 1
+					--WHEN m.sporttype = 18 AND m.eventdate < '2024-08-01' THEN 1
 				ELSE 0 END
 
+	
 	SELECT m.eventdate,   m.sportName ,  m.LeagueGroupName
 		, COUNT(DISTINCT r.matchid) AS Matches
 		 ,SUM(r.ManualCalculated ) AS ManualCalculated
