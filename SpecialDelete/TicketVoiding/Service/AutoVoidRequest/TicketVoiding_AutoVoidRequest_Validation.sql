@@ -30,7 +30,6 @@ AS
 		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 		- 20240516@Max: [TVS] Web get data via API [Redmine: #204974]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
-		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:
 		
@@ -225,7 +224,7 @@ BEGIN
 			,t.RequestId
 			,b.statusID
 			,b.betdaqid
-			,CASE WHEN @IssueTypeId IN (8,9) THEN t.MatchId ELSE b.MatchId END
+			,b.MatchId
 			,t.IssueTypeId
 			,t.TicketType
 			,b.transdate
