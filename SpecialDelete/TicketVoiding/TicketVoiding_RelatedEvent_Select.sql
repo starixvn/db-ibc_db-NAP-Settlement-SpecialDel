@@ -55,7 +55,7 @@ BEGIN
 
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype
 		FROM dbo.match m WITH (NOLOCK)
-		WHERE 1 = CASE WHEN m.sporttype <> 50 AND m.ParentID = @MatchId THEN 1
+		WHERE 1 = CASE WHEN m.sporttype NOT IN (50,8) AND m.ParentID = @MatchId THEN 1
 					WHEN m.sporttype IN (50,8) AND m.ParentID = @MatchId AND m.ChildMatchType <> 200 THEN 1
 				ELSE 0 END
 		UNION ALL
@@ -72,7 +72,7 @@ BEGIN
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.matchid = @MatchId
 			AND m.eventdate = @EventDate
-			AND 1 = CASE WHEN m.sporttype <> 50 THEN 1
+			AND 1 = CASE WHEN m.sporttype NOT IN (50,8) THEN 1
 					WHEN m.sporttype IN (50,8) AND m.ChildMatchType <> 200 THEN 1
 				ELSE 0 END
 			AND m.sporttype = @Sporttype

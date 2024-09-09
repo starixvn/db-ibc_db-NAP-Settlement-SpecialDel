@@ -28,7 +28,7 @@ BEGIN
 	INSERT INTO @tmpMatchId (MatchId, KickOffTime)
 	SELECT MatchId, ISNULL(kickofftime, '2001-01-01 00:00:00')
 	FROM dbo.match WITH(NOLOCK)
-	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
+	WHERE  1 = CASE WHEN sporttype NOT IN (50,8) AND matchid = @MatchId THEN 1
 				    WHEN sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
 

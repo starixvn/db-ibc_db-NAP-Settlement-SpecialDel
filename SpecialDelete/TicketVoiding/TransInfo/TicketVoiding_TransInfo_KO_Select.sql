@@ -112,7 +112,7 @@ BEGIN
 	CROSS APPLY (
 			SELECT m.matchid, m.ParentID, m.ChildMatchType, m.sporttype
 			FROM dbo.match m WITH(NOLOCK)
-			WHERE 1 = CASE WHEN m.sporttype <> 50 AND m.matchid = d.MatchId THEN 1
+			WHERE 1 = CASE WHEN m.sporttype NOT IN (50,8) AND m.matchid = d.MatchId THEN 1
 						WHEN m.sporttype IN (50,8) 
 							AND ((m.matchid = d.MatchId) 
 								OR (m.ChildMatchType = 200 AND m.ParentID = d.MatchId)) THEN 1

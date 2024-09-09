@@ -170,7 +170,7 @@ BEGIN
 		INSERT INTO @tmpMatchId (MatchId)
 		SELECT MatchId
 		FROM dbo.match WITH(NOLOCK)
-		WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
+		WHERE  1 = CASE WHEN @SportType NOT IN (50,8) AND matchid = @MatchId THEN 1
 						WHEN @SportType IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 						ELSE 0 END
 	END

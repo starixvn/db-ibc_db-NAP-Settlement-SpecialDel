@@ -38,7 +38,7 @@ BEGIN
 	INSERT INTO @tmpMatchId (MatchId)
 	SELECT MatchId
 	FROM bodb02.dbo.match WITH(NOLOCK)
-	WHERE  1 = CASE WHEN sporttype <> 50 AND MatchId = @MatchId THEN 1
+	WHERE  1 = CASE WHEN sporttype NOT IN (50,8) AND MatchId = @MatchId THEN 1
 					WHEN sporttype IN (50,8) AND (MatchId = @MatchId OR ParentID = @MatchId) THEN 1 -- Get main/child matchid
 						ELSE 0 END
 
