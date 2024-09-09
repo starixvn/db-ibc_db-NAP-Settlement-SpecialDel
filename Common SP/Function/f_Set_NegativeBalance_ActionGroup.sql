@@ -12,6 +12,7 @@ AS
     - 20180104@Helen: List of ActionID for Negative Balance [Redmine:#80774]
     - 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
     - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+    - 20240909@Aries: The lack of some ActionIDs when inserting Negative Balance of Parlay Settlement [Redmine: #210338]
 
   Parameters Explanation:    
 */
@@ -60,6 +61,9 @@ RETURN (
 			,(120, 2, 1) -- Refund Mix Parlay HT
 			,(81009, 2, 1) -- CAL BetBuilder Settlement
 			,(81010, 2, 1) -- UNDO BetBuilder Settlement
+            ,(81028, 2, 1) -- Calculate Parlay
+			,(81029, 2, 1) -- Refund Parlay
+            ,(81030, 2, 1) -- Undo Parlay
         ) AS t (ActionId, GroupId, IsActive)
     ) AS t ON t.GroupId = g.GroupId
   WHERE t.IsActive = 1
