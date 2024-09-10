@@ -24,8 +24,8 @@ BEGIN
 
 	DECLARE @tmp_ResultDetail TABLE (	MatchId	INT
 										,ResourceId	VARCHAR(20)
-										,HomeValue	VARCHAR(40)
-										,AwayValue	VARCHAR(40)
+										,HomeValue	VARCHAR(50)
+										,AwayValue	VARCHAR(50)
 										,ResultStatusID	TINYINT
 										,SettlementStatusID	TINYINT
 										,ResultSetting	TINYINT

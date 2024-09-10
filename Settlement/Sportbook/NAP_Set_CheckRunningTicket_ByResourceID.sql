@@ -1,6 +1,7 @@
 /*<info serverAlias="DBSIG-bodb02,DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE NAP_Set_CheckRunningTicket_ByResourceID
-	@MatchID INT
+	 @MatchID INT
+	,@Sporttype	SMALLINT
 	,@ResourceIDs VARCHAR(MAX)
 	,@IsExistsTicket BIT = 0 OUTPUT
 AS
@@ -15,13 +16,10 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @Sporttype	TINYINT
-			,@IsCentral	BIT = 0
+	DECLARE @IsCentral	BIT = 0
 	
 	DECLARE @tmp_Bettype TABLE ( Bettype SMALLINT, BetID BIGINT )
 	DECLARE @tmp_ResourceID TABLE ( ResourceID VARCHAR(20) )
-	
-	SELECT @Sporttype = m.sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchID
 	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
