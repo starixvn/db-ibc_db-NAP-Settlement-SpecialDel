@@ -9,7 +9,8 @@ AS
 	
 	Revisions: 
 		- 20181113@Alan: Select Issue Type [101083]
-	
+		- 20240829@July: Sort alphabet issuetype [Redmine: #208628]
+
 	Param's explanation:		
 */
 BEGIN
@@ -20,7 +21,7 @@ BEGIN
 			IssueTypeId, 
 			IssueTypeName
 		FROM [dbo].[TicketVoiding_IssueType] WITH(NOLOCK)
-		ORDER BY IssueTypeId
+		ORDER BY IssueTypeName ASC 
 	END
 END
 GO

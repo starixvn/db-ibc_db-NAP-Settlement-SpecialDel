@@ -15,6 +15,7 @@ AS
         - 20230608@Max: Create SP - [Redmine: #185833]
 		- 20231207@Max: [TVS] Not Participate - Support user select exact bet type [Redmine: #197018]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240823@July: WMKO/TE - Add Details of bet list for issue types [Redmine: #208628]
 
     Param's Explanation:  
 
@@ -72,6 +73,19 @@ BEGIN
 
 	IF @FromTransDate IS NOT NULL AND @ToTransDate IS NOT NULL --New issuetype WMO, Technical Error
 	BEGIN
+		-- get ticket Cancel CO from CashOutSelling
+		INSERT INTO #TmpBettype(bettype, transdesc)
+		SELECT b.bettype, transdesc
+		FROM dbo.bettrans b WITH(NOLOCK)
+			INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON c.TransID = b.TransId
+		WHERE b.matchid IN (SELECT Matchid FROM @tmpMatchId)
+			AND SiteDBGroupID = @SiteDBGroupID
+			AND b.bettype NOT IN (10,29,38,500)
+			AND b.bettype < 19000
+			AND betdaqid = -2
+			AND c.CheckTime BETWEEN @FromTransDate AND @ToTransDate
+		GROUP BY b.bettype, transdesc
+
 		DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 		INSERT INTO @bettype_tmp (bettype)
 		SELECT DISTINCT pt.bettype
