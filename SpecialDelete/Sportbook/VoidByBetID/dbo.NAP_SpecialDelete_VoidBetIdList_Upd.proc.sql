@@ -136,7 +136,7 @@ BEGIN
 					+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 					+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
 					+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
-					+ ',@AbnormalBetType = ' + CONVERT(NVARCHAR(50), CASE WHEN @AbnormalBetType IS NULL THEN 'NULL' ELSE @AbnormalBetType END)
+					+ ',@AbnormalBetType = ' + CASE WHEN @AbnormalBetType IS NULL THEN 'NULL' ELSE CONVERT(NVARCHAR(50), @AbnormalBetType) END
 					+ CASE WHEN @FilterUserName IS NULL THEN '' ELSE '@FilterUserName = ''' + CONVERT(NVARCHAR(50), @FilterUserName) + '''' END
 					+ CASE WHEN @Products IS NULL THEN '' ELSE '@Products = ''' + CONVERT(NVARCHAR(50), @Products) + '''' END
 					+ CASE WHEN @StatusIds IS NULL THEN '' ELSE '@StatusIds = ''' + CONVERT(NVARCHAR(50), @StatusIds) + '''' END
