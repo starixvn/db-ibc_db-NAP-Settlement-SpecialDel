@@ -7,7 +7,7 @@ ALTER PROCEDURE NAP_Set_LetstalkMessage_Insert
 	@StatusId		TINYINT =  0,
 	@ActionName		VARCHAR(512),		
 	@MessageContent	VARCHAR(MAX),
-	@MessageDetail  VARCHAR(MAX),
+	@MessageDetail  VARCHAR(MAX) = '',
 	@UserID			INT,
 	@ErrCode		INT 			= 0	 OUTPUT,	
 	@ErrMsg			NVARCHAR(200) 	= '' OUTPUT,
