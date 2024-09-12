@@ -66,6 +66,7 @@ AS
 		- 20240502@July: [TVS] Abandoned issue type [Redmine: #202626]
 		- 20240523@July: [TVS] New issue type Wrong Market Offered & Technical Error [Redmine: #197051/194093]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20240912@Max: [TVS] - Manage request - Missing info Calc Half Time & Calc Full Time When Export Excel [Redmine: #210647]
 
 	Param's explanation:	
 		@Status: 
@@ -608,6 +609,7 @@ BEGIN
 	SET @RequestInfoGetCalcTimes = COMPRESS((SELECT RequestId AS 'req'
 		  ,Sporttype AS 's'
 		  ,MatchId AS 'mid'
+		  ,EventDate AS 'e'
 	FROM #tmpResult
 	WHERE IssueTypeId = 11 AND FilterBy IS NULL 
 	FOR JSON PATH))
