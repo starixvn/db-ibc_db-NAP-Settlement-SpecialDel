@@ -30,6 +30,7 @@ AS
 		- 20240412@Aries: Direct Payout for Virtual Kabaddi [Redmine:#203590]
 		- 20270327@Aries: Support the Super Tiebreak match in Tennis  [Redmine: #202531]
 		- 20240605@Louisa:Notify if not yet refund [Redmine:#204909] 
+		- 20240910@Aries:Return IsTest [Redmine:#204909] 
 */
 BEGIN
 	SET NOCOUNT ON
@@ -65,6 +66,7 @@ BEGIN
 		,finalawayscore		INT
 		,ChildMatchType		TINYINT
 		,SessionTime FLOAT
+		,isTest BIT
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -95,6 +97,7 @@ BEGIN
 			,finalawayscore
 			,ChildMatchType
 			,SessionTime
+			,isTest
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -121,6 +124,7 @@ BEGIN
 			,m.finalawayscore
 			,m.ChildMatchType
 			,l.SessionTime
+			,ISNULL(l.isTest,0)
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -160,6 +164,7 @@ BEGIN
 		,finalawayscore
 		,ChildMatchType
 		,SessionTime
+		,isTest
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -191,6 +196,7 @@ BEGIN
 		,m.finalawayscore
 		,m.ChildMatchType
 		,l.SessionTime
+		,ISNULL(l.isTest,0)
      FROM dbo.[match] m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -231,6 +237,7 @@ BEGIN
 		,FinalAwayScore
 		,ChildMatchType
 		,SessionTime
+		,isTest
 	FROM @tmpMatchInfo
 
 END
