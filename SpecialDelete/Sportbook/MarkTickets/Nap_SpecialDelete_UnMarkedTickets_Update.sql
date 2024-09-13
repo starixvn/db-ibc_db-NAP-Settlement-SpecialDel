@@ -36,6 +36,7 @@ AS
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20240912@Max: [TVS] Display mark ticket result when Add/Edit request and remove AB Bet sub type [Redmine: #210388]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -45,6 +46,8 @@ BEGIN
 			, @SubmittedDate DATETIME = GETDATE()
 			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			, @Session NVARCHAR(50) = CONVERT(NVARCHAR(50),NEWID())
+			, @strResult VARCHAR (MAX) = ''
+
 	SET @ID =  NEWID()
 	BEGIN TRY
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
@@ -327,6 +330,12 @@ BEGIN
 				@ActionType = 1
 
 			SET @TransIds_SB = ''
+
+			SET @strResult = @strResult + ',' + STUFF((
+									SELECT ',' + CAST(t.TransId AS NVARCHAR(100))
+									FROM @MarkedTransactionDeleted AS t
+									FOR XML PATH('')
+									), 1, 1, '') 
 		END
 
 		IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
@@ -386,6 +395,11 @@ BEGIN
 	--2. Table get match info
 	SELECT MatchId, HomeId, AwayId, SportType, IsNeutral
 	FROM #Match
+
+	--3. Return table transId for TVS
+	SELECT DISTINCT value AS TransId
+	FROM string_split (@strResult, ',')
+	WHERE value <> ''
 
 	-- Write Log
 	SET @xmlLog = CAST((
