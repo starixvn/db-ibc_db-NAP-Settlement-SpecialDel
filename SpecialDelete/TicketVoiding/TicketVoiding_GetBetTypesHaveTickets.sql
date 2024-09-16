@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_GetBetTypesHaveTickets]
     @MatchId    INT 
 	,@FromTransDate DATETIME = NULL
 	,@ToTransDate DATETIME = NULL
+	,@IsGetCancelCashOut BIT = 0
 )
 AS
 /*  
@@ -17,6 +18,7 @@ AS
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240823@July: WMKO/TE - Add Details of bet list for issue types [Redmine: #208628]
+		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 
     Param's Explanation:  
 
@@ -72,20 +74,23 @@ BEGIN
 		AND (transdate BETWEEN @FromTransDate AND @ToTransDate OR (@FromTransDate IS NULL AND @ToTransDate IS NULL))
     GROUP BY bt.bettype, bt.transdesc
 
-	IF @FromTransDate IS NOT NULL AND @ToTransDate IS NOT NULL --New issuetype WMO, Technical Error
+	IF @FromTransDate IS NOT NULL AND @ToTransDate IS NOT NULL --New issuetype WMO, Technical Error, WrongOdds SB
 	BEGIN
-		-- get ticket Cancel CO from CashOutSelling
-		INSERT INTO #TmpBettype(bettype, transdesc)
-		SELECT b.bettype, transdesc
-		FROM dbo.bettrans b WITH(NOLOCK)
-			INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON c.TransID = b.TransId
-		WHERE b.matchid IN (SELECT Matchid FROM @tmpMatchId)
-			AND SiteDBGroupID = @SiteDBGroupID
-			AND b.bettype NOT IN (10,29,38,500)
-			AND b.bettype < 19000
-			AND betdaqid = -2
-			AND c.CheckTime BETWEEN @FromTransDate AND @ToTransDate
-		GROUP BY b.bettype, transdesc
+		IF @IsGetCancelCashOut = 1
+		BEGIN
+			-- get ticket Cancel CO from CashOutSelling
+			INSERT INTO #TmpBettype(bettype, transdesc)
+			SELECT b.bettype, transdesc
+			FROM dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON c.TransID = b.TransId
+			WHERE b.matchid IN (SELECT Matchid FROM @tmpMatchId)
+				AND SiteDBGroupID = @SiteDBGroupID
+				AND b.bettype NOT IN (10,29,38,500)
+				AND b.bettype < 19000
+				AND betdaqid = -2
+				AND c.CheckTime BETWEEN @FromTransDate AND @ToTransDate
+			GROUP BY b.bettype, transdesc
+		END
 
 		DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 		INSERT INTO @bettype_tmp (bettype)
