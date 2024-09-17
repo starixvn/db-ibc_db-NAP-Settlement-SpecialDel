@@ -392,11 +392,7 @@ BEGIN
 	SELECT @ErrCode AS ErrorCode
 		 , @ErrMsg AS ErrorMsg
 
-	--2. Table get match info
-	SELECT MatchId, HomeId, AwayId, SportType, IsNeutral
-	FROM #Match
-
-	--3. Return table transId for TVS
+	--2. Return table transId for TVS
 	SELECT DISTINCT value AS TransId
 	FROM string_split (@strResult, ',')
 	WHERE value <> ''
