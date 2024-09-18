@@ -14,6 +14,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_OtherSports]
     ,@SettleByApp                   BIT = 0
     ,@TransJson                     VARCHAR(MAX)    = ''
     ,@BroadcastSessionId	        VARCHAR(50)		= ''
+    ,@HasNoBalanceNegative	        BIT				= 1 
     ,@ErrMessage			        VARCHAR(300)	= ''	OUTPUT
 	,@ErrCode				        INT				= 0		OUTPUT
 AS
@@ -35,8 +36,10 @@ AS
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
         - 20240520@Aries: Transfer the logic business from the DB layer to the Application layer for Happy5 [Redmine:#202389]
+        - 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine:#210875]
 
     Param's Explanation: 
+        - @HasNoBalanceNegative: 0 - Fix exception case for Happy5. It hasn't negative balance logic, 1 - Others
 
 */
 BEGIN
@@ -141,8 +144,7 @@ BEGIN
 				,@CWLBettype	        = @CWLBettype
 				,@BalanceType	        = @BalanceType
                 ,@BroadcastSessionId    = @BroadcastSessionId
-                ,@IsCentral             = @IsCentral
-                ,@HasNoBalanceNegative  = 1
+                ,@HasNoBalanceNegative  = @HasNoBalanceNegative
  
                 ,@ErrMessage			=   @ErrMessage			OUTPUT
 				,@ErrCode				=   @ErrCode			OUTPUT

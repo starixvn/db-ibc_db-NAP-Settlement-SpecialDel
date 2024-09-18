@@ -13,6 +13,7 @@ AS
 		- 20231016@Aries: Created [Redmine:#195333]
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
 		- 20240704@Aries: VS5 - Virtually Sports [Redmine:#207309]
+		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
 		
 	Param explanation:  
 		- @MatchId: Get list ticket running, won, lose, draw
@@ -74,6 +75,16 @@ BEGIN
 		FROM dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK)
 		WHERE b.matchid = @matchid
 			AND b.bettype IN (1201, 1203, 1204, 1205, 1206, 1224, 1220, 1235, 1236)
+			AND b.StatusID IN (0,111,112,113)
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		RETURN
+	END
+	ELSE IF @Sporttype IN (177,198) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
+	BEGIN
+		SELECT b.transid,b.statusID
+		FROM dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK)
+		WHERE b.matchid = @matchid
+			AND b.bettype IN (2770,2771)
 			AND b.StatusID IN (0,111,112,113)
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		RETURN

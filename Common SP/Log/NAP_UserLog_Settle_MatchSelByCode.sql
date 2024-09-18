@@ -19,6 +19,7 @@ AS
 		- 20210316@Louisa: Cricket AIO [Redmine:#148870]
 		- 20230620@Kathy: view info in archive [Redmine:#186616]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
+		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
 
 	Example: 
 		@ProductType = 'BBD' -- BetBuilder
@@ -70,6 +71,12 @@ BEGIN
 				AND 1 = CASE WHEN sporttype IN (8, 50) AND ISNULL(ChildMatchType,0) = 200 THEN 0
 							ELSE 1
 						END
+
+			INSERT INTO @TMP_ALL_MatchInfo
+			SELECT EventID AS matchid , NULL AS homeid ,NULL AS awayid ,EventTime AS   eventdate , LeagueID, SportType, NULL AS  showtime,  NULL AS  matchcode
+			FROM VSRaceInfo WITH (NOLOCK)
+			WHERE EventID = @matchid
+				and EventTime BETWEEN @FromDate and @ToDate
 		END
 		ELSE 
 		BEGIN
@@ -94,20 +101,27 @@ BEGIN
 
 		IF @MatchId IS NOT NULL
 		BEGIN
-		INSERT INTO @TMP_ALL_MatchInfo
-		SELECT matchid , homeid , awayid ,  eventdate , leagueid, sporttype, showtime, matchcode
-		FROM match14 WITH (NOLOCK)
-		WHERE matchId = @matchid
-			and eventdate BETWEEN @BalanceUpDay and @ToDate
-			AND 1 = CASE 
-						WHEN @ProductType = 'NBG' AND sporttype = 161 THEN 1 -- NumberGame
-						WHEN @ProductType = 'HPF' AND sporttype = 164 THEN 1 -- Happy5
-						WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
-						ELSE 0
-					END
-			AND 1 = CASE WHEN sporttype IN (8, 50) AND ISNULL(ChildMatchType,0) = 200 THEN 0
-						ELSE 1
-					END
+			INSERT INTO @TMP_ALL_MatchInfo
+			SELECT matchid , homeid , awayid ,  eventdate , leagueid, sporttype, showtime, matchcode
+			FROM match14 WITH (NOLOCK)
+			WHERE matchId = @matchid
+				and eventdate BETWEEN @BalanceUpDay and @ToDate
+				AND 1 = CASE 
+							WHEN @ProductType = 'NBG' AND sporttype = 161 THEN 1 -- NumberGame
+							WHEN @ProductType = 'HPF' AND sporttype = 164 THEN 1 -- Happy5
+							WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
+							ELSE 0
+						END
+				AND 1 = CASE WHEN sporttype IN (8, 50) AND ISNULL(ChildMatchType,0) = 200 THEN 0
+							ELSE 1
+						END
+
+			INSERT INTO @TMP_ALL_MatchInfo
+			SELECT EventID AS matchid , NULL AS homeid ,NULL AS awayid ,EventTime AS   eventdate , LeagueID, SportType, NULL AS  showtime,  NULL AS  matchcode
+			FROM VSRaceInfo14 WITH (NOLOCK)
+			WHERE EventID = @matchid
+				and EventTime BETWEEN @BalanceUpDay and @ToDate
+
 		END
 		ELSE
 		BEGIN

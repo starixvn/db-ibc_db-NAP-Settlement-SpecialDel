@@ -4,7 +4,6 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_Ticket_Sel
 	,@Sporttype					TINYINT
 	,@Resources					VARCHAR(MAX)
 	,@Action					VARCHAR(20)		= 'CAL'
-	,@IsCentral					BIT				= 0
 
 	,@MinCustId					INT
 	,@MinCustId_MinTransID		BIGINT
@@ -22,12 +21,15 @@ AS
 	Revisions:
 		- 20240520@Aries: Created  [Redmine:#202389]
 		- 20240930@Aries: Fix the issue duplicated settlement DBTrans and SiteDBs for HP5  [Redmine:#211434]
+		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
 
 	Param's Explanation:
 		
 */
 BEGIN
 	SET NOCOUNT ON
+
+	DECLARE @IsCentral			BIT
 	DECLARE @tmpBettype			TABLE(pfID SMALLINT, BetType SMALLINT PRIMARY KEY (BetType))
 
 	EXEC dbo.NAP_Set_ServerInfo
@@ -45,6 +47,7 @@ BEGIN
 			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
 			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
+			  ,b.oddsid
 			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
@@ -78,6 +81,7 @@ BEGIN
 			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
 			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
+			  ,b.oddsid
 			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
@@ -109,6 +113,7 @@ BEGIN
 			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
 			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
+			  ,b.oddsid
 			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
@@ -139,6 +144,7 @@ BEGIN
 			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
 			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
+			  ,b.oddsid
 			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
@@ -171,6 +177,7 @@ BEGIN
 			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
 			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
+			  ,b.oddsid
 			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
@@ -204,6 +211,7 @@ BEGIN
 			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
 			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
+			  ,b.oddsid
 			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
@@ -235,6 +243,7 @@ BEGIN
 			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
 			  ,b.betteam,b.transdesc -- ,b.hdp1,b.hdp2
 			  ,b.currency
+			  ,b.oddsid
 			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake 
@@ -265,6 +274,7 @@ BEGIN
 			  ,bt.pfID AS ProfileId ,b.bettype--,b.betid
 			  ,b.betteam,b.transdesc --,b.hdp1,b.hdp2
 			  ,b.currency
+			  ,b.oddsid
 			  ,b.odds--,b.oddsspread
 			  ,b.Status,b.statusID,b.statuswinlost
 			  ,b.stake,b.actual_stake AS actualStake
