@@ -14,7 +14,7 @@ GO
 
 --delete old data for LIC
 DELETE m
-FROM dbo.CustLimitBet_MBC m
+FROM dbo.CustLimitBet_LIC m
 WHERE m.Matchid = 58227075 AND m.CustID = 65461409 AND m.EventTypeID = 1
 
 
