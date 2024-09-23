@@ -721,7 +721,7 @@ BEGIN
 	FROM @Validation v
 		OUTER APPLY( 
 			SELECT ISNULL(SUM(SingleCount),0) + ISNULL(SUM(PoolHouseSingleCount),0) AS SingleCount
-				  ,ISNULL(SUM(PoolHouseMainParlayCount),0) AS MainParlayCount
+				  ,ISNULL(SUM(MainParlayCount),0) + ISNULL(SUM(PoolHouseMainParlayCount),0) AS MainParlayCount
 				  ,MAX(CASE WHEN PoolHouseMainParlayCount <> 0 THEN 1 ELSE 0 END) AS IsPoolHouseAffected
 			FROM #logInfo
 			WHERE MatchId = v.MatchId
@@ -942,7 +942,7 @@ BEGIN
 
 	--For case no ticket valid
 	SELECT @SingleCount = ISNULL(SUM(SingleCount),0) + ISNULL(SUM(PoolHouseSingleCount),0)
-		  ,@MainParlayCount = ISNULL(SUM(PoolHouseMainParlayCount),0)
+		  ,@MainParlayCount = ISNULL(SUM(MainParlayCount),0) + ISNULL(SUM(PoolHouseMainParlayCount),0)
 	FROM #logInfo
 	IF @SingleCount = 0 AND @MainParlayCount = 0
 	BEGIN
