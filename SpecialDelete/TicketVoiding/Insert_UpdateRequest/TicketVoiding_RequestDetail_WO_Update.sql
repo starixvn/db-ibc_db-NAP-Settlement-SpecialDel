@@ -21,6 +21,7 @@ AS
 		- 20231214@July: Extend datatype [Redmine: #196467]
 		- 20240618@July: [TVS] Support void wrong odds of Home/Away or Over/Under at the same time [Redmine: #205558]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
 
 	Param's explanation:
 		+ @IssueTypeId : 2
@@ -99,12 +100,12 @@ BEGIN
 			,t.c.value('@MatchId','INT') AS MatchID
 			,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
 			,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
-			,t.c.value('@LiveGameEarlySingleCount','INT') + t.c.value('@PoolHouseSingleCount','INT') AS SingleCount
-			,t.c.value('@PoolHouseMainParlayCount','INT') AS MainParlayCount
+			,t.c.value('@SingleCount','INT') + t.c.value('@PoolHouseSingleCount','INT') AS SingleCount
+			,t.c.value('@MainParlayCount','INT') + t.c.value('@PoolHouseMainParlayCount','INT') AS MainParlayCount
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' 
-					+ ';LiveGameEarlySingleCount:' + CAST(t.c.value('@LiveGameEarlySingleCount','INT') AS VARCHAR(50))
+					+ ';SingleCount:' + CAST(t.c.value('@SingleCount','INT') AS VARCHAR(50))  --LiveGameEarly
 					+ ';PoolHouseSingleCount:' + CAST(t.c.value('@PoolHouseSingleCount','INT') AS VARCHAR(50))
 					+ ';PoolHouseMainParlayCount:' + CAST(t.c.value('@PoolHouseMainParlayCount','INT') AS VARCHAR(50)) AS IssueDetail
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
