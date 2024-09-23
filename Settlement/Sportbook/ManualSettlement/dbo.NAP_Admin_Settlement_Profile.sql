@@ -991,7 +991,7 @@ BEGIN
 							+ CASE 
 								WHEN ISNULL(@RemarkSDT,'') != '' THEN '<r n="Selected" v="' + @RemarkSDT + '"/>' 
 								ELSE CASE
-										WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN '<r n="Child" v="' + CAST(@MatchID AS VARCHAR) + '"/>'
+										WHEN @sportType IN (8, 50) AND @ParentMatchId IS NOT NULL THEN '<r n="Child" v="' + CAST(@MatchID AS VARCHAR) + '"/>'
 										WHEN @IsAuto = 1 AND @Action LIKE 'CAL%' 
 											THEN CASE
 													WHEN @AutoSourceInfo IS NOT NULL THEN '<r n="Auto Payout" v="' +@AutoSourceInfo +'"/>' 
