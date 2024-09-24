@@ -288,7 +288,9 @@ BEGIN
 	       ,modds 
 	       ,statuswinlost 
            ,IsMixParlay 
-	       ,SiteDBGroupID 
+	       ,SiteDBGroupID
+		   ,RefCode
+		   ,WalletType
 	)
 	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,checkt ,bid
