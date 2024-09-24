@@ -12,6 +12,7 @@ AS
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#197051]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -102,17 +103,21 @@ BEGIN
 		,FilterBetteam NVARCHAR(10)
 		,FilterHdp1 SMALLMONEY
 		,FilterHdp2 SMALLMONEY
+		,FilterHdp	SMALLMONEY --hdp1 + hdp2
 		,FilterX  NVARCHAR(50)
 		,FilterY  NVARCHAR(50)
 		,FilterXY  NVARCHAR(50)
 		,FilterTransdesc NVARCHAR(1000)
 		,FilterPlayerAndOdds NVARCHAR(1000)	
+		,FilterBetOption		NVARCHAR(250)
 	)
 
 	DECLARE @bettype_detail AS TABLE (
 		Bettype				SMALLINT
 		,FilterBetteam      NVARCHAR(10)
 		,FilterHDP		    SMALLMONEY
+		,FilterHDP1		    SMALLMONEY
+		,FilterHDP2		    SMALLMONEY
         ,FilterRuns		    SMALLMONEY
 		,FilterTransdesc	NVARCHAR(2000)
 		,IsFancy			BIT DEFAULT (0)
@@ -120,6 +125,7 @@ BEGIN
 		,FilterX  NVARCHAR(50)
 		,FilterY  NVARCHAR(50)
 		,FilterXY  NVARCHAR(50)
+		,FilterBetOption	NVARCHAR(250)
 	)
 
 	SET @AdvancedModeInfoXML = CONVERT(XML, @AdvancedModeInfo)
@@ -138,6 +144,7 @@ BEGIN
 				WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID = @MatchId THEN 1
 			ELSE 0 END
 	
+	--Parse json advanced mode filter
 	INSERT INTO @bettype_detail (Bettype
 		,FilterBetteam
 		,FilterHDP
@@ -147,17 +154,25 @@ BEGIN
 		,FilterX
 		,FilterY
 		,FilterXY
+		,FilterHDP1
+		,FilterHDP2
+		,FilterBetOption
 	)
 	SELECT tmp.bettype
 		, tmp.betteam
-		,CAST(CASE WHEN vhdp1.value = '' THEN @ValueDefault
-						ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
+		,CAST(CASE WHEN vhdp.value = '' THEN @ValueDefault
+						ELSE vhdp.value END AS SMALLMONEY) AS ValueHdp
 		,pl.value AS FilterTransdesc
 		,plo.value FilterPlayerAndOdds 
 		,'' AS FilterRuns
 		,CASE WHEN CHARINDEX('_', x.value) = 0 THEN x.value ELSE '' END
 		,CASE WHEN CHARINDEX('_', x.value) = 0 AND CHARINDEX('_',y.value) = 0 THEN y.value ELSE '' END
 		,CASE WHEN CHARINDEX('_', x.value) = 1 AND x.value + y.value <> '______' THEN x.value + y.value ELSE '' END
+		,CAST(CASE WHEN vhdp1.value = '' THEN @ValueDefault
+						ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
+		,CAST(CASE WHEN vhdp2.value = '' THEN @ValueDefault
+						ELSE vhdp2.value END AS SMALLMONEY) AS ValueHdp2
+		,bop.value AS FilterBetOption
 	FROM (
 		SELECT Id AS bettype
 			,ISNULL(Team, 'All') AS betteam
@@ -166,15 +181,22 @@ BEGIN
 			,ISNULL(REPLACE(FilterBetIdX,'&',','),'') AS betIdX
 			,ISNULL(REPLACE(FilterBetIdY,'&',','),'') AS betIdY
 			,ISNULL(PlayerAndOdds, '') AS PlayerAndOdds
+			,ISNULL(Hdp1, '') AS HDP1s
+			,ISNULL(Hdp2, '') AS HDP2s
+			,ISNULL(BetOption, '') AS BetOption
 		FROM OPENJSON(@AdvancedExtraInfo) 
 		WITH( Id SMALLINT, Team NVARCHAR(10), Hdp VARCHAR(100), Player VARCHAR(1000)
-			, FilterBetIdX VARCHAR(1000), FilterBetIdY VARCHAR(1000), PlayerAndOdds VARCHAR(2000))
+			, FilterBetIdX VARCHAR(1000), FilterBetIdY VARCHAR(1000), PlayerAndOdds VARCHAR(2000)
+			, Hdp1 VARCHAR(100), Hdp2 VARCHAR(100), BetOption NVARCHAR(250))
 	)tmp
-	CROSS APPLY STRING_SPLIT(tmp.HDPs, '&') vhdp1
+	CROSS APPLY STRING_SPLIT(tmp.HDPs, '&') vhdp
 	CROSS APPLY STRING_SPLIT(tmp.Players, ',') pl
 	CROSS APPLY STRING_SPLIT(tmp.betIdX, ',') x
 	CROSS APPLY STRING_SPLIT(tmp.betIdY, ',') y
 	CROSS APPLY STRING_SPLIT(tmp.PlayerAndOdds, ',') plo
+	CROSS APPLY STRING_SPLIT(tmp.HDP1s, '&') vhdp1
+	CROSS APPLY STRING_SPLIT(tmp.HDP2s, '&') vhdp2
+	CROSS APPLY STRING_SPLIT(tmp.BetOption, ',') bop
 
 	--Search single tickets
 	INSERT INTO #TransInfo(
@@ -247,6 +269,8 @@ BEGIN
 			,FilterXY
 			,FilterTransdesc 
 			,FilterPlayerAndOdds 
+			,FilterHdp
+			,FilterBetOption
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -316,6 +340,8 @@ BEGIN
 		,CONVERT(NVARCHAR(50), b.betid) AS FilterXY 
 		,b.transdesc AS FilterTransdesc 
 		,b.oddsid AS FilterPlayerAndOdds 
+		,b.hdp1 + b.hdp2 AS FilterHdp
+		,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
@@ -406,6 +432,8 @@ BEGIN
 				,FilterXY
 				,FilterTransdesc 
 				,FilterPlayerAndOdds 
+				,FilterHdp
+				,FilterBetOption
 			)
 		SELECT sub.matchid
 			,b.TransId
@@ -473,6 +501,8 @@ BEGIN
 			,sub.betcheck AS FilterXY
 			,sub.transdesc AS FilterTransdesc 
 			,sub.oddsid AS FilterPlayerAndOdds 
+			,sub.hdp1 + sub.hdp2 AS FilterHdp
+			,CAST(CAST(sub.hdp2 AS INT) AS VARCHAR(50)) + '-' + sub.betteam AS FilterBetOption
 		FROM #FilterInfo d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -491,8 +521,27 @@ BEGIN
 			SELECT TOP 1 Bettype
 			FROM @bettype_detail f
 			WHERE f.Bettype = b.FilterBettype
-				AND (f.FilterBetteam = 'All' OR b.FilterBetteam = f.FilterBetteam)
-				AND (f.FilterHDP = @ValueDefault OR b.FilterHdp1 = f.FilterHDP)
+				AND (					
+					CASE
+						WHEN f.Bettype <> 376 THEN CASE WHEN f.FilterBetteam = 'All' OR b.FilterBetteam = f.FilterBetteam THEN 1 ELSE 0 END
+						ELSE 
+							CASE f.FilterBetteam = 'All'
+								 WHEN 'All-All' THEN 1
+								 WHEN 'All-S' THEN CASE WHEN b.FilterBetTeam LIKE '%S%' THEN 1 ELSE 0 END
+								 WHEN 'All-M' THEN CASE WHEN b.FilterBetTeam LIKE '%M%' THEN 1 ELSE 0 END
+								 WHEN 'H-All' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) <> '-----' THEN 1 ELSE 0 END
+								 WHEN 'A-All' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) <> '-----' THEN 1 ELSE 0 END
+								 WHEN 'H-S' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) LIKE '%S%' THEN 1 ELSE 0 END
+								 WHEN 'H-M' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) LIKE '%M%' THEN 1 ELSE 0 END
+								 WHEN 'A-S' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) LIKE '%S%' THEN 1 ELSE 0 END
+								 WHEN 'A-M' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) LIKE '%M%' THEN 1 ELSE 0 END
+								 ELSE 0
+							END
+					END = 1
+				)
+				AND (f.FilterHDP = @ValueDefault OR b.FilterHdp = f.FilterHDP)
+				AND (f.FilterHDP1 = @ValueDefault OR b.FilterHdp1 = f.FilterHDP1)
+				AND (f.FilterHDP2 = @ValueDefault OR b.FilterHdp2 = f.FilterHDP2)
 				AND (f.FilterTransdesc = '' OR b.FilterTransdesc = f.FilterTransdesc)
 				AND (f.FilterX = '' OR b.FilterX LIKE f.FilterX + '%')
 				AND (f.FilterY = '' OR (f.FilterY LIKE '>%' AND b.FilterY > RIGHT(f.FilterY, 2)) OR (b.FilterY = f.FilterY))
@@ -505,6 +554,7 @@ BEGIN
 							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 > f.FilterRuns THEN 1
 							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'n' AND b.FilterHdp1 > f.FilterRuns THEN 1
 					ELSE 0 END
+				AND (f.FilterBetOption = '' OR b.FilterBetOption = f.FilterBetOption)
 		)t
 	WHERE t.Bettype IS NULL
 			
