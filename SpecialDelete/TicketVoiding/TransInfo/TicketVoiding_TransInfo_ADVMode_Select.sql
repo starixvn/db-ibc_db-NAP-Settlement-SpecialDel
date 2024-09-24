@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_ADVMode_Select_UAT2] 
+ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_ADVMode_Select] 
 (
 	@AdvancedModeInfo  VARCHAR(MAX) = NULL
 )
