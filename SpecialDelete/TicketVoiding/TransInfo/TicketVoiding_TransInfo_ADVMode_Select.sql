@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_ADVMode_Select] 
+ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_ADVMode_Select_UAT2] 
 (
 	@AdvancedModeInfo  VARCHAR(MAX) = NULL
 )
@@ -525,7 +525,7 @@ BEGIN
 					CASE
 						WHEN f.Bettype <> 376 THEN CASE WHEN f.FilterBetteam = 'All' OR b.FilterBetteam = f.FilterBetteam THEN 1 ELSE 0 END
 						ELSE 
-							CASE f.FilterBetteam = 'All'
+							CASE f.FilterBetteam
 								 WHEN 'All-All' THEN 1
 								 WHEN 'All-S' THEN CASE WHEN b.FilterBetTeam LIKE '%S%' THEN 1 ELSE 0 END
 								 WHEN 'All-M' THEN CASE WHEN b.FilterBetTeam LIKE '%M%' THEN 1 ELSE 0 END
