@@ -86,6 +86,7 @@ AS
 		- 20240312@July: Update the Advance Mode for bet types of Cricket [Redmine: #199238]
 		- 20240529@July: [TVS] Ticket Listing - Get affected tickets of Result Amendment for Bet Builder and Other Sports [Redmine: #203615]
 		- 20240729@July: Fix data length  [Redmine: #208544]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -153,8 +154,8 @@ BEGIN
 	INSERT INTO @tmpMatchId (MatchId, sporttype)
 	SELECT MatchId, sporttype
 	FROM dbo.match WITH(NOLOCK)
-	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
-					WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+	WHERE  1 = CASE WHEN sporttype NOT IN (50,8) AND matchid = @MatchId THEN 1
+					WHEN sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
 	UNION --Bitcoin
 	SELECT match3rdId, sporttype

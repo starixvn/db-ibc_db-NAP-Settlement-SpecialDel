@@ -57,6 +57,7 @@ AS
 		- 20230712@Max: Scale out credit - Fix issue child match cricket [Redmine: #181595]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -213,7 +214,7 @@ BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
 			,eventdate = m.eventdate
-			,MainMatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE b.matchid END
+			,MainMatchId = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.ParentID ELSE b.matchid END
 		FROM	#tmpTransId b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid

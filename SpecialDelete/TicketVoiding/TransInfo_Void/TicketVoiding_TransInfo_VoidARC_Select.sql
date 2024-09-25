@@ -19,6 +19,7 @@ AS
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -235,7 +236,7 @@ BEGIN
 	UPDATE d
 	SET d.matchid = m.ParentID
 	FROM #TransInfo d
-		INNER JOIN dbo.match14 m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+		INNER JOIN dbo.match14 m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 						
 	--Remove Invalid data
 	DELETE t

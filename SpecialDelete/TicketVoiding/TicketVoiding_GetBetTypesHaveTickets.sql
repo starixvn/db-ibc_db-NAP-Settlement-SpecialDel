@@ -15,6 +15,7 @@ AS
         - 20230608@Max: Create SP - [Redmine: #185833]
 		- 20231207@Max: [TVS] Not Participate - Support user select exact bet type [Redmine: #197018]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240823@July: WMKO/TE - Add Details of bet list for issue types [Redmine: #208628]
 
     Param's Explanation:  
@@ -43,7 +44,7 @@ BEGIN
 	SELECT MatchId
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
-				WHEN m.sporttype = 50 AND m.ChildMatchType = 200 AND ParentID = @MatchId THEN 1
+				WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND ParentID = @MatchId THEN 1
 			ELSE 0 END
 
     -- Scan bettrans and bettransm to get bettype list

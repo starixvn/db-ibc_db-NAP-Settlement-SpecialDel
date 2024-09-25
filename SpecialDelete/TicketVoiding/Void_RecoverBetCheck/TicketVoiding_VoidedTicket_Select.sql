@@ -33,6 +33,7 @@ AS;
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:	
 		
@@ -159,20 +160,20 @@ BEGIN
 		AND zm.SiteDBGroupID = @SiteDBGroupID
 
 	--Child match cricket
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH (NOLOCK) WHERE m.ParentID = @MatchId AND m.sporttype = 50)
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH (NOLOCK) WHERE m.ParentID = @MatchId AND m.sporttype IN (50,8))
 	BEGIN
 		INSERT INTO @tmpChildMatchCricket (MatchId, ChildMatchId)
 		SELECT @MatchId, m.matchid
 		FROM dbo.match m WITH (NOLOCK)
-		WHERE m.ParentID = @MatchId AND m.sporttype = 50 AND m.ChildMatchType = 200
+		WHERE m.ParentID = @MatchId AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 	END
 	-- Support case Cricket main in table match -> child in table match14
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.match14 m WITH (NOLOCK) WHERE m.ParentID = @MatchId AND m.sporttype = 50)
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.match14 m WITH (NOLOCK) WHERE m.ParentID = @MatchId AND m.sporttype IN (50,8))
 	BEGIN
 		INSERT INTO @tmpChildMatchCricket (MatchId, ChildMatchId)
 		SELECT @MatchId, m.matchid
 		FROM dbo.match14 m WITH (NOLOCK)
-		WHERE m.ParentID = @MatchId AND m.sporttype = 50 AND m.ChildMatchType = 200
+		WHERE m.ParentID = @MatchId AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 	END
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpChildMatchCricket)
 	BEGIN

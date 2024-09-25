@@ -74,6 +74,7 @@ AS
 		- 20240321@Max: [TVS] Remove parameters when calling SP for settling parlay tickets [Redmine: #202022]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's Explanation:
 */
@@ -169,8 +170,8 @@ BEGIN
 		INSERT INTO @tmpMatchId (MatchId)
 		SELECT MatchId
 		FROM dbo.match WITH(NOLOCK)
-		WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
-						WHEN @SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+		WHERE  1 = CASE WHEN @SportType NOT IN (50,8) AND matchid = @MatchId THEN 1
+						WHEN @SportType IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 						ELSE 0 END
 	END
 	ELSE

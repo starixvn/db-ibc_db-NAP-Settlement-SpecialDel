@@ -15,6 +15,7 @@ AS
 		- 20190521@Raymond.Le: - Return 2001/1/1 when KOTime is null [113518]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		
 */
 BEGIN
@@ -27,8 +28,8 @@ BEGIN
 	INSERT INTO @tmpMatchId (MatchId, KickOffTime)
 	SELECT MatchId, ISNULL(kickofftime, '2001-01-01 00:00:00')
 	FROM dbo.match WITH(NOLOCK)
-	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
-				    WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+	WHERE  1 = CASE WHEN sporttype NOT IN (50,8) AND matchid = @MatchId THEN 1
+				    WHEN sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
 
 	CREATE TABLE #CTE_transdate (transdate DATETIME)

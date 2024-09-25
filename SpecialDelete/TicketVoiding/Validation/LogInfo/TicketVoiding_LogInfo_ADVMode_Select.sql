@@ -18,6 +18,7 @@ AS
 		- 20240522@Max: Create new SP [Redmine:#197051]
 		- 20240727@Max: Modify betid return [Redmine:#197051]
 		- 20240727@Max: Change validation for transdesc [Redmine: #197051]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240823@July: WMKO/TE - Add Details of bet list for issue types [Redmine: #208628]
 
 	Param's explanation:	
@@ -206,7 +207,7 @@ BEGIN
 	INSERT INTO #FilterInfo (MatchId)
 	SELECT MatchId
 	FROM dbo.match m WITH(NOLOCK)
-	WHERE m.sporttype = 50 AND m.ChildMatchType = 200 AND m.ParentID = @MatchId
+	WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID = @MatchId
 
 	INSERT INTO #tmpTransInfo( 
 		    matchid 

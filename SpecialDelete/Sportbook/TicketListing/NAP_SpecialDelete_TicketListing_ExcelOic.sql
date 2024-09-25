@@ -65,6 +65,7 @@ AS
 		- 20240614@Max: [TVS] Ticket Listing - Insert data to DB053 [Redmine: #206452]
 		- 20240626@Max: [TVS] Ticket Listing - Adjust code Send Data to OIC [Redmine: #207035]
 		- 20240729@July: Fix data length  [Redmine: #208544]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -136,8 +137,8 @@ BEGIN
 	INSERT INTO @tmpMatchId (MatchId, sporttype)
 	SELECT MatchId, sporttype
 	FROM dbo.match WITH(NOLOCK)
-	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
-					WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+	WHERE  1 = CASE WHEN sporttype NOT IN (50,8) AND matchid = @MatchId THEN 1
+					WHEN sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
 
 	SELECT @SportType = sporttype FROM @tmpMatchId

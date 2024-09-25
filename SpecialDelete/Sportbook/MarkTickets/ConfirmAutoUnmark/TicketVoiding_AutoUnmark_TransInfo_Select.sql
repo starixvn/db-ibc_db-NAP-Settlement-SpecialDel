@@ -14,6 +14,7 @@ AS
 	Revisions: 
 		- 20220831@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:	
 	
@@ -53,8 +54,8 @@ BEGIN
 	WHERE ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
 		AND 1 = CASE WHEN @MatchId IS NULL THEN 1 
 					 ELSE 
-						CASE WHEN m.sporttype <> 50 AND m.matchid = @MatchId THEN 1 
-								WHEN m.sporttype = 50 AND (m.matchid = @MatchId OR m.ParentID = @MatchId) THEN 1
+						CASE WHEN m.sporttype NOT IN (50,8) AND m.matchid = @MatchId THEN 1 
+								WHEN m.sporttype IN (50,8) AND (m.matchid = @MatchId OR m.ParentID = @MatchId) THEN 1
 								ELSE 0 END
 						END
 		AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)

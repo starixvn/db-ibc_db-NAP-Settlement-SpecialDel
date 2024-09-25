@@ -22,6 +22,7 @@ AS
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20240219@Max: TVS - Voiding request but missing a parlay ticket [Redmine: #200987]
 		- 20240412@Max: Fix issue refno single vs parlay the same for Via Lucky [Redmine: #203813]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -605,7 +606,7 @@ BEGIN
 	UPDATE d
 	SET d.matchid = m.ParentID
 	FROM #TransInfo d
-		INNER JOIN dbo.match m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+		INNER JOIN dbo.match m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 
 	--Remove Invalid data
 	DELETE t

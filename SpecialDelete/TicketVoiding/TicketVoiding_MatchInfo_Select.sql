@@ -20,6 +20,7 @@ AS
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240521@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		- 20240618@July: [TVS] Support void wrong odds of Home/Away or Over/Under at the same time [Redmine: #205558]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:		
 */
@@ -32,14 +33,14 @@ BEGIN
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	(m.sporttype = @Sporttype OR @Sporttype IS NULL)
 			AND m.matchid = @MatchId 
-			AND 1 = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+			AND 1 = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 					     ELSE 1 END
 	UNION 
 	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode, m.parentid, m.kickofftime
 	FROM	dbo.match14 m WITH(NOLOCK)
 	WHERE	m.sporttype = @Sporttype 
 			AND m.matchid = @MatchId 
-			AND 1 = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+			AND 1 = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 					     ELSE 1 END
 
 	SELECT m.matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, CASE WHEN ISNULL(m.parentid,0) = 0 THEN m.matchid ELSE m.ParentId END AS parentid, Kickofftime, mr.SubType

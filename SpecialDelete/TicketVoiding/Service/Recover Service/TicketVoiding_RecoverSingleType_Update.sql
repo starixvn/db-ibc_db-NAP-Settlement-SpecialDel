@@ -23,6 +23,7 @@ AS
 	
 	Revisions: 
 		- 20231227@Max: Create new SP [Redmine: #196020]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:
 		
@@ -420,8 +421,8 @@ BEGIN
 			,homeid = m.homeid
 			,awayid = m.awayid
 			,SportType = m.sporttype
-			,ParentID = CASE WHEN m.sporttype = 50 THEN ISNULL(m.ParentID,0) ELSE 0 END
-			,ChildMatchType = CASE WHEN m.SportType = 50 THEN ISNULL(m.ChildMatchType, 0) ELSE 0 END
+			,ParentID = CASE WHEN m.sporttype IN (50,8) THEN ISNULL(m.ParentID,0) ELSE 0 END
+			,ChildMatchType = CASE WHEN m.SportType IN (50,8) THEN ISNULL(m.ChildMatchType, 0) ELSE 0 END
 	FROM	#tblTransInfo t
 		INNER JOIN dbo.match m WITH(NOLOCK) ON	t.matchid = m.matchid
 
@@ -905,7 +906,7 @@ BEGIN
 				FOR XML PATH('r'), ROOT('root')
 			)
 
-		SET @MatchId_MaxPO = CASE WHEN @sporttype = 50 AND @ParentID <> 0 AND @ChildMatchType = 200 THEN @ParentID ELSE @MatchId_MaxPO END
+		SET @MatchId_MaxPO = CASE WHEN @sporttype IN (50,8) AND @ParentID <> 0 AND @ChildMatchType = 200 THEN @ParentID ELSE @MatchId_MaxPO END
 		
 		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Recover
 			@MatchId = @MatchId_MaxPO

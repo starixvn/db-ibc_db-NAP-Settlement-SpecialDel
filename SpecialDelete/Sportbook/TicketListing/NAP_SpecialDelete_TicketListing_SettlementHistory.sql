@@ -14,6 +14,7 @@ AS
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20240529@July: [TVS] Ticket Listing - Get affected tickets of Result Amendment for Bet Builder and Other Sports [Redmine: #203615]
 		- 20240730@July: [TVS] Ticket Listing - Change way to get affected tickets of result amendment [Redmine: #208591]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's Explanation:
 */
@@ -32,7 +33,7 @@ BEGIN
 		INSERT INTO @tmpMatchId (MatchId)
 		SELECT MatchId
 		FROM dbo.match WITH(NOLOCK)
-		WHERE ParentID = @MatchId AND Sporttype = 50
+		WHERE ParentID = @MatchId AND Sporttype IN (50,8)
 			AND ISNULL(ChildMatchType,0) = 200
 	END
 
