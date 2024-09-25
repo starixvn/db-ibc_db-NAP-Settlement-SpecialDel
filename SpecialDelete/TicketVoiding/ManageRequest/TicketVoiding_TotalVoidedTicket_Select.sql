@@ -23,6 +23,7 @@ AS;
 		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
 		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 
 	Param's explanation:	
 		
@@ -74,8 +75,8 @@ BEGIN
 	;WITH CTE_Single AS(
 			SELECT	vh.RequestId, vh.MatchId
 					,SUM( CASE 
-							WHEN vh.IssueTypeId NOT IN (1,10,3,12,24) AND z.bettype NOT IN (9,29,2799,10449) THEN 1
-							WHEN vh.IssueTypeId IN (1,10,3,12,24) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+							WHEN vh.IssueTypeId NOT IN (1,10,3,12,24,25) AND z.bettype NOT IN (9,29,2799,10449) THEN 1
+							WHEN vh.IssueTypeId IN (1,10,3,12,24,25) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 						ELSE 0 END
 					) AS TotalSingleProcessed
 					,SUM(CASE WHEN z.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
