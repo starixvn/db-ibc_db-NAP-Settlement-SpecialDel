@@ -28,6 +28,7 @@ AS
 		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
 		- 20230920@Aries: Remove remote query [Redmine:#194359]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 
 	Param's explanation:  
 		
@@ -204,7 +205,7 @@ BEGIN
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
 			ON	m.matchid = mr.matchid
 	WHERE m.sporttype <> 1
-		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
+		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype IN (8, 50) THEN 0 ELSE 1 END -- dont get the child match of cricket
 	
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
 	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId)
@@ -213,7 +214,7 @@ BEGIN
 		CROSS APPLY (
 			SELECT	m.matchid, m.ParentId
 			FROM	dbo.match m WITH(NOLOCK)
-			WHERE	m.sporttype = 50
+			WHERE	m.sporttype IN (8, 50)
 					AND m.ChildMatchType = 200
 					AND m.ParentID = t.matchid
 		)m

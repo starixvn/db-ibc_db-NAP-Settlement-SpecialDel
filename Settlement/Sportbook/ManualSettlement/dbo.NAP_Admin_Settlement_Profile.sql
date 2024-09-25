@@ -91,6 +91,7 @@ AS
 		- 20240409@Aries: Enhance Refund Game Winner matches for Tennis [Redmine: #203638]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -235,7 +236,7 @@ BEGIN
 		  ,@hth			= m.hthomescore
 		  ,@hta			= m.htawayscore
 		  ,@sportType	= m.sportType
-		  ,@ParentMatchId = CASE WHEN m.ChildMatchType = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
+		  ,@ParentMatchId = CASE WHEN m.ChildMatchType = 200 AND m.ParentID IS NOT NULL AND m.sporttype IN (8, 50) THEN m.ParentID ELSE NULL END
 		  ,@LeagueGroupID = ISNULL(l.LeagueGroupID, 0)
 		  ,@ChildMatchType = m.ChildMatchType
 		  ,@MatchAutoSetting = ISNULL(m.AutoSetting, l.AutoSetting)	
@@ -252,9 +253,6 @@ BEGIN
 	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
 	WHERE ss.Sporttype = @sportType
 	
-	IF @sporttype = 8
-		SELECT @IsAppliedSOP = 1
-				,@AutoSetting = 1
 				
 	SET @HasAutoPayout = IIF(@AutoSetting & 2 > 0,1,0)
 	SET @HasAutoRefund = IIF(@AutoSetting & 4 > 0,1,0)
@@ -993,7 +991,7 @@ BEGIN
 							+ CASE 
 								WHEN ISNULL(@RemarkSDT,'') != '' THEN '<r n="Selected" v="' + @RemarkSDT + '"/>' 
 								ELSE CASE
-										WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN '<r n="Child" v="' + CAST(@MatchID AS VARCHAR) + '"/>'
+										WHEN @sportType IN (8, 50) AND @ParentMatchId IS NOT NULL THEN '<r n="Child" v="' + CAST(@MatchID AS VARCHAR) + '"/>'
 										WHEN @IsAuto = 1 AND @Action LIKE 'CAL%' 
 											THEN CASE
 													WHEN @AutoSourceInfo IS NOT NULL THEN '<r n="Auto Payout" v="' +@AutoSourceInfo +'"/>' 

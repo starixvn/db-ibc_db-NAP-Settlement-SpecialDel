@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Settlement_50_MoveTicket
 	@MatchId		INT
 	,@AdminId		INT
@@ -25,6 +25,7 @@ AS
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230920@Kathy: remove write log on SP [Redmine:#194268]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 
 	Param's Explanation:
 */
@@ -97,7 +98,12 @@ BEGIN
 		CROSS APPLY (
 			SELECT	s.BetType, s.BetID
 			FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-			WHERE	s.SportType = 50
+			WHERE	s.SportType IN (8, 50)
+					AND 1 = CASE 
+								WHEN s.sporttype = 8 AND s.bettype IN (8832, 8833, 8834, 8835) THEN 1
+								WHEN s.sporttype = 50 THEN 1
+								ELSE 0
+							END
 					AND (s.ResourceID = t.ResourceId
 						OR s.RefResourceId = t.ResourceId)
 		)s

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_SportLeagueSel
 	@SportTypes VARCHAR(MAX) 
 	,@FromDate	DATETIME
@@ -20,6 +20,7 @@ AS
 			- 20221021@Louisa: Not get Pingoal basketball [Redmine:#178551]
 			- 20221201@Louisa: Pingoal Esports [Redmine:#180808]
 			- 20231219@Louisa: RedCat88 [Redmine:#198365]
+			- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 
 	 Param explanation:
 			@Page:
@@ -41,7 +42,11 @@ BEGIN
 		INNER JOIN dbo.League l WITH(NOLOCK)
 			ON m.leagueid = l.leagueid
 	WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
-		AND 1 = CASE WHEN @Page = 1 AND m.sporttype = 50 AND l.LeagueGroupID = 42 THEN 0 --  Saba Virtual Cricket
+		AND 1 = CASE WHEN @Page = 1 THEN CASE 
+											WHEN m.sporttype = 50 AND l.LeagueGroupID = 42 THEN 0 --  Saba Virtual Cricket
+											WHEN m.sporttype = 8 AND ISNULL(l.SessionTime,0) <> 1 THEN 0 -- only show Series match: SessionTime = 1
+											ELSE 1
+										END
 					 WHEN m.sporttype = 2 AND l.LeagueGroupID = 122 THEN 0  -- Pingoal basketball
 					 WHEN m.sporttype = 43 AND l.LeagueGroupID IN (151,215) THEN 0  -- Pingoal ESports, RedCat
 				ELSE 1 END

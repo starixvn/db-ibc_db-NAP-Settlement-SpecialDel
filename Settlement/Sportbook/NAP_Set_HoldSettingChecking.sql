@@ -19,6 +19,7 @@ AS
 		-  20210706@Louisa: Letstalk message [Redmine:#157540]
 		-  20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		-  20240807@Aries: Add hold match info [Redmineid:#200934]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 		
 	Parameters Explanation:    
 		@IsEarly = 0 : Check dbo.Match.SettlementStatus bit[1]-Pending, bit[2]-Undecided, bit[3]-UnderSettlement, bit[5]-MTDHold, bit[7]-Hold Key
@@ -42,7 +43,7 @@ BEGIN
 
 	SELECT @SportType = m.Sporttype 
 			,@SettlementStatus = m.SettlementStatus
-			,@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
+			,@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype IN (8, 50) THEN m.ParentID ELSE NULL END
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE m.Matchid =  @MatchId
 	

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_updateMatch_remark]
 	@matchid 			INT,
 	@command 			VARCHAR(5),
@@ -34,6 +34,7 @@ WITH RECOMPILE
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 
 	Param's Explanation: 
 */
@@ -53,7 +54,7 @@ BEGIN
 	FROM	match_remark WITH (NOLOCK)
 	WHERE	matchid = @matchid 
 
-	SELECT	@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
+	SELECT	@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype IN (8, 50) THEN m.ParentID ELSE NULL END
 			,@Sporttype = m.sporttype
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchID
