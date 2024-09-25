@@ -7,7 +7,6 @@ AS
 	
 	Revisions: 
 		- 20230117@July: Create new SP - get requests will run Letstalk [Redmine: #180625]
-		- 20240925@Max: Exclude recover issuetype [Redmine: #186029]
 	
 	Param's explanation:	
 */
@@ -51,7 +50,7 @@ BEGIN
 		LEFT JOIN dbo.TicketVoiding_Letstalk lt WITH(NOLOCK) ON vh.RequestID = lt.RequestID AND lt.BroadcastSessionId = vh.BroadcastSessionId
 	WHERE  vh.BroadcastSessionId IS NOT NULL 
 		AND vh.StatusId = 2 AND vb.statusID = 2
-		AND r.IssueTypeId NOT IN (17,22) --Not send letstalk for issuetype archive, recover
+		AND r.IssueTypeId NOT IN (17) --Not send letstalk for issuetype archive
 		AND 1 = CASE WHEN lt.BroadcastSessionId IS NULL THEN 1
 					 WHEN lt.BroadcastSessionId IS NOT NULL AND lt.StatusId = 1 THEN 1
 					 ELSE 0 END

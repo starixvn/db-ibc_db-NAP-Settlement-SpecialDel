@@ -19,7 +19,6 @@ AS
 		- 20240523@July: [TVS] New issue type Wrong Market Offered & Technical Error [Redmine: #197051/194093]
 		- 20240727@July: Modify betid return [Redmine:#197051]
 		- 202407256@Max: Change validation for transdesc [Redmine: #197051]
-		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -163,7 +162,7 @@ BEGIN
 					WHERE ri.MatchId = m14.matchid
 		) m
 
-	IF @IssueTypeId IN (19,21,23,12,24,25) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB
+	IF @IssueTypeId IN (19,21,23,12,24) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error
 	BEGIN
 		INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, BetId, Betteam, OddsId)
 		SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
