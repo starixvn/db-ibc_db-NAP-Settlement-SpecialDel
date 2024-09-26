@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Acc_BalanceNegativeSel_MatchLog]
 	 @MatchID	INT,
 	 @GroupID	INT = 1 
@@ -21,6 +21,7 @@ AS
 		- 20230213@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 		- 20230621@Kathy: Remove checking event in 14/bk range after reviewing [Redmine:#186616]
 		- 20231030@Aries: Enhance negative balance e-mail to remove redundant information [Redmine:#196172]
+		- 20240808@Aries: VS5 - Virtually Sports [Redmine:#207309]
 		
 	Param's Explanation: 
 		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
@@ -41,7 +42,7 @@ BEGIN
 	
 	CREATE TABLE #__tmpData (LogId BIGINT, LogDate DATETIME, finalhomescore INT, finalawayscore INT, hthomescore INT, htawayscore INT, ActionID INT, Remark VARCHAR(MAX), UserID INT)
 
-	IF @GroupID IN (1,2,7)
+	IF @GroupID IN (1,2,7) AND @MatchID < 1000000000
 	BEGIN 
 		INSERT INTO @tmpMatch(
 				MatchID
@@ -61,6 +62,28 @@ BEGIN
 				,SportType
 		FROM	bodb02.dbo.[match]  WITH (NOLOCK)
 		WHERE	matchid = @MatchID
+	END 
+	ELSE IF @GroupID IN (1,2,7) AND @MatchID >= 1000000000
+	BEGIN 
+		INSERT INTO @tmpMatch(
+				MatchID
+			,LeagueID
+			,MatchCode
+			,EventDate
+			,HomeID
+			,AwayID
+			,SportType
+		)
+		SELECT	 TOP 1 
+				 Match3rdID AS  MatchID
+				,League3rdID AS  League3rdID
+				,MatchCode
+				,EventDate
+				,HomeID
+				,AwayID
+				,SportType
+		FROM	bodb02.dbo.[match3rd]  WITH (NOLOCK)
+		WHERE	Match3rdID = @MatchID
 	END 
 	ELSE IF @GroupID = 3 
 	BEGIN	

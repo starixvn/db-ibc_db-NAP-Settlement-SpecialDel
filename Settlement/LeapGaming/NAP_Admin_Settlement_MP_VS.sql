@@ -19,6 +19,7 @@ AS
 		- 20240118@Louisa: Initial
 		- 20240315@Louisa: Fix null winlostdate [Redmine: #199700]
 		- 20240521@Louisa: Enhancement - get match via linked server due to replication latency [Redmine:#205375]
+		- 20240704@Aries: VS5 - Virtually Sports [Redmine:#207309]
 
 	Param's Explanation:
  
@@ -41,7 +42,8 @@ BEGIN
 			,@actualPO				MONEY
 			,@batchPO				SMALLINT = 500
 			,@TransInfoMaxPO		VARCHAR(MAX)
-			,@SPName			SYSNAME
+			,@SPName				SYSNAME
+			,@parlayBettype			INT
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
 	DECLARE @subtable TABLE(transid BIGINT, statuswinlost TINYINT, statusID TINYINT)
@@ -121,6 +123,12 @@ BEGIN
 
 	SELECT @SiteDBGroupId	  = (SELECT dbo.f_Get_SiteDBGroupID())
 		 ,@SPName			  = OBJECT_NAME(@@PROCID)
+
+	SET @parlayBettype =   CASE WHEN @Sporttype = 188 THEN 10449
+								WHEN @Sporttype IN (190,191,192,194,195,196,197,193) THEN 2799
+								WHEN @Sporttype IN (147) THEN 11099
+								ELSE 10449
+						  END
 	
 	---get result, bettype, fomular
 	INSERT INTO @tmpResult (HomeValue, AwayValue, BetType, BetID, pfID )
@@ -259,7 +267,7 @@ BEGIN
 		, StatusID, modds, winlostdate
 		, currency, transdate
 	FROM dbo.bettrans b WITH(NOLOCK)
-	WHERE b.matchid = 10449
+	WHERE b.matchid = @parlayBettype
 		AND b.statusID NOT IN (101,102) --('VOID','REJECT')	
 		AND EXISTS (SELECT 1 FROM @tmpRefnos WHERE refno = b.refno)
 
