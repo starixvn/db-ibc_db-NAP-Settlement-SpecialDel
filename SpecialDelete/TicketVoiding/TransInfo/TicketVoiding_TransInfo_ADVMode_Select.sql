@@ -114,7 +114,7 @@ BEGIN
 
 	DECLARE @bettype_detail AS TABLE (
 		Bettype				SMALLINT
-		,FilterBetteam      NVARCHAR(250)
+		,FilterBetteam      NVARCHAR(2000)
 		,FilterHDP		    SMALLMONEY
 		,FilterHDP1		    SMALLMONEY
 		,FilterHDP2		    SMALLMONEY
@@ -185,7 +185,7 @@ BEGIN
 			,ISNULL(Hdp2, '') AS HDP2s
 			,ISNULL(BetOption, '') AS BetOption
 		FROM OPENJSON(@AdvancedExtraInfo) 
-		WITH( Id SMALLINT, Team NVARCHAR(250), Hdp VARCHAR(100), Player VARCHAR(1000)
+		WITH( Id SMALLINT, Team NVARCHAR(2000), Hdp VARCHAR(100), Player VARCHAR(1000)
 			, FilterBetIdX VARCHAR(1000), FilterBetIdY VARCHAR(1000), PlayerAndOdds VARCHAR(2000)
 			, Hdp1 VARCHAR(100), Hdp2 VARCHAR(100), BetOption NVARCHAR(250))
 	)tmp
