@@ -106,6 +106,7 @@ BEGIN
 					+ '" ToOdds="' + t.c.value('@ToOdds','VARCHAR(20)')
 					+ '" OddsValue="' + REPLACE(t.c.value('@OddsValue','VARCHAR(MAX)'), '&', '&amp;')
 					+ '" CorrectOdds="' + t.c.value('@CorrectOdds','VARCHAR(20)')
+					+ '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10))
 					+ '" />'
 					AS WrongOddsSB
 			,REPLACE(t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)'), '&quot;','''') AS AdvancedExtraInfo
