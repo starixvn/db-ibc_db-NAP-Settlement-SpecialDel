@@ -15,7 +15,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event
 	,@childMatchIdCricket	INT		 = 0 OUTPUT
 	,@ErrCode				INT		 = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(300)  = ''    OUTPUT
-)
+)   
 AS
 /*
 	Created: 20220719@Louisa

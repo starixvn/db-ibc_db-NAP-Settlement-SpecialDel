@@ -19,7 +19,8 @@ AS
 		- 20230523@Kathy: change metadata [Redmine:#188452]
 		- 20231108@Louisa: HF-missing info when send mail for child match Cricket [Redmine:#196508]
 		- 20231229@Louisa: Fix issue missing data outright [Redmine: #199060]
-		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
+		- 20240926@Kathy: using dynamic query to DBDEPBBIN 
 
 	Param's Explanation: 
 		@isTest: 0: Real Currency; 1: UUS Currency 
@@ -28,14 +29,15 @@ AS
 BEGIN 
 	SET NOCOUNT ON 
 
-	DECLARE @BalanceNegative TABLE (LogID bigint, LogDate datetime, MatchID int, GroupID tinyint, CustID int, Username varchar(30), TotalBalance money, CurrencyName nvarchar(50), [site] varchar(50), CustomInfo1 nvarchar(200), Username2 varchar(50) )
+	CREATE TABLE #tmpBalanceNegative (LogID bigint, LogDate datetime, MatchID int, GroupID tinyint, CustID int, Username varchar(30), TotalBalance money, CurrencyName nvarchar(50), [site] varchar(50), CustomInfo1 nvarchar(200), Username2 varchar(50) )
 	DECLARE @RowCnt int
+			,@sqlCmd NVARCHAR(MAX) = ''
 	
 	/*CHIT CODE ON SIT FOR Haifa Site 
 	IF @Site='Haifa'
 	RETURN
 	*/
-	INSERT INTO @BalanceNegative (LogID, LogDate, MatchID, GroupID, CustID, Username, TotalBalance, CurrencyName, [site], Username2 )
+	INSERT INTO #tmpBalanceNegative (LogID, LogDate, MatchID, GroupID, CustID, Username, TotalBalance, CurrencyName, [site], Username2 )
 	SELECT LogID
 			, CASE WHEN ParentID IS NOT NULL THEN MAX(LogDate)  OVER(PARTITION BY MatchID, GroupID, CustID ORDER BY LogDate DESC)
 					ELSE LogDate
@@ -78,10 +80,11 @@ BEGIN
 							ELSE 0 END 
 	)b
 	
-	SET @RowCnt=@@ROWCOUNT
+	SET @RowCnt= @@ROWCOUNT
 	
 	IF @RowCnt>0 and @Site='Haifa'
 	BEGIN
+		SET @sqlCmd = N'
 		SELECT DISTINCT
 			  h.LogDate
 			, h.MatchID
@@ -92,17 +95,21 @@ BEGIN
 			, h.CurrencyName
 			, h.Site
 			, CASE WHEN bin.CustomInfo1 IS NULL THEN h.username2 ELSE bin.CustomInfo1 END AS CustomInfo1
-		FROM @BalanceNegative h
-			LEFT JOIN DBDEPBBIN.bbin.dbo.Customer bin WITH (NOLOCK) ON h.CustID = bin.IBCCustID
+		FROM #tmpBalanceNegative h
+			LEFT JOIN DBDEPBBIN.bbin.dbo.Customer bin WITH (NOLOCK) ON h.CustID = bin.IBCCustID'
+			
+		EXECUTE sp_executesql @sqlCmd
 	END
 	ELSE
 	BEGIN
 		SELECT	DISTINCT LogDate, MatchID, GroupID, CustID, Username, TotalBalance, CurrencyName, Site, username2 AS CustomInfo1
-		FROM @BalanceNegative
+		FROM #tmpBalanceNegative
 	END
 	
 
-	SELECT LogID FROM @BalanceNegative
+	SELECT LogID FROM #tmpBalanceNegative
+	
+	DROP TABLE #tmpBalanceNegative
 
 END
 GO

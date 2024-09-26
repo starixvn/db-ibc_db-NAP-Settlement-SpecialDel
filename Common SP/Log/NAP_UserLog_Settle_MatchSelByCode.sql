@@ -27,7 +27,7 @@ AS
 		@ProductType = 'ALL' -- All - excluded MetricGaming, BetBuilder, Number Game, Happy 5
 		@ProductType = 'NBG' -- Number game
 		@ProductType = 'HPF' -- Happy 5
-	
+	   
 */
 BEGIN
 

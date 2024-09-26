@@ -23,7 +23,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
 	@SelectedResources			VARCHAR(MAX) = NULL
 	
 )
-AS
+AS   
 /*
     Created: Kathy
     Date: 20140213

@@ -21,7 +21,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@IsPingoal			BIT				= 0
 	,@IsSettleRelated	BIT				= 0
 	,@RemarkInfo		VARCHAR(MAX)	= NULL
-AS
+AS    
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
 	DB: DBTXN/BODB02

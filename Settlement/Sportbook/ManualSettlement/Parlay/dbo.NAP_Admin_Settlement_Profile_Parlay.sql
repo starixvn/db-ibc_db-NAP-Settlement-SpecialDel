@@ -53,7 +53,7 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240729@Kathy: get eventdate before settlement [Redmine:#208293]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
-		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
 
 		
 		- 20231214@Aries: Result Amendment [Redmine: #196401]

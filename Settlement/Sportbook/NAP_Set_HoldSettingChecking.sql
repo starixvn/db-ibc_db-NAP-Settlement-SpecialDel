@@ -23,7 +23,7 @@ AS
 		
 	Parameters Explanation:    
 		@IsEarly = 0 : Check dbo.Match.SettlementStatus bit[1]-Pending, bit[2]-Undecided, bit[3]-UnderSettlement, bit[5]-MTDHold, bit[7]-Hold Key
-		@IsEarly = 1 : Check dbo.Match.SettlementStatus bit 1,2,3,5,7 and check ResultSetting dbo.ResultDetail/ES/OS 
+		@IsEarly = 1 : Check dbo.Match.SettlementStatus bit 1,2,3,5,7 and check ResultSetting dbo.ResultDetail/ES/OS    
 
 		@SelectedResources
 			<Resources>

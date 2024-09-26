@@ -29,7 +29,7 @@ AS
 		- 20230920@Aries: Remove remote query [Redmine:#194359]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
-
+   
 	Param's explanation:  
 		
 */

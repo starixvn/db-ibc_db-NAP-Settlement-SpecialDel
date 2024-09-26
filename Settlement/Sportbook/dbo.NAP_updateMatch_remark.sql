@@ -34,7 +34,7 @@ WITH RECOMPILE
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
-		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]  
 
 	Param's Explanation: 
 */
