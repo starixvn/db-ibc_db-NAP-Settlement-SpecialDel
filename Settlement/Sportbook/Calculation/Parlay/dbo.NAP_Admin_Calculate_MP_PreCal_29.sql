@@ -49,7 +49,7 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240425@Kathy: enhance parlay [Redmine:#199518]
 		- 20240521@Kathy: write log [Redmine:#199518]
-		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
 
 
 	Param's Explanation:

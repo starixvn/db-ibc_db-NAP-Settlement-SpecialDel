@@ -24,7 +24,7 @@ AS
 				<Resources>
 					<Resource Id="H1" Home="1" />
 					<Resource Id="A1" Home="2" />
-				</Resources>
+				</Resources>   
 
 */
 BEGIN

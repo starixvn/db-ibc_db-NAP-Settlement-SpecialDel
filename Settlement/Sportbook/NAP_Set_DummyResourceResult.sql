@@ -32,7 +32,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230727@Aries: Basketball AIO  [Redmine:#191381]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
-		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
 */
 
 BEGIN

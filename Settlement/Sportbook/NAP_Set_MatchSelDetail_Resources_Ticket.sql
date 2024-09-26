@@ -27,7 +27,7 @@ BEGIN
     DECLARE @tmpTicketStatusParlay TABLE(ResourceID VARCHAR(20), BetCount INT, InWaiting INT, InRunning INT, BetSettledCount INT, BetRefundedCount INT, BetMarkedCount INT, OrdNo INT, IsSpecialBettype  TINYINT)
     DECLARE @tblReturnTable TABLE (	ResourceID VARCHAR(20),BetCount INT,InWaiting INT,InRunning INT,BetMarkedCount INT,BetSettledCount INT,BetRefundedCount INT, IsSpecialBettype TINYINT, OrdNo INT	)
 
-	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
+	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)   
     ---------------------------------------------------------------------------------------------
     IF @SportType = 0
 	BEGIN

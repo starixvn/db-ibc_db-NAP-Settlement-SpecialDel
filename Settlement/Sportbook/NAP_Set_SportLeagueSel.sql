@@ -24,7 +24,7 @@ AS
 
 	 Param explanation:
 			@Page:
-					0 - Query for Multisports Page
+					0 - Query for Multisports Page   
 					1 - Query for Move Ticket Page 
 
 */

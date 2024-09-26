@@ -24,7 +24,7 @@ AS
 		@ProductType = 'NBG' -- Number game
 		@ProductType = 'HPF' -- Happy 5
 	
-*/
+*/    
 BEGIN
 
 	SET NOCOUNT ON
