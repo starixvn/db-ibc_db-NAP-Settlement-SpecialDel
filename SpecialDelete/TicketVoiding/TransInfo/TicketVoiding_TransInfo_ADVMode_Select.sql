@@ -114,7 +114,7 @@ BEGIN
 
 	DECLARE @bettype_detail AS TABLE (
 		Bettype				SMALLINT
-		,FilterBetteam      NVARCHAR(10)
+		,FilterBetteam      NVARCHAR(250)
 		,FilterHDP		    SMALLMONEY
 		,FilterHDP1		    SMALLMONEY
 		,FilterHDP2		    SMALLMONEY
@@ -159,7 +159,7 @@ BEGIN
 		,FilterBetOption
 	)
 	SELECT tmp.bettype
-		, tmp.betteam
+		, t.value AS betteam
 		,CAST(CASE WHEN vhdp.value = '' THEN @ValueDefault
 						ELSE vhdp.value END AS SMALLMONEY) AS ValueHdp
 		,pl.value AS FilterTransdesc
@@ -185,10 +185,11 @@ BEGIN
 			,ISNULL(Hdp2, '') AS HDP2s
 			,ISNULL(BetOption, '') AS BetOption
 		FROM OPENJSON(@AdvancedExtraInfo) 
-		WITH( Id SMALLINT, Team NVARCHAR(10), Hdp VARCHAR(100), Player VARCHAR(1000)
+		WITH( Id SMALLINT, Team NVARCHAR(250), Hdp VARCHAR(100), Player VARCHAR(1000)
 			, FilterBetIdX VARCHAR(1000), FilterBetIdY VARCHAR(1000), PlayerAndOdds VARCHAR(2000)
 			, Hdp1 VARCHAR(100), Hdp2 VARCHAR(100), BetOption NVARCHAR(250))
 	)tmp
+	CROSS APPLY STRING_SPLIT(tmp.betteam, ',') t
 	CROSS APPLY STRING_SPLIT(tmp.HDPs, '&') vhdp
 	CROSS APPLY STRING_SPLIT(tmp.Players, ',') pl
 	CROSS APPLY STRING_SPLIT(tmp.betIdX, ',') x
