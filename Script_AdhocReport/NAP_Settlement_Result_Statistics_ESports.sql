@@ -16,6 +16,7 @@ AS
 		-20231208@louisa: Init [Redmine:#197548]
 		-20240206Louisa: Add data Trader, Pandascore [Redmine:#197548]
 		-20240222@Louisa: Move SP from DBPRO to DBACC [Redmine:#201196]
+		-20240927@Kathy: Add Bayes provider information into the Weekly eSports report[Redmine:#211309]
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -128,7 +129,7 @@ BEGIN
 		FROM DBLOG.bodb_CustomerLog_archive.dbo.ProviderExternalResultDetailES_BK pr with(nolock)
 			INNER JOIN	#tmp_matchInfo m  
 				ON pr.matchid = m.matchid 
-		WHERE pr.SourceId  IN ( 100, 16,23,30,22)
+		WHERE pr.SourceId  IN ( 100, 16,23,30,22, 34)
 	  )
   
 	INSERT INTO #tmp_ResultProvider ( MatchId, SourceId, ResourceID, HomeValue, AwayValue)
@@ -197,6 +198,12 @@ BEGIN
 		FROM #tmp_ResultProvider 
 		WHERE SourceID = 30
 	)
+	,cte_ResultProviderBayes( MatchId, ResourceID, HomeValue, AwayValue) AS
+	(
+		SELECT MatchId, ResourceID, HomeValue, AwayValue
+		FROM #tmp_ResultProvider 
+		WHERE SourceID = 34
+	)
 	,cte_return AS 
 	(
 	SELECT m.eventdate,r.MatchId,  m.leaguename, m.GameSession,  r.ResourceID
@@ -222,6 +229,9 @@ BEGIN
 
 		, CASE WHEN a.ResourceID IS NULL THEN 'no data' ELSE a.HomeValue END AS [HomeValue(Abios)]
 		, CASE WHEN a.ResourceID IS NULL THEN 'no data' ELSE a.AwayValue END AS [AwayValue(Abios)]
+		
+		, CASE WHEN Bay.ResourceID IS NULL THEN 'no data' ELSE Bay.HomeValue END AS [HomeValue(Bayes)]
+		, CASE WHEN Bay.ResourceID IS NULL THEN 'no data' ELSE Bay.AwayValue END AS [AwayValue(Bayes)]
 	FROM  #tmp_matchInfo m
 		INNER JOIN #tmp_ResultSettle r
 			ON r.MatchID = m.MatchID
@@ -245,6 +255,10 @@ BEGIN
 						FROM cte_ResultProviderA rs
 						WHERE r.MatchId = rs.MatchId and r.ResourceID = rs.ResourceID
 						) A
+		OUTER APPLY ( SELECT rs.ResourceId, rs.HomeValue, rs.AwayValue   
+						FROM cte_ResultProviderBayes rs
+						WHERE r.MatchId = rs.MatchId and r.ResourceID = rs.ResourceID
+						) Bay
 	)
 
 	SELECT cte.EventDate,cte.MatchID,  cte.LeagueName
@@ -274,6 +288,9 @@ BEGIN
 
 		, [HomeValue(Abios)]
 		, [AwayValue(Abios)]
+		
+		, [HomeValue(Bayes)]
+		, [AwayValue(Bayes)]
 	FROM cte_return cte
 		INNER JOIN #tbl_ResourceESports e ON cte.ResourceID LIKE e.Prefix +'%'
 
