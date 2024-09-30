@@ -10,7 +10,7 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_03]
 	,@CWLBettype			SMALLINT        = 0
 	,@BalanceType			TINYINT         = 1 
 	,@BroadcastSessionId	VARCHAR(50)		= NULL
-	,@IsCentral			    BIT				= 0
+	,@IsCentral			    BIT				= 0  --TODO: remove later 
 	,@HasNoBalanceNegative	BIT				= 0
 
 	,@ErrMessage			VARCHAR(300)	= ''	OUTPUT
@@ -23,6 +23,7 @@ AS
 
 	Revisions:
 		- 20240520@Aries: Created  [Redmine:#202389]
+		- 20240930@Aries: Fix the issue duplicated settlement DBTrans and SiteDBs for HP5  [Redmine:#211434]
 
 	Param's Explanation:
 		
@@ -60,6 +61,9 @@ BEGIN
 		END
 
 	END
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT	
 	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd','U') IS NOT NULL
 	BEGIN

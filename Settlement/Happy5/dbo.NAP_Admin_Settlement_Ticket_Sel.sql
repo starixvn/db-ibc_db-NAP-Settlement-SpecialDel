@@ -21,6 +21,7 @@ AS
 
 	Revisions:
 		- 20240520@Aries: Created  [Redmine:#202389]
+		- 20240930@Aries: Fix the issue duplicated settlement DBTrans and SiteDBs for HP5  [Redmine:#211434]
 
 	Param's Explanation:
 		
@@ -28,6 +29,9 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @tmpBettype			TABLE(pfID SMALLINT, BetType SMALLINT PRIMARY KEY (BetType))
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	INSERT INTO @tmpBettype(pfID,BetType)
 	SELECT DISTINCT p.pfID,p.Bettype
