@@ -753,7 +753,12 @@ BEGIN
 		UNION ALL
 		SELECT s.TransId
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) 
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON s.MatchId = rd.MatchId
+			CROSS APPLY (
+				SELECT TOP 1 sporttype
+				FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+				WHERE s.MatchId = rd.MatchId
+					AND rd.RequestId = @RequestId
+			)rd
 		WHERE s.RequestId = @RequestId
 			AND rd.Sporttype <> 1 --Other sports
 	END
