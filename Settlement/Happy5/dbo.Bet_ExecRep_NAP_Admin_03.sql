@@ -24,6 +24,7 @@ AS
 	Revisions:
 		- 20240520@Aries: Created  [Redmine:#202389]
 		- 20240930@Aries: Fix the issue duplicated settlement DBTrans and SiteDBs for HP5  [Redmine:#211434]
+		- 20241001@Aries: Fix the issue missing param @AllowRefund for Happy5  [Redmine:#211648]
 
 	Param's Explanation:
 		
@@ -35,6 +36,7 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE  @ServerName				SYSNAME 
 			,@AllowCalculation			BIT
+			,@AllowRefund				BIT
 			,@IsSiteDB					BIT = 0
 			,@transInfoJson				NVARCHAR(MAX)
 			,@BalanceChanged			TVP_BalanceWalletChange
@@ -54,8 +56,14 @@ BEGIN
 		EXEC [dbo].[NAP_Set_ServerAction]
 			@ServerName			= @ServerName
 			,@AllowCalculation	= @AllowCalculation	OUTPUT
+			,@AllowRefund		= @AllowRefund OUTPUT
 
-		IF @AllowCalculation = 0
+		IF @AllowCalculation = 0 AND @Action = 'CAL'
+		BEGIN
+			RETURN
+		END
+		 
+		IF @AllowRefund = 0 AND @Action = 'REFUND'
 		BEGIN
 			RETURN
 		END
