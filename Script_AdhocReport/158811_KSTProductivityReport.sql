@@ -19,7 +19,9 @@
 		2024-08-05: release Table Tennis - move settle form table match to AutoPayoutResultDetail, add Auto Payout Kabaddi
 		20240905@Kathy: - fix bug table tennis, kabaddi
 						- correct the way to get @movebet, @BU of system [Redmine:#210398]
+						
 */
+
 
 USE bodb02
 GO
@@ -33,8 +35,8 @@ GO
 */
 
 
-	DECLARE @fromDate DATETIME = '2024-05-01'
-			,@toDate  DATETIME = '2024-07-31 23:59:59'
+	DECLARE @fromDate DATETIME = '2024-08-01'
+			,@toDate  DATETIME = '2024-08-31 23:59:59'
 			
 			,@MovebetDate SMALLDATETIME
 			,@BUDate SMALLDATETIME
@@ -161,6 +163,7 @@ GO
 						ELSE 1 END
 			AND m.eventStatus = 'completed'
 			AND m.sporttype <= 99
+
 	END
 
 	INSERT INTO #MatchId (matchid, sporttype, ResultTable, eventdate, betstatus, [range])
@@ -208,6 +211,7 @@ GO
 			AND 1 = CASE WHEN m.sporttype = 50 AND m.eventdate < '2021-04-08' THEN 0  -- 2021-04-08: Move Cricket to ResultDetailOS
 						WHEN m.sporttype = 45 AND m.eventdate < '2021-07-19' THEN 0  -- 2021-07-19: Move Beach Volleyball to ResultDetailOS
 						WHEN m.sporttype = 6	AND m.eventdate < '2021-10-07' THEN 0 --2021-10-07: Move Volleyball to ResultDetailOS
+						when m.sporttype = 18 and m.eventdate < '2024-08-01' then 0
 						ELSE 1	END
 		GROUP BY r.MatchId
 
@@ -268,6 +272,7 @@ GO
 			AND 1 = CASE WHEN m.sporttype = 50 AND m.eventdate < '2021-04-08' THEN 0  -- 2021-04-08: Move Cricket to ResultDetailOS
 						WHEN m.sporttype = 45 AND m.eventdate < '2021-07-19' THEN 0  -- 2021-07-19: Move Beach Volleyball to ResultDetailOS
 						WHEN m.sporttype = 6	AND m.eventdate < '2021-10-07' THEN 0 --2021-10-07: Move Volleyball to ResultDetailOS
+						when m.sporttype = 18 and m.eventdate < '2024-08-01' then 0
 						ELSE 1	END
 		GROUP BY r.MatchId
 
@@ -291,6 +296,8 @@ GO
 	--ResultBK
 	IF EXISTS (SELECT 1 FROM #MatchId WHERE [range] = 3)
 	BEGIN
+		
+
 		--ResultDetail_bk
 		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal , AutoRefund)
 		SELECT	r.MatchId
@@ -328,6 +335,7 @@ GO
 			AND 1 = CASE WHEN m.sporttype = 50 AND m.eventdate < '2021-04-08' THEN 0  -- 2021-04-08: Move Cricket to ResultDetailOS
 						WHEN m.sporttype = 45 AND m.eventdate < '2021-07-19' THEN 0  -- 2021-07-19: Move Beach Volleyball to ResultDetailOS
 						WHEN m.sporttype = 6	AND m.eventdate < '2021-10-07' THEN 0 --2021-10-07: Move Volleyball to ResultDetailOS
+						when m.sporttype = 18 and m.eventdate < '2024-08-01' then 0
 						ELSE 1	END
 		GROUP BY r.MatchId
 
@@ -348,13 +356,15 @@ GO
 		GROUP BY r.MatchId
 	END
 
+
+			
 	------------------------ Auto Kabaddi, table tennis-------------------------------
 	DECLARE @tmpAuto TABLE (MatchId INT)
 	
 	INSERT INTO @tmpAuto(MatchId)
 	SELECT DISTINCT  MatchId
 	FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
-	WHERE (p.sporttype = 47 OR (p.sporttype = 18 AND p.starttime <'20240801'))
+	WHERE (p.sporttype = 47 OR (p.sporttype = 18 AND p.starttime <'2024-08-01'))
 		AND p.starttime between @fromDate and @toDate
 		AND p.IsAuto = 1
 	
@@ -373,8 +383,8 @@ GO
 	FROM #MatchId m
 		LEFT JOIN @tmpAuto ka 
 			ON m.matchid  = ka.matchid
-	WHERE m.sporttype IN (47, 18)
-	
+	WHERE (m.sporttype = 47 OR (m.sporttype = 18 AND m.eventdate <'2024-08-01')) 
+
 	------------------------ Other sports: Result is saved in dbo.match -------
 	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
 	SELECT	m.MatchId
@@ -388,12 +398,20 @@ GO
 					WHEN m.sporttype = 50 AND m.eventdate < '2021-04-08' THEN 1 -- 2021-04-08: Move Cricket to ResultDetailOS
 					WHEN m.sporttype = 45 AND m.eventdate < '2021-07-19' THEN 1 -- 2021-07-19: Move Beach Volleyball to ResultDetailOS
 					WHEN m.sporttype = 6	AND m.eventdate < '2021-10-07' THEN 1 --2021-10-07: Move Volleyball to ResultDetailOS
-					WHEN m.sporttype = 8 AND m.eventdate < '2024-08-15' THEN 1
-					--WHEN m.sporttype = 18 AND m.eventdate < '2024-08-01' THEN 1
+					WHEN m.sporttype = 8 AND m.eventdate < '2024-09-05' THEN 1
 				ELSE 0 END
-
+	--AND NOT EXISTS (SELECT top 1 1 from #TempResultDetail t where t.matchid = m.matchid)
 	
-	SELECT m.eventdate,   m.sportName ,  m.LeagueGroupName
+	
+	SELECT m.eventdate,   m.sportName 
+		,case
+			when m.LeagueGroupID = 42 THEN 'Virtual'
+			when m.LeagueGroupID IN (74, 108, 113) and m.sporttype = 1 then 'Virtual'
+			when m.LeagueGroupID in (122) and m.sporttype = 2 then 'Virtual'
+			when m.LeagueGroupID in (151) and m.sporttype = 43 then 'Virtual'
+			else 'Real'
+		end as 'Real/Virtual'
+		,  m.LeagueGroupName
 		, COUNT(DISTINCT r.matchid) AS Matches
 		 ,SUM(r.ManualCalculated ) AS ManualCalculated
 		 ,SUM(r.ManualRefunded ) AS ManualRefunded
@@ -402,7 +420,14 @@ GO
 		 ,SUM( ManualCalculated + ManualRefunded + AutoCal + AutoRefund) AS TotalSettledResourceId
 	FROM #TempResultDetail  r
 		INNER JOIN #TempMatchInfo m ON r.MatchId = m.matchid
-	GROUP BY m.eventdate,   m.sportName ,  m.LeagueGroupName
+	GROUP BY m.eventdate,   m.sportName ,  m.LeagueGroupName 
+		,case
+			when m.LeagueGroupID = 42 THEN 'Virtual'
+			when m.LeagueGroupID IN (74, 108, 113) and m.sporttype = 1 then 'Virtual'
+			when m.LeagueGroupID in (122) and m.sporttype = 2 then 'Virtual'
+			when m.LeagueGroupID in (151) and m.sporttype = 43 then 'Virtual'
+			else 'Real'
+		end
 	ORDER BY eventdate,  m.sportName ,  m.LeagueGroupName
 		
 	--Match vs Result	

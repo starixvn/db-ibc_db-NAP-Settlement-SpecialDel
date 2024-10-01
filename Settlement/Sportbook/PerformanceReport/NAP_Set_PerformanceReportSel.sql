@@ -19,6 +19,7 @@ AS
 		- 20231219@Louisa: Exclude RedCat88 [Redmine:#198365]
 		- 20240409@Louisa: Enhancement [Redmine:#203596]
 		- 20240905@Kathy: get info from all sitedbgroupid [Redmine:#210398]
+		- 20241001@Kathy: Remove groupid 73
 
 	Param's explaination:
 		@UserGroup: 0-send to internal
@@ -73,6 +74,7 @@ BEGIN
 			FROM	bodb_Account.dbo.SettlementPerformanceLog WITH(NOLOCK)
 			WHERE  CreatedDate >= @FromDate
 					AND ISNULL(sitedbgroupid,0) <> 0
+					AND Action NOT IN ('CAL-INST-HT', 'CAL-INST-FT')
 		)s
 		WHERE s.rn = 1
 		GROUP BY LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, ActionId, IsAuto
@@ -180,7 +182,7 @@ BEGIN
 				AND 1 = CASE WHEN lg.GroupID = 42 THEN 0 --Virtual
 						 WHEN sp.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --pingoal
 						 WHEN sp.sporttype = 2 AND lg.GroupID = 122 THEN 0 --pingoal
-						 WHEN sp.sporttype = 1 AND lg.GroupID IN (73,74, 108, 113 ) THEN 0  --Virtual Sport Bacarrat,Virtual Futsal, pingoal
+						 WHEN sp.sporttype = 1 AND lg.GroupID IN (74, 108, 113 ) THEN 0  --Virtual Sport Bacarrat,Virtual Futsal, pingoal
 					ELSE 1
 					END
 				AND l.isTest = 0
