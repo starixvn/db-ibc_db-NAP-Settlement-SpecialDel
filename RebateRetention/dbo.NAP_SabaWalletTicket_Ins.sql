@@ -1,7 +1,9 @@
 ﻿/*<info serverAlias="DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SabaWalletTicket_Ins]		
-	  @SId			SMALLINT
-	 ,@ProgramId	SMALLINT
+	  @SId			INT
+	 ,@ProgramId	SMALLINT = NULL
+	 ,@WalletId		TINYINT
+	 ,@Creator		INT
 	 ,@ListCust		VARCHAR(MAX)				
 AS
 /*	
@@ -39,17 +41,17 @@ BEGIN
 		  ,ci.currency
 		  ,ex.actualrate
 		  ,0 AS StatusId
-		  ,0 AS IsComplaint
+		  ,NULL AS IsComplaint
 		  ,@ProgramId AS ProgramID
-		  ,2 AS WalletID
+		  ,@WalletId AS WalletID
 		  ,GETDATE() AS TransDate
 		  ,CAST(GETDATE() AS Date) AS WinlostDate
 		  ,'Reward to member' AS TransDesc
 		  ,0 AS PaymentStatus
-		  ,SYSDATETIME() AS RepUpdateTime
+		  ,[dbo].[f_GetDateTime2]() AS RepUpdateTime
 		  ,@SiteDBGroupId AS SiteDBGroupID
 		  ,@SId AS SId
-		  ,10278938 AS Creator
+		  ,@Creator AS Creator
 		  ,0 AS IsReversed
 	FROM @tmpCust AS c
 		INNER JOIN CustDB.dbo.custinfo AS ci WITH(NOLOCK) ON c.CustId = ci.CustId

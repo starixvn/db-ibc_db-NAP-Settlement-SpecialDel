@@ -11,7 +11,10 @@
 */
 USE bodb02
 GO
-DECLARE @ProgramId SMALLINT    = 1
+DECLARE @ProgramId SMALLINT		= 1
+	   ,@WalletId  TINYINT		= 2
+	   ,@Creator   INT			= 10278938		
+
 DECLARE @ListCust VARCHAR(MAX) = '[{"c":1, "a":100},{"c":2, "a":100}]'
 
 DROP TABLE IF EXISTS #@tmpCust2k
@@ -35,8 +38,8 @@ FROM OPENJSON(@ListCust) WITH (
 			,a MONEY	'$.a'
 ) 
 
-DECLARE @SId SMALLINT
-EXEC [dbo].[NAP_SabaProgramStatus_Ins] @ProgramId = @ProgramId, @SId = @SId OUTPUT
+DECLARE @SId INT
+EXEC [dbo].[NAP_SabaProgramStatus_Ins] @ProgramId = @ProgramId, @IsTest = 1, @SId = @SId OUTPUT
 
 PRINT @SId
 
@@ -54,7 +57,7 @@ BEGIN
 	PRINT @StopRow
 
 	SET @ParamCust = (SELECT c,a FROM #tmpCust AS tc WHERE tc.id BETWEEN @StartRow AND @StopRow FOR JSON AUTO)
-	EXEC [NAP_SabaWalletTicket_Ins] @SId = @SId,@ProgramId = @ProgramId,  @ListCust = @ParamCust
+	EXEC [NAP_SabaWalletTicket_Ins] @SId = @SId,@ProgramId = @ProgramId, @WalletId = @WalletId, @Creator = @Creator,  @ListCust = @ParamCust
 
 	SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
 	RAISERROR (@debug_message, 0, 1) WITH NOWAIT

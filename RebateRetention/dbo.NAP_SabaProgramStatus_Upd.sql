@@ -1,6 +1,6 @@
 ﻿/*<info serverAlias="DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SabaProgramStatus_Upd]				
-	 @SId			SMALLINT 	
+	 @SId			INT 	
 	,@StatusId		TINYINT = NULL
 	,@IsNotified	BIT		= NULL
 AS
@@ -20,6 +20,7 @@ BEGIN
 	UPDATE SabaProgramStatus
 	SET  StatusId	 = ISNULL(@StatusId,StatusId)
 		,IsNotified	 = ISNULL(@IsNotified,IsNotified)
-	WHERE SId = @SId
+		,RepUpdateTime = SYSDATETIME()
+	WHERE [SId] = @SId
 
 END

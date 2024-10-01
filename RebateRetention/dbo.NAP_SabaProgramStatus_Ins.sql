@@ -1,7 +1,8 @@
 ﻿/*<info serverAlias="DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SabaProgramStatus_Ins]
-	  @ProgramId	SMALLINT					
-	 ,@SId			SMALLINT OUTPUT					
+	  @ProgramId	SMALLINT	
+	 ,@IsTest		BIT = 0
+	 ,@SId			INT		OUTPUT					
 AS
 /*	
 	Created by: 20240919@Aries
@@ -16,8 +17,8 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 
-	INSERT INTO SabaProgramStatus(ProgramId,SiteDBGroupId,StatusId,IsNotified,CreatedDate,RepUpdateTime)
-	SELECT @ProgramId,dbo.f_Get_SiteDBGroupID(),1,0,GETDATE(),SYSDATETIME()
+	INSERT INTO SabaProgramStatus(ProgramId,SiteDBGroupId,StatusId,IsNotified,CreatedDate,RepUpdateTime,IsTest)
+	SELECT @ProgramId,dbo.f_Get_SiteDBGroupID(),1,0,GETDATE(),SYSDATETIME(),@IsTest
 
 	SET @SId = SCOPE_IDENTITY(); 
 
