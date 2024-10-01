@@ -18,6 +18,7 @@ AS
 
 	Revisions:
 		- 20240520@Aries: Created  [Redmine:#202389]
+		- 20240930@Aries: Fix the issue duplicated settlement DBTrans and SiteDBs for HP5  [Redmine:#211434]
 
 	Param's Explanation:
 		
@@ -26,6 +27,9 @@ BEGIN
 	SET NOCOUNT ON
 	DECLARE @TotalTicket		INT = 0
 		   ,@BatchCount			INT = 0
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 	
 	CREATE TABLE #tmpBatchDataByCust(BatchNo SMALLINT,Custid INT, Transid BIGINT,PRIMARY KEY (BatchNo,Custid,Transid))
 	CREATE TABLE #tmpBatchData(BatchNo SMALLINT,Custid INT, Transid BIGINT,PRIMARY KEY (BatchNo,Custid,Transid))
