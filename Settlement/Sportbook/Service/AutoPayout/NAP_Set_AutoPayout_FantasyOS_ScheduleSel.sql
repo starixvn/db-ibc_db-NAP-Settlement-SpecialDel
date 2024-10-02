@@ -10,6 +10,8 @@ AS
 		- 20240422@Aries: Fix a issue due to the insufficient Leagueid of Fantasy matches for Basketball [Redmine:#204170]
 		- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 		- 20240731@Aries: Apply Direct Payout for SABA CLUB FRIENDLY and SABA ENGLISH PREMIER LEAGUE - Virtual FC 24 - 16 Mins Play [Redmine:#208347]
+		- 20241001@Aries: Support Direct Payout for Australia NBL - Fantasy Matches [Redmine:#211429]
+		- 20241001@Aries: Support Direct Payout for Philippines PBA Governors Cup - Fantasy Matches of Basketball [Redmine:#210967]
 
 	Param's Explanation:
  
@@ -61,7 +63,7 @@ BEGIN
 		 
 	WHERE m.eventstatus = 'running' 
 		AND m.eventdate BETWEEN @FromDate AND @ToDate
-		AND m.leagueid IN (56053,56037,56069,136578,99321,132325,16926,152504,152505)
+		AND m.leagueid IN (56053,56037,56069,136578,99321,132325,16926,152504,152505,154350,155276)
 		AND ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0))  & 16 > 0
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
 		AND rs.IsExistAP IS NULL
