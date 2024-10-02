@@ -12,7 +12,7 @@ AS
 		- 20240731@Aries: Apply Direct Payout for SABA CLUB FRIENDLY and SABA ENGLISH PREMIER LEAGUE - Virtual FC 24 - 16 Mins Play [Redmine:#208347]
 		- 20241001@Aries: Support Direct Payout for Australia NBL - Fantasy Matches [Redmine:#211429]
 		- 20241001@Aries: Support Direct Payout for Philippines PBA Governors Cup - Fantasy Matches of Basketball [Redmine:#210967]
-
+		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
 	Param's Explanation:
  
 */
@@ -26,6 +26,8 @@ BEGIN
 			,@FromDate			DATETIME
 			,@ToDate			DATETIME	
 
+	DECLARE @tblLeagueID		TABLE(LeagueId INT)
+
 	CREATE TABLE #tmpMatch(MatchId INT,LeagueId INT,Sporttype SMALLINT,ResultTable TINYINT, Action  VARCHAR(20), SettlementStatus TINYINT,LastParentCalculateDate DATETIME, TotalResourceFantasy INT, TotalParent INT, IsCnfRefund BIT DEFAULT 0, PRIMARY KEY (MatchId) WITH (IGNORE_DUP_KEY = ON))
 	CREATE TABLE #tmpParent(MatchId INT,ParentId INT,Sporttype SMALLINT,ResultTable TINYINT,ParentEventStatus NVARCHAR(100),SettlementStatus TINYINT, IsValid BIT, PRIMARY KEY (MatchId,ParentId) WITH (IGNORE_DUP_KEY = ON))
 	CREATE TABLE #tmpParentResource(MatchId INT,ParentId INT,ParentEventStatus NVARCHAR(100),ParentSettlementStatus TINYINT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT,ResultSetting TINYINT,LastModifyDate DATETIME, PRIMARY KEY (MatchId,ParentId,ResourceId) WITH (IGNORE_DUP_KEY = ON))
@@ -34,6 +36,11 @@ BEGIN
 	SET @CurrentDate = CAST(GETDATE() AS DATE)
 	SELECT	@FromDate = DATEADD(DAY,-1,@CurrentDate)
 		   ,@ToDate = DATEADD(DAY,1,@CurrentDate)
+
+	INSERT INTO @tblLeagueID(LeagueId)
+	SELECT LeagueId
+	FROM SettlementSetting WITH(NOLOCK)
+	WHERE AutoType = 10
 
 	INSERT INTO #tmpSportResource(Sporttype,ResourceId)
 	VALUES (2, 'Q1')
@@ -49,8 +56,9 @@ BEGIN
 		  ,m.Sporttype
 		  ,ts.ResultTable
 		  ,m.SettlementStatus
-	FROM match AS m WITH(NOLOCK)
-		INNER JOIN dbo.League AS l WITH(NOLOCK) ON	m.leagueid = l.leagueid
+	FROM @tblLeagueID AS ls 
+		INNER JOIN dbo.League AS l WITH(NOLOCK) ON	ls.leagueid = l.leagueid
+		INNER JOIN match AS m WITH(NOLOCK)  ON	m.leagueid = l.leagueid
 		INNER JOIN dbo.SettlementResultTableSetting AS ts WITH(NOLOCK) ON ts.Sporttype = l.Sporttype
 		OUTER APPLY (SELECT TOP 1 1 AS IsExistAP 
 					 FROM dbo.AutoPayoutResultOS AS apr WITH(NOLOCK) 
@@ -60,10 +68,8 @@ BEGIN
 					 FROM dbo.AutoRefundResultOS AS arr WITH(NOLOCK) 
 					 WHERE arr.MatchId = m.matchid 
 				) AS ar
-		 
 	WHERE m.eventstatus = 'running' 
 		AND m.eventdate BETWEEN @FromDate AND @ToDate
-		AND m.leagueid IN (56053,56037,56069,136578,99321,132325,16926,152504,152505,154350,155276)
 		AND ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0))  & 16 > 0
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
 		AND rs.IsExistAP IS NULL
