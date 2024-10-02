@@ -150,6 +150,7 @@ BEGIN
 		, SubIssueTypeId
 		, TransIds
 		, AdvancedExtraInfo
+		, Sporttype
 		)
 	SELECT @RequestId
 		, l.MatchID
@@ -166,6 +167,7 @@ BEGIN
 		, l.SubIssueTypeId
 		, l.WrongOddsSB
 		, l.AdvancedExtraInfo
+		, m.sporttype
 	FROM #tblGetLogInfo l
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
 		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID

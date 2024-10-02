@@ -29,6 +29,7 @@ AS
 		- 20230831@Max: [TVS] Integrate 4 new bet types of Basketball [Redmine: #192608]
 		- 20240726@Max: [TVS] Integrate new bet type of Baseball AiO [Redmine: #207034]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241002@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 
     Parameters Explanation:    
     
@@ -884,6 +885,11 @@ RETURN (
 	UNION ALL SELECT 8833,'FT',0
 	UNION ALL SELECT 8834,'FT',0
 	UNION ALL SELECT 8835,'FT',0
+
+	--Include some Consolidated Bettypes
+	UNION ALL SELECT 11,'FT',0
+	UNION ALL SELECT 160,'FT',0
+	UNION ALL SELECT 164,'FT',0
 
 	)
 
