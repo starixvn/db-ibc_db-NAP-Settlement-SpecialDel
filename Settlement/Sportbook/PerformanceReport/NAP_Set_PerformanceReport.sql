@@ -19,6 +19,8 @@ AS
 		- 20230605@Louisa: Get data group by SiteDBGroupId [Redmine:#185675]
 		- 20230906@Kathy: list detail SettleAction
 		- 20240403@Louisa: New hold match Action [Redmine:#203333]
+		- 20240906@Kathy: Baseball AIO [Redmine:#206154]
+		- 20241001@Kathy: Support Instant value for Soccer Report [Redmine:#211531]
 */
 BEGIN
 	DECLARE @maxdate DATETIME
@@ -101,7 +103,7 @@ BEGIN
 	INSERT INTO #tmpDATA(matchid, starttime, exectime, duration, isauto, adminid, action, eventdate, sqlcommand, SiteDBGroupId)
 	SELECT	matchid, starttime, exectime, duration, CASE WHEN adminid = 0 THEN 1 ELSE 0 END AS isauto, adminid, action, eventdate, sqlcommand, SiteDBGroupId
 	FROM	dbo.Single_Calculate_Queue_bk s WITH (NOLOCK)
-	WHERE	action IN ('CAL-HT', 'CAL-FT', 'CAL', 'INST-HT', 'INST-FT')
+	WHERE	action IN ('CAL-HT', 'CAL-FT', 'CAL', 'CAL-INST-HT','CAL-INST-FT')
 			AND Starttime > @maxdate
 	UNION ALL
 	SELECT	matchid, starttime, exectime, duration, CASE WHEN Creator = 0 THEN 1 ELSE 0 END AS isauto, creator, 'CAL-PARLAY' AS action, eventdate, '' AS sqlcommand, SiteDBGroupId
@@ -116,13 +118,13 @@ BEGIN
 	SELECT	 m.leagueid, m.homeid, m.awayid, m.kickofftime, m.globalshowtime
 			,d.matchid 
 			,CASE 
-				WHEN d.action IN ( 'CAL-HT', 'INST-HT') AND f.ResourceID IS NULL THEN '01'
+				WHEN d.action IN ( 'CAL-HT', 'CAL-INST-HT') AND f.ResourceID IS NULL THEN '01'
 				WHEN f.ResourceID IS NULL THEN '00'
 				ELSE f.ResourceID
 			END AS ResourceID
 			,CASE 
-				WHEN d.action IN ('CAL-HT', 'INST-HT') THEN 1
-				WHEN d.action IN ('CAL-FT', 'INST-FT') THEN 2
+				WHEN d.action IN ('CAL-HT', 'CAL-INST-HT') THEN 1
+				WHEN d.action IN ('CAL-FT', 'CAL-INST-FT') THEN 2
 				WHEN d.action = 'CAL' AND f.ResourceID IS NULL THEN 2
 				ELSE f.ActionId
 			END AS ActionId
@@ -176,6 +178,7 @@ BEGIN
 									END
 						WHEN f.RoundID = '01' THEN 1 -- ht
 						WHEN f.RoundID = '00' THEN 2 -- ft
+						WHEN f.RoundId = 'EI' THEN 2 -- extra inning -- FT
 						ELSE 100 + f.RoundID%800 -- 101-->130
 					END AS ActionId
 			FROM	dbo.f_Set_MajorRound(m.SportType) f
@@ -227,11 +230,11 @@ BEGIN
 			FROM	STRING_SPLIT(sqlcommand, ',') f
 			WHERE	f.[value] LIKE '%@awayscore%'
 		)fa
-	WHERE	Action LIKE 'INST%'
+	WHERE	Action LIKE 'CAL-INST%'
 
 	INSERT INTO #tmpINST (matchid, action, homescore, awayscore, confirmdate)
 	SELECT	p.matchid
-			,CASE WHEN p.typeid = 101 THEN 'INST-HT' ELSE 'INST-FT' END AS action
+			,CASE WHEN p.typeid = 101 THEN 'CAL-INST-HT' ELSE 'CAL-INST-FT' END AS action
 			,p.homevalue AS homescore
 			,p.awayvalue AS awayscore
 			,p.createddate AS confirmdate
@@ -246,7 +249,7 @@ BEGIN
 
 	UNION ALL
 	SELECT	p.matchid
-			,CASE WHEN p.typeid = 101 THEN 'INST-HT' ELSE 'INST-FT' END AS action
+			,CASE WHEN p.typeid = 101 THEN 'CAL-INST-HT' ELSE 'CAL-INST-FT' END AS action
 			,p.homevalue AS homescore
 			,p.awayvalue AS awayscore
 			,p.createddate AS confirmdate
