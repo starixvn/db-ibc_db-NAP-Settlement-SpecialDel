@@ -609,13 +609,14 @@ BEGIN
 	END
 
 	--Data Section
-	INSERT INTO #logInfo (MatchId, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, SettleCount)
+	INSERT INTO #logInfo (MatchId, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, SettleCount, CashOutCount)
 	SELECT b.matchid AS MatchId
 		,MIN(b.transdate) AS VoidFromTime
 		,MAX(b.transdate) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
 		,COUNT(CASE WHEN b.transid <> b.SubTransid THEN b.transid ELSE NULL END) AS MainParlayCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS CashOutCount
 	FROM #TVSTicketBets b 
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
 	GROUP BY b.matchid
@@ -715,10 +716,11 @@ BEGIN
 		GROUP BY r.RequestId, r.MatchId
 
 		/*Get log info for Void Page*/
-		INSERT INTO #logInfoVoidPage (RequestId, MatchId, SettleCount)
+		INSERT INTO #logInfoVoidPage (RequestId, MatchId, SettleCount, CashOutCount)
 		SELECT @RequestId
 				,b.matchid
 				,COUNT(CASE WHEN ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS SettleCount
+				,COUNT(CASE WHEN ISNULL(b.betdaqid, -1) = -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS CashOutCount
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN #tmpTransInfo b ON b.transid = s.transid AND b.matchid = s.MatchId AND b.IsMixParlay = 0
 			LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
@@ -765,6 +767,7 @@ BEGIN
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			,0 AS CancelCashOutCount
 			,t.SettleCount
+			,t.CashOutCount
 			,v.LogInfoTicketsJson
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
@@ -941,6 +944,7 @@ BEGIN
 		,0 AS CancelCashOutCount
 		,SUM(MainParlayCount) AS MainParlayCount
 		,SUM(SettleCount) AS SettleCount
+		,SUM(CashOutCount) AS CashOutCount
 		,v.LogInfoTicketsJson
 	FROM #logInfo l
 		INNER JOIN @Validation v ON l.MatchId = v.MatchId
