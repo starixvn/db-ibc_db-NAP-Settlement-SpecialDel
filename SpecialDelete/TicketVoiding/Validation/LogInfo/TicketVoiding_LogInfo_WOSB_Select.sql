@@ -51,7 +51,9 @@ BEGIN
 			SubIssueTypeId		  SMALLINT,
 			OddsType			INT,
 			FilterOdds			MONEY,
-			Filterbettype        SMALLINT
+			Filterbettype        SMALLINT,
+			betid				  BIGINT,
+			SettledType			  TINYINT -- 1: Instant Settlement, 2: Normal Settlement, 3: SABA Time Machine Settlement
 	)
 
 	CREATE TABLE #logInfo (
@@ -162,12 +164,14 @@ BEGIN
 	DECLARE @Validation AS TABLE (
 			 IsInValidTotalTickets   BIT DEFAULT(0) 
 			,IsExistedInOtherRequest BIT DEFAULT(0) 
+			,IsHasSettledTicket		 BIT DEFAULT(0) 
+			,IsHasInstantlySettledTicket BIT DEFAULT(0)
 			,MatchId                 INT
 			,LogInfoTicketsJson		 NVARCHAR(MAX)
 		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
-	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT, IsCancelCashOut BIT)
+	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
 	DECLARE @tmpConsolidatedBettypes TABLE (
         parentid        INT
         ,typeid         INT PRIMARY KEY
@@ -203,33 +207,65 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@WrongOddsSBInfoXML = NULL ))
 
 	BEGIN -- Instant Settlement declaration
-		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
-		CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT)	
+		
+		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)	
+		DECLARE @SupportInstantSettleSABABettype TABLE (bettype SMALLINT);
 
-		--> Get status of match
-		;WITH cte_match AS
-		(
-			SELECT DISTINCT t.matchid
-			FROM #FilterInfo t
-				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
-		)
-		,cte_isCalHT AS
-		(
+		INSERT INTO @SupportInstantSettleSABABettype (bettype)
+		VALUES (228) --SABA OU Time Machine
+			 , (229) --SABA HDP Time Machine
+
+		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
+		CREATE TABLE #CTE_match (matchid INT, sporttype SMALLINT)
+		CREATE TABLE #CTE_isCal (matchid INT, IsHTCal BIT, ResourceId VARCHAR(20))
+
+		INSERT INTO #CTE_match (matchid, sporttype)
+		SELECT DISTINCT t.matchid, m.sporttype
+		FROM #FilterInfo t
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
+			
+		IF EXISTS (SELECT TOP 1 1 FROM #CTE_match WHERE sporttype = 1) --Soccer	 
+		BEGIN 
+			INSERT INTO #CTE_isCal (matchid, IsHTCal)
 			SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
-			FROM cte_match m
+			FROM #CTE_match m
 				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
-		)
-		--> Build bettype list supported for instant settlement based on settlement status of match
-		INSERT INTO #InstantSettlementBettypes (matchid, bettype)
-		SELECT c.matchid,  f.bettype
-		FROM cte_isCalHT c
-			CROSS APPLY (
-					SELECT bettype
-					FROM dbo.f_TVS_GetInstantBettypes() 
-					WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
-								WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
-							ELSE 0 END
-			)f	 	
+			WHERE m.sporttype = 1
+
+			--> Build bettype list supported for instant settlement based on settlement status of match
+			INSERT INTO #InstantSettlementBettypes (matchid, bettype)
+			SELECT c.matchid,  f.bettype
+			FROM #CTE_isCal c
+				CROSS APPLY (
+						SELECT bettype
+						FROM dbo.f_TVS_GetInstantBettypes() 
+						WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
+									   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
+									ELSE 0 END
+				)f	 	
+		END
+		IF EXISTS (SELECT TOP 1 1 FROM #CTE_match WHERE sporttype = 2) --Basketball
+		BEGIN
+			INSERT INTO #CTE_isCal (matchid, ResourceId)
+			SELECT m.matchid, rd.ResourceId
+			FROM #CTE_match m
+				LEFT JOIN DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
+					ON rd.matchid = m.matchid
+					AND ResultStatusID IN (2,5) AND (ResourceId LIKE 'Q[1-4]' OR ResourceId IN ('01','OT')) 
+			WHERE m.sporttype = 2
+
+			INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
+			SELECT DISTINCT c.matchid, f.bettype, f.betid
+			FROM #CTE_isCal c
+				CROSS APPLY (
+						SELECT bettype, betid
+						FROM dbo.f_TVS_GetInstantBettypes()
+						WHERE InstantType IS NULL
+						AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
+									 WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal) THEN 1
+									 ELSE 0 END
+				)f	 	
+		END
 	END	
 	
 	INSERT INTO #tmpTransInfo( 
@@ -365,6 +401,7 @@ BEGIN
 			,FilterOdds
 			,OddsType
 			,Filterbettype
+			,betid
 		)
 	SELECT  DISTINCT b.transid
 			,b.transid AS SubTransID
@@ -383,6 +420,7 @@ BEGIN
 			,b.odds
 			,b.oddstype
 			,b.bettype
+			,b.betid
 	FROM #tmpTransInfo b 
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType AND f.SubIssueTypeId = d.SubIssueTypeId
@@ -415,6 +453,7 @@ BEGIN
 				,FilterOdds
 				,OddsType
 				,Filterbettype
+				,betid
 			)
 		SELECT  DISTINCT b.transid
 				,b.Subtransid 
@@ -433,6 +472,7 @@ BEGIN
 				,b.Subodds
 				,b.oddstype
 				,b.Subbettype
+				,betid
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
 				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType AND f.SubIssueTypeId = d.SubIssueTypeId
@@ -608,6 +648,45 @@ BEGIN
 		WHERE EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = SubTransid)
 	END
 
+	--Update check instant settled
+	UPDATE b
+	SET  b.SettledType = CASE 
+							WHEN ISNULL(m.eventstatus, '') <> @eventstatus_completed
+								THEN CASE
+										WHEN m.sporttype = 1 AND EXISTS (
+											SELECT TOP 1 1
+											FROM #InstantSettlementBettypes AS i
+											WHERE b.Subbettype = i.bettype
+											) THEN 1
+										WHEN m.sporttype = 2 AND EXISTS (
+											SELECT TOP 1 1
+											FROM #InstantSettlementBettypes AS i
+											WHERE b.Subbettype = i.bettype AND (b.betid = i.betid OR b.betid IS NULL)
+											) THEN 1
+										WHEN ib.bettype IS NOT NULL THEN 3
+										ELSE 2
+									END
+							WHEN ib.bettype IS NOT NULL THEN 3
+							ELSE 2
+						END
+	FROM #TVSTicketBets b 
+		INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid
+		LEFT JOIN @SupportInstantSettleSABABettype ib ON b.Subbettype = ib.bettype
+	WHERE ISNULL(b.betdaqid,0) <> -2
+		  AND b.SubStatusId IN (111, 112, 113)
+
+	UPDATE v 
+	SET v.IsHasSettledTicket = l.IsHasSettledTicket
+	   ,v.IsHasInstantlySettledTicket = l.IsHasInstantlySettledTicket
+	FROM @Validation v
+	OUTER APPLY( 
+			SELECT MAX(CASE WHEN SettledType = 2 THEN 1 ELSE 0 END) AS IsHasSettledTicket
+				 , MAX(CASE WHEN SettledType IN (1,3) THEN 1 ELSE 0 END) AS IsHasInstantlySettledTicket
+			FROM #TVSTicketBets
+			WHERE MatchId = v.MatchId
+			GROUP BY MatchId
+		)l
+
 	--Data Section
 	INSERT INTO #logInfo (MatchId, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, SettleCount, CashOutCount)
 	SELECT b.matchid AS MatchId
@@ -687,7 +766,6 @@ BEGIN
 			,m.SettlementStatus AS 'SettlementStatus'
 			,m.sporttype AS 'sporttype'
 		    ,ISNULL(tb.parentid, m.Subbettype) AS 'GroupBettypeId' --Return for web filter bettype
-			,s.IsCancelCashOut AS 'IsCancelCashOut'
 	FROM @tmpLogInfoTickets s
 		INNER JOIN #tmpTransInfo m ON s.transid = m.Subtransid
 		LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = m.Subbettype
@@ -703,6 +781,8 @@ BEGIN
 		SELECT MatchId
 			,IsInValidTotalTickets
 			,IsExistedInOtherRequest
+			,IsHasSettledTicket
+			,IsHasInstantlySettledTicket
 		FROM @Validation
 
 		-- 2. TransId in request table
@@ -806,6 +886,8 @@ BEGIN
 		SELECT MatchId
 			, 1 AS IsInValidTotalTickets
 			, IsExistedInOtherRequest
+			, IsHasSettledTicket
+			, IsHasInstantlySettledTicket
 		FROM @Validation
 
 		-- 2. TransId in request table
@@ -913,6 +995,8 @@ BEGIN
 	SELECT MatchId
 		,IsInValidTotalTickets
 		,IsExistedInOtherRequest
+		,IsHasSettledTicket
+		,IsHasInstantlySettledTicket
 	FROM @Validation
 
 	-- 2. TransId exists in other request table
