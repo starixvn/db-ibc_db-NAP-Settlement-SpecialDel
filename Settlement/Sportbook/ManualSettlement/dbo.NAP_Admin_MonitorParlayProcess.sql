@@ -20,6 +20,7 @@ AS
 	Revisions:
 		 - 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		 - 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		 - 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 
 	Param's Explanation:  
 	
@@ -152,34 +153,7 @@ BEGIN
 				,@IP = T.C.value('@IP','VARCHAR(50)')
 				,@BroadcastSessionId = T.C.value('@BroadcastSessionId','VARCHAR(50)')
 
-				,@ErrMsg = T.C.value('@ErrMsg','VARCHAR(300)')
-				,@ErrCode = T.C.value('@ErrCode','INT')
 		FROM	@LogData.nodes('/root/r') AS T(C)
-		
-		IF @IsAuto = 1 AND @Action = 'REFUND' AND @sporttype <> 1
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultUpd
-				@MatchId = @matchid
-				,@StatusId = 2
-				,@ResourceIds  = @ResourceRefund
-		END
-
-		--Auto refund Badminton after calculate parlay by Auto Service
-		IF @IsAutoRefund = 1
-		BEGIN
-			EXEC dbo.NAP_Set_GetRefundResult
-					@MatchId		= @MatchID
-					,@Sporttype		= @sportType
-					,@CalculateResources= @SelectedResources
-					,@ResourceRefund = @ResourceRefund OUTPUT
-
-			IF ISNULL(@ResourceRefund, '')  <> ''
-			BEGIN
-				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
-					@MatchId		 = @MatchID
-					,@ResourceIds	 = @ResourceRefund
-			END
-		END 
 
 		-- write log
 		BEGIN

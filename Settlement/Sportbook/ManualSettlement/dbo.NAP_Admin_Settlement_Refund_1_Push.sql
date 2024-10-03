@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_1_Push] 
     @Matchid			INT
 	,@Action			VARCHAR(20)
@@ -26,6 +26,7 @@ AS
     Revisions: 
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
         - 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+        - 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 
     Param's Explanation:
     

@@ -30,6 +30,7 @@ AS
 		- 20231213@Aries: Enhance Recalculation and Instant Settle for Basketball [Redmine:#198283]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]    
+		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 
     Param's Explanation:
         - @Action: 'CAL', 'CAL-INST'
@@ -482,15 +483,6 @@ BEGIN
 	END
 	
 	BEGIN
-		IF @IsInstant = 1
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
-				 @MatchId 			= @matchid
-				,@SelectedResources = @SelectedResources
-				,@StatusId 			= 2
-				,@UserId			= @AdminId
-				,@SourceID			= 98
-		END
 
 		SELECT @Selected = STRING_AGG (ISNULL(sd.RoundName,CAST(SDTResourceId AS VARCHAR)) + '(' + HomeValue + '-' + AwayValue  + ')',', ')
 		FROM @tmpResources r

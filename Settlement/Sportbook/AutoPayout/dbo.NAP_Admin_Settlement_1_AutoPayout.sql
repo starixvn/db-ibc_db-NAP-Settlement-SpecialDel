@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout]  
 	@creator 			INT
 	, @matchid			INT
@@ -51,6 +51,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
+		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 
 	Param's Explanation:
 		 
@@ -155,9 +156,6 @@ BEGIN
 			SELECT	@ErrCode = 1001017
 					,@ErrMsg = ERROR_MESSAGE()
 		END CATCH
-			
-		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
-																	, @SourceId = @SourceId
 
 		IF @Action = 'CAL-FT' AND ISNULL(@fta,0) <> ISNULL(@fth,0)
 		BEGIN

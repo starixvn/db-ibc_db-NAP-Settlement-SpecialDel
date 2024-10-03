@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02 , DBSIC-bodb02 , DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_MonitorProcess]
 	@SessionId BIGINT
 	,@MatchId INT
@@ -30,6 +30,7 @@ AS
 		  - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
 		  - 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 		  - 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
+		  - 20241023@Aries: Exclude LiveScore comparation between Traders and Soccerway for Instant Settlement [Redmine:#212500]
 
 	Param's Explanation:  
 	
@@ -181,8 +182,7 @@ BEGIN
 			SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())	
 			SELECT @Remark = '<distinct>'
 									+ CASE 
-										WHEN @Action LIKE '%INST%' THEN
-											CASE WHEN @SourceId = 5 THEN '<r n="Source" v="Soccerway"/>' ELSE '' END
+										WHEN @Action LIKE '%INST%' THEN '' 
 										WHEN @Action LIKE 'CAL%' THEN 
 											CASE 
 												WHEN @SourceId = 1 THEN '<r n="Auto Payout" v="SBO"/>'

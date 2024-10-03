@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_MP] (
 	@MatchId 	INT
 	,@Creator 	INT
@@ -32,6 +32,7 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220709@Louisa: Fix select INTO [Redmine:#100002]
 		- 20201216@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 		
 	Param's Explanation:		
 		
@@ -511,13 +512,6 @@ BEGIN
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 	VALUES (@matchid, NULL, NULL, CURRENT_TIMESTAMP, 'well done, no more to do')
 
-	IF @IsAutoRefund = 1
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
-			  @MatchId = @matchid 
-			, @TypeId  = 10
-			, @StatusId = 2
-		END
 	----------------------------------------------------------------------------------------------------------------------------------------
 	IF @IsCentral = 1 
 	BEGIN --BEGIN: WRITE LOG ----------------------------------		
