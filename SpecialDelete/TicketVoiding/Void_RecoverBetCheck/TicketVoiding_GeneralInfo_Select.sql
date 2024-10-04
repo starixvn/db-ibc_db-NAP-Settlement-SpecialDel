@@ -89,6 +89,7 @@ BEGIN
 			,r.IssueTypeId
 			,CASE WHEN r.IssuetypeId IN (22) THEN r.CreatedDate ELSE NULL END AS RecoveredTime
 			,m.sporttype
+			,VendorMatchId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		OUTER APPLY (
