@@ -195,6 +195,7 @@ BEGIN
 END
 
 -- STEP 1 : BackUp bettrans
+/*
 -- 1.1  backup for normal tickets
 INSERT INTO zzzbettrans (
 	transid
@@ -252,6 +253,7 @@ FROM dbo.bettrans AS main WITH (NOLOCK)
 	INNER JOIN #BetDelete AS tmpmain WITH (NOLOCK) 
 	ON	main.transid = tmpmain.transid 
 	AND main.matchid = tmpmain.matchid		
+*/
 --capture balance before
 INSERT INTO @BeforeUpd (
 		matchid
