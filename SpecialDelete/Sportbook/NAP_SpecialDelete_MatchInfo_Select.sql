@@ -82,6 +82,7 @@ BEGIN
 					,l.LeagueGroupID
 					,m.GlobalShowTime
 					,mr.NumberOfCorner
+					,NULL AS VendorMatchId
 			FROM	dbo.match AS m WITH (NOLOCK) 
 				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
 				OUTER APPLY (
@@ -104,6 +105,7 @@ BEGIN
 					,l.LeagueGroupID
 					,m14.globalshowtime
 					,mr.NumberOfCorner
+					,NULL AS VendorMatchId
 			FROM	dbo.match14 AS m14 WITH (NOLOCK) 
 				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m14.leagueid = l.leagueid
 				OUTER APPLY (
@@ -128,6 +130,7 @@ BEGIN
 				NULL AS LeagueGroupID,
 				match.StartTime,
 				NULL AS NumberOfCorner
+				,NULL AS VendorMatchId
 			FROM dbo.Match3rd AS match WITH (NOLOCK) 
 			WHERE match.Match3rdId = @matchID
 			UNION ALL --VS5
@@ -145,37 +148,46 @@ BEGIN
 				NULL AS LeagueGroupID,
 				match.StartTime,
 				NULL AS NumberOfCorner
+				,NULL AS VendorMatchId
 			FROM dbo.Match3rd14 AS match WITH (NOLOCK) 
 			WHERE match.Match3rdId = @matchID
 
 			UNION ALL --Virtual Sports 2 (Betradar)
 			SELECT
-				r.EventID as matchid,
-				o.RacerID AS homeid,
-				0 AS awayid,
-				r.EventID AS matchcode,
-				o.EventDate,
-				r.leagueid,
-				CONVERT(BIT,0) AS IsNeutral,
-				o.KickoffTime as kickofftime,
-				r.SportType,
-				r.VendorMatchId
+				r.EventID AS matchid,
+				NULL,
+				NULL,
+				NULL AS matchcode, 
+				o.eventdate, 
+				r.LeagueID leagueid,
+				NULL AS IsNeutral,
+				NULL AS showtime,
+				o.KickoffTime AS kickofftime,
+				r.sporttype,
+				NULL AS LeagueGroupID,
+				o.KickoffTime,
+				NULL AS NumberOfCorner
+				,r.VendorMatchId AS VendorMatchId
 			FROM dbo.VSOutright o WITH (NOLOCK)
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) ON r.EventID = o.EventID
 			WHERE r.EventID = @matchID
 				AND r.SportType IN (177,198)
 			UNION ALL 
 			SELECT
-				r.EventID as matchid,
-				o.RacerID AS homeid,
-				0 AS awayid,
-				r.EventID AS matchcode,
-				o.EventDate,
-				r.leagueid,
-				CONVERT(BIT,0) AS IsNeutral,
-				o.KickoffTime as kickofftime,
-				r.SportType,
-				r.VendorMatchId
+				r.EventID AS matchid,
+				NULL,
+				NULL,
+				NULL AS matchcode, 
+				o.eventdate, 
+				r.LeagueID leagueid,
+				NULL AS IsNeutral,
+				NULL AS showtime,
+				o.KickoffTime AS kickofftime,
+				r.sporttype,
+				NULL AS LeagueGroupID,
+				o.KickoffTime,
+				NULL AS NumberOfCorner
+				,r.VendorMatchId AS VendorMatchId
 			FROM dbo.VSOutright14 o WITH (NOLOCK)
 			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) ON r.EventID = o.EventID
 			WHERE r.EventID = @matchID
