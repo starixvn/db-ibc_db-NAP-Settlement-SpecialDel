@@ -17,6 +17,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:
 	
@@ -98,6 +99,21 @@ BEGIN
     FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			INNER JOIN dbo.Match3rd14 m14 WITH(NOLOCK) ON rd.matchid = m14.Match3rdId 
 	WHERE m14.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 					
+    GROUP  BY rd.requestid
+
+	INSERT INTO @tmpResult (RequestID, Eventdate) 
+    SELECT rd.requestid, MIN(o.eventdate)
+    FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+			INNER JOIN dbo.VSRaceInfo m WITH(NOLOCK) ON rd.matchid = m.EventID 
+			INNER JOIN dbo.VSOutright o WITH (NOLOCK) ON m.EventID = o.EventID
+	WHERE o.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 						
+    GROUP  BY rd.requestid
+	UNION ALL
+	SELECT rd.requestid, MIN(o.eventdate)
+    FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+			INNER JOIN dbo.VSRaceInfo14 m WITH(NOLOCK) ON rd.matchid = m.EventID 
+			INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) ON m.EventID = o.EventID
+	WHERE o.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 					
     GROUP  BY rd.requestid
     
 	SET @RequestInfo = COMPRESS((

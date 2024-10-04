@@ -21,6 +21,7 @@ AS
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -83,7 +84,8 @@ BEGIN
 		SubHdp1			SMALLMONEY,
 		SubHdp2			SMALLMONEY,
 		SubOdds			SMALLMONEY,
-		SubTransdesc	NVARCHAR(2000)		
+		SubTransdesc	NVARCHAR(2000),
+		VendorMatchId VARCHAR(50)
 	)
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
@@ -210,7 +212,7 @@ BEGIN
 		  AND z.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))		  		
 		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
 
-		--> Inspired VS 181
+		--> Inspired VS 181, Virtual Horse Racing & Virtual Dog Racing
 		INSERT INTO #RecoverBet(
 				Stake,
 				AwayId,
@@ -252,7 +254,8 @@ BEGIN
 				SubHdp1,
 				SubHdp2,
 				SubOdds,
-				SubTransdesc)
+				SubTransdesc,
+				VendorMatchId)
 		SELECT  z.Stake,
 				0 AS AwayId,
 				z.BetCheck,
@@ -293,7 +296,8 @@ BEGIN
 				NULL AS SubHdp1,
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
-				NULL AS SubTransdesc
+				NULL AS SubTransdesc,
+				VendorMatchId
 		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON	z.transid = b.transid
@@ -306,8 +310,8 @@ BEGIN
 					 ON r.EventID = o.EventID
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 		  AND z.winlostdate >= @before_yesterday
-		  AND r.sporttype BETWEEN 181 AND 185 -- Inspired VS 181		  				  			  				
-		  AND b.bettype IN (1231,1232,1233,1237,1238)		
+		  AND (r.sporttype BETWEEN 181 AND 185 OR r.SportType IN (177,198)) -- Inspired VS 181		  				  			  				
+		  AND b.bettype IN (1231,1232,1233,1237,1238,2770,2771)		
 		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
 
 		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
@@ -707,7 +711,8 @@ BEGIN
 			r.SubHdp2,
 			r.SubOdds,
 			r.SubTransdesc,
-			@SiteDBGroupID AS SiteDBGroupID
+			@SiteDBGroupID AS SiteDBGroupID,
+			VendorMatchId
 	FROM #RecoverBet r
 	     CROSS APPLY (SELECT CASE 
 								WHEN r.IsDeposit = 0  

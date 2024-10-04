@@ -88,6 +88,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240729@July: Fix data length  [Redmine: #208544]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -162,6 +163,12 @@ BEGIN
 	SELECT match3rdId, sporttype
 	FROM dbo.match3rd WITH (NOLOCK)
 	WHERE match3rdId = @MatchID
+
+	UNION --Virtual Horse Racing & Virtual Dog Racing
+	SELECT EventID, sporttype
+	FROM dbo.VSRaceInfo WITH (NOLOCK)
+	WHERE EventID = @MatchID
+		AND SportType IN (177,198)
 
 	SELECT @SportType = sporttype FROM @tmpMatchId
 

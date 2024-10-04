@@ -68,6 +68,7 @@ AS
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240912@Max: [TVS] - Manage request - Missing info Calc Half Time & Calc Full Time When Export Excel [Redmine: #210647]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:	
 		@Status: 
@@ -214,6 +215,23 @@ BEGIN
 					) m
 		WHERE rd.RequestId = @RequestId
 		GROUP BY rd.RequestId
+
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT rd.RequestId, MIN(m.eventdate)
+		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		CROSS APPLY (
+					SELECT m.EventID, o.eventdate
+					FROM	dbo.VSRaceInfo m WITH(NOLOCK)
+						INNER JOIN dbo.VSOutright o WITH (NOLOCK) ON o.EventID = m.EventID
+					WHERE rd.MatchId = m.EventID
+					UNION ALL
+					SELECT	m14.EventID, o.eventdate
+					FROM	dbo.VSRaceInfo14 m14 WITH(NOLOCK)
+						INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) ON o.EventID = m14.EventID
+					WHERE rd.MatchId = m14.EventID
+					) m
+		WHERE rd.RequestId = @RequestId
+		GROUP BY rd.RequestId
 	END
 	ELSE
 	IF @FilteredBy = 2
@@ -280,6 +298,23 @@ BEGIN
 					WHERE rd.MatchId = m14.Match3rdId
 					) m
 		WHERE rd.MatchId = @MatchId 
+		GROUP BY rd.RequestId
+
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT rd.RequestId, MIN(m.eventdate)
+		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		CROSS APPLY (
+					SELECT m.EventID, o.eventdate
+					FROM	dbo.VSRaceInfo m WITH(NOLOCK)
+						INNER JOIN dbo.VSOutright o WITH (NOLOCK) ON o.EventID = m.EventID
+					WHERE rd.MatchId = m.EventID
+					UNION ALL
+					SELECT	m14.EventID, o.eventdate
+					FROM	dbo.VSRaceInfo14 m14 WITH(NOLOCK)
+						INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) ON o.EventID = m14.EventID
+					WHERE rd.MatchId = m14.EventID
+					) m
+		WHERE rd.RequestId = @RequestId
 		GROUP BY rd.RequestId
 		
 	END

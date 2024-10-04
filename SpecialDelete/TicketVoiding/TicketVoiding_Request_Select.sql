@@ -50,7 +50,6 @@ AS
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
-		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240813@Max: [TVS] Manage Request - Enhancements [Redmine: #208623]
 
 	Param's explanation:	
@@ -225,15 +224,6 @@ BEGIN
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.globalshowtime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 				FROM	dbo.match14 m WITH(NOLOCK)
 				WHERE	m.matchid = rd.matchid
-
-				UNION
-				SELECT	m.eventdate, NULL, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.StartTime, m.matchcode, 0 AS IsNeutral
-				FROM	dbo.Match3rd m WITH(NOLOCK)
-				WHERE	m.Match3rdId = rd.matchid
-				UNION
-				SELECT	m.eventdate, NULL, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.StartTime, m.matchcode, 0 AS IsNeutral
-				FROM	dbo.Match3rd14 m WITH(NOLOCK)
-				WHERE	m.Match3rdId = rd.matchid
 			) m
 			OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)

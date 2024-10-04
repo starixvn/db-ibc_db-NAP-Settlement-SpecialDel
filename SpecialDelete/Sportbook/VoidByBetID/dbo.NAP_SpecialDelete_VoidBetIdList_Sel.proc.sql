@@ -76,6 +76,7 @@ AS;
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240826@July: [TVS] Void By Bet ID - Support void abnormal bet for main parlay ticket [Redmine: #209348]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -178,6 +179,7 @@ BEGIN
 			  ActualStake			MONEY,
 			  eventdate				DATETIME,
 			  EndTime				DATETIME, --support Bitcoin
+			  VendorMatchId			VARCHAR(50)
              );
    
 	IF @CustID IS NULL
@@ -189,7 +191,7 @@ BEGIN
 					   WHEN @AbnormalBetType = 0 AND pt.ProductID = 1 
 							AND pt.bettype < 19001
 							AND pt.bettype NOT IN (SELECT Bettype FROM f_TVS_SpeciallyBettypes()) -- Parlay Tickets, outright, Bet Builder
-							AND pt.bettype NOT IN (1231, 1232, 1233, 1237, 1238) -- virtual sport
+							AND pt.bettype NOT IN (1231, 1232, 1233, 1237, 1238, 2770, 2771) -- virtual sport
 					   THEN 1 --Only Sportsbook
 					   WHEN @AbnormalBetType = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
 					   ELSE 0 END
@@ -420,7 +422,7 @@ BEGIN
 		WHERE d.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (2))
 	END
 	-- UPDATE eventtype = 3 [VS range  bettypes]
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
@@ -430,12 +432,13 @@ BEGIN
 			,sporttype 	= r.sporttype
 			,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
 			,eventdate  = o.eventdate
+			,VendorMatchId = CASE WHEN d.bettype IN (2770,2771) THEN r.VendorMatchId ELSE NULL END
 		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON d.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE d.bettype IN (1231,1232,1233,1237,1238)
+		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771)
 	END
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
@@ -625,6 +628,7 @@ BEGIN
 		,d.ActualStake
 		,d.EndTime 
 		,@SiteDBGroupID AS SiteDBGroupID
+		,VendorMatchId
 	FROM #SpecialDeleteBets d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.recommend = c.custid

@@ -24,6 +24,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240813@Max: [TVS] Manage Request - Enhancements [Redmine: #208623]
 		- 20240828@Max: [TVS] Manage Request - Enhancements - Fix Issue [Redmine: #208623]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241015@Max: [TVS] Void/Recover Bet Check -Missing some licensee customer in the negative balance list [Redmine: #212190]
 
 	Param's explanation:
@@ -51,6 +52,7 @@ BEGIN
 		,IssuetypeId TINYINT 
 		,RecoveredTime DATETIME
 		,Sporttype SMALLINT
+		,VendorMatchId VARCHAR(50)
 	);
 	
 	CREATE TABLE #tmpVoidingHistory
@@ -74,7 +76,7 @@ BEGIN
 	FROM string_split (@MatchIds, ',')
 	WHERE value <> ''
 
-	INSERT INTO #tmpMatch (RequestId, MatchId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId, RecoveredTime, Sporttype)
+	INSERT INTO #tmpMatch (RequestId, MatchId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId, RecoveredTime, Sporttype, VendorMatchId)
 	SELECT DISTINCT 
 			 rd.RequestId
 			,CASE WHEN r.IssueTypeId = 13 THEN 0 ELSE rd.MatchId END
@@ -90,22 +92,33 @@ BEGIN
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		OUTER APPLY (
-					SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.kickofftime, sporttype
+					SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.kickofftime, sporttype, NULL AS VendorMatchId
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE rd.MatchId = m.matchid
 					UNION
-					SELECT	m14.MatchId, m14.homeid, m14.awayid, m14.leagueid, m14.kickofftime, sporttype
+					SELECT	m14.MatchId, m14.homeid, m14.awayid, m14.leagueid, m14.kickofftime, sporttype, NULL
 					FROM	dbo.match14 m14 WITH(NOLOCK)
 					WHERE rd.MatchId = m14.matchid
 
 					UNION
-					SELECT m.Match3rdId, m.homeid, m.awayid, m.League3rdId, m.StartTime, Sporttype
+					SELECT m.Match3rdId, m.homeid, m.awayid, m.League3rdId, m.StartTime, Sporttype, NULL
 					FROM	dbo.Match3rd m WITH(NOLOCK)
 					WHERE rd.MatchId = m.Match3rdId
 					UNION
-					SELECT	m14.Match3rdId, m14.homeid, m14.awayid, m14.League3rdId, m14.StartTime, Sporttype
+					SELECT	m14.Match3rdId, m14.homeid, m14.awayid, m14.League3rdId, m14.StartTime, Sporttype, NULL
 					FROM	dbo.match3rd14 m14 WITH(NOLOCK)
 					WHERE rd.MatchId = m14.Match3rdId
+					
+					UNION
+					SELECT	m.EventID, NULL, NULL, m.LeagueID, o.KickoffTime, Sporttype, VendorMatchId
+					FROM	dbo.VSRaceInfo m WITH(NOLOCK)
+						INNER JOIN dbo.VSOutright o WITH (NOLOCK) ON o.EventID = m.EventID
+					WHERE rd.MatchId = m.EventID
+					UNION
+					SELECT	m.EventID, NULL, NULL, m.LeagueID, o.KickoffTime, Sporttype, VendorMatchId
+					FROM	dbo.VSRaceInfo14 m WITH(NOLOCK)
+						INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) ON o.EventID = m.EventID
+					WHERE rd.MatchId = m.EventID
 					) m
 	WHERE rd.RequestId = @RequestId 
 		AND (rd.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR @MatchIds = '')

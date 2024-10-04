@@ -21,6 +21,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:
 */
@@ -51,7 +52,7 @@ BEGIN
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT, Matchid INT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT, MatchId INT, bettype SMALLINT, betteam NVARCHAR(10))
 
-	DECLARE @tmpMatchId AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), IsFinish BIT)
+	DECLARE @tmpMatchId AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), VendorMatchId VARCHAR(50), IsFinish BIT)
 	DECLARE @tmp_Result AS TABLE (MatchId INT, Sporttype INT, TransInfoJson VARCHAR(MAX), MarkTransIds VARCHAR(MAX), UnmarkTransIds VARCHAR(MAX), SiteDBAffected VARCHAR(20))
 	DECLARE @tmp_transid AS TABLE (TransId BIGINT)
 
@@ -183,14 +184,18 @@ BEGIN
 				RETURN;
 			END
 
-			INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode)
-			SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
+			INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode, VendorMatchId)
+			SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, NULL
 			FROM dbo.match m WITH(NOLOCK) 
 			WHERE matchid = @MatchId
 			UNION
-			SELECT m.Match3rdId, homeid, awayid, m.League3rdId, sporttype, matchcode
+			SELECT m.Match3rdId, homeid, awayid, m.League3rdId, sporttype, matchcode, NULL
 			FROM dbo.Match3rd m WITH(NOLOCK) 
 			WHERE Match3rdId = @MatchId
+			UNION
+			SELECT m.EventID, NULL, NULL, m.LeagueID, sporttype, NULL, VendorMatchId
+			FROM dbo.VSRaceInfo m WITH(NOLOCK) 
+			WHERE EventID = @MatchId
 		END
 		ELSE IF @FilterBy =1
 		BEGIN
@@ -217,17 +222,21 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1,2)))
 		BEGIN
-			INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode)
-			SELECT DISTINCT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
+			INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode, VendorMatchId)
+			SELECT DISTINCT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, VendorMatchId
 			FROM #tmpTransInfo t
 				CROSS APPLY(
-					SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
+					SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, NULL AS VendorMatchId
 					FROM dbo.match m WITH(NOLOCK) 
 					WHERE matchid = t.matchid
 					UNION
-					SELECT m.Match3rdId, homeid, awayid, m.League3rdId, sporttype, matchcode
+					SELECT m.Match3rdId, homeid, awayid, m.League3rdId, sporttype, matchcode, NULL AS VendorMatchId
 					FROM dbo.Match3rd m WITH(NOLOCK) 
 					WHERE Match3rdId = t.matchid
+					UNION
+					SELECT m.EventID, NULL, NULL, m.LeagueID, sporttype, NULL, VendorMatchId
+					FROM dbo.VSRaceInfo m WITH(NOLOCK) 
+					WHERE EventID = t.matchid
 				)m
 			WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1,2))
 		END
@@ -522,7 +531,7 @@ BEGIN
 
 	/*****************Return table **************************/
 	--1. Info match table
-	SELECT matchid, homeid, awayid, leagueid, sporttype, matchcode
+	SELECT matchid, homeid, awayid, leagueid, sporttype, matchcode, VendorMatchId
 	FROM @tmpMatchId
 		
 	--2. Validate Table

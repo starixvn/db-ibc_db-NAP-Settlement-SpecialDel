@@ -21,29 +21,69 @@ AS
 		- 20240521@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		- 20240618@July: [TVS] Support void wrong odds of Home/Away or Over/Under at the same time [Redmine: #205558]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:		
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #MatchInfo (matchid INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, eventdate DATETIME, matchcode NVARCHAR(100), ParentId INT, Kickofftime DATETIME)
-	INSERT INTO #MatchInfo(matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ParentId, Kickofftime)
-	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode, m.parentid, m.kickofftime
-	FROM	dbo.match m WITH(NOLOCK)
-	WHERE	(m.sporttype = @Sporttype OR @Sporttype IS NULL)
-			AND m.matchid = @MatchId 
-			AND 1 = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
-					     ELSE 1 END
-	UNION 
-	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode, m.parentid, m.kickofftime
-	FROM	dbo.match14 m WITH(NOLOCK)
-	WHERE	m.sporttype = @Sporttype 
-			AND m.matchid = @MatchId 
-			AND 1 = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
-					     ELSE 1 END
+	CREATE TABLE #MatchInfo (matchid INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT
+		, eventdate DATETIME, matchcode NVARCHAR(100), ParentId INT, Kickofftime DATETIME
+		, VendorMatchId VARCHAR(50))
+	
+	IF @Sporttype NOT IN (147,177,198) OR @Sporttype IS NULL
+	BEGIN
+		INSERT INTO #MatchInfo(matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ParentId, Kickofftime)
+		SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode, m.parentid, m.kickofftime
+		FROM	dbo.match m WITH(NOLOCK)
+		WHERE	(m.sporttype = @Sporttype OR @Sporttype IS NULL)
+				AND m.matchid = @MatchId 
+				AND 1 = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+							 ELSE 1 END
+		UNION 
+		SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode, m.parentid, m.kickofftime
+		FROM	dbo.match14 m WITH(NOLOCK)
+		WHERE	m.sporttype = @Sporttype 
+				AND m.matchid = @MatchId 
+				AND 1 = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+							 ELSE 1 END
+	END
 
-	SELECT m.matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, CASE WHEN ISNULL(m.parentid,0) = 0 THEN m.matchid ELSE m.ParentId END AS parentid, Kickofftime, mr.SubType
+	--VS5
+	IF @Sporttype = 147
+	BEGIN
+		INSERT INTO #MatchInfo(matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, Kickofftime) 
+		SELECT	m.Match3rdId, m.homeid, m.awayid, m.League3rdId, m.sporttype, m.eventdate, m.matchcode, m.StartTime
+		FROM	dbo.match3rd m WITH(NOLOCK)
+		WHERE	m.sporttype = @Sporttype 
+				AND m.Match3rdId = @MatchId 
+		UNION 
+		SELECT	m.Match3rdId, m.homeid, m.awayid, m.League3rdId, m.sporttype, m.eventdate, m.matchcode, m.StartTime
+		FROM	dbo.match3rd14 m WITH(NOLOCK)
+		WHERE	m.sporttype = @Sporttype 
+				AND m.Match3rdId = @MatchId
+	END
+
+	-- Virtual Horse Racing & Virtual Dog Racing
+	IF @Sporttype IN (177,198)
+	BEGIN 
+		INSERT INTO #MatchInfo(matchid, leagueid, sporttype, eventdate, Kickofftime, VendorMatchId) 
+		SELECT	m.EventID, m.leagueid, m.sporttype, o.eventdate, o.kickofftime, VendorMatchId
+		FROM	dbo.VSRaceInfo m WITH(NOLOCK)
+			INNER JOIN dbo.VSOutright o WITH (NOLOCK) ON m.EventID = o.EventID
+		WHERE	m.sporttype = @Sporttype 
+				AND m.EventID = @MatchId 
+		UNION
+		SELECT	m.EventID, m.leagueid, m.sporttype, o.eventdate, o.kickofftime, VendorMatchId
+		FROM	dbo.VSRaceInfo14 m WITH(NOLOCK)
+			INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) ON m.EventID = o.EventID
+		WHERE	m.sporttype = @Sporttype 
+				AND m.EventID = @MatchId 
+
+	END
+
+	SELECT m.matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, CASE WHEN ISNULL(m.parentid,0) = 0 THEN m.matchid ELSE m.ParentId END AS parentid, Kickofftime, mr.SubType, VendorMatchId
 	FROM #MatchInfo m
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON m.matchid = mr.matchid
 

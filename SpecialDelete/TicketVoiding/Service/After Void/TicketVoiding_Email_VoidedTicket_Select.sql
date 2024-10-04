@@ -42,6 +42,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20240409@July: [TVS] Fix issue duplicate insert voided transaction [Redmine: #203614]
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:	
 		
@@ -118,6 +119,7 @@ BEGIN
 		,LeagueGroupID  SMALLINT
 		,zzzWinlost		MONEY
 		,modds			SMALLMONEY
+		,VendorMatchId	VARCHAR(50)
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -357,7 +359,7 @@ BEGIN
 	END
 
 	-- UPDATE eventtype = 3 [VS range  bettypes]
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238) AND IsVoidArchived = 0))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771) AND IsVoidArchived = 0))
 	BEGIN
 		UPDATE t
 			SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
@@ -367,12 +369,13 @@ BEGIN
 				,sporttype 	= r.sporttype
 				,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113)
 				,eventstatus = o.EventStatus
+				,VendorMatchId = CASE WHEN t.bettype IN (2770,2771) THEN r.VendorMatchId ELSE NULL END
 		FROM #tmpTicket t
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON t.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE t.bettype IN (1231,1232,1233,1237,1238) AND IsVoidArchived = 0
+		WHERE t.bettype IN (1231,1232,1233,1237,1238,2770,2771) AND IsVoidArchived = 0
 	END
 
 	-- UPDATE Sportype, Endtime VS5
@@ -640,6 +643,7 @@ BEGIN
 			,@VoidingHistoryId AS VoidingHistoryId
 			,t.zzzWinlost
 			,t.modds AS MasterOdds
+			,VendorMatchId
 	FROM	#tmpTicket t
 		LEFT JOIN #CTE_CustInfo c WITH(NOLOCK) ON c.custid = t.custid
 		LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK) ON ag.custid = t.recommend 

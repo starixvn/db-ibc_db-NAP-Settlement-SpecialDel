@@ -22,6 +22,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:
 */
@@ -154,6 +155,11 @@ BEGIN
 			SELECT m.League3rdId, m.homeid, m.awayid, m.sporttype
 			FROM dbo.Match3rd m WITH (NOLOCK)
 			WHERE m.Match3rdId = @MatchId
+
+			UNION
+			SELECT m.EventID, NULL, NULL, m.sporttype
+			FROM dbo.VSRaceInfo m WITH (NOLOCK)
+			WHERE m.EventID = @MatchId
 		)m
 	END
 	ELSE

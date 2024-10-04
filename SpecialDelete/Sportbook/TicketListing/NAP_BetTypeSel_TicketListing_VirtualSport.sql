@@ -13,6 +13,7 @@ AS
 	Revisions: 
 		- 20240219@July: Create new SP - [Redmine: #200317]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 */
 BEGIN
@@ -37,6 +38,11 @@ BEGIN
 				SELECT TOP 1 m.sporttype
 				FROM dbo.Match3rd m WITH (NOLOCK) 
 				WHERE s.SportType = m.sporttype AND m.Match3rdId = @MatchId
+				UNION ALL
+				SELECT TOP 1 r.SportType
+				FROM dbo.VSRaceInfo r WITH (NOLOCK)
+				WHERE s.SportType = r.sporttype AND r.EventID = @MatchId
+					 AND r.sporttype IN (177,198) --Virtual Horse Racing & Virtual Dog Racing
 			)m
 		WHERE s.ProductID IN (5,27,77,83,88)
 		)

@@ -94,6 +94,7 @@ AS;
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240729@July: Fix data length  [Redmine: #208544]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -176,8 +177,15 @@ BEGIN
 	FROM dbo.match3rd WITH (NOLOCK)
 	WHERE match3rdId = @MatchID
 
+	UNION --Virtual Horse Racing & Virtual Dog Racing
+	SELECT EventID
+	FROM dbo.VSRaceInfo WITH (NOLOCK)
+	WHERE EventID = @MatchID
+		AND SportType IN (177,198)
+
 	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
-	CREATE TABLE #T_Match (matchtype VARCHAR(10), matchid INT, sporttype SMALLINT, homeid INT, awayid INT, isNeutral BIT, SettlementStatus TINYINT, Leagueid INT)
+	CREATE TABLE #T_Match (matchtype VARCHAR(10), matchid INT, sporttype SMALLINT, homeid INT, awayid INT
+		, isNeutral BIT, SettlementStatus TINYINT, Leagueid INT, VendorMatchId VARCHAR(50))
 
 	IF (@IsReSettled = 1 AND @AffectTickets IS NOT NULL)
 	BEGIN 
@@ -187,7 +195,7 @@ BEGIN
 		OPTION (OPTIMIZE FOR (@AffectTickets = NULL ))
 	END
 
-	INSERT INTO #T_Match (matchtype, matchid, sporttype, homeid, awayid, isNeutral, SettlementStatus, Leagueid)
+	INSERT INTO #T_Match (matchtype, matchid, sporttype, homeid, awayid, isNeutral, SettlementStatus, Leagueid, VendorMatchId)
 	SELECT 'match' AS [matchtype]
 	  , matchid
 	  , sporttype
@@ -196,6 +204,7 @@ BEGIN
 	  , ISNULL(isNeutral,0)
 	  , SettlementStatus
 	  , leagueid
+	  , NULL
 	FROM match (NOLOCK)
 	WHERE matchid = @MatchId
 	UNION ALL
@@ -207,8 +216,23 @@ BEGIN
 		  , NULL AS isNeutral
 		  , NULL AS SettlementStatus
 		  , League3rdId
+		  , NULL
 	FROM match3rd (NOLOCK)
 	WHERE match3rdid = @MatchId
+	UNION ALL
+	SELECT 'VSRaceInfo' AS [matchtype]
+		  , r.EventID AS matchid
+		  , sporttype
+		  , o.RacerID AS homeid
+		  , 0 AS awayid
+		  , NULL AS isNeutral
+		  , NULL AS SettlementStatus
+		  , r.LeagueID
+		  , r.VendorMatchId
+	FROM dbo.VSRaceInfo r (NOLOCK)
+		INNER JOIN dbo.VSOutright o WITH (NOLOCK) ON o.EventID = r.EventID
+	WHERE r.EventID = @MatchId
+		AND r.SportType IN (177,198)
 
 	SELECT @Sporttype = sporttype 
 		  ,@SettlementStatus = SettlementStatus
@@ -282,7 +306,8 @@ BEGIN
 			  FilterHdp2	   SMALLMONEY,
 			  FilterOddsSpread MONEY,
 			  FilterOddsId	   INT,
-			  FilterTransdesc  NVARCHAR(1000)
+			  FilterTransdesc  NVARCHAR(1000),
+			  VendorMatchId	   VARCHAR(50)
              );
 
 	INSERT INTO @tmpBettypes (bettype)
@@ -1004,11 +1029,13 @@ BEGIN
 			,SubAwayID 	= m.awayid
 			,SubSportType = m.sporttype
 			,SubLeagueId = m.leagueid
+			,VendorMatchId = m.VendorMatchId
 	FROM #SpecialDeleteBets b
 		INNER JOIN #T_Match m WITH (NOLOCK) 
 			ON CASE WHEN (b.bettype IN (7901) OR bettype BETWEEN 11050 AND 11099) THEN 'match3rd' -- 7901: Bitcoin Over/Under
-											ELSE 'match' 
-								END = m.matchtype  
+					WHEN b.bettype IN (2770,2771) THEN 'VSRaceInfo'						
+				ELSE 'match' 
+			END = m.matchtype  
 
 	SELECT  s.username,
 			bettype,		
@@ -1061,7 +1088,8 @@ BEGIN
 			SubTransDesc,
 			@SettlementStatus AS SettlementStatus,
 			IsMarked,
-			CASE WHEN si.SiteLabel = '777' THEN 1 ELSE 0 END IsSite777
+			CASE WHEN si.SiteLabel = '777' THEN 1 ELSE 0 END IsSite777,
+			VendorMatchId
 	FROM #SpecialDeleteBets s
 		INNER JOIN dbo.Customer c WITH (NOLOCK) ON s.srecommend = c.custid
 		LEFT JOIN dbo.Site si WITH(NOLOCK) ON c.site = si.site

@@ -21,6 +21,7 @@ AS
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 		- 20230427@July: Invalid matchid when input child match Cricket [Redmine: #187052]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:	
 		- @Type: 0 - Normal (get match from match table)
@@ -146,6 +147,39 @@ BEGIN
 				NULL AS NumberOfCorner
 			FROM dbo.Match3rd14 AS match WITH (NOLOCK) 
 			WHERE match.Match3rdId = @matchID
+
+			UNION ALL --Virtual Sports 2 (Betradar)
+			SELECT
+				r.EventID as matchid,
+				o.RacerID AS homeid,
+				0 AS awayid,
+				r.EventID AS matchcode,
+				o.EventDate,
+				r.leagueid,
+				CONVERT(BIT,0) AS IsNeutral,
+				o.KickoffTime as kickofftime,
+				r.SportType,
+				r.VendorMatchId
+			FROM dbo.VSOutright o WITH (NOLOCK)
+			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) ON r.EventID = o.EventID
+			WHERE r.EventID = @matchID
+				AND r.SportType IN (177,198)
+			UNION ALL 
+			SELECT
+				r.EventID as matchid,
+				o.RacerID AS homeid,
+				0 AS awayid,
+				r.EventID AS matchcode,
+				o.EventDate,
+				r.leagueid,
+				CONVERT(BIT,0) AS IsNeutral,
+				o.KickoffTime as kickofftime,
+				r.SportType,
+				r.VendorMatchId
+			FROM dbo.VSOutright14 o WITH (NOLOCK)
+			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) ON r.EventID = o.EventID
+			WHERE r.EventID = @matchID
+				AND r.SportType IN (177,198)
 		END
 		ELSE IF @Type = 1
 		BEGIN
