@@ -18,6 +18,7 @@ AS
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240118@Louisa: VS4 - Cock Fighting [Redmine:#199700]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 	
 	Param's explanation:	
 		
@@ -122,7 +123,7 @@ BEGIN
 								FOR XML PATH('r'), ROOT('root')
 							)
 			INSERT INTO dbo.CustLimitBetQueue (MatchId, EventTypeID, Transids, ActionID, Statusid, CreatedDate)
-			SELECT @MatchId, 1, @TransIds, 1, 0, @CreatedDate
+			SELECT @MatchId, CASE WHEN @sporttype NOT IN (177,198) THEN 1 ELSE 6 END AS EventTypeID, @TransIds, 1, 0, @CreatedDate
 		END
 	END
 
