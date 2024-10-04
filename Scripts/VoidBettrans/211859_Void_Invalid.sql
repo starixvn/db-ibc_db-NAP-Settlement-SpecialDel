@@ -5,7 +5,7 @@ DECLARE
 	,@ErrMsg			NVARCHAR(200) = '' 
 
 /* 
-	Created by: 20210519@Max
+	Created by: 20241004@Helen
 	Task: Void invalid ticket - [211859]
 	DB: SITEDB01/bodb02
 	
@@ -185,94 +185,8 @@ SELECT
 FROM dbo.bettrans b WITH(NOLOCK)
 	INNER JOIN #tblTransIds t
 		ON b.transid = t.transid
-WHERE b.bettype < 19001
-	AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
-	AND b.bettype NOT BETWEEN 801 AND 806-- MG
-	AND b.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
-	AND b.statusID NOT IN (101, 102)
-	
--- UPDATE eventtype = 1
-IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype NOT IN (9, 29, 2799, 10449)))
-BEGIN
-	UPDATE	b
-	SET homeid 		= m.homeid
-		,awayid 	= m.awayid
-		,matchcode 	= m.matchcode
-		,eventdate 	= m.eventdate
-		,leagueid 	= m.leagueid
-		,isNeutral 	= ISNULL(m.IsNeutral,CAST(0 AS BIT))
-		,showtime 	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') 
-		,sporttype 	= m.sporttype
-	FROM	#BetDelete b
-		INNER JOIN dbo.match m WITH(NOLOCK)
-			ON	b.matchid = m.matchid
-	WHERE bettype NOT IN (9, 29, 2799, 10449)
-END
-	
--- -- UPDATE eventtype = 2 [Outright ticket]
-IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype IN (10)))
-BEGIN
-	UPDATE b
-	SET homeid 		= o.teamid
-		,awayid 	= 0
-		,matchcode 	= o.matchcode
-		,eventdate 	= o.eventdate
-		,leagueid 	= l.leagueid
-		,IsNeutral  = 0
-		,showtime 	= '' 
-		,sporttype	= l.sporttype
-	FROM	#BetDelete b
-		INNER JOIN dbo.outright AS o WITH (NOLOCK) 
-		ON	b.matchid = o.orid
-		INNER JOIN dbo.league l WITH (NOLOCK) 
-		ON	o.leagueid = l.leagueid
-	WHERE bettype IN (10)
-END
--- -- UPDATE eventtype = 3 [VS range bettypes]
-IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype IN (1231,1232,1233,1237,1238)))
-BEGIN
-	UPDATE b
-	SET homeid 		= o.RacerID
-		,awayid 	= 0
-		,matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
-		,eventdate	= o.eventdate
-		,leagueid 	= r.leagueid
-		,IsNeutral  = 0
-		,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
-		,sporttype 	= r.sporttype
-	FROM	#BetDelete b
-		INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
-		ON b.oddsid = o.Orid
-		INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
-		ON r.EventID = o.EventID
-	WHERE b.bettype IN (1231,1232,1233,1237,1238)
-END
--- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
-BEGIN
-	UPDATE b
-	SET sporttype = sb.SportType
-	FROM #BetDelete b
-		INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
-		ON b.bettype = sb.BetType
-	WHERE sb.ProductID = 37
-END
-	
--- remove un-supported sports & bettype
-DELETE bd
-FROM #BetDelete bd
-WHERE bettype NOT IN (9, 29, 2799, 10449)
-	AND (
-		sporttype IS NULL
-		OR bettype = 500 /*charge comm*/
-	) 
-	
-IF EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE Bettype BETWEEN 1101 AND 1199 AND StatusID BETWEEN 0 AND 1)  
-BEGIN  
-	DELETE 
-	FROM	#BetDelete 
-	WHERE	Bettype BETWEEN 1101 AND 1199 AND StatusID BETWEEN 0 AND 1 -- Not allowed to settle the running Live CS bet   
-END  
-	
+WHERE b.statusID NOT IN (101, 102)
+
 -- gather match Ids
 INSERT INTO #tblMatch (matchid)
 SELECT	matchid
