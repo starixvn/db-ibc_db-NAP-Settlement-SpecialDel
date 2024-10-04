@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSIG-bodb02" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
 DECLARE
 	@TransIds			VARCHAR(MAX) = '305468974722711571, 305473703481704505, 305513522123505695, 305471126501326892'
 	,@ErrCode			INT = 0 
@@ -7,7 +7,7 @@ DECLARE
 /* 
 	Created by: 20241004@Helen
 	Task: Void invalid ticket - [211859]
-	DB: SITEDB01/bodb02
+	DB: SITEDB01/bodb02 & DBTRANS/bodb02
 	
 	Revisions: 
 		NAP_SpecialDelete_VoidBetId_UUS
