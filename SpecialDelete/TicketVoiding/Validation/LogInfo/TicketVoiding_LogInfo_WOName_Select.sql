@@ -647,7 +647,6 @@ BEGIN
 		     , IsExistedInOtherRequest
 		     , IsHasSettledTicket
 		     , IsHasInstantlySettledTicket
-			 , LogInfoTicketsJson
 		FROM @Validation
 
 		-- 2. TransId in request table
@@ -671,7 +670,8 @@ BEGIN
 		END
 
 		-- 3. Loginfo table (No need -> return table)
-		SELECT NULL AS MatchId
+		SELECT NULL AS MatchId, LogInfoTicketsJson
+		FROM @Validation
 
 		-- 4. Unmark table (No need -> return table)
 		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
@@ -756,7 +756,6 @@ BEGIN
 		, IsExistedInOtherRequest
 	    , IsHasSettledTicket
 		, IsHasInstantlySettledTicket
-		, LogInfoTicketsJson
 	FROM @Validation
 		  
 	-- 2. TransId exists in other request table
@@ -781,7 +780,8 @@ BEGIN
 	END
 
 	-- 3. Loginto table (no-need but must return)
-	SELECT NULL AS MatchId
+	SELECT NULL AS MatchId, LogInfoTicketsJson
+	FROM @Validation
 
 	-- 4. List ticket unmark/mark   (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds

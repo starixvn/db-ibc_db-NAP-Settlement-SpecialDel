@@ -32,7 +32,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
 	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
-	,@WrongOddsSBInfo			VARCHAR(MAX)  = NULL
+	,@WrongOddsSBInfo		VARCHAR(MAX)  = NULL
+	,@WrongOfferedNameInfo  VARCHAR(MAX) = NULL
 	,@SessionTime			INT = 0
 	,@RequestId				INT			  = 0 OUTPUT
 AS
@@ -75,6 +76,7 @@ AS
 		- 20240618@Max: [TVS] Set logs to check user behavior [Redmine: #204060]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
+		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -313,6 +315,18 @@ BEGIN
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
 				,@WrongOddsSBInfo = @WrongOddsSBInfo
+				,@TransInfoJson	 = @TransInfoJson			
+				,@IsEditRequest	 = @IsEditRequest
+	END
+	ELSE IF @IssueTypeId IN (26) --Wrong Offered Name
+	BEGIN
+		EXEC dbo.TicketVoiding_RequestDetail_WOName_Update
+				 @RequestId		 = @RequestId		
+				,@IssueTypeId	 = @IssueTypeId	
+				,@UserId		 = @UserId		
+				,@IP			 = @IP			
+				,@ActionId		 = @ActionId
+				,@WrongOfferedNameInfo = @WrongOfferedNameInfo
 				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END

@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Licensees_Select]
 AS
 /*	Created by: 20240925@July
 	Task: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
-	DB: DBCUST-CustDB
+	DB: DBOIC-bodb_OIC
 	
 	Revisions: 
 		- 20240925@July: Create new SP [Redmine: #187408]
