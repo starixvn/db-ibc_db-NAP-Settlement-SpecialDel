@@ -200,9 +200,9 @@ BEGIN
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			,t.c.value('@LiveIndicator','BIT') AS LiveIndicator
 			,t.c.value('@FilterOddsType', 'VARCHAR(20)') AS FilterOddsType
-			,t.c.value('@FromOdds', 'MONEY') AS FromOdds
-			,t.c.value('@ToOdds', 'MONEY') AS ToOdds
-			,t.c.value('@OddsValue', 'VARCHAR(1000)') AS OddsValue
+			,NULLIF(t.c.value('@FromOdds', 'MONEY'),'') AS FromOdds
+			,NULLIF(t.c.value('@ToOdds', 'MONEY'),'') AS ToOdds
+			,NULLIF(t.c.value('@OddsValue', 'VARCHAR(1000)'),'') AS OddsValue
 	FROM	@WrongOddsSBInfoXML.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@WrongOddsSBInfoXML = NULL ))
 
@@ -501,121 +501,127 @@ BEGIN
 	BEGIN
 		SELECT @FromOdds = d.FromOdds, @ToOdds = d.ToOdds
 		FROM #FilterInfo d
-
-		IF (@FromOdds < 0 AND @ToOdds > 0) OR (@FromOdds > 0 AND @ToOdds < 0)
+		
+		IF @FromOdds IS NOT NULL AND @ToOdds IS NOT NULL
 		BEGIN
-			--Range 1: negative
-			SET @tmp_FromOdds = CASE WHEN @FromOdds < 0 THEN @FromOdds ELSE @ToOdds END
-			SET @tmp_ToOdds = -1.00
+			IF (@FromOdds < 0 AND @ToOdds > 0) OR (@FromOdds > 0 AND @ToOdds < 0)
+			BEGIN
+				--Range 1: negative
+				SET @tmp_FromOdds = CASE WHEN @FromOdds < 0 THEN @FromOdds ELSE @ToOdds END
+				SET @tmp_ToOdds = -1.00
 
-			SET @Odds_str = (SELECT CAST(@tmp_FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
+				SET @Odds_str = (SELECT CAST(@tmp_FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
 		
-			INSERT INTO @tmp_Odds (Odds, OddsType)
-			SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
+				INSERT INTO @tmp_Odds (Odds, OddsType)
+				SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
 
-			;WITH cte AS
-			(
-				SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
-				FROM @tmp_Odds
-				GROUP BY OddsType
-			)
-			INSERT INTO @tmp_TransId (TransId)
-			SELECT b.transid FROM #TVSTicketBets b
-				LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
-			WHERE EXISTS (SELECT TOP 1 1 FROM cte tp
-				WHERE tp.OddsType = b.OddsType 
-					AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-								WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-								WHEN b.IsMixParlay = 0 AND f.BetType IS NULL 
-										AND b.OddsType = 1 
-										AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
-								WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
-							ELSE 0 END
-			)
-
-			--Range 1: possitive
-			DELETE @tmp_Odds
-			SET @tmp_FromOdds =  CASE WHEN @ToOdds > 0 THEN @ToOdds ELSE @FromOdds END
-			SET @tmp_ToOdds = 1.00
-
-			SET @Odds_str = (SELECT CAST(@tmp_FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
-		
-			INSERT INTO @tmp_Odds (Odds, OddsType)
-			SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
-
-			;WITH cte AS
-			(
-				SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
-				FROM @tmp_Odds
-				GROUP BY OddsType
-			)
-			INSERT INTO @tmp_TransId (TransId)
-			SELECT b.transid FROM #TVSTicketBets b
-				LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
-			WHERE EXISTS (SELECT TOP 1 1 FROM cte tp
-				WHERE tp.OddsType = b.OddsType 
-					AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-								WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-								WHEN b.IsMixParlay = 0 AND f.BetType IS NULL 
-										AND b.OddsType = 1 
-										AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
-								WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
-							ELSE 0 END
-			)
-
-			--Remove invalid transid
-			DELETE b
-			FROM #TVSTicketBets b
-				LEFT JOIN @tmp_TransId t ON t.TransId = b.transid
-			WHERE t.TransId IS NULL
-		END
-		ELSE
-		BEGIN
-			SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@ToOdds AS VARCHAR(10)))
-		
-			INSERT INTO @tmp_Odds (Odds, OddsType)
-			SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
-
-			;WITH cte AS
-			(
-				SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
-				FROM @tmp_Odds
-				GROUP BY OddsType
-			)
-			DELETE b
-			FROM #TVSTicketBets b
-				LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
-				WHERE tp.OddsType = b.OddsType 
-					AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-								WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-								WHEN b.IsMixParlay = 0 AND f.BetType IS NULL 
-										AND b.OddsType = 1 
-										AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
-								WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
-							ELSE 0 END
+				;WITH cte AS
+				(
+					SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
+					FROM @tmp_Odds
+					GROUP BY OddsType
 				)
+				INSERT INTO @tmp_TransId (TransId)
+				SELECT b.transid FROM #TVSTicketBets b
+					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+				WHERE EXISTS (SELECT TOP 1 1 FROM cte tp
+					WHERE tp.OddsType = b.OddsType 
+						AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
+									WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
+									WHEN b.IsMixParlay = 0 AND f.BetType IS NULL 
+											AND b.OddsType = 1 
+											AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
+									WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
+								ELSE 0 END
+				)
+
+				--Range 1: possitive
+				DELETE @tmp_Odds
+				SET @tmp_FromOdds =  CASE WHEN @ToOdds > 0 THEN @ToOdds ELSE @FromOdds END
+				SET @tmp_ToOdds = 1.00
+
+				SET @Odds_str = (SELECT CAST(@tmp_FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
+		
+				INSERT INTO @tmp_Odds (Odds, OddsType)
+				SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
+
+				;WITH cte AS
+				(
+					SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
+					FROM @tmp_Odds
+					GROUP BY OddsType
+				)
+				INSERT INTO @tmp_TransId (TransId)
+				SELECT b.transid FROM #TVSTicketBets b
+					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+				WHERE EXISTS (SELECT TOP 1 1 FROM cte tp
+					WHERE tp.OddsType = b.OddsType 
+						AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
+									WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
+									WHEN b.IsMixParlay = 0 AND f.BetType IS NULL 
+											AND b.OddsType = 1 
+											AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
+									WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
+								ELSE 0 END
+				)
+
+				--Remove invalid transid
+				DELETE b
+				FROM #TVSTicketBets b
+					LEFT JOIN @tmp_TransId t ON t.TransId = b.transid
+				WHERE t.TransId IS NULL
+			END
+			ELSE
+			BEGIN
+				SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@ToOdds AS VARCHAR(10)))
+		
+				INSERT INTO @tmp_Odds (Odds, OddsType)
+				SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
+
+				;WITH cte AS
+				(
+					SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
+					FROM @tmp_Odds
+					GROUP BY OddsType
+				)
+				DELETE b
+				FROM #TVSTicketBets b
+					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
+					WHERE tp.OddsType = b.OddsType 
+						AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
+									WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
+									WHEN b.IsMixParlay = 0 AND f.BetType IS NULL 
+											AND b.OddsType = 1 
+											AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
+									WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
+								ELSE 0 END
+					)
+			END
 		END
 	END
 	ELSE IF @FilterOddsType = 'Value'
 	BEGIN
 		SET @Odds_str = (SELECT REPLACE(d.OddsValue, '&', ',')
 						FROM #FilterInfo d)
+		
+		IF @Odds_str IS NOT NULL
+		BEGIN
+			INSERT INTO @tmp_Odds (Odds, OddsType)
+			SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
 
-		INSERT INTO @tmp_Odds (Odds, OddsType)
-		SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
-
-		DELETE b
-		FROM #TVSTicketBets b
-			LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Odds tp
-			WHERE tp.OddsType = b.OddsType 
-				AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds = tp.Odds THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds = tp.Odds THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType = 1 AND b.FilterOdds = tp.Odds - 1 THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds = tp.Odds THEN 1
-						ELSE 0 END
-			)
+			DELETE b
+			FROM #TVSTicketBets b
+				LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Odds tp
+				WHERE tp.OddsType = b.OddsType 
+					AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds = tp.Odds THEN 1
+								WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds = tp.Odds THEN 1
+								WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType = 1 AND b.FilterOdds = tp.Odds - 1 THEN 1
+								WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds = tp.Odds THEN 1
+							ELSE 0 END
+				)
+		END
 	END
 
 	/*Get Transid in Request of range Transid*/
