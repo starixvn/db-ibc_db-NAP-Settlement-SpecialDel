@@ -602,6 +602,7 @@ BEGIN
 			,CASE WHEN CHARINDEX('1',t.ProductIds) > 0 THEN 'Sportsbook' ELSE NULL END AS Products -- Apply issuetype Recover Ticket
 			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch, m.ParentID AS ParentMatchId, m.matchcode
 			,t.Provider, t.Source, t.Remark, t.Trader, t.LA, t.Message
+			,vs.VendorMatchId
 	FROM	#tmpResult t
 		LEFT JOIN #CTE_CustInfo c ON t.UserId = c.CustId
 		LEFT JOIN #CTE_CustInfo v ON t.LastVoidedBy = v.CustId
@@ -645,6 +646,12 @@ BEGIN
 					FROM dbo.match_remark mr WITH (NOLOCK) 
 					WHERE mr.matchid = t.MatchId
 			)mr
+		OUTER APPLY (
+					SELECT	m.VendorMatchId
+					FROM	dbo.VSRaceInfo m WITH(NOLOCK)
+					WHERE	m.EventID = t.MatchId
+						AND t.Sporttype IN (177,198)
+			)vs
 	WHERE 1 = CASE 
 				--All
 				WHEN @Status = -1 THEN 1

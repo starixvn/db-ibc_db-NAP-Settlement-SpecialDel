@@ -111,12 +111,12 @@ BEGIN
 					WHERE rd.MatchId = m14.Match3rdId
 					
 					UNION
-					SELECT	m.EventID, NULL, NULL, m.LeagueID, o.KickoffTime, Sporttype, VendorMatchId
+					SELECT	m.EventID, NULL, NULL, m.LeagueID, m.EventTime, Sporttype, VendorMatchId
 					FROM	dbo.VSRaceInfo m WITH(NOLOCK)
 						INNER JOIN dbo.VSOutright o WITH (NOLOCK) ON o.EventID = m.EventID
 					WHERE rd.MatchId = m.EventID
 					UNION
-					SELECT	m.EventID, NULL, NULL, m.LeagueID, o.KickoffTime, Sporttype, VendorMatchId
+					SELECT	m.EventID, NULL, NULL, m.LeagueID, m.EventTime, Sporttype, VendorMatchId
 					FROM	dbo.VSRaceInfo14 m WITH(NOLOCK)
 						INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) ON o.EventID = m.EventID
 					WHERE rd.MatchId = m.EventID

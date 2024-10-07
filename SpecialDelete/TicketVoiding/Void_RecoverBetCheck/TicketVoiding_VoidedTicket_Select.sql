@@ -252,6 +252,10 @@ BEGIN
 			SELECT 0 AS SettlementStatus, 1 AS IsMatch3rd
 			FROM dbo.Match3rd m WITH(NOLOCK) 
 			WHERE t.matchid = m.Match3rdId
+			UNION ALL
+			SELECT 0 AS SettlementStatus, 1 AS IsMatch3rd
+			FROM dbo.VSRaceInfo m WITH(NOLOCK) 
+			WHERE t.matchid = m.EventID
 		)m
 
 	--@IsMovebet = 0

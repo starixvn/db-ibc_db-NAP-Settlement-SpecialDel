@@ -74,7 +74,7 @@ BEGIN
 	--Remove unsupport sporttype/bettype
 	DELETE t
 	FROM #CustLimitBet_tmp t
-	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188,147) AND @sporttype NOT BETWEEN 190 AND 197)
+	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188,147,177,198) AND @sporttype NOT BETWEEN 190 AND 197)
 		OR (t.bettype IN(SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1)) OR (t.bettype BETWEEN 801 AND 806))
 	
 	IF EXISTS (SELECT TOP (1) 1 FROM #CustLimitBet_tmp WHERE bettype = 10)

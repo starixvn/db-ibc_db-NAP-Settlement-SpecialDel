@@ -372,10 +372,6 @@ BEGIN
 				)fs
 
 		INSERT INTO #tblMatchProcess(matchid, KeyID)
-		SELECT matchid, KeyID
-		FROM #tmpTransId
-
-		INSERT INTO #tblMatchProcess(matchid, KeyID)
 		SELECT DISTINCT matchid
 			, CASE 
 				WHEN Bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes()) 

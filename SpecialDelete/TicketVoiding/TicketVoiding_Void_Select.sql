@@ -349,6 +349,7 @@ BEGIN
 				,SiteDBGroupID
 				,statuswinlost
 				,modds
+				,oddsid
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -397,6 +398,7 @@ BEGIN
 				,b.SiteDBGroupID
 				,b.statuswinlost
 				,b.modds
+				,b.oddsid
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId

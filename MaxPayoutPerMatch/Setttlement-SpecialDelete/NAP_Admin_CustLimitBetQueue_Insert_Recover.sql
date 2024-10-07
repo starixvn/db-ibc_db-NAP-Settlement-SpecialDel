@@ -18,6 +18,7 @@ AS
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240118@Louisa: VS4 - Cock Fighting [Redmine:#199700]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 	
 	Param's explanation:	
 		
@@ -72,7 +73,7 @@ BEGIN
 	
 	DELETE t
 	FROM #CustLimitBet_tmp t
-	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188,147) AND @sporttype NOT BETWEEN 190 AND 197)
+	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188,147,177,198) AND @sporttype NOT BETWEEN 190 AND 197)
 		OR (t.bettype IN(SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1)) OR (t.bettype BETWEEN 801 AND 806)) 
 	
 	SET @CreatedDate = GETDATE()
@@ -144,7 +145,7 @@ BEGIN
 									FOR XML PATH('r'), ROOT('root')
 								)
 				INSERT INTO dbo.CustLimitBetQueue (MatchId, CustID, EventTypeID, Transids, ActionID, Statusid, CreatedDate)
-				SELECT @MatchId, @CustId, 1, @TransIds, 3, 0, @CreatedDate
+				SELECT @MatchId, @CustId, CASE WHEN @sporttype NOT IN (177,198) THEN 1 ELSE 6 END AS EventTypeID, @TransIds, 3, 0, @CreatedDate
 			END
 		END
 
