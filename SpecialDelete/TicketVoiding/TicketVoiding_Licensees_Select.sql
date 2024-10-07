@@ -1,25 +1,20 @@
 ﻿/*<info serverAlias="DBOIC-bodb_OIC" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_SelectLicensees]
+ALTER PROCEDURE [dbo].[TicketVoiding_Licensees_Select]
 AS
-/*
-	Created: 20180627@Alan
-	DB: DBOIC/bodb_OIC  
-
-	Revisions:
-		- 20180627@Alan: Mapping China Markets Option for Void By Currency [97393]
-		- 20180824@Alan: Get LicenseeName from RegisteredLicenseeName [100481]
-		- 20181010@Alan: Include Test Licensee with status is soft launch [102917]
-		- 20190320@Alan: Add CN88 into Others Group [109858]
-		- 20190412@Alan: Order by CN88 [108826]
-		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
-		
+/*	Created by: 20240925@July
+	Task: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
+	DB: DBCUST-CustDB
+	
+	Revisions: 
+		- 20240925@July: Create new SP [Redmine: #187408]
+	
+	Param's explanation:	
 */
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @MBCGroup_Name		VARCHAR(100) = 'MBC Group'
 		  , @789y_Name			VARCHAR(100) = '789y'
-		  , @cn88_Name			VARCHAR(100) = 'CN88'
 		  , @777_Name			VARCHAR(100) = '777'
 		  , @Others_GroupName	VARCHAR(100) = 'Others'
 		  , @China_GroupName	VARCHAR(100) = 'China rules'
@@ -35,7 +30,6 @@ BEGIN
 	INSERT INTO #LicenseeGroupInfo (Id, Name, GroupName)
 	VALUES (-1, @MBCGroup_Name, @Others_GroupName)
 		 , (0, @789y_Name, @Others_GroupName)
-		 , (0, @cn88_Name, @Others_GroupName)
 		 , (0, @777_Name, @Others_GroupName)
 
 	INSERT INTO #LicenseeGroupInfo (Id, Name, GroupName)
@@ -56,9 +50,8 @@ BEGIN
 			 CASE Name 
 				  WHEN @789y_Name THEN 1
 				  WHEN @MBCGroup_Name THEN 2
-				  WHEN @cn88_Name THEN 3
-				  WHEN @777_Name THEN 4
-				  ELSE 5 END ASC
+				  WHEN @777_Name THEN 3
+				  ELSE 4 END ASC
 
 	DROP TABLE #LicenseeGroupInfo
 

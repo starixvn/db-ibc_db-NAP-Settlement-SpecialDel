@@ -22,6 +22,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
 	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
 	,@WrongOddsSBInfo		  VARCHAR(MAX) = NULL
+	,@WrongOfferedNameInfo  VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -75,6 +76,7 @@ AS
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
+		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 
 	Param's explanation:
 		
@@ -111,6 +113,7 @@ BEGIN
 					+ CASE WHEN @WrongMarketOfferedInfo IS NULL THEN '' ELSE ',@WrongMarketOfferedInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongMarketOfferedInfo) + '''' END
 					+ CASE WHEN @TechnicalErrorInfo IS NULL THEN '' ELSE ',@TechnicalErrorInfo = ''' + CONVERT(NVARCHAR(MAX), @TechnicalErrorInfo) + '''' END
 					+ CASE WHEN @WrongOddsSBInfo IS NULL THEN '' ELSE ',@WrongOddsSBInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOddsSBInfo) + '''' END
+					+ CASE WHEN @WrongOfferedNameInfo IS NULL THEN '' ELSE ',@WrongOfferedNameInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOfferedNameInfo) + '''' END
 					+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
@@ -260,7 +263,17 @@ BEGIN
 			,@WrongOddsSBInfo		   = @WrongOddsSBInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
-	
+	ELSE IF @IssueTypeId = 26 --Wrong Offered Name
+	BEGIN
+		EXEC dbo.TicketVoiding_LogInfo_WOName_Select
+			 @RequestId			   = @RequestId
+			,@ActionId			   = @ActionId
+			,@IsShowLogOnly		   = @IsShowLogOnly
+			,@IssueTypeId		   = @IssueTypeId
+			,@WrongOfferedNameInfo = @WrongOfferedNameInfo
+			,@TransInfoJson		   = @TransInfoJson
+	END
+
 	-- Write useraction log	
 	BEGIN TRY
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
