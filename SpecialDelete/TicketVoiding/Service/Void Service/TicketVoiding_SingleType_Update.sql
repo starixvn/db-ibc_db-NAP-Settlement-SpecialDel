@@ -232,6 +232,7 @@ BEGIN
 		UPDATE b
 		SET sporttype	= l.sporttype
 			,eventdate = o.eventdate
+			,MainMatchId = b.matchid
 		FROM	#tmpTransId b
 			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
 			ON	b.matchid = o.orid
@@ -246,7 +247,8 @@ BEGIN
 	BEGIN
 		UPDATE b
 		SET sporttype 	= r.sporttype
-			,eventdate = o.EventDate	
+			,eventdate = o.EventDate
+			,MainMatchId = b.matchid
 		FROM	#tmpTransId b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
