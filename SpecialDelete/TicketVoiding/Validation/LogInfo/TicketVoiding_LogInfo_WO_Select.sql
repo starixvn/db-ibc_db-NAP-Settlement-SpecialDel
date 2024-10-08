@@ -23,6 +23,7 @@ AS
 		- 20240618@July: [TVS] Support void wrong odds of Home/Away or Over/Under at the same time [Redmine: #205558] 
 		- 20240722@July: [TVS] Add Details function for traders of LG/Early teams [Redmine: #206715]
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
+		- 20241007@July: TVS - Wrong Odds - Wrongly converting odds to search ticket [Redmine: #211890]
 
 	Param's explanation:
 		+ @WrongOddsInfo:
@@ -650,45 +651,79 @@ BEGIN
 		IF (@FromOdds < 0 AND @ToOdds > 0) OR (@FromOdds > 0 AND @ToOdds < 0)
 		BEGIN
 			--Range 1: negative
-			IF (@FromOdds < 0 AND @ToOdds > 0)
-			BEGIN
-				SET @tmp_FromOdds = CASE WHEN @FromOdds < 0 THEN @FromOdds ELSE @ToOdds END
-				SET @tmp_ToOdds = -1.00
-			END
+			SET @tmp_FromOdds = CASE WHEN @FromOdds < 0 THEN @FromOdds ELSE @ToOdds END
+			SET @tmp_ToOdds = -1.00
 
+			SET @Odds_str = (SELECT CAST(@tmp_FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
+		
+			INSERT INTO @tmp_Odds (Odds, OddsType)
+			SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
+
+			;WITH cte AS
+			(
+				SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
+				FROM @tmp_Odds
+				GROUP BY OddsType
+			)
+			--Remove transid-> NOT VOID affect main bettype
+			DELETE b
+			FROM #TVSTicketBets b
+				INNER JOIN cte tp ON tp.OddsType = b.OddsType
+			WHERE 1 = CASE WHEN b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) THEN 1
+						   WHEN b.IsMixParlay = 0 AND b.GroupName = 'WO' THEN 1
+						   ELSE 0 END
+				AND b.FilterBetteam = @Betteam
+				AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds
+
+			DELETE @tmp_Odds
 			--Range 1: possitive
-			IF (@FromOdds > 0 AND @ToOdds < 0)
-			BEGIN
-				SET @tmp_FromOdds =  CASE WHEN @ToOdds > 0 THEN @ToOdds ELSE @FromOdds END
-				SET @tmp_ToOdds = 1.00
-			END
+			SET @tmp_FromOdds =  CASE WHEN @ToOdds > 0 THEN @ToOdds ELSE @FromOdds END
+			SET @tmp_ToOdds = 1.00
+
+			SET @Odds_str = (SELECT CAST(@tmp_FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
+		
+			INSERT INTO @tmp_Odds (Odds, OddsType)
+			SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
+
+			;WITH cte AS
+			(
+				SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
+				FROM @tmp_Odds
+				GROUP BY OddsType
+			)
+			--Remove transid-> NOT VOID affect main bettype
+			DELETE b
+			FROM #TVSTicketBets b
+				INNER JOIN cte tp ON tp.OddsType = b.OddsType
+			WHERE 1 = CASE WHEN b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) THEN 1
+						   WHEN b.IsMixParlay = 0 AND b.GroupName = 'WO' THEN 1
+						   ELSE 0 END
+				AND b.FilterBetteam = @Betteam
+				AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds
 		END
 		ELSE
 		BEGIN 
-			SET @tmp_FromOdds = @FromOdds
-			SET @tmp_ToOdds = @ToOdds
-		END
-
-		SET @Odds_str = (SELECT CAST(@tmp_FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
+			SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@ToOdds AS VARCHAR(10)))
 		
-		INSERT INTO @tmp_Odds (Odds, OddsType)
-		SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
+			INSERT INTO @tmp_Odds (Odds, OddsType)
+			SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
 
-		;WITH cte AS
-		(
-			SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
-			FROM @tmp_Odds
-			GROUP BY OddsType
-		)
-		--Remove transid-> NOT VOID affect main bettype
-		DELETE b
-		FROM #TVSTicketBets b
-			INNER JOIN cte tp ON tp.OddsType = b.OddsType
-		WHERE 1 = CASE WHEN b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) THEN 1
-					   WHEN b.IsMixParlay = 0 AND b.GroupName = 'WO' THEN 1
-					   ELSE 0 END
-		    AND b.FilterBetteam = @Betteam
-			AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds
+			;WITH cte AS
+			(
+				SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
+				FROM @tmp_Odds
+				GROUP BY OddsType
+			)
+			--Remove transid-> NOT VOID affect main bettype
+			DELETE b
+			FROM #TVSTicketBets b
+				INNER JOIN cte tp ON tp.OddsType = b.OddsType
+			WHERE 1 = CASE WHEN b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) THEN 1
+						   WHEN b.IsMixParlay = 0 AND b.GroupName = 'WO' THEN 1
+						   ELSE 0 END
+				AND b.FilterBetteam = @Betteam
+				AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds
+		END
 	END
 
 	/*Get Transid in Request of range Transid*/
