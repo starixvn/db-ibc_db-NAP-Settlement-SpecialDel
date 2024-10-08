@@ -153,7 +153,7 @@ BEGIN
 			WHERE match.Match3rdId = @matchID
 
 			UNION ALL --Virtual Sports 2 (Betradar)
-			SELECT
+			SELECT DISTINCT
 				r.EventID AS matchid,
 				NULL,
 				NULL,
@@ -162,10 +162,10 @@ BEGIN
 				r.LeagueID leagueid,
 				NULL AS IsNeutral,
 				NULL AS showtime,
-				o.KickoffTime AS kickofftime,
+				r.EventTime AS kickofftime,
 				r.sporttype,
 				NULL AS LeagueGroupID,
-				o.KickoffTime,
+				r.EventTime,
 				NULL AS NumberOfCorner
 				,r.VendorMatchId AS VendorMatchId
 			FROM dbo.VSOutright o WITH (NOLOCK)
@@ -173,7 +173,7 @@ BEGIN
 			WHERE r.EventID = @matchID
 				AND r.SportType IN (177,198)
 			UNION ALL 
-			SELECT
+			SELECT DISTINCT
 				r.EventID AS matchid,
 				NULL,
 				NULL,
@@ -182,10 +182,10 @@ BEGIN
 				r.LeagueID leagueid,
 				NULL AS IsNeutral,
 				NULL AS showtime,
-				o.KickoffTime AS kickofftime,
+				r.EventTime AS kickofftime,
 				r.sporttype,
 				NULL AS LeagueGroupID,
-				o.KickoffTime,
+				r.EventTime,
 				NULL AS NumberOfCorner
 				,r.VendorMatchId AS VendorMatchId
 			FROM dbo.VSOutright14 o WITH (NOLOCK)

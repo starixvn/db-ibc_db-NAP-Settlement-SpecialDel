@@ -213,6 +213,7 @@ BEGIN
 		,@SingleTransIds AS SingleTransIds
 		,t.RecoveredTime
 		,t.Sporttype
+		,t.VendorMatchId
 	FROM #tmpMatch t
 		LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK)
 			ON t.RequestedBy = v.CustId
