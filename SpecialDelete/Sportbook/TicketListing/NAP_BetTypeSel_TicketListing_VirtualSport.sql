@@ -19,33 +19,32 @@ AS
 BEGIN
     SET NOCOUNT ON
 
-    DECLARE @ProductId INT    
+    DECLARE @ProductId INT 
+		,@Sporttype SMALLINT
         
-	SELECT @ProductId = (
-		SELECT DISTINCT s.ProductID
-		FROM dbo.SportBettypeMatrix s WITH (NOLOCK)
-			CROSS APPLY(
-				SELECT TOP 1 m.sporttype
-				FROM dbo.match m WITH (NOLOCK) 
-				WHERE s.SportType = m.sporttype AND m.matchid = @MatchId
-				UNION ALL
-				SELECT TOP 1 r.SportType
-				FROM dbo.VSOutright o WITH (NOLOCK)
-					INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) ON r.EventID = o.EventID
-				WHERE s.SportType = r.sporttype AND o.Orid = @MatchId
-					 AND r.sporttype BETWEEN 181 AND 185 -- Inspired VS 181	
-				UNION ALL	 
-				SELECT TOP 1 m.sporttype
-				FROM dbo.Match3rd m WITH (NOLOCK) 
-				WHERE s.SportType = m.sporttype AND m.Match3rdId = @MatchId
-				UNION ALL
-				SELECT TOP 1 r.SportType
-				FROM dbo.VSRaceInfo r WITH (NOLOCK)
-				WHERE s.SportType = r.sporttype AND r.EventID = @MatchId
-					 AND r.sporttype IN (177,198) --Virtual Horse Racing & Virtual Dog Racing
-			)m
-		WHERE s.ProductID IN (5,27,77,83,88)
-		)
+	SELECT DISTINCT @ProductId = s.ProductID, @Sporttype = m.sporttype
+	FROM dbo.SportBettypeMatrix s WITH (NOLOCK)
+		CROSS APPLY(
+			SELECT TOP 1 m.sporttype
+			FROM dbo.match m WITH (NOLOCK) 
+			WHERE s.SportType = m.sporttype AND m.matchid = @MatchId
+			UNION ALL
+			SELECT TOP 1 r.SportType
+			FROM dbo.VSOutright o WITH (NOLOCK)
+				INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) ON r.EventID = o.EventID
+			WHERE s.SportType = r.sporttype AND o.Orid = @MatchId
+					AND r.sporttype BETWEEN 181 AND 185 -- Inspired VS 181	
+			UNION ALL	 
+			SELECT TOP 1 m.sporttype
+			FROM dbo.Match3rd m WITH (NOLOCK) 
+			WHERE s.SportType = m.sporttype AND m.Match3rdId = @MatchId
+			UNION ALL
+			SELECT TOP 1 r.SportType
+			FROM dbo.VSRaceInfo r WITH (NOLOCK)
+			WHERE s.SportType = r.sporttype AND r.EventID = @MatchId
+					AND r.sporttype IN (177,198) --Virtual Horse Racing & Virtual Dog Racing
+		)m
+	WHERE s.ProductID IN (5,27,77,83,88)
         
     IF @ProductId IS NULL
     BEGIN 
@@ -61,7 +60,7 @@ BEGIN
 	FROM STRING_SPLIT(@BetTypes, ',')
 	WHERE value <> ''
 		
-	IF @ProductId = 27 --VS2
+	IF @ProductId = 27 AND @Sporttype NOT IN (177,198) --VS2
 		 INSERT INTO #betTypesTemp (bettype) VALUES (2799)
 	IF @ProductId = 83 --VS4
 		 INSERT INTO #betTypesTemp (bettype) VALUES (10449)
