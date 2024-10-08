@@ -20,6 +20,7 @@ AS
 		- 20240409@Louisa: Enhancement [Redmine:#203596]
 		- 20240905@Kathy: get info from all sitedbgroupid [Redmine:#210398]
 		- 20241001@Kathy: Remove groupid 73
+		- 20241008@Kathy: exclude child match of table tennis [Redmine:#211924]
 
 	Param's explaination:
 		@UserGroup: 0-send to internal
@@ -55,6 +56,9 @@ BEGIN
 		,IsLive							BIT DEFAULT(0)
 		,IsChildMatch					BIT
 		,Action							VARCHAR(20)
+		,ActionId						INT
+		,ParentID						INT 
+		,ChildMatchType					TINYINT	
 	)
 	CREATE TABLE #MatchLive(matchid INT)
 
@@ -96,7 +100,9 @@ BEGIN
 	)
 	INSERT INTO #tmpData(Year, Month, Date, Weekday, sporttype, sportname, GroupID, GroupName, LeagueName, matchid, hometeam, awayteam
 		, GlobalShowTime, keyscoreUser, SettleAction,	SettlementStatus, ConfirmStatus, ConfirmDate
-		, Step1_WaitforKeyscore_Duration, Step2_WaitforSettle_Duration, Step3_Settle_Duration, IsHold, IsChildMatch, Action)
+		, Step1_WaitforKeyscore_Duration, Step2_WaitforSettle_Duration, Step3_Settle_Duration, IsHold, IsChildMatch
+		, Action, ActionId, ParentID, ChildMatchType
+	)
 	SELECT
 		YEAR(m.eventdate) [Year]
 		,MONTH(m.eventdate) [Month]
@@ -127,6 +133,9 @@ BEGIN
 		,s.IsHold
 		,CASE WHEN m.parentid is null THEN 0 ELSE 1 END AS IsChildMatch
 		,s.Action
+		,s.ActionId
+		,m.ParentID
+		,m.ChildMatchType
 	FROM  cteSettlementPerformanceLog s
 		INNER JOIN bodb02.dbo.League l with(nolock)
 			on s.LeagueId = l.leagueid
@@ -152,10 +161,10 @@ BEGIN
 			WHERE	s.ActionId > 100 
 		)itv
 		INNER JOIN
-			(SELECT matchid, homeid, awayid, leagueid, eventdate, GlobalShowTime, ParentID
+			(SELECT matchid, homeid, awayid, leagueid, eventdate, GlobalShowTime, ParentID, ChildMatchType
 			FROM bodb_account.dbo.match m with(nolock)
 			UNION
-			select matchid, homeid, awayid, leagueid, eventdate, GlobalShowTime, ParentID
+			select matchid, homeid, awayid, leagueid, eventdate, GlobalShowTime, ParentID, ChildMatchType
 			from bodb_archive.dbo.match  with(nolock)
 		) m
 			on s.matchid = m.matchid
@@ -186,6 +195,26 @@ BEGIN
 					ELSE 1
 					END
 				AND l.isTest = 0
+		
+		DELETE main
+		FROM #tmpData main 
+		WHERE	main.sporttype = 18
+				AND main.parentid IS NULL 
+				AND ActionID > 100
+				AND EXISTS (SELECT TOP 1 1 
+							FROM 	#tmpData child 
+							WHERE 	parentid = main.matchid 
+									AND 1 = CASE 
+												WHEN child.ChildMatchType = 12 AND main.ActionId = 101 THEN 1 -- set 1
+												WHEN child.ChildMatchType = 14 AND main.ActionId = 102 THEN 1 -- set 2
+												WHEN child.ChildMatchType = 15 AND main.ActionId = 103 THEN 1 -- set 3
+												WHEN child.ChildMatchType = 16 AND main.ActionId = 104 THEN 1 -- set 4
+												WHEN child.ChildMatchType = 17 AND main.ActionId = 105 THEN 1 -- set 5
+												WHEN child.ChildMatchType = 18 AND main.ActionId = 106 THEN 1 -- set 6
+												WHEN child.ChildMatchType = 19 AND main.ActionId = 107 THEN 1 -- set 7
+												ELSE 0
+											END
+						)
 		
 		INSERT INTO #MatchLive(matchid)
 		SELECT	s.matchid
