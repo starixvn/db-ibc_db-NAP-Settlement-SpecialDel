@@ -24,6 +24,7 @@ AS
 		- 20230407@Aries: Apply Settlement by Profile for Remaining Sports - Remove code [Redmine: #182677]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241021@Aries: AutoPayout2 for Baseball AiO (Regular and Series Matches) [Redmine:#211632]
 		
 	Param's Explanation:
 		- @StatusId: 0: New
@@ -79,13 +80,15 @@ BEGIN
 			RETURN
 		END
 
-		UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
-		SET AutoSetting =  (CASE WHEN AutoSetting & 2 > 0 THEN AutoSetting ^ 2 
-								 WHEN AutoSetting IS NULL THEN 0
-								 ELSE AutoSetting 
-							END)
-			,changetime = GETDATE()
-		WHERE matchid = @MatchId
+		UPDATE m 
+		SET m.AutoSetting = (CASE WHEN m.AutoSetting IS NOT NULL AND  m.AutoSetting & 2 > 0 THEN m.AutoSetting ^ 2 
+								  WHEN m.AutoSetting IS NULL AND  l.AutoSetting & 2 > 0 THEN l.AutoSetting ^ 2 
+								  ELSE m.AutoSetting 
+							 END)
+			 ,m.changetime = GETDATE()
+		FROM dbo.match AS m  WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN dbo.league AS l  WITH(NOLOCK)   ON l.leagueid = m.leagueid 
+		WHERE m.matchid = @MatchId;
 
 		IF @IsConfirm = 0
 		BEGIN
@@ -118,13 +121,15 @@ BEGIN
 			RETURN
 		END
 
-		UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
-		SET AutoSetting =  (CASE WHEN AutoSetting & 2 > 0 THEN AutoSetting ^ 2 
-								 WHEN AutoSetting IS NULL THEN 0
-								 ELSE AutoSetting 
-							END)
-			,changetime = GETDATE()
-		WHERE matchid = @MatchId
+		UPDATE m 
+		SET m.AutoSetting = (CASE WHEN m.AutoSetting IS NOT NULL AND  m.AutoSetting & 2 > 0 THEN m.AutoSetting ^ 2 
+								  WHEN m.AutoSetting IS NULL AND  l.AutoSetting & 2 > 0 THEN l.AutoSetting ^ 2 
+								  ELSE m.AutoSetting 
+							 END)
+			 ,m.changetime = GETDATE()
+		FROM dbo.match AS m  WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN dbo.league AS l  WITH(NOLOCK)   ON l.leagueid = m.leagueid 
+		WHERE m.matchid = @MatchId;
 	END
 	ELSE
 	BEGIN
