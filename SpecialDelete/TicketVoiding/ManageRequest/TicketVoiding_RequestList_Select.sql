@@ -314,7 +314,7 @@ BEGIN
 						INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) ON o.EventID = m14.EventID
 					WHERE rd.MatchId = m14.EventID
 					) m
-		WHERE rd.RequestId = @RequestId
+		WHERE rd.MatchId = @MatchId
 		GROUP BY rd.RequestId
 		
 	END
