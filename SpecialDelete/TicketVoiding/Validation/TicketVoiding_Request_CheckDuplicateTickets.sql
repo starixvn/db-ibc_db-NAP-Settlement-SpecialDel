@@ -223,7 +223,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1,2)))
 		BEGIN
 			INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode, VendorMatchId, RaceId)
-			SELECT DISTINCT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, VendorMatchId
+			SELECT DISTINCT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, VendorMatchId, RaceId
 			FROM #tmpTransInfo t
 				CROSS APPLY(
 					SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, NULL AS VendorMatchId, NULL AS RaceId
