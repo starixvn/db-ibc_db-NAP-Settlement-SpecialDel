@@ -24,6 +24,7 @@ AS
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241008@Kathy: correct actionid of interval 1 for table tennis [Redmine:#211924]
 
    
     Parameters Explanation:        
@@ -129,14 +130,13 @@ RETURN
 			UNION ALL SELECT 58, '00', 'PEN', 'PEN' , 'FT', 1, 98, 1,0
 			UNION ALL SELECT 58, '00', 'FT',  '00'  , 'FT', 1, 99, 1,0
 
-
-			UNION ALL SELECT 18, '01', '1S',  '0101'  , 'SP', 0, 1,  0,1
-			UNION ALL SELECT 18, '02', '2S',  '0102'  , 'SP', 1, 2,  0,2
-			UNION ALL SELECT 18, '03', '3S',  '0103'  , 'SP', 1, 3,  0,3
-			UNION ALL SELECT 18, '04', '4S',  '0104'  , 'SP', 1, 4,  0,4
-			UNION ALL SELECT 18, '05', '5S',  '0105'  , 'SP', 1, 5,  0,5
-			UNION ALL SELECT 18, '06', '6S',  '0106'  , 'SP', 1, 6,  0,6
-			UNION ALL SELECT 18, '07', '7S',  '0107'  , 'SP', 1, 7,  0,7
+			UNION ALL SELECT 18, '801', '1S',  '0101'  , 'SP', 0, 1,  0,1
+			UNION ALL SELECT 18, '802', '2S',  '0102'  , 'SP', 1, 2,  0,2
+			UNION ALL SELECT 18, '803', '3S',  '0103'  , 'SP', 1, 3,  0,3
+			UNION ALL SELECT 18, '804', '4S',  '0104'  , 'SP', 1, 4,  0,4
+			UNION ALL SELECT 18, '805', '5S',  '0105'  , 'SP', 1, 5,  0,5
+			UNION ALL SELECT 18, '806', '6S',  '0106'  , 'SP', 1, 6,  0,6
+			UNION ALL SELECT 18, '807', '7S',  '0107'  , 'SP', 1, 7,  0,7
 			UNION ALL SELECT 18, '00', 'FT',  '00'    , 'FT', 1, 99, 1,0
 			UNION ALL SELECT 8, '801', 'Inn1', '0101', 'SP', 0, 1,  0,1
             UNION ALL SELECT 8, '802', 'Inn2', '0102', 'SP', 0, 2,  0,2
