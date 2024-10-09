@@ -83,7 +83,7 @@ BEGIN
 
 	END
 
-	SELECT m.matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, CASE WHEN ISNULL(m.parentid,0) = 0 THEN m.matchid ELSE m.ParentId END AS parentid, Kickofftime, mr.SubType, VendorMatchId
+	SELECT m.matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, CASE WHEN ISNULL(m.parentid,0) = 0 THEN m.matchid ELSE m.ParentId END AS parentid, Kickofftime, mr.SubType, VendorMatchId, RaceId
 	FROM #MatchInfo m
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON m.matchid = mr.matchid
 
