@@ -30,7 +30,7 @@ BEGIN
 	
 	CREATE TABLE #MatchInfo (matchid INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT
 		, eventdate DATETIME, matchcode NVARCHAR(100), ParentId INT, Kickofftime DATETIME
-		, VendorMatchId VARCHAR(50))
+		, VendorMatchId VARCHAR(50), RaceId VARCHAR(10))
 	
 	IF @Sporttype NOT IN (147,177,198) OR @Sporttype IS NULL
 	BEGIN
@@ -68,14 +68,14 @@ BEGIN
 	-- Virtual Horse Racing & Virtual Dog Racing
 	IF @Sporttype IN (177,198)
 	BEGIN 
-		INSERT INTO #MatchInfo(matchid, leagueid, sporttype, eventdate, Kickofftime, VendorMatchId) 
-		SELECT	m.EventID, m.leagueid, m.sporttype, o.eventdate, o.kickofftime, VendorMatchId
+		INSERT INTO #MatchInfo(matchid, leagueid, sporttype, eventdate, Kickofftime, VendorMatchId, RaceId) 
+		SELECT DISTINCT	m.EventID, m.leagueid, m.sporttype, o.eventdate, m.EventTime, VendorMatchId, m.Distance
 		FROM	dbo.VSRaceInfo m WITH(NOLOCK)
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) ON m.EventID = o.EventID
 		WHERE	m.sporttype = @Sporttype 
 				AND m.EventID = @MatchId 
 		UNION
-		SELECT	m.EventID, m.leagueid, m.sporttype, o.eventdate, o.kickofftime, VendorMatchId
+		SELECT DISTINCT	m.EventID, m.leagueid, m.sporttype, o.eventdate, m.EventTime, VendorMatchId, m.Distance
 		FROM	dbo.VSRaceInfo14 m WITH(NOLOCK)
 			INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) ON m.EventID = o.EventID
 		WHERE	m.sporttype = @Sporttype 

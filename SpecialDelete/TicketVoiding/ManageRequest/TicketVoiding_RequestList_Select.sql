@@ -603,6 +603,7 @@ BEGIN
 			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch, m.ParentID AS ParentMatchId, m.matchcode
 			,t.Provider, t.Source, t.Remark, t.Trader, t.LA, t.Message
 			,vs.VendorMatchId
+			,vs.Distance AS RaceId
 	FROM	#tmpResult t
 		LEFT JOIN #CTE_CustInfo c ON t.UserId = c.CustId
 		LEFT JOIN #CTE_CustInfo v ON t.LastVoidedBy = v.CustId
@@ -647,8 +648,13 @@ BEGIN
 					WHERE mr.matchid = t.MatchId
 			)mr
 		OUTER APPLY (
-					SELECT	m.VendorMatchId
+					SELECT	m.VendorMatchId, m.Distance
 					FROM	dbo.VSRaceInfo m WITH(NOLOCK)
+					WHERE	m.EventID = t.MatchId
+						AND t.Sporttype IN (177,198)
+					UNION 
+					SELECT	m.VendorMatchId, m.Distance
+					FROM	dbo.VSRaceInfo14 m WITH(NOLOCK)
 					WHERE	m.EventID = t.MatchId
 						AND t.Sporttype IN (177,198)
 			)vs

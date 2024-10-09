@@ -83,6 +83,7 @@ BEGIN
 					,m.GlobalShowTime
 					,mr.NumberOfCorner
 					,NULL AS VendorMatchId
+					,NULL AS RaceId
 			FROM	dbo.match AS m WITH (NOLOCK) 
 				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
 				OUTER APPLY (
@@ -106,6 +107,7 @@ BEGIN
 					,m14.globalshowtime
 					,mr.NumberOfCorner
 					,NULL AS VendorMatchId
+					,NULL AS RaceId
 			FROM	dbo.match14 AS m14 WITH (NOLOCK) 
 				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m14.leagueid = l.leagueid
 				OUTER APPLY (
@@ -131,6 +133,7 @@ BEGIN
 				match.StartTime,
 				NULL AS NumberOfCorner
 				,NULL AS VendorMatchId
+				,NULL AS RaceId
 			FROM dbo.Match3rd AS match WITH (NOLOCK) 
 			WHERE match.Match3rdId = @matchID
 			UNION ALL --VS5
@@ -149,6 +152,7 @@ BEGIN
 				match.StartTime,
 				NULL AS NumberOfCorner
 				,NULL AS VendorMatchId
+				,NULL AS RaceId
 			FROM dbo.Match3rd14 AS match WITH (NOLOCK) 
 			WHERE match.Match3rdId = @matchID
 
@@ -168,6 +172,7 @@ BEGIN
 				r.EventTime,
 				NULL AS NumberOfCorner
 				,r.VendorMatchId AS VendorMatchId
+				,r.Distance AS RaceId
 			FROM dbo.VSOutright o WITH (NOLOCK)
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) ON r.EventID = o.EventID
 			WHERE r.EventID = @matchID
@@ -188,6 +193,7 @@ BEGIN
 				r.EventTime,
 				NULL AS NumberOfCorner
 				,r.VendorMatchId AS VendorMatchId
+				,r.Distance AS RaceId
 			FROM dbo.VSOutright14 o WITH (NOLOCK)
 			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) ON r.EventID = o.EventID
 			WHERE r.EventID = @matchID

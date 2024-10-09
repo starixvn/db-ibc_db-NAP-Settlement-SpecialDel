@@ -52,6 +52,7 @@ AS
 		- 20240523@July: [TVS] New issue type Wrong Market Offered & Technical Error [Redmine: #197051/194093]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:	
 		@Status: 
@@ -459,6 +460,8 @@ BEGIN
 			,t.TotalResettleProcessed 
 			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch, m.ParentID AS ParentMatchId, m.matchcode
 			,t.Provider, t.Source, t.Remark, t.Trader, t.LA, t.Message
+			,vs.VendorMatchId
+			,vs.Distance AS RaceId
 	FROM	#tmpResult t
 		LEFT JOIN #CTE_CustInfo c ON t.UserId = c.CustId
 		LEFT JOIN #CTE_CustInfo v ON t.LastVoidedBy = v.CustId
@@ -498,6 +501,12 @@ BEGIN
 					FROM dbo.match_remark mr WITH (NOLOCK) 
 					WHERE mr.matchid = t.MatchId
 			)mr
+		OUTER APPLY (
+					SELECT	m.VendorMatchId, m.Distance
+					FROM	dbo.VSRaceInfo_bk m WITH(NOLOCK)
+					WHERE	m.EventID = t.MatchId
+						AND t.Sporttype IN (177,198)
+			)vs
 		WHERE 1 = CASE 
 				--All
 				WHEN @Status = -1 THEN 1
