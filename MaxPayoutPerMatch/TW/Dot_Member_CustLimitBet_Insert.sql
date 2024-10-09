@@ -22,7 +22,6 @@ AS
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240118@Louisa: VS4 - Cock Fighting [Redmine:#199700]
 		- 20240612@Helen: Duplicate Key issue [Redmine:#00000]
-		- 20240808@Max: Max Payout - Integrate Virtually Sports (VS5) [Redmine: #209070]
 		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
 	
 	Param's explanation:	
@@ -37,14 +36,14 @@ BEGIN
 	END
 	
 
-	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186,188,147) AND (@sporttype NOT BETWEEN 190 AND 197))
+	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186,188) AND (@sporttype NOT BETWEEN 190 AND 197))
 		OR (@bettype IN(2799,10449)) OR (@bettype BETWEEN 801 AND 806)
 	BEGIN
 		RETURN
 	END
 	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) 
 		OR (@sporttype IN (43,44) AND @sitetype <> 3)
-		OR (@sporttype IN (164,178,179,180,186,188,147)) 
+		OR (@sporttype IN (164,178,179,180,186,188)) 
 		OR (@sporttype BETWEEN 190 AND 197)
 	BEGIN
 		SET @payout = 0

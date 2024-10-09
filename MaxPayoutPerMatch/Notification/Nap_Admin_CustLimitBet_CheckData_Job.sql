@@ -22,6 +22,7 @@ AS
 		- 20230712@Max: Scale out credit [Redmine: #181595]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240808@Max: Max Payout - Integrate Virtually Sports (VS5) [Redmine: #209070]
+		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
 
 	Param's explanation:		
 		
@@ -63,6 +64,11 @@ BEGIN
 	FROM dbo.[Match3rd] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
 		AND m.sporttype IN (147)
+	UNION ALL
+	SELECT m.EventID, m.sporttype
+	FROM dbo.VSRaceInfo m WITH (NOLOCK)
+	WHERE m.eventstatus = 'running'
+		AND m.sporttype IN (177,198)
 
 	INSERT INTO #NonSBRunningMatch(matchid)
 	SELECT m.matchid
