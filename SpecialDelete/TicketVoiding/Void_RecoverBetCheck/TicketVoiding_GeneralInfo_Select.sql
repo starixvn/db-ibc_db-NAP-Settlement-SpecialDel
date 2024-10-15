@@ -23,6 +23,7 @@ AS
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240813@Max: [TVS] Manage Request - Enhancements [Redmine: #208623]
 		- 20240828@Max: [TVS] Manage Request - Enhancements - Fix Issue [Redmine: #208623]
+		- 20241015@Max: [TVS] Void/Recover Bet Check -Missing some licensee customer in the negative balance list [Redmine: #212190]
 
 	Param's explanation:
 		
@@ -32,7 +33,6 @@ BEGIN
 
 	DECLARE  @VoidingHistoryId  INT
 			,@xmlVoidResults	XML = NULL
-			,@cnt_matchid		INT = 0
 			,@NegativeBalanceUsers VARCHAR(MAX) = ''
 			,@VoidingHistoryIds VARCHAR(MAX) = ''
 			,@SingleTransIds	VARCHAR(MAX) = ''
@@ -117,38 +117,18 @@ BEGIN
 									FROM #tmpVoidingHistory
 									FOR XML PATH ('')),1,1,'')
 
-	SELECT @cnt_matchid = COUNT(DISTINCT matchid)
-	FROM  Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
-	WHERE RequestId = @RequestId
-
-	IF @cnt_matchid = 1 --Many voidinghistory 1 request -> 1 match
-	BEGIN
-		UPDATE vh
-		SET vh.VoidResults = s.VoidResults
-		   ,vh.matchid = s.matchID
-		   ,vh.NegativeBalanceUsers = s.NegativeBalanceUsers
-		   ,vh.MessageId = ISNULL(s.MessageId,s.MessageIdSpecial)
-		   ,vh.MessageIdSpecial = s.MessageIdSpecial
-		FROM #tmpVoidingHistory vh
-			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID 
-		WHERE (s.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR s.MatchId IN (0,29))
-	END
-	ELSE --Many voidinghistory 1 request -> matches
-	begin
-		UPDATE vh
-		SET vh.VoidResults = s.VoidResults
-			,vh.matchid = s.matchid
-		    ,vh.NegativeBalanceUsers = s.NegativeBalanceUsers
-		    ,vh.MessageId = ISNULL(s.MessageId,s.MessageIdSpecial)
-			,vh.MessageIdSpecial = s.MessageIdSpecial
-		FROM #tmpVoidingHistory vh
-			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistoryId
-		WHERE (s.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR s.MatchId IN (0,29))
+	UPDATE vh
+	SET vh.VoidResults = s.VoidResults
+		,vh.matchid = s.matchid
+		,vh.NegativeBalanceUsers = s.NegativeBalanceUsers
+		,vh.MessageId = ISNULL(s.MessageId,s.MessageIdSpecial)
+		,vh.MessageIdSpecial = s.MessageIdSpecial
+	FROM #tmpVoidingHistory vh
+		INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistoryId
+	WHERE (s.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR s.MatchId IN (0,29))
 		
-		DELETE FROM #tmpVoidingHistory WHERE MatchId IS NULL
-	END
-	
-	
+	DELETE FROM #tmpVoidingHistory WHERE MatchId IS NULL
+		
 	SET @NegativeBalanceUsers = STUFF((SELECT DISTINCT ',' + a.NegativeBalanceUser
 									FROM #tmpVoidingHistory t
 										CROSS APPLY (
