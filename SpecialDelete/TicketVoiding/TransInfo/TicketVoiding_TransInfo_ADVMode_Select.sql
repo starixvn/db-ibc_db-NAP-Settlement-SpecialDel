@@ -181,7 +181,7 @@ BEGIN
 			,ISNULL(REPLACE(FilterBetIdX,'&',','),'') AS betIdX
 			,ISNULL(REPLACE(FilterBetIdY,'&',','),'') AS betIdY
 			,ISNULL(PlayerAndOdds, '') AS PlayerAndOdds
-			,ISNULL(Hdp1, '') AS HDP1s
+			,ISNULL(NULLIF(Hdp1, 'All'), '') AS HDP1s
 			,ISNULL(Hdp2, '') AS HDP2s
 			,ISNULL(BetOption, '') AS BetOption
 		FROM OPENJSON(@AdvancedExtraInfo) 
