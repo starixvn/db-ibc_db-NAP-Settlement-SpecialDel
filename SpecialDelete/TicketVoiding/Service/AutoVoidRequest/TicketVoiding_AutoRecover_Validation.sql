@@ -13,6 +13,7 @@ AS
 	
 	Revisions: 
 		- 20231227@Max: Create new SP [Redmine: #196020]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's explanation:
 		
@@ -110,7 +111,7 @@ BEGIN
 				,b.winlostdate
 				,b.statusID
 			FROM #tmpInputTransId t
-				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype NOT IN (9,29,2799,10449)
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 
 			INSERT INTO #ParlayTickets_14 (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
 			SELECT t.TransId
@@ -121,7 +122,7 @@ BEGIN
 				,b.winlostdate
 				,b.statusID
 			FROM #tmpInputTransId t
-				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (9,29,2799,10449)
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		END
 	END
 	

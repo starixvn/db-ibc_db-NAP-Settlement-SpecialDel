@@ -23,6 +23,7 @@ AS;
 		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
 		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's explanation:	
 		
@@ -74,15 +75,16 @@ BEGIN
 	;WITH CTE_Single AS(
 			SELECT	vh.RequestId, vh.MatchId
 					,SUM( CASE 
-							WHEN vh.IssueTypeId NOT IN (1,10,3,12,24) AND z.bettype NOT IN (9,29,2799,10449) THEN 1
+							WHEN vh.IssueTypeId NOT IN (1,10,3,12,24) AND f.bettype IS NULL THEN 1
 							WHEN vh.IssueTypeId IN (1,10,3,12,24) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 						ELSE 0 END
 					) AS TotalSingleProcessed
-					,SUM(CASE WHEN z.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+					,SUM(CASE WHEN f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
 					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,12,24) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed -- Apply for DA,RC,WC
 			FROM #tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId AND z.VoidingHistoryId IS NOT NULL
+				LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.Bettype = z.bettype
 			WHERE z.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (22) --Recover Ticket
 			GROUP BY vh.RequestId, vh.MatchId
 	)
@@ -130,10 +132,11 @@ BEGIN
 			,TotalResettleProcessed= ISNULL(rt.TotalResettleProcessed,0) 
 		FROM	#tmpResult t
 		CROSS APPLY (SELECT 
-						SUM(CASE WHEN s.MatchId NOT IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						,SUM(CASE WHEN s.MatchId IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						SUM(CASE WHEN f.bettype IS NULL THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						,SUM(CASE WHEN f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
 						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
 					FROM @tmp_TransId s
+						LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.Bettype = s.MatchId
 					WHERE s.RequestId = t.RequestId
 				)rt	
 		WHERE t.IssueTypeId = 22 --Recover Ticket

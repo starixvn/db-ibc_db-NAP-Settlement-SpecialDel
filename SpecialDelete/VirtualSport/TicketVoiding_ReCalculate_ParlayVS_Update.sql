@@ -19,6 +19,7 @@ AS
 	Revisions:  				
 		- 20240220@July: Create new SP - Support re-cal sub & main parlay  [Redmine: #200087]
 		- 20240315@July: Fix null winlostdate follow settle [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's Explanation:				
 		- @strRefnos : Refno Maintransids.
@@ -154,10 +155,18 @@ BEGIN
 				SELECT '01' AS Id, m.hthomescore AS Home, m.htawayscore AS Away
 				FROM  dbo.match m WITH (NOLOCK)
 				WHERE matchid = @matchid
+				UNION ALL
+				SELECT '00' AS Id, m.finalhomescore AS Home, m.finalawayscore AS Away
+				FROM  dbo.Match3rd m WITH (NOLOCK)
+				WHERE Match3rdId = @matchid
+				UNION ALL
+				SELECT '01' AS Id, m.hthomescore AS Home, m.htawayscore AS Away
+				FROM  dbo.Match3rd m WITH (NOLOCK)
+				WHERE Match3rdId = @matchid
 			) AS tbl
 				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 				ON	sp.ResourceID = tbl.Id
-			WHERE sp.SportType IN (188)
+			WHERE sp.SportType IN (188,147)
 
 		INSERT INTO #tmpsubTransID (refno, transid, statuswinlost, statusID)
 		SELECT bm.refno
@@ -262,7 +271,8 @@ BEGIN
 		, StatusID, modds, winlostdate
 		, currency, transdate
 	FROM dbo.bettrans b WITH(NOLOCK)
-	WHERE b.matchid = 10449 AND b.bettype = 10449
+	WHERE b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1) AND bettype <> 2799)
+		AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1) AND bettype <> 2799)
 		AND b.statusID NOT IN (101,102) --('VOID','REJECT')	
 		AND EXISTS (SELECT 1 FROM @tmpRefnos WHERE refno = b.refno)
 
@@ -282,16 +292,31 @@ BEGIN
 									END
 								) AS MONEY) AS modds
 		FROM #tempMainParlay t
-			CROSS APPLY(	SELECT bm.transid, bm.odds, bm.refno, bm.statuswinlost, bm.statusID, bm.winlostdate
+			CROSS APPLY(	
+							SELECT bm.transid, bm.odds, bm.refno, bm.statuswinlost, bm.statusID, bm.winlostdate
 							FROM dbo.bettransm bm WITH(rowlock)	
-								INNER JOIN dbo.match m WITH (NOLOCK)
-									ON bm.matchid = m.matchid
+								CROSS APPLY (
+									SELECT TOP 1 1 AS IsValid
+									FROM dbo.match m WITH (NOLOCK)
+									WHERE  bm.matchid = m.matchid
+									UNION ALL
+									SELECT TOP 1 1 AS IsValid
+									FROM dbo.Match3rd m WITH (NOLOCK)
+									WHERE  bm.matchid = m.Match3rdId
+								)m
 							WHERE bm.refno = t.refno									
 							UNION
 							SELECT bm14.transid, bm14.odds, bm14.refno, bm14.statuswinlost, bm14.statusID, bm14.winlostdate
 							FROM dbo.bettransm14 bm14 WITH(rowlock)			
-								INNER JOIN dbo.match14 m14 WITH(NOLOCK)
-									ON bm14.matchid = m14.matchid
+								CROSS APPLY (
+									SELECT TOP 1 1 AS Isvalid
+									FROM dbo.match14 m14 WITH(NOLOCK)
+									WHERE bm14.matchid = m14.matchid
+									UNION ALL
+									SELECT TOP 1 1 AS IsValid
+									FROM dbo.Match3rd14 m WITH (NOLOCK)
+									WHERE  bm14.matchid = m.Match3rdId
+								)m
 							WHERE bm14.refno = t.refno
 					) AS parlay 
 		GROUP BY parlay.refno

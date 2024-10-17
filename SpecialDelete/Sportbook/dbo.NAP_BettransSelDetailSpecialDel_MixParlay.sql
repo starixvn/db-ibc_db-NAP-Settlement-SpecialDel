@@ -20,6 +20,7 @@ AS
 		- 20210315@July: Integrate Cricket AIO - [Redmine: #150075]
 		- 20220816@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20240304@July: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's Explanation:
@@ -105,12 +106,21 @@ BEGIN
 			,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
 			,b.transdate					
 	FROM	dbo.BettransM AS b WITH(NOLOCK)		
-		INNER JOIN match AS m WITH(NOLOCK)
-			ON	b.matchid=m.matchid
-				AND refno=@refno										
-	WHERE	(m.sporttype BETWEEN 1 AND 99
+		CROSS APPLY (
+			SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID
+			FROM match AS m WITH(NOLOCK)
+			WHERE b.matchid=m.matchid	
+
+			UNION ALL
+			SELECT homeid, awayid, League3rdId, sporttype, 0, matchid, matchcode, StartTime, NULL, NULL
+			FROM Match3rd AS m WITH(NOLOCK)
+			WHERE b.matchid=m.Match3rdId	
+		)m
+	WHERE b.refno = @Refno
+		AND (m.sporttype BETWEEN 1 AND 99
 			OR m.sporttype BETWEEN 190 AND 199
 			OR m.sporttype = 188 --VS4
+			OR m.sporttype = 147 --VS5
 			)
 			AND b.SiteDBGroupID = @SiteDBGroupID
 	ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END
@@ -170,12 +180,20 @@ BEGIN
 				,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
 				,b.transdate						
 		FROM	dbo.BettransM14 AS b WITH(NOLOCK)		
-			INNER JOIN match14 AS m WITH(NOLOCK)
-				ON	b.matchid=m.matchid
-					AND refno=@refno								
+			CROSS APPLY (
+				SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID
+				FROM match14 AS m WITH(NOLOCK)
+				WHERE b.matchid=m.matchid	
+
+				UNION ALL
+				SELECT homeid, awayid, League3rdId, sporttype, 0, matchid, matchcode, StartTime, NULL, NULL
+				FROM Match3rd14 AS m WITH(NOLOCK)
+				WHERE b.matchid=m.Match3rdId	
+			)m								
 		WHERE	(m.sporttype BETWEEN 1 AND 99
 				OR m.sporttype BETWEEN 190 AND 199
 				OR m.sporttype = 188 --VS4
+				OR m.sporttype = 147 --VS5
 				)
 			AND b.SiteDBGroupID = @SiteDBGroupID
 		ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END

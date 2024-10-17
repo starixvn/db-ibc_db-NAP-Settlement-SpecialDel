@@ -13,6 +13,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
 		- 20210304@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210922@Louisa: Remove @CutOffDate [Redmine:#159903]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		
 	Param's Explanation:  
 		   
@@ -314,7 +315,7 @@ BEGIN
 		IF @transInfo IS NOT NULL
 		BEGIN
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-			SELECT 'TVS', 'Recover_14', 'bettrans14', 'U', @matchid, @transInfo, CASE WHEN @MatchId IN (29, 2799, 10449) THEN 'p' ELSE 's' END
+			SELECT 'TVS', 'Recover_14', 'bettrans14', 'U', @matchid, @transInfo, CASE WHEN @MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 'p' ELSE 's' END
 		END
 	END	
 

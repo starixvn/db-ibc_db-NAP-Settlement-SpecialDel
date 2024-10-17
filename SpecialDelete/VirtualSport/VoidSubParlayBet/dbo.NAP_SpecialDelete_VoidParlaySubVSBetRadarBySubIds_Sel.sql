@@ -15,6 +15,7 @@ AS
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's Explanation:		
 		- @SubTransIds : TransIds of sub parlay tickets
@@ -203,8 +204,8 @@ BEGIN
 		 INNER JOIN bettrans b WITH (NOLOCK) 
 				 ON b.refno = bm.refno 
 					AND b.custid = bm.custid
-	WHERE b.matchid IN (2799, 10449)
-	  AND b.bettype IN (2799, 10449)
+	WHERE b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
+	  AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
 	  AND b.statusID NOT IN (101, 102) -- reject, void	
 	  AND b.SiteDBGroupID = @SiteDBGroupID
 	OPTION(OPTIMIZE FOR (@SubTickets_Count = 1))			    	  								 	
@@ -262,8 +263,15 @@ BEGIN
 		   ,m.matchcode   
 		   ,@SiteDBGroupID AS SiteDBGroupID
 	FROM #tmpResult t					
-		 INNER JOIN match m WITH (NOLOCK)
-				 ON t.matchid = m.matchid		
+		CROSS APPLY (
+			SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode
+			FROM match m WITH (NOLOCK)
+			WHERE m.matchid = t.matchid
+			UNION 
+			SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode
+			FROM Match3rd m WITH (NOLOCK)
+			WHERE m.Match3rdId = t.matchid
+		 )m		
 		 OUTER APPLY (SELECT CAST(CASE 
 									WHEN t.srecommend IN (SELECT custid from custDB.dbo.Dep_CustSuper with(NOLOCK)) 
 											THEN 1

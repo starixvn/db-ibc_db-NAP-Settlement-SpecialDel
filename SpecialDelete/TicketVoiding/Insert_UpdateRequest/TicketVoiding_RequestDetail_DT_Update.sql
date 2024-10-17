@@ -21,6 +21,8 @@ AS
 		- 20231031@Max: [TVS] - Hot fix - Duplicate ticket missing void parlay virtual sport [Redmine: #196241]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:
 */
@@ -120,30 +122,71 @@ BEGIN
 		WHERE RequestId = @RequestId
 	END
 
-	INSERT INTO dbo.TicketVoiding_RequestDetail (
-		RequestId
-		, MatchId
-		, LeagueId
-		, HomeId
-		, AwayId
-		, Sporttype
-		, RequestType
-		, SubIssueTypeId
-		, FilterBy
-		, TransIds
-	)
-	SELECT @RequestId
-		, @MatchId
-		, m.leagueid
-		, m.homeid
-		, m.awayid
-		, m.sporttype
-		, CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
-		, @SubIssueTypeId
-		, @FilterBy
-		, CONVERT(VARCHAR(MAX), @xmlTransIds)
-	FROM dbo.match m WITH (NOLOCK)
-	WHERE m.matchid = @MatchId
+	IF @MatchId NOT IN (SELECT Bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_RequestDetail (
+			RequestId
+			, MatchId
+			, LeagueId
+			, HomeId
+			, AwayId
+			, Sporttype
+			, RequestType
+			, SubIssueTypeId
+			, FilterBy
+			, TransIds
+		)
+		SELECT @RequestId
+			, @MatchId
+			, m.leagueid
+			, m.homeid
+			, m.awayid
+			, m.sporttype
+			, CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
+			, @SubIssueTypeId
+			, @FilterBy
+			, CONVERT(VARCHAR(MAX), @xmlTransIds)
+		FROM (
+			SELECT m.leagueid, m.homeid, m.awayid, m.sporttype
+			FROM dbo.match m WITH (NOLOCK)
+			WHERE m.matchid = @MatchId
+
+			UNION
+			SELECT m.League3rdId, m.homeid, m.awayid, m.sporttype
+			FROM dbo.Match3rd m WITH (NOLOCK)
+			WHERE m.Match3rdId = @MatchId
+
+			UNION
+			SELECT m.EventID, NULL, NULL, m.sporttype
+			FROM dbo.VSRaceInfo m WITH (NOLOCK)
+			WHERE m.EventID = @MatchId
+		)m
+	END
+	ELSE
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_RequestDetail (
+			RequestId
+			, MatchId
+			, LeagueId
+			, HomeId
+			, AwayId
+			, Sporttype
+			, RequestType
+			, SubIssueTypeId
+			, FilterBy
+			, TransIds
+		)
+		SELECT @RequestId
+			, @MatchId
+			, NULL
+			, NULL
+			, NULL
+			, NULL
+			, CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
+			, @SubIssueTypeId
+			, @FilterBy
+			, CONVERT(VARCHAR(MAX), @xmlTransIds)
+	END
 
 	SET @RequestDetailId = SCOPE_IDENTITY()
 	
@@ -158,7 +201,7 @@ BEGIN
 	FROM #tmpTransInfo t
 	WHERE matchid = @MatchId
 		AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
-					 WHEN @FilterBy = 1 AND t.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END
+					 WHEN @FilterBy = 1 AND t.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END
 		AND IsOrg <> 1
 
 	-- Get content of log data 

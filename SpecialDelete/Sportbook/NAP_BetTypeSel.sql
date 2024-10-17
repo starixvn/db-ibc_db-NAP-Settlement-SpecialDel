@@ -47,6 +47,7 @@ AS
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 		- 20240220@July: Merge VS1, VS2, VS3 into Virtual Sports - Remove code unused [Redmine: #200317]
 		- 20240319@July: Add code get bettype for page Number Game [Redmine: #200840]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
     Param's Explanation:  
     @Mode:   
@@ -77,7 +78,7 @@ BEGIN
 			WHERE match3rdId = @MatchID
 		)m
         
-        IF (@Sporttype NOT BETWEEN 1 AND 99) AND @Sporttype IN (175) --Bitcoin
+        IF (@Sporttype NOT BETWEEN 1 AND 99) AND @Sporttype IN (175) AND @Sporttype NOT IN (147) --Bitcoin, VS5
         BEGIN 
             SET @ErrCode = 100
             SET @ErrMsg ='Invalid MatchId.' 

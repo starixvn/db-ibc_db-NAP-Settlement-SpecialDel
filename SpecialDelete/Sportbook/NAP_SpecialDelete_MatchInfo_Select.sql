@@ -20,6 +20,8 @@ AS
 		- 20230112@July: [TVS] Add more send Letstalk info when an abnormal request added [Redmine: #182392]
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 		- 20230427@July: Invalid matchid when input child match Cricket [Redmine: #187052]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:	
 		- @Type: 0 - Normal (get match from match table)
@@ -80,6 +82,8 @@ BEGIN
 					,l.LeagueGroupID
 					,m.GlobalShowTime
 					,mr.NumberOfCorner
+					,NULL AS VendorMatchId
+					,NULL AS RaceId
 			FROM	dbo.match AS m WITH (NOLOCK) 
 				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
 				OUTER APPLY (
@@ -102,6 +106,8 @@ BEGIN
 					,l.LeagueGroupID
 					,m14.globalshowtime
 					,mr.NumberOfCorner
+					,NULL AS VendorMatchId
+					,NULL AS RaceId
 			FROM	dbo.match14 AS m14 WITH (NOLOCK) 
 				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m14.leagueid = l.leagueid
 				OUTER APPLY (
@@ -110,6 +116,88 @@ BEGIN
 			WHERE	m14.matchid = @matchID	
 				AND 1 = CASE WHEN @IsExcludeChildMatchCricket = 1 AND m14.sporttype = 50 AND m14.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 							 ELSE 1 END 
+
+			UNION ALL --VS5
+			SELECT 
+				match.Match3rdId AS matchid,
+				match.homeid,
+				match.awayid,
+				match.matchcode AS matchcode, 
+				match.eventdate, 
+				match.League3rdId leagueid,
+				NULL AS IsNeutral,
+				NULL AS showtime,
+				match.StartTime AS kickofftime,
+				match.sporttype,
+				NULL AS LeagueGroupID,
+				match.StartTime,
+				NULL AS NumberOfCorner
+				,NULL AS VendorMatchId
+				,NULL AS RaceId
+			FROM dbo.Match3rd AS match WITH (NOLOCK) 
+			WHERE match.Match3rdId = @matchID
+			UNION ALL --VS5
+			SELECT 
+				match.Match3rdId AS matchid,
+				match.homeid,
+				match.awayid,
+				match.matchcode AS matchcode, 
+				match.eventdate, 
+				match.League3rdId leagueid,
+				NULL AS IsNeutral,
+				NULL AS showtime,
+				match.StartTime AS kickofftime,
+				match.sporttype,
+				NULL AS LeagueGroupID,
+				match.StartTime,
+				NULL AS NumberOfCorner
+				,NULL AS VendorMatchId
+				,NULL AS RaceId
+			FROM dbo.Match3rd14 AS match WITH (NOLOCK) 
+			WHERE match.Match3rdId = @matchID
+
+			UNION ALL --Virtual Sports 2 (Betradar)
+			SELECT DISTINCT
+				r.EventID AS matchid,
+				NULL,
+				NULL,
+				NULL AS matchcode, 
+				o.eventdate, 
+				r.LeagueID leagueid,
+				NULL AS IsNeutral,
+				NULL AS showtime,
+				r.EventTime AS kickofftime,
+				r.sporttype,
+				NULL AS LeagueGroupID,
+				r.EventTime,
+				NULL AS NumberOfCorner
+				,r.VendorMatchId AS VendorMatchId
+				,r.Distance AS RaceId
+			FROM dbo.VSOutright o WITH (NOLOCK)
+			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) ON r.EventID = o.EventID
+			WHERE r.EventID = @matchID
+				AND r.SportType IN (177,198)
+			UNION ALL 
+			SELECT DISTINCT
+				r.EventID AS matchid,
+				NULL,
+				NULL,
+				NULL AS matchcode, 
+				o.eventdate, 
+				r.LeagueID leagueid,
+				NULL AS IsNeutral,
+				NULL AS showtime,
+				r.EventTime AS kickofftime,
+				r.sporttype,
+				NULL AS LeagueGroupID,
+				r.EventTime,
+				NULL AS NumberOfCorner
+				,r.VendorMatchId AS VendorMatchId
+				,r.Distance AS RaceId
+			FROM dbo.VSOutright14 o WITH (NOLOCK)
+			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) ON r.EventID = o.EventID
+			WHERE r.EventID = @matchID
+				AND r.SportType IN (177,198)
 		END
 		ELSE IF @Type = 1
 		BEGIN

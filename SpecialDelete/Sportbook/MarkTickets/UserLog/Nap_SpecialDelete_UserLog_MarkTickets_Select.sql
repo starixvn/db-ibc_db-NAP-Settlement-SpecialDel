@@ -20,6 +20,7 @@ AS
 		- 20210923@Zane: Change data type of filter time [Redmine: #160209]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:
@@ -53,7 +54,8 @@ BEGIN
 		kickofftime	DATETIME,
 		HTScore		VARCHAR(10),
 		FTSCore		VARCHAR(10),
-		username	VARCHAR(30)
+		username	VARCHAR(30),
+		Sporttype	SMALLINT
 	);
 
 	-- Insert data to temp log result
@@ -68,7 +70,9 @@ BEGIN
 			,kickofftime
 			,HTScore
 			,FTSCore
-			,username)
+			,username
+			,Sporttype
+	)
 	SELECT l.SessionId
 			,l.CreatedDate
 			,l.LogActionId
@@ -80,6 +84,7 @@ BEGIN
 			,ISNULL(CAST(rdHT.hthomescore AS VARCHAR(10)) + '-' + CAST(rdHT.htawayscore AS VARCHAR(10)), '-') AS 'HTScore'
 			,ISNULL(CAST(rdFT.finalhomescore AS VARCHAR(10)) + '-' + CAST(rdFT.finalawayscore AS VARCHAR(10)), '-') AS 'FTScore'
 			,c.username 
+			,m.sporttype
 		FROM dbo.TicketVoiding_Log AS l WITH (NOLOCK)
 			LEFT JOIN bodb02.dbo.match AS m WITH (NOLOCK) ON l.MatchId = m.matchid
 			LEFT JOIN bodb02.dbo.Customer AS c WITH (NOLOCK) ON l.UserId = c.custid
@@ -107,7 +112,8 @@ BEGIN
 		lr.awayid = m.awayid,
 		lr.kickofftime = m.kickofftime,
 		lr.HTScore = ISNULL(CAST(rdHT.hthomescore AS VARCHAR(10)) + '-' + CAST(rdHT.htawayscore AS VARCHAR(10)), '-'),
-		lr.FTSCore = ISNULL(CAST(rdFT.finalhomescore AS VARCHAR(10)) + '-' + CAST(rdFT.finalawayscore AS VARCHAR(10)), '-')
+		lr.FTSCore = ISNULL(CAST(rdFT.finalhomescore AS VARCHAR(10)) + '-' + CAST(rdFT.finalawayscore AS VARCHAR(10)), '-'),
+		lr.Sporttype = m.sporttype
 	FROM #LogResult lr WITH(ROWLOCK, UPDLOCK)
 		LEFT JOIN bodb02.dbo.match14 AS m WITH (NOLOCK) ON lr.MatchId = m.matchid
 		OUTER APPLY (
@@ -135,7 +141,8 @@ BEGIN
 			kickofftime,
 			HTScore,
 			FTSCore,
-			username AS 'DoneBy'
+			username AS 'DoneBy',
+			Sporttype
 	FROM #LogResult
 
 	DROP TABLE #LogActionId

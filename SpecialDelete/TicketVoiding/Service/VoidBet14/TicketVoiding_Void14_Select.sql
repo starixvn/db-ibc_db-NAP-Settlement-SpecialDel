@@ -20,6 +20,7 @@ AS
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		
 	Param's explanation:	
 		
@@ -281,7 +282,7 @@ BEGIN
 
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -294,7 +295,7 @@ BEGIN
 		FROM #TVSTicketBets d
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
+		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 
 		--Get data from match for case main match cricket still belong range active
 		IF @@ROWCOUNT = 0 
@@ -310,7 +311,7 @@ BEGIN
 			FROM #TVSTicketBets d
 				INNER JOIN dbo.match m WITH (NOLOCK) 
 				ON	d.matchid = m.matchid
-			WHERE d.bettype NOT IN (9, 29, 2799, 10449)
+			WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		END
 	END
 	
@@ -359,18 +360,18 @@ BEGIN
 	END
 
 	-- UPDATE IsMixParlay = 1 [MixParlay bettype]
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (9, 29, 2799, 10449)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE d
 		SET IsMixParlay = 1
 		FROM #TVSTicketBets d
-		WHERE d.bettype IN (9, 29, 2799, 10449)
+		WHERE d.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 
 	--- Remove invalid sporttype
 	DELETE 
 	FROM #TVSTicketBets
-	WHERE bettype NOT IN (9, 29, 2799, 10449)
+	WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		AND (
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/

@@ -25,6 +25,7 @@ AS
 		- 20230707@July: Remove unnecessary code [Redmine: #190859]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's explanation:	
 		
@@ -104,14 +105,14 @@ BEGIN
 		AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799, 10449)))
+	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
 		FROM	#tmpTransId b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
-		WHERE bettype NOT IN (9, 29, 2799, 10449)
+		WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 			
 	END
 
@@ -163,7 +164,7 @@ BEGIN
 	-- remove un-supported sports & bettype
 	DELETE bd
 	FROM #tmpTransId bd
-	WHERE bettype NOT IN (9, 29, 2799, 10449)
+	WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		AND (
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
@@ -214,7 +215,7 @@ BEGIN
 				INSERT INTO #tblMatchProcess(matchid, KeyID)
 				SELECT DISTINCT matchid
 					, CASE 
-						WHEN Bettype NOT IN (9, 29, 2799, 10449, 10, 38) 
+						WHEN Bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes()) 
 								AND Bettype NOT BETWEEN 801 AND 899
 								AND f.GroupId IS NULL
 								AND Bettype NOT IN (1231,1232,1233)

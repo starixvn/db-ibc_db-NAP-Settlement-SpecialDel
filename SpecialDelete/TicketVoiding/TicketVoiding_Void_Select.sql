@@ -61,6 +61,8 @@ AS
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 		- 20240514@July: [TVS] EKO/WKOT - Add message template to the Add Request page [Redmine: #203776]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:	
 		
@@ -151,7 +153,8 @@ BEGIN
 		IsCancelCashOut		  BIT DEFAULT(0), --Apply for issuetype: DA,RC,WC
 		CheckTimeCashOut	  DATETIME,
 		statuswinlost		  TINYINT,
-		GroupPHaffected		  TINYINT --  0: both 1X2 and AIO are NOT affected, 1:  only 1X2 is affected , 2: only AIO is affected
+		GroupPHaffected		  TINYINT, --  0: both 1X2 and AIO are NOT affected, 1:  only 1X2 is affected , 2: only AIO is affected
+		VendorMatchId		VARCHAR(50)
     )
 
 	CREATE TABLE #tblBetType
@@ -346,6 +349,7 @@ BEGIN
 				,SiteDBGroupID
 				,statuswinlost
 				,modds
+				,oddsid
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -394,6 +398,7 @@ BEGIN
 				,b.SiteDBGroupID
 				,b.statuswinlost
 				,b.modds
+				,b.oddsid
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId
@@ -1610,7 +1615,7 @@ BEGIN
 	END	
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -1626,7 +1631,7 @@ BEGIN
 		FROM #TVSTicketBets d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
+		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -1650,7 +1655,7 @@ BEGIN
 		WHERE d.bettype IN (10)
 	END
 	-- UPDATE eventtype = 3 [VS range  bettypes]
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (1231,1232,1233,1237,1238)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771)))
 	BEGIN
 		UPDATE d
 			SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
@@ -1662,13 +1667,29 @@ BEGIN
 				,eventstatus = ISNULL(o.eventstatus,'')
 				,SubLeagueId = r.leagueid
 				,SettlementStatus = 0
+				,VendorMatchId = CASE WHEN d.bettype IN (2770,2771) THEN r.VendorMatchId ELSE NULL END
 		FROM #TVSTicketBets d
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON d.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE d.bettype IN (1231,1232,1233,1237,1238)
+		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771)
 	END
+
+	-- UPDATE VS5
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype BETWEEN 11050 AND 11099))
+	BEGIN
+		UPDATE d
+		SET  matchcode 	= m.MatchNo
+			,homeid 	= m.HomeId
+			,awayid 	= m.AwayId
+			,leagueid 	= m.League3rdId
+			,sporttype 	= m.SportType
+		FROM #TVSTicketBets d
+			INNER JOIN dbo.Match3rd m WITH (NOLOCK) 
+			ON d.matchid = m.Match3rdId
+	END
+
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
 		UPDATE d
@@ -1680,18 +1701,18 @@ BEGIN
 	END
 
 	-- UPDATE IsMixParlay = 1 [MixParlay bettype]
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (9, 29, 2799, 10449)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE d
 		SET IsMixParlay = 1
 		FROM #TVSTicketBets d
-		WHERE d.bettype IN (9, 29, 2799, 10449)
+		WHERE d.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 
 	--- Remove invalid sporttype
 	DELETE 
 	FROM #TVSTicketBets
-	WHERE bettype NOT IN (9, 29, 2799, 10449)
+	WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		AND ( sporttype IS NULL OR bettype = 500) /*charge comm*/
 			
 	-- update username/creatorname column
@@ -1844,6 +1865,7 @@ BEGIN
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
 			   ,s.IsHasSettledTicket
+			   ,s.VendorMatchId
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1930,6 +1952,7 @@ BEGIN
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
 			   ,s.IsHasSettledTicket
+			   ,s.VendorMatchId
 		FROM	#TVSTicketBets s 
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
@@ -2005,6 +2028,7 @@ BEGIN
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
 			   ,s.IsHasSettledTicket
+			   ,s.VendorMatchId
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2089,6 +2113,7 @@ BEGIN
 		   ,s.CheckTimeCashOut
 		   ,s.GroupPHaffected 
 		   ,s.IsHasSettledTicket
+		   ,s.VendorMatchId
 		FROM	#TVSTicketBets s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2209,6 +2234,7 @@ BEGIN
 		   ,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 		   ,s.GroupPHaffected -- Affect isuetype : HDP,OU,ODDS
 		   ,s.IsHasSettledTicket
+		   ,s.VendorMatchId
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site

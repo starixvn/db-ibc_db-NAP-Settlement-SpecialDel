@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_CustLimitBetQueue_Insert_Void]
 (
 	@MatchId		INT	
@@ -17,6 +17,8 @@ AS
 		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240118@Louisa: VS4 - Cock Fighting [Redmine:#199700]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 	
 	Param's explanation:	
 		
@@ -72,8 +74,8 @@ BEGIN
 	--Remove unsupport sporttype/bettype
 	DELETE t
 	FROM #CustLimitBet_tmp t
-	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188) AND @sporttype NOT BETWEEN 190 AND 197)
-		OR (t.bettype IN(29, 2799, 10449) OR (t.bettype BETWEEN 801 AND 806))
+	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188,147,177,198) AND @sporttype NOT BETWEEN 190 AND 197)
+		OR (t.bettype IN(SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1)) OR (t.bettype BETWEEN 801 AND 806))
 	
 	IF EXISTS (SELECT TOP (1) 1 FROM #CustLimitBet_tmp WHERE bettype = 10)
 	BEGIN
@@ -121,7 +123,7 @@ BEGIN
 								FOR XML PATH('r'), ROOT('root')
 							)
 			INSERT INTO dbo.CustLimitBetQueue (MatchId, EventTypeID, Transids, ActionID, Statusid, CreatedDate)
-			SELECT @MatchId, 1, @TransIds, 1, 0, @CreatedDate
+			SELECT @MatchId, CASE WHEN @sporttype NOT IN (177,198) THEN 1 ELSE 6 END AS EventTypeID, @TransIds, 1, 0, @CreatedDate
 		END
 	END
 

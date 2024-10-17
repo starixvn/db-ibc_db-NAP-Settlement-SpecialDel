@@ -41,6 +41,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20240402@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
 		- 20240409@July: [TVS] Fix issue duplicate insert voided transaction [Redmine: #203614]
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:	
 		
@@ -117,6 +119,7 @@ BEGIN
 		,LeagueGroupID  SMALLINT
 		,zzzWinlost		MONEY
 		,modds			SMALLMONEY
+		,VendorMatchId	VARCHAR(50)
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -189,7 +192,7 @@ BEGIN
 			,LiveIndicator = b.liveindicator
 			,ActualStake = b.actual_stake
 			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
-			,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END
+			,IsMixParlay = CASE WHEN t.Bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END
 			,modds = b.modds
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
@@ -230,7 +233,7 @@ BEGIN
 				,LiveIndicator = b.liveindicator
 				,ActualStake = b.actual_stake
 				,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
-				,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END
+				,IsMixParlay = CASE WHEN t.Bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END
 				,IsVoidArchived = 1
 				,modds = b.modds
 		FROM	#tmpTicket t
@@ -310,7 +313,7 @@ BEGIN
 	FROM	#tmpTicket t
 		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON t.subTransId = bm.transid AND t.SiteDBGroupID = bm.SiteDBGroupID
 		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND t.SiteDBGroupID = b.SiteDBGroupID
-	WHERE b.matchid IN (9,29,2799,10449)
+	WHERE b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	
 	-- UPDATE eventtype = 1
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE IsMixParlay = 0 AND IsVoidArchived = 0))
@@ -356,7 +359,7 @@ BEGIN
 	END
 
 	-- UPDATE eventtype = 3 [VS range  bettypes]
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238) AND IsVoidArchived = 0))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771) AND IsVoidArchived = 0))
 	BEGIN
 		UPDATE t
 			SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
@@ -366,12 +369,27 @@ BEGIN
 				,sporttype 	= r.sporttype
 				,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113)
 				,eventstatus = o.EventStatus
+				,VendorMatchId = CASE WHEN t.bettype IN (2770,2771) THEN r.VendorMatchId ELSE NULL END
 		FROM #tmpTicket t
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON t.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE t.bettype IN (1231,1232,1233,1237,1238) AND IsVoidArchived = 0
+		WHERE t.bettype IN (1231,1232,1233,1237,1238,2770,2771) AND IsVoidArchived = 0
+	END
+
+	-- UPDATE Sportype, Endtime VS5
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype BETWEEN 11050 AND 11099))
+	BEGIN
+		UPDATE d
+		SET  matchcode 	= m.MatchNo
+			,homeid 	= m.HomeId
+			,awayid 	= m.AwayId
+			,leagueid 	= m.League3rdId
+			,sporttype 	= m.SportType
+		FROM #tmpTicket d
+			INNER JOIN dbo.Match3rd m WITH (NOLOCK) 
+			ON d.matchid = m.Match3rdId
 	END
 
 	--For void14 abnormal account only (only single + main parlay)
@@ -625,6 +643,7 @@ BEGIN
 			,@VoidingHistoryId AS VoidingHistoryId
 			,t.zzzWinlost
 			,t.modds AS MasterOdds
+			,VendorMatchId
 	FROM	#tmpTicket t
 		LEFT JOIN #CTE_CustInfo c WITH(NOLOCK) ON c.custid = t.custid
 		LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK) ON ag.custid = t.recommend 

@@ -28,6 +28,7 @@ AS
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's explanation:	
 		
@@ -162,8 +163,8 @@ BEGIN
 			,ErrMsg = CASE WHEN m.MatchId IS NULL THEN @ErrMsg 
 							WHEN m.MatchId IS NOT NULL THEN @ErrMsgMove 						
 							ELSE ErrMsg END
-			,FailedTransIds = CASE WHEN m.MatchId NOT IN (9,29,2799,10449) THEN q.TransIds
-									WHEN m.MatchId IN (9,29,2799,10449) THEN m.TransIds
+			,FailedTransIds = CASE WHEN m.MatchId NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN q.TransIds
+									WHEN m.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN m.TransIds
 									ELSE @FailedTransIds END
 			,NegativeBalanceUsers = @NegativeBalanceUsers
 		FROM	dbo.TicketVoiding_Queue q

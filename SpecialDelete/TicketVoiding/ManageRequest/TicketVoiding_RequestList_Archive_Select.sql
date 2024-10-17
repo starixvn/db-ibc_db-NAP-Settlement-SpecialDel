@@ -51,6 +51,8 @@ AS
 		- 20240502@July: [TVS] Abandoned issue type [Redmine: #202626]
 		- 20240523@July: [TVS] New issue type Wrong Market Offered & Technical Error [Redmine: #197051/194093]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:	
 		@Status: 
@@ -131,7 +133,7 @@ BEGIN
 		INSERT INTO #tmpRequest (RequestID, Eventdate)
 		SELECT  s.RequestId, MIN(s.Winlostdate)
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-		WHERE s.MatchId IN (9, 29, 2799, 10449) 
+		WHERE s.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
 			AND s.RequestId = @RequestId
 		GROUP BY s.RequestId
 		
@@ -143,12 +145,12 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 2
 	BEGIN
-		IF @MatchId IN (9, 29, 2799, 10449)
+		IF @MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		BEGIN
 			INSERT INTO #tmpRequest (RequestID, Eventdate)
 			SELECT  s.RequestId, MIN(s.Winlostdate)
 			FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-			WHERE s.MatchId IN (9, 29, 2799, 10449) 
+			WHERE s.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
 				AND s.MatchId = @MatchId
 			GROUP BY s.RequestId
 		END
@@ -378,11 +380,12 @@ BEGIN
 		,TotalResettleProcessed = cnt.TotalResettleProcessed
 		,TotalCancelCashOutProcessed = cnt.TotalCancelCashOutProcessed
 	FROM	#tmpResult t
-	OUTER APPLY (SELECT  SUM(CASE WHEN s.IsProcessed = 1 AND s.MatchId NOT IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						,SUM(CASE WHEN s.IsProcessed = 1 AND s.MatchId IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+	OUTER APPLY (SELECT  SUM(CASE WHEN s.IsProcessed = 1 AND f.bettype IS NULL THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						,SUM(CASE WHEN s.IsProcessed = 1 AND f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
 						,SUM(CASE WHEN s.IsCancelCO = 1 THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed
 						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK, INDEX = CIX_TicketVoiding_RequestDetailTicket_Single_bk_Request)
+					LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.bettype = s.MatchId
 				WHERE s.RequestId = t.RequestId 
 				     AND s.IsProcessed IS NOT NULL
 					 AND (s.MatchId = t.MatchId OR t.MatchId = 0)
@@ -457,15 +460,18 @@ BEGIN
 			,t.TotalResettleProcessed 
 			,m.kickofftime AS KickOffTimeMatch , m.eventdate AS EventDateMatch, m.ParentID AS ParentMatchId, m.matchcode
 			,t.Provider, t.Source, t.Remark, t.Trader, t.LA, t.Message
+			,vs.VendorMatchId
+			,vs.Distance AS RaceId
 	FROM	#tmpResult t
 		LEFT JOIN #CTE_CustInfo c ON t.UserId = c.CustId
 		LEFT JOIN #CTE_CustInfo v ON t.LastVoidedBy = v.CustId
 		LEFT JOIN #CTE_CustInfo ch ON t.CheckedBy = ch.CustId
-		OUTER APPLY (SELECT  SUM(CASE WHEN s.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799,10449) THEN 1
+		OUTER APPLY (SELECT  SUM(CASE WHEN s.IssueTypeId IN (17) AND f.bettype IS NULL THEN 1
 										WHEN s.IssueTypeId IN (11,20) THEN 1
 										ELSE 0 END) AS TotalSingle
-							,SUM(CASE WHEN s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlay
+							,SUM(CASE WHEN s.IssueTypeId IN (17) AND f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlay
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK, INDEX = CIX_TicketVoiding_RequestDetailTicket_Single_bk_Request)
+						LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.bettype = s.MatchId
 					WHERE s.RequestId = t.RequestId 
 						AND  1 = CASE WHEN t.IssueTypeId IN (17,20) THEN 1
 									  WHEN t.IssueTypeId IN (11) AND s.MatchId = t.MatchId THEN 1
@@ -495,6 +501,12 @@ BEGIN
 					FROM dbo.match_remark mr WITH (NOLOCK) 
 					WHERE mr.matchid = t.MatchId
 			)mr
+		OUTER APPLY (
+					SELECT	m.VendorMatchId, m.Distance
+					FROM	dbo.VSRaceInfo_bk m WITH(NOLOCK)
+					WHERE	m.EventID = t.MatchId
+						AND t.Sporttype IN (177,198)
+			)vs
 		WHERE 1 = CASE 
 				--All
 				WHEN @Status = -1 THEN 1

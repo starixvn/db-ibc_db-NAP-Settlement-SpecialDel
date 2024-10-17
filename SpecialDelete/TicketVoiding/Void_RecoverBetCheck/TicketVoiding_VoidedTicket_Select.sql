@@ -33,7 +33,9 @@ AS;
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 
 	Param's explanation:	
 		
@@ -43,7 +45,7 @@ BEGIN
 	DECLARE  @SiteDBGroupID SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT, IsOutright BIT)
+	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT, IsOutright BIT, IsMatch3rd BIT)
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 	DECLARE @tmpChildMatchCricket TABLE (
 		MatchId			INT
@@ -114,7 +116,8 @@ BEGIN
 			  SettlementStatus	TINYINT,
 			  eventstatus	  NVARCHAR(50),
 			  sporttype       SMALLINT,
-			  modds           SMALLMONEY
+			  modds           SMALLMONEY,
+			  VendorMatchId VARCHAR(50)
              );
 
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -238,16 +241,29 @@ BEGIN
 
 	END
 
-	INSERT INTO #TmpMatch (Matchid, SettlementStatus, IsOutright)
-	SELECT DISTINCT t.MatchId, m.SettlementStatus, CASE WHEN t.Bettype = 10 THEN 1 ELSE 0 END
+	INSERT INTO #TmpMatch (Matchid, SettlementStatus, IsOutright, IsMatch3rd)
+	SELECT DISTINCT t.MatchId, m.SettlementStatus, CASE WHEN t.Bettype = 10 THEN 1 ELSE 0 END, ISNULL(m.IsMatch3rd,0)
 	FROM #tmpTicket t
-		LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
+		OUTER APPLY(
+			SELECT m.SettlementStatus, 0 AS IsMatch3rd
+			FROM dbo.match m WITH(NOLOCK) 
+			WHERE t.MatchId = m.matchid
+			UNION ALL
+			SELECT 0 AS SettlementStatus, 1 AS IsMatch3rd
+			FROM dbo.Match3rd m WITH(NOLOCK) 
+			WHERE t.matchid = m.Match3rdId
+			UNION ALL
+			SELECT 0 AS SettlementStatus, 1 AS IsMatch3rd
+			FROM dbo.VSRaceInfo m WITH(NOLOCK) 
+			WHERE t.matchid = m.EventID
+		)m
 
 	--@IsMovebet = 0
 	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch 
 				 WHERE (SettlementStatus IS NOT NULL 
-						OR (SettlementStatus IS NULL AND matchid IN (9,29,2799,10449))
-						OR (SettlementStatus IS NULL AND IsOutright = 1))
+						OR (SettlementStatus IS NULL AND matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)))
+						OR (SettlementStatus IS NULL AND IsOutright = 1)
+						OR (IsMatch3rd = 1))
 			)
 	BEGIN
 		UPDATE t 
@@ -462,7 +478,7 @@ BEGIN
 	END
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799, 10449)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -477,7 +493,7 @@ BEGIN
 		FROM #tmpTicket d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
+		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -500,7 +516,7 @@ BEGIN
 		WHERE d.bettype IN (10)
 	END
 	-- UPDATE eventtype = 3 [VS range  bettypes]
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771)))
 	BEGIN
 		UPDATE d
 			SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
@@ -511,12 +527,27 @@ BEGIN
 				,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
 				,eventstatus = ISNULL(o.eventstatus,'')
 				,SettlementStatus = 0
+				,VendorMatchId = CASE WHEN d.Bettype IN (2770,2771) THEN r.VendorMatchId ELSE NULL END
 		FROM #tmpTicket d
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON d.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE d.bettype IN (1231,1232,1233,1237,1238)
+		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771)
+	END
+
+	-- UPDATE VS5
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype BETWEEN 11050 AND 11099))
+	BEGIN
+		UPDATE d
+		SET  matchcode 	= m.MatchNo
+			,homeid 	= m.HomeId
+			,awayid 	= m.AwayId
+			,leagueid 	= m.League3rdId
+			,sporttype 	= m.SportType
+		FROM #tmpTicket d
+			INNER JOIN dbo.Match3rd m WITH (NOLOCK) 
+			ON d.matchid = m.Match3rdId
 	END
 	
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
@@ -530,12 +561,12 @@ BEGIN
 	END
 
 	-- UPDATE IsMixParlay
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (9, 29, 2799, 10449)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE t
 			SET IsMixParlay = 1
 		FROM #tmpTicket t
-		WHERE t.bettype IN (9, 29, 2799, 10449)
+		WHERE t.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 
 	-- Update IsMarked
@@ -617,6 +648,7 @@ BEGIN
                ,s.sporttype       
 			   ,s.modds
 			   ,s.IsDeposit
+			   ,s.VendorMatchId
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -690,6 +722,7 @@ BEGIN
                ,s.sporttype    
 			   ,s.modds
 			   ,s.IsDeposit
+			   ,s.VendorMatchId
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
@@ -759,6 +792,7 @@ BEGIN
                ,s.sporttype 
 			   ,s.modds
 			   ,s.IsDeposit
+			   ,s.VendorMatchId
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -831,6 +865,7 @@ BEGIN
            ,s.sporttype   
 		   ,s.modds
 		   ,s.IsDeposit
+		   ,s.VendorMatchId
 		FROM	#tmpTicket s
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -898,6 +933,7 @@ BEGIN
            ,s.sporttype       
 		   ,s.IsDeposit
 		   ,s.modds AS MasterOdds
+		   ,s.VendorMatchId
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid

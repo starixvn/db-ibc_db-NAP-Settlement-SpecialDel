@@ -17,6 +17,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240319@July: [TVS] SP tuning for EC2024 [Redmine: #200840]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 
 	Param's explanation:
 		
@@ -34,7 +35,7 @@ BEGIN
 	INSERT INTO @tmpResult (RequestID, Eventdate) 
     SELECT s.RequestID, MIN(s.Winlostdate)
     FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-    WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
+    WHERE  s.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
 			AND s.Winlostdate BETWEEN @FromDate AND @ToDate
     GROUP  BY s.RequestID
 
