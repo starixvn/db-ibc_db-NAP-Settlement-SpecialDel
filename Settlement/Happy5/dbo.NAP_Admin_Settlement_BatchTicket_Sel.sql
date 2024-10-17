@@ -4,7 +4,6 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_BatchTicket_Sel
 	,@Sporttype			TINYINT
 	,@Resources			VARCHAR(MAX)
 	,@Action			VARCHAR(20)		= 'CAL'
-	,@IsCentral			BIT				= 0
 
 	,@LastCustId		INT				= 0
 	,@LastTransID		BIGINT			= 0
@@ -27,6 +26,7 @@ BEGIN
 	SET NOCOUNT ON
 	DECLARE @TotalTicket		INT = 0
 		   ,@BatchCount			INT = 0
+		   ,@IsCentral			BIT
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT

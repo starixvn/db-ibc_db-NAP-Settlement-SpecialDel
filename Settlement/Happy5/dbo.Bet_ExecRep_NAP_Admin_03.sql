@@ -9,8 +9,7 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_03]
 	,@IsCalculateBalance	BIT             = 0
 	,@CWLBettype			SMALLINT        = 0
 	,@BalanceType			TINYINT         = 1 
-	,@BroadcastSessionId	VARCHAR(50)		= NULL
-	,@IsCentral			    BIT				= 0  --TODO: remove later 
+	,@BroadcastSessionId	VARCHAR(50)		= NULL 
 	,@HasNoBalanceNegative	BIT				= 0
 
 	,@ErrMessage			VARCHAR(300)	= ''	OUTPUT
@@ -25,6 +24,7 @@ AS
 		- 20240520@Aries: Created  [Redmine:#202389]
 		- 20240930@Aries: Fix the issue duplicated settlement DBTrans and SiteDBs for HP5  [Redmine:#211434]
 		- 20241001@Aries: Fix the issue missing param @AllowRefund for Happy5  [Redmine:#211648]
+		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine:#210875]
 
 	Param's Explanation:
 		
@@ -42,6 +42,7 @@ BEGIN
 			,@BalanceChanged			TVP_BalanceWalletChange
 			,@SettlementTime			DATETIME
 			,@FcUpdateTime				DATETIME2
+			,@IsCentral					BIT
 
 	DECLARE  @StartTime DATETIME2
 			,@EndTime DATETIME2
@@ -378,6 +379,7 @@ BEGIN
 								+ ',@CWLBettype = ' + CAST(@CWLBettype AS VARCHAR)
 								+ ',@BalanceType = ' + CAST(@BalanceType AS VARCHAR)
 								+ CASE WHEN @BroadcastSessionId IS NOT NULL THEN ',@BroadcastSessionId = ''' + @BroadcastSessionId + '''' ELSE '' END
+								+ ',@HasNoBalanceNegative = ' + CAST(@HasNoBalanceNegative AS NVARCHAR(1))
 								+ ',@TransJson = ''' + @TransJson + ''''
 								
 		exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL

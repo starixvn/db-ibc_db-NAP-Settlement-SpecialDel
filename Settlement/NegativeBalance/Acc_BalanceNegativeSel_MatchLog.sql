@@ -22,6 +22,7 @@ AS
 		- 20230621@Kathy: Remove checking event in 14/bk range after reviewing [Redmine:#186616]
 		- 20231030@Aries: Enhance negative balance e-mail to remove redundant information [Redmine:#196172]
 		- 20240808@Aries: VS5 - Virtually Sports [Redmine:#207309]
+		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
 		
 	Param's Explanation: 
 		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
@@ -38,52 +39,36 @@ BEGIN
 		,HomeID			INT
 		,AwayID			INT
 		,SportType		INT
+		,EventTable		INT -- 1 match, 2 outright, 3 match3rd,4 - VSRaceInfo
+		,VendorMatchId  VARCHAR(50)
+		,Distance		VARCHAR(10)
 	)
 	
 	CREATE TABLE #__tmpData (LogId BIGINT, LogDate DATETIME, finalhomescore INT, finalawayscore INT, hthomescore INT, htawayscore INT, ActionID INT, Remark VARCHAR(MAX), UserID INT)
 
-	IF @GroupID IN (1,2,7) AND @MatchID < 1000000000
+	IF @GroupID IN (1,2,7)
 	BEGIN 
-		INSERT INTO @tmpMatch(
-				MatchID
-			,LeagueID
-			,MatchCode
-			,EventDate
-			,HomeID
-			,AwayID
-			,SportType
-		)
-		SELECT	 TOP 1 MatchID
-				,LeagueID
-				,MatchCode
-				,EventDate
-				,HomeID
-				,AwayID
-				,SportType
+		INSERT INTO @tmpMatch(MatchID,LeagueID,MatchCode,EventDate,HomeID,AwayID,SportType,EventTable)
+		SELECT TOP 1 MatchID,LeagueID,MatchCode,EventDate,HomeID,AwayID,SportType,1 
 		FROM	bodb02.dbo.[match]  WITH (NOLOCK)
 		WHERE	matchid = @MatchID
-	END 
-	ELSE IF @GroupID IN (1,2,7) AND @MatchID >= 1000000000
-	BEGIN 
-		INSERT INTO @tmpMatch(
-				MatchID
-			,LeagueID
-			,MatchCode
-			,EventDate
-			,HomeID
-			,AwayID
-			,SportType
-		)
-		SELECT	 TOP 1 
-				 Match3rdID AS  MatchID
-				,League3rdID AS  League3rdID
-				,MatchCode
-				,EventDate
-				,HomeID
-				,AwayID
-				,SportType
-		FROM	bodb02.dbo.[match3rd]  WITH (NOLOCK)
-		WHERE	Match3rdID = @MatchID
+
+		IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpMatch)
+		BEGIN
+			INSERT INTO @tmpMatch(MatchID,LeagueID,MatchCode,EventDate,HomeID,AwayID,SportType,EventTable)
+			SELECT TOP 1 Match3rdID AS  MatchID,League3rdID AS  League3rdID,MatchCode,EventDate,HomeID,AwayID,SportType,3
+			FROM	bodb02.dbo.[match3rd]  WITH (NOLOCK)
+			WHERE	Match3rdID = @MatchID
+		END
+
+		IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpMatch)
+		BEGIN
+			INSERT INTO @tmpMatch(MatchID,LeagueID,MatchCode,EventDate,HomeID,AwayID,SportType,EventTable,VendorMatchId,Distance)
+			SELECT TOP 1 EventID AS  MatchID,LeagueID,NULL AS MatchCode,EventTime AS EventDate,NULL AS HomeID, NULL AS AwayID,SportType,4,VendorMatchId,Distance
+			FROM	bodb02.dbo.[VSRaceInfo]  WITH (NOLOCK)
+			WHERE	EventID = @MatchID
+		END
+
 	END 
 	ELSE IF @GroupID = 3 
 	BEGIN	
@@ -94,6 +79,7 @@ BEGIN
 			,EventDate
 			,HomeID
 			,AwayID
+			,EventTable
 		)
 		SELECT	 orid
 				,leagueid
@@ -101,6 +87,7 @@ BEGIN
 				,eventdate
 				,teamid
 				,0
+				,2
 		FROM	bodb02.dbo.[outright] WITH (NOLOCK)	
 		WHERE	orid = @MatchID
 	END
@@ -112,6 +99,9 @@ BEGIN
 			,HomeID
 			,AwayID
 			,SportType
+			,EventTable
+			,VendorMatchId
+			,Distance
 	FROM	@tmpMatch
 
 	IF @GroupID IN (1,2,7)
@@ -142,6 +132,7 @@ BEGIN
 				, l.finalawayscore
 				, l.hthomescore
 				, l.htawayscore
+				, l.Remark
 		FROM	#__tmpData l WITH(NOLOCK)
 				LEFT JOIN bodb_CustomerLog.dbo.LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
 				OUTER APPLY (
