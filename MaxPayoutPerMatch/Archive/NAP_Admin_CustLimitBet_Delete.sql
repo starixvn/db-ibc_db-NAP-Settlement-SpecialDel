@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Delete]
 AS
 /*	
@@ -17,6 +17,8 @@ AS
 		- 20230228@Max: Include LIC into SiteDBGroupID = 0 because 12Bet [Redmine: #183935]
 		- 20230712@Max: Scale out credit [Redmine: #181595]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
+		- 20240808@Max: Max Payout - Integrate Virtually Sports (VS5) [Redmine: #209070]
+		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
 	
 	Param's explanation:	
 		
@@ -70,6 +72,28 @@ BEGIN
 	SELECT o14.orid MatchId, 2 EventTypeID
 	FROM dbo.outright14 o14 WITH (NOLOCK)
 	WHERE o14.eventdate <= @Archive_Date
+
+	UNION ALL
+	SELECT m.Match3rdId, 1 EventTypeID
+	FROM dbo.Match3rd m WITH (NOLOCK)
+	WHERE m.eventdate <= @Archive_Date
+		AND m.SportType IN (147)
+	UNION ALL
+	SELECT m14.Match3rdId, 1 EventTypeID
+	FROM dbo.Match3rd14 m14 WITH (NOLOCK)
+	WHERE m14.eventdate <= @Archive_Date
+		AND m14.SportType IN (147)
+
+	UNION ALL
+	SELECT m.EventID, 6 EventTypeID
+	FROM dbo.VSRaceInfo m WITH (NOLOCK)
+	WHERE m.EventTime <= @Archive_Date
+		AND m.SportType IN (177,198)
+	UNION ALL
+	SELECT m14.EventID, 6 EventTypeID
+	FROM dbo.VSRaceInfo14 m14 WITH (NOLOCK)
+	WHERE m14.EventTime <= @Archive_Date
+		AND m14.SportType IN (177,198)
 
 	--Get clean up data
 	IF @SiteDBGroupID IN (0,3)
