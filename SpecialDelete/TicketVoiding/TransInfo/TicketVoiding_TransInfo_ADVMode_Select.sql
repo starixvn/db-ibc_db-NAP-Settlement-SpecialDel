@@ -199,6 +199,11 @@ BEGIN
 	CROSS APPLY STRING_SPLIT(tmp.HDP2s, '&') vhdp2
 	CROSS APPLY STRING_SPLIT(tmp.BetOption, ',') bop
 
+	UPDATE d SET d.IsFancy = 1
+	FROM @bettype_detail d
+		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = d.Bettype
+	WHERE bt.typenamee LIKE '%Fancy'
+
 	--Search single tickets
 	INSERT INTO #TransInfo(
 			matchid 
@@ -540,7 +545,12 @@ BEGIN
 							END
 					END = 1
 				)
-				AND (f.FilterHDP = @ValueDefault OR b.FilterHdp = f.FilterHDP)
+				AND (f.FilterHDP = @ValueDefault 
+					OR 1 = CASE WHEN f.IsFancy = 0 AND b.FilterHdp = f.FilterHDP THEN 1
+								WHEN f.IsFancy = 1 AND (b.FilterHdp1 = f.FilterHDP OR b.FilterHdp2 = f.FilterHDP) THEN 1
+								ELSE 0 END
+					)
+
 				AND (f.FilterHDP1 = @ValueDefault OR b.FilterHdp1 = f.FilterHDP1)
 				AND (f.FilterHDP2 = @ValueDefault OR b.FilterHdp2 = f.FilterHDP2)
 				AND (f.FilterTransdesc = '' OR b.FilterTransdesc = f.FilterTransdesc)
