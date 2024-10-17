@@ -21,6 +21,7 @@ AS
 		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 		- 20230712@Max: Scale out credit [Redmine: #181595]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
+		- 20240327@Louisa: VS4 - Cock Fighting [Redmine:#199700]
 		- 20240808@Max: Max Payout - Integrate Virtually Sports (VS5) [Redmine: #209070]
 		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
 
@@ -56,7 +57,7 @@ BEGIN
 	SELECT m.matchid, m.sporttype
 	FROM dbo.[match] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
-		AND (m.sporttype <= 99 OR m.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197))
+		AND (m.sporttype <= 99 OR m.sporttype IN (164,178,179,180,186,188,190,191,192,193,194,195,196,197))
 	UNION ALL
 	SELECT 29 matchid, NULL sporttype
 	UNION ALL
@@ -74,7 +75,7 @@ BEGIN
 	SELECT m.matchid
 	FROM dbo.[match] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
-		AND m.sporttype > 99 AND m.sporttype NOT IN (164,178,179,180,186,190,191,192,193,194,195,196,197)
+		AND m.sporttype > 99 AND m.sporttype NOT IN (164,178,179,180,186,188,190,191,192,193,194,195,196,197)
 
 	----------------------------------------------------------Inserted data for excluded sporttype ---------------------------------------------------------
 	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
@@ -134,7 +135,7 @@ BEGIN
 					WHERE b.matchid = m.matchid 
 						AND h.Transid IS NULL
 						AND b.statusID NOT IN (101, 0)
-						AND b.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
+						AND b.bettype NOT IN (10,2799,10449,38,801,802,803,804,805,806) 
 						AND b.transdate BETWEEN @StartTime AND @EndTime
 						AND b.SiteDBGroupID = @SiteDBGroupID
 			) AS tmp
@@ -190,7 +191,7 @@ BEGIN
 					WHERE b.matchid = m.matchid 
 						AND h.Transid IS NULL
 						AND b.statusID NOT IN (101, 0)
-						AND b.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
+						AND b.bettype NOT IN (10,2799,10449,38,801,802,803,804,805,806) 
 						AND b.transdate BETWEEN @StartTime AND @EndTime
 						AND b.SiteDBGroupID = @SiteDBGroupID
 						AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
@@ -245,7 +246,7 @@ BEGIN
 					WHERE b.matchid = m.matchid 
 						AND h.Transid IS NULL
 						AND b.statusID NOT IN (101, 0)
-						AND b.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
+						AND b.bettype NOT IN (10,2799,10449,38,801,802,803,804,805,806) 
 						AND b.transdate BETWEEN @StartTime AND @EndTime
 						AND b.SiteDBGroupID = @SiteDBGroupID
 						AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend )
