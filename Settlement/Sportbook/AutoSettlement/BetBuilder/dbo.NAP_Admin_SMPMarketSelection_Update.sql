@@ -1,9 +1,8 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet,Dot_Intg" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap,Dot_Intg" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_SMPMarketSelection_Update]
 	@matchID						INT
 	,@action						VARCHAR(20)			= 'CAL'
 	,@resultStatusId				TINYINT				= 5
-	,@SelectedMarket				VARCHAR(MAX)		= NULL
 	,@SelectedSelection				VARCHAR(MAX)		= NULL
 AS 
 /*
@@ -14,6 +13,7 @@ AS
 	Revision
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20240905@Aries: Enhance the settlement by Selection for Betbuilder  [Redmine:#208782]
 
 	Param's Explanation:
 			@SelectedSelection = '<Resources>
@@ -44,36 +44,19 @@ BEGIN
 	CREATE TABLE #tblData (marketSelectionID BIGINT, Result VARCHAR(20), PRIMARY KEY CLUSTERED(marketSelectionID) )
 	----------------------------------------------------------------------------
 	
-	IF ISNULL(@SelectedSelection,'') <> '' 
-	BEGIN
-		SET @xml = CAST(@SelectedSelection AS XML)
+	SET @xml = CAST(@SelectedSelection AS XML)
 		
-		;WITH cteData AS (
-			SELECT T.C.value('@Id', 'BIGINT') AS SelectionType
-				   ,T.C.value('@Result', 'VARCHAR(20)') AS result
-			FROM @xml.nodes('/Resources/Resource') AS T(C)
-		)
-		INSERT INTO #tblData(marketSelectionID, result)
-		SELECT ms.marketSelectionId, c.result
-		FROM cteData c
-			INNER JOIN dbo.SMP_MarketSelection ms WITH(NOLOCK)
-				ON ms.SelectionType = c.SelectionType
-		WHERE	ms.MatchId = @matchID
-	END
-	ELSE IF ISNULL(@SelectedMarket,'') <> '' 
-	BEGIN
-		SET @xml = CAST(@SelectedMarket AS XML)
-
-		;WITH cteData AS (
-			SELECT T.C.value('@m', 'VARCHAR(20)') AS marketId
-			FROM @xml.nodes('/Resources/rsc') AS T(C)
-		)
-		INSERT INTO #tblData (marketSelectionID)
-		SELECT	ml.marketSelectionID
-		FROM	dbo.SMP_MarketSelection ml WITH (NOLOCK)
-		WHERE	EXISTS (SELECT MarketID FROM cteData c WHERE ml.MarketID = c.MarketID)
-				AND ml.MatchID = @MatchID
-	END
+	;WITH cteData AS (
+		SELECT T.C.value('@Id', 'BIGINT') AS SelectionType
+			   ,T.C.value('@Result', 'VARCHAR(20)') AS result
+		FROM @xml.nodes('/Resources/Resource') AS T(C)
+	)
+	INSERT INTO #tblData(marketSelectionID, result)
+	SELECT ms.marketSelectionId, c.result
+	FROM cteData c
+		INNER JOIN dbo.SMP_MarketSelection ms WITH(NOLOCK)
+			ON ms.SelectionType = c.SelectionType
+	WHERE	ms.MatchId = @matchID
 
 	UPDATE ms 
 	SET resultStatusId = ISNULL(@ResultStatusId, ResultStatusId)

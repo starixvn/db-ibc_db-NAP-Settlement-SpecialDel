@@ -1,11 +1,9 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet,Dot_Intg" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap,Dot_Intg" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_SMPMarket_Update]
 	@matchID						INT
 	,@VendorID						SMALLINT			= 34
-	,@action						VARCHAR(20)			= 'CAL'
 	,@resultStatusId				TINYINT				= NULL
 	,@SelectedMarket				VARCHAR(MAX)
-	,@mode							VARCHAR(50)			= ''
 AS 
 /*
 	Created by:20190104@Vicky
@@ -15,6 +13,7 @@ AS
 	Revision
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20240905@Aries: Enhance the settlement by Selection for Betbuilder  [Redmine:#208782]
 
 	Param's Explanation:
 			@SelectedMarket = '<Resources>
@@ -26,84 +25,63 @@ AS
 				         </Resources>'
 	Example:
 			EXEC [dbo].[NAP_Admin_SMPMarket_Update] @MatchId	= 1
-												  ,@action = 'CAL'
 												  ,@resultStatusId = 2
 												  ,@SelectedMarket = '<Resources><Resource m="200"/></Resources>'
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @xml XML, @ResultDefault VARCHAR(5) = 'Lose'
+	DECLARE @xml XML, @ResultDefault VARCHAR(6) = 'Refund'
 	CREATE TABLE #tblData (marketID VARCHAR(20), result VARCHAR(20), ResultStatusID TINYINT, PRIMARY KEY CLUSTERED(marketID) )
 	----------------------------------------------------------------------------
 	SET @xml = CAST(@SelectedMarket AS XML)
 
-	IF @mode = 'ResultStatusID'
-	BEGIN		
-		;WITH cteData AS (
-			SELECT T.C.value('@m', 'VARCHAR(20)') AS marketID
-			FROM @xml.nodes('/Resources/rsc') AS T(C)
-		)
-		INSERT INTO #tblData(marketID)
-		SELECT marketID
+	;WITH cteData AS (
+		SELECT T.C.value('@m', 'VARCHAR(20)') AS marketID
+		FROM @xml.nodes('/Resources/rsc') AS T(C)
+	)	
+	INSERT INTO #tblData (marketID, Result, ResultStatusID)
+	SELECT marketID
+		,CASE WHEN STUFF(Result, 1, 2, '') = 'NULL' THEN NULL ELSE STUFF(Result, 1, 2, '') END AS Result
+		,STUFF(ResultStatusID, 1, 2, '') AS ResultStatusID
+	FROM
+		(SELECT cteData.marketID
+				,MAX(CASE
+						WHEN ms.Result = 'REFUND' AND ms.ResultStatusID IN (2,5)	THEN '7_' + ms.Result
+						WHEN ms.Result IS NULL 										THEN '8_NULL'
+						WHEN ms.Result = 'LOSE' AND ms.ResultStatusID IN (2,5)		THEN '9_' + ms.Result
+						WHEN ms.Result = 'WON'  AND ms.ResultStatusID IN (2,5)		THEN '6_' + ms.Result
+						ELSE '5_' + @ResultDefault END
+					 ) AS Result --priority: LOSE,RUNNING, REFUND,  LOSE, WON
+				,MAX(CASE
+						--WHEN ms.Result = 'REFUND' AND ms.ResultStatusID = 5			THEN '9_5' --manual Refund
+						--WHEN ms.Result = 'REFUND' AND ms.ResultStatusID = 2			THEN '8_2' --auto Refund
+						WHEN ms.Result = 'LOSE' AND ms.ResultStatusID = 2			THEN '9_2' --LOSE
+						WHEN ms.Result = 'LOSE' AND ms.ResultStatusID = 5			THEN '9_5' --LOSE
+						WHEN ms.ResultStatusID = 3									THEN '8_3' --UNDO
+						WHEN ms.ResultStatusID = 0									THEN '7_0' --inital
+						WHEN ms.ResultStatusID = 1									THEN '6_1' --keyin
+						WHEN @resultStatusId = 2									THEN '0_2'
+						ELSE '0_5' END
+					 ) AS ResultStatusID --priority: LOSE,RUNNING, REFUND,  LOSE, WON
 		FROM cteData
-		
-		UPDATE m 
-		SET ResultStatusID 		= @ResultStatusID
-			,UpdateTime 		= CURRENT_TIMESTAMP
-		FROM dbo.SMP_Market m WITH (ROWLOCK, UPDLOCK) 
-		WHERE m.matchID	= @matchID 
-				AND m.VendorID = @VendorID
-				AND m.MarketID IN (SELECT MarketID FROM #tblData)
-		
-		RETURN
-	END
-	ELSE
-	BEGIN
-		;WITH cteData AS (
-			SELECT T.C.value('@m', 'VARCHAR(20)') AS marketID
-			FROM @xml.nodes('/Resources/rsc') AS T(C)
-		)	
-		INSERT INTO #tblData (marketID, Result, ResultStatusID)
-		SELECT marketID
-			,CASE WHEN STUFF(Result, 1, 2, '') = 'NULL' THEN NULL ELSE STUFF(Result, 1, 2, '') END AS Result
-			,STUFF(ResultStatusID, 1, 2, '') AS ResultStatusID
-		FROM
-			(SELECT cteData.marketID
-					,MAX(CASE
-							WHEN ms.Result = 'REFUND' AND ms.ResultStatusID IN (2,5)	THEN '9_' + ms.Result
-							WHEN ms.Result IS NULL 										THEN '8_NULL'
-							WHEN ms.Result = 'LOSE' AND ms.ResultStatusID IN (2,5)		THEN '7_' + ms.Result
-							WHEN ms.Result = 'WON'  AND ms.ResultStatusID IN (2,5)		THEN '6_' + ms.Result
-							ELSE '5_' + @ResultDefault END
-						 ) AS Result --priority: REFUND, RUNNING, LOSE, WON
-					,MAX(CASE
-							--WHEN ms.Result = 'REFUND' AND ms.ResultStatusID = 5			THEN '9_5' --manual Refund
-							--WHEN ms.Result = 'REFUND' AND ms.ResultStatusID = 2			THEN '8_2' --auto Refund
-							WHEN ms.Result = 'REFUND' AND ResultStatusID IN (2,5)		THEN '9_5' --Refund
-							WHEN ms.ResultStatusID = 3									THEN '8_3' --UNDO
-							WHEN ms.ResultStatusID = 0									THEN '7_0' --inital
-							WHEN ms.ResultStatusID = 1									THEN '6_1' --keyin
-							ELSE '0_5' END
-						 ) AS ResultStatusID --priority: REFUND, RUNNING, LOSE, WON
-			FROM cteData
-				INNER JOIN dbo.SMP_MarketSelection ms WITH (NOLOCK) ON ms.marketID = cteData.marketID
-			WHERE ms.MatchID = @MatchID
-			GROUP BY cteData.marketID
-			) AS t
-		
-		
-		--update Result
-		UPDATE m 
-		SET ResultStatusID = CASE WHEN m.Result IS NOT NULL AND d.Result IS NULL THEN 3 --UNCAL
-								  --WHEN d.Result IS NOT NULL THEN 5
-		  						  ELSE d.ResultStatusID END
-			,Result = d.Result
-			,UpdateTime = CURRENT_TIMESTAMP
-		FROM dbo.SMP_Market m WITH (ROWLOCK, UPDLOCK) 
-			INNER JOIN #tblData d ON d.marketID = m.marketID
-		WHERE m.matchID	= @matchID AND m.VendorID = @VendorID
-	END
+			INNER JOIN dbo.SMP_MarketSelection ms WITH (NOLOCK) ON ms.marketID = cteData.marketID
+		WHERE ms.MatchID = @MatchID
+		GROUP BY cteData.marketID
+		) AS t
+	
+	
+	--update Result
+	UPDATE m 
+	SET ResultStatusID = CASE WHEN m.Result IS NOT NULL AND d.Result IS NULL THEN 3 --UNCAL
+							  --WHEN d.Result IS NOT NULL THEN 5
+	  						  ELSE d.ResultStatusID END
+		,Result = d.Result
+		,UpdateTime = CURRENT_TIMESTAMP
+	FROM dbo.SMP_Market m WITH (ROWLOCK, UPDLOCK) 
+		INNER JOIN #tblData d ON d.marketID = m.marketID
+	WHERE m.matchID	= @matchID AND m.VendorID = @VendorID
+	
 END
 GO
 
