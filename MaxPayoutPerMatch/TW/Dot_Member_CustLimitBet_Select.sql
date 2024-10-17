@@ -19,6 +19,7 @@ AS
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20220317@Max: Support Max Payout & Max Turnover for Deposit - [Redmine: #167898]
 		- 20240318@Max: Enhance temp table [Redmine: #199517]
+		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
 	
 	Param's explanation:	
 		
@@ -173,7 +174,7 @@ BEGIN
 	END
 	
 	--For match normal, Bettype 38
-	IF @EventTypeID IN (1,5) AND @LeagueID IS NULL
+	IF @EventTypeID IN (1,5,6) AND @LeagueID IS NULL
 	BEGIN
 		IF @sitetype = 1
 		BEGIN
