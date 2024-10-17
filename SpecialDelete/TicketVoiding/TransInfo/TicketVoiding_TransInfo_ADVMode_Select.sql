@@ -547,7 +547,8 @@ BEGIN
 				)
 				AND (f.FilterHDP = @ValueDefault 
 					OR 1 = CASE WHEN f.IsFancy = 0 AND b.FilterHdp = f.FilterHDP THEN 1
-								WHEN f.IsFancy = 1 AND (b.FilterHdp1 = f.FilterHDP OR b.FilterHdp2 = f.FilterHDP) THEN 1
+								WHEN f.IsFancy = 1 AND b.FilterBetteam = 'n' AND b.FilterHdp1 = f.FilterHDP THEN 1
+								WHEN f.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 = f.FilterHDP THEN 1
 								ELSE 0 END
 					)
 
