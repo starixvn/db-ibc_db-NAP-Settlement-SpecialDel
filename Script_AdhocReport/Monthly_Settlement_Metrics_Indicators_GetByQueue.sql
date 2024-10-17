@@ -21,7 +21,7 @@ CREATE TABLE #SuspenderConfirm(matchid INT,confirmDate DATETIME)
 
 
 INSERT INTO #Match100k (eventdate, matchid, totalticket, totalticketFT,totalticketFT_Credit,totalticketFT_Licensee)																									
-VALUES	xxx
+VALUES	xxx -- get data from Monthly_Settlement_Metrics_Indicators_GetMatches100KTickets_Format.xlsx
 								
 																																														
 INSERT INTO  #ReportResult (matchid,totalTicket,totalticketFT,totalticketFT_Credit,totalticketFT_Licensee,startTimeMin, startTime_Credit, startTime_Licensee,endtime_Credit,  endtime_Licensee,duration_ms_credit,duration_ms_deposit )																							
