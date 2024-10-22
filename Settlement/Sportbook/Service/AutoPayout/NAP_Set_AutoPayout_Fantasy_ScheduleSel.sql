@@ -11,6 +11,7 @@ AS
 		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
 		- 20240614@Aries: Add fantasy leagueId [Redmine:#206489]
 		- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
+		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
 
 	Param's Explanation:
  
@@ -24,6 +25,8 @@ BEGIN
 			,@Currentdate		DATETIME
 			,@FromDate			DATETIME
 			,@ToDate			DATETIME
+
+	DECLARE @tblLeagueID		TABLE(LeagueId INT)
 
 	DECLARE @tmpMatch		TABLE(MatchId INT,LeagueId INT, HtHomescore INT, FinalHomescore INT, HtAwayscore INT, FinalAwayscore INT, Action  VARCHAR(20),LastParentCalculateDate DATETIME,  AutoSetting TINYINT, SettlementStatus TINYINT)
 	DECLARE @tmpParentInfo	TABLE(MatchId INT,MatchParentId INT,ParentEventStatus NVARCHAR(100), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT,LastModifyDate DATETIME,SettlementStatus TINYINT,   IsValid BIT)
@@ -46,14 +49,20 @@ BEGIN
 	SELECT	@FromDate = DATEADD(DAY,-1,@CurrentDate)
 		   ,@ToDate = DATEADD(DAY,1,@CurrentDate)
 
+	INSERT INTO @tblLeagueID(LeagueId)
+	SELECT LeagueId
+	FROM SettlementSetting WITH(NOLOCK)
+	WHERE AutoType = 9
+
 
 	INSERT INTO @tmpMatch(MatchId,LeagueId,AutoSetting, SettlementStatus)
 	SELECT m.MatchId
 		  ,m.LeagueId
 		  ,ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting
 		  ,m.SettlementStatus
-	FROM match AS m WITH(NOLOCK)
-		INNER JOIN dbo.League AS l WITH(NOLOCK) ON	m.leagueid = l.leagueid
+	FROM @tblLeagueID AS ls  
+		INNER JOIN dbo.League AS l WITH(NOLOCK) ON	ls.leagueid = l.leagueid
+		INNER JOIN match AS m WITH(NOLOCK) ON	m.leagueid = l.leagueid
 		OUTER APPLY (SELECT	TOP 1 1 AS IsCalculated
 					 FROM dbo.ResultDetail AS rd WITH(NOLOCK)
 					 WHERE rd.MatchId = m.matchid
@@ -70,7 +79,6 @@ BEGIN
 				) AS ar
 	WHERE m.eventstatus = 'running' 
 		AND m.eventdate BETWEEN @FromDate AND @ToDate
-		AND m.leagueid IN (16371,65550,89611,149675,149676)
 		AND ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0))  & 16 > 0
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
 		AND r.IsCalculated IS NULL

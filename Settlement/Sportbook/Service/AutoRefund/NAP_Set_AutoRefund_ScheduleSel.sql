@@ -17,6 +17,7 @@ AS
 		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
 		- 20240614@Aries: Add fantasy leagueId [Redmine:#206489]
 		- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
+		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
 */
 BEGIN
 	
@@ -27,6 +28,7 @@ BEGIN
 			,@IsWaiting BIT = 0
 	
 	DECLARE  @returntable TABLE (MatchId INT,ParentID INT,  leagueid INT, TypeId TINYINT,SourceId TINYINT, ResourceId VARCHAR(20), ResultStatusID TINYINT, SettlementStatusId TINYINT, CreateDate DATETIME)
+	DECLARE @tblLeagueID		TABLE(LeagueId INT)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		@SPName = @procName
@@ -45,6 +47,11 @@ BEGIN
 
 	IF @sporttype = 1
 	BEGIN
+		INSERT INTO @tblLeagueID(LeagueId)
+		SELECT LeagueId
+		FROM SettlementSetting WITH(NOLOCK)
+		WHERE AutoType = 9
+
 		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID,CreateDate)
 		SELECT ar.MatchId
 			 , m.leagueid
@@ -53,13 +60,13 @@ BEGIN
 			 , NULL AS ResultStatusID
 			 , ar.CreateDate
 		FROM dbo.AutoRefundResult ar WITH(NOLOCK)
-			INNER JOIN dbo.match m WITH(NOLOCK)
-				ON m.matchid = ar.matchid
+			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = ar.matchid
+			LEFT JOIN @tblLeagueID AS l  ON l.leagueid = m.leagueid
 		WHERE m.sporttype = 1
 			AND ar.SourceId = 105
 			AND ar.StatusId = 0
 			AND ar.TypeId = 1
-			AND m.leagueid NOT IN (16371,65550,89611,149675,149676) -- Exclude Fantasy Match
+			AND l.leagueid IS NULL -- Exclude Fantasy Match
 	END
 	ELSE IF @sporttype = 5
 	BEGIN

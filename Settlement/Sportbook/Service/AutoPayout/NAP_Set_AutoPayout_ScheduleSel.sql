@@ -28,6 +28,7 @@ AS
 		- 20240614@Aries: Add fantasy leagueId [Redmine:#206489]
 		- 20240619@Aries: Direct Payout for SABA ELITE FRIENDLY Virtual PES 23 - PENALTY SHOOTOUTS [Redmine:#206740]
 		- 20240731@Aries: Apply Direct Payout for SABA CLUB FRIENDLY and SABA ENGLISH PREMIER LEAGUE - Virtual FC 24 - 16 Mins Play [Redmine:#208347]
+		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
 
 	Param's Explanation:
  
@@ -43,6 +44,8 @@ BEGIN
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting		BIT = 0
 
+	DECLARE @tblLeague		TABLE(LeagueId INT,AutoType TINYINT, PRIMARY KEY(LeagueId))
+
 	SET @currentdate = CAST(GETDATE() AS DATE)
 	SELECT	@fromdate = DATEADD(DAY,-1,@currentdate)
 			,@todate = DATEADD(DAY,1,@currentdate)
@@ -52,7 +55,9 @@ BEGIN
 									MatchId INT, HtHomescore INT, FinalHomescore INT, HtAwayscore INT, FinalAwayscore INT, TypeId TINYINT, 
 									IsHalfTimeConfirmed INT, IsFullTimeConfirmed INT, BetStatus NVARCHAR(50), GoalRecord VARCHAR(50), 
 									IsHalfTimeCalculated BIT, leagueid INT, LeagueGroupID SMALLINT, ChildMatchType TINYINT, SettlementStatus TINYINT, 
-									AutoSetting TINYINT, ChildLeagueType INT, MainType TINYINT, SubType SMALLINT
+									AutoSetting TINYINT, ChildLeagueType INT, MainType TINYINT, SubType SMALLINT,
+									AutoType TINYINT
+
 								)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
@@ -66,20 +71,28 @@ BEGIN
 		SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, leagueid, LeagueGroupID, ChildMatchType, SettlementStatus
 			, AutoSetting, ChildLeagueType, MainType, SubType
+			, AutoType
 		FROM @tmpMatchAuto
 
 		RETURN
 	END
+
+	INSERT INTO @tblLeague(LeagueId,AutoType)
+	SELECT LeagueId,AutoType
+	FROM SettlementSetting WITH(NOLOCK)
+	WHERE AutoType IN (8,9)
 	
 
 	INSERT INTO @tmpMatchAuto (
 								MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 								, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, leagueid, LeagueGroupID, ChildMatchType, SettlementStatus
 								, AutoSetting, ChildLeagueType, MainType, SubType
+								, AutoType
 							)
 	SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
 		, AutoSetting, ChildLeagueType, MainType, SubType
+		, AutoType
 	FROM (
 			SELECT m.matchid AS MatchId
 				, m.hthomescore
@@ -104,6 +117,7 @@ BEGIN
 				, ls.ChildLeagueType
 				, mr.MainType
 				, mr.SubType
+				, ss.AutoType
 			FROM dbo.match m WITH(NOLOCK)
 				INNER JOIN dbo.match_remark mr WITH(NOLOCK)
 					ON	m.matchid = mr.matchid
@@ -136,20 +150,25 @@ BEGIN
 									END
 							AND r.ResultStatusID = 5 -- completed (manual)
 				)r
+				OUTER APPLY (
+					SELECT tl.AutoType
+					FROM @tblLeague AS tl
+					WHERE l.LeagueId = tl.Leagueid
+				) ss 
 			WHERE	m.eventstatus = 'running' 
 					AND m.sporttype = 1
 					AND m.eventdate BETWEEN @fromdate AND @todate 
 					AND GlobalShowTime <= @checktime
 					AND ISNULL(m.ChildMatchType,0) <> 201
-					AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND l.leagueid IN (95730,95731,96666,135822,147230,114806,150217) AND f.TypeId = 2 THEN 1
+					AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND ss.AutoType = 8 AND f.TypeId = 2 THEN 1
 																						   ELSE 0
 																						   END								 
 								 WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74, 108) THEN CASE WHEN f.TypeId = 2 THEN 1
-																							WHEN l.leagueid IN (95730,95731,96666,135822,147230,114806,150217) AND f.TypeId = 1 THEN 1
+																							WHEN ss.AutoType = 8 AND f.TypeId = 1 THEN 1
 																							ELSE 0
 								  															END
 								 WHEN (mr.SubType BETWEEN 2101 AND 2199 OR mr.SubType BETWEEN 2601 AND 2699) THEN IIF(f.TypeId = 2,1,0)  -- Child-match Next Corner
-								 WHEN l.leagueid IN (16371,65550,89611,149675,149676)	  THEN 0 -- Exclude Fantasy Match
+								 WHEN ss.AutoType = 9 THEN 0 -- Exclude Fantasy Match
 								 ELSE 1
 								 END
 
@@ -172,6 +191,7 @@ BEGIN
 	SELECT t.MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
 			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
 			, AutoSetting, ChildLeagueType, MainType, SubType
+			, AutoType
 	FROM @tmpMatchAuto t
 		LEFT JOIN ProviderResultDetail p 
 			ON t.MatchId = p.MatchId AND t.TypeId = p.TypeId 
