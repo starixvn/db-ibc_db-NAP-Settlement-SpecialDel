@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoid_Notification_Job]
 AS
 /*	Created by: Helen
@@ -16,7 +16,8 @@ AS
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 		- 20230303@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230703@Max: [TVS] Enhance notification time [Redmine: #190711]
-	
+		- 20240710@Kathy: Change instance name [Redmine:#207768]
+
 	Param's explanation:	
 		
 */
@@ -72,7 +73,7 @@ BEGIN
 	IF @MatchidList_Waiting_30minutes <> ''
 	BEGIN
 		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
+		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%' 
 		BEGIN
 			-- send letstalk
 			SET @msg = 'Matchid waiting in queue over 30 minutes: 
@@ -133,7 +134,7 @@ BEGIN
 	IF @QueueList_Waiting_30minutes <> ''
 	BEGIN
 		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
+		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%'  OR @@SERVERNAME LIKE 'DBSITEC%' 
 		BEGIN
 			-- send letstalk
 			SET @msg = 'Queue waiting in queue over 30 minutes: 
@@ -194,7 +195,7 @@ BEGIN
 	IF @MatchIdList_Failed <> ''
 	BEGIN
 		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
+		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%'  
 		BEGIN
 			-- send letstalk
 			SET @msg = 'Ticket Voiding System: Void Bets Automation Failed !

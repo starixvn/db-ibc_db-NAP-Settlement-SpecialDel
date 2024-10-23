@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" selecters="" isFunction="1" isNested="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" selecters="" isFunction="1" isNested="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_VS_BetRadar_EmailConfig] ()
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -24,6 +24,7 @@ AS
 		- 20230907@Louisa: Add email eason.chou@onelab.tw and remove aaron.wang@onelab.tw [Redmine:#193816]
 		- 20231002@Louisa: Add email csd.one1@enpine.com for Deposite, Remove: csoneonone@enpine.com [Redmine: #194949]
 		- 20231016@Aries: SIT env: remove mail  [Redmine:#195333]
+		- 20240710@Kathy: Change instance name [Redmine:#207768]
 
 	Columns Explanation:    
     
@@ -119,7 +120,29 @@ RETURN (
 			, 'qa@starixsoft.com'
 			, 'SITDBGRP01N2'
 			, 'SIT'
-		
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'SITDBSITEC1'
+			, 'SIT'
+
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'SITDBSITEC2\INST2'
+			, 'SIT'
+
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'SITDBSITEC3\INST3'
+			, 'SIT'
 		UNION ALL 
 		SELECT 'NOTIFY'
 			, 'lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw'
@@ -175,7 +198,27 @@ RETURN (
 			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
 			, 'DBGRP02N2'
 			, 'PROD'
-		
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'lena.huynh@starixsoft.com;it@starixsoft.com;dbaadmin@starixsoft.com'
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
+			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
+			, 'DBSITEC1'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'lena.huynh@starixsoft.com;it@starixsoft.com;dbaadmin@starixsoft.com'
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
+			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
+			, 'DBSITEC2\INST2'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'lena.huynh@starixsoft.com;it@starixsoft.com;dbaadmin@starixsoft.com'
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
+			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
+			, 'DBSITEC3\INST3'
+			, 'PROD'
 		/*----------------------
 		ERROR Recipients
 		-----------------------*/
@@ -232,7 +275,23 @@ RETURN (
 			, 'qa@starixsoft.com;lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'SITDBGRP01N2'
 			, 'SIT'
-			
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'qa@starixsoft.com;lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'SITDBSITEC1'
+			, 'SIT'
+
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'qa@starixsoft.com;lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'SITDBSITEC2\INST2'
+			, 'SIT'
+
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'qa@starixsoft.com;lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'SITDBSITEC3\INST3'
+			, 'SIT'	
 		UNION ALL 
 		SELECT 'ERROR'
 			, 'qa@starixsoft.com;lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
@@ -275,7 +334,21 @@ RETURN (
 			, 'lena.huynh@starixsoft.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixsoft.com;dbaadmin@starixsoft.com;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'DBGRP02N2'
 			, 'PROD'
-			
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'lena.huynh@starixsoft.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixsoft.com;dbaadmin@starixsoft.com;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'DBSITEC1'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'lena.huynh@starixsoft.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixsoft.com;dbaadmin@starixsoft.com;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'DBSITEC2\INST2'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'lena.huynh@starixsoft.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixsoft.com;dbaadmin@starixsoft.com;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'DBSITEC3\INST3'
+			, 'PROD'
 	) AS vs
 	WHERE vs.ServerName = @@SERVERNAME
 )

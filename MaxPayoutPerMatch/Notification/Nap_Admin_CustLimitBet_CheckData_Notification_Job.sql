@@ -15,6 +15,7 @@ AS
 		- 20221003@Victoria: Add more email to @Recipients [Redemine: #178536]
 		- 20221206@Max: MPO Remove invalid email address (LOCAL + SIT) [Redmine: #00000]
 		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
+		- 20240710@Kathy: Change instance name [Redmine:#207768]
 
 	Param's explanation:		
 		
@@ -35,7 +36,7 @@ BEGIN
 		,@Body			NVARCHAR(MAX) = ''
 		,@Recipients	VARCHAR(MAX) = ''	
 	
-	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
+	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITE%'
 	BEGIN
 		SET @Recipients = 'dbaadmin@starixsoft.com;martin.chen@onelab.tw;member_core@onelab.tw;steve.liao@onelab.tw'
 	END

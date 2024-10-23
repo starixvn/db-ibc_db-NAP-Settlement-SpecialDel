@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" selecters="" isFunction="1" isNested="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" selecters="" isFunction="1" isNested="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_Bitcoin_EmailConfig] ()
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -15,6 +15,7 @@ AS
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 		- 20230704@Louisa: Update email from csd.one1@enpine.com to csd.one1@enpine.com [Redmine:#189854]
 		- 20231026@Louisa: Update email domain from starixvn to starixsoft [Redmine:#195197]
+		- 20240710@Kathy: Change instance name [Redmine:#207768]
 		
 	Columns Explanation:    
     
@@ -86,7 +87,29 @@ RETURN (
 			, 'qa@starixsoft.com'
 			, 'SITDBGRP01N2'
 			, 'SIT'
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'SITDBSITEC1'
+			, 'SIT'
 
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'SITDBSITEC2\INST2'
+			, 'SIT'
+
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'SITDBSITEC3\INST3'
+			, 'SIT'
 		UNION ALL 
 		SELECT 'NOTIFY'
 			--,'qa@starixsoft.com'
@@ -120,6 +143,36 @@ RETURN (
 			, 'DBGRP01N2'
 			, 'PROD'
 
+		UNION ALL 
+		SELECT 'NOTIFY'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			, 'it@starixsoft.com;'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'DBSITEC1'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'NOTIFY'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			, 'it@starixsoft.com;'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'DBSITEC2\INST2'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'NOTIFY'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			, 'it@starixsoft.com;'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'DBSITEC3\INST3'
+			, 'PROD'
 		/*----------------------
 		ERROR Recipients
 		-----------------------*/
@@ -164,7 +217,23 @@ RETURN (
 			, 'qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'SITDBGRP01N2'
 			, 'SIT'
-		
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
+			, 'SITDBSITEC1'
+			, 'SIT'
+
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
+			, 'SITDBSITEC2\INST2'
+			, 'SIT'
+
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
+			, 'SITDBSITEC3\INST3'
+			, 'SIT'
 		UNION ALL 
 		SELECT 'ERROR'
 			--,'qa@starixsoft.com'
@@ -187,6 +256,27 @@ RETURN (
 			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
 			, 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'DBGRP01N2'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'ERROR'
+			--,'qa@starixsoft.com'
+			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com'
+			, 'DBSITEC1'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'ERROR'
+			--,'qa@starixsoft.com'
+			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com'
+			, 'DBSITEC2\INST2'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'ERROR'
+			--,'qa@starixsoft.com'
+			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com'
+			, 'DBSITEC3\INST3'
 			, 'PROD'
 			
 	) AS vs

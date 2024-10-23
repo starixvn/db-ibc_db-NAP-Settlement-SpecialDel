@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Retry_Job]
 AS
 /*	
@@ -13,6 +13,7 @@ AS
 		- 20221206@Max: MPO Remove invalid email address (LOCAL + SIT) [Redmine: #00000]
 		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
+		- 20240710@Kathy: Change instance name [Redmine:#207768]
 	
 	Param's explanation:		
 		
@@ -88,7 +89,7 @@ BEGIN
 	--For local Testing, input email need to test
 	--SET @Recipients = 'max.tran@starixvn.com;susan.le@starixvn.com'
 
-	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
+	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%' OR @@SERVERNAME LIKE 'SITDBSITEC%'
 	BEGIN
 		SET @Recipients = 'dbaadmin@starixsoft.com'
 	END
