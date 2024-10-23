@@ -83,6 +83,15 @@ BEGIN
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			,'<r CurrencyIds="' + t.c.value('@CurrencyIds','VARCHAR(MAX)')
 				+ '" LicenseeNames="' + t.c.value('@LicenseeNames','VARCHAR(MAX)')
+				+ CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (126,128) THEN 
+						'" WrongName="' + t.c.value('@WrongName','NVARCHAR(MAX)')
+						+ '" ActualName="' + t.c.value('@ActualName','NVARCHAR(MAX)')
+					   WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (127,129) THEN
+						'" WrongNameT="' + t.c.value('@WrongNameT','NVARCHAR(MAX)')
+						+ '" ActualNameT="' + t.c.value('@ActualNameT','NVARCHAR(MAX)')
+					    + '" WrongNameS="' + t.c.value('@WrongNameS','NVARCHAR(MAX)')
+						+ '" ActualNameS="' + t.c.value('@ActualNameS','NVARCHAR(MAX)')
+						ELSE '' END
 			+ '" />' AS WrongOfferedName
 	FROM @WrongOfferedNameInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongOfferedNameInfoXML = NULL))
