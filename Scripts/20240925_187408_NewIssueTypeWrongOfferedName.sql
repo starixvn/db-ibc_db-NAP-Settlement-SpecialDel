@@ -30,13 +30,13 @@ INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype, SubIssueTypeId, ReasonE
 --TicketVoiding_MessageTemplate
 INSERT INTO dbo.TicketVoiding_MessageTemplate (TemplateId, MsgEnglish, MsgChineseTraditional, MsgChineseSimplified, MsgChineseNewSimplified)
 VALUES(13,
-	'Attn:[{{Sport type}}] Due to wrong team name displayed, the match between "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], bet ID: "@@" which affected are considered VOID. The actual team name is "{{Home team name}} -vs- {{Away team name}}". Parlay counted as one (1). {{CheckStatement}}Sorry for the inconvenience caused!'
+	'Attn:[{{Sport type}}] Due to wrong team name displayed, the match between "{{Wrong Name}}" [{{League name}} - {{Event Date}}{{Event type}}], bet ID: "@@" which affected are considered VOID. The actual team name is "{{Actual Name}}". Parlay counted as one (1). {{CheckStatement}}Sorry for the inconvenience caused!'
 	,N'請注意:[{{Sport type}}] 由於英文隊名顯示有誤, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注單: "@@" 只作廢受影響的注單 (請查閱英文隊名, 以英文為準). 串關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!'
 	,N'请注意:[{{Sport type}}] 由于英文队名显示有误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" 只作废受影响的注单 (请查阅英文队名, 以英文为准). 串关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
 	,N'请注意:[{{Sport type}}] 由于英文队名显示有误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" 只作废受影响的注单 (请查阅英文队名, 以英文为准). 串关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
 ),
 (15,
-	'Attn:[{{Sport type}}] Due to wrong league name displayed, the match between "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], bet ID: "@@" which affected are considered VOID. The actual league name is "{{League name}}". Parlay counted as one (1). {{CheckStatement}}Sorry for the inconvenience caused!'
+	'Attn:[{{Sport type}}] Due to wrong league name displayed, the match between "{{Home team name}} -vs- {{Away team name}}" [{{Wrong Name}} - {{Event Date}}{{Event type}}], bet ID: "@@" which affected are considered VOID. The actual league name is "{{Actual Name}}". Parlay counted as one (1). {{CheckStatement}}Sorry for the inconvenience caused!'
 	,N'請注意:[{{Sport type}}] 由於英文聯賽名顯示有誤, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注單: "@@" 只作廢受影響的注單 (請查閱英文隊名, 以英文為準). 串關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!'
 	,N'请注意:[{{Sport type}}] 由于英文联赛名显示有误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" 只作废受影响的注单 (请查阅英文队名, 以英文为准). 串关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
 	,N'请注意:[{{Sport type}}] 由于英文联赛名显示有误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" 只作废受影响的注单 (请查阅英文队名, 以英文为准). 串关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
@@ -44,16 +44,16 @@ VALUES(13,
 ,
 (68,
 	N'请查阅中文信息"@@"'
-	,N'請注意:[{{Sport type}}] 由於隊名顯示錯誤, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注單: "@@" 已被作廢. 正確之隊名為 "{{Home team name}} -vs- {{Away team name}}". 過關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!'
-	,N'请注意:[{{Sport type}}] 由于队名显示错误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" 已被作废. 正确之队名为 "{{Home team name}} -vs- {{Away team name}}". 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
-	,N'请注意:[{{Sport type}}] 由于队名显示错误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" 已被作废. 正确之队名为 "{{Home team name}} -vs- {{Away team name}}". 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+	,N'請注意:[{{Sport type}}] 由於隊名顯示錯誤, "{{Wrong NameT}}" [{{League name}} - {{Event Date}}{{Event type}}], 注單: "@@" 已被作廢. 正確之隊名為 "{{Actual NameT}}". 過關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!'
+	,N'请注意:[{{Sport type}}] 由于队名显示错误, "{{Wrong NameS}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" 已被作废. 正确之队名为 "{{Actual NameS}}". 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+	,N'请注意:[{{Sport type}}] 由于队名显示错误, "{{Wrong NameS}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" 已被作废. 正确之队名为 "{{Actual NameS}}". 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
 )
 ,
 (69,
 	N'请查阅中文信息"@@"'
-	,N'請注意:[{{Sport type}}] 由於聯賽顯示錯誤, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注單: "@@" 已被作廢. 正確之隊名為 "{{League name}}". 過關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!'
-	,N'请注意:[{{Sport type}}] 由于联赛显示错误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" 已被作废. 正确之队名为 "{{League name}}". 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
-	,N'请注意:[{{Sport type}}] 由于联赛显示错误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" 已被作废. 正确之队名为 "{{League name}}". 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+	,N'請注意:[{{Sport type}}] 由於聯賽顯示錯誤, "{{Home team name}} -vs- {{Away team name}}" [{{Wrong NameT}} - {{Event Date}}{{Event type}}], 注單: "@@" 已被作廢. 正確之隊名為 "{{Actual NameT}}". 過關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!'
+	,N'请注意:[{{Sport type}}] 由于联赛显示错误, "{{Home team name}} -vs- {{Away team name}}" [{{Wrong NameS}} - {{Event Date}}{{Event type}}], 注单: "@@" 已被作废. 正确之队名为 "{{Actual NameS}}". 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+	,N'请注意:[{{Sport type}}] 由于联赛显示错误, "{{Home team name}} -vs- {{Away team name}}" [{{Wrong NameS}} - {{Event Date}}{{Event type}}], 注单: "@@" 已被作废. 正确之队名为 "{{Actual NameS}}". 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
 )
 
 --TicketVoiding_MessageTemplateSetting
