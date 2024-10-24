@@ -13,6 +13,7 @@ AS
 		- 20220727@Max: Create new SP [Redmine:#197051]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
+		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -355,8 +356,11 @@ BEGIN
 		AND b.bettype NOT IN (805, 806, 9, 29)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
-		AND 1 = CASE WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-				ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
+		AND 1 = CASE 
+					WHEN d.FilterFromTransTime IS NULL AND d.FilterToTransTime IS NULL THEN 1
+					WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+				ELSE CASE 
+					WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
 					ELSE 0 END
 			END
 		AND b.SiteDBGroupID = @SiteDBGroupID
@@ -516,7 +520,9 @@ BEGIN
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29
 			AND b.bettype = 29
-			AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+			AND (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+					OR d.FilterFromTransTime IS NULL AND d.FilterToTransTime IS NULL
+				)
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
 
