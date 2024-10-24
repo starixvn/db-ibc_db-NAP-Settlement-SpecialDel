@@ -51,6 +51,7 @@ AS
 		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		- 20240813@Max: [TVS] Manage Request - Enhancements [Redmine: #208623]
+		- 20241025@July: [TVS] Add new Advanced Mode for TVS - [Redmine: #212394]
 
 	Param's explanation:	
 	
@@ -215,6 +216,7 @@ BEGIN
 				,@OrgTransIds AS OrgTransIds
 				,rd.ProductIds -- Apply for issuetype Recover Ticket (22)
 				,rd.AdvancedExtraInfo
+				,CASE WHEN @IssueTypeId IN (12,24,25,18) THEN rd.IssueDetail ELSE NULL END AS ControlsAllBetTypesJson -- Apply for issuetype WMO(12), TE(24),Wrong Odds(SB)(25), Other Issues(18)
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
