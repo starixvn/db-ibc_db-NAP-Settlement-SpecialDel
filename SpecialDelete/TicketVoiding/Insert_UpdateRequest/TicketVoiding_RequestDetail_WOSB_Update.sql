@@ -18,8 +18,11 @@ AS
 	Revisions: 
 		- 20240916@Max: Create new SP [Redmine:#186029]
 		- 20241025@July: [TVS] Add new Advanced Mode for TVS - [Redmine: #212394]
-		
+		- 20241022@July: [TVS] New Issue Type "Other Issues" [Redmine: #211913]
+
 	Param's explanation:
+		IssueTypeId = 25 --Wrong Odds (Sportsbook)
+		              18 --Other Issues
 		
 */
 BEGIN
@@ -48,7 +51,7 @@ BEGIN
 			,VoidFromTime			DATETIME 
 			,VoidToTime				DATETIME
 			,SubIssueTypeId			SMALLINT
-			,WrongOddsSB			VARCHAR(MAX)
+			,FilterInfo				VARCHAR(MAX)
 			,AdvancedExtraInfo		VARCHAR(MAX)
 			,IssueDetail			NVARCHAR(MAX)
 			)
@@ -91,7 +94,7 @@ BEGIN
 			,VoidFromTime			
 			,VoidToTime				
 			,SubIssueTypeId
-			,WrongOddsSB
+			,FilterInfo
 			,AdvancedExtraInfo
 			,IssueDetail
 		)
@@ -104,14 +107,15 @@ BEGIN
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,'<r FilterOddsType="' + t.c.value('@FilterOddsType','VARCHAR(20)')
+			,CASE WHEN @IssueTypeId = 25 THEN 
+				'<r FilterOddsType="' + t.c.value('@FilterOddsType','VARCHAR(20)')
 					+ '" FromOdds="' + t.c.value('@FromOdds','VARCHAR(20)')
 					+ '" ToOdds="' + t.c.value('@ToOdds','VARCHAR(20)')
 					+ '" OddsValue="' + REPLACE(t.c.value('@OddsValue','VARCHAR(MAX)'), '&', '&amp;')
 					+ '" CorrectOdds="' + t.c.value('@CorrectOdds','VARCHAR(20)')
 					+ '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10))
 					+ '" />'
-					AS WrongOddsSB
+				ELSE NULL END AS FilterInfo
 			,REPLACE(t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)'), '&quot;','''') AS AdvancedExtraInfo
 			,REPLACE(t.c.value('@AllBetTypesSelectionJson','NVARCHAR(MAX)'), '&quot;','''') AS IssueDetail
 	FROM @WrongOddsSBInfoXML.nodes('root/r') t(c)
@@ -132,7 +136,7 @@ BEGIN
 			, VoidFromTime = l.VoidFromTime
 			, VoidToTime = l.VoidToTime
 			, SubIssueTypeId = l.SubIssueTypeId
-			, TransIds = l.WrongOddsSB
+			, TransIds = l.FilterInfo
 			, AdvancedExtraInfo = l.AdvancedExtraInfo
 			, IssueDetail = l.IssueDetail
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
@@ -171,7 +175,7 @@ BEGIN
 		, l.VoidFromTime
 		, l.VoidToTime
 		, l.SubIssueTypeId
-		, l.WrongOddsSB
+		, l.FilterInfo
 		, l.AdvancedExtraInfo
 		, m.sporttype
 		, l.IssueDetail
@@ -250,10 +254,11 @@ BEGIN
 	SET @LogDataContent = ''
 	
 	SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20))
-							+ ', FilterFromTransTime: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) +  ', FilterToTransTime: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
+							+ CASE WHEN l.FilterFromTransTime IS NOT NULL THEN ', FilterFromTransTime: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) ELSE '' END
+							+ CASE WHEN l.FilterToTransTime IS NOT NULL THEN ', FilterToTransTime: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21) ELSE '' END
 							+ ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidToTime: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
-							+ ', WrongOddsSB: ' + l.WrongOddsSB
+							+ CASE WHEN @IssueTypeId = 25 THEN ', WrongOddsSB: ' + l.FilterInfo ELSE '' END
 							FROM #tblGetLogInfo l
 	-- Write Log
 	SET @EndTime = GETDATE()
