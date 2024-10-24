@@ -6,7 +6,7 @@
 */
 USE bodb02
 GO
---Change varchar => NVARCHAR
+--Change VARCHAR => NVARCHAR
 ALTER TABLE TicketVoiding_RequestDetail ALTER COLUMN TransIds NVARCHAR(MAX);
 
 --TicketVoiding_IssueType

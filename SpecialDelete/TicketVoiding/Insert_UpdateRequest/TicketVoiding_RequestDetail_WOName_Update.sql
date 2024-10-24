@@ -218,7 +218,7 @@ BEGIN
 							+ @LogDataContent
 						AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
-	) AS VARCHAR(MAX))
+	) AS NVARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 	
