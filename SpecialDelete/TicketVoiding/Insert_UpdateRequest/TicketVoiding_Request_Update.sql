@@ -36,7 +36,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
 	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
 	,@WrongOddsSBInfo			VARCHAR(MAX)  = NULL
-	,@WrongOfferedNameInfo  VARCHAR(MAX) = NULL
+	,@WrongOfferedNameInfo  NVARCHAR(MAX) = NULL
 	,@BriefInfoNote			NVARCHAR(MAX) = NULL
 	,@IsVoided				BIT			  = 0
 	,@TransInfoJson			VARCHAR(MAX)  = NULL

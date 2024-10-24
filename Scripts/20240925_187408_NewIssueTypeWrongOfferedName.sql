@@ -6,6 +6,8 @@
 */
 USE bodb02
 GO
+--Change varchar => NVARCHAR
+ALTER TABLE TicketVoiding_RequestDetail ALTER COLUMN TransIds NVARCHAR(MAX);
 
 --TicketVoiding_IssueType
 SET IDENTITY_INSERT [dbo].[TicketVoiding_IssueType] ON

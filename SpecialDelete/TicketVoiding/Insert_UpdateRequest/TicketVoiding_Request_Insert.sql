@@ -33,7 +33,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
 	,@WrongOddsSBInfo		VARCHAR(MAX)  = NULL
-	,@WrongOfferedNameInfo  VARCHAR(MAX) = NULL
+	,@WrongOfferedNameInfo  NVARCHAR(MAX) = NULL
 	,@SessionTime			INT = 0
 	,@RequestId				INT			  = 0 OUTPUT
 AS

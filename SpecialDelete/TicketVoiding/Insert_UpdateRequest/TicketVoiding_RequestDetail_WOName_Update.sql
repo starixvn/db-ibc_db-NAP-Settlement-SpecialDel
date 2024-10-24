@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_WOName_Update]
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
 	,@ActionId				TINYINT
-	,@WrongOfferedNameInfo  VARCHAR(MAX) = NULL
+	,@WrongOfferedNameInfo  NVARCHAR(MAX) = NULL
 	,@TransInfoJson			VARCHAR(MAX) = NULL
 	,@IsEditRequest			INT 
 )
@@ -43,7 +43,7 @@ BEGIN
 			 RequestID				INT
 			,MatchID				INT
 			,SubIssueTypeId			SMALLINT
-			,WrongOfferedName		VARCHAR(MAX) 
+			,WrongOfferedName		NVARCHAR(MAX) 
 	)
 
 	CREATE TABLE #tmpTransInfo(
@@ -105,6 +105,7 @@ BEGIN
 		
 		UPDATE	r
 		SET	 TransIds = l.WrongOfferedName
+		   , SubIssueTypeId = l.SubIssueTypeId
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
 	END
