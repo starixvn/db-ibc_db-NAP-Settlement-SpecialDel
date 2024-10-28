@@ -1,7 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_MatchInfo_Select] 
 	@matchID INT,
-	@IsExcludeChildMatchCricket BIT = 0, --1: mark/unmark only
 	@IsMatch3rd BIT = 0,	
 	@Language VARCHAR(2) = 'E',
 	@Type INT = 0
@@ -22,6 +21,7 @@ AS
 		- 20230427@July: Invalid matchid when input child match Cricket [Redmine: #187052]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
 	Param's explanation:	
 		- @Type: 0 - Normal (get match from match table)
@@ -90,8 +90,8 @@ BEGIN
 					SELECT RIGHT(mr.SubType, 2) AS NumberOfCorner					FROM match_remark mr WITH (NOLOCK)					WHERE mr.matchid = m.matchid						AND mr.MainType = 1						AND mr.SubType LIKE '21__'
 				)mr
 			WHERE	m.matchid = @matchID
-				AND 1 = CASE WHEN @IsExcludeChildMatchCricket = 1 AND m.sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
-							 ELSE 1 END 
+				AND  1 = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN 0  --Exclude child match Cricket/Baseball
+							  ELSE 1 END 
 			UNION ALL
 			SELECT	m14.matchid
 					,m14.homeid
@@ -114,9 +114,8 @@ BEGIN
 					SELECT RIGHT(mr.SubType, 2) AS NumberOfCorner					FROM match_remark mr WITH (NOLOCK)					WHERE mr.matchid = m14.matchid						AND mr.MainType = 1						AND mr.SubType LIKE '21__'
 				)mr
 			WHERE	m14.matchid = @matchID	
-				AND 1 = CASE WHEN @IsExcludeChildMatchCricket = 1 AND m14.sporttype = 50 AND m14.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
-							 ELSE 1 END 
-
+				AND 1 = CASE WHEN m14.sporttype IN (50,8) AND m14.ChildMatchType = 200 THEN 0 --Exclude child match Cricket/Baseball
+						    ELSE  1 END 
 			UNION ALL --VS5
 			SELECT 
 				match.Match3rdId AS matchid,

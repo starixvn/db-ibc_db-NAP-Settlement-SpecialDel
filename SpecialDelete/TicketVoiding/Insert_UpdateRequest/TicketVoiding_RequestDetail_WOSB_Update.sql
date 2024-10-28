@@ -17,7 +17,6 @@ AS
 	
 	Revisions: 
 		- 20240916@Max: Create new SP [Redmine:#186029]
-		- 20241025@July: [TVS] Add new Advanced Mode for TVS - [Redmine: #212394]
 		
 	Param's explanation:
 		
@@ -32,7 +31,7 @@ BEGIN
 			,@LogDataContent	 NVARCHAR(MAX)
 
 	DECLARE	@WrongOddsSBInfoXML	 XML = NULL	
-		   ,@topBatch			 INT = 4500
+		,@topBatch			  INT = 4500
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -50,7 +49,6 @@ BEGIN
 			,SubIssueTypeId			SMALLINT
 			,WrongOddsSB			VARCHAR(MAX)
 			,AdvancedExtraInfo		VARCHAR(MAX)
-			,IssueDetail			NVARCHAR(MAX)
 			)
 
 	CREATE TABLE #tmpTransInfo(
@@ -93,7 +91,6 @@ BEGIN
 			,SubIssueTypeId
 			,WrongOddsSB
 			,AdvancedExtraInfo
-			,IssueDetail
 		)
 	SELECT @RequestId AS RequestId
 			,t.c.value('@MatchId','INT') AS MatchID
@@ -113,7 +110,6 @@ BEGIN
 					+ '" />'
 					AS WrongOddsSB
 			,REPLACE(t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)'), '&quot;','''') AS AdvancedExtraInfo
-			,REPLACE(t.c.value('@IssueDetail','NVARCHAR(MAX)'), '&quot;','''') AS IssueDetail
 	FROM @WrongOddsSBInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongOddsSBInfoXML = NULL))
 
@@ -134,7 +130,6 @@ BEGIN
 			, SubIssueTypeId = l.SubIssueTypeId
 			, TransIds = l.WrongOddsSB
 			, AdvancedExtraInfo = l.AdvancedExtraInfo
-			, IssueDetail = l.IssueDetail
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
 	END
@@ -156,7 +151,6 @@ BEGIN
 		, TransIds
 		, AdvancedExtraInfo
 		, Sporttype
-		, IssueDetail
 		)
 	SELECT @RequestId
 		, l.MatchID
@@ -174,7 +168,6 @@ BEGIN
 		, l.WrongOddsSB
 		, l.AdvancedExtraInfo
 		, m.sporttype
-		, l.IssueDetail
 	FROM #tblGetLogInfo l
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
 		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID
@@ -265,7 +258,7 @@ BEGIN
 							+ @LogDataContent
 						AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
-	) AS NVARCHAR(MAX))
+	) AS VARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 

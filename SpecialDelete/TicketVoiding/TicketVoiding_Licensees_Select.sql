@@ -1,5 +1,5 @@
 ﻿/*<info serverAlias="DBOIC-bodb_OIC" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_Licensees_Select]
+CREATE PROCEDURE [dbo].[TicketVoiding_Licensees_Select]
 AS
 /*	Created by: 20240925@July
 	Task: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
