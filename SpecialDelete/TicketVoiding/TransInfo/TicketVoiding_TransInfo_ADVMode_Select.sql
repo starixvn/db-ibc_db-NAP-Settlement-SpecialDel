@@ -571,7 +571,7 @@ BEGIN
 	WHERE t.Bettype IS NULL
 			
 	--RETURN DATA
-	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
+	SET @TransInfoJson = COMPRESS((SELECT @MatchId AS 'mid'
 		,transid AS 't'
 		,Subtransid AS 's_t'
 		,custid    AS  'c'           
