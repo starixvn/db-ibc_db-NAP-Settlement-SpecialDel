@@ -40,6 +40,7 @@ AS
 		- 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20240905@Aries: Enhance the settlement by Selection for Betbuilder  [Redmine:#208782]
+		- 20241028@Aries: Direct payout for early soccer [Redmine:#211079]
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR, 'CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT'
@@ -332,7 +333,8 @@ BEGIN
 				@Command            = @calCommand,
 				@MatchID            = @MatchID,
 				@SelectedResources	= @SelectedResources,
-				@creator            = @AdminID
+				@creator            = @AdminID,
+				@IsAuto				= @IsAuto
 		END
 		ELSE -- profile
 		BEGIN
