@@ -133,8 +133,8 @@ BEGIN
 
 	SELECT @MatchID = t.c.value('@MatchId','INT')	
 		,@AdvancedExtraInfo = t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)')
-		,@FilterFromTransTime = t.c.value('@FilterFromTransTime','DATETIME')
-		,@FilterToTransTime = t.c.value('@FilterToTransTime','DATETIME')
+		,@FilterFromTransTime = CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END
+		,@FilterToTransTime = CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END
 	FROM @AdvancedModeInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AdvancedModeInfoXML = NULL))
 
