@@ -26,6 +26,7 @@ AS
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -137,7 +138,7 @@ BEGIN
 		BetFrom				NVARCHAR(4),
 		matchid				INT,
 		[Action]			VARCHAR(100),
-		TicketType			TINYINT, -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181, 4 : VS3(Leap Gaming), 5: VS4(Edge Gaming), 6: VS5
+		TicketType			TINYINT, -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181, 4 : VS3(Leap Gaming), 5: VS4(Edge Gaming), 6: VS5,VS6
 		currency			TINYINT,
 		actualPO			MONEY,
 		IsApplyMaxPO		BIT
@@ -308,8 +309,8 @@ BEGIN
 					WHEN m.sporttype BETWEEN 190 AND 199 THEN 1 -- VS Betradar
 					WHEN m.sporttype IN (180, 186) THEN 2 -- Inspired VS 180
 					WHEN m.sporttype IN (178, 179) THEN 4 -- VS 3 (Leap Gaming)
-					WHEN m.sporttype IN (188) THEN 5 -- VS 4 (Edge Gaming), VS5
-					WHEN m.sporttype IN (147) THEN 6 -- VS5
+					WHEN m.sporttype IN (188) THEN 5 -- VS 4 (Edge Gaming)
+					WHEN m.sporttype IN (147,134) THEN 6 -- VS5, VS6
 					ELSE NULL
 				END AS TicketType
 				,b.currency
@@ -332,7 +333,7 @@ BEGIN
 		  AND z.winlostdate >= @before_yesterday
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
-				OR m.sporttype IN (180, 186, 178, 179, 188, 147) -- Inspired VS 180, VS3(Leap Gaming), VS4(Edge Gaming), VS5
+				OR m.sporttype IN (180, 186, 178, 179, 188, 147, 134) -- Inspired VS 180, VS3(Leap Gaming), VS4(Edge Gaming), VS5, VS6
 			 )
 		  AND z.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
 		  AND z.SiteDBGroupID = @SiteDBGroupID
@@ -939,7 +940,7 @@ BEGIN
 			) AS tbl
 				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 				ON	sp.ResourceID = tbl.Id
-			WHERE sp.SportType IN (147)
+			WHERE sp.SportType IN (147, 134)
 
 			UPDATE r SET 
 				 r.actualPO = CASE

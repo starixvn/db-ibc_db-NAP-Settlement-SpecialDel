@@ -14,6 +14,7 @@ AS
 		- 20240219@July: Create new SP - [Redmine: #200317]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 
 */
 BEGIN
@@ -44,7 +45,7 @@ BEGIN
 			WHERE s.SportType = r.sporttype AND r.EventID = @MatchId
 					AND r.sporttype IN (177,198) --Virtual Horse Racing & Virtual Dog Racing
 		)m
-	WHERE s.ProductID IN (5,27,77,83,88)
+	WHERE s.ProductID IN (5,27,77,83,88,71)
         
     IF @ProductId IS NULL
     BEGIN 
