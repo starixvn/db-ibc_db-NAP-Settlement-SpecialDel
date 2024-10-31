@@ -19,6 +19,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Select]
 	,@RecoverTicketInfo		VARCHAR(MAX) = NULL
 	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
 	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
+	,@WrongOddsSBInfo		VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -36,6 +37,7 @@ AS
 		- 20240411@July: [TVS] Abandoned issue type [Redmine: #202626]
 		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 
 	Param's explanation:	
 		
@@ -176,6 +178,14 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_ADVMode_Select
 			@AdvancedModeInfo = @TechnicalErrorInfo
+	END
+	/*-----------------*/
+	
+	/*---WrongOdds (Sportbook)---*/
+	IF @IssueTypeId IN (25)
+	BEGIN
+		EXEC dbo.TicketVoiding_TransInfo_ADVMode_Select
+			@AdvancedModeInfo = @WrongOddsSBInfo
 	END
 	/*-----------------*/
 
