@@ -26,6 +26,7 @@ AS
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 
     Param's Explanation:
         - @Action: ['CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT']
@@ -310,15 +311,6 @@ BEGIN
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@AffectedTicket = @TicketCount OUTPUT
-		
-		--UPDATE back to AutoPayoutResult
-		IF @IsCentral = 1 AND @Action LIKE 'CAL%'
-			EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd 
-				@MatchId = @matchid
-				,@TypeId = @CalculationType
-				,@StatusId = 2
-				,@IsIncludedUpdateMatch = 1
-				,@SourceID = @SourceID
 		
 		IF @Action LIKE 'CAL%'
 		BEGIN

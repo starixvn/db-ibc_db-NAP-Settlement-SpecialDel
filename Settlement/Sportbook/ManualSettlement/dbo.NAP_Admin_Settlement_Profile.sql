@@ -92,6 +92,7 @@ AS
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
+		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -893,23 +894,16 @@ BEGIN
 			END
 		
 		END	
-
-		--Auto payout exept Pingoal
-		IF @IsAuto = 1 AND @HasAutoPayout = 1 AND @Action LIKE 'CAL%' AND @IsPingoal = 0
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
-			  @MatchId 			 = @matchid
-			, @SelectedResources = @SelectedResources
-			, @StatusId 		 = 2
-			, @UserId			 = @creator
-		END
 	END TRY
 	BEGIN CATCH
 		EXEC dbo.NAP_Admin_CheckingProcess
 				  @isExistMatch		= 1
 				  , @IsReleased		= 1
+		
+		SELECT   @ErrMsg =  ERROR_MESSAGE() 
+				,@ErrCode = ERROR_NUMBER()
 
-			RETURN
+		RETURN
 	END CATCH
 
 	EXEC dbo.NAP_Admin_CheckingProcess
@@ -970,14 +964,7 @@ BEGIN
 				,@ResourceRefund = @ResourceRefund OUTPUT
 		END
 
-		IF @Action = 'REFUND' AND @IsAuto = 1
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultUpd
-				@MatchId = @matchid
-				, @StatusId = 2
-				, @ResourceIds  = @ResourceIds
-		END
-		ELSE IF ISNULL(@ResourceRefund, '')  <> ''
+		IF ISNULL(@ResourceRefund, '')  <> ''
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
 				@MatchId		 = @MatchID

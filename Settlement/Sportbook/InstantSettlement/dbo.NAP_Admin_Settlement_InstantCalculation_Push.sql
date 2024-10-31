@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Settlement_InstantCalculation_Push
 	 @AdminId 			INT
     , @MatchId			INT
@@ -23,6 +23,7 @@ AS
     Revisions:
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230817@Kathy: Write log [Redmine:#192311]
+		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 
     Param's Explanation:
 		- @Action: ['CALINST-HT', 'CALINST-FT' 'UNDOINST-FT', 'UNDOINST-HT']

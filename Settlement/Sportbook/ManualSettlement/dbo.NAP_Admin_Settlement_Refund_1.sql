@@ -36,6 +36,7 @@ AS
 		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 
     Param's Explanation:
 	* @SDTRecord: Used to store a bitmap of these settings: (from right to left)
@@ -802,17 +803,6 @@ BEGIN
 				@BalanceWalletBefore	= @BalanceWalletBefore
 				,@BalanceWalletAfter	= @BalanceWalletAfter
 				,@ActionId				= @ActionID		
-		END
-
-		IF @IsCentral = 1
-		BEGIN
-			IF @IsAuto = 1
-			BEGIN
-				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
-				@MatchId = @matchid
-				, @TypeId  = 1
-				, @StatusId = 2
-			END
 		END
 
 		INSERT INTO @tmpParlayAffectedBettypes(ResourceId, RefResourceId, SDTResourceId, bettype, IsSDTParlay, totalticket)
