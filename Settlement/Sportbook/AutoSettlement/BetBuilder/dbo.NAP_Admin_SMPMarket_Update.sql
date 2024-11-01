@@ -14,6 +14,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20240905@Aries: Enhance the settlement by Selection for Betbuilder  [Redmine:#208782]
+		- 20241101@Aries: Enhance the rule for settle by selection of Betbuilder [Redmine:#212807]
 
 	Param's Explanation:
 			@SelectedMarket = '<Resources>
@@ -31,7 +32,9 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @xml XML, @ResultDefault VARCHAR(6) = 'Refund'
+	DECLARE @xml XML
+		, @ResultDefaultIsLive	VARCHAR(6) = 'Refund'
+		, @ResultDefaultNoneLive VARCHAR(6) = 'Lose'
 	CREATE TABLE #tblData (marketID VARCHAR(20), result VARCHAR(20), ResultStatusID TINYINT, PRIMARY KEY CLUSTERED(marketID) )
 	----------------------------------------------------------------------------
 	SET @xml = CAST(@SelectedMarket AS XML)
@@ -47,17 +50,17 @@ BEGIN
 	FROM
 		(SELECT cteData.marketID
 				,MAX(CASE
-						WHEN ms.Result = 'REFUND' AND ms.ResultStatusID IN (2,5)	THEN '7_' + ms.Result
+						WHEN ms.Result = IIF(mk.LiveIndicator = 1 ,'REFUND','LOSE') AND ms.ResultStatusID IN (2,5)	THEN '7_' + ms.Result
 						WHEN ms.Result IS NULL 										THEN '8_NULL'
-						WHEN ms.Result = 'LOSE' AND ms.ResultStatusID IN (2,5)		THEN '9_' + ms.Result
+						WHEN ms.Result = IIF(mk.LiveIndicator = 1 ,'LOSE','REFUND') AND ms.ResultStatusID IN (2,5)		THEN '9_' + ms.Result
 						WHEN ms.Result = 'WON'  AND ms.ResultStatusID IN (2,5)		THEN '6_' + ms.Result
-						ELSE '5_' + @ResultDefault END
+						ELSE '5_' + IIF(mk.LiveIndicator = 1 ,@ResultDefaultIsLive,@ResultDefaultNoneLive) END
 					 ) AS Result --priority: LOSE,RUNNING, REFUND,  LOSE, WON
 				,MAX(CASE
 						--WHEN ms.Result = 'REFUND' AND ms.ResultStatusID = 5			THEN '9_5' --manual Refund
 						--WHEN ms.Result = 'REFUND' AND ms.ResultStatusID = 2			THEN '8_2' --auto Refund
-						WHEN ms.Result = 'LOSE' AND ms.ResultStatusID = 2			THEN '9_2' --LOSE
-						WHEN ms.Result = 'LOSE' AND ms.ResultStatusID = 5			THEN '9_5' --LOSE
+						WHEN ms.Result = IIF(mk.LiveIndicator = 1 ,'LOSE','REFUND') AND ms.ResultStatusID = 2			THEN '9_2' --LOSE
+						WHEN ms.Result = IIF(mk.LiveIndicator = 1 ,'LOSE','REFUND') AND ms.ResultStatusID = 5			THEN '9_5' --LOSE
 						WHEN ms.ResultStatusID = 3									THEN '8_3' --UNDO
 						WHEN ms.ResultStatusID = 0									THEN '7_0' --inital
 						WHEN ms.ResultStatusID = 1									THEN '6_1' --keyin
@@ -66,6 +69,10 @@ BEGIN
 					 ) AS ResultStatusID --priority: LOSE,RUNNING, REFUND,  LOSE, WON
 		FROM cteData
 			INNER JOIN dbo.SMP_MarketSelection ms WITH (NOLOCK) ON ms.marketID = cteData.marketID
+			CROSS APPLY (SELECT TOP 1 ISNULL(m.LiveIndicator,0) AS  LiveIndicator 
+						 FROM dbo.SMP_Market AS m   WITH (NOLOCK) 
+						 WHERE ms.marketID = m.marketID AND m.MatchID = @matchID
+						) AS mk
 		WHERE ms.MatchID = @MatchID
 		GROUP BY cteData.marketID
 		) AS t
