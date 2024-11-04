@@ -199,7 +199,7 @@ BEGIN
 					FROM match m WITH (NOLOCK)
 					WHERE m.matchid = z.matchid
 					UNION 
-					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode, m.EventDate
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, m.StartTime, m.matchcode, m.EventDate
 					FROM Match3rd m WITH (NOLOCK)
 					WHERE m.Match3rdId = z.matchid
 				 )m
@@ -588,7 +588,7 @@ BEGIN
 					FROM match m WITH (NOLOCK)
 					WHERE m.matchid = @MatchId
 					UNION 
-					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode, m.EventDate
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, m.StartTime, m.matchcode, m.EventDate
 					FROM Match3rd m WITH (NOLOCK)
 					WHERE m.Match3rdId = @MatchId
 				 )m
