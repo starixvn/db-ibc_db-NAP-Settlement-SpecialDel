@@ -66,6 +66,7 @@ AS
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
+		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 
 	Param's explanation:	
 		
@@ -1668,8 +1669,8 @@ BEGIN
 		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771)
 	END
 
-	-- UPDATE VS5
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype BETWEEN 11050 AND 11099))
+	-- UPDATE VS5, VS6
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13011))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo
