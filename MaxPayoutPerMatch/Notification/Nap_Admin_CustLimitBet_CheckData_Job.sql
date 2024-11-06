@@ -24,6 +24,7 @@ AS
 		- 20240327@Louisa: VS4 - Cock Fighting [Redmine:#199700]
 		- 20240808@Max: Max Payout - Integrate Virtually Sports (VS5) [Redmine: #209070]
 		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
+		- 20241031@Max: VS6 (Betby) - Company Max Payout & Max Payout Per Match [Redmine: #212547]
 		- 20241203@Max: Improve performance of Max Payout per Match [Redmine: #214294]
 
 	Param's explanation:		
@@ -65,7 +66,7 @@ BEGIN
 	SELECT m.Match3rdId, m.sporttype
 	FROM dbo.[Match3rd] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
-		AND m.sporttype IN (147)
+		AND m.sporttype IN (147,134)
 	UNION ALL
 	SELECT m.EventID, m.sporttype
 	FROM dbo.VSRaceInfo m WITH (NOLOCK)
