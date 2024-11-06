@@ -69,7 +69,7 @@ BEGIN
 		,IsFinish BIT
 	)
 
-	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type INT)
+	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message NVARCHAR(MAX), Type INT)
 	DECLARE @tmp_MatchId AS TABLE (MatchId INT)
 
 	INSERT INTO @tmp_MatchId (MatchId)
@@ -179,7 +179,7 @@ BEGIN
 
 		INSERT INTO @tmpVoidResults ( VoidingHistoryId, Message, Type)
 		SELECT  @VoidingHistoryId,
-				T.C.value('@Message', 'VARCHAR(MAX)') AS Message
+				T.C.value('@Message', 'NVARCHAR(MAX)') AS Message
 				,T.C.value('@Type', 'INT') AS Type
 		FROM	@xmlVoidResults.nodes('/VoidResults/VoidResult') as [T](C)
 		OPTION (OPTIMIZE FOR (@xmlVoidResults = NULL ))

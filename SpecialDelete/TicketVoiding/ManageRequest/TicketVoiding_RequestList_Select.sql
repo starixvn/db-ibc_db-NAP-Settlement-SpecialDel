@@ -70,6 +70,7 @@ AS
 		- 20240912@Max: [TVS] - Manage request - Missing info Calc Half Time & Calc Full Time When Export Excel [Redmine: #210647]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 
 	Param's explanation:	
 		@Status: 
@@ -130,7 +131,7 @@ BEGIN
 		,Trader			VARCHAR(MAX)
 		,LA				VARCHAR(MAX)
 		,MessageId		INT
-		,Message        VARCHAR(MAX)
+		,Message        NVARCHAR(MAX)
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
@@ -542,7 +543,7 @@ BEGIN
 			INNER JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON t.RequestId = s.RequestID AND (t.MatchId = s.matchID OR s.matchID = 0)
 		
 		UPDATE	t 
-			SET Message = msg.Content_en
+			SET Message = CASE WHEN t.IssueTypeId IN (26) AND t.SubIssueTypeId IN (127,129) THEN msg.Content_cs ELSE msg.Content_en END
 		FROM	#tmpResult t
 			INNER JOIN DBMSG.bodb_Message.dbo.[Msg] msg WITH (NOLOCK) ON t.MessageId = msg.MessageId
 		WHERE t.MessageId IS NOT NULL
