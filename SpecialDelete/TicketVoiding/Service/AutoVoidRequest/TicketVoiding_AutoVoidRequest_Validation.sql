@@ -32,6 +32,7 @@ AS
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 
 	Param's explanation:
 		
@@ -219,7 +220,7 @@ BEGIN
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (9,29,2799)
 		END
 	END
-	IF @IssueTypeId IN (1,10,3,8,9,12,24) --Note For issuetype 1,10,3: case validate cancelCO & For issuetype 8,9: case auto void instant
+	IF @IssueTypeId IN (1,10,3,8,9,12,24,26) --Note For issuetype 1,10,3: case validate cancelCO & For issuetype 8,9,26: case auto void instant
 	BEGIN
 		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, betdaqid, MatchId, IssueTypeId, TicketType, transdate, winlostdate, CheckTimeCancelCashOut)
 		SELECT t.TransId

@@ -64,6 +64,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 
 	Param's explanation:	
 		
@@ -122,7 +123,6 @@ BEGIN
         MainTransId           BIGINT,
         WinLost               MONEY,
         IsMarked              BIT DEFAULT(0),
-        IsHasSettledTicket    BIT DEFAULT(0),
 		LiveIndicator		  BIT,
 		FilterBettype		  SMALLINT,
         FilterBetTeam		  NVARCHAR(10),
@@ -991,8 +991,6 @@ BEGIN
 					AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL THEN @LiveHomeScore ELSE b.livehomescore END
 					AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL THEN @LiveAwayScore ELSE b.liveawayscore END
 					
-
-
 			---get sub ticket of a mix parlay	
 			IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo AS bm  WHERE bm.IsMixParlay = 1 AND bm.matchid = @MatchId)
 			BEGIN		
@@ -1217,7 +1215,7 @@ BEGIN
 		WHERE b.statusID NOT IN (101, 102, 103)
 				
 	END
-	ELSE IF @IssueTypeId in (8,9) AND @RequestId <> 0 --EKO, WKO
+	ELSE IF @IssueTypeId in (8,9,26) AND @RequestId <> 0 --EKO, WKO, WOName
 	BEGIN
 		INSERT INTO #TVSTicketBets(
 				GroupID			
@@ -1264,7 +1262,6 @@ BEGIN
 				,SiteDBGroupID
 				,statuswinlost
 				,modds
-				,IsHasSettledTicket
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -1311,7 +1308,6 @@ BEGIN
 				,b.SiteDBGroupID
 				,b.statuswinlost
 				,b.modds
-				,CASE WHEN b.statusID IN (111,112,113) THEN 1 ELSE 0 END AS IsHasSettledTicket
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId
@@ -1367,7 +1363,6 @@ BEGIN
 					,matchid
 					,SiteDBGroupID
 					,statuswinlost
-					,IsHasSettledTicket
 				)
 			SELECT 
 					bm.transid AS GroupID
@@ -1412,7 +1407,6 @@ BEGIN
 					,bm.matchid
 					,bm.SiteDBGroupID
 					,bm.statuswinlost
-				    ,CASE WHEN bm.statusID IN (111,112,113) THEN 1 ELSE 0 END AS IsHasSettledTicket
 			FROM	#tmpTransInfo bm
 					CROSS APPLY (
 							SELECT TOP 1 rs.TransId
@@ -1470,7 +1464,6 @@ BEGIN
 				,modds
 				,SiteDBGroupID
 				,statuswinlost
-				,IsHasSettledTicket
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -1517,7 +1510,6 @@ BEGIN
 				,b.modds
 				,b.SiteDBGroupID
 				,b.statuswinlost
-				,CASE WHEN b.statusID IN (111,112,113) THEN 1 ELSE 0 END AS IsHasSettledTicket
 		FROM #tmpTransInfo b
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 		WHERE b.IsMixParlay = 0
@@ -1565,7 +1557,6 @@ BEGIN
 					,matchid
 					,SiteDBGroupID
 					,statuswinlost
-					,IsHasSettledTicket
 				)
 			SELECT 
 					t.transid AS GroupID
@@ -1610,7 +1601,6 @@ BEGIN
 					,t.matchid
 					,t.SiteDBGroupID
 					,t.statuswinlost
-					,CASE WHEN t.statusID IN (111,112,113) THEN 1 ELSE 0 END AS IsHasSettledTicket
 			FROM	#tmpTransInfo t		
 			WHERE IsMixParlay = 1
 	END	
@@ -1834,10 +1824,9 @@ BEGIN
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
 			   ,s.GroupId
-			   ,CASE WHEN c.site = 'CN88' THEN 'CN88'
-					 ELSE CASE WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Credit (CO)'
-					           WHEN s.betdaqid = -2 AND s.IsCancelCashOut = 1 THEN 'Credit (Cancel CO)' 
-							   ELSE 'Credit' END
+			   ,CASE WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Credit (CO)'
+					 WHEN s.betdaqid = -2 AND s.IsCancelCashOut = 1 THEN 'Credit (Cancel CO)' 
+					 ELSE 'Credit' 
 					END AS OriginGroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
@@ -1865,7 +1854,6 @@ BEGIN
 			   ,s.statuswinlost
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
-			   ,s.IsHasSettledTicket
 			   ,s.VendorMatchId
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
@@ -1952,7 +1940,6 @@ BEGIN
 			   ,s.statuswinlost
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
-			   ,s.IsHasSettledTicket
 			   ,s.VendorMatchId
 		FROM	#TVSTicketBets s 
 		WHERE	s.recommend IN (52466, 5707545)
@@ -2028,7 +2015,6 @@ BEGIN
 			   ,s.statuswinlost
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
-			   ,s.IsHasSettledTicket
 			   ,s.VendorMatchId
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
@@ -2113,7 +2099,6 @@ BEGIN
 		   ,s.statuswinlost
 		   ,s.CheckTimeCashOut
 		   ,s.GroupPHaffected 
-		   ,s.IsHasSettledTicket
 		   ,s.VendorMatchId
 		FROM	#TVSTicketBets s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets sub
@@ -2234,7 +2219,6 @@ BEGIN
 		   ,s.CheckTimeCashOut AS CheckTimeCancelCashOut
 		   ,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 		   ,s.GroupPHaffected -- Affect isuetype : HDP,OU,ODDS
-		   ,s.IsHasSettledTicket
 		   ,s.VendorMatchId
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
@@ -2243,15 +2227,14 @@ BEGIN
 				   WHEN @IssueTypeId = 13 AND  s.statusId IN (SELECT statusID FROM @Status_tmp)	 THEN 1 
 				   ELSE 0 END
 	ORDER BY CASE
-				WHEN s.OriginGroupName = 'CN88' THEN 1
-				WHEN s.OriginGroupName = 'Credit' THEN 2
-				WHEN s.OriginGroupName = '8RM/BARM' THEN 3
-				WHEN s.OriginGroupName = 'Deposit' THEN 4
-				WHEN s.OriginGroupName = 'Betfair' THEN 5
-				WHEN s.OriginGroupName = 'Credit (CO)' THEN 6
-				WHEN s.OriginGroupName = 'Deposit (CO)' THEN 7
-				WHEN s.OriginGroupName = 'Credit (Cancel CO)' THEN 8
-				WHEN s.OriginGroupName = 'Deposit (Cancel CO)' THEN 9
+				WHEN s.OriginGroupName = 'Credit' THEN 1
+				WHEN s.OriginGroupName = '8RM/BARM' THEN 2
+				WHEN s.OriginGroupName = 'Deposit' THEN 3
+				WHEN s.OriginGroupName = 'Betfair' THEN 4
+				WHEN s.OriginGroupName = 'Credit (CO)' THEN 5
+				WHEN s.OriginGroupName = 'Deposit (CO)' THEN 6
+				WHEN s.OriginGroupName = 'Credit (Cancel CO)' THEN 7
+				WHEN s.OriginGroupName = 'Deposit (Cancel CO)' THEN 8
 			 END
 			, CASE WHEN s.SubGroupName NOT LIKE '%(Instant Settlement)' THEN 1
 				ELSE 2

@@ -28,7 +28,7 @@ BEGIN
 	FROM dbo.match WITH(NOLOCK)
 	WHERE matchid = @MatchId
 	
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchId WHERE Sporttype = 50) --Cricket
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchId WHERE Sporttype IN (50,8)) --Cricket/Baseball
 	BEGIN
 		INSERT INTO @tmpMatchId (MatchId)
 		SELECT MatchId

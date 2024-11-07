@@ -48,6 +48,7 @@ AS
 		- 20240220@July: Merge VS1, VS2, VS3 into Virtual Sports - Remove code unused [Redmine: #200317]
 		- 20240319@July: Add code get bettype for page Number Game [Redmine: #200840]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 
     Param's Explanation:  
     @Mode:   
@@ -70,7 +71,7 @@ BEGIN
 			SELECT sporttype
 			FROM dbo.match WITH (NOLOCK)
 			WHERE matchid = @MatchID
-				AND 1 = CASE WHEN Sporttype = 50 AND ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+				AND 1 = CASE WHEN Sporttype IN (50,8) AND ChildMatchType = 200 THEN 0 --Exclude child match Cricket/Baseball
 							 ELSE 1 END 
 			UNION
 			SELECT sporttype
@@ -78,7 +79,7 @@ BEGIN
 			WHERE match3rdId = @MatchID
 		)m
         
-        IF (@Sporttype NOT BETWEEN 1 AND 99) AND @Sporttype IN (175) AND @Sporttype NOT IN (147) --Bitcoin, VS5
+        IF (@Sporttype NOT BETWEEN 1 AND 99) AND @Sporttype NOT IN (175,147) --Bitcoin, VS5
         BEGIN 
             SET @ErrCode = 100
             SET @ErrMsg ='Invalid MatchId.' 
