@@ -164,9 +164,8 @@ BEGIN
 		,('ResultSettlement'		,'O'		,'Overlord'											,''	,''	)
 		,('ResultSettlement'		,'TR'		,'Tyrant'											,''	,''	)
 		,('ResultSettlement'		,'OM'		,'Overlord or Middle'								,''	,''	)
-		,('ResultSettlement'		,'min'		,'min' 												,''	,''	)
-		,('ResultSettlement'		,'sec'		,'sec'												,''	,''	)
-
+		,('ResultSettlement'		,'GBT5'		,'@Home min @Away sec'								,''	,''	)
+	
 	/*
 		---check existing data
 		SELECT tmp.RefId
@@ -178,7 +177,7 @@ BEGIN
 					AND tmp.ResourceId = r.ResourceId 
 	*/
 
-
+	
 	INSERT INTO RefResource
 	(
 		RefId
