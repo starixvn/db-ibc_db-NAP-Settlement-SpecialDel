@@ -46,6 +46,7 @@ AS
 		- 20230727@Aries: Basketball AIO  [Redmine:#191381]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241021@Aries: AutoPayout2 for Baseball AiO (Regular and Series Matches) [Redmine:#211632]
 		
     Param's Explanation: 
     
@@ -112,11 +113,6 @@ BEGIN
 				2: ResultDetailOS
 				3: ResultDetailES
 		*/
-		
-	IF @sporttype = 8
-		SELECT @ResultTable = 2
-				,@AutoSetting = 1
-				,@IsApplyRefundSOP = 1
 		
 	SET @HasAutoPayout = IIF(@AutoSetting & 2 > 0,1,0)
     --parse XML   
