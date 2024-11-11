@@ -26,3 +26,4 @@ BEGIN
     RETURN CONCAT(LEFT(@UserName, 3),'*****',RIGHT(@UserName, 3))
 END
 GO
+

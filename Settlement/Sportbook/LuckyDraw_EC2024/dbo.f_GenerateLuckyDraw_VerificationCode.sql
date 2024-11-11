@@ -34,3 +34,4 @@ BEGIN
     RETURN @verificationCode
 END
 GO
+
