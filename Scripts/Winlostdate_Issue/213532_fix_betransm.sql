@@ -2,7 +2,7 @@
 /*
 	Creator: 20241111@Helen
     Task: update winlostdate
-    DB: SITEDB2-DBCTG 
+    DB: SITEDBC2-bodb02 
     Revisions:
 */
 USE bodb02
