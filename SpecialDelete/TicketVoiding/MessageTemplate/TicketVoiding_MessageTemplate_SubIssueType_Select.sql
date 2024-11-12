@@ -10,6 +10,7 @@ AS
 		- 20181113@Alan: Select Sub Issue Type [101083]
 		- 20191122@Raymond.Le: Ticket Voiding System - Abnormal Bet Issue Type [Redmine: #111541]
 		- 20240810@July: Danger Accepted issue type - Add new subtype & Add info to aware what issue type should be used [Redmine: #208659]
+		- 20241112@July: Wrong HDP/1st HDP - Sort default Sub Type [Redmine: #212922]
 	
 	Param's explanation:		
 */
@@ -23,7 +24,8 @@ BEGIN
 			SubIssueTypeNameCS,
 			IssueTypeId
 		FROM [dbo].[TicketVoiding_SubIssueType] WITH(NOLOCK)
-		ORDER BY SubIssueTypeName ASC
+		ORDER BY CASE WHEN IssueTypeId IN (4,5) THEN SubIssueTypeId END ASC
+			   , CASE WHEN IssueTypeId NOT IN (4,5) THEN SubIssueTypeName END ASC
 	END
 END
 GO
