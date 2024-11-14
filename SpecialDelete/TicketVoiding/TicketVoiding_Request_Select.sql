@@ -52,6 +52,7 @@ AS
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		- 20240813@Max: [TVS] Manage Request - Enhancements [Redmine: #208623]
 		- 20241025@July: [TVS] Add new Advanced Mode for TVS - [Redmine: #212394]
+		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
 
 	Param's explanation:	
 	
@@ -186,6 +187,41 @@ BEGIN
 						FOR XML PATH(''),TYPE).value('(./text())[1]','NVARCHAR(MAX)') ,1,2,'')))
 	END
 
+	IF @IssueTypeId IN (1,10,3) --DA,RC,WC
+	BEGIN
+		DECLARE @TvDetectionValue VARCHAR(10)
+		       ,@ServiceAcceptTime VARCHAR(50)
+               ,@ActualTime VARCHAR(50)
+               ,@MinuteOffset VARCHAR(10)
+               ,@SecondOffset VARCHAR(10)
+			   ,@IssueDetail NVARCHAR(MAX)
+			   ,@ActualScore NVARCHAR(10) --WC
+
+		SELECT TOP (1) @IssueDetail = rd.IssueDetail
+		FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		WHERE RequestId = @RequestId
+
+		SELECT @TvDetectionValue = IIF(CHARINDEX('TvDetectionValue:',@IssueDetail) > 0
+										, SUBSTRING(@IssueDetail, CHARINDEX('TvDetectionValue:',@IssueDetail) + LEN('TvDetectionValue:'), CHARINDEX(';ServiceAcceptTime:',@IssueDetail) - (CHARINDEX('TvDetectionValue:',@IssueDetail) + LEN('TvDetectionValue:')))
+										, '')
+		     , @ServiceAcceptTime = IIF(CHARINDEX('ServiceAcceptTime:',@IssueDetail) > 0
+			                            , SUBSTRING(@IssueDetail, CHARINDEX('ServiceAcceptTime:',@IssueDetail) + LEN('ServiceAcceptTime:'), CHARINDEX(';ActualTime:',@IssueDetail) - (CHARINDEX('ServiceAcceptTime:',@IssueDetail) + LEN('ServiceAcceptTime:')))
+										, '')
+			 , @ActualTime = IIF(CHARINDEX('ActualTime:',@IssueDetail) > 0
+								 , SUBSTRING(@IssueDetail, CHARINDEX('ActualTime:',@IssueDetail) + LEN('ActualTime:'), CHARINDEX(';MinuteOffset:',@IssueDetail) - (CHARINDEX('ActualTime:',@IssueDetail) + LEN('ActualTime:')))
+								 , '')
+			 , @MinuteOffset = IIF(CHARINDEX('MinuteOffset:',@IssueDetail) > 0
+			                     , SUBSTRING(@IssueDetail, CHARINDEX('MinuteOffset:',@IssueDetail) + LEN('MinuteOffset:'), CHARINDEX(';SecondOffset:',@IssueDetail) - (CHARINDEX('MinuteOffset:',@IssueDetail) + LEN('MinuteOffset:')))
+								 , '')
+			 , @SecondOffset = IIF(CHARINDEX('SecondOffset:',@IssueDetail) > 0
+								 , SUBSTRING(@IssueDetail, CHARINDEX('SecondOffset:',@IssueDetail) + LEN('SecondOffset:'), LEN(@IssueDetail))
+								 , '')
+			 , @ActualScore = IIF(CHARINDEX('TvDetectionValue:',@IssueDetail) > 0
+								  , SUBSTRING(@IssueDetail, CHARINDEX('Act:',@IssueDetail) + LEN('Act:'), CHARINDEX(';TvDetectionValue:',@IssueDetail) - (CHARINDEX('Act:',@IssueDetail) + LEN('Act:')))
+								  , SUBSTRING(@IssueDetail, CHARINDEX(';Act:',@IssueDetail) + 5, LEN(@IssueDetail)) -- Support ver old
+								  )
+	END
+
 	IF @IssueTypeId <> 13 -- Except for AC 
 	BEGIN
 		SELECT	rd.MatchId
@@ -207,7 +243,6 @@ BEGIN
 				,rd.FilterBy
 				,CASE WHEN @IssueTypeId = 20 THEN NULL ELSE rd.TransIds END AS RequestExtraInfo
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore
-				,CASE WHEN @IssueTypeId = 3 THEN SUBSTRING(rd.IssueDetail, CHARINDEX(';Act:',rd.IssueDetail) + 5, LEN(rd.IssueDetail)) ELSE NULL END AS ActualScore
 				,rd.VoidFromTime
 				,rd.VoidToTime
 				,rd.SubIssueTypeId
@@ -217,6 +252,12 @@ BEGIN
 				,rd.ProductIds -- Apply for issuetype Recover Ticket (22)
 				,rd.AdvancedExtraInfo
 				,CASE WHEN @IssueTypeId IN (12,24,25,18) THEN rd.IssueDetail ELSE NULL END AS AllBetTypesSelectionJson -- Apply for issuetype WMO(12), TE(24),Wrong Odds(SB)(25), Other Issues(18)
+				,@ActualScore AS ActualScore
+				,@TvDetectionValue AS TvDetectionValue
+				,@ServiceAcceptTime AS ServiceAcceptTime
+				,@ActualTime AS ActualTime
+				,@MinuteOffset AS MinuteOffset
+				,@SecondOffset AS SecondOffset
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral

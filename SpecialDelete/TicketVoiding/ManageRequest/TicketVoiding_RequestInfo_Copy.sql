@@ -20,6 +20,7 @@ AS
 		- 20240727@July: Modify betid return [Redmine:#197051]
 		- 202407256@Max: Change validation for transdesc [Redmine: #197051]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
+		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -47,6 +48,7 @@ BEGIN
 		,FilterBy			INT
 		,RequestExtraInfo	VARCHAR(MAX)
 		,Provider			NVARCHAR(400)
+		,IssueDetail		NVARCHAR(MAX)
 		,IssueTypeId		TINYINT
 		,IssueTypeName		VARCHAR(100)
 		,SubIssueTypeName	VARCHAR(100)
@@ -108,6 +110,7 @@ BEGIN
 		,FilterBy 
 		,RequestExtraInfo
 		,Provider
+		,IssueDetail
 		,IssueTypeId
 		,IssueTypeName
 		,SubIssueTypeName 
@@ -128,6 +131,7 @@ BEGIN
 		,rd.FilterBy
 		,rd.TransIds AS RequestExtraInfo
 		,r.Provider
+		,rd.IssueDetail
 		,r.IssueTypeId
 		,i.IssueTypeName
 		,s.SubIssueTypeName
@@ -163,6 +167,27 @@ BEGIN
 					WHERE ri.MatchId = m14.matchid
 		) m
 
+	IF @IssueTypeId IN (1,10,3) --DA,RC,WC
+	BEGIN
+		DECLARE @TvDetectionValue VARCHAR(10)
+               ,@MinuteOffset VARCHAR(10)
+               ,@SecondOffset VARCHAR(10)
+			   ,@IssueDetail NVARCHAR(MAX)
+		
+		SELECT @IssueDetail = IssueDetail
+		FROM @tmpRequestInfo
+
+		SELECT @TvDetectionValue = IIF(CHARINDEX('TvDetectionValue:',@IssueDetail) > 0
+										, SUBSTRING(@IssueDetail, CHARINDEX('TvDetectionValue:',@IssueDetail) + LEN('TvDetectionValue:'), CHARINDEX(';ServiceAcceptTime:',@IssueDetail) - (CHARINDEX('TvDetectionValue:',@IssueDetail) + LEN('TvDetectionValue:')))
+										, '')
+			 , @MinuteOffset = IIF(CHARINDEX('MinuteOffset:',@IssueDetail) > 0
+			                     , SUBSTRING(@IssueDetail, CHARINDEX('MinuteOffset:',@IssueDetail) + LEN('MinuteOffset:'), CHARINDEX(';SecondOffset:',@IssueDetail) - (CHARINDEX('MinuteOffset:',@IssueDetail) + LEN('MinuteOffset:')))
+								 , '')
+			 , @SecondOffset = IIF(CHARINDEX('SecondOffset:',@IssueDetail) > 0
+								 , SUBSTRING(@IssueDetail, CHARINDEX('SecondOffset:',@IssueDetail) + LEN('SecondOffset:'), LEN(@IssueDetail))
+								 , '')
+	END
+	
 	IF @IssueTypeId IN (19,21,23,12,24,25) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB
 	BEGIN
 		INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, BetId, Betteam, OddsId)
@@ -259,6 +284,7 @@ BEGIN
 			WHERE r.InputtedRuns IS NOT NULL
 		END
 	END
+	
 	/*****************Return table **************************/
 	-- 1. Table infor request
 	SELECT RequestId 
@@ -284,6 +310,9 @@ BEGIN
 		  ,TotalSingleCount
 		  ,TotalParlayCount
 		  ,@TotalCancelCashOutCount AS TotalCancelCashOutCount
+		  ,@TvDetectionValue AS TvDetectionValue
+		  ,@MinuteOffset AS MinuteOffset
+		  ,@SecondOffset AS SecondOffset
 	FROM @tmpRequestInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.UserId
 

@@ -31,7 +31,8 @@ AS
 		- 20231107@July: HF - Wrong Score - Add request missed Non-live tickets Cash out at time the wrong score [Redmine: #196545]
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
-		
+		- 20240102@July: [TVS] Display a note for Min TransId of cash out ticket [Redmine: #199907]
+
 	Param's explanation:
 		+ @WrongScoreInfo:
 				<root><r MatchId ="" LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" FilterBy="" ScoreId='3966607' AATime="" PATime ="" SATime="" SubIssueTypeId ="" /></root>
@@ -1272,9 +1273,12 @@ BEGIN
 			,h.HighlightAcceptType
 			,CancelCashOutCount
 			,h.MinTransId
-			,CASE WHEN h.IsCancelCashOut = 1 THEN '(Cancel Cash Out)' ELSE NULL END AS ActionType
+			,CASE WHEN h.IsCancelCashOut = 1 THEN '(Cancel Cash Out)' 
+			      WHEN h.IsCashOut = 1 THEN '(Cash Out)' 
+			      ELSE NULL END AS ActionType
 		FROM _cte l
 			OUTER APPLY (SELECT TOP 1 b.accepttype HighlightAcceptType, b.transid AS MinTransId, b.IsCancelCashOut
+							        , CASE WHEN b.IsCancelCashOut = 0 AND ISNULL(b.betdaqid, -1) = -2 THEN 1 ELSE 0 END IsCashOut
 						FROM #TVSTicketBets b 
 						WHERE l.MatchId = b.matchid AND l.HighLightMinTime = CASE 
 																				  WHEN b.IsCancelCashOut = 0 AND b.checktime IS NOT NULL THEN b.checktime 
