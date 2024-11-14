@@ -51,7 +51,7 @@ BEGIN
 		(SELECT cteData.marketID
 				,MAX(CASE
 						WHEN ms.Result = IIF(mk.LiveIndicator = 1 ,'REFUND','LOSE') AND ms.ResultStatusID IN (2,5)	THEN '7_' + ms.Result
-						WHEN ms.Result IS NULL 										THEN '8_NULL'
+						WHEN ms.Result IS NULL OR 	ms.ResultStatusID NOT IN (2,5)		THEN '8_NULL'
 						WHEN ms.Result = IIF(mk.LiveIndicator = 1 ,'LOSE','REFUND') AND ms.ResultStatusID IN (2,5)		THEN '9_' + ms.Result
 						WHEN ms.Result = 'WON'  AND ms.ResultStatusID IN (2,5)		THEN '6_' + ms.Result
 						ELSE '5_' + IIF(mk.LiveIndicator = 1 ,@ResultDefaultIsLive,@ResultDefaultNoneLive) END
