@@ -11,6 +11,7 @@ AS
     Revisions:            
 		- 20200721@Kathy: get provider result [Redmine:#136931]
 		- 20210818@Louisa: Add more Option [Redmine:#159307]
+		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217] 
 		
 */
 BEGIN
@@ -30,6 +31,7 @@ BEGIN
 		FROM	dbo.ProviderExternalResultDetailES p WITH(NOLOCK)
 		WHERE	p.MatchId3rd = @MatchId3rd
 				AND p.SourceId = @SourceId
+				AND ISNULL(p.IsLive,0) = 0
 	)
 	SELECT MatchId
 		  ,ResourceId

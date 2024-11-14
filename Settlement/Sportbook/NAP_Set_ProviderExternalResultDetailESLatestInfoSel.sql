@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_ProviderExternalResultDetailESLatestInfoSel
 	@MatchId INT
 	,@SettleType	VARCHAR(10) = 'MNL'
@@ -12,6 +12,7 @@ AS
 		- 20200721@Kathy: get provider result [Redmine:#136931]
 		- 20200810@Louisa: get OutsideSource result [Redmine:#138656]
 		- 20200904@Louisa: Implement for EARLY [Redmine:#140407]
+		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 
 	Param's Explanation:
 		If not exists SourceId = 1001 ==> Add dummy values
@@ -46,6 +47,7 @@ BEGIN
 				, AwayValue
 		FROM	dbo.ProviderExternalResultDetailES p WITH(NOLOCK)
 		WHERE	p.MatchId = @MatchId
+			AND ISNULL(p.IsLive,0) = 0
 	)
 	INSERT INTO @tmpLatestResult (ProviderExternalId, SourceId,ResourceId, HomeValue, AwayValue)
 	SELECT l.ProviderExternalId, l.SourceId ,l.ResourceId, l.HomeValue, l.AwayValue

@@ -14,6 +14,7 @@ AS
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 		- 20240524@Aries: Enhance the AutoPayout2 for Overwatch of eSports [Redmine:#202948]
 		- 20240503@Aries: Support Auto Payout 2 for Basketball [Redmine:#203520]
+		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 
 	Param's Explanation:
 		-@ResourceType: 0-ALL, 1-Main, 2-Early
@@ -195,6 +196,7 @@ BEGIN
 		WHERE m.ExternalResultTable = 1
             AND r.SourceID < 1001 
 			AND r.SourceID NOT IN (98,99,100)
+			AND ISNULL(r.IsLive,0) = 0
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
 			AND ap.IsExistsAP IS NULL
@@ -239,6 +241,7 @@ BEGIN
 		WHERE m.ExternalResultTable = 2
             AND r.SourceID < 1001 
 			AND r.SourceID NOT IN (98,99,100)
+			AND ISNULL(r.IsLive,0) = 0
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
 			AND ap.IsExistsAP IS NULL
@@ -289,6 +292,7 @@ BEGIN
 		WHERE m.ExternalResultTable = 3
             AND r.SourceID < 1001 
 			AND r.SourceID NOT IN (98,99,100)
+			AND ISNULL(r.IsLive,0) = 0
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
 			AND ap.IsExistsAP IS NULL

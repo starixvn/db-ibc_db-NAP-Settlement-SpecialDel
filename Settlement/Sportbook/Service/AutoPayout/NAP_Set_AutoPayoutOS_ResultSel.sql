@@ -17,6 +17,7 @@ AS
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 		- 20240503@Aries: Support Auto Payout 2 for Basketball [Redmine:#203520]
 		- 20241118@Aries: Fix an issue which is wrong settlement due to the lack of consistency when calculating Innnings [Redmine:#213767]
+		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 
 
 	Param's Explanation:
@@ -84,6 +85,7 @@ BEGIN
 				AND p.ResourceId IN (SELECT r.ResourceID FROM @Resource AS r)
 				AND p.SourceID < 1001 
 				AND p.SourceID NOT IN (98,99,100)
+				AND ISNULL(p.IsLive,0) = 0
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
 		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId, CreateDate)
@@ -100,6 +102,7 @@ BEGIN
 				AND p.ResourceId IN (SELECT r.ResourceID FROM @Resource AS r)
 				AND p.SourceID < 1001 
 				AND p.SourceID NOT IN (98,99,100)
+				AND ISNULL(p.IsLive,0) = 0
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
 		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId, CreateDate)
@@ -116,6 +119,7 @@ BEGIN
 				AND p.ResourceId IN (SELECT r.ResourceID FROM @Resource AS r)
 				AND p.SourceID < 1001 
 				AND p.SourceID NOT IN (98,99,100)
+				AND ISNULL(p.IsLive,0) = 0
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
 		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId,CreateDate)

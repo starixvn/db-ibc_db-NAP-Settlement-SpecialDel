@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE ArchiveService_Sel  
 	@Date DATE
 	,@BatchNo INT = 2000
@@ -13,6 +13,7 @@ AS
 	     
 	 Revisions:  
 		- 20240222@Louisa:  Initial [Redmine:#201196]
+		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
     
 */  
 BEGIN  
@@ -32,6 +33,7 @@ BEGIN
 				,r.AwayValue	
 				,r.CreateDate
 				,ROW_NUMBER() OVER (PARTITION BY r.matchId, r.SourceId, r.ResourceId ORDER BY r.CreateDate DESC) AS rn
+				,r.IsLive
 			FROM ProviderExternalResultDetail r WITH(NOLOCK)
 			WHERE r.ProviderExternalId > CAST(@LastValue AS INT)
 				AND r.CreateDate < @Date
@@ -45,6 +47,7 @@ BEGIN
 										,cte.HomeValue AS 'h'		
 										,cte.AwayValue AS 'a'
 										,cte.CreateDate AS 'cd'
+										,cte.IsLive AS 'il'
 									FROM cte_AllData cte
 									WHERE cte.rn = 1
 									ORDER BY cte.ProviderExternalId
@@ -63,6 +66,7 @@ BEGIN
 				,r.AwayValue
 				,r.CreateDate
 				,ROW_NUMBER() OVER (PARTITION BY r.matchId, r.SourceId, r.ResourceId ORDER BY r.CreateDate DESC) AS rn
+				,r.IsLive
 			FROM ProviderExternalResultDetailES r WITH(NOLOCK)
 			WHERE r.ProviderExternalId > CAST(@LastValue AS INT)
 				AND r.CreateDate < @Date
@@ -76,6 +80,7 @@ BEGIN
 										,cte.HomeValue AS 'h'		
 										,cte.AwayValue AS 'a'
 										,cte.CreateDate AS 'cd'
+										,cte.IsLive AS 'il'
 									FROM cte_AllData cte
 									WHERE cte.rn = 1
 									ORDER BY ProviderExternalId
@@ -94,6 +99,7 @@ BEGIN
 				,r.AwayValue	
 				,r.CreateDate
 				,ROW_NUMBER() OVER (PARTITION BY r.matchId, r.SourceId, r.ResourceId ORDER BY r.CreateDate DESC) AS rn
+				,r.IsLive
 			FROM ProviderExternalResultDetailOS r WITH(NOLOCK)
 			WHERE r.ProviderExternalId > CAST(@LastValue AS INT)
 				AND r.CreateDate < @Date
@@ -107,6 +113,7 @@ BEGIN
 										,cte.HomeValue AS 'h'		
 										,cte.AwayValue AS 'a'
 										,cte.CreateDate AS 'cd'
+										,cte.IsLive AS 'il'
 									FROM cte_AllData cte
 									WHERE cte.rn = 1
 									ORDER BY ProviderExternalId

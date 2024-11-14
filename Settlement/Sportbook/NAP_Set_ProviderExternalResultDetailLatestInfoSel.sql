@@ -17,6 +17,7 @@ AS
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 
 	Param's explanation:
 		
@@ -68,6 +69,7 @@ BEGIN
 					AND ex.MatchID = @MatchId
 					AND ex.SourceId < 1001
 					AND ex.SourceId <> 100
+					AND ISNULL(ex.IsLive,0) = 0
 
 				UNION ALL
 				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC) AS rn
@@ -81,6 +83,7 @@ BEGIN
 					AND ex.MatchID = @MatchId
 					AND ex.SourceId < 1001
 					AND ex.SourceId <> 100
+					AND ISNULL(ex.IsLive,0) = 0
 			)
 		INSERT INTO @tmpProviderExternalResult (SourceId, ResourceId, HomeValue, AwayValue)	
 		SELECT	SourceId

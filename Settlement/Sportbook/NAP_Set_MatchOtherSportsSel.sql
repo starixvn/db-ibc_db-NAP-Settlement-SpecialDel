@@ -69,6 +69,7 @@ AS
 			- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
 			- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 			- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
+			- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -578,6 +579,7 @@ BEGIN
 		WHERE  m.sporttype = 43
 			AND p.SourceId < 1001
 			AND p.SourceId NOT IN (98, 99)
+			AND ISNULL(p.IsLive,0) = 0
 			AND c.ResourceId IS NULL
 			AND mr.ResourceId IS NULL
 			AND mi.MatchId IS NULL
