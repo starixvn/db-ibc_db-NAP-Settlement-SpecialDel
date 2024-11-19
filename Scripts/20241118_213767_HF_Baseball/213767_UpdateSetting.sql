@@ -8,6 +8,10 @@
 USE bodb02
 GO
 
+ALTER TABLE SettlementSpecialBettypeProfile ADD APSetting VARCHAR(MAX);
+GO
+
+/****************************************************/
 UPDATE SettlementSpecialBettypeProfile
 SET APSetting = JSON_MODIFY(ISNULL(APSetting,'{}'), '$.relatedCalResources', '0101')
 WHERE SportType = 8 and ResourceID = '0102'
@@ -31,3 +35,9 @@ WHERE SportType = 8 and ResourceID = '0106'
 UPDATE SettlementSpecialBettypeProfile
 SET APSetting = JSON_MODIFY(ISNULL(APSetting,'{}'), '$.relatedCalResources', '0101,0102,0103,0104,0105,0106')
 WHERE SportType = 8 and ResourceID = '0107'
+GO
+
+/****************************************************/
+UPDATE SettlementResultTableSetting
+SET  AP_Main_CheckList = '1,2,3,4,92,97,99'
+WHERE Sporttype = 8

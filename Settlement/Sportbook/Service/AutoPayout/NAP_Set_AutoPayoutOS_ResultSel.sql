@@ -45,6 +45,7 @@ BEGIN
 	INSERT INTO @Resource(ResourceId)
 	SELECT DISTINCT value
 	FROM STRING_SPLIT(@ResourceIds,',')
+	WHERE value != ''
 
 	IF @ResultTable = 1
 	BEGIN
