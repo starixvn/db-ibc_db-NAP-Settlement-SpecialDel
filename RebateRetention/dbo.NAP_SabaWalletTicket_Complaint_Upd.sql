@@ -1,5 +1,5 @@
 ﻿/*<info serverAlias="DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_SabaWalletTicket_Complaint_Udp	
+ALTER PROCEDURE dbo.NAP_SabaWalletTicket_Complaint_Upd	
 	  @CustID		INT	
 	 ,@IsComplaint	BIT
 	 ,@Transid		BIGINT	
