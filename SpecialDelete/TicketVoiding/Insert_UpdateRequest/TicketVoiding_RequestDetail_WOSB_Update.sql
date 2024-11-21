@@ -256,6 +256,8 @@ BEGIN
 	SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20))
 							+ CASE WHEN l.FilterFromTransTime IS NOT NULL THEN ', FilterFromTransTime: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) ELSE '' END
 							+ CASE WHEN l.FilterToTransTime IS NOT NULL THEN ', FilterToTransTime: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21) ELSE '' END
+							+ ', SingleCount: ' + CAST(l.SingleCount AS VARCHAR(20))
+							+ ', MainParlayCount: ' + CAST(l.MainParlayCount AS VARCHAR(20))
 							+ ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidToTime: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
 							+ CASE WHEN @IssueTypeId = 25 THEN ', WrongOddsSB: ' + l.FilterInfo ELSE '' END
