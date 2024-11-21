@@ -15,6 +15,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]		
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20240905@Aries: Enhance the settlement by Selection for Betbuilder  [Redmine:#208782]
+		- 20241101@Aries: Enhance the rule for settle by selection of Betbuilder [Redmine:#212807]
 
 	Param's Explanation:
 			@SelectedSelection = '<Resources>
@@ -34,11 +35,12 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @xml XML
-		, @ResultDefault VARCHAR(6) = 'Refund'
+		, @ResultDefaultIsLive	VARCHAR(6) = 'Refund'
+		, @ResultDefaultNoneLive VARCHAR(6) = 'Lose'
 
 	DECLARE @tblSelectionType TABLE (selectionType INT, result VARCHAR(20))
 	CREATE TABLE #tblMarketChecking (MarketID VARCHAR(20) PRIMARY KEY, result VARCHAR(20), ResultStatusID TINYINT)
-	CREATE TABLE #tblMarket (MarketID VARCHAR(20) PRIMARY KEY)
+	CREATE TABLE #tblMarket (MarketID VARCHAR(20) PRIMARY KEY, LiveIndicator BIT )
 	
 	----------------------------------------------------------------------------
 	SET @xml = CAST(@SelectedSelection AS XML)
@@ -52,10 +54,14 @@ BEGIN
 	SELECT	TmpData.selectionType, TmpData.Result
 	FROM TmpData
 
-	INSERT INTO #tblMarket (MarketID)
-	SELECT DISTINCT ms.marketID 
+	INSERT INTO #tblMarket (MarketID,LiveIndicator)
+	SELECT DISTINCT ms.marketID, mk.LiveIndicator
 	FROM @tblSelectionType sl
 		INNER JOIN dbo.SMP_MarketSelection ms WITH (NOLOCK) ON ms.SelectionType = sl.SelectionType
+		CROSS APPLY (SELECT TOP 1 ISNULL(m.LiveIndicator,0) AS  LiveIndicator 
+					 FROM dbo.SMP_Market AS m   WITH (NOLOCK) 
+					 WHERE ms.marketID = m.marketID AND m.MatchID = @matchID
+					) AS mk
 	WHERE ms.MatchID = @matchID
 								
 	--get marketID from selection
@@ -65,23 +71,23 @@ BEGIN
 						WHEN sl.selectionType IS NULL THEN
 								CASE 
 									WHEN ms.ResultStatusID IN (0,1) THEN '0_' + ms.Result
-									WHEN ms.Result = 'REFUND' 		THEN '7_' + ms.Result
+									WHEN ms.Result = IIF(mk.LiveIndicator = 1 ,'REFUND','LOSE') THEN '7_' + ms.Result
 									WHEN ms.Result IS NULL 			THEN '8_NULL'
-									WHEN ms.Result = 'LOSE' 		THEN '9_' + ms.Result
+									WHEN ms.Result = IIF(mk.LiveIndicator = 1 ,'LOSE','REFUND') THEN '9_' + ms.Result
 									WHEN ms.Result = 'WON'			THEN '6_' + ms.Result
-									ELSE '7_' + @ResultDefault END
+									ELSE '7_' + IIF(mk.LiveIndicator = 1 ,@ResultDefaultIsLive,@ResultDefaultNoneLive)  END
 						ELSE 
 								CASE
-									WHEN sl.Result = 'REFUND'	THEN '7_' + ms.Result
+									WHEN sl.Result = IIF(mk.LiveIndicator = 1 ,'REFUND','LOSE')	THEN '7_' + ms.Result
 									WHEN sl.Result IS NULL 		THEN '8_NULL'
-									WHEN sl.Result = 'LOSE' 	THEN '9_' + ms.Result
+									WHEN sl.Result = IIF(mk.LiveIndicator = 1 ,'LOSE','REFUND') 	THEN '9_' + ms.Result
 									WHEN sl.Result = 'WON'		THEN '6_' + ms.Result
-									ELSE '7_' + @ResultDefault END
+									ELSE '7_' + IIF(mk.LiveIndicator = 1 ,@ResultDefaultIsLive,@ResultDefaultNoneLive) END
 						END
 					) AS Result --priority: LOSE,RUNNING,REFUND, WON
 				, MAX(CASE 
-							WHEN sl.Result = 'LOSE' 								 THEN '9_5'
-							WHEN ms.Result = 'LOSE' AND ms.ResultStatusID NOT IN(0,1) THEN '8_5' --+ CAST(ResultStatusID AS VARCHAR)
+							WHEN sl.Result = IIF(mk.LiveIndicator = 1 ,'LOSE','REFUND') 									THEN '9_5'
+							WHEN ms.Result = IIF(mk.LiveIndicator = 1 ,'LOSE','REFUND') AND ms.ResultStatusID NOT IN(0,1) THEN '8_5' --+ CAST(ResultStatusID AS VARCHAR)
 							WHEN sl.SelectionType IS NOT NULL AND @Action='CAL'		 THEN '0_5'
 							WHEN sl.SelectionType IS NOT NULL AND @Action='UNDO'	 THEN '7_3'
 							WHEN ms.ResultStatusID = 3 								 THEN '7_3'
@@ -90,11 +96,12 @@ BEGIN
 							ELSE '0_5' END
 					) AS ResultStatusID
 		FROM dbo.SMP_MarketSelection ms WITH (NOLOCK)
+			CROSS APPLY (SELECT LiveIndicator
+						 FROM #tblMarket AS m
+						 WHERE m.MarketID = ms.MarketID
+						) AS mk
 			LEFT JOIN @tblSelectionType sl ON ms.SelectionType = sl.SelectionType
 		WHERE ms.MatchID = @matchID 
-			AND ms.MarketID IN (SELECT ms.marketID 
-								FROM #tblMarket ms
-								)
 		GROUP BY ms.MarketID
 	)
 	,cteResult AS(
@@ -115,7 +122,7 @@ BEGIN
 		INNER JOIN dbo.SMP_Market mk WITH (NOLOCK) ON mk.marketID = mc.MarketID
 	WHERE mk.MatchID = @MatchID
 		AND mk.VendorID = @VendorID
-		AND 1 = CASE WHEN @action = 'UNDO' AND mk.Result = 'LOSE' AND mc.Result = 'LOSE' THEN 0
+		AND 1 = CASE WHEN @action = 'UNDO' AND mk.Result = IIF(mk.LiveIndicator = 1 ,'LOSE','REFUND') AND mc.Result = IIF(mk.LiveIndicator = 1 ,'LOSE','REFUND') THEN 0
 					 WHEN mc.ResultStatusID IN (3,5) THEN 1
 					 ELSE 0 END
 
