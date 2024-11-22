@@ -190,7 +190,8 @@ BEGIN
 				FROM Match3rd14 AS m WITH(NOLOCK)
 				WHERE b.matchid=m.Match3rdId	
 			)m								
-		WHERE	(m.sporttype BETWEEN 1 AND 99
+		WHERE b.refno = @Refno
+		AND 	(m.sporttype BETWEEN 1 AND 99
 				OR m.sporttype BETWEEN 190 AND 199
 				OR m.sporttype = 188 --VS4
 				OR m.sporttype = 147 --VS5
