@@ -31,6 +31,7 @@ AS
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Param's Explanation:
 			- @Opition: 
@@ -136,7 +137,7 @@ BEGIN
 				,m.sporttype
 				,b.modds
 			FROM dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
+				LEFT JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 				INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
 				INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON b.custid = c.custid
 				INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid						
@@ -192,7 +193,7 @@ BEGIN
 				,m.sporttype
 				,b.modds
 			FROM dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
+				LEFT JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 				INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
 				INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON b.custid = c.custid
 				INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid
@@ -256,7 +257,7 @@ BEGIN
 			,m.sporttype
 			,b.modds
 		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
+			LEFT JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 			INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
 			INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON b.custid = c.custid
 			INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid
@@ -271,7 +272,8 @@ BEGIN
 			AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 
-	------------------------------------------------------------------------------	/* --1. Table invald/moved transid	*/
+	------------------------------------------------------------------------------
+	/* --1. Table invald/moved transid	*/
 	IF @Option = 0
 		SELECT '' AS InvalidTransIds
 	ELSE IF @Option = 1
