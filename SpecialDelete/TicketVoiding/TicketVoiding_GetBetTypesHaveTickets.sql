@@ -1,16 +1,15 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_GetBetTypesHaveTickets] 
 (
-    @MatchId    INT 
-	,@FromTransDate DATETIME = NULL
-	,@ToTransDate DATETIME = NULL
+     @MatchId    INT 
+	,@TimeRangeJson VARCHAR(MAX) = NULL
 	,@IsGetCancelCashOut BIT = 0
 )
 AS
 /*  
     Created: 20230608@Max  
     Task : [TVS] Support void Cricket when reducing over [Redmine: #185833]
-    DB: DBTXN/bodb02 
+    DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
       
     Revisions:      
         - 20230608@Max: Create SP - [Redmine: #185833]
@@ -19,6 +18,7 @@ AS
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240823@July: WMKO/TE - Add Details of bet list for issue types [Redmine: #208628]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 
     Param's Explanation:  
 
@@ -36,7 +36,11 @@ BEGIN
         parentid        INT
         ,typeid         INT PRIMARY KEY
     )
-    
+    DECLARE @tmpTimeRange TABLE (
+        MatchId			INT
+		,FromDate        DATETIME
+        ,ToDate         DATETIME
+    )
     INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
     SELECT f.GroupTypeId AS parentid
 		 , f.Bettype AS typeid
@@ -46,35 +50,50 @@ BEGIN
 	SELECT MatchId
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
-				WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND ParentID = @MatchId THEN 1
-			ELSE 0 END
+				   WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND ParentID = @MatchId THEN 1
+			       ELSE 0 END
+
+	INSERT INTO @tmpTimeRange (MatchId, FromDate, ToDate)
+	SELECT m.MatchId, d.FromDate, d.ToDate
+	FROM @tmpMatchId m
+	    CROSS APPLY (
+				SELECT FromDate, ToDate
+				FROM OPENJSON(@TimeRangeJson) 
+				WITH( FromDate DATETIME
+					 ,ToDate DATETIME
+					) tbl
+		)d
 
     -- Scan bettrans and bettransm to get bettype list
 	-- bettrans
     INSERT INTO #TmpBettype(bettype, transdesc)
 	SELECT bettype, transdesc
-	FROM dbo.bettrans WITH(NOLOCK)
-	WHERE matchid IN (SELECT Matchid FROM @tmpMatchId)
-		AND SiteDBGroupID = @SiteDBGroupID
+	FROM dbo.bettrans b WITH(NOLOCK)
+		INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
+		LEFT JOIN @tmpTimeRange t ON b.matchid = t.MatchId
+	WHERE SiteDBGroupID = @SiteDBGroupID
 		AND bettype NOT IN (10,29,38,500)
 		AND bettype < 19000
-		AND (transdate BETWEEN @FromTransDate AND @ToTransDate OR (@FromTransDate IS NULL AND @ToTransDate IS NULL))
+		AND 1 = CASE WHEN t.FromDate IS NULL AND t.ToDate IS NULL THEN 1 
+		             WHEN b.transdate BETWEEN t.FromDate AND t.ToDate THEN 1
+					 ELSE 0 END
 	GROUP BY bettype, transdesc
 
     -- bettransm
     INSERT INTO #TmpBettype(bettype, transdesc)
-    SELECT bt.bettype, bt.transdesc
-    FROM dbo.bettransm bt WITH(NOLOCK)
-    WHERE bt.matchid IN (SELECT Matchid FROM @tmpMatchId)
-	AND bt.SiteDBGroupID = @SiteDBGroupID
-	AND NOT EXISTS(SELECT TOP 1 1
-        FROM #TmpBettype tb WHERE bt.bettype = tb.bettype)
-        AND bt.bettype NOT IN (10,29,38,500)
-        AND bt.bettype < 19000
-		AND (transdate BETWEEN @FromTransDate AND @ToTransDate OR (@FromTransDate IS NULL AND @ToTransDate IS NULL))
-    GROUP BY bt.bettype, bt.transdesc
+    SELECT bm.bettype, bm.transdesc
+    FROM dbo.bettransm bm WITH(NOLOCK)
+		INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId
+		LEFT JOIN @tmpTimeRange t ON bm.matchid = t.MatchId
+   WHERE bm.SiteDBGroupID = @SiteDBGroupID
+		AND 1 = CASE WHEN t.FromDate IS NULL AND t.ToDate IS NULL THEN 1 
+					 WHEN bm.transdate BETWEEN t.FromDate AND t.ToDate THEN 1
+					 ELSE 0 END
+		AND NOT EXISTS(SELECT TOP 1 1
+					   FROM #TmpBettype tb WHERE bm.bettype = tb.bettype)
+    GROUP BY bm.bettype, bm.transdesc
 
-	IF @FromTransDate IS NOT NULL AND @ToTransDate IS NOT NULL --New issuetype WMO, Technical Error, WrongOdds SB
+	IF EXISTS( SELECT TOP 1 1 FROM @tmpTimeRange)--New issuetype WMO, Technical Error, WrongOdds SB
 	BEGIN
 		IF @IsGetCancelCashOut = 1
 		BEGIN
@@ -83,12 +102,11 @@ BEGIN
 			SELECT b.bettype, transdesc
 			FROM dbo.bettrans b WITH(NOLOCK)
 				INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON c.TransID = b.TransId
-			WHERE b.matchid IN (SELECT Matchid FROM @tmpMatchId)
-				AND SiteDBGroupID = @SiteDBGroupID
-				AND b.bettype NOT IN (10,29,38,500)
-				AND b.bettype < 19000
-				AND betdaqid = -2
-				AND c.CheckTime BETWEEN @FromTransDate AND @ToTransDate
+				INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
+				INNER JOIN @tmpTimeRange t ON b.matchid = t.MatchId
+			WHERE b.SiteDBGroupID = @SiteDBGroupID
+				AND b.betdaqid = -2
+				AND c.CheckTime BETWEEN t.FromDate AND t.ToDate
 			GROUP BY b.bettype, transdesc
 		END
 
