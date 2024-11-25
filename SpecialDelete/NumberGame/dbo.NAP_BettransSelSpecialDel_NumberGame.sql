@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelSpecialDel_NumberGame] 
 	@Option			BIT = 0
 	,@MatchID		INT
@@ -15,7 +15,7 @@ AS
 	Date:   20131010
 	Original: 
 	Task: Select bets transaction need to delete (Number Game) [Redmine:#6627]
-	DB: DBTXN.BODB02  
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02  
 
 	Revisions: 
 		- 20140217@Kathy: Enhancement to Void Number Game Bet [Redmine:#11992]
