@@ -124,6 +124,7 @@ BEGIN
 		, IsCalculated BIT
 		, IsWeb BIT
 		, MinusValue SMALLMONEY  DEFAULT(0)
+		, AbandonedStatus SMALLINT
 		, IsInstHTFT BIT DEFAULT(0)
 	)
 
@@ -187,6 +188,7 @@ BEGIN
 				,ISNULL(IsCalculated,'') AS IsCalculated
 				,ISNULL(IsWeb,'') AS IsWeb
 				,ISNULL(MinusValue,0)	AS MinusValue
+				,ISNULL(AbandonedStatus,0) AS AbandonedStatus
 				,ISNULL(IsInstHTFT,0)	AS IsInstHTFT
 		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 															,RefResourceId VARCHAR(20)
@@ -203,10 +205,11 @@ BEGIN
 															,IsCalculated BIT
 															,IsWeb BIT
 															,MinusValue SMALLMONEY
+															,AbandonedStatus SMALLINT
 															,IsInstHTFT BIT
 											) AS tbl
 	)
-	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType,IsCalculated,IsWeb,MinusValue, IsInstHTFT)
+	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType,IsCalculated,IsWeb,MinusValue,AbandonedStatus, IsInstHTFT)
 	SELECT	 c.Id
 			,c.SDTResourceId
 			,sp.Bettype
@@ -225,6 +228,7 @@ BEGIN
 			,c.IsCalculated
 			,c.IsWeb
 			,c.MinusValue
+			,c.AbandonedStatus
 			,c.IsInstHTFT
 	FROM	cteSelectedRID c
 		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
@@ -369,11 +373,11 @@ BEGIN
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked, sr.IsInstHTFT, bm.bettype, bm.hdp1, bm.betteam
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
-						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, ISNULL(IsCalculated, 0) AS IsCalculated, MinusValue, IsInstHTFT
+						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, ISNULL(IsCalculated, 0) AS IsCalculated, MinusValue,AbandonedStatus, IsInstHTFT
 						FROM	@tmpSelectedRID t
 						WHERE	t.BetType = bm.bettype AND (t.BetID = 0 OR t.BetID = bm.betcheck)
 					)sr
-					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, CASE WHEN bm.bettype = 8814 THEN bm.betcheck ELSE bm.hdp1 END,sr.HomeValue, sr.AwayValue, bm.transdesc,sr.MinusValue) m
+					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, CASE WHEN bm.bettype = 8814 THEN bm.betcheck ELSE bm.hdp1 END, bm.hdp2,sr.HomeValue, sr.AwayValue, bm.transdesc,sr.MinusValue,sr.AbandonedStatus) m
 					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
 						ON	b.matchid = 29
 							AND b.bettype = 29
@@ -405,10 +409,11 @@ BEGIN
 										  ,CAST((IIF(ResourceID = '00', ISNULL(@FTHome_Inst,0), ISNULL(@HTHome_Inst,0)) +  CAST(t.HomeValue  AS INT)) AS VARCHAR(2000)) AS HomeValue
 										  ,CAST((IIF(ResourceID = '00', ISNULL(@FTAway_Inst,0), ISNULL(@HTAway_Inst,0)) +  CAST(t.AwayValue  AS INT)) AS VARCHAR(2000)) AS AwayValue
 										  ,6 AS MinusValue
+										  ,AbandonedStatus
 									FROM @tmpSelectedRID AS t
 									WHERE b.BetType = t.BetType AND t.BetID = 0
 								) AS sr
-						CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, sr.HomeValue, sr.AwayValue, NULL,sr.MinusValue) AS m
+						CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, b.hdp2 sr.HomeValue, sr.AwayValue, NULL,sr.MinusValue,sr.AbandonedStatus) AS m
 					WHERE b.modds IS NULL 
 						AND b.IsInstHTFT = 1
 						AND m.modds IS NOT NULL
@@ -520,11 +525,11 @@ BEGIN
 			SELECT	bm.transid, bm.refno, ISNULL(m.modds,0), m.modds
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 				CROSS APPLY (
-					SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, MinusValue
+					SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, MinusValue,AbandonedStatus
 					FROM	@tmpSelectedRID t
 					WHERE	t.BetType = bm.bettype AND (t.BetID = 0 OR t.BetID = bm.betcheck)
 				)sr
-				OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, bm.hdp1, sr.HomeValue, sr.AwayValue, bm.transdesc, sr.MinusValue) m
+				OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, bm.hdp1, sr.HomeValue, sr.AwayValue, bm.transdesc, sr.MinusValue,sr.AbandonedStatus) m
 			WHERE	bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END					
 					AND bm.statusID NOT IN (101)

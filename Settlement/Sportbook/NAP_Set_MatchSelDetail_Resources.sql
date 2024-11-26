@@ -14,6 +14,7 @@ AS
 		- 20230920@Aries: Remove remote query [Redmine:#194359]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241111@Louisa: Refund SDT Baseball (Mercy rule) - [Redmine:#212365]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -21,26 +22,12 @@ BEGIN
 	DECLARE @ResultTable		TINYINT = 0
 			,@BestOfMap			TINYINT = NULL
 
-	DECLARE @tblResource TABLE (ResourceID VARCHAR(20), RefResourceId VARCHAR(20), SettleType CHAR(3), OrdNo SMALLINT)
-
-	DECLARE @tblResult TABLE 
-	(		ResourceID VARCHAR(20)
-			,HomeValue VARCHAR(50)
-			,AwayValue VARCHAR(50)
-			,ResultStatusID TINYINT
-			,SettlementStatusID  TINYINT
-			,ResultSetting TINYINT
-			,OrdNo SMALLINT
-			,SettleType CHAR(3)
-	)
+	DECLARE @tblResource TABLE (ResourceID VARCHAR(20), RefResourceId VARCHAR(20), SettleType CHAR(3), OrdNo SMALLINT )
 	
 	SELECT @ResultTable =  r.ResultTable
 	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK)
 	WHERE r.Sporttype = @SportType
 	
-	IF @SportType = 8
-		SET @ResultTable = 2
-
 	 --Use @BestOfMap for E-sport only
 	SELECT @BestOfMap = BestOfMap
 	FROM [dbo].[match_remark] WITH (NOLOCK) 
@@ -75,7 +62,7 @@ BEGIN
 			WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
 		END
 
-		SELECT ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting, OrdNo
+		SELECT ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting, OrdNo, OtherInfo
 		FROM (
 			SELECT  ISNULL(tbl.RefResourceId, tbl.ResourceID ) AS ResourceId
 	    			,rs.HomeValue
@@ -85,6 +72,7 @@ BEGIN
 					,ISNULL(rs.ResultSetting, 0) AS ResultSetting
 					,tbl.OrdNo
 					,tbl.SettleType
+					,rs.OtherInfo
 	  		FROM @tblResource tbl
 	  			INNER JOIN dbo.ResultDetailES rs WITH (NOLOCK)  
 					ON tbl.ResourceID = rs.ResourceID
@@ -95,7 +83,7 @@ BEGIN
 	
 	ELSE IF @ResultTable = 2 ---dbo.ResultDetailOS
 	BEGIN
-		SELECT ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting, OrdNo
+		SELECT ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting, OrdNo, OtherInfo
 		FROM (
 				SELECT  ISNULL(tbl.RefResourceId, tbl.ResourceID ) AS ResourceId
 	    			,rs.HomeValue
@@ -105,6 +93,7 @@ BEGIN
 					,ISNULL(rs.ResultSetting,0) AS ResultSetting
 					,tbl.OrdNo
 					,tbl.SettleType
+					,rs.OtherInfo
 	  		FROM  @tblResource tbl
 				INNER JOIN dbo.ResultDetailOS rs WITH (NOLOCK)
 				ON tbl.ResourceID = rs.ResourceID
@@ -115,7 +104,7 @@ BEGIN
 	
 	ELSE
 	BEGIN
-		SELECT ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting, OrdNo
+		SELECT ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting, OrdNo, OtherInfo
 		FROM (
 			SELECT  DISTINCT ISNULL(tbl.RefResourceId, tbl.ResourceID ) AS ResourceId
 	    			,rs.HomeValue
@@ -125,6 +114,7 @@ BEGIN
 					,ISNULL(rs.ResultSetting,0) AS ResultSetting
 					,OrdNo
 					,tbl.SettleType
+					,rs.OtherInfo
 	  		FROM @tblResource tbl
 				INNER JOIN dbo.ResultDetail rs WITH (NOLOCK)
 				ON tbl.ResourceID = rs.ResourceID

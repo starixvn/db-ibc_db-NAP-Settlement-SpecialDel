@@ -32,7 +32,8 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230727@Aries: Basketball AIO  [Redmine:#191381]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
-		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]  
+		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 */
 
 BEGIN
@@ -104,11 +105,12 @@ BEGIN
 			,@ResultTable TINYINT
 			,@xmlWebResourceResult XML
 			,@ParentMatchId INT
+			,@AbandonedStatus SMALLINT = 0 --0: normal case (early completed); 1: Away not yet completed
 
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
-	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT, isCalculated BIT)
+	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT, isCalculated BIT, AbandonedStatus SMALLINT)
 
-	DECLARE @tmpResultDetail AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),ResultStatusID TINYINT,ssId TINYINT, isWeb BIT)
+	DECLARE @tmpResultDetail AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),ResultStatusID TINYINT,ssId TINYINT, isWeb BIT,OtherInfo VARCHAR(50))
 
 	SELECT	@ResultTable = ResultTable
 	FROM	dbo.SettlementResultTableSetting WITH(NOLOCK)
@@ -143,7 +145,7 @@ BEGIN
 			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID, 1
 			FROM	cteResourceResult
 		END
-		ELSE IF (@Sporttype = 2 AND @IsDetermined = 1) OR @Sporttype = 8
+		ELSE IF @Sporttype = 2 AND @IsDetermined = 1
 		BEGIN
 			;WITH cteResourceSelected
 			AS
@@ -156,6 +158,22 @@ BEGIN
 			)
 			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId, isWeb)
 			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID, 1
+			FROM	cteResourceSelected
+		END
+		ELSE IF @Sporttype = 8
+		BEGIN
+			;WITH cteResourceSelected
+			AS
+			(
+				SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
+						,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
+						,T.C.value('@Away', 'VARCHAR(50)') AS AwayValue
+						,T.C.value('@OtherInfo', 'VARCHAR(50)') AS OtherInfo
+						,4 AS SettlementStatusId
+				FROM    @xmlWebResourceResult.nodes('/Resources/Resource') AS T(C)
+			)
+			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue,OtherInfo, ssId, isWeb)
+			SELECT	ResourceId, HomeValue, AwayValue,OtherInfo, SettlementStatusID, 1
 			FROM	cteResourceSelected
 		END
 		ELSE
@@ -2253,11 +2271,17 @@ BEGIN
 		END
 		ELSE IF @IsDetermined = 1
 		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, isCalculated)
+			IF @Action LIKE 'REFUND%'  AND EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail WHERE ISNULL(OtherInfo,'')  = 'A')
+			BEGIN
+				SET @AbandonedStatus = 1
+			END
+						
+			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, isCalculated, AbandonedStatus)
 			SELECT	 r.ResourceId 
 					,r.HomeValue 
 					,r.AwayValue 
 					,1 AS  isCalculated
+					,@AbandonedStatus
 			FROM	@tmpResultDetail AS r
 				INNER JOIN f_Set_MajorRound(@sporttype) sd
 					ON r.ResourceId = sd.ResourceID
@@ -2265,8 +2289,8 @@ BEGIN
 
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '8801')
 			BEGIN
-				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated)
-				SELECT	ResourceId, r.HomeValue, r.AwayValue, r.ssid, ISNULL(ft.isCalculated, 0) AS isCalculated
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated,AbandonedStatus)
+				SELECT	ResourceId, r.HomeValue, r.AwayValue, r.ssid, ISNULL(ft.isCalculated, 0) AS isCalculated,@AbandonedStatus
 				FROM	@tmpDummyResourceIds t
 					CROSS APPLY (
 						SELECT	SUM(CAST(HomeValue AS INT)) AS HomeValue, SUM(CAST(AwayValue AS INT)) AS AwayValue, MIN(ssid) AS ssid
@@ -2369,6 +2393,7 @@ BEGIN
 				,AwayValue AS '@Away'
 				,ssId AS '@ssId'
 				,isCalculated AS '@isCal'
+				,AbandonedStatus AS '@AbandonedStatus'
 		FROM @tmpDummyResourceResults
 		FOR XML PATH('r'), ROOT('root'), TYPE))
 

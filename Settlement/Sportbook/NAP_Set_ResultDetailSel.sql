@@ -18,6 +18,7 @@ AS
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
+		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 		
 	Param's explanation:
 		
@@ -35,6 +36,7 @@ BEGIN
 		,AwayValue  VARCHAR(50)
 		,ResultStatusID TINYINT
 		,SettlementStatusID TINYINT
+		,OtherInfo	VARCHAR(50)
 	)
 
 	DECLARE @tmpExternalResult TABLE 
@@ -53,8 +55,8 @@ BEGIN
 	INSERT INTO #tblMatchID (MatchId, SportType, ResultTable, ExternalResultTable)
 	SELECT f.Value
 		  ,m.sporttype
-		  ,CASE WHEN m.sporttype = 8 THEN 2 ELSE r.ResultTable END AS ResultTable
-		  ,CASE WHEN m.sporttype IN (1,8) OR ISNULL(r.IsAppliedSOP,0) = 1 THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
+		  ,r.ResultTable
+		  ,CASE WHEN m.sporttype = 1 OR ISNULL(r.IsAppliedSOP,0) = 1 THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
 				ELSE r.ExternalResultTable
 				END
 	FROM STRING_SPLIT(@matchidList, ',') f
@@ -167,7 +169,7 @@ BEGIN
 
 	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.ResultTable = 2 )
     BEGIN		
-		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
+		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID,OtherInfo )
         SELECT    rs.MatchId
 				, 0
                 , rs.ResourceId
@@ -175,6 +177,7 @@ BEGIN
                 , rs.AwayValue
                 , rs.ResultStatusID
                 , rs.SettlementStatusID
+				, rs.OtherInfo
         FROM    dbo.[ResultDetailOS] rs WITH (NOLOCK)
 			INNER JOIN #tblMatchID m 
 				ON rs.MatchId = m.MatchId 
@@ -217,6 +220,7 @@ BEGIN
 		,AwayValue
 		,ResultStatusID
 		,SettlementStatusID
+		,OtherInfo
 	FROM @tmpResultDetail ORDER BY MatchID, SourceId, ResourceId
 
 END

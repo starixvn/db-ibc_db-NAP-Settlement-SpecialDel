@@ -30,7 +30,8 @@ AS
 		- 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
-		  	
+		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
+		
 	Parameters Explanation:    
 		@Type: TINYINT
 			 1: Hold Result
@@ -48,7 +49,8 @@ BEGIN
 	DECLARE @SportType			TINYINT  = 0
 			,@ActionId			INT
 			,@Remark			VARCHAR(500)
-			,@ResultTable		TINYINT	= 0	
+			,@ResultTable		TINYINT	= 0
+			,@ExternalResultTable TINYINT	= 0	
 			,@handle			INT
 			,@RemarkSDT			VARCHAR(500) = ''
 			,@IsValidateSOPRefund BIT = 0
@@ -63,6 +65,7 @@ BEGIN
 	SELECT @SportType = m.sporttype FROM dbo.Match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
 
 	SELECT @ResultTable =  r.ResultTable 
+			,@ExternalResultTable = r.ExternalResultTable
 			,@IsValidateSOPRefund = ISNULL(r.Setting,0) & 1
 	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK) 
 	WHERE r.Sporttype = @SportType
@@ -71,11 +74,7 @@ BEGIN
 			2: ResultDetailOS
 			3: ResultDetailES
 	*/
-	
-	IF @SportType = 8
-		SELECT @ResultTable = 2
-				,@IsValidateSOPRefund = 1
-
+ 
 	IF @ActionId IS NULL OR ( @Type = 2 AND @IsValidateSOPRefund = 0 )
 	RETURN
 
@@ -128,36 +127,75 @@ BEGIN
             SELECT @RemarkSDT = STRING_AGG (ResourceId + '(' + HomeValue + '-' + AwayValue  + ')',', ')
 			FROM @tmpResourcesWeb
 
-			DELETE p
-            FROM dbo.ProviderExternalResultDetail AS p
-            WHERE p.MatchId = @MatchId 
-                AND p.SourceId = 99 -- Remove old confirm
-                AND p.ResourceId IN  (SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+			IF @ExternalResultTable = 1
+			BEGIN
+				DELETE p
+				FROM dbo.ProviderExternalResultDetail AS p
+				WHERE p.MatchId = @MatchId 
+					AND p.SourceId = 99 -- Remove old confirm
+					AND p.ResourceId IN  (SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
 
-			INSERT INTO dbo.ProviderExternalResultDetail (MatchId3rd,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateBy,LastModifyBy)
-			SELECT	 0 AS MatchId3rd
-					,@MatchId AS MatchId
-					,99 AS SourceId
-					,ResourceId
-					,HomeValue
-					,AwayValue
-					,@AdminId AS CreateBy
-					,@AdminId AS LastModifyBy
-			FROM @tmpResourcesWeb
+				INSERT INTO dbo.ProviderExternalResultDetail (MatchId3rd,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateBy,LastModifyBy)
+				SELECT	 0 AS MatchId3rd
+						,@MatchId AS MatchId
+						,99 AS SourceId
+						,ResourceId
+						,HomeValue
+						,AwayValue
+						,@AdminId AS CreateBy
+						,@AdminId AS LastModifyBy
+				FROM @tmpResourcesWeb
+			END
+			IF @ExternalResultTable = 2
+			BEGIN
+				DELETE p
+				FROM dbo.ProviderExternalResultDetailOS AS p
+				WHERE p.MatchId = @MatchId 
+					AND p.SourceId = 99 -- Remove old confirm
+					AND p.ResourceId IN  (SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+
+				INSERT INTO dbo.ProviderExternalResultDetailOS (MatchId3rd,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateBy,LastModifyBy)
+				SELECT	 0 AS MatchId3rd
+						,@MatchId AS MatchId
+						,99 AS SourceId
+						,ResourceId
+						,HomeValue
+						,AwayValue
+						,@AdminId AS CreateBy
+						,@AdminId AS LastModifyBy
+				FROM @tmpResourcesWeb
+			END
 		END
 		ELSE
 		BEGIN
-			SELECT @RemarkSDT = STRING_AGG (p.ResourceId + '(' + p.HomeValue + '-' + p.AwayValue  + ')',', ')
-			FROM dbo.ProviderExternalResultDetail AS p
-			WHERE p.MatchId = @MatchId
-				AND p.SourceId = 99
-				AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+			IF @ExternalResultTable = 1
+			BEGIN
+				SELECT @RemarkSDT = STRING_AGG (p.ResourceId + '(' + p.HomeValue + '-' + p.AwayValue  + ')',', ')
+				FROM dbo.ProviderExternalResultDetail AS p
+				WHERE p.MatchId = @MatchId
+					AND p.SourceId = 99
+					AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
 
-			DELETE p
-            FROM dbo.ProviderExternalResultDetail AS p
-            WHERE p.MatchId = @MatchId 
-                AND p.SourceId = 99 -- Remove old confirm
-                AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+				DELETE p
+				FROM dbo.ProviderExternalResultDetail AS p
+				WHERE p.MatchId = @MatchId 
+					AND p.SourceId = 99 -- Remove old confirm
+					AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+			END
+			IF @ExternalResultTable = 2
+			BEGIN
+				SELECT @RemarkSDT = STRING_AGG (p.ResourceId + '(' + p.HomeValue + '-' + p.AwayValue  + ')',', ')
+				FROM dbo.ProviderExternalResultDetailOS AS p
+				WHERE p.MatchId = @MatchId
+					AND p.SourceId = 99
+					AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+
+				DELETE p
+				FROM dbo.ProviderExternalResultDetailOS AS p
+				WHERE p.MatchId = @MatchId 
+					AND p.SourceId = 99 -- Remove old confirm
+					AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+			END
 		END
 	END
 

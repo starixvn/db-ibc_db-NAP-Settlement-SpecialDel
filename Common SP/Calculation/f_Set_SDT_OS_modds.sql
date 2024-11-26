@@ -3,10 +3,12 @@ ALTER FUNCTION [dbo].[f_Set_SDT_OS_modds] (
 		 @pfID			SMALLINT
 		,@betteam 		NVARCHAR(10)
 		,@hdp1			SMALLMONEY
+		,@hdp2			SMALLMONEY
 		,@HomeValue		VARCHAR(2000)
 		,@AwayValue		VARCHAR(2000)		
 		,@Transdesc		NVARCHAR(1000)
-		,@MinusValue	SMALLMONEY		
+		,@MinusValue	SMALLMONEY
+		,@AbandonedStatus	SMALLINT
 		)
 RETURNS TABLE
 AS  
@@ -17,7 +19,11 @@ AS
 		- 20230510@Aries: Apply Settle Determined for Basketball [Redmine:#184124]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
-		
+		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
+	Param's Explanation:
+		- @MinusValue: Basketball instance
+		- @AbandonedStatus: 0: normal case (early completed)
+						    1: Away not yet completed
 */
 RETURN
 (
@@ -98,7 +104,7 @@ RETURN
 			WHEN @pfID = 646 THEN
 				CASE WHEN @betteam IN ('HU', 'AU') AND tbl.fm > 0 THEN -1
 					 ELSE NULL END	
-			WHEN @pfID = 8826 THEN
+			WHEN @pfID IN( 8826) THEN
 				CASE WHEN @betteam = '1-2' AND fm BETWEEN 3 AND 4 THEN -1
 					 WHEN @betteam IN ('1-2','3-4') AND fm BETWEEN 5 AND 6 THEN -1
 					 WHEN @betteam IN ('1-2','3-4','5-6') AND fm BETWEEN 7 AND 8 THEN -1
@@ -113,11 +119,44 @@ RETURN
 					 ELSE NULL END	
 			WHEN @pfID = 8814 THEN
 				CASE WHEN (CAST(@HomeValue AS INT) - (CAST(@hdp1 AS INT)%800) >= 0) AND (CAST(@AwayValue AS INT) - (CAST(@hdp1 AS INT)%800) >= 0) THEN CASE WHEN @betteam = 'y' THEN 1 ELSE -1 END
+					 WHEN @AbandonedStatus = 1 AND (CAST(@AwayValue AS INT) - (CAST(@hdp1 AS INT)%800) < 0) THEN 
+																											CASE WHEN @betteam = 'y' THEN -1 
+																											ELSE 1 END
 					 ELSE NULL END	
+			WHEN @pfID = 20 THEN 
+				CASE WHEN @AbandonedStatus = 1 THEN NULL
+					WHEN @betteam = 'h' AND fm > 0 THEN 1
+					WHEN @betteam = 'a' AND fm > 0 THEN -1
+					ELSE NULL END
+			WHEN @pfid = 8813 THEN
+				CASE
+					WHEN @betteam = '0' AND fm > 0 THEN -1
+					WHEN @betteam = '1' AND fm > 1 THEN -1
+					WHEN @betteam = '2' AND fm > 2 THEN -1
+					WHEN @betteam = '3+' AND fm <= 3 THEN 1 
+					ELSE NULL END
+			WHEN @pfID = 8805 THEN
+				CASE WHEN fm > 0 AND @betteam IN ('h')		THEN 1
+					 WHEN fm > 0 AND @betteam IN ('d', 'a') THEN -1
+					 WHEN fm = 0 AND @betteam  IN ('a')		THEN -1
+					ELSE NULL END
+			WHEN @pfID = 424 THEN
+				CASE WHEN @betteam = 'h' AND @HomeValue = 'h' THEN 1
+					 WHEN @betteam = 'a' AND @HomeValue IN ( 'h','d') THEN -1
+					 WHEN @betteam = 'd' AND @HomeValue = 'h' THEN -1
+					ELSE NULL END
+			WHEN @pfID = 10 THEN
+				CASE WHEN @AbandonedStatus = 1 THEN NULL
+					 WHEN @betteam = 'h' AND fm > 0.5 THEN 1
+					 WHEN @betteam = 'a' AND fm > 0.5 THEN -1
+					 ELSE NULL END
+
 			ELSE NULL
 		END AS modds
 	FROM(
-		SELECT (CASE WHEN @pfID IN (3,646) THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @MinusValue - @hdp1)				
+		SELECT (CASE WHEN @pfID IN (3,646, 83) THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @MinusValue - @hdp1)	
+					 WHEN @pfID = 10 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2)
+					 WHEN @pfID IN (20) THEN CAST(@HomeValue AS MONEY) - CAST(@AwayValue AS MONEY)			
 					 WHEN @pfID IN (401,638) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1 - @MinusValue
 					 WHEN @pfID IN (402) THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1 - @MinusValue
 					 WHEN @pfID IN (8826) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)

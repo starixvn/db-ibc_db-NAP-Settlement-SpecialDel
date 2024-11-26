@@ -16,6 +16,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#184124]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -95,7 +96,7 @@ BEGIN
 		CROSS APPLY(SELECT TOP 1 t.SDTpfId, t.HomeValue, t.AwayValue
 					FROM @tmpBettype AS t
 					WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)) AS sr
-		OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, sr.HomeValue, sr.AwayValue, b.transdesc, 0) AS m
+		OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.transdesc, 0,0) AS m
 	WHERE	b.matchid = @MatchId
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		AND ISNULL(b.betdaqid,0) = -2

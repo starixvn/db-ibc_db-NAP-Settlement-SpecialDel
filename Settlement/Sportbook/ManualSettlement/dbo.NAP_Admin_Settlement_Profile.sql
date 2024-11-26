@@ -95,6 +95,7 @@ AS
 		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 		- 20241021@Aries: AutoPayout2 for Baseball AiO (Regular and Series Matches) [Redmine:#211632]
 		- 20241111@Aries: Support Auto Payout 2 for Volleyball [Redmine:#213198]
+		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -185,9 +186,10 @@ BEGIN
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,CustID INT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT, winlost MONEY, statuswinlost TINYINT, DeadHeat TINYINT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT, RoundID VARCHAR(10), OrdNo SMALLINT,
-								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT, RefResourceId VARCHAR(20), IsWeb BIT
+								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT, RefResourceId VARCHAR(20), IsWeb BIT,
+								  AbandonedStatus SMALLINT
 								  ,PRIMARY KEY (BetType,BetID))
-	DECLARE @tmpBettypeSDT TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),PRIMARY KEY (BetType,BetID))
+	DECLARE @tmpBettypeSDT TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),AbandonedStatus SMALLINT,PRIMARY KEY (BetType,BetID))
 
 	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), IsWeb BIT)
 	DECLARE @tmpGetLog TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), BetType SMALLINT, BetID BIGINT, OrdNo SMALLINT, RoundName VARCHAR(20) )
@@ -353,8 +355,9 @@ BEGIN
 				UPDATE bt
 				SET  bt.HomeValue = tbl.Home
 					,bt.AwayValue = tbl.Away
+					,bt.AbandonedStatus = tbl.AbandonedStatus
 				FROM @tmpBettypeSDT AS bt
-					INNER JOIN OPENXML(@handle,'root/r',1) WITH( Id VARCHAR(20),Home VARCHAR(2000),Away VARCHAR(2000)) AS tbl ON tbl.Id = bt.SDTResourceId
+					INNER JOIN OPENXML(@handle,'root/r',1) WITH( Id VARCHAR(20),Home VARCHAR(2000),Away VARCHAR(2000),AbandonedStatus SMALLINT) AS tbl ON tbl.Id = bt.SDTResourceId
 				EXEC sp_xml_removedocument @handle
 
 				SET @DummyResourceIds = ''
@@ -627,6 +630,7 @@ BEGIN
 				SET  sr.SDTpfId = bt.SDTpfId
 					,sr.HomeValue = bt.HomeValue
 					,sr.AwayValue = bt.AwayValue
+					,sr.AbandonedStatus = bt.AbandonedStatus
 				FROM @tmpSelectedRID AS sr
 					INNER JOIN @tmpBettypeSDT AS bt ON sr.BetType = bt.BetType AND sr.BetID = bt.BetID
 
@@ -647,11 +651,11 @@ BEGIN
 									WHERE	mt.TransId = b.transId
 					) AS mt
 					CROSS APPLY(
-									SELECT TOP 1 SDTpfId, HomeValue, AwayValue, t.OddsType
+									SELECT TOP 1 SDTpfId, HomeValue, AwayValue, t.OddsType,AbandonedStatus
 									FROM @tmpSelectedRID AS t
 									WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 								) AS sr
-					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, CASE WHEN b.bettype = 8814 THEN b.betid ELSE b.hdp1 END, sr.HomeValue, sr.AwayValue, b.transdesc,0) AS m
+					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, CASE WHEN b.bettype = 8814 THEN b.betid ELSE b.hdp1 END, b.hdp2, sr.HomeValue, sr.AwayValue, b.transdesc,0,sr.AbandonedStatus) AS m
 				WHERE b.matchid = @MatchId
 					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND statusID NOT IN (101)
@@ -1065,6 +1069,7 @@ BEGIN
 																						    ,SDTpfId			AS '@SDTpfId'
 																						    ,@DeterminedType	AS '@DeterminedType'
 																							,IsWeb				AS '@IsWeb'
+																							,AbandonedStatus		AS '@AbandonedStatus'
 																							,CASE WHEN RefResourceId IS NOT NULL THEN RefResourceId ELSE NULL END AS '@RefResourceId' 
 																					   FROM	@tmpSelectedRID AS s
 																					   FOR XML PATH ('Resource'), TYPE)
