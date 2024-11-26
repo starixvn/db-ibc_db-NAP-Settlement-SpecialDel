@@ -16,6 +16,7 @@ AS
     Revisions:   
 		- 20201109@Louisa: Insert SBO result for 10 sports: 1,2,3,4,6,8,18,19,24,25 [Redmine:#144486]
 		- 20240508@Aries: Enhance duplicate feed results of providers for SportBook  [Redmine:#204796]
+		- 20241118@Aries: Fix an issue which is wrong settlement due to the lack of consistency when calculating Innnings [Redmine:#213767]
 
 	Param's Explanation:
 		@SourceId: 1 - SBO
@@ -43,6 +44,7 @@ SET NOCOUNT ON
 			,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
 			,T.C.value('@Away', 'VARCHAR(50)') AS AwayValue
 	FROM  @xmlResources.nodes('/Resources/Resource') AS T(C)
+	WHERE T.C.value('@Id', 'VARCHAR(20)') != ''
 
 	INSERT INTO dbo.ProviderExternalResultDetail (
 		MatchId3rd

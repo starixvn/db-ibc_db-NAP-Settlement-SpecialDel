@@ -13,6 +13,7 @@ AS
 	Revisions:
 		- 20200818@Louisa: Insert result for LSports by services  [Redmine:#139627]
 		- 20240508@Aries: Enhance duplicate feed results of providers for SportBook  [Redmine:#204796]
+		- 20241118@Aries: Fix an issue which is wrong settlement due to the lack of consistency when calculating Innnings [Redmine:#213767]
 		
 	Param's Explanation:
 		@SourceId : 25-LSports
@@ -38,6 +39,7 @@ BEGIN
 			,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
 			,T.C.value('@Away', 'VARCHAR(50)') AS AwayValue
 	FROM  @xmlResources.nodes('/Resources/Resource') AS T(C)
+	WHERE T.C.value('@Id', 'VARCHAR(20)') != ''
 
 	INSERT INTO dbo.ProviderExternalResultDetailOS (
 		MatchId3rd

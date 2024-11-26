@@ -16,6 +16,7 @@ AS
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 		- 20240503@Aries: Support Auto Payout 2 for Basketball [Redmine:#203520]
+		- 20241118@Aries: Fix an issue which is wrong settlement due to the lack of consistency when calculating Innnings [Redmine:#213767]
 
 
 	Param's Explanation:
@@ -44,6 +45,7 @@ BEGIN
 	INSERT INTO @Resource(ResourceId)
 	SELECT DISTINCT value
 	FROM STRING_SPLIT(@ResourceIds,',')
+	WHERE value != ''
 
 	IF @ResultTable = 1
 	BEGIN
@@ -130,12 +132,19 @@ BEGIN
 		  ,m.AwayValue
 		  ,m.CreateDate
 		  ,ss.HasAwayValue
+		  ,ss.relatedCalResources
+		  ,ss.relatedSettResources
 	FROM @Result AS m
 		OUTER APPLY (
 			SELECT TOP 1 tbl.ResourceId
-			FROM [dbo].[f_Set_MajorRound](@SportType) AS tbl
+			FROM [dbo].[f_Set_MajorRound](@SportType) AS tbl 
+			WHERE tbl.ResourceId = m.ResourceId
 		) AS mr
-		OUTER APPLY (SELECT TOP 1 s.HasAwayValue, s.pfID
+		OUTER APPLY (SELECT  TOP 1 
+							 s.HasAwayValue
+							,s.pfID
+							,JSON_VALUE(s.APSetting,'$."relatedCalResources"') AS relatedCalResources
+							,JSON_VALUE(s.APSetting,'$."relatedSettResources"') AS relatedSettResources
 				     FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
 					 WHERE s.ResourceID = m.ResourceID
 						AND s.SportType = @SportType
