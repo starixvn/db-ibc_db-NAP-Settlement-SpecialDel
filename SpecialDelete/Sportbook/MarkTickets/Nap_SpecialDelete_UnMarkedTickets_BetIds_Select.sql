@@ -27,6 +27,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Explanation's Param:
 */
@@ -328,7 +329,7 @@ BEGIN
 		b.modds AS MasterOdds,
 		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
-		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
+		LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 	ORDER BY CASE
 				WHEN b.recommend IN (52466, 5707545) THEN 1

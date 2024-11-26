@@ -42,6 +42,7 @@ AS
 		- 20231208@Max: [TVS] Abnormal Account - Add confirmation popup before saving request for auto void actions [Redmine: #198164]
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240305@Max: [TVS] Abnormal Account - Void full range of archived tickets [Redmine: #201130]
+		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' [Redmine: #213451]
 
 	Param's Explanation:
 */
@@ -242,7 +243,7 @@ BEGIN
 		INSERT INTO #InputValidCustid_2 (custid)	
 		SELECT DISTINCT ci.custid
 		FROM #InputUsernameList l
-			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
+			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
 			LEFT JOIN #InputValidCustid_2 ag ON ag.custid = ci.custid
 		WHERE l.roleid = 3 AND ci.roleid = 2 AND ag.custid IS NULL	
 	END
@@ -299,7 +300,7 @@ BEGIN
 				WHERE m.matchid = b.matchid
 					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 			)ml
-			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
+			LEFT JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 			AND 1 = CASE 
@@ -330,7 +331,7 @@ BEGIN
 					WHERE m.matchid = b.matchid
 						AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 				)ml
-				INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
+				LEFT JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 				INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			WHERE b.winlostdate BETWEEN @FromWinlostDate_14 AND @ToWinlostDate_14 
 				AND 1 = CASE 

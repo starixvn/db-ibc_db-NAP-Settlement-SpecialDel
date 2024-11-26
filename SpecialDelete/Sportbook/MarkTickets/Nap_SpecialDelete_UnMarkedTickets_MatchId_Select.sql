@@ -44,6 +44,7 @@ AS;
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -468,7 +469,7 @@ BEGIN
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = b.bettype
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
-			INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
+			LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		WHERE b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
@@ -833,7 +834,7 @@ BEGIN
 		b.modds AS MasterOdds, 
 		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
-		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
+		LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 		LEFT JOIN match m WITH (NOLOCK) ON m.matchid = b.MatchId
 	ORDER BY CASE

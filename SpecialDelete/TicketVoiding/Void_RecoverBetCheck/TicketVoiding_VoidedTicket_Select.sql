@@ -36,6 +36,7 @@ AS;
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Param's explanation:	
 		
@@ -936,7 +937,7 @@ BEGIN
 		   ,s.VendorMatchId
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
-		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+		LEFT JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		INNER JOIN #TmpMatch m ON s.matchid = m.Matchid
 	ORDER BY CASE
 				WHEN s.GroupName = 'CN88' THEN 1

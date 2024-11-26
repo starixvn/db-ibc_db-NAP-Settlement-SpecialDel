@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_ACC_Select] 
 (
 	@AbnormalAccounts  VARCHAR(MAX) = NULL
@@ -7,7 +7,7 @@ AS
 /*	
 	Created by: 20220727@Max
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
@@ -23,6 +23,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid', serverAlias [Redmine: #213451]
 
 	Param's explanation:	
 		- @AbnormalAccounts: <roor><r @UserNames = 'abc,xyz' @ProductIds="1,2" @StatusIds="112,111" @FromDate="" @ToDate=""/></root>
@@ -155,7 +156,7 @@ BEGIN
 		INSERT INTO #InputValidCustid_2 (custid)	
 		SELECT ci.custid
 		FROM #InputUsernameList l
-			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
+			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
 		WHERE l.roleid = 3 AND ci.roleid = 2
 	END
 
@@ -176,7 +177,7 @@ BEGIN
 	UNION
 	SELECT ci.CustID
 	FROM #InputValidCustid_2 lt
-		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK)
+		LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK)
 		ON lt.custid = ci.recommend
 	WHERE ci.roleid = 1
 

@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
 (
 	@MatchId				INT,	
@@ -26,7 +26,7 @@ AS
 	/*
 	Created by: Kathy
 	Task : Special Delete
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	Original:
 
 	Revisions:
@@ -141,6 +141,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' columns, serverAlias [Redmine: #213451]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -2150,8 +2151,8 @@ BEGIN
 		FROM #SpecialDeleteBets al
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK) ON al.custid = ci.custid
 			INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON	al.creator = cr.custid	
-			INNER JOIN #CTE_CustInfo ag WITH(NOLOCK) ON al.recommend = ag.custid
-			INNER JOIN #CTE_CustInfo ma WITH(NOLOCK) ON al.mrecommend = ma.custid
+			LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK) ON al.recommend = ag.custid
+			LEFT JOIN #CTE_CustInfo ma WITH(NOLOCK) ON al.mrecommend = ma.custid
 			INNER JOIN #CTE_CustInfo su WITH(NOLOCK) ON al.srecommend = su.custid
 			LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH(NOLOCK) ON al.srecommend = s.custid
 			LEFT JOIN CustDB.dbo.Site si WITH(NOLOCK) ON su.site = si.site

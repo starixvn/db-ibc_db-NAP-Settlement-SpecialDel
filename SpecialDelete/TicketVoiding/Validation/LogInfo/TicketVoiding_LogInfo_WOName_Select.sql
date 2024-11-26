@@ -16,6 +16,7 @@ AS
 	
 	Revisions: 
 		- 20240925@July: Create new SP [Redmine:#179934]
+		- 20241126@Lani: Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Param's explanation:	
 		- @WrongOfferedNameInfo: <root><r MatchId="" @CurrencyIds="" LicenseeNames="" /></root>
@@ -324,7 +325,7 @@ BEGIN
 		UPDATE s 
 			SET GroupName = tl.GroupName
 		FROM	#tmpTransInfo s
-			INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK)
+			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK)
 						 ON s.recommend = c.custid
 			INNER JOIN @tmpLicenseeNames tl
 						 ON tl.LicenseeName = c.site 

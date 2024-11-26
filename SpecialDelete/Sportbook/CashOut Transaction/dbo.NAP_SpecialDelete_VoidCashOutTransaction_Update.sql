@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Update]
 (
 	 @TransIds			VARCHAR(MAX)	= ''
@@ -14,7 +14,7 @@ AS
     Created by: 20170403@Kent
 	Original: 
 	Task: Delete Cash-out transaction
-	DB: DBTXN/BODB02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions:
 		- 20170403@Kent: Integrate Cash-out [Redmine:#72059]			
@@ -41,6 +41,7 @@ AS
 		- 20230818@Max: [TVS] Cancel Cash Out Action - Search by BetID [Redmine: #186624]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240725@Max: [TVS] Return betid to call remoting ref [Redmine: #205983]
+		- 20241125@Lani: [TVS] Update the value of 'EmailGroup' returned, change serverAlias [Redmine: #213451]
 
 	Explanation's Param:
 
@@ -530,10 +531,10 @@ BEGIN
 			ma.UserName AS MagUserName,
 			d.srecommend,  
 			su.Username AS SagUserName, 
-			ag.Site,
+			ci.Site,
 			CASE 
 				WHEN d.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
-				ELSE ag.Site 
+				ELSE ci.Site 
 			END AS EmailGroup, 
 			ag.currency,
 			d.CurrencyName, 				
@@ -554,7 +555,7 @@ BEGIN
 	LEFT JOIN #tblCustInfo AS ag ON d.recommend = ag.custid	
 	LEFT JOIN #tblCustInfo AS ma ON d.mrecommend = ma.custid
 	LEFT JOIN #tblCustInfo AS su ON d.srecommend = su.custid
-	ORDER BY ag.site ASC, d.TransId ASC
+	ORDER BY ci.site ASC, d.TransId ASC
 	
 	-- Write useraction log	
 	BEGIN TRY

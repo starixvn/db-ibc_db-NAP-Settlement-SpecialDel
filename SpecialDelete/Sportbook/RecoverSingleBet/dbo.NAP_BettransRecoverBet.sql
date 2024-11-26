@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverBet]
 (
 	@TransIds			VARCHAR(MAX), 	
@@ -9,7 +9,7 @@ AS
 /*
 	Created: Kathy
 	Date: 20131022
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions:   				   
 		- 20140102@Kathy: - Add username2 column [Redmine:#10270]
@@ -75,6 +75,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, serverAlias [Redmine: #213451]
 
 	Param's Explanation:
 */
@@ -958,7 +959,7 @@ BEGIN
 			ON	t.custid = c.custid
 		INNER JOIN CustDB.dbo.Customer cr WITH(NOLOCK)
 			ON	t.creator = cr.custid
-		INNER JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
+		LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
 			ON	t.recommend = ag.custid
 	
 	-- delete normal ticket

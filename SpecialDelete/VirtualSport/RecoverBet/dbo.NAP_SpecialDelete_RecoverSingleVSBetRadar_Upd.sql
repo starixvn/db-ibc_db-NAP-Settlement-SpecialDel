@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSingleVSBetRadar_Upd]			
 	@TransIds					VARCHAR(MAX),
     @UserID						INT,
@@ -7,7 +7,7 @@ AS
 /*  
 	Created by: 20170607@Kent  
 	Task: 
-	DB: DBTXN/bodb02	    
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02	    
 
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
@@ -27,6 +27,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
+		- 20241126@Lani: [TVS] Get site from srecommend, change serverAlias [Redmine: #213451]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -1544,8 +1545,8 @@ BEGIN
 				ma.UserName AS MasterName,
 				r.srecommend AS SuperId,
 				su.Username AS SuperName,
-				ag.Site,
-				ag.Site AS EmailGroup,
+				su.Site,
+				su.Site AS EmailGroup,
 				CURRENT_TIMESTAMP AS [DateTime],
 				@isITAdmin AS IsItSupport,
 				r.BetFrom 
