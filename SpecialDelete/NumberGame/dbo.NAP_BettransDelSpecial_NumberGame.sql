@@ -47,7 +47,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
-		- 20241125@LaniL [TVS] Change join type, serverAlias [Redmine: #213451]
+		- 20241125@Lani: [TVS] Change join type, serverAlias [Redmine: #213451]
 
 	Param's Explanation: 
 		- @Opition: 
