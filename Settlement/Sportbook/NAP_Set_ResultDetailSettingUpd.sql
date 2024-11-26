@@ -37,6 +37,7 @@ AS
 			 1: Hold Result
 			 2: Confirm Refund
 			 3: Confirm Refund SDT
+			 4: Confirm refund ( when checked Early completed/Mercy rule)
 
 		@ResourceIds = '902401,904301,906301,905801,905701'
 
@@ -108,7 +109,7 @@ BEGIN
 		FROM	cteResourceOffer
 	END
 
-	IF @Type = 3 OR ISNULL(@SelectedResources,'') != ''
+	IF @Type IN ( 3, 4) OR ISNULL(@SelectedResources,'') != ''
 	BEGIN
 		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)

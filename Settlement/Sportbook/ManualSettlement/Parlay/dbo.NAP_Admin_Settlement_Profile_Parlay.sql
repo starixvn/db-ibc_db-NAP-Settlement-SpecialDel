@@ -148,7 +148,7 @@ BEGIN
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	CREATE TABLE #tmpsubTransID (Id BIGINT IDENTITY(1,1),TransID BIGINT, refno BIGINT, modds SMALLMONEY, moddsSDT SMALLMONEY, IsSDT BIT DEFAULT(0), isFinish BIT, IsMarked BIT
-		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, betteam VARCHAR(10))
+		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, betteam VARCHAR(10))
 	CREATE TABLE #tmpRefnos (refno BIGINT)
 	----------------------------------------------------------------------------------------------------------------------
 
@@ -369,8 +369,8 @@ BEGIN
 			END
 			ELSE IF @sportType != 1 AND  @DeterminedType > 0
 			BEGIN
-				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsInstHTFT, bettype, hdp1, betteam)
-				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked, sr.IsInstHTFT, bm.bettype, bm.hdp1, bm.betteam
+				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsInstHTFT, bettype, hdp1, hdp2, betteam)
+				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked, sr.IsInstHTFT, bm.bettype, bm.hdp1, bm.hdp2, bm.betteam
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
 						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, ISNULL(IsCalculated, 0) AS IsCalculated, MinusValue,AbandonedStatus, IsInstHTFT
@@ -413,7 +413,7 @@ BEGIN
 									FROM @tmpSelectedRID AS t
 									WHERE b.BetType = t.BetType AND t.BetID = 0
 								) AS sr
-						CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, b.hdp2 sr.HomeValue, sr.AwayValue, NULL,sr.MinusValue,sr.AbandonedStatus) AS m
+						CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, NULL,sr.MinusValue,sr.AbandonedStatus) AS m
 					WHERE b.modds IS NULL 
 						AND b.IsInstHTFT = 1
 						AND m.modds IS NOT NULL
@@ -529,7 +529,7 @@ BEGIN
 					FROM	@tmpSelectedRID t
 					WHERE	t.BetType = bm.bettype AND (t.BetID = 0 OR t.BetID = bm.betcheck)
 				)sr
-				OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, bm.hdp1, sr.HomeValue, sr.AwayValue, bm.transdesc, sr.MinusValue,sr.AbandonedStatus) m
+				OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, bm.hdp1, bm.hdp2, sr.HomeValue, sr.AwayValue, bm.transdesc, sr.MinusValue,sr.AbandonedStatus) m
 			WHERE	bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END					
 					AND bm.statusID NOT IN (101)

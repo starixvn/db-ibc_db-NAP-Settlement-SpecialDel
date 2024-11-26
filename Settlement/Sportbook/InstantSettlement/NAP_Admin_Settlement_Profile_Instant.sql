@@ -96,7 +96,7 @@ BEGIN
     DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,CustID INT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT, winlost MONEY, statuswinlost TINYINT, IsUndo BIT)
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT,modds SMALLMONEY, winlost MONEY, statuswinlost TINYINT, currentstatuswinlost TINYINT, IsUndo BIT)
 
-	CREATE TABLE #tmpTransSDT (TransID BIGINT,CustID INT, modds SMALLMONEY DEFAULT 0, OddsType SMALLINT, srecommend INT,bettype SMALLINT, IsMarked BIT, IsUndo BIT , BetdaqId BIGINT, currentStatuswinlost TINYINT,betteam VARCHAR(20),hdp1 SMALLMONEY,IsInstHTFT BIT)
+	CREATE TABLE #tmpTransSDT (TransID BIGINT,CustID INT, modds SMALLMONEY DEFAULT 0, OddsType SMALLINT, srecommend INT,bettype SMALLINT, IsMarked BIT, IsUndo BIT , BetdaqId BIGINT, currentStatuswinlost TINYINT,betteam VARCHAR(20),hdp1 SMALLMONEY,hdp2 SMALLMONEY,IsInstHTFT BIT)
 	CREATE CLUSTERED INDEX IX_tmpTransSDT_modds ON #tmpTransSDT (modds);
 
     CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -229,7 +229,7 @@ BEGIN
 		
 		EXEC sp_xml_removedocument @Handle
 
-	    INSERT INTO #tmpTransSDT(TransID, CustID, modds, OddsType, srecommend, bettype, IsMarked,BetdaqId, currentStatuswinlost,betteam,hdp1,IsInstHTFT)
+	    INSERT INTO #tmpTransSDT(TransID, CustID, modds, OddsType, srecommend, bettype, IsMarked,BetdaqId, currentStatuswinlost,betteam,hdp1,hdp2,IsInstHTFT)
 	    SELECT	b.transid
 	    	   ,b.CustID
 	    	   ,m.modds
