@@ -32,6 +32,7 @@ AS
 		- 20231219@Louisa: RedCat88 [Redmine:#198365]
 		- 20231229@Aries: Enhancement of Auto Settlement [Redmine:#199004]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
+		- 20241028@Aries: Direct payout for early soccer [Redmine:#211079]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
@@ -88,13 +89,6 @@ BEGIN
 			,@IsHoldChecking				BIT = 0 --call NAP_Set_HoldSettingChecking
 			,@IsResultSettingChecking		BIT = 0 --call NAP_Set_ResultSettingChecking
 			
-	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
-			,@IsAuto = CASE WHEN @Action LIKE '%_MARKET' THEN 0 ELSE @IsAuto END
-			,@IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 
-									ELSE 0 END
-			,@IsCheckSettlementStatusEarly = CASE WHEN @Mode = 'EAR' THEN 1
-													ELSE 0 END
-			
 	SELECT @sporttype = m.sporttype
 			,@ParentId			= m.ParentID
 			,@matchcode			= m.matchcode
@@ -121,6 +115,14 @@ BEGIN
 		INNER JOIN dbo.match_remark mr WITH(NOLOCK)
 			ON m.matchid = mr.matchid
 	WHERE m.matchid = @matchid
+
+	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
+			,@IsAuto = CASE WHEN @Action LIKE '%_MARKET' THEN 0 ELSE @IsAuto END
+			,@IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1)  THEN 1 
+									   WHEN @Action LIKE 'CAL'  AND @sportType = 1 AND @IsAuto = 1 AND   @Mode = 'EAR'  THEN 1 
+									ELSE 0 END
+			,@IsCheckSettlementStatusEarly = CASE WHEN @Mode = 'EAR' THEN 1
+													ELSE 0 END
 
 	--alway check hold status
 	SELECT @IsHoldChecking = 1

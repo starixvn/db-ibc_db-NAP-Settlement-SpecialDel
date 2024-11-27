@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s_Push]
 	,@MatchId					INT
 	,@SelectedResources			VARCHAR(MAX)	= '' 
 	,@Action					VARCHAR(10)		= 'CAL'
+	,@IsAuto					BIT				= 0
 	,@IP						VARCHAR(15)		= ''
 	,@IsReSettledTickets		BIT				= 1
 	,@BroadcastSessionId		VARCHAR(50)		= NULL
@@ -28,6 +29,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
+		- 20241028@Aries: Direct payout for early soccer [Redmine:#211079]
 
 	Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -56,7 +58,8 @@ BEGIN
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_Auto_1s] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 
 															+ ', @SelectedResources = ''' + @SelectedResources + ''''
-															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''  														
+															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''  	
+															+ ', @IsAuto = ' + CONVERT(NVARCHAR(1), @IsAuto)
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + '''' 
 															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 	
 															+ CASE WHEN @BroadcastSessionId IS NOT NULL 
