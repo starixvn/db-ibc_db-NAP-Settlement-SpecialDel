@@ -84,7 +84,7 @@ BEGIN
 			AND rd.LastModifyDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,1), @CurrTime)
 			AND rd.HomeValue NOT LIKE '%NT%' 
 			AND rd.AwayValue NOT LIKE '%NT%'
-			AND rd.ResourceId LIKE '38[1245]0[1-9]' 
-
+			AND ((rd.ResourceID  LIKE '38[12][0-2][0-9]' AND CAST(RIGHT(rd.ResourceID, 2) AS INT) BETWEEN 1 AND 25)
+				 OR rd.ResourceID  LIKE '38[45]0[1-5]' )
 END
 GO
