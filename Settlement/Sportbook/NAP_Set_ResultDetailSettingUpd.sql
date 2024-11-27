@@ -60,7 +60,7 @@ BEGIN
 	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 
 	SELECT	@ActionId = CASE	WHEN @Type = 1 THEN 81021
-								WHEN @Type IN (2,3) THEN 81032
+								WHEN @Type IN (2,3,4) THEN 81032
 								ELSE NULL
 						 END
 	SELECT @SportType = m.sporttype FROM dbo.Match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
@@ -305,6 +305,8 @@ BEGIN
 								WHEN 3 THEN 'NAP: Update Confirm-Refund-SDT ' + CASE @IsEnabled WHEN 0 THEN 'OFF ' ELSE  'ON ' END
 											+ ISNULL(@RemarkSDT,'')
 											+ IIF(@Is3x3 = 1,' Is3x3','')
+								WHEN 2 THEN 'NAP: Update Confirm-Refund (Mercy) ' + CASE @IsEnabled WHEN 0 THEN 'OFF ' ELSE  'ON ' END
+											+ '(' + @ResourceIds + ')'
 								ELSE '' END
 	
 	BEGIN TRY
