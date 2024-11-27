@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Set_Match3rd_Info_Update]
 (
      @MatchId						INT
-	,@EventStatus					VARCHAR(50)		 
+	,@EventStatus					VARCHAR(50)		   = NULL	 
 	,@BetStatus						VARCHAR(50)		   = NULL
 	,@SelectedResources			    VARCHAR(MAX)       = NULL
 	
@@ -15,6 +15,7 @@ AS
 	
 	Revision:
 		- 20240704@Aries: Initial [Redmine:#207309]
+		- 20241023@Louisa: Virtual Basketball [Redmine:#210733]
 
     Parameters Explanation:
 		 @SelectedResources = <Resources>
@@ -60,7 +61,7 @@ BEGIN
   	WHERE sr.ResourceID = '00'
 
     UPDATE  dbo.Match3rd WITH(ROWLOCK, UPDLOCK)
-    SET   eventstatus		= @EventStatus
+    SET   eventstatus		= ISNULL(@EventStatus, eventstatus)
 	     ,BetStatus			= @BetStatus
 		 ,hthomescore		= IIF(@HasHTScore = 1, @HTHome, hthomescore)
 		 ,htawayscore		= IIF(@HasHTScore = 1, @HTAway, htawayscore)
