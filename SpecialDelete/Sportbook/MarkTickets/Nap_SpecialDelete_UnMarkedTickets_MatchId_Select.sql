@@ -834,7 +834,7 @@ BEGIN
 		b.modds AS MasterOdds, 
 		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
-		LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
+		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 		LEFT JOIN match m WITH (NOLOCK) ON m.matchid = b.MatchId
 	ORDER BY CASE

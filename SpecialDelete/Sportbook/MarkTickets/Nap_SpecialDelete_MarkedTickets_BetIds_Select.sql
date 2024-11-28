@@ -315,7 +315,7 @@ BEGIN
 		,b.modds AS MasterOdds
 		,@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
-		LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
+		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.custid = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 	ORDER BY CASE
 				WHEN b.recommend IN (52466, 5707545) THEN 1
