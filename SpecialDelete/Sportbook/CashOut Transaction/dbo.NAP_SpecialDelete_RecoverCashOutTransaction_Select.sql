@@ -242,7 +242,7 @@ BEGIN
 			d.TransDesc,
 			d.UserName,			
 			d.TransDate,
-			c.site AS GroupName,
+			ci.site AS GroupName,
 			d.ExtraInfo,
 			d.BetdaqId,			
 			d.WinLost,
@@ -256,6 +256,7 @@ BEGIN
 			d.ActualStake,
 			d.SiteDBGroupID
 	FROM #SpecialDeleteBets d
+	     INNER JOIN CUSTDB.dbo.Customer AS ci WITH (NOLOCK) ON ci.custid = d.custid
 		 LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 				 ON d.recommend = c.custid		 	
 	ORDER BY c.site ASC, d.TransId ASC				

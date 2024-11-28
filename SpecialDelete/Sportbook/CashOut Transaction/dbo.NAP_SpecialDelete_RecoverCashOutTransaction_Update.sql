@@ -563,7 +563,7 @@ BEGIN
 			d.TransDesc,
 			d.StatusId,
 			d.UserName,				
-			c.Site AS GroupName,
+			ci.Site AS GroupName,
 			d.ExtraInfo,
 			d.BetdaqId,			
 			CURRENT_TIMESTAMP AS [DateTime],
@@ -583,6 +583,7 @@ BEGIN
 			d.SiteDBGroupID,
 			d.matchid
 	FROM #SpecialDeleteBets d
+		 INNER JOIN CUSTDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = d.custid
 		 LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 			     ON d.recommend = c.custid
 	ORDER BY c.site ASC
