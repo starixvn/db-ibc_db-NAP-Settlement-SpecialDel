@@ -469,7 +469,6 @@ BEGIN
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = b.bettype
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
-			LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		WHERE b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
@@ -834,7 +833,7 @@ BEGIN
 		b.modds AS MasterOdds, 
 		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
-		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = c.custid
+		LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 		LEFT JOIN match m WITH (NOLOCK) ON m.matchid = b.MatchId
 	ORDER BY CASE
