@@ -2,7 +2,7 @@
 ALTER PROCEDURE  NAP_Set_Match3rd_SendNotify
 	 @MatchId				INT 
 	,@SportType				TINYINT
-	,@SelectedResources		VARCHAR(MAX)
+	,@ResourceIds			VARCHAR(500) = NULL
 AS
 /*
     Creator: 20240704@Aries 
@@ -11,6 +11,7 @@ AS
 	
 	Revision:
 		- 20240704@Aries: Initial [Redmine:#207309]
+		- 20241023@Louisa: Virtual Basketball [Redmine:#210733]
 
     Parameters Explanation:
 
@@ -20,9 +21,12 @@ BEGIN
 	DECLARE  @totalTicket			INT
 			,@MatchIdMainParlay		INT = 0
 			,@BettypeMainParlay		SMALLINT = 0
-			,@handle				INT
+			,@IsCentral				BIT = 0
 
 	DECLARE @tmpSelectedResources TABLE (ResourceID VARCHAR(20), BetType SMALLINT, BetID BIGINT,PRIMARY KEY (BetType,BetID))
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	IF  @SportType IN (147)
 	BEGIN
@@ -30,15 +34,18 @@ BEGIN
 		SET @BettypeMainParlay = @MatchIdMainParlay
 	END
 
-	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources 
+	INSERT INTO @tmpSelectedResources(ResourceID, BetType, BetID)  
+	SELECT v.value, sp.BetType, sp.BetID
+	FROM STRING_SPLIT(@ResourceIds, ',')v
+		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = v.value
+	WHERE sp.SportType = @SportType
 
 	INSERT INTO @tmpSelectedResources(ResourceID, BetType, BetID)  
-	SELECT Id, sp.BetType, sp.BetID
-	FROM OPENXML(@handle,'Resources/Resource',1) WITH(Id VARCHAR(20)) AS tbl
-		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = tbl.Id
+	SELECT v.value, sp.BetType, sp.BetID
+	FROM STRING_SPLIT(@ResourceIds, ',')v
+		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.RefResourceID = v.value
 	WHERE sp.SportType = @SportType
-	
-	EXEC sp_xml_removedocument @handle
+		AND ISNULL(sp.RefResourceID,'') <> ''
 
 	DECLARE @betTicket	TABLE
 	(
@@ -76,42 +83,47 @@ BEGIN
 			FROM @tmpSelectedResources t 
 			WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 		)
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
 	
 	--main parlay
-	;WITH cte_refno AS (
-		SELECT bm.custid, bm.refno
-		FROM dbo.bettransm bm WITH(NOLOCK)
-		WHERE bm.matchid = @MatchId
-			AND EXISTS (
-				SELECT TOP 1 1
-				FROM @tmpSelectedResources t 
-				WHERE bm.BetType = t.BetType AND (t.BetID = 0 OR t.BetID = bm.betcheck)
-			)
-	)
-	INSERT INTO @betTicket ( 
-		transid
-		, CustID
-		, srecommend
-		, Username
-		, TransDate
-		, TicketType
-	)
-	SELECT b.transid
-		, b.custid
-		, b.srecommend
-		, c.Username
-		, b.TransDate
-		, 'p'
-	FROM dbo.bettrans b WITH(NOLOCK)
-		INNER JOIN cte_refno r 
-			ON b.refno = r.refno
-		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
-			ON b.custid		= c.custid
-	WHERE matchid		= @MatchIdMainParlay
-		AND b.statusId	NOT IN (101, 102)
-		AND b.custid  = r.custid
-		AND b.bettype = @BettypeMainParlay
+	IF @MatchIdMainParlay > 0
+	BEGIN
+		;WITH cte_refno AS (
+			SELECT bm.custid, bm.refno
+			FROM dbo.bettransm bm WITH(NOLOCK)
+			WHERE bm.matchid = @MatchId
+				AND EXISTS (
+					SELECT TOP 1 1
+					FROM @tmpSelectedResources t 
+					WHERE bm.BetType = t.BetType AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+				)
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+		)
+		INSERT INTO @betTicket ( 
+			transid
+			, CustID
+			, srecommend
+			, Username
+			, TransDate
+			, TicketType
+		)
+		SELECT b.transid
+			, b.custid
+			, b.srecommend
+			, c.Username
+			, b.TransDate
+			, 'p'
+		FROM dbo.bettrans b WITH(NOLOCK)
+			INNER JOIN cte_refno r 
+				ON b.refno = r.refno
+			INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
+				ON b.custid		= c.custid
+		WHERE matchid		= @MatchIdMainParlay
+			AND b.statusId	NOT IN (101, 102)
+			AND b.custid  = r.custid
+			AND b.bettype = @BettypeMainParlay
+	END
 		
 	SET @totalTicket = (SELECT COUNT(1) FROM @betTicket)
 
@@ -127,19 +139,6 @@ BEGIN
 
 ----------return data
 
-	--credit tickets
-	SELECT TransID
-		, CASE TicketType WHEN 's' THEN 'Single Ticket' 
-						  WHEN 'p' THEN 'Selection of Mix Parlay'
-						  ELSE ''
-		  END AS TicketType
-		, CustID
-		, Username
-		, TransDate
-	FROM @betTicket
-	WHERE IsDeposit = 0
-
-	--deposite tickets
 	SELECT TransID
 		, CASE TicketType WHEN 's' THEN 'Single Ticket' 
 						  WHEN 'p' THEN 'Selection of Mix Parlay'
@@ -149,9 +148,8 @@ BEGIN
 		, Username
 		, TransDate
 		, SiteName
+		,IsDeposit
 	FROM @betTicket
-	WHERE IsDeposit = 1
-
 
 END
 GO

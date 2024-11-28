@@ -19,7 +19,8 @@ AS
 		- 20210316@Louisa: Cricket AIO [Redmine:#148870]
 		- 20230620@Kathy: view info in archive [Redmine:#186616]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
-		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
+		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875
+		- 20241023@Louisa: VS6-Virtual Basketball [Redmine:#210733]
 
 	Example: 
 		@ProductType = 'BBD' -- BetBuilder
@@ -77,6 +78,11 @@ BEGIN
 			FROM VSRaceInfo WITH (NOLOCK)
 			WHERE EventID = @matchid
 				and EventTime BETWEEN @FromDate and @ToDate
+
+			INSERT INTO @TMP_ALL_MatchInfo ( matchid , homeid , awayid ,  eventdate , leagueid, sporttype, matchcode)
+			SELECT Match3rdId , homeid , awayid ,  eventdate , League3rdId, sporttype, matchcode
+			FROM match3rd WITH (NOLOCK)
+			WHERE match3rdId = @matchid
 		END
 		ELSE 
 		BEGIN
@@ -94,6 +100,12 @@ BEGIN
 				AND 1 = CASE WHEN sporttype IN (8, 50) AND ISNULL(ChildMatchType,0) = 200 THEN 0
 							ELSE 1
 						END
+
+			INSERT INTO @TMP_ALL_MatchInfo ( matchid , homeid , awayid ,  eventdate , leagueid, sporttype, matchcode)
+			SELECT Match3rdId , homeid , awayid ,  eventdate , League3rdId, sporttype, matchcode
+			FROM match3rd WITH (NOLOCK)
+			WHERE matchcode = @MatchCode
+				and eventdate BETWEEN @FromDate and @ToDate
 		END
 
 		IF @BalanceUpDay < @FromDate     
@@ -122,6 +134,12 @@ BEGIN
 			WHERE EventID = @matchid
 				and EventTime BETWEEN @BalanceUpDay and @ToDate
 
+			INSERT INTO @TMP_ALL_MatchInfo ( matchid , homeid , awayid ,  eventdate , leagueid, sporttype, matchcode)
+			SELECT Match3rdId , homeid , awayid ,  eventdate , League3rdId, sporttype, matchcode
+			FROM match3rd14 WITH (NOLOCK)
+			WHERE Match3rdId = @matchid
+				and eventdate BETWEEN @BalanceUpDay and @ToDate
+
 		END
 		ELSE
 		BEGIN
@@ -139,6 +157,12 @@ BEGIN
 				AND 1 = CASE WHEN sporttype IN (8, 50) AND ISNULL(ChildMatchType,0) = 200 THEN 0
 							ELSE 1
 						END
+
+			INSERT INTO @TMP_ALL_MatchInfo ( matchid , homeid , awayid ,  eventdate , leagueid, sporttype, matchcode)
+			SELECT Match3rdId , homeid , awayid ,  eventdate , League3rdId, sporttype, matchcode
+			FROM match3rd14 WITH (NOLOCK)
+			WHERE matchcode = @MatchCode
+				and eventdate BETWEEN @BalanceUpDay and @ToDate
 		END
 	END
 

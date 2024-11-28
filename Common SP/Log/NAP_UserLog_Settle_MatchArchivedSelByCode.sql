@@ -16,6 +16,7 @@ AS
 		- 20230620@Kathy: view info in archive [Redmine:#186616]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
+		- 20241023@Louisa: VS6-Virtual Basketball [Redmine:#210733]
 
 	Example: 
 		@ProductType = 'BBD' -- BetBuilder
@@ -68,7 +69,11 @@ BEGIN
 		SELECT EventID AS matchid , NULL AS homeid ,NULL AS awayid ,EventTime AS   eventdate , LeagueID, SportType, NULL AS  showtime,  NULL AS  matchcode
 		FROM VSRaceInfo_BK WITH (NOLOCK)
 		WHERE EventID = @matchid
-			and EventTime BETWEEN @FromDate and @ToDate
+
+		INSERT INTO @TMP_ALL_MatchInfo (matchid ,homeid  ,awayid  ,eventdate ,leagueid ,sporttype ,matchcode  )
+		SELECT 	Match3rdId , homeid , awayid , eventdate , League3rdId, sporttype, matchcode
+		FROM 	dbo.match3rd_bk WITH (NOLOCK) 
+		WHERE 	Match3rdId = @matchid 
 	END
 	ELSE IF @FromDate < @BalanceUpDay   
 	BEGIN
@@ -96,7 +101,13 @@ BEGIN
 			SELECT EventID AS matchid , NULL AS homeid ,NULL AS awayid ,EventTime AS   eventdate , LeagueID, SportType, NULL AS  showtime,  NULL AS  matchcode
 			FROM VSRaceInfo_BK WITH (NOLOCK)
 			WHERE EventID = @matchid
-				and EventTime BETWEEN @BalanceUpDay and @ToDate
+				and EventTime BETWEEN @FromDate and @ToDate
+
+			INSERT INTO @TMP_ALL_MatchInfo (matchid ,homeid  ,awayid  ,eventdate ,leagueid ,sporttype ,matchcode  )
+			SELECT 	Match3rdId , homeid , awayid , eventdate , League3rdId, sporttype, matchcode
+			FROM 	dbo.match3rd_bk WITH (NOLOCK) 
+			WHERE 	Match3rdId = @matchid
+				AND eventdate BETWEEN @FromDate and @ToDate
 		END
 		ELSE 
 		BEGIN
