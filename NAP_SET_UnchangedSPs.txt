@@ -1,6 +1,3 @@
-Settlement\Sportbook\dbo.NAP_Set_VS_TicketInfo_Sel.sql
-Settlement\VirtualBetRadar\Calculation\dbo.NAP_Admin_Calculate_VS_BetRadar_Main.proc.sql
-Settlement\VirtualBetRadar\Calculation\dbo.NAP_Admin_Calculate_VS_BetRadar_Refund.proc.sql
-Settlement\VirtualBetRadar\Parlay\dbo.NAP_Admin_Calculate_VS_BetRadar_Parlay.proc.sql
-SpecialDelete\VirtualSport\RecoverBet\dbo.NAP_SpecialDelete_RecoverSingleVSBetRadar_Upd.sql
-SpecialDelete\VirtualSport\RecoverBet\dbo.NAP_SpecialDelete_RecoverVSBetRadar_Upd.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
+Settlement\Sportbook\dbo.NAP_Admin_MatchInfoUpd.sql
+Common SP\Validation\NAP_Admin_Settlement_Validation_Event.sql

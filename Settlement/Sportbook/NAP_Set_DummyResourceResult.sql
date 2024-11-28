@@ -2274,6 +2274,13 @@ BEGIN
 			IF @Action LIKE 'REFUND%'  AND EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail WHERE ISNULL(OtherInfo,'')  = 'A')
 			BEGIN
 				SET @AbandonedStatus = 1
+
+				SELECT @CurrentRound = ResourceId 
+				FROM @tmpResultDetail
+				WHERE (ResourceId LIKE '010[1-9]'  OR ResourceId IN ('01', '00','EI'))
+					AND ssId = 4
+					AND IsWeb = 1
+					AND (HomeValue != ''  OR AwayValue != '' )
 			END
 						
 			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, isCalculated, AbandonedStatus)
@@ -2290,13 +2297,17 @@ BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '8801')
 			BEGIN
 				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated,AbandonedStatus)
-				SELECT	ResourceId, r.HomeValue, r.AwayValue, r.ssid, ISNULL(ft.isCalculated, 0) AS isCalculated,@AbandonedStatus
+				SELECT	ResourceId, r.HomeValue, r.AwayValue, r.ssid, ISNULL(ft.isCalculated, 0) AS isCalculated,r.AbandonedStatus
 				FROM	@tmpDummyResourceIds t
 					CROSS APPLY (
-						SELECT	SUM(CAST(HomeValue AS INT)) AS HomeValue, SUM(CAST(AwayValue AS INT)) AS AwayValue, MIN(ssid) AS ssid
+						SELECT	SUM(CAST(HomeValue AS INT)) AS HomeValue
+							  , SUM(CAST(AwayValue AS INT)) AS AwayValue
+							  , MIN(ssid) AS ssid
+							  , IIF(@CurrentRound = 'EI',@AbandonedStatus,0) AS AbandonedStatus
 						FROM	@tmpResultDetail
-						WHERE	ResourceId LIKE '010[1-9]'
+						WHERE	ResourceId LIKE '010[1-9]' OR ResourceId = 'EI'
 								AND ssId = 4
+
 					)r
 					OUTER APPLY (
 						SELECT 	CASE WHEN ssid = 4 THEN 1 ELSE 0 END AS isCalculated
@@ -2307,57 +2318,62 @@ BEGIN
 			END
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880703'))
 			BEGIN
-				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated)
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated,AbandonedStatus)
 				SELECT 	'880703'
 						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
 						,SUM(CASE WHEN ssid = 4 THEN CAST(AwayValue AS INT) ELSE 0 END) AS AwayValue
 						,MIN(ssid) AS ssid
 						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+						,IIF(@CurrentRound = '0103',@AbandonedStatus,0) AS AbandonedStatus
 				FROM 	@tmpResultDetail
 				WHERE	ResourceId LIKE '010[1-3]'
 			END
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880705'))
 			BEGIN
-				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated)
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated,AbandonedStatus)
 				SELECT 	'880705'
 						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
 						,SUM(CASE WHEN ssid = 4 THEN CAST(AwayValue AS INT) ELSE 0 END) AS AwayValue
 						,MIN(ssid) AS ssid
 						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+						,IIF(@CurrentRound = '0105',@AbandonedStatus,0) AS AbandonedStatus
 				FROM 	@tmpResultDetail
 				WHERE	ResourceId LIKE '010[1-5]'
 				
 			END
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880707'))
 			BEGIN
-				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated)
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId, isCalculated,AbandonedStatus)
 				SELECT 	'880707'
 						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
 						,SUM(CASE WHEN ssid = 4 THEN CAST(AwayValue AS INT) ELSE 0 END) AS AwayValue
 						,MIN(ssid) AS ssid
 						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+						,IIF(@CurrentRound = '0107',@AbandonedStatus,0) AS AbandonedStatus
 				FROM 	@tmpResultDetail
 				WHERE	ResourceId LIKE '010[1-7]'
 			END
 			
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880803'))
 			BEGIN
-				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId, isCalculated)
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId, isCalculated,AbandonedStatus)
 				SELECT 	'880803'
 						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
 						,MIN(ssid) AS ssid
 						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+						,IIF(@CurrentRound = '0103',@AbandonedStatus,0) AS AbandonedStatus
 				FROM 	@tmpResultDetail
 				WHERE	ResourceId LIKE '010[1-3]'
 				
 			END
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880805'))
 			BEGIN
-				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId, isCalculated)
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId, isCalculated,AbandonedStatus)
 				SELECT 	'880805'
 						,SUM(CASE WHEN ssid = 4 THEN CAST(HomeValue AS INT) ELSE 0 END) AS HomeValue
 						,MIN(ssid) AS ssid
 						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+						,IIF(@CurrentRound = '0105',@AbandonedStatus,0) AS AbandonedStatus
 				FROM 	@tmpResultDetail
 				WHERE	ResourceId LIKE '010[1-5]'
 				
@@ -2365,21 +2381,23 @@ BEGIN
 			
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880903'))
 			BEGIN
-				INSERT INTO @tmpDummyResourceResults (ResourceId, AwayValue, ssId, isCalculated)
+				INSERT INTO @tmpDummyResourceResults (ResourceId, AwayValue, ssId, isCalculated,AbandonedStatus)
 				SELECT 	'880903'
 						,SUM(CASE WHEN ssid = 4 THEN CAST(AwayValue AS INT) ELSE 0 END) AS AwayValue
 						,MIN(ssid) AS ssid
 						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+						,IIF(@CurrentRound = '0103',@AbandonedStatus,0) AS AbandonedStatus
 				FROM 	@tmpResultDetail
 				WHERE	ResourceId LIKE '010[1-3]'
 			END
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('880905'))
 			BEGIN
-				INSERT INTO @tmpDummyResourceResults (ResourceId, AwayValue, ssId, isCalculated)
+				INSERT INTO @tmpDummyResourceResults (ResourceId, AwayValue, ssId, isCalculated,AbandonedStatus)
 				SELECT 	'880905'
 						,SUM(CASE WHEN ssid = 4 THEN CAST(AwayValue AS INT) ELSE 0 END) AS AwayValue
 						,MIN(ssid) AS ssid
 						,MIN(CASE WHEN ssid = 4 THEN 1 ELSE 0 END) AS isCalculated
+						,IIF(@CurrentRound = '0105',@AbandonedStatus,0) AS AbandonedStatus
 				FROM 	@tmpResultDetail
 				WHERE	ResourceId LIKE '010[1-5]'
 				
@@ -2393,7 +2411,7 @@ BEGIN
 				,AwayValue AS '@Away'
 				,ssId AS '@ssId'
 				,isCalculated AS '@isCal'
-				,AbandonedStatus AS '@AbandonedStatus'
+				,ISNULL(AbandonedStatus,0) AS '@AbandonedStatus'
 		FROM @tmpDummyResourceResults
 		FOR XML PATH('r'), ROOT('root'), TYPE))
 

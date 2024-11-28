@@ -27,6 +27,8 @@ AS
 		- 20230214@Louisa: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241111@Aries: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
+
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -107,7 +109,7 @@ BEGIN
 	IF @Action  LIKE 'Refund%'
 	BEGIN
 		IF ( SELECT COUNT(1) FROM @tmpResultSetting ) = 0
-			OR EXISTS (SELECT TOP 1 1 FROM @tmpResultSetting r WHERE r.ResultSetting & 2 = 0 AND r.ResultSetting & 4 = 0)
+			OR EXISTS (SELECT TOP 1 1 FROM @tmpResultSetting r WHERE r.ResultSetting & 2 = 0 AND r.ResultSetting & 4 = 0 AND r.ResultSetting & 8 = 0)
 		
 		SELECT @ErrCode = 1001055
 			 , @ErrMsg	= 'WARNING! Cannot continue due to selected results are not confirmed to refund. Please confirm refund and try again.'

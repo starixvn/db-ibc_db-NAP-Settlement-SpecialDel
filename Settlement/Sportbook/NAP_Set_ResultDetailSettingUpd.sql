@@ -57,7 +57,7 @@ BEGIN
 			,@IsValidateSOPRefund BIT = 0
 								
 	DECLARE @tmpResultDetail TABLE ( ResourceId	VARCHAR(20)	)
-	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OtherInfo VARCHAR(50))
 
 	SELECT	@ActionId = CASE	WHEN @Type = 1 THEN 81021
 								WHEN @Type IN (2,3,4) THEN 81032
@@ -112,15 +112,17 @@ BEGIN
 	IF @Type IN ( 3, 4) OR ISNULL(@SelectedResources,'') != ''
 	BEGIN
 		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-		SELECT Id, ISNULL(Home,''), ISNULL(Away,'')
-		FROM OPENXML(@handle,'Resources/Resource',1) WITH(Id VARCHAR(20),Home VARCHAR(50),Away VARCHAR(50)) AS tbl
+		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue,OtherInfo)
+		SELECT Id, ISNULL(Home,''), ISNULL(Away,''),OtherInfo
+		FROM OPENXML(@handle,'Resources/Resource',1) WITH(Id VARCHAR(20),Home VARCHAR(50),Away VARCHAR(50), OtherInfo  VARCHAR(50)) AS tbl
 		EXEC sp_xml_removedocument @handle
 
-		IF EXISTS (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = 'OT') AND NOT EXISTS (SELECT 1 FROM @tmpResultDetail WHERE ResourceID = 'OT')
+		IF EXISTS (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID IN ('OT','EI')) AND NOT EXISTS (SELECT 1 FROM @tmpResultDetail WHERE ResourceID IN ('OT','EI'))
 		BEGIN
 			INSERT INTO @tmpResultDetail(ResourceId)
-			VALUES('OT')
+			SELECT ResourceId 
+			FROM @tmpResourcesWeb 
+			WHERE ResourceID IN ('OT','EI')
 		END
 
 		IF @IsEnabled = 1
@@ -136,13 +138,14 @@ BEGIN
 					AND p.SourceId = 99 -- Remove old confirm
 					AND p.ResourceId IN  (SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
 
-				INSERT INTO dbo.ProviderExternalResultDetail (MatchId3rd,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateBy,LastModifyBy)
+				INSERT INTO dbo.ProviderExternalResultDetail (MatchId3rd,MatchId,SourceId,ResourceId,HomeValue,AwayValue,OtherInfo,CreateBy,LastModifyBy)
 				SELECT	 0 AS MatchId3rd
 						,@MatchId AS MatchId
 						,99 AS SourceId
 						,ResourceId
 						,HomeValue
 						,AwayValue
+						,OtherInfo
 						,@AdminId AS CreateBy
 						,@AdminId AS LastModifyBy
 				FROM @tmpResourcesWeb
@@ -155,13 +158,14 @@ BEGIN
 					AND p.SourceId = 99 -- Remove old confirm
 					AND p.ResourceId IN  (SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
 
-				INSERT INTO dbo.ProviderExternalResultDetailOS (MatchId3rd,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateBy,LastModifyBy)
+				INSERT INTO dbo.ProviderExternalResultDetailOS (MatchId3rd,MatchId,SourceId,ResourceId,HomeValue,AwayValue,OtherInfo,CreateBy,LastModifyBy)
 				SELECT	 0 AS MatchId3rd
 						,@MatchId AS MatchId
 						,99 AS SourceId
 						,ResourceId
 						,HomeValue
 						,AwayValue
+						,OtherInfo
 						,@AdminId AS CreateBy
 						,@AdminId AS LastModifyBy
 				FROM @tmpResourcesWeb
