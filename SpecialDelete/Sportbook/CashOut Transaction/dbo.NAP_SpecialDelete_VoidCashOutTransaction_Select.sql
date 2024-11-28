@@ -369,9 +369,8 @@ BEGIN
 			d.SiteDBGroupID
 	FROM #SpecialDeleteBets d	
 		 INNER JOIN CUSTDB.dbo.Customer AS ci WITH (NOLOCK) ON d.custid = ci.custid	
-		 LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-				 ON d.recommend = c.custid		 	
-	ORDER BY c.site ASC, d.TransId ASC							 						 
+		 	
+	ORDER BY ci.site ASC, d.TransId ASC							 						 
 	
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #Durations

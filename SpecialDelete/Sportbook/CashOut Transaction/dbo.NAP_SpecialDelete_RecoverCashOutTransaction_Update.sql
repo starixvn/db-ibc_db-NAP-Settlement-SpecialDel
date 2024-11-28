@@ -584,9 +584,7 @@ BEGIN
 			d.matchid
 	FROM #SpecialDeleteBets d
 		 INNER JOIN CUSTDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = d.custid
-		 LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-			     ON d.recommend = c.custid
-	ORDER BY c.site ASC
+	ORDER BY ci.site ASC
 		   , d.TransId			
 	
 	-- Write useraction log	

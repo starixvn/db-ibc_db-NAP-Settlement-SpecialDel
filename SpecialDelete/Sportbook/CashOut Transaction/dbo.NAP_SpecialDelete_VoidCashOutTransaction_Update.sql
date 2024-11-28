@@ -536,7 +536,7 @@ BEGIN
 				WHEN d.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
 				ELSE ci.Site 
 			END AS EmailGroup, 
-			ag.currency,
+			ci.currency,
 			d.CurrencyName, 				
 			@isITAdmin AS IsITSupport,
 			d.BetFrom,			
