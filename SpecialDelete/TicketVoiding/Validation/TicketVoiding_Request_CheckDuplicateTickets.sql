@@ -22,6 +22,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20241129@July: Hint - Error 'maximum recursion 100 has been exhausted'  [Redmine: #211913]
 
 	Param's explanation:
 */
@@ -332,6 +333,7 @@ BEGIN
 			,v.DuplicateGroup = c.refno
 		FROM #validTransId v
 			INNER JOIN cte c ON c.transid = v.transid
+		OPTION (MAXRECURSION 0);
 	END
 
 	-- get unsuppored transid
