@@ -742,7 +742,7 @@ BEGIN
 		   ,s.IsCashOut
 		   ,s.SiteDBGroupID
 	FROM CTE_OriginResult s
-		LEFT JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 	ORDER BY CASE
 				WHEN s.OriginGroupName = 'CN88' THEN 1
 				WHEN s.OriginGroupName = 'Credit' THEN 2

@@ -937,7 +937,7 @@ BEGIN
 		   ,s.VendorMatchId
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
-		LEFT JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		INNER JOIN #TmpMatch m ON s.matchid = m.Matchid
 	ORDER BY CASE
 				WHEN s.GroupName = 'CN88' THEN 1

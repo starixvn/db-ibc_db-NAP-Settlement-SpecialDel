@@ -325,8 +325,8 @@ BEGIN
 		UPDATE s 
 			SET GroupName = tl.GroupName
 		FROM	#tmpTransInfo s
-			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK)
-						 ON s.recommend = c.custid
+			INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK)
+						 ON s.custid = c.custid
 			INNER JOIN @tmpLicenseeNames tl
 						 ON tl.LicenseeName = c.site 
 

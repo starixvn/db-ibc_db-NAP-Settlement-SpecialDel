@@ -2224,7 +2224,7 @@ BEGIN
 		   ,s.GroupPHaffected -- Affect isuetype : HDP,OU,ODDS
 		   ,s.VendorMatchId
 	FROM CTE_SettledTypeFiltering s
-		LEFT JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 	WHERE 1 = CASE WHEN @IssueTypeId <> 13 THEN 1
 				   WHEN @IssueTypeId = 13 AND  s.statusId IN (SELECT statusID FROM @Status_tmp)	 THEN 1 
