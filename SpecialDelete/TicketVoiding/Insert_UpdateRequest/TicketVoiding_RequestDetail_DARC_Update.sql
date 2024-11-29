@@ -25,6 +25,7 @@ AS
 		- 20230405@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
 
 	Param's explanation:
 		+ @IssueTypeId: 1 - Danger Accepted, 10 - Red Card
@@ -57,7 +58,7 @@ BEGIN
 			,VoidToTime				DATETIME
 			,LiveHomeScore			INT
 			,LiveAwayScore			INT
-			,LiveScores				NVARCHAR(300)
+			,IssueDetail			NVARCHAR(MAX)
 			,TypeAccept				VARCHAR(2000)
 			,SubIssueTypeId			SMALLINT
 			)
@@ -100,7 +101,7 @@ BEGIN
 			,MainParlayCount		
 			,VoidFromTime			
 			,VoidToTime				
-			,LiveScores					
+			,IssueDetail					
 			,TypeAccept
 			,SubIssueTypeId
 		)
@@ -113,7 +114,14 @@ BEGIN
 			,t.c.value('@MainParlayCount','INT') AS MainParlayCount
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
+			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') 
+				+ ';Act:' 
+				+ ';TvDetectionValue:' + t.c.value('@TvDetectionValue','VARCHAR(10)') --0 - uncheck; 1-slow; 2-fast
+				+ ';ServiceAcceptTime:' + t.c.value('@ServiceAcceptTime','VARCHAR(50)')
+				+ ';ActualTime:' + t.c.value('@ActualTime','VARCHAR(50)')
+				+ ';MinuteOffset:' + t.c.value('@MinuteOffset','VARCHAR(10)')
+				+ ';SecondOffset:' + t.c.value('@SecondOffset','VARCHAR(10)')
+			AS IssueDetail
 			,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') + '" SA="' + t.c.value('@SATime','VARCHAR(10)') + 
 				+ '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') 
 				+ '" IsCheckedVar="' + CAST (t.c.value('@IsCheckedVar','BIT') AS VARCHAR(10))
@@ -144,7 +152,7 @@ BEGIN
 			, VoidToTime = l.VoidToTime
 			, LiveHomeScore = l.LiveHomeScore
 			, LiveAwayScore = l.LiveAwayScore
-			, IssueDetail = l.LiveScores
+			, IssueDetail = l.IssueDetail
 			, TransIds = l.TypeAccept
 			, SubIssueTypeId = l.SubIssueTypeId
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
@@ -186,7 +194,7 @@ BEGIN
 		, l.VoidToTime
 		, l.LiveHomeScore
 		, l.LiveAwayScore
-		, l.LiveScores
+		, l.IssueDetail
 		, l.TypeAccept
 		, l.SubIssueTypeId
 	FROM #tblGetLogInfo l
@@ -284,7 +292,7 @@ BEGIN
 							+ @LogDataContent
 						AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
-	) AS VARCHAR(MAX))
+	) AS NVARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 	
