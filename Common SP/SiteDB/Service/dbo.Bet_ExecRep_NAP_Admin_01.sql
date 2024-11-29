@@ -47,6 +47,7 @@ AS
 		- 20230816@Kathy: parlay boost [Redmine:#191873] 
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]		
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20241113@Louisa: set priority of action MoveEvent higher than Settlement for WinlostDate value [Redmine:#213613]
 
 	Param's Explanation:  
 		   
@@ -525,7 +526,9 @@ BEGIN
 							,winlostdate = CASE 
 												WHEN t.winlostdate IS NULL THEN bm.winlostdate	
 												WHEN t.winlostdate = '' THEN NULL
-												ELSE t.winlostdate
+												ELSE CASE WHEN t.winlostdate < bm.winlostdate THEN bm.winlostdate 
+															ELSE t.winlostdate 
+															END
 											END
 							,WinLost = CASE WHEN t.WinLost IS NULL THEN bm.winlost ELSE t.WinLost END
 							,[status] = CASE WHEN t.Status IS NULL THEN bm.status ELSE t.Status END
@@ -554,7 +557,9 @@ BEGIN
 							,winlostdate = CASE	
 												WHEN t.winlostdate IS NULL THEN pd.winlostdate
 												WHEN t.winlostdate = '' THEN NULL
-												ELSE t.winlostdate
+												ELSE CASE WHEN t.winlostdate < pd.winlostdate THEN pd.winlostdate 
+															ELSE t.winlostdate 
+															END
 											END
 								,statusID = CASE WHEN t.StatusID IS NULL THEN pd.statusid ELSE t.StatusID END			
 								,statuswinlost = CASE 
