@@ -77,10 +77,7 @@ BEGIN
 			PlayerNamesChineseSimplified NVARCHAR(200)
 		)
 
-	SELECT @IssueTypeId = ( SELECT TOP 1 IssueTypeId 
-							FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
-							WHERE RequestId = @RequestId
-						  )
+	SELECT @IssueTypeId = IssueTypeId FROM dbo.TicketVoiding_Request WITH (NOLOCK) WHERE RequestId = @RequestId
 
 	IF @IssueTypeId = 22 --Check exists resettled ticket for Recover Issuetye
 	BEGIN

@@ -56,6 +56,7 @@ AS
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 
 	Param's explanation:	
 		@Status: 
@@ -111,6 +112,7 @@ BEGIN
 		,LA				VARCHAR(MAX)
 		,MessageId		INT
 		,Message        NVARCHAR(MAX)
+		,RequestDetailId	INT
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 	
@@ -181,7 +183,7 @@ BEGIN
 	----------------------------- End of EventDate Processing ------------------------------
 	IF @FilteredBy = 1
 	BEGIN
-	INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark)
+	INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark, RequestDetailId)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -209,6 +211,7 @@ BEGIN
 				,rd.FilterBy
 				,rd.ProductIds
 				,r.Provider, r.Source, r.Remark
+				,CASE WHEN r.IssueTypeId = 12 THEN rd.Id ELSE NULL END AS RequestDetailId 
 		FROM dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -228,7 +231,7 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 2
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark, RequestDetailId)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -256,6 +259,7 @@ BEGIN
 				,rd.FilterBy
 				,rd.ProductIds
 				,r.Provider, r.Source, r.Remark
+				,CASE WHEN r.IssueTypeId = 12 THEN rd.Id ELSE NULL END AS RequestDetailId 
 		FROM	dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -279,7 +283,7 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark, RequestDetailId)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -307,6 +311,7 @@ BEGIN
 				,rd.FilterBy
 				,rd.ProductIds
 				,r.Provider, r.Source, r.Remark
+				,CASE WHEN r.IssueTypeId = 12 THEN rd.Id ELSE NULL END AS RequestDetailId 
 		FROM #tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
@@ -392,6 +397,7 @@ BEGIN
 				WHERE s.RequestId = t.RequestId 
 				     AND s.IsProcessed IS NOT NULL
 					 AND (s.MatchId = t.MatchId OR t.MatchId = 0)
+					 AND (s.RequestDetailId = t.RequestDetailId OR t.RequestDetailId IS NULL)
 			)cnt	
 	UPDATE t 
 	SET TotalParlayProcessed = cnt.TotalParlayProcessed
@@ -401,8 +407,8 @@ BEGIN
 				WHERE s.RequestId = t.RequestId 
 				     AND s.IsProcessed IS NOT NULL
 					 AND (s.MatchId = t.MatchId OR t.MatchId = 0)
+					 AND (s.RequestDetailId = t.RequestDetailId OR t.RequestDetailId IS NULL)
 			)cnt	
-
 	
 	--- BETS: return all additional information for mailing 
 	CREATE TABLE #CTE_CustInfo (CustId INT, UserName VARCHAR(30))
@@ -465,6 +471,7 @@ BEGIN
 			,t.Provider, t.Source, t.Remark, t.Trader, t.LA, t.Message
 			,vs.VendorMatchId
 			,vs.Distance AS RaceId
+			,t.RequestDetailId --Support WMO(12) issuetype
 	FROM	#tmpResult t
 		LEFT JOIN #CTE_CustInfo c ON t.UserId = c.CustId
 		LEFT JOIN #CTE_CustInfo v ON t.LastVoidedBy = v.CustId
