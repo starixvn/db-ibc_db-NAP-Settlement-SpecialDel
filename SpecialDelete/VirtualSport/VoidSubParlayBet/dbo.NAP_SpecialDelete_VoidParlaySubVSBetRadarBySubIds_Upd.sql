@@ -577,7 +577,7 @@ BEGIN
 				@isITAdmin AS IsItSupport,
 				r.BetFrom 
 		FROM #tmpBetDelete r
-				LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
+				INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 						ON r.custid = c.custid
 				LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
 						ON r.recommend = ag.custid
