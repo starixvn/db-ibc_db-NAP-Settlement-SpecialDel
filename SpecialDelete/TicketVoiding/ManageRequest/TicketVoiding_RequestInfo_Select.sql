@@ -30,6 +30,7 @@ AS
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
+		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 
 	Param's explanation:
 		
@@ -74,8 +75,8 @@ BEGIN
 		;WITH CTE_Single AS(
 			SELECT vh.RequestId
 					,SUM( CASE 
-							WHEN @IssueTypeId NOT IN (1,10,3,12,24,25) AND f.bettype IS NULL THEN 1
-							WHEN @IssueTypeId IN (1,10,3,12,24,25) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+							WHEN @IssueTypeId NOT IN (1,10,3,12,24,25,18) AND f.bettype IS NULL THEN 1
+							WHEN @IssueTypeId IN (1,10,3,12,24,25,18) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 							ELSE 0 END
 					) AS TotalVoidedSingle
 					,SUM(CASE WHEN f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalVoidedParlay

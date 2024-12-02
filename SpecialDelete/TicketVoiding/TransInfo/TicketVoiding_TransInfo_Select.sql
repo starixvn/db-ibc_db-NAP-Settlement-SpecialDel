@@ -21,6 +21,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Select]
 	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
 	,@WrongOddsSBInfo		VARCHAR(MAX) = NULL
 	,@WrongOfferedNameInfo	VARCHAR(MAX) = NULL
+	,@OtherIssuesInfo		VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -40,6 +41,7 @@ AS
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
+		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 
 	Param's explanation:	
 		
@@ -196,6 +198,14 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_WOName_Select
 			@WrongOfferedNameInfo = @WrongOfferedNameInfo
+	END
+	/*-----------------*/
+
+	/*---Other Issues---*/
+	IF @IssueTypeId IN (18)
+	BEGIN
+		EXEC dbo.TicketVoiding_TransInfo_ADVMode_Select
+			@AdvancedModeInfo = @OtherIssuesInfo
 	END
 	/*-----------------*/
 END

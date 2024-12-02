@@ -7,15 +7,16 @@ AS
 /*	
 	Created by: 20240522@Max
 	Task: [TVS] Wrong Market Offered issue type [Redmine: #197051]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#197051]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
+		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 
 	Param's explanation:	
-		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
+		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime =""/></root>
 		
 */
 BEGIN
@@ -110,6 +111,7 @@ BEGIN
 		,FilterTransdesc NVARCHAR(1000)
 		,FilterPlayerAndOdds NVARCHAR(1000)	
 		,FilterBetOption		NVARCHAR(250)
+		,FilterOddsSpread MONEY
 	)
 
 	DECLARE @bettype_detail AS TABLE (
@@ -122,18 +124,19 @@ BEGIN
 		,FilterTransdesc	NVARCHAR(2000)
 		,IsFancy			BIT DEFAULT (0)
 		,FilterPlayerAndOdds NVARCHAR(2000)	
-		,FilterX  NVARCHAR(50)
-		,FilterY  NVARCHAR(50)
-		,FilterXY  NVARCHAR(50)
+		,FilterX			NVARCHAR(50)
+		,FilterY			NVARCHAR(50)
+		,FilterXY			NVARCHAR(50)
 		,FilterBetOption	NVARCHAR(250)
+		,FilterOddsSpread	MONEY --Support bettype 228,229
 	)
 
 	SET @AdvancedModeInfoXML = CONVERT(XML, @AdvancedModeInfo)
 
 	SELECT @MatchID = t.c.value('@MatchId','INT')	
 		,@AdvancedExtraInfo = t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)')
-		,@FilterFromTransTime = t.c.value('@FilterFromTransTime','DATETIME')
-		,@FilterToTransTime = t.c.value('@FilterToTransTime','DATETIME')
+		,@FilterFromTransTime = CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END
+		,@FilterToTransTime = CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END
 	FROM @AdvancedModeInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AdvancedModeInfoXML = NULL))
 
@@ -157,6 +160,7 @@ BEGIN
 		,FilterHDP1
 		,FilterHDP2
 		,FilterBetOption
+		,FilterOddsSpread
 	)
 	SELECT tmp.bettype
 		, t.value AS betteam
@@ -173,10 +177,11 @@ BEGIN
 		,CAST(CASE WHEN vhdp2.value = '' THEN @ValueDefault
 						ELSE vhdp2.value END AS SMALLMONEY) AS ValueHdp2
 		,bop.value AS FilterBetOption
+		,os.value AS FilterOddsSpread
 	FROM (
 		SELECT Id AS bettype
 			,ISNULL(Team, 'All') AS betteam
-			,ISNULL(Hdp, '') AS HDPs
+			,ISNULL(REPLACE(Hdp,'&',','), '') AS HDPs
 			,ISNULL(Player, '') AS Players
 			,ISNULL(REPLACE(FilterBetIdX,'&',','),'') AS betIdX
 			,ISNULL(REPLACE(FilterBetIdY,'&',','),'') AS betIdY
@@ -184,13 +189,14 @@ BEGIN
 			,ISNULL(NULLIF(Hdp1, 'All'), '') AS HDP1s
 			,ISNULL(Hdp2, '') AS HDP2s
 			,ISNULL(BetOption, '') AS BetOption
+			,ISNULL(OddsSpread, '') AS OddsSpread
 		FROM OPENJSON(@AdvancedExtraInfo) 
-		WITH( Id SMALLINT, Team NVARCHAR(2000), Hdp VARCHAR(100), Player VARCHAR(1000)
+		WITH( Id SMALLINT, Team NVARCHAR(2000), Hdp VARCHAR(MAX), Player VARCHAR(1000)
 			, FilterBetIdX VARCHAR(1000), FilterBetIdY VARCHAR(1000), PlayerAndOdds VARCHAR(2000)
-			, Hdp1 VARCHAR(100), Hdp2 VARCHAR(100), BetOption NVARCHAR(250))
+			, Hdp1 VARCHAR(500), Hdp2 VARCHAR(500), BetOption NVARCHAR(500), OddsSpread VARCHAR(500))
 	)tmp
 	CROSS APPLY STRING_SPLIT(tmp.betteam, ',') t
-	CROSS APPLY STRING_SPLIT(tmp.HDPs, '&') vhdp
+	CROSS APPLY STRING_SPLIT(tmp.HDPs, ',') vhdp
 	CROSS APPLY STRING_SPLIT(tmp.Players, ',') pl
 	CROSS APPLY STRING_SPLIT(tmp.betIdX, ',') x
 	CROSS APPLY STRING_SPLIT(tmp.betIdY, ',') y
@@ -198,6 +204,7 @@ BEGIN
 	CROSS APPLY STRING_SPLIT(tmp.HDP1s, '&') vhdp1
 	CROSS APPLY STRING_SPLIT(tmp.HDP2s, '&') vhdp2
 	CROSS APPLY STRING_SPLIT(tmp.BetOption, ',') bop
+	CROSS APPLY STRING_SPLIT(tmp.OddsSpread, '&') os
 
 	UPDATE d SET d.IsFancy = 1
 	FROM @bettype_detail d
@@ -277,6 +284,7 @@ BEGIN
 			,FilterPlayerAndOdds 
 			,FilterHdp
 			,FilterBetOption
+			,FilterOddsSpread
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -348,6 +356,7 @@ BEGIN
 		,b.oddsid AS FilterPlayerAndOdds 
 		,b.hdp1 + b.hdp2 AS FilterHdp
 		,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
+		,b.oddsspread AS FilterOddsSpread
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
@@ -355,8 +364,11 @@ BEGIN
 		AND b.bettype NOT IN (805, 806, 9, 29)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
-		AND 1 = CASE WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-				ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
+		AND 1 = CASE 
+					WHEN d.FilterFromTransTime IS NULL AND d.FilterToTransTime IS NULL THEN 1
+					WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+				ELSE CASE 
+					WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
 					ELSE 0 END
 			END
 		AND b.SiteDBGroupID = @SiteDBGroupID
@@ -440,6 +452,7 @@ BEGIN
 				,FilterPlayerAndOdds 
 				,FilterHdp
 				,FilterBetOption
+				,FilterOddsSpread
 			)
 		SELECT sub.matchid
 			,b.TransId
@@ -509,6 +522,7 @@ BEGIN
 			,sub.oddsid AS FilterPlayerAndOdds 
 			,sub.hdp1 + sub.hdp2 AS FilterHdp
 			,CAST(CAST(sub.hdp2 AS INT) AS VARCHAR(50)) + '-' + sub.betteam AS FilterBetOption
+			,sub.oddsspread AS FilterOddsSpread
 		FROM #FilterInfo d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -516,7 +530,9 @@ BEGIN
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29
 			AND b.bettype = 29
-			AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+			AND (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+					OR (d.FilterFromTransTime IS NULL AND d.FilterToTransTime IS NULL)
+				)
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
 
@@ -567,6 +583,7 @@ BEGIN
 							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'n' AND b.FilterHdp1 > f.FilterRuns THEN 1
 					ELSE 0 END
 				AND (f.FilterBetOption = '' OR b.FilterBetOption = f.FilterBetOption)
+				AND (f.FilterOddsSpread = '' OR b.FilterOddsSpread = f.FilterOddsSpread)
 		)t
 	WHERE t.Bettype IS NULL
 			

@@ -34,6 +34,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
 	,@WrongOddsSBInfo		VARCHAR(MAX)  = NULL
 	,@WrongOfferedNameInfo  NVARCHAR(MAX) = NULL
+	,@OtherIssuesInfo		VARCHAR(MAX) = NULL
 	,@SessionTime			INT = 0
 	,@RequestId				INT			  = 0 OUTPUT
 AS
@@ -77,6 +78,7 @@ AS
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
+		- 20241022@July: [TVS] New Issue Type "Other Issues" [Redmine: #211913]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -249,6 +251,17 @@ BEGIN
 				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END
+	ELSE IF @IssueTypeId IN (18) --Other Issues (Use same SP with Wrong Odds (Sportsbook))
+	BEGIN
+		EXEC dbo.TicketVoiding_RequestDetail_WOSB_Update
+				 @RequestId		 = @RequestId		
+				,@IssueTypeId	 = @IssueTypeId	
+				,@UserId		 = @UserId		
+				,@IP			 = @IP			
+				,@WrongOddsSBInfo = @OtherIssuesInfo
+				,@TransInfoJson	 = @TransInfoJson			
+				,@IsEditRequest	 = @IsEditRequest
+	END
 	ELSE IF @IssueTypeId IN (19,23) --Reduced Over, Abandoned
 	BEGIN
 		EXEC dbo.TicketVoiding_RequestDetail_RO_Update
@@ -349,8 +362,7 @@ BEGIN
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
 								+ ', IssueTypeId: ' + CAST(@IssueTypeId AS VARCHAR(20))
 								+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
-								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10,4,5,6,7,19,23) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
-															   ELSE '' END
+								+ CASE WHEN @MistakenBy IS NOT NULL THEN ', MistakenBy: ' + @MistakenBy ELSE '' END
 								+ ', DecidedBy: ' + CASE WHEN @DecidedBy IS NOT NULL THEN @DecidedBy ELSE 'NULL' END
 								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10)
 															   THEN ', Operators: '+ CAST(@Operators AS VARCHAR(MAX))

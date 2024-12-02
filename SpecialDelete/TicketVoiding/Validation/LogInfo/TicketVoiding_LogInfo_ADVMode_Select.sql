@@ -22,7 +22,7 @@ AS
 		- 20240823@July: WMKO/TE - Add Details of bet list for issue types [Redmine: #208628]
 
 	Param's explanation:	
-		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
+		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime =""/></root>
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -56,7 +56,6 @@ BEGIN
 			checktime			  DATETIME,
 			accepttype			  TINYINT,
 			SubIssueTypeId		  SMALLINT,
-			FilterBy			  TINYINT,
 			IsCancelCashOut		  BIT,
 			CheckTimeCashOut	  DATETIME,
 			liveindicator		  BIT,
@@ -87,7 +86,6 @@ BEGIN
 		 MatchId				INT
 		,FilterFromTransTime	DATETIME
 		,FilterToTransTime		DATETIME
-		,FilterBy				TINYINT
 		,SubIssueTypeId			SMALLINT
 		,isFinish				BIT
 	)
@@ -193,11 +191,10 @@ BEGIN
     FROM [dbo].[f_SD_GroupDisplayBettype] () f
 
 	SET @AdvancedModeInfoXML = CONVERT(XML, @AdvancedModeInfo)
-	INSERT INTO #FilterInfo (MatchID, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId)
+	INSERT INTO #FilterInfo (MatchID, FilterFromTransTime, FilterToTransTime, SubIssueTypeId)
 	SELECT t.c.value('@MatchId','INT') AS MatchID
-			,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
-			,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
-			,t.c.value('@FilterBy','TINYINT') AS FilterBy
+		    ,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
+		    ,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 	FROM @AdvancedModeInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AdvancedModeInfoXML = NULL))
@@ -352,7 +349,6 @@ BEGIN
 			,checktime
 			,accepttype
 			,SubIssueTypeId
-			,FilterBy
 			,IsCancelCashOut
 			,CheckTimeCashOut
 			,liveindicator
@@ -385,7 +381,6 @@ BEGIN
 								END
 					END AS accepttype
 			,d.SubIssueTypeId
-			,d.FilterBy
 			,CASE WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 0
 				  ELSE CASE WHEN b.betdaqid = -2 AND b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND b.AcceptModeCashOut IS NOT NULL THEN 1
 							ELSE 0 END
@@ -432,7 +427,6 @@ BEGIN
 				,checktime
 				,accepttype
 				,SubIssueTypeId
-				,FilterBy
 				,IsCancelCashOut
 				,CheckTimeCashOut
 				,liveindicator
@@ -465,7 +459,6 @@ BEGIN
 								END
 					END AS accepttype
 				,d.SubIssueTypeId
-				,d.FilterBy
 				,0 AS IsCancelCashOut
 				,NULL AS CheckTimeCashOut
 				,b.liveindicator
