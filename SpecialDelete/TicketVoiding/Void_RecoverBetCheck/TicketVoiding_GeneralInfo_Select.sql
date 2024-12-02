@@ -153,7 +153,6 @@ BEGIN
 		DECLARE @tmpTicketInfo TABLE (
 			RequestId		INT
 		   ,VoidingHistoryId INT 
-		   ,RequestDetailId INT
 		   ,SingleTransIds  VARCHAR(MAX)
 		   ,ParlayTransIds  VARCHAR(MAX)
 		)
@@ -167,28 +166,24 @@ BEGIN
 				 ,ParlayTransIds VARCHAR(MAX)
 				))tbl
 
-		UPDATE t
-		SET t.RequestDetailId = ISNULL(s.RequestDetailId, sp.RequestDetailId)
-		FROM @tmpTicketInfo t
-		OUTER APPLY(
+		DELETE vh --Remove voidinghistory not follow RequestDetailId input
+		FROM #tmpVoidingHistory vh
+			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
+			OUTER APPLY(
 				SELECT TOP 1 s.RequestDetailId
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
 				WHERE s.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.SingleTransIds,''), ',') )
 					AND t.RequestId = s.RequestId
 					AND s.RequestDetailId = @RequestDetailId
 			)s	
-		OUTER APPLY(
-				SELECT TOP 1 sp.RequestDetailId
-				FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
-				WHERE sp.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.ParlayTransIds,''), ',') )
-				AND t.RequestId = sp.RequestId
-					AND sp.RequestDetailId = @RequestDetailId
-			)sp
-		
-		DELETE vh --Remove voidinghistory not follow RequestDetailId input
-		FROM #tmpVoidingHistory vh
-			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
-		WHERE t.RequestDetailId IS NULL
+			OUTER APPLY(
+					SELECT TOP 1 sp.RequestDetailId
+					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
+					WHERE sp.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.ParlayTransIds,''), ',') )
+					AND t.RequestId = sp.RequestId
+						AND sp.RequestDetailId = @RequestDetailId
+				)sp
+		WHERE s.RequestDetailId IS NULL AND sp.RequestDetailId IS NULL
 	END
 
 	SET @VoidingHistoryIds = STUFF((SELECT  ',' + CAST (VoidingHistoryId AS VARCHAR(50))

@@ -103,21 +103,37 @@ BEGIN
 	
 	IF @IssueTypeId = 12 --Wrong Market Offered
 	BEGIN
+		DECLARE @tmpTicketInfo TABLE (
+			RequestId		INT
+		   ,VoidingHistoryId INT 
+		   ,SingleTransIds  VARCHAR(MAX)
+		   ,ParlayTransIds  VARCHAR(MAX)
+		)
+		INSERT INTO @tmpTicketInfo (RequestId, VoidingHistoryId, SingleTransIds, ParlayTransIds)
+		SELECT vh.RequestId, vh.VoidingHistoryId, tbl.SingleTransIds, tbl.ParlayTransIds
+		FROM @tmpResultAfterVoid vh
+		CROSS APPLY (
+			SELECT SingleTransIds,ParlayTransIds
+			FROM OPENJSON(vh.TransIds) 
+			WITH( SingleTransIds VARCHAR(MAX)
+				 ,ParlayTransIds VARCHAR(MAX)
+				))tbl
+		
 		UPDATE vh
 		SET vh.RequestDetailId = ISNULL(s.RequestDetailId, sp.RequestDetailId)
 		FROM @tmpResultAfterVoid vh
-			CROSS APPLY (
-				SELECT value AS TransId FROM STRING_SPLIT(ISNULL(vh.TransIds,''), ',') 
-			)xTrans
+			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
 			OUTER APPLY(
 					SELECT TOP 1 s.RequestDetailId
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-					WHERE xTrans.TransId = s.TransId AND vh.RequestId = s.RequestId
-				)s
+					WHERE s.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.SingleTransIds,''), ',') )
+						AND t.RequestId = s.RequestId
+				)s	
 			OUTER APPLY(
 					SELECT TOP 1 sp.RequestDetailId
 					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
-					WHERE xTrans.TransId = sp.TransId AND vh.RequestId = sp.RequestId
+					WHERE sp.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.ParlayTransIds,''), ',') )
+					AND t.RequestId = sp.RequestId
 				)sp
 	END
 
