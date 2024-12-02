@@ -512,8 +512,8 @@ BEGIN
 						 ON t.transid = b.transid
 				 INNER JOIN #t_exchanges te WITH (NOLOCK)
 						 ON b.currency = te.exchangeid 	 
-				 LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-						 ON b.recommend = c.custid
+				 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
+						 ON b.custid = c.custid
 				 INNER JOIN #t_LicenseeNames tl WITH (NOLOCK)
 						 ON tl.LicenseeName = c.site -- filter for @LicenseeIDs	
 			WHERE @Sporttype BETWEEN 1 AND 99 -- sportbook only				
@@ -643,8 +643,8 @@ BEGIN
 				 INNER HASH JOIN bettrans main WITH (NOLOCK) ON sub.refno = main.refno
 				INNER JOIN #t_exchanges te WITH (NOLOCK)
 					     ON main.currency = te.exchangeid 
-				LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-						 ON main.recommend = c.custid
+				INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
+						 ON main.custid = c.custid
 				INNER JOIN #t_LicenseeNames tl1 WITH (NOLOCK)
 						 ON c.site = tl1.LicenseeName -- filter for @LicenseeIDs						 
 			WHERE main.matchid =29 AND main.bettype = 29 -- parlay

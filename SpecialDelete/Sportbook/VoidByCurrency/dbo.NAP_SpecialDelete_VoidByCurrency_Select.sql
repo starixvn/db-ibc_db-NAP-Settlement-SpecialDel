@@ -314,8 +314,8 @@ BEGIN
 		FROM bettrans b WITH (NOLOCK)
 			 INNER JOIN @t_exchanges te
 					 ON b.currency = te.exchangeid -- filter for @CurrencyCodes			 
-			 LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-					 ON b.recommend = c.custid
+			 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
+					 ON b.custid = c.custid
 			 INNER JOIN @t_LicenseeNames tl
 					 ON tl.LicenseeName = c.site -- filter for @LicenseeIDs	
 		WHERE b.matchid IN (SELECT MatchId FROM @tmpMatchId)
@@ -422,8 +422,8 @@ BEGIN
 					 ON main.refno = sub.refno
 			 INNER JOIN @t_exchanges te
 					 ON main.currency = te.exchangeid  -- filter for @CurrencyCodes
-			 LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-					 ON main.recommend = c.custid
+			 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
+					 ON main.custid = c.custid
 			 INNER JOIN @t_LicenseeNames tl1
 					 ON tl1.LicenseeName = c.site -- filter for @LicenseeIDs	
 		WHERE main.matchid IN (9, 29) AND main.bettype IN (9, 29) -- parlay

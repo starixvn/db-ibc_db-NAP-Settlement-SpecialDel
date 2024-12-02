@@ -372,7 +372,7 @@ BEGIN
 			,@SiteDBGroupID AS SiteDBGroupID
 			,t.modds AS MasterOdds
 	FROM	@tblRecoverBet t
-		LEFT JOIN custDB.dbo.Customer ag WITH (NOLOCK) ON	t.recommend = ag.custid
+		INNER JOIN custDB.dbo.Customer ag WITH (NOLOCK) ON	t.custid = ag.custid
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 	WHERE t.bettype <> 500
 	ORDER BY [site]

@@ -1544,7 +1544,7 @@ BEGIN
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 			,s.modds AS MasterOdds
 	FROM CTE_SettledTypeFiltering s
-		LEFT JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 	ORDER BY CASE
 				WHEN s.OriginGroupName = 'Credit' THEN 1
