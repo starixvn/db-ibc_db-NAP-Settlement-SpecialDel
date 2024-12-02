@@ -94,6 +94,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 		- 20241021@Aries: AutoPayout2 for Baseball AiO (Regular and Series Matches) [Redmine:#211632]
+		- 20241111@Aries: Support Auto Payout 2 for Volleyball [Redmine:#213198]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -956,7 +957,7 @@ BEGIN
 		  		GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   			) AS tbl1
 		
-		IF  @sportType IN (5,6,9) AND EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL')
+		IF  @sportType IN (5,9) AND EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL')
 		BEGIN
 			EXEC dbo.NAP_Set_GetRefundResult
 				@MatchId		= @MatchID
@@ -984,8 +985,8 @@ BEGIN
 											THEN CASE
 													WHEN @AutoSourceInfo IS NOT NULL THEN '<r n="Auto Payout" v="' +@AutoSourceInfo +'"/>' 
 													WHEN @sportType = 50 THEN '<r n="Direct Payout" v="Weverdat"/>'
-													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL') OR (@sportType = 5 AND @ChildMatchType IS NULL) OR @AutoType = 1 THEN '<r n="Auto Payout" v="SBO"/>'
-													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL_EAR')  OR (@sportType = 5 AND @ChildMatchType IS NOT NULL) OR @AutoType = 2 THEN '<r n="Auto Payout" v="Direct"/>'
+													WHEN (@sportType IN (  9 ) AND @Action = 'CAL') OR (@sportType = 5 AND @ChildMatchType IS NULL) OR @AutoType = 1 THEN '<r n="Auto Payout" v="SBO"/>'
+													WHEN (@sportType IN (  9 ) AND @Action = 'CAL_EAR')  OR (@sportType = 5 AND @ChildMatchType IS NOT NULL) OR @AutoType = 2 THEN '<r n="Auto Payout" v="Direct"/>'
 													ELSE '' 
 												END
 										ELSE '' 
@@ -1000,7 +1001,7 @@ BEGIN
 									END
 									+ CASE 
 										WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL THEN '<r n="CalcChild" v="' + @ChildMatchIds + '"/>'
-										WHEN @sportType IN (5,6,9) AND   @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL' THEN '<r n="Auto Refund" v="' + CAST(@IsExistAR AS VARCHAR(1)) + '"/>'
+										WHEN @sportType IN (5,9) AND   @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL' THEN '<r n="Auto Refund" v="' + CAST(@IsExistAR AS VARCHAR(1)) + '"/>'
 										ELSE '' 
 									END
 							END								

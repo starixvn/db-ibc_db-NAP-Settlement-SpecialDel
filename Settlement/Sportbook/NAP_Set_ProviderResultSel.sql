@@ -14,6 +14,7 @@ AS
 		- 20240122@Aries: Provider Result Log [Redmine:#199100]
 		- 20240307@Aries: Enhance the Provider Result Logs Phase 2 [Redmine: #201480]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241002@Aries: direct payout for early soccer [Redmine:#211079]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -115,7 +116,10 @@ BEGIN
 	IF @Sporttype = 1
 	BEGIN
 		INSERT INTO #Data(ResourceId,HomeValue,AwayValue,CreateDate,AutoPayoutStatus,Remark,RankNo)
-		SELECT IIF(ap.CalculationType = 1,'01','00') AS ResourceId
+		SELECT CASE WHEN ap.CalculationType = 1 THEN '01'
+                    WHEN ap.CalculationType = 2 THEN '00'
+                    ELSE ap.ResourceID 
+               END AS ResourceId
 			  ,ap.HomeValue
 			  ,ap.AwayValue
 			  ,ap.CreatedDate
@@ -123,9 +127,9 @@ BEGIN
 			  ,ap.Remark
 			  ,1 AS RankNo
 		FROM  AutoPayoutResult AS ap WITH(NOLOCK)
-			LEFT JOIN  @tmpResourceID AS r ON (ap.CalculationType = 1 AND r.ResourceID = '01') OR (ap.CalculationType = 2 AND r.ResourceID = '00')
+			LEFT JOIN  @tmpResourceID AS r ON (ap.CalculationType = 1 AND r.ResourceID = '01') OR (ap.CalculationType = 2 AND r.ResourceID = '00') OR (ap.CalculationType = 5 AND r.ResourceID = ap.ResourceID)
 		WHERE ap.matchID = @MatchID
-			AND ap.CalculationType IN (1,2)
+			AND ap.CalculationType IN (1,2,5)
 			AND 1 = CASE WHEN ISNULL(@ResourceIDs,'') = ''	THEN 1
 						 WHEN r.ResourceID IS NOT NULL		THEN 1
 						 ELSE 0
