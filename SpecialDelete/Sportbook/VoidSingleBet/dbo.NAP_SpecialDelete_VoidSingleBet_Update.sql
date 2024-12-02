@@ -2114,9 +2114,9 @@ BEGIN
 			,su.Username AS SagUserName
 			,CASE 
 				WHEN al.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
-				ELSE su.site 
+				ELSE ci.site 
 			END AS EmailGroup
-			,su.site 
+			,ci.site 
 			,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
 			,@isITAdmin	AS IsITSupport
 			,CURRENT_TIMESTAMP AS [DateTime]		
