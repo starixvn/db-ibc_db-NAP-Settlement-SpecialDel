@@ -24,7 +24,7 @@ AS
 		- 20240315@July: Fix null winlostdate follow settle [Redmine: #200087]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
-		- 20241126@Lani: [TVS] Get site from srecommend, change serverAlias [Redmine: #213451]
+		- 20241126@Lani: [TVS] Get site from member, change serverAlias [Redmine: #213451]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -567,12 +567,14 @@ BEGIN
 				ma.UserName AS MasterName,
 				r.srecommend AS SuperId,
 				su.Username AS SuperName,
-				su.Site,
-				su.Site AS EmailGroup,
+				ci.Site,
+				ci.Site AS EmailGroup,
 				CURRENT_TIMESTAMP AS [DateTime],
 				@isITAdmin AS IsItSupport,
 				r.BetFrom 
 		FROM #RecoverBet r
+				INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK)
+						ON r.CustId = ci.custid
 				LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
 						ON r.recommend = ag.custid
 				LEFT JOIN CustDB.dbo.Customer ma WITH(NOLOCK)

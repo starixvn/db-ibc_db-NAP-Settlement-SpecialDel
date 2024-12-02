@@ -501,7 +501,7 @@ BEGIN
 				ma.UserName AS MagUserName,
 				r.srecommend,
 				su.Username AS SagUserName,
-				ag.Currency,
+				c.Currency,
 				c.Site,
 				c.Site AS EmailGroup,
 				@isITAdmin AS IsItSupport,

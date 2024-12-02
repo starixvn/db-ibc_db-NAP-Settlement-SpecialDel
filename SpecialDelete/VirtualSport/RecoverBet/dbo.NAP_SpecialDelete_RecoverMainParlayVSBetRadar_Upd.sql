@@ -611,12 +611,14 @@ BEGIN
 				ma.UserName AS MasterName,
 				r.srecommend AS SuperId,
 				su.Username AS SuperName,
-				su.Site,
-				su.Site AS EmailGroup,
+				ci.Site,
+				ci.Site AS EmailGroup,
 				CURRENT_TIMESTAMP AS [DateTime],
 				@isITAdmin AS IsItSupport,
 				r.BetFrom 
 		FROM #RecoverBet r
+				INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK)
+						ON r.CustId = ci.custid
 				LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
 						ON r.recommend = ag.custid
 				LEFT JOIN CustDB.dbo.Customer ma WITH(NOLOCK)

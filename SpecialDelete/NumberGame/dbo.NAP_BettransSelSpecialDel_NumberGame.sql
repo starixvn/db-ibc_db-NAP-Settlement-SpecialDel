@@ -123,7 +123,7 @@ BEGIN
 							) THEN 1
 					ELSE 0
 					END AS IsDeposit
-				,ag.site
+				,c.site
 				,CASE 
 					WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 					ELSE b.STATUS
@@ -137,7 +137,6 @@ BEGIN
 				,m.sporttype
 				,b.modds
 			FROM dbo.bettrans b WITH (NOLOCK)
-				LEFT JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 				INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
 				INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON b.custid = c.custid
 				INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid						
@@ -179,7 +178,7 @@ BEGIN
 							) THEN 1
 					ELSE 0
 					END AS IsDeposit
-				,ag.site
+				,c.site
 				,CASE 
 					WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 					ELSE b.STATUS
@@ -193,7 +192,6 @@ BEGIN
 				,m.sporttype
 				,b.modds
 			FROM dbo.bettrans b WITH (NOLOCK)
-				LEFT JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 				INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
 				INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON b.custid = c.custid
 				INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid
@@ -243,7 +241,7 @@ BEGIN
 						) THEN 1
 				ELSE 0
 				END AS IsDeposit
-			,ag.site
+			,c.site
 			,CASE 
 				WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 				ELSE b.STATUS
@@ -257,7 +255,6 @@ BEGIN
 			,m.sporttype
 			,b.modds
 		FROM dbo.bettrans b WITH (NOLOCK)
-			LEFT JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 			INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
 			INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON b.custid = c.custid
 			INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid
