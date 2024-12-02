@@ -953,14 +953,12 @@ BEGIN
 		SET username = c.username
 			,username2 = c.username2 
 			,creatorName = cr.username
-			,site = ag.site
+			,site = c.site
 	FROM	#tblTransInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON	t.custid = c.custid
 		INNER JOIN CustDB.dbo.Customer cr WITH(NOLOCK)
 			ON	t.creator = cr.custid
-		LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
-			ON	t.recommend = ag.custid
 	
 	-- delete normal ticket
 	DELETE main
