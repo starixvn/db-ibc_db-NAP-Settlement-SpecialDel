@@ -60,6 +60,7 @@ AS
 		- 20221228@Kathy: Action UNDO match causes the sub ticket bettransm.winlostdate NULL on centralDB [Redmine:#182078]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230306@Louisa: Exclude LiveScores HDP for Field Hockey [Redmine:#184450]
+		- 20241113@Louisa: set priority of action MoveEvent higher than Settlement for WinlostDate value [Redmine:#213613]
 
     Param's Explanation:
        
@@ -395,7 +396,9 @@ BEGIN
                 ,STATUS = 'VOID'
                 ,creator = @UserID
                 ,statusID = 102
-                ,winlostdate = @matchdate
+				,winlostdate = CASE WHEN @matchdate < winlostdate THEN winlostdate 
+									ELSE @matchdate
+								END
 			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben, inserted.status, inserted.creator, inserted.statusID, inserted.winlostdate
 			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, creator, statusId, winlostdate)
             WHERE matchid = @matchid 
@@ -405,7 +408,9 @@ BEGIN
             UPDATE dbo.BetParlayDetail WITH(ROWLOCK,UPDLOCK)
             SET statuswinlost = 0
                 ,statusID = 102
-                ,winlostdate = @matchdate
+                ,winlostdate = CASE WHEN @matchdate < winlostdate THEN winlostdate 
+									ELSE @matchdate
+								END
 			OUTPUT inserted.transid, inserted.statuswinlost, inserted.statusid, inserted.winlostdate
 			INTO #tmpOutputBetParlayDetail(transid, statuswinlost, StatusId, winlostdate)
             WHERE matchid = @matchid 

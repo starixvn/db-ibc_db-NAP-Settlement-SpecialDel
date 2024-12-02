@@ -612,7 +612,10 @@ BEGIN
 						,winlostdate = CASE	
 											WHEN t.winlostdate IS NULL THEN pd.winlostdate
 											WHEN t.winlostdate = '' THEN NULL
-											ELSE t.winlostdate
+											ELSE CASE WHEN t.winlostdate < pd.winlostdate THEN pd.winlostdate 
+															ELSE t.winlostdate 
+															END
+
 										END
 							,statusID = CASE WHEN t.StatusID IS NULL THEN pd.statusid ELSE t.StatusID END			
 							,statuswinlost = CASE 
