@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_GeneralInfo_Select]
 ( 
 	 @RequestId	INT
 	,@MatchIds   VARCHAR(MAX) = ''
+	,@RequestDetailId   INT	= NULL --Support WMO(12) issuetype
 )
 AS
 /*	Created by: 20201207@July
@@ -38,6 +39,7 @@ BEGIN
 			,@NegativeBalanceUsers VARCHAR(MAX) = ''
 			,@VoidingHistoryIds VARCHAR(MAX) = ''
 			,@SingleTransIds	VARCHAR(MAX) = ''
+			,@IssueTypeId INT
 
 	CREATE TABLE #tmpMatch 
 	(
@@ -60,6 +62,7 @@ BEGIN
 	(
 		RequestId INT
 		,VoidingHistoryId INT
+		,TransIds VARCHAR(MAX) --Support WMO(12) issuetype
 		,VoidedBy INT
 		,VoidResults XML
 		,MatchId INT
@@ -74,7 +77,7 @@ BEGIN
 
 	INSERT INTO @tmp_MatchId (MatchId)
 	SELECT value
-	FROM string_split (@MatchIds, ',')
+	FROM STRING_SPLIT(@MatchIds, ',')
 	WHERE value <> ''
 
 	INSERT INTO #tmpMatch (RequestId, MatchId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId, RecoveredTime, Sporttype, VendorMatchId, RaceId)
@@ -125,8 +128,11 @@ BEGIN
 					) m
 	WHERE rd.RequestId = @RequestId 
 		AND (rd.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR @MatchIds = '')
-	
-	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatch WHERE IssuetypeId = 22) --Recover Ticket
+		AND (rd.Id = @RequestDetailId OR @RequestDetailId IS NULL)
+
+	SELECT @IssueTypeId = (SELECT TOP 1 IssueTypeId FROM #tmpMatch)
+
+	IF @IssuetypeId = 22 --Recover Ticket
 	BEGIN
 		SET @SingleTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR(50))
 									FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
@@ -134,13 +140,57 @@ BEGIN
 									FOR XML PATH ('')),1,1,'')
 	END
 
-    INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy) 
+    INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy, TransIds) 
 	SELECT	 vh.RequestId
 			,vh.VoidingHistoryId
 			,vh.UserId AS VoidedBy
+			,vh.TransIds
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 	WHERE vh.RequestId = @RequestId AND vh.StatusId IN (2,3) 
 	
+	IF @IssuetypeId = 12 AND @RequestDetailId IS NOT NULL --Wrong Market Offered issuetype
+	BEGIN
+		DECLARE @tmpTicketInfo TABLE (
+			RequestId		INT
+		   ,VoidingHistoryId INT 
+		   ,RequestDetailId INT
+		   ,SingleTransIds  VARCHAR(MAX)
+		   ,ParlayTransIds  VARCHAR(MAX)
+		)
+		INSERT INTO @tmpTicketInfo (RequestId, VoidingHistoryId, SingleTransIds, ParlayTransIds)
+		SELECT vh.RequestId, vh.VoidingHistoryId, tbl.SingleTransIds, tbl.ParlayTransIds
+		FROM #tmpVoidingHistory vh
+		CROSS APPLY (
+			SELECT SingleTransIds,ParlayTransIds
+			FROM OPENJSON(vh.TransIds) 
+			WITH( SingleTransIds VARCHAR(MAX)
+				 ,ParlayTransIds VARCHAR(MAX)
+				))tbl
+
+		UPDATE t
+		SET t.RequestDetailId = ISNULL(s.RequestDetailId, sp.RequestDetailId)
+		FROM @tmpTicketInfo t
+		OUTER APPLY(
+				SELECT TOP 1 s.RequestDetailId
+				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+				WHERE s.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.SingleTransIds,''), ',') )
+					AND t.RequestId = s.RequestId
+					AND s.RequestDetailId = @RequestDetailId
+			)s	
+		OUTER APPLY(
+				SELECT TOP 1 sp.RequestDetailId
+				FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
+				WHERE sp.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.ParlayTransIds,''), ',') )
+				AND t.RequestId = sp.RequestId
+					AND sp.RequestDetailId = @RequestDetailId
+			)sp
+		
+		DELETE vh --Remove voidinghistory not follow RequestDetailId input
+		FROM #tmpVoidingHistory vh
+			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
+		WHERE t.RequestDetailId IS NULL
+	END
+
 	SET @VoidingHistoryIds = STUFF((SELECT  ',' + CAST (VoidingHistoryId AS VARCHAR(50))
 									FROM #tmpVoidingHistory
 									FOR XML PATH ('')),1,1,'')
