@@ -24,6 +24,7 @@ AS
 		- 20240327@Louisa: VS4 - Cock Fighting [Redmine:#199700]
 		- 20240808@Max: Max Payout - Integrate Virtually Sports (VS5) [Redmine: #209070]
 		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
+		- 20241203@Max: Improve performance of Max Payout per Match [Redmine: #214294]
 
 	Param's explanation:		
 		
@@ -78,7 +79,7 @@ BEGIN
 		AND m.sporttype > 99 AND m.sporttype NOT IN (164,178,179,180,186,188,190,191,192,193,194,195,196,197)
 
 	----------------------------------------------------------Inserted data for excluded sporttype ---------------------------------------------------------
-	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 	BEGIN
 		IF EXISTS (SELECT TOP 1 1
 					FROM dbo.CustLimitBet_789 cb WITH (NOLOCK)
@@ -91,7 +92,7 @@ BEGIN
 		END
 	END
 
-	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 	BEGIN
 		IF EXISTS (SELECT TOP 1 1
 					FROM dbo.CustLimitBet_MBC cb WITH (NOLOCK)
@@ -104,7 +105,7 @@ BEGIN
 		END
 	END
 
-	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,1,2)
 	BEGIN
 		IF EXISTS (SELECT TOP 1 1
 					FROM dbo.CustLimitBet_LIC cb WITH (NOLOCK)
@@ -118,7 +119,7 @@ BEGIN
 	
 	-----------------------------------------------------History table is missing data--------------------------------------------------------------------
 	--789y
-	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 	BEGIN
 		SET @transIds = ''
 		SET @UUSTransIds = ''
@@ -174,7 +175,7 @@ BEGIN
 	END
 	
 	--MBC
-	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 	BEGIN
 		SET @transIds = ''
 		SET @UUSTransIds = ''
@@ -231,7 +232,7 @@ BEGIN
 	END
 
 	--LIC
-	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,1,2)
 	BEGIN
 		SET @transIds = ''
 		SET @UUSTransIds = ''
@@ -286,7 +287,7 @@ BEGIN
 	END
 
 	--789y
-	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 	BEGIN
 		SET @transIds = ''
 		SET @UUSTransIds = ''
@@ -337,7 +338,7 @@ BEGIN
 	END
 	
 	--MBC
-	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 	BEGIN
 		SET @transIds = ''
 		SET @UUSTransIds = ''
@@ -389,7 +390,7 @@ BEGIN
 	END
 
 	--LIC
-	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,1,2)
 	BEGIN
 		SET @transIds = ''
 		SET @UUSTransIds = ''
