@@ -63,7 +63,7 @@ BEGIN
 		,MatchId
 		,RequestDetailId
 	)
-	SELECT req, vh, it, mid, id
+	SELECT req, vh, it, mid, ISNULL(id,0)
 	FROM STRING_SPLIT(@RequestInfo, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_RequestInfo) t
 		CROSS APPLY (
@@ -74,7 +74,7 @@ BEGIN
 	WHERE f.value <> ''
 
 	INSERT INTO #tmpResult (RequestId, MatchId, IssueTypeId, RequestDetailId)
-	SELECT DISTINCT RequestId, MatchId, IssueTypeId, RequestDetailId
+	SELECT DISTINCT RequestId, MatchId, IssueTypeId, ISNULL(RequestDetailId,0)
 	FROM #tmpMatchVoidingHistory
 	
 	-- single ticket	

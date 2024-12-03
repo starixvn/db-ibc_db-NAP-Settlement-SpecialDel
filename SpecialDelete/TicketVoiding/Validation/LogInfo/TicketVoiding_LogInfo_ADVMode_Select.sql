@@ -499,7 +499,7 @@ BEGIN
 					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END
 				AND b.Subbetfrom <> 'P' 
-				AND (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+				AND (b.Subtransdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 					OR (d.FilterFromTransTime IS NULL AND d.FilterToTransTime IS NULL)
 				    )
 	
@@ -971,6 +971,7 @@ BEGIN
 		,t.IsCancelCashOut AS 'isCCO'
 		,li.VoidFromTime AS 'vft'
 		,li.VoidToTime AS 'vtt'
+		,@MatchId AS 'm_mid'
 	FROM #TVSTicketBets t
 		CROSS APPLY (
 				SELECT MIN(VoidFromTime) AS VoidFromTime
