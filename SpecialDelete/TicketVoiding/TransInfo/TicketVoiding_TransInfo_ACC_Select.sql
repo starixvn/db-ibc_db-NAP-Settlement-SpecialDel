@@ -156,7 +156,7 @@ BEGIN
 		INSERT INTO #InputValidCustid_2 (custid)	
 		SELECT ci.custid
 		FROM #InputUsernameList l
-			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
+			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
 		WHERE l.roleid = 3 AND ci.roleid = 2
 	END
 
@@ -180,6 +180,26 @@ BEGIN
 		LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK)
 		ON lt.custid = ci.recommend
 	WHERE ci.roleid = 1
+
+	--list of super member
+	INSERT INTO #InputValidCustid_tmp (CustID)
+	SELECT l.custid
+	FROM #InputUsernameList AS l 
+		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
+		ON l.custid = ci.srecommend
+	WHERE ci.recommend IN (-3,-4) 
+		AND ci.roleid = 1
+		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_tmp)
+
+	--list of master member
+	INSERT INTO #InputValidCustid_tmp (CustID)
+	SELECT l.custid
+	FROM #InputUsernameList AS l 
+		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
+		ON l.custid = ci.mrecommend
+	WHERE ci.recommend = -3
+		AND ci.roleid = 1
+		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_tmp)
 
 	--Search single tickets (bettrans)
 	INSERT INTO #TransInfo(

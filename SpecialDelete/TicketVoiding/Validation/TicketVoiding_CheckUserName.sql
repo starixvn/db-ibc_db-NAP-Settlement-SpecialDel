@@ -243,7 +243,7 @@ BEGIN
 		INSERT INTO #InputValidCustid_2 (custid)	
 		SELECT DISTINCT ci.custid
 		FROM #InputUsernameList l
-			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
+			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
 			LEFT JOIN #InputValidCustid_2 ag ON ag.custid = ci.custid
 		WHERE l.roleid = 3 AND ci.roleid = 2 AND ag.custid IS NULL	
 	END
@@ -264,6 +264,26 @@ BEGIN
 	FROM #InputUsernameList l1
 		LEFT JOIN #InputValidCustid_2 l2 ON l1.recommend = l2.custid 
 	WHERE l1.roleid = 1 AND l2.custid IS NULL
+
+	--list of super member
+	INSERT INTO #InputValidCustid_1 (CustID)
+	SELECT l.custid
+	FROM #InputUsernameList AS l 
+		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
+		ON l.custid = ci.srecommend
+	WHERE ci.recommend IN (-3,-4) 
+		AND ci.roleid = 1
+		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_1)
+
+	--list of master member
+	INSERT INTO #InputValidCustid_1 (CustID)
+	SELECT l.custid
+	FROM #InputUsernameList AS l 
+		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
+		ON l.custid = ci.mrecommend
+	WHERE ci.recommend = -3
+		AND ci.roleid = 1
+		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_1)
 	
 	------------Prepare Data------------------------
 	INSERT INTO @bettype_tmp (bettype)
@@ -300,7 +320,7 @@ BEGIN
 				WHERE m.matchid = b.matchid
 					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 			)ml
-			LEFT JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
+			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 			AND 1 = CASE 
