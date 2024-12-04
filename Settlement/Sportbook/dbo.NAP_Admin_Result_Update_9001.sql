@@ -262,9 +262,9 @@ BEGIN
 	            ,LastModifyBy        = @creator
 				,ResultSetting		 = CASE WHEN @IsApplyRefundSOP = 1 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ISNULL(ResultSetting,0) & (~14) --- Turn off bit[2] bit[3] bit[4]
 											ELSE ResultSetting END
-				,OtherInfo			 = CASE WHEN @Sporttype = 50 THEN CASE WHEN ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ''
-																			ELSE ISNULL(SOURCE.OtherInfo, TARGET.OtherInfo)
-																			END
+				,OtherInfo			 = CASE WHEN @Sporttype = 50 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ''
+											WHEN @Sporttype = 8 AND @Action LIKE 'UNDO%' AND SOURCE.ResourceId LIKE '010[1-9]' THEN ''
+											ELSE ISNULL(SOURCE.OtherInfo, TARGET.OtherInfo)																		
 											END
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy, OtherInfo)               
