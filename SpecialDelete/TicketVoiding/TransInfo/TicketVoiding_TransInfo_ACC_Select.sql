@@ -181,9 +181,9 @@ BEGIN
 		ON lt.custid = ci.recommend
 	WHERE ci.roleid = 1
 
-	--list of super member
+	--List member Offer Direct Member for Super/Master
 	INSERT INTO #InputValidCustid_tmp (CustID)
-	SELECT l.custid
+	SELECT ci.custid
 	FROM #InputUsernameList AS l 
 		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
 		ON l.custid = ci.srecommend

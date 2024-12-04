@@ -265,9 +265,9 @@ BEGIN
 		LEFT JOIN #InputValidCustid_2 l2 ON l1.recommend = l2.custid 
 	WHERE l1.roleid = 1 AND l2.custid IS NULL
 
-	--list of super member
+	-- List member Offer Direct Member for Super/Master
 	INSERT INTO #InputValidCustid_1 (CustID)
-	SELECT l.custid
+	SELECT ci.custid
 	FROM #InputUsernameList AS l 
 		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
 		ON l.custid = ci.srecommend
@@ -341,7 +341,7 @@ BEGIN
 					WHERE m.matchid = b.matchid
 						AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 				)ml
-				LEFT JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
+				INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 				INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			WHERE b.winlostdate BETWEEN @FromWinlostDate_14 AND @ToWinlostDate_14 
 				AND 1 = CASE 
