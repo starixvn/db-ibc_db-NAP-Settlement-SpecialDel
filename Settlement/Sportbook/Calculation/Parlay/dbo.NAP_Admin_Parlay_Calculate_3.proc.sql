@@ -30,6 +30,7 @@ AS
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20241113@Louisa: set priority of action MoveEvent higher than Settlement for WinlostDate value [Redmine:#213613]
 
     Param's Explanation:
         
@@ -94,7 +95,8 @@ BEGIN
 			@IsUpd_Void = CASE WHEN bm.statusID = 102 OR t.IsMarked = 1 THEN 0 ELSE 1 END
 			,winlostdate = CASE 
 								WHEN @IsUpd_Void = 0 THEN winlostdate 
-								ELSE @matchdate
+								WHEN @matchdate < winlostdate THEN winlostdate 
+								ELSE @matchdate 
 							END 
 			,[status] 	= CASE 
 								WHEN @IsUpd_Void = 0 THEN bm.[status] 
@@ -139,7 +141,7 @@ BEGIN
 			
 		--UPDATE BetParlayDetail
 		UPDATE pd 
-		SET winlostdate 	= @matchdate
+		SET winlostdate 	= r.winlostdate
 			,statusid 		= r.statusId
 			,statuswinlost 	= r.statuswinlost
 		FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
@@ -168,6 +170,7 @@ BEGIN
 
 			,winlostdate = CASE 
 								WHEN @IsUpd_Void = 0 THEN bm.winlostdate 
+								WHEN @matchdate < winlostdate THEN winlostdate 
 								ELSE @matchdate
 							END
 
@@ -213,7 +216,7 @@ BEGIN
 	
 		--UPDATE BetParlayDetail
 		UPDATE pd 
-		SET winlostdate 	= @matchdate
+		SET winlostdate 	= r.winlostdate
 			,statusid 		= r.statusId
 			,statuswinlost 	= r.statuswinlost
 		FROM dbo.BetParlayDetail pd  WITH (ROWLOCK, UPDLOCK)

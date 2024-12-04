@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_m] 
 	@matchid INT
     ,@fth INT = NULL
@@ -60,6 +60,7 @@ AS
 		- 20221228@Kathy: Action UNDO match causes the sub ticket bettransm.winlostdate NULL on centralDB [Redmine:#182078]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230306@Louisa: Exclude LiveScores HDP for Field Hockey [Redmine:#184450]
+		- 20241113@Louisa: set priority of action MoveEvent higher than Settlement for WinlostDate value [Redmine:#213613]
 
     Param's Explanation:
        
@@ -395,22 +396,26 @@ BEGIN
                 ,STATUS = 'VOID'
                 ,creator = @UserID
                 ,statusID = 102
-                ,winlostdate = @matchdate
+				,winlostdate = CASE WHEN @matchdate < winlostdate THEN winlostdate 
+									ELSE @matchdate
+								END
 			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben, inserted.status, inserted.creator, inserted.statusID, inserted.winlostdate
 			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, creator, statusId, winlostdate)
             WHERE matchid = @matchid 
                 AND statusID NOT IN (101, 102) 
                 AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
 
-            UPDATE dbo.BetParlayDetail WITH(ROWLOCK,UPDLOCK)
+            UPDATE pd
             SET statuswinlost = 0
                 ,statusID = 102
-                ,winlostdate = @matchdate
+                ,winlostdate = r.winlostdate
 			OUTPUT inserted.transid, inserted.statuswinlost, inserted.statusid, inserted.winlostdate
 			INTO #tmpOutputBetParlayDetail(transid, statuswinlost, StatusId, winlostdate)
-            WHERE matchid = @matchid 
-                AND statusID NOT IN (101, 102) 
-                AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
+			FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+			INNER JOIN @tmpOutputBettransmVoidRecover r
+				ON pd.transid 	= r.transid
+            WHERE pd.matchid = @matchid 
+                AND pd.statusID NOT IN (101, 102)
         END --@doing = 'VOID'
     
         IF @doing = 'RECOVER'
