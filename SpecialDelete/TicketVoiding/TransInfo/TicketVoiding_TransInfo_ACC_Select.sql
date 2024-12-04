@@ -157,7 +157,7 @@ BEGIN
 		SELECT ci.custid
 		FROM #InputUsernameList l
 			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
-		WHERE l.roleid = 3 AND ci.roleid = 2
+		WHERE l.roleid = 3 AND ci.roleid = 2 AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_2)
 	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 4)
@@ -166,7 +166,7 @@ BEGIN
 		SELECT ci.custid
 		FROM #InputUsernameList l
 			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
-		WHERE l.roleid = 4 AND ci.roleid = 2	
+		WHERE l.roleid = 4 AND ci.roleid = 2 AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_2)	
 	END
 
 	-- list of member to process
@@ -177,7 +177,7 @@ BEGIN
 	UNION
 	SELECT ci.CustID
 	FROM #InputValidCustid_2 lt
-		LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK)
+		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK)
 		ON lt.custid = ci.recommend
 	WHERE ci.roleid = 1
 
@@ -188,16 +188,6 @@ BEGIN
 		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
 		ON l.custid = ci.srecommend
 	WHERE ci.recommend IN (-3,-4) 
-		AND ci.roleid = 1
-		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_tmp)
-
-	--list of master member
-	INSERT INTO #InputValidCustid_tmp (CustID)
-	SELECT l.custid
-	FROM #InputUsernameList AS l 
-		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
-		ON l.custid = ci.mrecommend
-	WHERE ci.recommend = -3
 		AND ci.roleid = 1
 		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_tmp)
 
