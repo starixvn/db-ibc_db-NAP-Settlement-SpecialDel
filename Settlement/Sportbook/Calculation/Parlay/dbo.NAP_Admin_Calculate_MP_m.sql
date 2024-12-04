@@ -405,17 +405,17 @@ BEGIN
                 AND statusID NOT IN (101, 102) 
                 AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
 
-            UPDATE dbo.BetParlayDetail WITH(ROWLOCK,UPDLOCK)
+            UPDATE pd
             SET statuswinlost = 0
                 ,statusID = 102
-                ,winlostdate = CASE WHEN @matchdate < winlostdate THEN winlostdate 
-									ELSE @matchdate
-								END
+                ,winlostdate = r.winlostdate
 			OUTPUT inserted.transid, inserted.statuswinlost, inserted.statusid, inserted.winlostdate
 			INTO #tmpOutputBetParlayDetail(transid, statuswinlost, StatusId, winlostdate)
-            WHERE matchid = @matchid 
-                AND statusID NOT IN (101, 102) 
-                AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
+			FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+			INNER JOIN @tmpOutputBettransmVoidRecover r
+				ON pd.transid 	= r.transid
+            WHERE pd.matchid = @matchid 
+                AND pd.statusID NOT IN (101, 102)
         END --@doing = 'VOID'
     
         IF @doing = 'RECOVER'
