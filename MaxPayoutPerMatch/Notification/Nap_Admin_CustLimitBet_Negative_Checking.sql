@@ -8,6 +8,7 @@ AS
     DB: DBSIG-bodb02
     Revisions:
 		- 20240610@Helen: Support check data for Max Payout Per Match setting - New Rule - New Job
+		- 20241203@Max: Improve performance of Max Payout per Match [Redmine: #214294]
 
 	Param's explanation:		
 		
@@ -18,6 +19,9 @@ BEGIN
 	DECLARE @UUSCustIDs VARCHAR(MAX) = ''
 	DECLARE @UUSEventtypeIDs VARCHAR(1000) = ''
 	DECLARE @EventtypeIDs VARCHAR(1000) = ''
+	DECLARE @SiteDBGroupID SMALLINT
+
+	SET @SiteDBGroupID = (SELECT dbo.f_Get_SiteDBGroupID())
 
 	DECLARE @CRLF CHAR(2)
 
@@ -26,7 +30,7 @@ BEGIN
 	CREATE TABLE #Result_Negative_tmp (custid INT,eventtypeid TINYINT)
 
 	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_789 -------------------------
-	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 	BEGIN
 		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '', @UUSEventtypeIDs = ''
 		
@@ -81,7 +85,7 @@ BEGIN
 	
 	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_MBC -------------------------
 
-	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 	BEGIN
 		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '', @UUSEventtypeIDs = ''
 		
@@ -136,7 +140,7 @@ BEGIN
 	END
 
 	-------7. Alert when having negative amount for all eventtypeid: CustLimitBet_LIC -------------------------
-	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,1,2)
 	BEGIN
 		SELECT @CustIDs = '', @UUSCustIDs = '', @EventtypeIDs = '', @UUSEventtypeIDs = ''
 		

@@ -19,6 +19,7 @@ AS
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240808@Max: Max Payout - Integrate Virtually Sports (VS5) [Redmine: #209070]
 		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
+		- 20241203@Max: Improve performance of Max Payout per Match [Redmine: #214294]
 	
 	Param's explanation:	
 		
@@ -126,7 +127,7 @@ BEGIN
 
 		
 		--CustLimitBet_MBC
-		IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL
+		IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 		BEGIN
 			WHILE (1=1)
 			BEGIN
@@ -151,7 +152,7 @@ BEGIN
 		END
 
 		--CustLimitBet_789
-		IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
+		IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 		BEGIN
 			WHILE (1=1)
 			BEGIN
@@ -176,7 +177,7 @@ BEGIN
 		END
 
 		--CustLimitBet_LIC
-		IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL
+		IF OBJECT_ID('CustLimitBet_LIC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,1,2)
 		BEGIN
 			WHILE (1=1)
 			BEGIN
@@ -250,7 +251,7 @@ BEGIN
 	SET @Archive_Date_Parlay = DATEADD(DAY, -3, @movebetdate) 
 
 	---MBC
-	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBet_MBC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 	BEGIN
 		INSERT INTO #tmp_TransId_pre_mbc (Transid,custid)
 		SELECT transid, custid
@@ -292,7 +293,7 @@ BEGIN
 	END
 
 	--789
-	IF OBJECT_ID('CustLimitBetHistory_789', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBetHistory_789', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,3)
 	BEGIN
 		INSERT INTO #tmp_TransId_pre_789 (Transid,custid)
 		SELECT transid,custid
@@ -336,7 +337,7 @@ BEGIN
 	END
 
 	--LIC
-	IF OBJECT_ID('CustLimitBetHistory_LIC', 'U') IS NOT NULL
+	IF OBJECT_ID('CustLimitBetHistory_LIC', 'U') IS NOT NULL AND @SiteDBGroupID IN (0,1,2)
 	BEGIN
 		INSERT INTO #tmp_TransId_pre_LIC (Transid,custid)
 		SELECT transid,custid
