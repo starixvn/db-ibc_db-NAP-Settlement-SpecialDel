@@ -33,6 +33,7 @@ AS
 		- 20231229@Aries: Enhancement of Auto Settlement [Redmine:#199004]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 		- 20241028@Aries: Direct payout for early soccer [Redmine:#211079]
+		- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
@@ -359,19 +360,6 @@ BEGIN
 							AND resultStatusId = 5 -- completed (manual)
 						)
 			SET @IsFailed  = 1
-		END
-
-		--Auto Payout Table Tennis
-		IF @sporttype = 18 AND EXISTS (SELECT 1 FROM dbo.match_remark WITH (NOLOCK) WHERE calculate = 1 AND matchid = @MatchId)
-		BEGIN
-			SET @IsFailed = 1
-		END
-
-		IF @IsFailed = 1
-		BEGIN
-			SELECT @ErrCode = 1001018
-				, @ErrMsg   = 'Auto payout is cancelled because the match has been calculated manually.'
-			RETURN
 		END
 
 	END
