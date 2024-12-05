@@ -9,6 +9,7 @@ AS
 	Revisions:
 		- 20231215@Louisa: Initialize
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine:#199700]
+		 - 212685@Louisa: Enhancement [Redmine:#212685]
 */
 BEGIN
 	
@@ -107,19 +108,6 @@ BEGIN
 
 ----------return data
 
-	--credit tickets
-	SELECT TransID
-		, CASE TicketType WHEN 's' THEN 'Single Ticket' 
-						  WHEN 'p' THEN 'Selection of Mix Parlay'
-						  ELSE ''
-		  END AS TicketType
-		, CustID
-		, Username
-		, TransDate
-	FROM @betTicket
-	WHERE IsDeposit = 0
-
-	--deposite tickets
 	SELECT TransID
 		, CASE TicketType WHEN 's' THEN 'Single Ticket' 
 						  WHEN 'p' THEN 'Selection of Mix Parlay'
@@ -129,6 +117,7 @@ BEGIN
 		, Username
 		, TransDate
 		, SiteName
+		, IsDeposit
 	FROM @betTicket
 	WHERE IsDeposit = 1
 
