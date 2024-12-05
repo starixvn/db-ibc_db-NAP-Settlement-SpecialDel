@@ -31,10 +31,26 @@ DECLARE  @StartRow	INT
 
 
 INSERT INTO #tmpCust(c,a)
-SELECT c.custId, @Amount AS a
+SELECT c.custId AS c, @Amount AS a
 FROM CustDB.dbo.Customer AS c WITH(NOLOCK) 
-WHERE c.srecommend IN(23003140,26912753,1338545,22991964,38268897)
-    AND c.roleid = 1
+WHERE username in (
+'twpgmenid.lin'
+,'twpgmenid.lin2'
+,'twpgmenidlin789'
+,'twpgmevachang03'
+,'twpgmevachang04'
+,'twpgmadahuang02'
+,'twpgmjasonlin'
+,'twpgmneil.hsieh'
+,'twpgmleolee'
+,'twpgmleolee1'
+,'twpgmleolee2'
+,'twpgmlayali'
+,'twpgmharper.hsu'
+,'twpgmryan.lu'
+,'twpgmlynnlu '
+,'twpgmjimmy.chen'
+)
 
 DECLARE @SId INT
 EXEC [dbo].[NAP_SabaProgramStatus_Ins] @ProgramId = @ProgramId, @IsTest = 1,@SId = @SId OUTPUT
