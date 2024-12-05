@@ -68,6 +68,7 @@ AS
 	- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 	- 20231025@Aries: Cannot insert duplicate key in object 'dbo.#matchList' [Redmine:#196002]
 	- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
+	- 20241205@Louisa: fix issue convert matchcode [Redmine:#214853]
 
  Param explanation:  
 	@MatchCode: match code
@@ -114,7 +115,7 @@ BEGIN
 			,@StatusId = 0
 			,@IsMarkedTicket =0
 
-		IF ISNUMERIC(@matchcode) = 1
+		IF TRY_CONVERT(INT, @matchcode) IS NOT NULL
 		BEGIN
 			SET @MatchId = CAST(@matchcode AS INT)
 		END

@@ -20,6 +20,7 @@ AS
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 		- 20220719@Kathy: Scale Out BetTrans: split code, move sp to DBPRO [Redmine:#175251]
+		- 20241205@Louisa: fix issue convert matchcode [Redmine:#214853]
 
 	Param's Explanation:	
 		@Status: All, Running, Completed
@@ -74,7 +75,7 @@ BEGIN
 
 	SET @CheckEventStatus =(SELECT COUNT(EventStatus) FROM @tblEventStatus)
 	
-	IF ISNUMERIC(@MatchCode) = 1
+	IF TRY_CONVERT(INT, @matchcode) IS NOT NULL
 	BEGIN
 		SET @MatchId = CAST(@MatchCode AS INT)
 	END
