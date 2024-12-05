@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingSel] 
 	@MatchCode 		NVARCHAR(50) = ''
 	, @LeagueIds 	VARCHAR(MAX) = '0' -- 0 for ALL Leagues
