@@ -294,27 +294,27 @@ BEGIN
 		
 		IF @sporttype = 8 AND @action = 'REFUND'  
 		BEGIN
-			UPDATE  r
-			SET r.OtherInfo = ''
-			FROM dbo.ResultDetailOS AS r
-			WHERE MatchId = @MatchID
-				AND  r.ResourceId IN (SELECT sd.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) AS sd)
 
-			IF @DeterminedType = 0 AND EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
+			IF EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID AS r WHERE r.ResourceID  IN (SELECT sd.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) AS sd))
+			BEGIN
+				UPDATE  r
+				SET r.OtherInfo = ''
+				FROM dbo.ResultDetailOS AS r
+				WHERE MatchId = @MatchID
+					AND  r.ResourceId IN (SELECT sd.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) AS sd)
+			END
+
+			IF EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
 			BEGIN
 				DELETE
 				FROM	dbo.ResultDetailOS WITH(ROWLOCK, UPDLOCK)
 				WHERE	MatchId = @MatchID
 						AND ResourceId = 'EI'
+						AND ISNULL(HomeValue,'') = ''
 			END
 
 			IF @DeterminedType  > 0 AND @AbandonedStatus = 2 
 			BEGIN
-				DELETE
-				FROM	dbo.ResultDetailOS WITH(ROWLOCK, UPDLOCK)
-				WHERE	MatchId = @MatchID
-						AND ResourceId = 'EI'
-
 				UPDATE ResultDetailOS
 				SET OtherInfo = 'Mercy' 
 				WHERE MatchId = @MatchID
@@ -505,19 +505,21 @@ BEGIN
 		END
     END 
 
-	IF @action = 'UNDO' AND @ExternalResultTable = 1
+	IF (@action = 'UNDO' OR (@action = 'REFUND' AND  @DeterminedType > 0)) AND @ExternalResultTable = 1  
 	BEGIN
-		DELETE 
-		FROM dbo.ProviderExternalResultDetail 
-		WHERE MatchId = @MatchId 
-			AND SourceId = 99
+		DELETE  p
+		FROM dbo.ProviderExternalResultDetail AS p
+		WHERE p.MatchId = @MatchId 
+			AND p.SourceId = 99
+			AND p.ResourceId IN (SELECT s.ResourceId FROM  @tblSelectedRID AS s)
 	END
-	ELSE IF @action = 'UNDO' AND  @ExternalResultTable = 2 
+	ELSE IF (@action = 'UNDO' OR (@action = 'REFUND' AND  @DeterminedType > 0)) AND  @ExternalResultTable = 2 
 	BEGIN
-		DELETE 
-		FROM dbo.ProviderExternalResultDetailOS 
-		WHERE MatchId = @MatchId 
-			AND SourceId = 99
+		DELETE  p
+		FROM dbo.ProviderExternalResultDetailOS  AS p
+		WHERE p.MatchId = @MatchId 
+			AND p.SourceId = 99
+			AND p.ResourceId IN (SELECT s.ResourceId FROM  @tblSelectedRID AS s)
 	END
     
 END 

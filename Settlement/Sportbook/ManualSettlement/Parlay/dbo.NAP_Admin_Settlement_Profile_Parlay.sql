@@ -126,6 +126,7 @@ BEGIN
 		, MinusValue SMALLMONEY  DEFAULT(0)
 		, AbandonedStatus SMALLINT
 		, IsInstHTFT BIT DEFAULT(0)
+		, onlySDTCal BIT DEFAULT (0)
 	)
 
 	DECLARE @tmpResourceAutoRefund TABLE ( ResourceID VARCHAR(20) )
@@ -190,6 +191,7 @@ BEGIN
 				,ISNULL(MinusValue,0)	AS MinusValue
 				,ISNULL(AbandonedStatus,0) AS AbandonedStatus
 				,ISNULL(IsInstHTFT,0)	AS IsInstHTFT
+				,ISNULL(onlySDTCal,0)	AS onlySDTCal
 		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 															,RefResourceId VARCHAR(20)
 															,SDTResourceId VARCHAR(20)
@@ -207,9 +209,10 @@ BEGIN
 															,MinusValue SMALLMONEY
 															,AbandonedStatus SMALLINT
 															,IsInstHTFT BIT
+															,onlySDTCal BIT
 											) AS tbl
 	)
-	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType,IsCalculated,IsWeb,MinusValue,AbandonedStatus, IsInstHTFT)
+	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType,IsCalculated,IsWeb,MinusValue,AbandonedStatus, IsInstHTFT,onlySDTCal)
 	SELECT	 c.Id
 			,c.SDTResourceId
 			,sp.Bettype
@@ -230,6 +233,7 @@ BEGIN
 			,c.MinusValue
 			,c.AbandonedStatus
 			,c.IsInstHTFT
+			,c.onlySDTCal
 	FROM	cteSelectedRID c
 		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 			ON	 sp.ResourceID = c.Id
@@ -525,16 +529,16 @@ BEGIN
 			SELECT	bm.transid, bm.refno, ISNULL(m.modds,0), m.modds
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 				CROSS APPLY (
-					SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, MinusValue,AbandonedStatus
+					SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, MinusValue,AbandonedStatus,onlySDTCal
 					FROM	@tmpSelectedRID t
 					WHERE	t.BetType = bm.bettype AND (t.BetID = 0 OR t.BetID = bm.betcheck)
 				)sr
-				OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, bm.hdp1, bm.hdp2, sr.HomeValue, sr.AwayValue, bm.transdesc, sr.MinusValue,sr.AbandonedStatus) m
+				OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam,CASE WHEN bm.bettype = 8814 THEN bm.betcheck ELSE bm.hdp1 END, bm.hdp2, sr.HomeValue, sr.AwayValue, bm.transdesc, sr.MinusValue,sr.AbandonedStatus) m
 			WHERE	bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END					
 					AND bm.statusID NOT IN (101)
 					AND	1 = CASE WHEN m.modds IS NOT NULL THEN 1
-								 WHEN m.modds IS NULL AND statusID NOT IN (103) THEN 1
+								 WHEN m.modds IS NULL AND statusID NOT IN (103) AND sr.onlySDTCal = 0 THEN 1
 								 ELSE 0
 						    END
 

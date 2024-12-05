@@ -38,6 +38,7 @@ BEGIN
 				,p.CreateBy
 				,p.LastModifyDate
 				,p.LastModifyBy
+				,p.OtherInfo
 		FROM	dbo.ProviderExternalResultDetail p WITH(NOLOCK)
 		WHERE	p.MatchId = @MatchId 
 			AND p.SourceId = @SourceId
@@ -53,6 +54,7 @@ BEGIN
 				,p.CreateBy
 				,p.LastModifyDate
 				,p.LastModifyBy
+				,p.OtherInfo
 		FROM	dbo.ProviderExternalResultDetailOS p WITH(NOLOCK)
 		WHERE	p.MatchId = @MatchId 
 			AND p.SourceId = @SourceId

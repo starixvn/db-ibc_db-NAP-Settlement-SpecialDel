@@ -10,7 +10,7 @@ GO
 
 --1. Extend [SDTRefund] from TINYINT to  SMALLINT
 -----------------------------------------------------------------
- ALTER TABLE dbo.settlementspecialbettypeprofile ALTER COLUMN SDTRefund SMALLINT
+ ALTER TABLE dbo.settlementspecialbettypeprofile ALTER COLUMN SDTRefund INT
  GO
 
 --2. Update setting for SDTRefund
@@ -102,6 +102,9 @@ UPDATE sp
 SET sp.SDTResourceId = CASE WHEN sp.bettype  = 8804 AND sp.betid = 803 THEN '880703'
                             WHEN sp.bettype  = 8804 AND sp.betid = 805 THEN '880705'
                             WHEN sp.bettype  = 8805 AND sp.betid = 805 THEN '880705'
+                            WHEN sp.bettype  = 8806 AND sp.betid = 803 THEN '880703'
+                            WHEN sp.bettype  = 8806 AND sp.betid = 805 THEN '880705'
+                            WHEN sp.bettype  = 8806 AND sp.betid = 807 THEN '880707'
                             ELSE   sp.ResourceId 
                         END
 FROM SettlementSpecialBettypeProfile sp  WITH (ROWLOCK,UPDLOCK)
@@ -110,13 +113,13 @@ WHERE SportType = 8
 	AND sp.SDTResourceId IS NULL
 
 UPDATE sp
-SET sp.SDTpfId = CASE WHEN sp.bettype  = 8809  THEN 8809
+SET sp.SDTpfId = CASE WHEN sp.bettype  IN  (8803,8809)  THEN 8809
                       ELSE sp.pfid 
                  END
 FROM SettlementSpecialBettypeProfile sp  WITH (ROWLOCK,UPDLOCK)
 INNER JOIN @tmp_newSetting s ON sp.bettype = s.bettype AND sp.betID = s.betID
 WHERE sp.SportType = 8   
-	AND sp.SDTPfid IS NULL
+	AND (sp.SDTPfid IS NULL OR sp.bettype IN (8803,8809))
 
 
 	 

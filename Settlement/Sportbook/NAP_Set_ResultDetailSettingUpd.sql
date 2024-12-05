@@ -54,6 +54,7 @@ BEGIN
 			,@ExternalResultTable TINYINT	= 0	
 			,@handle			INT
 			,@RemarkSDT			VARCHAR(500) = ''
+			,@RemarkSDTOtherInfo VARCHAR(500) = ''
 			,@IsValidateSOPRefund BIT = 0
 								
 	DECLARE @tmpResultDetail TABLE ( ResourceId	VARCHAR(20)	)
@@ -128,6 +129,7 @@ BEGIN
 		IF @IsEnabled = 1
 		BEGIN
             SELECT @RemarkSDT = STRING_AGG (ResourceId + '(' + HomeValue + '-' + AwayValue  + ')',', ')
+				  ,@RemarkSDTOtherInfo = STRING_AGG(IIF(@SportType = 8 ,OtherInfo,''),'')
 			FROM @tmpResourcesWeb
 
 			IF @ExternalResultTable = 1
@@ -176,6 +178,7 @@ BEGIN
 			IF @ExternalResultTable = 1
 			BEGIN
 				SELECT @RemarkSDT = STRING_AGG (p.ResourceId + '(' + p.HomeValue + '-' + p.AwayValue  + ')',', ')
+					  ,@RemarkSDTOtherInfo = STRING_AGG(IIF(@SportType = 8 ,OtherInfo,''),'')
 				FROM dbo.ProviderExternalResultDetail AS p
 				WHERE p.MatchId = @MatchId
 					AND p.SourceId = 99
@@ -190,6 +193,7 @@ BEGIN
 			IF @ExternalResultTable = 2
 			BEGIN
 				SELECT @RemarkSDT = STRING_AGG (p.ResourceId + '(' + p.HomeValue + '-' + p.AwayValue  + ')',', ')
+					  ,@RemarkSDTOtherInfo = STRING_AGG(IIF(@SportType = 8 ,OtherInfo,''),'')
 				FROM dbo.ProviderExternalResultDetailOS AS p
 				WHERE p.MatchId = @MatchId
 					AND p.SourceId = 99
@@ -309,7 +313,8 @@ BEGIN
 								WHEN 3 THEN 'NAP: Update Confirm-Refund-SDT ' + CASE @IsEnabled WHEN 0 THEN 'OFF ' ELSE  'ON ' END
 											+ ISNULL(@RemarkSDT,'')
 											+ IIF(@Is3x3 = 1,' Is3x3','')
-								WHEN 2 THEN 'NAP: Update Confirm-Refund (Mercy) ' + CASE @IsEnabled WHEN 0 THEN 'OFF ' ELSE  'ON ' END
+											+ IIF(@RemarkSDTOtherInfo = 'A', ' A', '')
+								WHEN 4 THEN 'NAP: Update Confirm-Refund (Mercy) ' + CASE @IsEnabled WHEN 0 THEN 'OFF ' ELSE  'ON ' END
 											+ '(' + @ResourceIds + ')'
 								ELSE '' END
 	

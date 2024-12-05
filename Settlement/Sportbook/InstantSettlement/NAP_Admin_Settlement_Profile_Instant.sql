@@ -545,7 +545,8 @@ BEGIN
 																							,isCalculated		AS '@IsCalculated'
 																							,MinusValue			AS '@MinusValue'
 																						    ,@DeterminedType	AS '@DeterminedType'
-																							,IsInstHTFT			AS '@IsInstHTFT'																							
+																							,IsInstHTFT			AS '@IsInstHTFT'
+																							,AbandonedStatus	AS '@AbandonedStatus'
 																					   FROM	@tmpSelectedRID AS s
 																					   WHERE EXISTS (SELECT 1 FROM @tmpParlayAffectedBettypes AS p WHERE p.BetType = s.BetType)
 																					   FOR XML PATH ('Resource'), TYPE)

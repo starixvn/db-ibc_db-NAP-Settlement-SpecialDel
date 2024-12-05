@@ -22,8 +22,8 @@ AS
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 	Param's Explanation:
 		- @MinusValue: Basketball instance
-		- @AbandonedStatus: 0: normal case (early completed)
-						    1: Away not yet completed
+		- @AbandonedStatus: 0: normal case 
+						    1: Baseball - Away not yet completed
 */
 RETURN
 (
@@ -134,7 +134,7 @@ RETURN
 					 ELSE NULL END	
 			WHEN @pfID = 8814 THEN
 				CASE WHEN (CAST(@HomeValue AS INT) - (CAST(@hdp1 AS INT)%800) >= 0) AND (CAST(@AwayValue AS INT) - (CAST(@hdp1 AS INT)%800) >= 0) THEN CASE WHEN @betteam = 'y' THEN 1 ELSE -1 END
-					 WHEN @AbandonedStatus = 1 AND (CAST(@AwayValue AS INT) - (CAST(@hdp1 AS INT)%800) < 0) THEN 
+					 WHEN @AbandonedStatus = 0 AND (CAST(@AwayValue AS INT) - (CAST(@hdp1 AS INT)%800) < 0) THEN 
 																											CASE WHEN @betteam = 'y' THEN -1 
 																											ELSE 1 END
 					 ELSE NULL END	
@@ -145,6 +145,9 @@ RETURN
 					ELSE NULL END
 			WHEN @pfid = 8813 THEN
 				CASE
+					WHEN @betteam = '0' AND fm > 0 THEN -1
+					WHEN @betteam = '1' AND fm > 1 THEN -1
+					WHEN @betteam = '2' AND fm > 2 THEN -1
 					WHEN @betteam = '3+' AND fm >= 3 THEN 1 
 					ELSE NULL END
 			WHEN @pfID = 8805 THEN
@@ -160,14 +163,14 @@ RETURN
 					ELSE NULL END
 			WHEN @pfID = 10 THEN
 				CASE WHEN @AbandonedStatus = 1 THEN NULL
-					 WHEN @betteam = 'h' AND fm > 0.5 THEN 1
-					 WHEN @betteam = 'a' AND fm > 0.5 THEN -1
+					 WHEN @betteam = 'h' AND fm > 0.25 THEN 1
+					 WHEN @betteam = 'a' AND fm > 0.25 THEN -1
 					 ELSE NULL END
 
 			ELSE NULL
 		END AS modds
 	FROM(
-		SELECT (CASE WHEN @pfID IN (3,646, 83) THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @MinusValue - @hdp1)	
+		SELECT (CASE WHEN @pfID IN (3,646) THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @MinusValue - @hdp1)	
 					 WHEN @pfID = 10 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2)
 					 WHEN @pfID IN (20,8805) THEN CAST(@HomeValue AS MONEY) - CAST(@AwayValue AS MONEY)			
 					 WHEN @pfID IN (401,638) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1 - @MinusValue
