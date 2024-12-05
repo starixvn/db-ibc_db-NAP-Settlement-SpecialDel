@@ -6,8 +6,8 @@ AS
 	DB: DBPRO/BODB02
 	
 	Revisions:
-		
 		- 20241002@Kathy: direct payout for early soccer [Redmine:#211079]
+		- 20241205@Aries: Enhance Direct Payout for Soccer's Early Result [Redmine:#214832]
 
 	Param's Explanation:
  
@@ -73,7 +73,8 @@ BEGIN
 			WHERE	sp.SportType = 1
 					AND sp.ResourceID =  rd.ResourceId
 		) ssp
-	WHERE	m.sporttype = 1
+	WHERE	m.eventstatus = 'completed'  
+			AND m.sporttype = 1
 			AND rd.ResultStatusID = 3 -- confirmed
 			AND ISNULL(rd.ResultSetting,0) & 1 = 0
 			AND ap.IsExistAP IS NULL
