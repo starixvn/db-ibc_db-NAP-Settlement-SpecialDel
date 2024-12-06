@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Insert]
 	,@BroadcastSessionId	VARCHAR(100) = NULL
 	,@VoidData				XML = NULL
 	,@UserId				INT = 0
+	,@TransIds			    VARCHAR(MAX) = NULL --Apply for Wrong Market Offered (12)
 )
 AS
 /*	Created by: 20181212@Kathy
@@ -23,7 +24,8 @@ AS
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
-		
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+
 	Param's explanation:	
 		
 */
@@ -67,9 +69,10 @@ BEGIN
 						,VoidData
 						,BroadcastSessionId
 						,SiteDBGroupID
+						,TransIds
 				)
 			OUTPUT inserted.VoidingHistoryId, inserted.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
-		SELECT RequestId, @UserId, 1, @VoidData, @BroadcastSessionId, @SiteDBGroupID
+		SELECT RequestId, @UserId, 1, @VoidData, @BroadcastSessionId, @SiteDBGroupID, @TransIds
 		FROM @RequestId_tmp
 	END
 
