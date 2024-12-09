@@ -29,6 +29,7 @@ AS
 		- 20240308@Aries: Direct Ice Hockey [Redmine:#201836]
 		- 20240412@Aries: Direct Payout for Virtual Kabaddi [Redmine:#203590]
 		- 20240108@Aries: Auto Payout Table Tennis - AP Full Time Failed for Main match [Redmine:#208869]
+		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 
 	Param's Explanation:
 		- @AutoSetting: 
@@ -198,6 +199,7 @@ BEGIN
 				AND m.eventstatus = 'running'
 				AND ISNULL(m.IsDeleted,0) = 0
 				AND r.SourceId = 1 --SBO
+				AND ISNULL(r.IsLive,0) = 0
 				AND 1 = IIF(@Sporttype = 18 AND  r.ResourceId != '00',0,1)
 		END 
 		ELSE IF @ExternalResultTable = 2 
@@ -218,6 +220,7 @@ BEGIN
 				AND m.eventstatus = 'running'
 				AND ISNULL(m.IsDeleted,0) = 0
 				AND ex.SourceId = 1 --SBO
+				AND ISNULL(ex.IsLive,0) = 0
 		END
 	END
 	ELSE IF @AutoSetting = 16 

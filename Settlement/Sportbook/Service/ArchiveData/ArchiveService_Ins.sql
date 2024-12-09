@@ -1,4 +1,4 @@
-/*<info serverAlias="DBLOG-bodb_CustomerLog_Archive" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBLOG-bodb_CustomerLog_Archive" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE ArchiveService_Ins
 	@TableName VARCHAR(50)
 	,@JsonInfo VARBINARY(MAX)
@@ -11,6 +11,7 @@ AS
 	     
 	 Revisions:  
 		- 20240222@Louisa: Initial [Redmine:#201196]
+		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
     
 */  
 BEGIN  
@@ -20,15 +21,15 @@ BEGIN
 			,@MaxArchiveValue	 VARCHAR(100)
 			,@MaxCurrentValue	 INT
 
-	DECLARE @ArchiveData TABLE ( ProviderExternalId BIGINT, MatchId INT,SourceId SMALLINT,ResourceId VARCHAR(20),HomeValue  VARCHAR(50),AwayValue  VARCHAR(50),CreateDate DATETIME	)
+	DECLARE @ArchiveData TABLE ( ProviderExternalId BIGINT, MatchId INT,SourceId SMALLINT,ResourceId VARCHAR(20),HomeValue  VARCHAR(50),AwayValue  VARCHAR(50),CreateDate DATETIME, IsLive BIT	)
 
 	SET @Decompress_JsonInfo = CAST(DECOMPRESS(@JsonInfo) AS NVARCHAR(MAX))
 
 	BEGIN TRY
-		INSERT INTO @ArchiveData  ( ProviderExternalId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate )
-		SELECT id, m , s, rs, h, a, cd
+		INSERT INTO @ArchiveData  ( ProviderExternalId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,IsLive )
+		SELECT id, m , s, rs, h, a, cd,il
 		FROM OPENJSON(@Decompress_JsonInfo)
-		WITH ( id BIGINT, m INT, s SMALLINT, rs VARCHAR(20), h VARCHAR(50), a VARCHAR(50), cd DATETIME )
+		WITH ( id BIGINT, m INT, s SMALLINT, rs VARCHAR(20), h VARCHAR(50), a VARCHAR(50), cd DATETIME, il BIT )
 
 		SELECT @MaxArchiveValue = (SELECT CONVERT(VARCHAR(50), MAX(ProviderExternalId) ) FROM @ArchiveData	)
 
@@ -36,8 +37,8 @@ BEGIN
 		BEGIN
 			SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetail_BK WITH(ROWLOCK) )
 
-			INSERT INTO ProviderExternalResultDetail_BK( ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
-			SELECT ProviderExternalId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
+			INSERT INTO ProviderExternalResultDetail_BK( ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,IsLive)
+			SELECT ProviderExternalId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,IsLive
 			FROM @ArchiveData
 			WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
 		END
@@ -46,8 +47,8 @@ BEGIN
 		BEGIN
 			SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetailES_BK WITH(ROWLOCK) )
 
-			INSERT INTO ProviderExternalResultDetailES_BK (ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
-			SELECT ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
+			INSERT INTO ProviderExternalResultDetailES_BK (ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,IsLive)
+			SELECT ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,IsLive
 			FROM @ArchiveData
 			WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
 		END
@@ -56,8 +57,8 @@ BEGIN
 		BEGIN
 			SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetailOS_BK WITH(ROWLOCK) )
 
-			INSERT INTO ProviderExternalResultDetailOS_BK (ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate)
-			SELECT ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate 
+			INSERT INTO ProviderExternalResultDetailOS_BK (ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,IsLive)
+			SELECT ProviderExternalId,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate, IsLive
 			FROM @ArchiveData
 			WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
 		END

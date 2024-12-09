@@ -17,6 +17,7 @@ AS
 		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 		
 	Param's explanation:
 		
@@ -78,6 +79,7 @@ BEGIN
 		INNER JOIN #tblMatchID m 
 			ON ex.MatchId = m.MatchId
 	WHERE ExternalResultTable = 1
+		AND ISNULL(ex.IsLive,0) = 0
 
 	IF EXISTS( SELECT TOP 1 1 FROM #tblMatchID m WHERE ExternalResultTable = 2  ) ---ProviderExternalResultDetailOS
 	INSERT INTO @tmpExternalResult ( rn, TopSourceId, Matchid, SourceId, ResourceId, HomeValue, AwayValue  )
@@ -92,6 +94,7 @@ BEGIN
 		INNER JOIN #tblMatchID m 
 			ON ex.MatchId = m.MatchId
 	WHERE ExternalResultTable = 2
+		AND ISNULL(ex.IsLive,0) = 0
 
 
 	INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )

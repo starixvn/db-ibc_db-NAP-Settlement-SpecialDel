@@ -15,11 +15,12 @@ AS
 		- 20240307@Aries: Enhance the Provider Result Logs Phase 2 [Redmine: #201480]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241002@Aries: direct payout for early soccer [Redmine:#211079]
+		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 */
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #Data(ResourceId VARCHAR(20),SourceId SMALLINT,SourceName VARCHAR(50), HomeValue VARCHAR(50),AwayValue VARCHAR(50),OtherInfo VARCHAR(50),CreateDate DATETIME,AutoPayoutStatus TINYINT, Remark VARCHAR(1000), RankNo INT)		
+	CREATE TABLE #Data(ResourceId VARCHAR(20),SourceId SMALLINT,SourceName VARCHAR(50), HomeValue VARCHAR(50),AwayValue VARCHAR(50),OtherInfo VARCHAR(50),CreateDate DATETIME,AutoPayoutStatus TINYINT, Remark VARCHAR(1000), RankNo INT, IsLive BIT)		
 	CREATE TABLE #ResourceInfo(ResourceId VARCHAR(20) PRIMARY KEY,OrdNo SMALLINT)		
 
 	DECLARE @tmpResourceID			TABLE (ResourceID VARCHAR(20))
@@ -51,7 +52,7 @@ BEGIN
 
 	IF @ExternalResultTable = 1
 	BEGIN
-		INSERT INTO #Data(ResourceId, SourceId,SourceName,HomeValue,AwayValue,OtherInfo,CreateDate,RankNo)
+		INSERT INTO #Data(ResourceId, SourceId,SourceName,HomeValue,AwayValue,OtherInfo,CreateDate,RankNo,IsLive)
 		SELECT pr.ResourceId
 			  ,pr.SourceId
 			  ,p.SourceName
@@ -60,6 +61,7 @@ BEGIN
 			  ,pr.OtherInfo
 			  ,pr.CreateDate
 			  ,ROW_NUMBER() OVER (PARTITION BY pr.SourceId,pr.ResourceId ORDER BY pr.CreateDate DESC) AS RankNo
+			  ,pr.IsLive
 		FROM ProviderExternalResultDetail AS pr WITH(NOLOCK)
 			INNER JOIN  ProviderInfo AS p WITH(NOLOCK) ON p.SourceId = pr.SourceId
 			INNER JOIN  @tmpSourceID AS tp ON tp.SourceId = pr.SourceId
@@ -72,7 +74,7 @@ BEGIN
 	END
 	ELSE IF @ExternalResultTable = 2
 	BEGIN
-		INSERT INTO #Data(ResourceId, SourceId,SourceName,HomeValue,AwayValue,OtherInfo,CreateDate,RankNo)
+		INSERT INTO #Data(ResourceId, SourceId,SourceName,HomeValue,AwayValue,OtherInfo,CreateDate,RankNo,IsLive)
 		SELECT pr.ResourceId
 			  ,pr.SourceId
 			  ,p.SourceName
@@ -81,6 +83,7 @@ BEGIN
 			  ,pr.OtherInfo
 			  ,pr.CreateDate
 			  ,ROW_NUMBER() OVER (PARTITION BY pr.SourceId,pr.ResourceId ORDER BY pr.CreateDate DESC) AS RankNo
+			  ,pr.IsLive
 		FROM ProviderExternalResultDetailOS AS pr WITH(NOLOCK)
 			INNER JOIN  ProviderInfo AS p WITH(NOLOCK) ON p.SourceId = pr.SourceId
 			INNER JOIN  @tmpSourceID AS tp ON tp.SourceId = pr.SourceId
@@ -93,7 +96,7 @@ BEGIN
 	END
 	ELSE IF @ExternalResultTable = 3
 	BEGIN
-		INSERT INTO #Data(ResourceId, SourceId,SourceName,HomeValue,AwayValue,OtherInfo,CreateDate,RankNo)
+		INSERT INTO #Data(ResourceId, SourceId,SourceName,HomeValue,AwayValue,OtherInfo,CreateDate,RankNo,IsLive)
 		SELECT pr.ResourceId
 			  ,pr.SourceId
 			  ,p.SourceName
@@ -102,6 +105,7 @@ BEGIN
 			  ,pr.OtherInfo
 			  ,pr.CreateDate
 			  ,ROW_NUMBER() OVER (PARTITION BY pr.SourceId,pr.ResourceId ORDER BY pr.CreateDate DESC) AS RankNo
+			  ,pr.IsLive
 		FROM ProviderExternalResultDetailES AS pr WITH(NOLOCK)
 			INNER JOIN  ProviderInfo AS p WITH(NOLOCK) ON p.SourceId = pr.SourceId
 			INNER JOIN  @tmpSourceID AS tp ON tp.SourceId = pr.SourceId
@@ -182,6 +186,7 @@ BEGIN
 		  ,d.AutoPayoutStatus 
 		  ,d.Remark
 		  ,tbl.OrdNo
+		  ,d.IsLive
 	FROM #Data AS d
 		OUTER APPLY(
 			SELECT TOP 1  r.OrdNo
