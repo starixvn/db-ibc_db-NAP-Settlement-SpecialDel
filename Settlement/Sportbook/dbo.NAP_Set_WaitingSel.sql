@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingSel] 
 	@MatchCode 		NVARCHAR(50) = ''
 	, @LeagueIds 	VARCHAR(MAX) = '0' -- 0 for ALL Leagues
@@ -52,6 +52,7 @@ AS
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Louisa: Remove un-use code due do this SP only support soccer [Redmine:#186140]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20241205@Louisa: fix issue convert matchcode [Redmine:#214853]
 
 	Param's explanation:  
 		
@@ -69,7 +70,7 @@ BEGIN
 	SELECT @MatchCode = ISNULL(@MatchCode, '')
 			,@LeagueIds = ISNULL(@LeagueIDs, '0')
 
-	IF ISNUMERIC(@MatchCode) = 1
+	IF TRY_CONVERT(INT, @matchcode) IS NOT NULL
 		SET @matchid = CAST(@MatchCode AS INT)
 	
 	DECLARE @tmpLeagueID	 TABLE ( LeagueId INT )
