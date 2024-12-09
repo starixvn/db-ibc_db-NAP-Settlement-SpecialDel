@@ -24,6 +24,7 @@ AS
 		- 20240722@July: [TVS] Add Details function for traders of LG/Early teams [Redmine: #206715]
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
 		- 20241007@July: TVS - Wrong Odds - Wrongly converting odds to search ticket [Redmine: #211890]
+		- 20241211@July: TVS - Wrong Odds - Display tickets in the allowance odds ranges AND Add column GroupName [Redmine: #214196]
 
 	Param's explanation:
 		+ @WrongOddsInfo:
@@ -206,7 +207,8 @@ BEGIN
 		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
-	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
+	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT, IsOtherTicket BIT DEFAULT(0))
+	DECLARE @tmpOtherTicket AS TABLE (TransId BIGINT)
 
 	SET @WrongOddsInfoXML = CONVERT(XML, @WrongOddsInfo)
 	INSERT INTO #FilterInfo(
@@ -667,6 +669,7 @@ BEGIN
 			)
 			--Remove transid-> NOT VOID affect main bettype
 			DELETE b
+				OUTPUT deleted.SubTransid INTO @tmpOtherTicket
 			FROM #TVSTicketBets b
 				INNER JOIN cte tp ON tp.OddsType = b.OddsType
 			WHERE 1 = CASE WHEN b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) THEN 1
@@ -693,6 +696,7 @@ BEGIN
 			)
 			--Remove transid-> NOT VOID affect main bettype
 			DELETE b
+				OUTPUT deleted.SubTransid INTO @tmpOtherTicket
 			FROM #TVSTicketBets b
 				INNER JOIN cte tp ON tp.OddsType = b.OddsType
 			WHERE 1 = CASE WHEN b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) THEN 1
@@ -716,6 +720,7 @@ BEGIN
 			)
 			--Remove transid-> NOT VOID affect main bettype
 			DELETE b
+				OUTPUT deleted.SubTransid INTO @tmpOtherTicket
 			FROM #TVSTicketBets b
 				INNER JOIN cte tp ON tp.OddsType = b.OddsType
 			WHERE 1 = CASE WHEN b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) THEN 1
@@ -826,14 +831,17 @@ BEGIN
 	
 	IF @IsShowLogOnly = 0
 	BEGIN
-		INSERT INTO @tmpLogInfoTickets (TransId)
-		SELECT SubTransid
+		INSERT INTO @tmpLogInfoTickets (TransId, IsOtherTicket)
+		SELECT SubTransid, 0
 		FROM #TVSTicketBets WHERE GroupName = 'WO'
+		UNION ALL
+		SELECT TransId, 1
+		FROM @tmpOtherTicket
 	END
 	ELSE --Edit request
 	BEGIN
-		INSERT INTO @tmpLogInfoTickets (TransId)
-		SELECT TransId
+		INSERT INTO @tmpLogInfoTickets (TransId, IsOtherTicket)
+		SELECT TransId, 0 
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK) 
 		WHERE RequestId = @RequestId
 			AND 1 = CASE WHEN SubIssueTypeId = 6   AND bettype = 1 THEN 1
@@ -842,7 +850,7 @@ BEGIN
 						 WHEN SubIssueTypeId = 121 AND bettype = 8 THEN 1
 						 ELSE 0 END
 		UNION ALL
-		SELECT s.TransId
+		SELECT s.TransId, 0
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) 
 			CROSS APPLY (
 				SELECT TOP 1 sporttype
@@ -852,6 +860,9 @@ BEGIN
 			)rd
 		WHERE s.RequestId = @RequestId
 			AND rd.Sporttype <> 1 --Other sports
+		UNION ALL
+		SELECT TransId, 1
+		FROM @tmpOtherTicket
 
 	END
 
@@ -909,8 +920,11 @@ BEGIN
 			   ,m.matchcode AS 'matchcode'
 			   ,m.SettlementStatus AS 'SettlementStatus'
 			   ,m.sporttype AS 'sporttype'
+			   ,ISNULL(s.IsOtherTicket,0) AS 'IsOtherTicket'
+			   ,CASE WHEN m.IsMixParlay = 1 THEN 'Parlay' ELSE bt.typenamee END AS 'GroupName' --Feature: [#213960]
 		FROM @tmpLogInfoTickets s
 			INNER JOIN #tmpTransInfo m ON s.transid = m.Subtransid
+			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = m.Subbettype 
 		WHERE m.matchid = @MatchId
 		FOR JSON PATH))
 
