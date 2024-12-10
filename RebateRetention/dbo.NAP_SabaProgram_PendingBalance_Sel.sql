@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBSIC-bodb02,DBACC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SabaProgram_PendingBalance_Sel]
 	  @CustID		INT					
 	 ,@WalletId		TINYINT
@@ -6,7 +6,7 @@ AS
 /*	
 	Created by: 20240919@Aries
 	Task: Rebate & Retention - Implement Script to Insert Member List  [Redmine: #211046]  
-	DB: DBACC-bodb02
+	DB: DBSIC-bodb02,DBACC-bodb02
 	
 	Revisions:
 		- 20240919@Aries: Created [Redmine: #211046]
