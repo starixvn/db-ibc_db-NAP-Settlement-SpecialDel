@@ -69,8 +69,10 @@ BEGIN
 		,NegativeBalanceUsers VARCHAR(MAX)
 		,MessageId INT
 		,MessageIdSpecial INT
+		,RequestDetailId INT
 		,IsFinish BIT
 	)
+	CREATE CLUSTERED INDEX IX_tmpVoidingHistory_RequestId_VoidingHistoryId ON #tmpVoidingHistory (RequestId,VoidingHistoryId)
 
 	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message NVARCHAR(MAX), Type INT)
 	DECLARE @tmp_MatchId AS TABLE (MatchId INT)
@@ -148,7 +150,7 @@ BEGIN
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 	WHERE vh.RequestId = @RequestId AND vh.StatusId IN (2,3) 
 	
-	IF @IssuetypeId = 12 AND @RequestDetailId IS NOT NULL --Wrong Market Offered issuetype
+	IF @IssuetypeId = 12 --Wrong Market Offered issuetype
 	BEGIN
 		DECLARE @tmpTicketInfo TABLE (
 			RequestId		INT
@@ -166,7 +168,8 @@ BEGIN
 				 ,ParlayTransIds VARCHAR(MAX)
 				))tbl
 
-		DELETE vh --Remove voidinghistory not follow RequestDetailId input
+		UPDATE vh
+		SET vh.RequestDetailId = ISNULL(s.RequestDetailId,sp.RequestDetailId)
 		FROM #tmpVoidingHistory vh
 			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
 			OUTER APPLY(
@@ -174,16 +177,19 @@ BEGIN
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
 				WHERE s.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.SingleTransIds,''), ',') )
 					AND t.RequestId = s.RequestId
-					AND s.RequestDetailId = @RequestDetailId
 			)s	
 			OUTER APPLY(
 					SELECT TOP 1 sp.RequestDetailId
 					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
 					WHERE sp.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.ParlayTransIds,''), ',') )
 					AND t.RequestId = sp.RequestId
-						AND sp.RequestDetailId = @RequestDetailId
 				)sp
-		WHERE s.RequestDetailId IS NULL AND sp.RequestDetailId IS NULL
+
+		--Remove voidinghistory not follow RequestDetailId input
+		 DELETE FROM #tmpVoidingHistory 
+		 WHERE 1 = CASE WHEN RequestDetailId <> @RequestDetailId THEN 1
+					    WHEN RequestDetailId IS NULL THEN 1 
+						ELSE 0 END
 	END
 
 	SET @VoidingHistoryIds = STUFF((SELECT  ',' + CAST (VoidingHistoryId AS VARCHAR(50))
@@ -266,8 +272,8 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK)
 			ON t.RequestedBy = v.CustId
 
-	SELECT DISTINCT
-		v.Username AS VoidedBy
+	SELECT DISTINCT CASE WHEN m.IssuetypeId = 12 THEN DENSE_RANK() OVER (ORDER BY s.RequestDetailId ASC) ELSE 0 END Id --Support sort for WMO
+		,v.Username AS VoidedBy
 		,msg.Content_cs AS ContentChineseSimplified
 		,msg.Content_en AS ContentEnglish
 		,m.MatchId
