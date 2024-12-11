@@ -294,7 +294,7 @@ BEGIN
 			,FilterBetOption
 			,FilterOddsSpread
 		)
-	SELECT @MatchID AS matchid
+	SELECT DISTINCT @MatchID AS matchid
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -462,7 +462,7 @@ BEGIN
 				,FilterBetOption
 				,FilterOddsSpread
 			)
-		SELECT @MatchID AS matchid
+		SELECT DISTINCT @MatchID AS matchid
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid

@@ -425,6 +425,22 @@ BEGIN
 		INNER JOIN #tmpTransInfo b ON t.transid = b.transid AND t.matchid = b.matchid
 	WHERE b.IsMixParlay = 0 AND t.IsCancelCashOut = 1
 
+	-- Fix case: WMO 2 range time: Original range time 1, Canel CO: range time 2
+	DECLARE @tmpRemoveDuplCancelCO TABLE (TransId BIGINT)
+	INSERT INTO @tmpRemoveDuplCancelCO (TransId)
+	SELECT TransId
+	FROM #TVSTicketBets 
+	GROUP BY transid
+	HAVING COUNT(TransId) >=2
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpRemoveDuplCancelCO)
+	BEGIN
+		DELETE t
+		FROM #TVSTicketBets t
+		WHERE t.IsCancelCashOut = 1 
+		 AND t.transid IN ( SELECT transid FROM @tmpRemoveDuplCancelCO)
+	END
+
 	---get sub ticket of a mix parlay	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsMixParlay = 1)
 	BEGIN		
