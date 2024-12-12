@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailOSSel]
 	,@SourceId SMALLINT
 	,@MatchId	INT = 0
 	,@IsInhouse	BIT = 0
+	,@IsLive	BIT = 0
 AS
 /*
     Created by: 20200818@Louisa
@@ -14,6 +15,7 @@ AS
 		- 20200818@Louisa: get result for LSports Redmine:#139627]
 		- 20200825@Louisa: allow get result by InHouse MatchId (request from TW )
 		- 20210818@Louisa: Add more Option [Redmine:#159307]
+		- 20241212@Aries: Support to add a parameter to the new Live column for Provider Tables [Redmine:#215143]
 		
 	Param's explanation:
 		@SourceId	: LSport = 25
@@ -41,6 +43,7 @@ BEGIN
 					( p.MatchId3rd = @MatchId3rd AND @IsInhouse = 0 )
 					OR ( p.MatchId = @MatchId AND @IsInhouse = 1 )
 				)
+			AND ISNULL(p.IsLive,0) = @IsLive
 	)
 	SELECT MatchId
 		  ,ResourceId

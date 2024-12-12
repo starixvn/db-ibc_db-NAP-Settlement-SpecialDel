@@ -4,6 +4,7 @@ ALTER PROCEDURE dbo.NAP_Set_ProviderExternalResultDetailSel
 	,@SourceId SMALLINT	
 	,@MatchId	INT = 0
 	,@IsInhouse	BIT = 0
+	,@IsLive	BIT = 0
 AS
 /*
     Created by: 20201110@Louisa
@@ -15,6 +16,7 @@ AS
 		- 20201118@Louisa: allow query by In-house MatchId
 		- 20201124@Louisa: allow query by In-house MatchId or match 3rd (follow OS)
 		- 20210818@Louisa: Add more Option [Redmine:#159307]
+		- 20241212@Aries: Support to add a parameter to the new Live column for Provider Tables [Redmine:#215143]
 		
 */
 BEGIN
@@ -37,6 +39,7 @@ BEGIN
 					( p.MatchId3rd = @MatchId3rd AND @IsInhouse = 0 )
 					OR ( p.MatchId = @MatchId AND @IsInhouse = 1 )
 				)
+			AND ISNULL(p.IsLive,0) = @IsLive
 	)
 	SELECT MatchId
 		  ,ResourceId

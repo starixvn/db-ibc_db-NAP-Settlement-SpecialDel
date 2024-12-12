@@ -2,6 +2,7 @@
 ALTER PROCEDURE dbo.NAP_Set_ProviderExternalResultDetailESSel
 	@MatchId3rd INT
 	,@SourceId SMALLINT
+	,@IsLive	BIT = 0
 AS
 /*
     Created by: 20200723@Kathy
@@ -12,6 +13,7 @@ AS
 		- 20200721@Kathy: get provider result [Redmine:#136931]
 		- 20210818@Louisa: Add more Option [Redmine:#159307]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217] 
+		- 20241212@Aries: Support to add a parameter to the new Live column for Provider Tables [Redmine:#215143]
 		
 */
 BEGIN
@@ -31,7 +33,7 @@ BEGIN
 		FROM	dbo.ProviderExternalResultDetailES p WITH(NOLOCK)
 		WHERE	p.MatchId3rd = @MatchId3rd
 				AND p.SourceId = @SourceId
-				AND ISNULL(p.IsLive,0) = 0
+				AND ISNULL(p.IsLive,0) = @IsLive
 	)
 	SELECT MatchId
 		  ,ResourceId
