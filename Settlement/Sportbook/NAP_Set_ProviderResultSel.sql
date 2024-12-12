@@ -4,6 +4,7 @@ ALTER PROC [dbo].[NAP_Set_ProviderResultSel]
 	,@ResourceIDs			VARCHAR(MAX)
 	,@SourceIDs				VARCHAR(MAX)
 	,@LatestRecord			BIT
+	,@IsLive				BIT = 0
 AS
 /*
     Created by: 20240122@Aries
@@ -16,6 +17,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241002@Aries: direct payout for early soccer [Redmine:#211079]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
+		- 20241212@Aries: Support to add a parameter to the new Live column for Provider Tables [Redmine:#215143]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -71,6 +73,7 @@ BEGIN
 						 WHEN r.ResourceID IS NOT NULL		THEN 1
 						 ELSE 0
 					END
+			AND ISNULL(pr.IsLive,0) = @IsLive
 	END
 	ELSE IF @ExternalResultTable = 2
 	BEGIN
@@ -93,6 +96,7 @@ BEGIN
 						 WHEN r.ResourceID IS NOT NULL		THEN 1
 						 ELSE 0
 					END
+			AND ISNULL(pr.IsLive,0) = @IsLive
 	END
 	ELSE IF @ExternalResultTable = 3
 	BEGIN
@@ -115,6 +119,7 @@ BEGIN
 						 WHEN r.ResourceID IS NOT NULL		THEN 1
 						 ELSE 0
 					END
+			AND ISNULL(pr.IsLive,0) = @IsLive
 	END
 
 	IF @Sporttype = 1

@@ -5,6 +5,7 @@ ALTER PROCEDURE dbo.NAP_Set_ProviderExternalResultDetailSportsSel
 	,@Sporttype SMALLINT	
 	,@MatchId	INT = 0
 	,@IsInhouse	BIT = 0
+	,@IsLive	BIT = 0
 AS
 /*
     Created by: 20201110@Louisa
@@ -19,6 +20,7 @@ AS
 		- 20210805@Louisa: Default for Other sports [Redmine:#159307]
 		- 20211223@Louisa: mapping between in-house and external match [Redmine:#166449]
 		- 20220222@Louisa : Task: Integrate result for Soccer Corner matches [Redmine:#168854]
+		- 20241212@Aries: Support to add a parameter to the new Live column for Provider Tables [Redmine:#215143]
 */
 BEGIN
 	
@@ -37,6 +39,7 @@ BEGIN
 			,@SourceId	= @SourceId
 			,@MatchId	= @MatchId
 			,@IsInhouse	= @IsInhouse
+			,@IsLive    = @IsLive
 	END
 
 	ELSE IF @ExternalResultTable = 3 ---- ESports
@@ -44,6 +47,7 @@ BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailESSel
 			@MatchId3rd	= @MatchId3rd
 			,@SourceId	= @SourceId
+			,@IsLive    = @IsLive
 	END
 
 	ELSE
@@ -52,6 +56,7 @@ BEGIN
 			,@SourceId	= @SourceId
 			,@MatchId	= @MatchId
 			,@IsInhouse	= @IsInhouse
+			,@IsLive    = @IsLive
 
 END
 GO
