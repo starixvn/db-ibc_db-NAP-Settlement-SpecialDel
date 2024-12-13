@@ -274,6 +274,15 @@ BEGIN
 	WHERE ci.recommend IN (-3,-4) 
 		AND ci.roleid = 1
 		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_1)
+
+	INSERT INTO #InputValidCustid_1 (CustID)
+	SELECT ci.custid
+	FROM #InputUsernameList AS l 
+		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
+		ON l.custid = ci.mrecommend
+	WHERE ci.recommend = -3
+		AND ci.roleid = 1
+		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_1)
 	
 	------------Prepare Data------------------------
 	INSERT INTO @bettype_tmp (bettype)

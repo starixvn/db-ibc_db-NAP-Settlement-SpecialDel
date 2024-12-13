@@ -191,6 +191,15 @@ BEGIN
 		AND ci.roleid = 1
 		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_tmp)
 
+	INSERT INTO #InputValidCustid_tmp (CustID)
+	SELECT ci.custid
+	FROM #InputUsernameList AS l 
+		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
+		ON l.custid = ci.mrecommend
+	WHERE ci.recommend = -3
+		AND ci.roleid = 1
+		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_tmp)
+
 	--Search single tickets (bettrans)
 	INSERT INTO #TransInfo(
 			matchid 
