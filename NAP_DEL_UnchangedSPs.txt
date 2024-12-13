@@ -1,5 +1,3 @@
 SpecialDelete\VirtualSport\RecoverBet\dbo.NAP_SpecialDelete_RecoverVSBetRadar_Upd.sql
-SpecialDelete\TicketVoiding\Validation\LogInfo\TicketVoiding_LogInfo_Select.sql
-
 
 
