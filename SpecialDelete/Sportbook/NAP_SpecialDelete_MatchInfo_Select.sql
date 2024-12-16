@@ -22,6 +22,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241216@July: [TVS] Danger Accepted - Auto fill number of booking/goal kick/goal to the message template [Redmine: #214377]
 
 	Param's explanation:	
 		- @Type: 0 - Normal (get match from match table)
@@ -81,13 +82,21 @@ BEGIN
 					,m.sporttype
 					,l.LeagueGroupID
 					,m.GlobalShowTime
-					,mr.NumberOfCorner
+					,mr.NumberOfSubType
 					,NULL AS VendorMatchId
 					,NULL AS RaceId
 			FROM	dbo.match AS m WITH (NOLOCK) 
 				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
 				OUTER APPLY (
-					SELECT RIGHT(mr.SubType, 2) AS NumberOfCorner					FROM match_remark mr WITH (NOLOCK)					WHERE mr.matchid = m.matchid						AND mr.MainType = 1						AND mr.SubType LIKE '21__'
+					SELECT RIGHT(mr.SubType, 2) AS NumberOfSubType					FROM match_remark mr WITH (NOLOCK)					WHERE mr.matchid = m.matchid						AND 1 = CASE WHEN mr.MainType = 1
+										   AND (mr.SubType LIKE '21__' OR mr.SubType LIKE '26__') THEN 1 --NumberOfNextCorner
+									 WHEN mr.MainType = 2
+									       AND (mr.SubType LIKE '29__' OR mr.SubType LIKE '34__') THEN 1 --NumberOfNextBooking
+									 WHEN mr.MainType = 8
+										   AND (mr.SubType LIKE '39__' OR mr.SubType LIKE '43__') THEN 1 --NumberOfNextGoalKick
+									 WHEN mr.MainType = 22
+										   AND (mr.SubType LIKE '4__' OR mr.SubType LIKE '5__') THEN 1 --NumberOfNextGoal
+									 ELSE 0 END
 				)mr
 			WHERE	m.matchid = @matchID
 				AND  1 = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN 0  --Exclude child match Cricket/Baseball
@@ -105,13 +114,21 @@ BEGIN
 					,m14.sporttype
 					,l.LeagueGroupID
 					,m14.globalshowtime
-					,mr.NumberOfCorner
+					,mr.NumberOfSubType
 					,NULL AS VendorMatchId
 					,NULL AS RaceId
 			FROM	dbo.match14 AS m14 WITH (NOLOCK) 
 				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m14.leagueid = l.leagueid
 				OUTER APPLY (
-					SELECT RIGHT(mr.SubType, 2) AS NumberOfCorner					FROM match_remark mr WITH (NOLOCK)					WHERE mr.matchid = m14.matchid						AND mr.MainType = 1						AND mr.SubType LIKE '21__'
+					SELECT RIGHT(mr.SubType, 2) AS NumberOfSubType					FROM match_remark mr WITH (NOLOCK)					WHERE mr.matchid = m14.matchid						AND 1 = CASE WHEN mr.MainType = 1
+										   AND (mr.SubType LIKE '21__' OR mr.SubType LIKE '26__') THEN 1 --NumberOfNextCorner
+									 WHEN mr.MainType = 2
+									       AND (mr.SubType LIKE '29__' OR mr.SubType LIKE '34__') THEN 1 --NumberOfNextBooking
+									 WHEN mr.MainType = 8
+										   AND (mr.SubType LIKE '39__' OR mr.SubType LIKE '43__') THEN 1 --NumberOfNextGoalKick
+									 WHEN mr.MainType = 22
+										   AND (mr.SubType LIKE '4__' OR mr.SubType LIKE '5__') THEN 1 --NumberOfNextGoal
+									 ELSE 0 END
 				)mr
 			WHERE	m14.matchid = @matchID	
 				AND 1 = CASE WHEN m14.sporttype IN (50,8) AND m14.ChildMatchType = 200 THEN 0 --Exclude child match Cricket/Baseball
