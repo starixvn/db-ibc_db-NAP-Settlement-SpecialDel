@@ -21,6 +21,7 @@ AS
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240823@July: WMKO/TE - Add Details of bet list for issue types [Redmine: #208628]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+		- 20241216@Lani: Add 'GroupName' column returned [Redmine: #213960]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime =""/></root>
@@ -676,6 +677,10 @@ BEGIN
 				,m.sporttype AS 'sporttype'
 				,ISNULL(tb.parentid, m.Subbettype) AS 'GroupBettypeId' --Return for web filter bettype
 				,s.IsCancelCashOut AS 'IsCancelCashOut'
+			,CASE 
+				WHEN m.IsMixParlay = 1 THEN 'Parlay'
+				ELSE 'Single'
+			END AS 'GroupName'
 		FROM @tmpLogInfoTickets s
 			INNER JOIN #tmpTransInfo m ON s.transid = m.Subtransid
 			LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = m.Subbettype
