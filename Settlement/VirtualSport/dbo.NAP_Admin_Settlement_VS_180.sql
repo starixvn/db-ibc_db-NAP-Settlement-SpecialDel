@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member,bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="svc_tig,wsv_nap" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_VS_180] 
 	@AdminId			INT
 	,@MatchId			INT
@@ -22,6 +22,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20231215@Louisa:  Send mail negative balance for VS1 [Redmine:#195536]
+		- 20241211@Louisa: add matchid for BalancePendingCreditGame [Redmine:#215066]
 
 
 	Param's Explanation:
@@ -215,12 +216,14 @@ BEGIN
 		,balance
 		,bettype
 		,GameTypeID
+		,RefID
 		)
 	SELECT a.custid
 		,a.winlostdate
 		,(a.winlost - b.winlost) AS Balance
 		,1201
 		,a.gametypeid
+		,@MatchId
 	FROM #BalanceBefore b
 		INNER JOIN #BalanceAfter a 
 			ON	a.custid = b.custid
@@ -234,12 +237,14 @@ BEGIN
 		,balance
 		,bettype
 		,GameTypeID
+		,RefID
 		)
 	SELECT a.custid
 		,a.winlostdate
 		,ABS(a.winlost - b.winlost) AS Balance
 		,1201
 		,a.gametypeid
+		,@MatchId
 	FROM #BalanceBefore b
 		INNER JOIN #BalanceAfter a 
 			ON	a.custid = b.custid

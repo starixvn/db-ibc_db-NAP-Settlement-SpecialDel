@@ -28,6 +28,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241126@Lani: [TVS] Get site from srecommend, change serverAlias [Redmine: #213451]
+		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -165,7 +166,8 @@ BEGIN
 		winlostdate			SMALLDATETIME,
 		gametypeid			SMALLINT,
 		balance				MONEY,
-		winlost				MONEY		
+		winlost				MONEY,
+		TransId				BIGINT
 	)
 	
 	CREATE TABLE #afterUpd	
@@ -174,7 +176,8 @@ BEGIN
 		winlostdate			SMALLDATETIME,
 		gametypeid			SMALLINT,
 		balance				MONEY,
-		winlost				MONEY
+		winlost				MONEY,
+		TransId				BIGINT
 	)
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
@@ -558,16 +561,17 @@ BEGIN
 							 , winlostdate
 							 , gametypeid
 							 , balance
-							 , winlost)
+							 , winlost
+							 ,TransId)
 		SELECT	b.custid				  
 			  , b.winlostdate
 			  , b.bettype AS gametypeid
-			  , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance 
-			  , SUM(CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END) AS winlost				  
+			  , (b.winlost - b.actual_stake + b.playercomm) AS balance 
+			  , (CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END) AS winlost	
+			  , b.TransId
 		FROM bettrans b WITH (NOLOCK) 
 			 INNER JOIN #RecoverBet t 
-					 ON	b.transid = t.TransId								 				 	  
-		GROUP BY b.CustID, b.winlostdate, b.bettype
+					 ON	b.transid = t.TransId
 
 		INSERT INTO @beforeUpd(custid, balance, balanceType)
 		SELECT	CustID
@@ -1254,16 +1258,17 @@ BEGIN
 							, winlostdate
 							, gametypeid
 							, balance
-							, winlost)
+							, winlost
+							,TransId)
 		SELECT	b.custid				  
 			  , b.winlostdate
 			  , b.bettype AS gametypeid
-			  , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance 
-			  , SUM(CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END) AS winlost				  
+			  , (b.winlost - b.actual_stake + b.playercomm) AS balance 
+			  , (CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END) AS winlost	
+			  , b.TransId
 		FROM bettrans b WITH (NOLOCK) 
 			 INNER JOIN #RecoverBet t 
-					 ON	b.transid = t.TransId								 				 	  
-		GROUP BY b.CustID, b.winlostdate, b.bettype
+					 ON	b.transid = t.TransId		
 
 		INSERT INTO @afterUpd(custid, balance, balanceType)
 		SELECT	CustID
@@ -1282,34 +1287,34 @@ BEGIN
 											, winlostdate
 											, balance
 											, bettype
-											, GameTypeID)
+											, GameTypeID
+											,RefID)
 		SELECT a.custid
 			 , a.winlostdate
 			 , (a.winlost - b.winlost) AS Balance
 			 , 1201 AS bettype
 			 , a.gametypeid
+			 , a.TransId
 		FROM #beforeUpd b
 			INNER JOIN #afterUpd a 
-				ON	a.custid = b.custid
-					AND a.winlostdate = b.winlostdate
-					AND a.gametypeid = b.gametypeid						
+				ON	a.TransId = b.TransId						
 		WHERE (a.winlost - b.winlost) > 0
 
 		INSERT INTO BalancePendingDebitGame (custid
 										   , winlostdate
 										   , balance
 										   , bettype
-										   , GameTypeID)
+										   , GameTypeID
+										   ,RefID)
 		SELECT a.custid
 			 , a.winlostdate
 			 , ABS(a.winlost - b.winlost) AS Balance
 			 , 1201 AS bettype
 			 , a.gametypeid
+			 , a.TransId
 		FROM #beforeUpd b
 			INNER JOIN #afterUpd a 
-				ON	a.custid = b.custid
-					AND a.winlostdate = b.winlostdate
-					AND a.gametypeid = b.gametypeid
+				ON	a.TransId = b.TransId
 		WHERE (a.winlost - b.winlost) < 0
 		
 		--> Delete zzzbettrans

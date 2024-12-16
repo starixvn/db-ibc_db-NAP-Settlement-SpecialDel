@@ -35,6 +35,7 @@ AS
 		- 20230830@Kathy: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20241211@Louisa: add matchid for BalancePendingCreditGame [Redmine:#215066]
 
 	Param's Explanation:  
 		   
@@ -442,12 +443,14 @@ BEGIN
 				,bettype
 				,GameTypeID
 				,balance
+				,RefID
 			)
 			SELECT custid
 				,winlostdate
 				,@CWLBettype
 				,GameTypeID
 				,(after_winlost - bef_winlost) AS Balance
+				,@MatchId
 			FROM @BalanceCWL t
 			WHERE (after_winlost - bef_winlost) > 0
 			
@@ -458,12 +461,14 @@ BEGIN
 				,bettype
 				,GameTypeID
 				,balance
+				,RefID
 			)
 			SELECT custid
 				,winlostdate
 				,@CWLBettype
 				,GameTypeID
 				,ABS(after_winlost - bef_winlost) AS Balance
+				,@MatchId
 			FROM @BalanceCWL
 			WHERE (after_winlost - bef_winlost) < 0
 

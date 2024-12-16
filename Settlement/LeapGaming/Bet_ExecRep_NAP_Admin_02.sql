@@ -20,6 +20,7 @@ AS
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine:#199700]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20240410@Kathy: support parlay - write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20241211@Louisa: add matchid for BalancePendingCreditGame [Redmine:#215066]
 
     Param's Explanation:
         - ExecRep SP: DBTrans_Bet
@@ -41,6 +42,7 @@ BEGIN
 			,@EndTime			DATETIME2
 			,@AffectedTicket	INT
 			,@MessageBody		VARCHAR(MAX)
+			,@MainIDParlay		INT
 
 	DECLARE @tmpMainParlayInfo TABLE (
 		 matchid 		INT
@@ -119,8 +121,9 @@ BEGIN
 			,mo		SMALLMONEY
 			,wd		SMALLDATETIME
 			,apo	MONEY
-	)		
-	 
+	)	
+	
+	SELECT @MainIDParlay  = ( SELECT TOP(1) matchid FROM @tmpMainParlayInfo)
 	
 	BEGIN TRY
 		SET @StartTime = SYSDATETIME()
@@ -242,12 +245,14 @@ BEGIN
 					,bettype
 					,GameTypeID
 					,balance
+					,RefID
 				)
 				SELECT custid
 					,winlostdate
 					,@CWLBettype
 					,GameTypeID
 					,(after_winlost - bef_winlost) AS Balance
+					,@MainIDParlay
 				FROM @BalanceCWL t
 				WHERE (after_winlost - bef_winlost) > 0
 			
@@ -258,12 +263,14 @@ BEGIN
 					,bettype
 					,GameTypeID
 					,balance
+					,RefID
 				)
 				SELECT custid
 					,winlostdate
 					,@CWLBettype
 					,GameTypeID
 					,ABS(after_winlost - bef_winlost) AS Balance
+					,@MainIDParlay
 				FROM @BalanceCWL
 				WHERE (after_winlost - bef_winlost) < 0
 

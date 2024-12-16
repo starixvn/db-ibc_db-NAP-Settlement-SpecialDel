@@ -61,6 +61,7 @@ AS
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
+		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -802,12 +803,14 @@ BEGIN
 				,balance
 				,bettype
 				,GameTypeID
+				,RefID
 		)
 		SELECT	custid
 				,winlostdate
 				,ABS(balance)
 				,bettype
 				,gametypeid
+				,@MatchId
 		FROM	#balanceGameChange
 		WHERE	Increased = 0
 
@@ -817,12 +820,14 @@ BEGIN
 				,balance
 				,bettype
 				,GameTypeID
+				,RefID
 		)
 		SELECT	custid
 				,winlostdate
 				,balance
 				,bettype
 				,gametypeid
+				,@MatchID
 		FROM	#balanceGameChange
 		WHERE	Increased = 1
 		

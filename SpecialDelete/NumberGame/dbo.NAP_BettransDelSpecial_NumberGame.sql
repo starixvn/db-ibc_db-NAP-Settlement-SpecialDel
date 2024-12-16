@@ -48,6 +48,8 @@ AS
 		- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20241125@Lani: [TVS] Change join type, serverAlias [Redmine: #213451]
+		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
+
 
 	Param's Explanation: 
 		- @Opition: 
@@ -646,12 +648,14 @@ BEGIN
 			,balance
 			,bettype
 			,GameTypeID
+			,RefID
 			)
 		SELECT a.custid
 			,a.winlostdate
 			,(a.winlost - b.winlost) AS Balance
 			,81
 			,a.gametypeid
+			,@MatchId
 		FROM #BeforeUpd b
 			INNER JOIN #AfterUpd a 
 				ON	a.custid = b.custid
@@ -665,12 +669,14 @@ BEGIN
 			,balance
 			,bettype
 			,GameTypeID
+			,RefID
 			)
 		SELECT a.custid
 			,a.winlostdate
 			,ABS(a.winlost - b.winlost) AS Balance
 			,81
 			,a.gametypeid
+			,@MatchId
 		FROM #BeforeUpd b
 			INNER JOIN #AfterUpd a 
 				ON	a.custid = b.custid
