@@ -27,6 +27,7 @@ AS
 		- 20240828@Max: [TVS] Manage Request - Enhancements - Fix Issue [Redmine: #208623]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241015@Max: [TVS] Void/Recover Bet Check -Missing some licensee customer in the negative balance list [Redmine: #212190]
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 
 	Param's explanation:
 		

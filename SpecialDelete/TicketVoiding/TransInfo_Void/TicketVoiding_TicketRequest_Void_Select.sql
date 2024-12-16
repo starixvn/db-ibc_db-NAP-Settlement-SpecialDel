@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TicketRequest_Void_Select] 
 (
 	@RequestId INT = 0
-  , @MatchId INT = NULL
   , @RequestDetailId INT = NULL --Support WMO(12) issuetype
 )
 AS
@@ -27,21 +26,18 @@ BEGIN
 	SELECT s.TransId, s.MatchId, s.SiteDBGroupID
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId AND ISNULL(IsCancelCO,0) = 0
-			AND (s.MatchId = @MatchId OR @MatchId IS NULL)
 			AND (s.RequestDetailId = @RequestDetailId OR @RequestDetailId IS NULL)
 
 	--Parlay ticket 
 	SELECT s.TransId, s.MatchId, s.SiteDBGroupID
 	FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId
-			AND (s.MatchId = @MatchId OR @MatchId IS NULL)
 			AND (s.RequestDetailId = @RequestDetailId OR @RequestDetailId IS NULL)
 
 	--Cancel CO ticket
 	SELECT s.TransId, s.MatchId, s.SiteDBGroupID
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId AND IsCancelCO = 1
-			AND (s.MatchId = @MatchId OR @MatchId IS NULL)
 			AND (s.RequestDetailId = @RequestDetailId OR @RequestDetailId IS NULL)
 END
 
