@@ -14,6 +14,7 @@ AS
 	Param's Explanation:  					
 */
 BEGIN	
+	WAITFOR DELAY '00:00:40' 
 	;WITH CTE AS (
 		SELECT SUM(Amount) AS Amount,MAX(CurrencyID) AS CurrencyID, MAX(TransDate) AS LatestTransdate
 		FROM SabaWalletTicket WITH(NOLOCK)

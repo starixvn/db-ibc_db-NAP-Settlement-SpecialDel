@@ -20,6 +20,8 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 
+	WAITFOR DELAY '00:00:40' 
+
 	SELECT Transid, Amount, ProgramID, APaymentDate, IsComplaint
 	FROM SabaWalletTicket WITH(NOLOCK)
 	WHERE CustID = @CustID
