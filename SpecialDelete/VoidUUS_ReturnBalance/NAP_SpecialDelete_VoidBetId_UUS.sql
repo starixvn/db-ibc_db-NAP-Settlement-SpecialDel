@@ -598,10 +598,7 @@ BEGIN
 				,a.TransId
 		FROM	#balanceGameBefore b
 			INNER JOIN #balanceGameAfter a 
-				ON	b.custid 		= a.custid
-				AND b.winlostdate 	= a.winlostdate
-				AND a.gametypeid = b.gametypeid
-				AND a.groupid = b.groupid
+				ON b.TransId = a.TransId
 		WHERE	b.winlost <> a.winlost
 		
 		INSERT INTO dbo.BalancePendingDebitGame (
