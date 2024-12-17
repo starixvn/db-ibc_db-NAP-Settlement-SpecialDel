@@ -1054,7 +1054,7 @@ BEGIN
 							@matchid			 = @matchid 
 						   ,@action				 = 'CAL'  
 						   ,@strTransIds		 = @TicketInfos_Recal
-						   ,@EventTable			 = 1
+						   ,@EventTable			 = 3
 						   ,@Is3rd				 = 1 
 						   ,@IsCalculateBalance  = 0
 						   ,@CWLBettype			 = 0
@@ -1076,7 +1076,7 @@ BEGIN
 							@matchid			 = @matchid 
 						   ,@action				 = 'REFUND'  
 						   ,@strTransIds		 = @TicketInfos_Refund
-						   ,@EventTable			 = 1
+						   ,@EventTable			 = 3
 						   ,@Is3rd				 = 1 
 						   ,@IsCalculateBalance  = 0
 						   ,@CWLBettype			 = 0
@@ -1218,7 +1218,7 @@ BEGIN
 							@matchid			 = @matchid 
 						   ,@action				 = 'CAL'  
 						   ,@strTransIds		 = @TicketInfos_Recal
-						   ,@EventTable			 = 1
+						   ,@EventTable			 = 3
 						   ,@Is3rd				 = 1 
 						   ,@IsCalculateBalance  = 0
 						   ,@CWLBettype			 = 0
@@ -1240,7 +1240,7 @@ BEGIN
 							@matchid			 = @matchid 
 						   ,@action				 = 'REFUND'  
 						   ,@strTransIds		 = @TicketInfos_Refund
-						   ,@EventTable			 = 1
+						   ,@EventTable			 = 3
 						   ,@Is3rd				 = 1 
 						   ,@IsCalculateBalance  = 0
 						   ,@CWLBettype			 = 0
