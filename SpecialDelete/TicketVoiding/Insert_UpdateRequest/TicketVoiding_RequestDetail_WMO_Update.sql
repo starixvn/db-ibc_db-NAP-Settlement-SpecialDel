@@ -19,6 +19,7 @@ AS
 		- 20220727@Max: Create new SP [Redmine:#197051]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20241025@July: [TVS] Add new Advanced Mode for TVS - [Redmine: #212394]
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -68,6 +69,8 @@ BEGIN
 			,IsMixParlay BIT
 			,SiteDBGroupID SMALLINT
 			,IsCancelCashOut BIT
+			,VoidFromTime	DATETIME
+			,VoidToTime     DATETIME
 	)
 	INSERT INTO #tmpTransInfo( 
 		   matchid
@@ -79,10 +82,12 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		  ,IsCancelCashOut
+		  ,VoidFromTime	
+		  ,VoidToTime  
 		)
-	SELECT m_mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb ,isCCO
+	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb ,isCCO, vft, vtt
 	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( m_mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isCCO BIT
+	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isCCO BIT, vft DATETIME , vtt DATETIME
 	) tbl
 
 	SET @WrongMarketOfferedXML = CONVERT(XML, @WrongMarketOfferedInfo)
@@ -121,7 +126,8 @@ BEGIN
 	BEGIN
 		DELETE rd
 		FROM dbo.TicketVoiding_RequestDetail rd
-			LEFT JOIN #tblGetLogInfo t ON rd.RequestId = t.RequestID AND rd.MatchId = t.MatchID
+			LEFT JOIN #tblGetLogInfo t ON rd.RequestId = t.RequestID AND rd.MatchId = t.MatchID 
+											AND rd.FilterFromTransTime = t.FilterFromTransTime AND rd.FilterToTransTime = t.FilterToTransTime
 		WHERE rd.RequestId = @RequestId AND t.RequestID IS NULL
 		
 		UPDATE	r
@@ -140,6 +146,7 @@ BEGIN
 			, IssueDetail = l.IssueDetail
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
+											AND r.FilterFromTransTime = l.FilterFromTransTime AND r.FilterToTransTime = l.FilterToTransTime
 	END
 
 	INSERT INTO dbo.TicketVoiding_RequestDetail (
@@ -184,7 +191,8 @@ BEGIN
 		, l.IssueDetail
 	FROM #tblGetLogInfo l
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
-		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID
+		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID 
+														AND rd.FilterFromTransTime = l.FilterFromTransTime AND rd.FilterToTransTime = l.FilterToTransTime
 	WHERE rd.RequestId IS NULL
 
 	WHILE (1=1) AND @IsEditRequest = 1
@@ -214,7 +222,7 @@ BEGIN
 				, DELETED.IsCancelCashOut
 		INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID, IsCancelCO)
 		FROM #tmpTransInfo d
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid AND d.VoidFromTime = rd.VoidFromTime AND d.VoidToTime = rd.VoidToTime
 		WHERE d.IsMixParlay = 0
 
 		IF @@ROWCOUNT < @topBatch BREAK
@@ -246,7 +254,7 @@ BEGIN
 			, DELETED.SiteDBGroupID
 		INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
 		FROM #tmpTransInfo d
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid AND d.VoidFromTime = rd.VoidFromTime AND d.VoidToTime = rd.VoidToTime
 		WHERE d.IsMixParlay = 1
 
 		IF @@ROWCOUNT < @topBatch BREAK

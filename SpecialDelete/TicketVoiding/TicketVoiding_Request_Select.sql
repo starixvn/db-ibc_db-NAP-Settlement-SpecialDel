@@ -53,6 +53,7 @@ AS
 		- 20240813@Max: [TVS] Manage Request - Enhancements [Redmine: #208623]
 		- 20241025@July: [TVS] Add new Advanced Mode for TVS - [Redmine: #212394]
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 
 	Param's explanation:	
 	
@@ -76,10 +77,7 @@ BEGIN
 			PlayerNamesChineseSimplified NVARCHAR(200)
 		)
 
-	SELECT @IssueTypeId = ( SELECT TOP 1 IssueTypeId 
-							FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
-							WHERE RequestId = @RequestId
-						  )
+	SELECT @IssueTypeId = IssueTypeId FROM dbo.TicketVoiding_Request WITH (NOLOCK) WHERE RequestId = @RequestId
 
 	IF @IssueTypeId = 22 --Check exists resettled ticket for Recover Issuetye
 	BEGIN
@@ -258,6 +256,7 @@ BEGIN
 				,@ActualTime AS ActualTime
 				,@MinuteOffset AS MinuteOffset
 				,@SecondOffset AS SecondOffset
+				,rd.Id AS RequestDetailId
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral

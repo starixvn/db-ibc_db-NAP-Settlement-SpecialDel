@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_AfterVoid_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_AfterVoid_Select]
 AS
 /*	Created by: 20230117@July
 	Task: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
@@ -10,6 +10,7 @@ AS
 		- 20230401@Helen: Fix issue [Redmine: #186241]
 		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 
 	Param's explanation:	
 */
@@ -20,6 +21,7 @@ BEGIN
 	       ,@xmlVoidResults		XML = NULL
 		   ,@VoidingHistoryId	INT
 		   ,@RequestId			INT 
+		   ,@IssueTypeId		TINYINT
 
 	DECLARE @tmpResultAfterVoid AS TABLE (
 		RequestID INT
@@ -42,6 +44,8 @@ BEGIN
 		,IsDeletedMessage BIT
 		,IsDeletedVoidedTransaction BIT
 		,IsDeletedzzzBettrans BIT
+		,TransIds VARCHAR(MAX)
+		,RequestDetailId INT
 	)
 	DECLARE @tmpVoidingHistory_Service AS TABLE
 	(
@@ -63,6 +67,7 @@ BEGIN
 	INSERT INTO @tmpResultAfterVoid (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
 							, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
 							, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, SiteDBGroupID, MessageIdSpecial, IsDeletedMessage, IsDeletedVoidedTransaction, IsDeletedzzzBettrans
+							, TransIds
 	)
 	SELECT TOP 1 
 			vb.RequestID
@@ -85,6 +90,7 @@ BEGIN
 		, vb.IsDeletedMessage
 		, vb.IsDeletedVoidedTransaction
 		, vb.IsDeletedzzzBettrans
+		, vh.TransIds
 	FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
 	WHERE vb.statusID = 1
@@ -92,6 +98,44 @@ BEGIN
 		
 	SELECT @BroadcastSessionId = BroadcastSessionId, @RequestId = RequestId
 	FROM @tmpResultAfterVoid
+
+	SELECT @IssueTypeId = IssueTypeId FROM dbo.TicketVoiding_Request WITH (NOLOCK) WHERE RequestId = @RequestId
+	
+	IF @IssueTypeId = 12 --Wrong Market Offered
+	BEGIN
+		DECLARE @tmpTicketInfo TABLE (
+			RequestId		INT
+		   ,VoidingHistoryId INT 
+		   ,SingleTransIds  VARCHAR(MAX)
+		   ,ParlayTransIds  VARCHAR(MAX)
+		)
+		INSERT INTO @tmpTicketInfo (RequestId, VoidingHistoryId, SingleTransIds, ParlayTransIds)
+		SELECT vh.RequestId, vh.VoidingHistoryId, tbl.SingleTransIds, tbl.ParlayTransIds
+		FROM @tmpResultAfterVoid vh
+		CROSS APPLY (
+			SELECT SingleTransIds,ParlayTransIds
+			FROM OPENJSON(vh.TransIds) 
+			WITH( SingleTransIds VARCHAR(MAX)
+				 ,ParlayTransIds VARCHAR(MAX)
+				))tbl
+		
+		UPDATE vh
+		SET vh.RequestDetailId = ISNULL(s.RequestDetailId, sp.RequestDetailId)
+		FROM @tmpResultAfterVoid vh
+			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
+			OUTER APPLY(
+					SELECT TOP 1 s.RequestDetailId
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+					WHERE s.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.SingleTransIds,''), ',') )
+						AND t.RequestId = s.RequestId
+				)s	
+			OUTER APPLY(
+					SELECT TOP 1 sp.RequestDetailId
+					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
+					WHERE sp.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.ParlayTransIds,''), ',') )
+					AND t.RequestId = sp.RequestId
+				)sp
+	END
 
 	INSERT INTO @tmpVoidingHistory_Service(RequestId, VoidingHistoryId, VoidingHistoryStatusId, AfterVoidStatusId, VoidResults) 
 	SELECT	 vh.RequestId
@@ -144,6 +188,7 @@ BEGIN
 		, IsDeletedMessage
 		, IsDeletedVoidedTransaction
 		, IsDeletedzzzBettrans
+		, RequestDetailId
 	FROM @tmpResultAfterVoid
 
 	--Table #2: Get statusid lastest request & current status request

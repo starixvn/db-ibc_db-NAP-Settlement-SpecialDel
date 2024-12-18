@@ -13,6 +13,7 @@ AS
 		- 20220927@July: Create new SP [Redmine:#178172]
 		- 20230308@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
+		- 20241122@July: Remove column Min/MaxWinlostDate - [Redmine: #212928]
 
 	Param's explanation:
 */
@@ -29,8 +30,6 @@ BEGIN
 		   ,ModifiedDate
 		   ,TransIds
 		   ,VoidData
-		   ,MinWinlostdate
-		   ,MaxWinlostdate
 		   ,BroadcastSessionId 
 		   ,SiteDBGroupID
 		   ,MessageIdSpecial

@@ -4,9 +4,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Update]
 	,@StatusId			TINYINT
 	,@MessageId			INT = NULL
 	,@ReasonId			INT = NULL
-	,@TransIds			VARCHAR(MAX) = NULL
-	,@MinWinLostDate	SMALLDATETIME = NULL
-	,@MaxWinLostDate	SMALLDATETIME = NULL
 	,@MessageIdSpecial	INT = NULL
 AS
 /*	
@@ -20,7 +17,8 @@ AS
 		- 20210208@Max: TVS - Letstalk, sent Email and miss data on tables after void when request has more than 3000 tickets [Redmine: #150199]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
-	
+		- 20241122@July: Remove column TransIds & Min/MaxWinlostDate - [Redmine: #212928]
+
 	Param's explanation:	
 		
 */
@@ -31,9 +29,6 @@ BEGIN
 		SET	StatusId = @StatusId
 			,MessageId = ISNULL(@MessageId, MessageId)
 			,ReasonId = ISNULL(@ReasonId, ReasonId)
-			,TransIds = ISNULL(@TransIds, TransIds)
-			,MinWinlostdate = ISNULL(@MinWinLostDate, MinWinlostdate)
-			,MaxWinlostdate = ISNULL(@MaxWinLostDate, MaxWinlostdate)
 			,ModifiedDate = GETDATE()
 			,MessageIdSpecial = ISNULL(@MessageIdSpecial, MessageIdSpecial)
 	WHERE	VoidingHistoryId = @VoidingHistoryId

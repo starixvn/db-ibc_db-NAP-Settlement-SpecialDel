@@ -14,6 +14,7 @@ AS
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime =""/></root>
@@ -34,9 +35,11 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #FilterInfo(
-		MatchId				INT
-		,FilterFromTransTime DATETIME
-		,FilterToTransTime DATETIME
+		 Id						INT	
+		,MatchId				INT
+		,AdvancedExtraInfo		VARCHAR(MAX)
+		,FilterFromTransTime	DATETIME
+		,FilterToTransTime		DATETIME
 	)
 
 	CREATE TABLE #TransInfo (
@@ -133,20 +136,25 @@ BEGIN
 
 	SET @AdvancedModeInfoXML = CONVERT(XML, @AdvancedModeInfo)
 
-	SELECT @MatchID = t.c.value('@MatchId','INT')	
-		,@AdvancedExtraInfo = t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)')
-		,@FilterFromTransTime = CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END
-		,@FilterToTransTime = CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END
+	INSERT INTO #FilterInfo (Id, MatchId, AdvancedExtraInfo, FilterFromTransTime, FilterToTransTime)
+	SELECT t.c.value('@Id','INT')	
+		  ,t.c.value('@MatchId','INT')	
+		  ,t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)')
+		  ,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END
+		  ,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END
 	FROM @AdvancedModeInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AdvancedModeInfoXML = NULL))
 
-	INSERT INTO #FilterInfo (MatchId, FilterFromTransTime, FilterToTransTime)
-	SELECT MatchId, @FilterFromTransTime, @FilterToTransTime
-	FROM dbo.match m WITH(NOLOCK)
-	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
-				WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID = @MatchId THEN 1
-			ELSE 0 END
-	
+	SELECT TOP (1) @AdvancedExtraInfo = AdvancedExtraInfo
+	              ,@MatchID = MatchId --get main match
+	FROM #FilterInfo
+
+	INSERT INTO #FilterInfo (Id, MatchId, FilterFromTransTime, FilterToTransTime) --Cricket/Baseball
+	SELECT d.Id, d.MatchId, d.FilterFromTransTime, d.FilterToTransTime
+	FROM #FilterInfo d
+		INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
+	WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+
 	--Parse json advanced mode filter
 	INSERT INTO @bettype_detail (Bettype
 		,FilterBetteam
@@ -286,7 +294,7 @@ BEGIN
 			,FilterBetOption
 			,FilterOddsSpread
 		)
-	SELECT b.matchid
+	SELECT DISTINCT @MatchID AS matchid
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -454,7 +462,7 @@ BEGIN
 				,FilterBetOption
 				,FilterOddsSpread
 			)
-		SELECT sub.matchid
+		SELECT DISTINCT @MatchID AS matchid
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
@@ -588,7 +596,7 @@ BEGIN
 	WHERE t.Bettype IS NULL
 			
 	--RETURN DATA
-	SET @TransInfoJson = COMPRESS((SELECT @MatchId AS 'mid'
+	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
 		,transid AS 't'
 		,Subtransid AS 's_t'
 		,custid    AS  'c'           

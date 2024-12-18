@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestInfo_Select]
 (
 	@RequestId		INT	= NULL
    ,@MatchId		INT = 0
+   ,@RequestDetailId INT = NULL --Support WMO(12) issuetype
 )
 AS
 /*	Created by: 20181212@Zane
@@ -31,6 +32,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 
 	Param's explanation:
 		
@@ -43,6 +45,8 @@ BEGIN
 	CREATE TABLE #tmpResult (
 		 RequestId					 INT
 		,MatchId					 INT
+		,RequestDetailId			 INT	
+		,TransIds					 VARCHAR(MAX)
 		,LastVoidedBy				 INT
 		,VoidingHistoryId			 INT
 		,TotalSingleProcessed		 INT DEFAULT (0)
@@ -53,11 +57,13 @@ BEGIN
 	
 	SELECT @IssueTypeId = IssueTypeId FROM dbo.TicketVoiding_Request WITH (NOLOCK) WHERE RequestId = @RequestId
 
-	INSERT INTO #tmpResult(RequestId, VoidingHistoryId, LastVoidedBy, MatchId)
+	INSERT INTO #tmpResult(RequestId, VoidingHistoryId, LastVoidedBy, MatchId, RequestDetailId, TransIds)
 	SELECT DISTINCT rd.RequestId
 			,vh.VoidingHistoryId
 			,vh.UserId
 			,@MatchId
+			,@RequestDetailId
+			,vh.TransIds
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH (NOLOCK) ON rd.RequestId = vh.RequestId	
 		INNER JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
@@ -66,9 +72,48 @@ BEGIN
 					AND (rd.MatchId = s.matchID OR s.matchID = 0)
 	WHERE	rd.RequestId = @RequestId 
 		AND 1 = CASE WHEN @IssueTypeId = 11 AND @MatchId = 0 THEN 1
-					WHEN rd.MatchId = @MatchId THEN 1
+					 WHEN rd.MatchId = @MatchId THEN 1
 				ELSE 0 END
-	
+		AND (rd.Id = @RequestDetailId OR @RequestDetailId IS NULL)
+
+	IF @IssuetypeId = 12 AND @RequestDetailId IS NOT NULL --Wrong Market Offered issuetype
+	BEGIN
+		DECLARE @tmpTicketInfo TABLE (
+			RequestId		INT
+		   ,VoidingHistoryId INT 
+		   ,SingleTransIds  VARCHAR(MAX)
+		   ,ParlayTransIds  VARCHAR(MAX)
+		)
+		INSERT INTO @tmpTicketInfo (RequestId, VoidingHistoryId, SingleTransIds, ParlayTransIds)
+		SELECT vh.RequestId, vh.VoidingHistoryId, tbl.SingleTransIds, tbl.ParlayTransIds
+		FROM #tmpResult vh
+		CROSS APPLY (
+			SELECT SingleTransIds,ParlayTransIds
+			FROM OPENJSON(vh.TransIds) 
+			WITH( SingleTransIds VARCHAR(MAX)
+				 ,ParlayTransIds VARCHAR(MAX)
+				))tbl
+
+		DELETE vh --Remove voidinghistory not follow RequestDetailId input
+		FROM #tmpResult vh
+			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
+			OUTER APPLY(
+				SELECT TOP 1 s.RequestDetailId
+				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+				WHERE s.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.SingleTransIds,''), ',') )
+					AND t.RequestId = s.RequestId
+					AND s.RequestDetailId = @RequestDetailId
+			)s	
+			OUTER APPLY(
+					SELECT TOP 1 sp.RequestDetailId
+					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
+					WHERE sp.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.ParlayTransIds,''), ',') )
+					AND t.RequestId = sp.RequestId
+						AND sp.RequestDetailId = @RequestDetailId
+				)sp
+		WHERE s.RequestDetailId IS NULL AND sp.RequestDetailId IS NULL
+	END
+
 	IF @IssueTypeId NOT IN (22) --NOT Recover Ticket
 	BEGIN
 		-- single ticket
@@ -141,6 +186,7 @@ BEGIN
 	SELECT TOP(1)
 			t.RequestId
 			,MatchId
+			,t.RequestDetailId
 			,v.Username AS LastPerformedBy
 			,t.TotalSingleProcessed
 			,t.TotalParlayProcessed

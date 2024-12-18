@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_GeneralInfo_Select]
 ( 
 	 @RequestId	INT
 	,@MatchIds   VARCHAR(MAX) = ''
+	,@RequestDetailId   INT	= NULL --Support WMO(12) issuetype
 )
 AS
 /*	Created by: 20201207@July
@@ -26,6 +27,7 @@ AS
 		- 20240828@Max: [TVS] Manage Request - Enhancements - Fix Issue [Redmine: #208623]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241015@Max: [TVS] Void/Recover Bet Check -Missing some licensee customer in the negative balance list [Redmine: #212190]
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 
 	Param's explanation:
 		
@@ -38,6 +40,7 @@ BEGIN
 			,@NegativeBalanceUsers VARCHAR(MAX) = ''
 			,@VoidingHistoryIds VARCHAR(MAX) = ''
 			,@SingleTransIds	VARCHAR(MAX) = ''
+			,@IssueTypeId INT
 
 	CREATE TABLE #tmpMatch 
 	(
@@ -60,21 +63,24 @@ BEGIN
 	(
 		RequestId INT
 		,VoidingHistoryId INT
+		,TransIds VARCHAR(MAX) --Support WMO(12) issuetype
 		,VoidedBy INT
 		,VoidResults XML
 		,MatchId INT
 		,NegativeBalanceUsers VARCHAR(MAX)
 		,MessageId INT
 		,MessageIdSpecial INT
+		,RequestDetailId INT
 		,IsFinish BIT
 	)
+	CREATE CLUSTERED INDEX IX_tmpVoidingHistory_RequestId_VoidingHistoryId ON #tmpVoidingHistory (RequestId,VoidingHistoryId)
 
 	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message NVARCHAR(MAX), Type INT)
 	DECLARE @tmp_MatchId AS TABLE (MatchId INT)
 
 	INSERT INTO @tmp_MatchId (MatchId)
 	SELECT value
-	FROM string_split (@MatchIds, ',')
+	FROM STRING_SPLIT(@MatchIds, ',')
 	WHERE value <> ''
 
 	INSERT INTO #tmpMatch (RequestId, MatchId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId, RecoveredTime, Sporttype, VendorMatchId, RaceId)
@@ -125,8 +131,11 @@ BEGIN
 					) m
 	WHERE rd.RequestId = @RequestId 
 		AND (rd.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR @MatchIds = '')
-	
-	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatch WHERE IssuetypeId = 22) --Recover Ticket
+		AND (rd.Id = @RequestDetailId OR @RequestDetailId IS NULL)
+
+	SELECT @IssueTypeId = (SELECT TOP 1 IssueTypeId FROM #tmpMatch)
+
+	IF @IssuetypeId = 22 --Recover Ticket
 	BEGIN
 		SET @SingleTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR(50))
 									FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
@@ -134,13 +143,56 @@ BEGIN
 									FOR XML PATH ('')),1,1,'')
 	END
 
-    INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy) 
+    INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy, TransIds) 
 	SELECT	 vh.RequestId
 			,vh.VoidingHistoryId
 			,vh.UserId AS VoidedBy
+			,vh.TransIds
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 	WHERE vh.RequestId = @RequestId AND vh.StatusId IN (2,3) 
 	
+	IF @IssuetypeId = 12 --Wrong Market Offered issuetype
+	BEGIN
+		DECLARE @tmpTicketInfo TABLE (
+			RequestId		INT
+		   ,VoidingHistoryId INT 
+		   ,SingleTransIds  VARCHAR(MAX)
+		   ,ParlayTransIds  VARCHAR(MAX)
+		)
+		INSERT INTO @tmpTicketInfo (RequestId, VoidingHistoryId, SingleTransIds, ParlayTransIds)
+		SELECT vh.RequestId, vh.VoidingHistoryId, tbl.SingleTransIds, tbl.ParlayTransIds
+		FROM #tmpVoidingHistory vh
+		CROSS APPLY (
+			SELECT SingleTransIds,ParlayTransIds
+			FROM OPENJSON(vh.TransIds) 
+			WITH( SingleTransIds VARCHAR(MAX)
+				 ,ParlayTransIds VARCHAR(MAX)
+				))tbl
+
+		UPDATE vh
+		SET vh.RequestDetailId = ISNULL(s.RequestDetailId,sp.RequestDetailId)
+		FROM #tmpVoidingHistory vh
+			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
+			OUTER APPLY(
+				SELECT TOP 1 s.RequestDetailId
+				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+				WHERE s.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.SingleTransIds,''), ',') )
+					AND t.RequestId = s.RequestId
+			)s	
+			OUTER APPLY(
+					SELECT TOP 1 sp.RequestDetailId
+					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
+					WHERE sp.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.ParlayTransIds,''), ',') )
+					AND t.RequestId = sp.RequestId
+				)sp
+
+		--Remove voidinghistory not follow RequestDetailId input
+		 DELETE FROM #tmpVoidingHistory 
+		 WHERE 1 = CASE WHEN RequestDetailId <> @RequestDetailId THEN 1
+					    WHEN RequestDetailId IS NULL THEN 1 
+						ELSE 0 END
+	END
+
 	SET @VoidingHistoryIds = STUFF((SELECT  ',' + CAST (VoidingHistoryId AS VARCHAR(50))
 									FROM #tmpVoidingHistory
 									FOR XML PATH ('')),1,1,'')
@@ -221,8 +273,8 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK)
 			ON t.RequestedBy = v.CustId
 
-	SELECT DISTINCT
-		v.Username AS VoidedBy
+	SELECT DISTINCT CASE WHEN m.IssuetypeId = 12 THEN DENSE_RANK() OVER (ORDER BY s.RequestDetailId ASC) ELSE 0 END Id --Support sort for WMO
+		,v.Username AS VoidedBy
 		,msg.Content_cs AS ContentChineseSimplified
 		,msg.Content_en AS ContentEnglish
 		,m.MatchId

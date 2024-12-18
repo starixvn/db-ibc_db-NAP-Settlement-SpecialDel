@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestInfo_Copy]
 (
 	 @RequestId		INT				= NULL
 	,@MatchId		INT				= NULL
+	,@RequestDetailId   INT			= NULL --Support WMO(12) issuetype
 )
 AS
 /*	Created by: 20221024@July
@@ -21,6 +22,7 @@ AS
 		- 202407256@Max: Change validation for transdesc [Redmine: #197051]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -49,6 +51,7 @@ BEGIN
 		,RequestExtraInfo	VARCHAR(MAX)
 		,Provider			NVARCHAR(400)
 		,IssueDetail		NVARCHAR(MAX)
+		,MistakenBy			NVARCHAR(400)
 		,IssueTypeId		TINYINT
 		,IssueTypeName		VARCHAR(100)
 		,SubIssueTypeName	VARCHAR(100)
@@ -111,6 +114,7 @@ BEGIN
 		,RequestExtraInfo
 		,Provider
 		,IssueDetail
+		,MistakenBy
 		,IssueTypeId
 		,IssueTypeName
 		,SubIssueTypeName 
@@ -132,6 +136,7 @@ BEGIN
 		,rd.TransIds AS RequestExtraInfo
 		,r.Provider
 		,rd.IssueDetail
+		,CASE WHEN r.IssueTypeId = 12 THEN r.MistakenBy ELSE NULL END AS MistakenBy --Only Wrong Market Offered
 		,r.IssueTypeId
 		,i.IssueTypeName
 		,s.SubIssueTypeName
@@ -151,6 +156,7 @@ BEGIN
 		INNER JOIN dbo.TicketVoiding_SubIssueType s WITH(NOLOCK) ON rd.SubIssueTypeId = s.SubIssueTypeId
 	WHERE rd.RequestId = @RequestId
 	   AND rd.MatchId = @MatchId
+	   AND (rd.Id = @RequestDetailId OR @RequestDetailId IS NULL)
 	ORDER BY rd.VoidFromTime ASC
 
 	SELECT @IsNeutral = MAX(CASE WHEN m.IsNeutral = 1 THEN 1 ELSE 0 END)
@@ -194,22 +200,22 @@ BEGIN
 		SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON s.TransId = b.TransId
-		WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
+		WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId AND (s.RequestDetailId = @RequestDetailId OR @RequestDetailId IS NULL)
 		UNION ALL
 		SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON s.TransId = b.TransId
-		WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
+		WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId AND (s.RequestDetailId = @RequestDetailId OR @RequestDetailId IS NULL)
 		
 		IF EXISTS (SELECT TOP 1 1 
 				FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) 
-				WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId)
+				WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId AND (s.RequestDetailId = @RequestDetailId OR @RequestDetailId IS NULL))
 		BEGIN
 			INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, BetId, Betteam, OddsId)
 			SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CASE WHEN ISNULL(b.betcheck,'') = '' THEN 0 ELSE b.betcheck END AS BetId, betteam, oddsid
 			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
 				INNER JOIN dbo.bettransm b WITH (NOLOCK) ON s.TransId = b.TransId
-			WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
+			WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId AND (s.RequestDetailId = @RequestDetailId OR @RequestDetailId IS NULL)
 		END
 		
 		SELECT @LiveStatus = CASE WHEN kq.Live_cnt > 0 AND kq.NonLive_cnt > 0 THEN ' '
@@ -225,7 +231,7 @@ BEGIN
 		
 		SELECT @TotalCancelCashOutCount = SUM(CASE WHEN s.IsCancelCO = 1 THEN 1 ELSE 0 END)
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-		WHERE RequestId = @RequestId AND MatchId = @MatchId
+		WHERE RequestId = @RequestId AND MatchId = @MatchId AND (s.RequestDetailId = @RequestDetailId OR @RequestDetailId IS NULL)
 
 		INSERT INTO @tmpBettypeCount (BetTypeId, BetId, TicketsCount)
 		SELECT s.BetType, s.BetId, COUNT(1) AS TicketsCount
@@ -297,6 +303,7 @@ BEGIN
 		  ,FilterBy 
 		  ,RequestExtraInfo
 		  ,ISNULL(Provider,'') AS Provider
+		  ,MistakenBy
 		  ,IssueTypeId
 		  ,IssueTypeName
 		  ,SubIssueTypeName 

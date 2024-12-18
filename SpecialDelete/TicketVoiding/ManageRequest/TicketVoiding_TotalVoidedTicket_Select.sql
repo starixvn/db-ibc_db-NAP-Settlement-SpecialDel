@@ -26,6 +26,7 @@ AS;
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
+		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 
 	Param's explanation:	
 		
@@ -40,6 +41,7 @@ BEGIN
 		,VoidingHistoryId	INT
 		,MatchId			INT
 		,IssueTypeId		TINYINT
+		,RequestDetailId	INT
 	)
 	CREATE NONCLUSTERED INDEX IX_tmpMatchVoidingHistory_VoidingHistoryId ON #tmpMatchVoidingHistory (VoidingHistoryId)
 
@@ -47,6 +49,7 @@ BEGIN
 		 RequestId			INT
 		,MatchId			INT
 		,IssueTypeId		TINYINT
+		,RequestDetailId	INT
 		,TotalSingleProcessed	INT DEFAULT (0)
 		,TotalParlayProcessed	INT DEFAULT (0)
 		,TotalCancelCashOutProcessed INT DEFAULT (0)
@@ -58,24 +61,25 @@ BEGIN
 		,VoidingHistoryId	
 		,IssueTypeId	
 		,MatchId
+		,RequestDetailId
 	)
-	SELECT req, vh, it, mid
+	SELECT req, vh, it, mid, ISNULL(id,0)
 	FROM STRING_SPLIT(@RequestInfo, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_RequestInfo) t
 		CROSS APPLY (
-				SELECT req, vh, it, mid
+				SELECT req, vh, it, mid, id
 				FROM OPENJSON(t.Decompress_RequestInfo) 
-				WITH( req INT, vh INT, it TINYINT, mid INT )
+				WITH( req INT, vh INT, it TINYINT, mid INT, id INT)
 			)tbl
 	WHERE f.value <> ''
 
-	INSERT INTO #tmpResult (RequestId, MatchId, IssueTypeId)
-	SELECT DISTINCT RequestId, MatchId, IssueTypeId
+	INSERT INTO #tmpResult (RequestId, MatchId, IssueTypeId, RequestDetailId)
+	SELECT DISTINCT RequestId, MatchId, IssueTypeId, ISNULL(RequestDetailId,0)
 	FROM #tmpMatchVoidingHistory
 	
 	-- single ticket	
 	;WITH CTE_Single AS(
-			SELECT	vh.RequestId, vh.MatchId
+			SELECT	vh.RequestId, vh.MatchId, vh.RequestDetailId
 					,SUM( CASE 
 							WHEN vh.IssueTypeId NOT IN (1,10,3,12,24,25,18) AND f.bettype IS NULL THEN 1
 							WHEN vh.IssueTypeId IN (1,10,3,12,24,25,18) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
@@ -88,7 +92,7 @@ BEGIN
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId AND z.VoidingHistoryId IS NOT NULL
 				LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.Bettype = z.bettype
 			WHERE z.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (22) --Recover Ticket
-			GROUP BY vh.RequestId, vh.MatchId
+			GROUP BY vh.RequestId, vh.MatchId, vh.RequestDetailId
 	)
 	UPDATE vh 
 		SET TotalSingleProcessed = t.TotalSingleProcessed
@@ -96,22 +100,24 @@ BEGIN
 			,TotalCancelCashOutProcessed = t.TotalCancelCashOutProcessed
 	FROM #tmpResult vh
 		INNER JOIN CTE_Single t ON vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
-	
+									AND vh.RequestDetailId = t.RequestDetailId
+
 	--parlay ticket
 	;WITH CTE_Parlay AS(
-		SELECT	vh.RequestId, vh.MatchId
+		SELECT	vh.RequestId, vh.MatchId, vh.RequestDetailId
 					,COUNT(1) AS TotalParlayProcessed
 			FROM	#tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId AND zm.VoidingHistoryId IS NOT NULL
 			WHERE zm.SiteDBGroupID = @SiteDBGroupID AND vh.IssueTypeId NOT IN (11,13,17,22) --Except AB,AC,ARC,RT
-			GROUP BY vh.RequestId, vh.MatchId
+			GROUP BY vh.RequestId, vh.MatchId, vh.RequestDetailId
 	)
 	UPDATE vh
 		SET TotalParlayProcessed = t.TotalParlayProcessed
 	FROM	#tmpResult vh
 		INNER JOIN CTE_Parlay t ON vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
-
+									AND vh.RequestDetailId = t.RequestDetailId
+									
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchVoidingHistory WHERE IssueTypeId = 22)
 	BEGIN
 		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT)
@@ -146,6 +152,7 @@ BEGIN
 
 	SELECT  RequestId			
 		   ,CASE WHEN IssueTypeId IN (13,17,22) THEN NULL ELSE matchid END AS matchid
+		   ,RequestDetailId 
 		   ,TotalSingleProcessed	
 		   ,TotalParlayProcessed	
 		   ,TotalCancelCashOutProcessed
