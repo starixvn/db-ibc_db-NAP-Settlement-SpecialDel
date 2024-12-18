@@ -77,6 +77,7 @@ AS;
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240826@July: [TVS] Void By Bet ID - Support void abnormal bet for main parlay ticket [Redmine: #209348]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -450,7 +451,10 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 	-- UPDATE Sportype, Endtime for Bitcoin, VS5
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype BETWEEN 7901 AND 7999 OR bettype BETWEEN 11050 AND 11099))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets 
+					WHERE bettype BETWEEN 7901 AND 7999 
+							OR bettype BETWEEN 11050 AND 11099
+							OR bettype BETWEEN 13000 AND 13011))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo

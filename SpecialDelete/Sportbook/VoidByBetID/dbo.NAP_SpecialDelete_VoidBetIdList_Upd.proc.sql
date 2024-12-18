@@ -116,6 +116,7 @@ AS
 	  - 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 	  - 20240826@July: [TVS] Void By Bet ID - Support void abnormal bet for main parlay ticket [Redmine: #209348]
 	  - 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+	  - 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 
 	 Param's Explanation:   
 */
@@ -482,7 +483,10 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 	-- UPDATE Sportype, Endtime for Bitcoin 
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype BETWEEN 7901 AND 7999 OR bettype BETWEEN 11050 AND 11099))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets 
+					WHERE bettype BETWEEN 7901 AND 7999 
+							OR bettype BETWEEN 11050 AND 11099
+							OR bettype BETWEEN 13000 AND 13011))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo
@@ -578,7 +582,7 @@ BEGIN
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-			,@isExistMatch3rd			= MAX (CASE WHEN Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147) THEN 1 ELSE 0 END)
+			,@isExistMatch3rd			= MAX (CASE WHEN Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147,134) THEN 1 ELSE 0 END)
 	FROM	#SpecialDeleteBets b
 		OUTER APPLY (
 					SELECT GroupId
@@ -603,14 +607,14 @@ BEGIN
 					AND f.GroupId IS NULL
 					AND Bettype NOT IN (1231,1232,1233,2770,2771)
 					AND Bettype NOT BETWEEN 7901 AND 7999
-					AND sporttype NOT IN (147)
+					AND sporttype NOT IN (147,134)
 				THEN 1 --SB,NG,LC
 			WHEN Bettype = 10 THEN 2	-- Outright
 			WHEN f.GroupId = 1 THEN 6 -- FM
 			WHEN Bettype IN (1231,1232,1233,2770,2771) THEN 4 -- VS Racing
 			WHEN Bettype = 38 THEN 5 -- Bet Builder
 			WHEN f.GroupId = 2 THEN 7 -- FM 228
-			WHEN (Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147)) THEN 8 --Bitcoin, VS5
+			WHEN (Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147,134)) THEN 8 --Bitcoin, VS5
 			ELSE 0
 		END AS KeyID
 	FROM #SpecialDeleteBets b
@@ -814,6 +818,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
+			OR b.bettype BETWEEN 13000 AND 13011 --VS6
 			) AND b.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
@@ -1039,6 +1044,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
+			OR b.bettype BETWEEN 13000 AND 13011 --VS6
 			) AND b.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE

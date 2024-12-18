@@ -95,6 +95,7 @@ AS;
 		- 20240729@July: Fix data length  [Redmine: #208544]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -1032,7 +1033,7 @@ BEGIN
 			,VendorMatchId = m.VendorMatchId
 	FROM #SpecialDeleteBets b
 		INNER JOIN #T_Match m WITH (NOLOCK) 
-			ON CASE WHEN (b.bettype IN (7901) OR bettype BETWEEN 11050 AND 11099) THEN 'match3rd' -- 7901: Bitcoin Over/Under
+			ON CASE WHEN (b.bettype IN (7901) OR bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13011) THEN 'match3rd' -- 7901: Bitcoin Over/Under
 					WHEN b.bettype IN (2770,2771) THEN 'VSRaceInfo'						
 				ELSE 'match' 
 			END = m.matchtype  

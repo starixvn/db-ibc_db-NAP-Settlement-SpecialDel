@@ -60,6 +60,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -258,7 +259,7 @@ BEGIN
 	END
 
 	-- UPDATE Sportype for VS5
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransId WHERE bettype BETWEEN 11050 AND 11099))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransId WHERE bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13011))
 	BEGIN
 		UPDATE d
 		SET  sporttype 	= m.SportType
@@ -358,7 +359,7 @@ BEGIN
 				,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
 				,@IsExistParlayVS4			= MAX (CASE WHEN fs.SpcialBettypes IS NOT NULL THEN 1 ELSE 0 END)
 				,@IsExistVS4				= MAX (CASE WHEN sporttype = 188 THEN 1 ELSE 0 END)
-				,@isExistMatch3rd			= MAX (CASE WHEN sporttype = 147 THEN 1 ELSE 0 END)
+				,@isExistMatch3rd			= MAX (CASE WHEN sporttype IN (147,134) THEN 1 ELSE 0 END)
 		FROM	#tmpTransId b
 			OUTER APPLY (
 						SELECT GroupId
@@ -380,7 +381,7 @@ BEGIN
 						AND Bettype NOT BETWEEN 801 AND 899
 						AND f.GroupId IS NULL
 						AND Bettype NOT IN (1231,1232,1233,2770,2771)
-						AND sporttype NOT IN (147)
+						AND sporttype NOT IN (147,134)
 					THEN 1 --SB,NG,LC
 				WHEN Bettype = 10 THEN 2	-- Outright
 				WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
@@ -388,7 +389,7 @@ BEGIN
 				WHEN Bettype IN (1231,1232,1233,2770,2771) THEN 4 -- VS Racing
 				WHEN Bettype = 38 THEN 5 -- Bet Builder
 				WHEN f.GroupId = 2 THEN 7 -- FM 228
-				WHEN sporttype IN (147) THEN 8 --VS5
+				WHEN sporttype IN (147,134) THEN 8 --VS5
 				ELSE 0
 			END AS KeyID
 		FROM #tmpTransId b
@@ -505,6 +506,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
+			OR b.bettype BETWEEN 13000 AND 13011 --VS6
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -707,6 +709,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
+			OR b.bettype BETWEEN 13000 AND 13011 --VS6
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101

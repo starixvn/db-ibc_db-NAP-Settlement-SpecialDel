@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_BetTypeSel_TicketListing_VirtualSport] 
+ALTER PROCEDURE [dbo].[NAP_BetTypeSel_TicketListing_VirtualSport] 
      @MatchId    INT = 0 
     ,@BetTypes   VARCHAR(MAX) = NULL
     ,@ErrMsg	 NVARCHAR(200) = '' OUTPUT
@@ -14,6 +14,7 @@ AS
 		- 20240219@July: Create new SP - [Redmine: #200317]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 
 */
 BEGIN
@@ -44,7 +45,7 @@ BEGIN
 			WHERE s.SportType = r.sporttype AND r.EventID = @MatchId
 					AND r.sporttype IN (177,198) --Virtual Horse Racing & Virtual Dog Racing
 		)m
-	WHERE s.ProductID IN (5,27,77,83,88)
+	WHERE s.ProductID IN (5,27,77,83,88,71)
         
     IF @ProductId IS NULL
     BEGIN 
@@ -53,7 +54,7 @@ BEGIN
         RETURN
     END 
     
-    CREATE TABLE #betTypesTemp (bettype SMALLINT PRIMARY KEY)
+    CREATE TABLE #betTypesTemp (bettype SMALLINT PRIMARY KEY, IsMixParlay BIT DEFAULT(0))
 
     INSERT INTO #betTypesTemp (bettype)
 	SELECT DISTINCT value 
@@ -61,18 +62,19 @@ BEGIN
 	WHERE value <> ''
 		
 	IF @ProductId = 27 AND @Sporttype NOT IN (177,198) --VS2
-		 INSERT INTO #betTypesTemp (bettype) VALUES (2799)
+		 INSERT INTO #betTypesTemp (bettype, IsMixParlay) VALUES (2799, 1)
 	IF @ProductId = 83 --VS4
-		 INSERT INTO #betTypesTemp (bettype) VALUES (10449)
+		 INSERT INTO #betTypesTemp (bettype, IsMixParlay) VALUES (10449, 1)
 	IF @ProductId = 88 --VS5
-		INSERT INTO #betTypesTemp (bettype) VALUES (11099)
+		INSERT INTO #betTypesTemp (bettype, IsMixParlay) VALUES (11099, 1)
 		
     SELECT b.typeid AS Id
          , b.typenamee AS Name
+		 , tb.IsMixParlay
     FROM #betTypesTemp tb
 		INNER JOIN bettype b WITH(NOLOCK) ON tb.bettype = b.typeid    
-    GROUP BY b.typeid, b.typenamee
-    ORDER BY b.typenamee
+    GROUP BY b.typeid, b.typenamee, tb.IsMixParlay
+    ORDER BY tb.IsMixParlay, b.typenamee
 
     DROP TABLE #betTypesTemp
 END

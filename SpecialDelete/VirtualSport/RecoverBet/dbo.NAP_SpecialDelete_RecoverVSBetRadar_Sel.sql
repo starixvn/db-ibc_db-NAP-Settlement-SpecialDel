@@ -22,6 +22,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -198,7 +199,7 @@ BEGIN
 					FROM match m WITH (NOLOCK)
 					WHERE m.matchid = z.matchid
 					UNION 
-					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode, m.EventDate
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, m.StartTime, m.matchcode, m.EventDate
 					FROM Match3rd m WITH (NOLOCK)
 					WHERE m.Match3rdId = z.matchid
 				 )m
@@ -207,7 +208,7 @@ BEGIN
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
 				OR m.sporttype IN (180, 186) -- Inspired VS 
-				OR m.sporttype IN (178, 179, 188, 147) -- VS3(Leap Gaming), VS4(Edge Gaming) 
+				OR m.sporttype IN (178, 179, 188, 147, 134) -- VS3(Leap Gaming), VS4(Edge Gaming) 
 			  )
 		  AND z.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))		  		
 		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
@@ -587,7 +588,7 @@ BEGIN
 					FROM match m WITH (NOLOCK)
 					WHERE m.matchid = @MatchId
 					UNION 
-					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, '', m.matchcode, m.EventDate
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, m.StartTime, m.matchcode, m.EventDate
 					FROM Match3rd m WITH (NOLOCK)
 					WHERE m.Match3rdId = @MatchId
 				 )m
