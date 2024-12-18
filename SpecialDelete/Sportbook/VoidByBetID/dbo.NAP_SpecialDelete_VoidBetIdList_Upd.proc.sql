@@ -485,7 +485,10 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 	-- UPDATE Sportype, Endtime for Bitcoin 
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype BETWEEN 7901 AND 7999 OR bettype BETWEEN 11050 AND 11099))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets 
+					WHERE bettype BETWEEN 7901 AND 7999 
+							OR bettype BETWEEN 11050 AND 11099
+							OR bettype BETWEEN 13000 AND 13011))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo
