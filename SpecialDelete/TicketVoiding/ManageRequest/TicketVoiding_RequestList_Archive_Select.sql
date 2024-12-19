@@ -59,6 +59,7 @@ AS
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20241206@July: [TVS] Add new filter [Redmine: #214113]
+		- 20241218@July: Show manage request 'Completed' for case No insert Service & VoidingHistory status done [Redmine: #213398]
 
 	Param's explanation:	
 		@Status: 
@@ -512,7 +513,7 @@ BEGIN
 			,t.IssueTypeId
 			,CASE WHEN vh.statusID IS NULL AND s.statusID IS NULL THEN ''
 				  ELSE CASE WHEN vh.statusID = 3 OR s.statusID = 3 THEN 'Failed'
-							WHEN vh.statusID = 2 AND s.statusID = 2 THEN 'Completed'
+							WHEN vh.statusID = 2 AND (s.statusID = 2 OR s.statusID IS NULL) THEN 'Completed'
 							ELSE 'Running' END
 				  END AS Status
 			,t.FilterBy
@@ -585,7 +586,7 @@ BEGIN
 				--New
 				WHEN @Status = 0 AND vh.statusID IS NULL AND s.statusID IS NULL THEN 1 
 				--Completed
-				WHEN @Status = 2 AND vh.statusID = 2 AND s.statusID = 2 THEN 1 
+				WHEN @Status = 2 AND vh.statusID = 2 AND (s.statusID = 2 OR s.statusID IS NULL) THEN 1 
 				--Failed
 				WHEN @Status = 3 AND (vh.statusID = 3 OR s.statusID = 3) THEN 1 
 				--Running

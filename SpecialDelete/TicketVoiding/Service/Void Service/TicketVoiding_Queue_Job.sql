@@ -136,7 +136,7 @@ BEGIN
 			FROM	dbo.TicketVoiding_Queue q
 			WHERE	QueueId = @QueueId
 
-			SELECT q.QueueId, q.StatusId, q.ErrMsg AS [Message], q.UserId, c.username
+			SELECT q.QueueId, q.StatusId, q.ErrMsg AS [Message], q.UserId, c.username, @ErrMsgLockMatch AS ErrCode
 			FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON c.custid = q.UserId
 			WHERE q.QueueId = @QueueId
@@ -144,11 +144,11 @@ BEGIN
 			RETURN
 		END
 
-		SET @StatusId = CASE WHEN @ErrCode <> 0 AND @ErrCode <> 100 THEN 3 ELSE 2 END
+		SET @StatusId = CASE WHEN @ErrCode NOT IN (0,99,100) THEN 3 ELSE 2 END
 
 		IF @MoveBetMatchIds IS NOT NULL
 		BEGIN
-			SELECT @StatusMove = 3, @ErrMsgMove = 'Could not void some tickets due to Movebet process.'
+			SELECT @StatusMove = 2, @ErrMsgMove = 'Could not void some tickets due to Movebet process.', @ErrCode = 99
 
 			SET @MoveBetMatchIdsXML = CONVERT(XML, @MoveBetMatchIds)
 
@@ -176,6 +176,7 @@ BEGIN
 	SELECT q.QueueId, q.StatusId, q.VoidingHistoryId
 		, q.RequestId, q.MatchId, q.VoidingTypeId, q.NegativeBalanceUsers
 		, q.ErrMsg, q.UserId, c.username, @ResettledTransIds AS ResettledTransIds
+		, CASE WHEN @ErrCode IN (99,100) THEN 100 ELSE NULL END AS ErrCode --ErrCode return=100: Web will no insert tbl Service  & update status VoidingHistory of this queue = 2(Done)
 	FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON c.custid = q.UserId
 	WHERE q.QueueId = @QueueId
