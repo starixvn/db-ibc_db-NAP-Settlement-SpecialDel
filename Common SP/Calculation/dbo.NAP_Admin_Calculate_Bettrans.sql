@@ -29,7 +29,8 @@ BEGIN
 	SET NOCOUNT ON 
 	
 	DECLARE @strBetTicket		VARCHAR(MAX),
-			@handle 			INT
+			@handle 			INT,
+			@MainIDParlay		INT
 
 	DECLARE @tmpTransMPO TABLE (TransID BIGINT,actualPO MONEY)
 
@@ -42,6 +43,8 @@ BEGIN
 		, @ErrMsg		= ''
 		, @BalanceUpd 	= NULL
 	
+	SELECT @MainIDParlay = (SELECT TOP(1) matchid FROM @BetTickets)
+
 	--BEGIN: CAPTURE value BALANCE before calculating
 	INSERT INTO #BalanceCWLBefore (
 		custid
@@ -177,7 +180,7 @@ BEGIN
 				,@CWLBettype AS bettype
 				,a.gametypeid
 				,(a.winlost - b.winlost) AS Balance
-				,@matchid
+				,@MainIDParlay
 			FROM #BalanceCWLBefore b
 				INNER JOIN #BalanceCWLAfter a 
 				ON	a.custid 			= b.custid
@@ -199,7 +202,7 @@ BEGIN
 				,@CWLBettype AS bettype
 				,a.gametypeid
 				,ABS(a.winlost - b.winlost) AS Balance
-				,@matchid
+				,@MainIDParlay
 			FROM #BalanceCWLBefore b
 				INNER JOIN #BalanceCWLAfter a 
 				ON	a.custid 			= b.custid
