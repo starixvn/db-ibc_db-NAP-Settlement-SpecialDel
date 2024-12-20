@@ -85,7 +85,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-
+	select 1 
 	DECLARE	@FilteredBy				 TINYINT
 		   ,@RequestInfoGetCalcTimes VARBINARY(MAX) = NULL
 		   ,@RequestInfo			 VARBINARY(MAX) = NULL
