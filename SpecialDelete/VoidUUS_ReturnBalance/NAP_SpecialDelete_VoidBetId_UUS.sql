@@ -23,6 +23,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20241220@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -277,7 +278,7 @@ BEGIN
 	END
 
 	-- UPDATE Sportype, Endtime for Bitcoin 
-	IF(EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE bettype BETWEEN 11050 AND 11099))
+	IF(EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13011))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo
@@ -327,7 +328,7 @@ BEGIN
 			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
-			,@IsExistVS4				= MAX (CASE WHEN sporttype IN(188,147) THEN 1 ELSE 0 END)
+			,@IsExistVS4				= MAX (CASE WHEN sporttype IN(188,147,134) THEN 1 ELSE 0 END)
 	FROM	#BetDelete b
 	
 	-- STEP 1 : BackUp bettrans
@@ -414,6 +415,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
+			OR b.bettype BETWEEN 13000 AND 13011 --VS6
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -526,6 +528,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
+			OR b.bettype BETWEEN 13000 AND 13011 --VS6
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
