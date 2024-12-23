@@ -14,6 +14,7 @@ AS
 	Revisions:
 		- 20180806@Kathy: Update waiting time for auto instant [Redmine:#86964]
 		- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
+		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -66,36 +67,6 @@ BEGIN
 					+ CASE WHEN @OldWaitingTime IS NOT NULL THEN '. Old waiting time: ' + CAST(@OldWaitingTime AS VARCHAR) + ' seconds' ELSE '' END
 					+ '. New waiting time: ' + CAST(@WaitingTime AS VARCHAR) + ' seconds'
 					+ '. Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR) + ' ms'
-
-	BEGIN TRY
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			, @Matchid			= NULL
-			, @ActionID			= 199
-			, @finalhomescore	= NULL
-			, @finalawayscore	= NULL
-			, @hthomescore		= NULL
-			, @htawayscore		= NULL
-			, @GoalRecord		= NULL
-			, @betstatus		= NULL
-			, @Remark			= @Remark
-			, @IP				= NULL
-	END TRY
-
-	BEGIN CATCH
-		SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
-
-		EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			, @Matchid			= NULL
-			, @ActionID			= 199
-			, @finalhomescore	= NULL
-			, @finalawayscore	= NULL
-			, @hthomescore		= NULL
-			, @htawayscore		= NULL
-			, @GoalRecord		= NULL
-			, @betstatus		= NULL
-			, @Remark			= @Remark
-			, @IP				= NULL
-	END CATCH 
 
 END
 GO
