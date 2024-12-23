@@ -23,6 +23,7 @@ BEGIN
 			,@VoidingHistoryId  INT
 			,@SingleTransIds	VARCHAR(MAX) = NULL
 			,@BroadcastSessionId VARCHAR(100)
+			,@IssueTypeId		TINYINT
 
 	CREATE TABLE #tmpVoidingHistory(
 		VoidingHistoryId INT
@@ -76,10 +77,12 @@ BEGIN
 		INNER JOIN #tmpVoidingHistory t ON t.RequestId = vh.RequestId AND t.BroadcastSessionId = vh.BroadcastSessionId
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tmpVoidingHistory t WHERE t.VoidingHistoryId = vh.VoidingHistoryId)
 
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpVoidingHistory vh
-							  INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON vh.RequestId = r.RequestId
-							  WHERE r.IssueTypeId = 22 --Recover Ticket
-			)
+	SET @IssueTypeId = (SELECT TOP 1 r.IssueTypeId
+						FROM TicketVoiding_Request r WITH(NOLOCK)
+							INNER JOIN #tmpVoidingHistory vh ON vh.RequestId = r.RequestId
+					   )
+			
+	IF @IssueTypeId = 22 --Recover Ticket
 	BEGIN
 		SET @SingleTransIds =  STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
 									  FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
@@ -109,7 +112,7 @@ BEGIN
 		SELECT 
 			 @VoidingHistoryId AS VoidingHistoryId
 			,@BroadcastSessionId AS BroadcastSessionId
-			,T.C.value('@IssueTypeId', 'INT') AS IssueTypeId
+			,@IssueTypeId AS IssueTypeId
 			,T.C.value('@SubIssueTypeId', 'INT') AS SubIssueTypeId
 			,T.C.value('@SubIssueTypeName', 'VARCHAR(500)') AS SubIssueTypeName
 			,T.C.value('@SubIssueTypeNameCS', 'NVARCHAR(256)') AS SubIssueTypeNameCS
