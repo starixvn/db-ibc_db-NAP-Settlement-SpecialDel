@@ -11,6 +11,7 @@ AS
 		- 20230103@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20241223@July: [TVS] Support case after void steps are completed, except send email/Letstalk failed & user manually  [Redmine: #213398]
 
 	Param's explanation:	
 	
@@ -21,6 +22,7 @@ BEGIN
 	DECLARE  @xmlVoidData		XML
 			,@VoidingHistoryId  INT
 			,@SingleTransIds	VARCHAR(MAX) = NULL
+			,@BroadcastSessionId VARCHAR(100)
 
 	CREATE TABLE #tmpVoidingHistory(
 		VoidingHistoryId INT
@@ -56,6 +58,7 @@ BEGIN
 		,IsHasSettledTicket BIT
 		,TotalTicket INT --totalTicket
 		,IsRunAutoAfterVoid BIT
+		,BroadcastSessionId VARCHAR(100)
 	)
 
 	INSERT INTO #tmpVoidingHistory (VoidingHistoryId, VoidData, BroadcastSessionId, RequestId)
@@ -91,12 +94,13 @@ BEGIN
 		SET IsFinish = 1
 			,@xmlVoidData = t.VoidData
 			,@VoidingHistoryId = t.VoidingHistoryId
+			,@BroadcastSessionId = t.BroadcastSessionId
 		FROM #tmpVoidingHistory t
 		WHERE t.IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
 
-		INSERT INTO #tmpVoidData ( VoidingHistoryId, IssueTypeId, SubIssueTypeId, SubIssueTypeName, SubIssueTypeNameCS
+		INSERT INTO #tmpVoidData ( VoidingHistoryId, BroadcastSessionId, IssueTypeId, SubIssueTypeId, SubIssueTypeName, SubIssueTypeNameCS
 								, Reason, ReasonSC, ContentChineseTraditional, ContentChineseSimplified, ContentNewChineseSimplified
 								, ContentEnglish, ContentSpanish, ContentItalian, ContentJapanese, ContentKorean
 								, ContentThai, CreatorId, CreatorName, DecidedBy, VoidFromTime
@@ -104,6 +108,7 @@ BEGIN
 						)
 		SELECT 
 			 @VoidingHistoryId AS VoidingHistoryId
+			,@BroadcastSessionId AS BroadcastSessionId
 			,T.C.value('@IssueTypeId', 'INT') AS IssueTypeId
 			,T.C.value('@SubIssueTypeId', 'INT') AS SubIssueTypeId
 			,T.C.value('@SubIssueTypeName', 'VARCHAR(500)') AS SubIssueTypeName
@@ -136,6 +141,7 @@ BEGIN
 	/*****************Return table **************************/
 	SELECT 
 		 VoidingHistoryId 
+		,BroadcastSessionId --Support insert Service & insert Letstalk status = 1
 		,IssueTypeId 
 		,SubIssueTypeId
 		,SubIssueTypeName
