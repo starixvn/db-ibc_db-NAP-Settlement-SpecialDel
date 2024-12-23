@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@MatchId			INT				= NULL
 	,@IsExcludeTest		BIT				= 1
 	,@Status			INT				= 0
-	,@ProductIds		VARCHAR(MAX)	= NULL
+	,@ProductTypeIds	VARCHAR(MAX)	= NULL
 	,@IssueTypeId		VARCHAR(MAX)	= NULL
 	,@SubIssueType		VARCHAR(MAX)	= NULL
 	,@RequestId			INT				= NULL
@@ -162,13 +162,14 @@ BEGIN
 	SELECT value AS SubIssueTypeId
 	FROM STRING_SPLIT(@SubIssueType, ',') 
 
-	SELECT  @IsBasketball = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
-	      , @IsCricket = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
-	      , @IsEsports = CASE WHEN CHARINDEX('3',@ProductIds) > 0 THEN 1 ELSE 0 END
-	      , @IsSoccer = CASE WHEN CHARINDEX('4',@ProductIds) > 0 THEN 1 ELSE 0 END
-	      , @IsOtherSports = CASE WHEN CHARINDEX('5',@ProductIds) > 0 THEN 1 ELSE 0 END
-	      , @IsOtherProducts = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
-	      , @IsMainParlay = CASE WHEN CHARINDEX('7',@ProductIds) > 0 THEN 1 ELSE 0 END
+	SET @ProductTypeIds = ',' + @ProductTypeIds + ','
+	SELECT  @IsBasketball = CASE WHEN CHARINDEX(',1,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+	      , @IsCricket = CASE WHEN CHARINDEX(',2,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+	      , @IsEsports = CASE WHEN CHARINDEX(',3,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+	      , @IsSoccer = CASE WHEN CHARINDEX(',4,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+	      , @IsOtherSports = CASE WHEN CHARINDEX(',5,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+	      , @IsOtherProducts = CASE WHEN CHARINDEX(',6,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+	      , @IsMainParlay = CASE WHEN CHARINDEX(',7,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
 
 	INSERT INTO @tmpSporttype (Sporttype)
 	SELECT DISTINCT SportType 
