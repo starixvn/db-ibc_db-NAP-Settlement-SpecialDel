@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Settlement_s193_Validation
 (
 	 @matchid				INT = 0
@@ -20,6 +20,7 @@ AS
 	Revisions:
 		- 20220719@Louisa: Validation before settle 3rd [Redmine:#175251]
 		- 20231016@Aries: Auto Send Announcement When Refund VS [Redmine:#195333]
+		- 20241220@Louisa: Change excuter bodbAdminNet to wsv_nap  [Redmine:#215599]
 
 	Param's Explanation:
 		@Action: CAL, REFUND,			
