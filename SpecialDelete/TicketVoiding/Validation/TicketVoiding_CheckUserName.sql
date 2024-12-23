@@ -43,6 +43,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240305@Max: [TVS] Abnormal Account - Void full range of archived tickets [Redmine: #201130]
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' [Redmine: #213451]
+		- 20241224@July: [TVS] Abnormal Account - Enhance Auto Void (Instant with Policy) [Redmine: #214444]
 
 	Param's Explanation:
 */
@@ -101,12 +102,47 @@ BEGIN
       ,statusID TINYINT
 	  ,winlostdate SMALLDATETIME
       ,recommend INT
+	  ,mrecommend INT
 	  ,srecommend INT
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	  ,IsVoid14 BIT
 	  ,winlost	MONEY
 	  ,actual_stake MONEY
+	  ,modds SMALLMONEY
+	  ,transdate DATETIME
+	  ,checktime DATETIME
+	  ,hdp1 SMALLMONEY
+	  ,hdp2 SMALLMONEY
+	  ,livehomescore SMALLINT
+	  ,liveawayscore SMALLINT
+	  ,liveindicator BIT
+	  ,betteam NVARCHAR(10)
+	  ,betdaqid BIGINT
+	  ,betfrom NVARCHAR(4)
+	  ,statuswinlost TINYINT
+	  ,odds MONEY
+	  ,oddstype TINYINT
+	  ,betcheck NVARCHAR(50)
+	  ,stake MONEY
+	  ,Status NVARCHAR(10)
+	  ,oddsid INT
+	  ,CurrencyName NVARCHAR(50)
+	  ,homeid INT
+      ,awayid INT
+	  ,leagueid INT
+	  ,isNeutral BIT
+	  ,matchcode NVARCHAR(50)
+	  ,sporttype SMALLINT
+	  ,eventstatus NVARCHAR(50)
+	  ,SettlementStatus TINYINT
+	  ,username NVARCHAR(50)
+	  ,IsDeposit BIT
+	  ,oddsspread MONEY
+	  ,Transdesc NVARCHAR(1000)
+	  ,WalletType TINYINT
+	  ,RefCode BIGINT
+	  ,ExtraInfo VARCHAR(1000)
 	)
 
 	--1. Check valid
@@ -138,6 +174,7 @@ BEGIN
 		  ,betid
 		  ,statusID
 		  ,recommend
+		  ,mrecommend
 		  ,srecommend
 		  ,winlostdate
 		  ,IsMixParlay
@@ -145,20 +182,134 @@ BEGIN
 		  ,IsVoid14
 		  ,winlost
 		  ,actual_stake
+		  ,modds
+		  ,transdate 
+		  ,checktime 
+		  ,hdp1 
+		  ,hdp2 
+		  ,livehomescore 
+		  ,liveawayscore 
+		  ,liveindicator 
+		  ,betteam 
+		  ,betdaqid 
+		  ,betfrom 
+		  ,statuswinlost 
+		  ,odds 
+		  ,oddstype 
+		  ,betcheck 
+		  ,stake 
+		  ,Status 
+		  ,oddsid 
+		  ,CurrencyName
+		  ,oddsspread
+		  ,Transdesc
+		  ,WalletType
+		  ,RefCode
+		  ,ExtraInfo
 		)
-	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,sre
+	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,mre ,sre
 		,wld ,isP ,sitedb, isV14, wl, act_s
+		,m ,tdate ,checkt ,hdp1 ,hdp2 ,lh ,la ,li
+		,bteam ,bdaq ,bfr ,statuswl ,o ,ost ,bcheck ,stake ,s ,oid ,curr
+	    ,os ,tdes ,wt ,refc ,ex
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
-				SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,sre
+				SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,mre ,sre
 					  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb ,isV14, wl, act_s
+					  ,m ,tdate ,CASE WHEN checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE checkt END AS checkt ,hdp1 ,hdp2 ,lh ,la ,li
+					  ,bteam ,bdaq ,bfr ,statuswl ,o ,ost ,bcheck ,stake ,s ,oid ,curr
+					  ,os ,tdes ,wt ,refc ,ex
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT ,sre INT
+				WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT ,mre INT,sre INT
 					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT, isV14 BIT, wl MONEY, act_s MONEY
+					  ,m SMALLMONEY, tdate DATETIME, checkt DATETIME, hdp1 SMALLMONEY, hdp2 SMALLMONEY,lh SMALLINT, la SMALLINT, li BIT
+					  ,bteam NVARCHAR(10), bdaq BIGINT, bfr NVARCHAR(4), statuswl TINYINT, o MONEY, ost TINYINT, bcheck NVARCHAR(50), stake MONEY, s NVARCHAR(10), oid INT, curr NVARCHAR(50)	
+					  ,os MONEY, tdes NVARCHAR(1000), wt TINYINT, refc BIGINT, ex VARCHAR(1000)
 				)
 		) tbl
 	WHERE f.value <> ''
+
+	---UPDATE column show Affected Ticket popup
+	BEGIN
+		UPDATE b
+		SET matchcode 	= m.matchcode
+			,homeid 	= m.homeid
+			,awayid 	= m.awayid
+			,leagueid 	= m.leagueid
+			,sporttype 	= m.sporttype
+			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+			,eventstatus = ISNULL(m.eventstatus,'')
+			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
+		FROM #tmpTransInfo b
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	b.matchid = m.matchid
+		WHERE b.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+			AND b.IsVoid14 = 0
+			
+		UPDATE b
+		SET matchcode 	= m.matchcode
+			,homeid 	= m.homeid
+			,awayid 	= m.awayid
+			,leagueid 	= m.leagueid
+			,sporttype 	= m.sporttype
+			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+			,eventstatus = ISNULL(m.eventstatus,'')
+			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
+		FROM #tmpTransInfo b
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	b.matchid = m.matchid
+		WHERE b.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+			AND b.IsVoid14 = 1
+
+		-- UPDATE eventtype = 2 [Outright bettype]
+		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 0 AND bettype IN (10)))
+		BEGIN
+			UPDATE b
+			SET matchcode 	= odds.matchcode
+				,homeid		= odds.teamid
+				,awayid 	= 0
+				,leagueid 	= odds.leagueid
+				,sporttype 	= l.sporttype
+				,eventstatus = ISNULL(odds.oddsstatus,'')
+				,SettlementStatus = 0
+			FROM #tmpTransInfo b
+				INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
+				ON	b.matchid = odds.orid
+				INNER JOIN dbo.league l WITH (NOLOCK) 
+				ON	odds.leagueid = l.leagueid
+			WHERE b.bettype IN (10) AND b.IsVoid14 = 0
+		END
+
+		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1 AND bettype IN (10)))
+		BEGIN
+			UPDATE b
+			SET matchcode 	= odds.matchcode
+				,homeid		= odds.teamid
+				,awayid 	= 0
+				,leagueid 	= odds.leagueid
+				,sporttype 	= l.sporttype
+				,eventstatus = ISNULL(odds.oddsstatus,'')
+				,SettlementStatus = 0
+			FROM #tmpTransInfo b
+				INNER JOIN dbo.outright14 AS odds WITH (NOLOCK) 
+				ON	b.matchid = odds.orid
+				INNER JOIN dbo.league l WITH (NOLOCK) 
+				ON	odds.leagueid = l.leagueid
+			WHERE b.bettype IN (10) AND b.IsVoid14 = 1
+		END
+
+		-- update username column
+		UPDATE al
+		SET username = ci.username
+		FROM #tmpTransInfo al
+			INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK)
+				ON al.custid = ci.custid
+
+		-- update Isdeposit
+		UPDATE b 
+			SET IsDeposit = 1
+		FROM #tmpTransInfo b
+		WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = b.srecommend)
+	END
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
@@ -568,6 +719,24 @@ BEGIN
 
 	--4. List TransId for case auto void with policy
 	SELECT b.transid
+		,b.refno
+		,b.username
+		,b.transdate
+		,b.stake
+		,b.odds
+		,b.oddsspread
+		,b.OddsType
+		,b.Status
+		,b.CurrencyName
+		,b.betteam
+		,b.hdp1
+		,b.hdp2
+		,b.livehomescore
+		,b.liveawayscore
+		,b.liveindicator
+		,b.betcheck
+		,b.Transdesc
+		,b.betdaqid
 		,b.custid        
 		,b.statusID
 		,ABS(b.winlost - b.actual_stake) AS winlost
@@ -577,6 +746,20 @@ BEGIN
 		,b.betid
 		,b.IsMixParlay
 		,b.SiteDBGroupID
+		,b.actual_stake
+		,b.WalletType
+		,b.RefCode
+		,b.ExtraInfo
+		,b.winlostdate
+		,b.IsDeposit
+		,b.homeid 
+		,b.awayid 
+		,b.leagueid 
+		,b.IsNeutral
+		,b.matchcode 
+		,b.SettlementStatus
+		,b.sporttype
+		,b.matchid AS GroupName
 	FROM #tmpTransInfo b
 		INNER JOIN #transIdTemp t ON t.transid = b.transid
 
