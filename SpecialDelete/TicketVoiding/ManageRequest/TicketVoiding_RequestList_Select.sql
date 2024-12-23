@@ -5,11 +5,11 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@MatchId			INT				= NULL
 	,@IsExcludeTest		BIT				= 1
 	,@Status			INT				= 0
+	,@ProductIds		VARCHAR(MAX)	= NULL
 	,@IssueTypeId		VARCHAR(MAX)	= NULL
 	,@SubIssueType		VARCHAR(MAX)	= NULL
 	,@RequestId			INT				= NULL
 	,@CreatedBy			INT				= 0
-
 )
 AS
 /*	Created by: 20181212@Kathy
@@ -73,6 +73,7 @@ AS
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+		- 20241206@July: [TVS] Add new filter [Redmine: #214113]
 
 	Param's explanation:	
 		@Status: 
@@ -90,6 +91,13 @@ BEGIN
 		   ,@RequestInfoGetCalcTimes VARBINARY(MAX) = NULL
 		   ,@RequestInfo			 VARBINARY(MAX) = NULL
 		   ,@n						 INT = 2147483647
+		   ,@IsBasketball			  BIT = 0
+		   ,@IsCricket				  BIT = 0
+		   ,@IsEsports				  BIT = 0
+		   ,@IsSoccer				  BIT = 0
+		   ,@IsOtherSports			  BIT = 0
+		   ,@IsOtherProducts		  BIT = 0
+		   ,@IsMainParlay			  BIT = 0
 
 	CREATE TABLE #tmpRequest (RequestId INT, Eventdate DATETIME)
 	DECLARE @tmpMatchVoidingHistory TABLE (
@@ -141,6 +149,8 @@ BEGIN
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
 	DECLARE @tmpSubIssueType TABlE (SubIssueTypeId INT)
+	DECLARE @tmpSporttype TABlE (Sporttype SMALLINT)
+	
 	DECLARE @MinEventDate_tmp TABLE (RequestID INT, Eventdate DATETIME)
 
 	INSERT INTO @tmpIssueType (IssueTypeId)
@@ -150,6 +160,26 @@ BEGIN
 	INSERT INTO @tmpSubIssueType (SubIssueTypeId)
 	SELECT value AS SubIssueTypeId
 	FROM STRING_SPLIT(@SubIssueType, ',') 
+
+	SELECT  @IsBasketball = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
+	      , @IsCricket = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
+	      , @IsEsports = CASE WHEN CHARINDEX('3',@ProductIds) > 0 THEN 1 ELSE 0 END
+	      , @IsSoccer = CASE WHEN CHARINDEX('4',@ProductIds) > 0 THEN 1 ELSE 0 END
+	      , @IsOtherSports = CASE WHEN CHARINDEX('5',@ProductIds) > 0 THEN 1 ELSE 0 END
+	      , @IsOtherProducts = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
+	      , @IsMainParlay = CASE WHEN CHARINDEX('7',@ProductIds) > 0 THEN 1 ELSE 0 END
+
+	INSERT INTO @tmpSporttype (Sporttype)
+	SELECT DISTINCT SportType 
+	FROM dbo.SportBettypeMatrix s WITH(NOLOCK)
+	WHERE RefTable = 0
+	AND 1 = CASE WHEN @IsBasketball = 1 AND s.SportType = 2 THEN 1
+				 WHEN @IsCricket = 1 AND s.SportType = 50 THEN 1
+				 WHEN @IsEsports = 1 AND s.SportType = 43 THEN 1
+				 WHEN @IsSoccer = 1 AND s.SportType = 1 THEN 1
+				 WHEN @IsOtherSports = 1 AND s.SportType <= 99  AND s.SportType NOT IN (1,2,43,50) THEN 1
+				 WHEN @IsOtherProducts = 1 AND s.SportType > 99 THEN 1
+				 ELSE 0 END
 
 	SELECT	@FilteredBy = CASE
 								WHEN @RequestId IS NOT NULL THEN 1 -- RequestId
@@ -339,6 +369,7 @@ BEGIN
 		WHERE f.value <> ''
 
 	END
+
 	----------------------------- End of EventDate Processing ------------------------------
 	IF @FilteredBy = 1
 	BEGIN
@@ -394,7 +425,11 @@ BEGIN
 		INSERT INTO #tmpRequest (RequestId)
 		SELECT	DISTINCT rd.RequestId
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+				LEFT JOIN @tmpSporttype s ON rd.Sporttype = s.Sporttype
 		WHERE	rd.MatchId = @MatchId
+			AND 1 = CASE WHEN s.Sporttype IS NOT NULL THEN 1 
+				         WHEN @IsMainParlay = 1 AND s.Sporttype IS NULL AND rd.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 
+						 ELSE 0 END
 
 		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, ProductIds, Provider, Source, Remark, RequestDetailId)
 		SELECT	DISTINCT r.RequestId
@@ -443,7 +478,7 @@ BEGIN
 			OUTER APPLY(
 						SELECT '|' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
 						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-						where r.Requestid = rd.RequestId AND r.IssueTypeId = 3
+						WHERE r.Requestid = rd.RequestId AND r.IssueTypeId = 3
 						FOR XML PATH('')
 						)w (scores)
 		WHERE	(@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0
@@ -451,6 +486,22 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
+		DELETE r
+		FROM #tmpRequest r
+			OUTER APPLY ( SELECT TOP 1 rd.Sporttype
+						  FROM  dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+								INNER JOIN @tmpSporttype s ON rd.Sporttype = s.Sporttype
+						  WHERE r.RequestId = rd.RequestId
+			)s
+			OUTER APPLY ( SELECT TOP 1 rd.MatchId
+						  FROM  dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+						  WHERE r.RequestId = rd.RequestId 
+							AND rd.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+			)s1
+		WHERE  1 = CASE WHEN s.Sporttype IS NOT NULL THEN 0 
+				        WHEN @IsMainParlay = 1 AND s1.MatchId IS NOT NULL THEN 0
+						ELSE 1 END
+		
 		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, ProductIds, Provider, Source, Remark, RequestDetailId)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
