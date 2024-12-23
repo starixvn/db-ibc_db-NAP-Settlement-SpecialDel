@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" selecters="" isFunction="1" isNested="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" selecters="" isFunction="1" isNested="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_VS_BetRadar_GetBettypes] ()
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -14,6 +14,7 @@ AS
 		- 20181122@Kathy: Betradar VS 3 [Redmine:#105261]
 		- 20200324@Helen: Betradar VS 4 -  [Redmine:#130984] 
 		- 20200409@Helen: Virtual Soccer Euro Cup  -  [Redmine:#132048] 
+		- 20241220@Louisa: Implement new bettype Ending Game [Redmine:#215599]
 		
 	Columns Explanation:    
 		- @CalMode: TINYINT [1:HT,2:FT]
@@ -66,6 +67,7 @@ RETURN (
 		UNION ALL SELECT 2809, 193, 2
 		UNION ALL SELECT 2811, 193, 2
 		UNION ALL SELECT 2812, 193, 2
+		UNION ALL SELECT 2813, 193, 2
 
 		-- Virtual Soccer Asian Cup
 		UNION ALL SELECT 2701, 194, 2
