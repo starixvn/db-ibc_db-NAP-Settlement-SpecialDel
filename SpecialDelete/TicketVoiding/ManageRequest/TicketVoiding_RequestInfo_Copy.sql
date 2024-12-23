@@ -59,7 +59,7 @@ BEGIN
 		,OperatorInfo		XML
 		,Remark				VARCHAR(MAX)
 		,UserId				INT
-		,InputtedFromTime	DATETIME
+		,FilterFromTranstime	DATETIME
 		,VoidFromTime		DATETIME
 		,VoidToTime			DATETIME
 		,TotalSingleCount	INT
@@ -123,7 +123,7 @@ BEGIN
 		,OperatorInfo
 		,Remark
 		,UserId
-		,InputtedFromTime
+		,FilterFromTranstime
 		,VoidFromTime
 		,VoidToTime
 		,TotalSingleCount
@@ -183,7 +183,7 @@ BEGIN
                ,@MinuteOffset VARCHAR(10)
                ,@SecondOffset VARCHAR(10)
 			   ,@IssueDetail NVARCHAR(MAX)
-			   ,@ServiceAcceptTime VARCHAR(8)
+			   ,@ServiceAcceptTime VARCHAR(11)
 			   ,@MinAllowanceTime SMALLINT
 		
 		;WITH Cte AS (
@@ -346,7 +346,7 @@ BEGIN
 		  ,@MinuteOffset AS MinuteOffset
 		  ,@SecondOffset AS SecondOffset
 		  ,@ServiceAcceptTime AS ServiceAcceptTime
-		  ,FORMAT(InputtedFromTime,'HH:mm:ss') AS InputtedFromTime
+		  ,FilterFromTranstime
 		  ,@MinAllowanceTime AS MinAllowanceTime
 	FROM @tmpRequestInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.UserId
