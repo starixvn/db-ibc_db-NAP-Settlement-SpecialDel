@@ -376,6 +376,18 @@ BEGIN
 				SELECT @RemarkSDT = STRING_AGG(ResourceId + '(' + HomeValue + '-' + AwayValue + ')',', ')
 				FROM @tmpResourcesWeb
 				WHERE HomeValue != ''
+
+				IF ISNULL(@RemarkSDT,'') != '' AND EXISTS (SELECT TOP 1 1 FROM @tmpResourcesWeb WHERE OtherInfo = 'A') AND @SportType = 8
+				BEGIN
+					SET @RemarkSDT = @RemarkSDT + ', A'
+				END
+				ELSE IF @IsMercy = 1
+				BEGIN
+					SELECT @RemarkSDT = STRING_AGG(ResourceId,', ')
+					FROM @tmpResourcesWeb
+
+					SET @RemarkSDT = @RemarkSDT + ', Mercy'
+				END
 			END
 		END
 

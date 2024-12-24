@@ -113,13 +113,11 @@ WHERE SportType = 8
 	AND sp.SDTResourceId IS NULL
 
 UPDATE sp
-SET sp.SDTpfId = CASE WHEN sp.bettype  IN  (8803,8809)  THEN 8809
-                      ELSE sp.pfid 
-                 END
+SET sp.SDTpfId = sp.pfid                 
 FROM SettlementSpecialBettypeProfile sp  WITH (ROWLOCK,UPDLOCK)
 INNER JOIN @tmp_newSetting s ON sp.bettype = s.bettype AND sp.betID = s.betID
 WHERE sp.SportType = 8   
-	AND (sp.SDTPfid IS NULL OR sp.bettype IN (8803,8809))
+	AND sp.SDTPfid IS NULL
 
 
 	 

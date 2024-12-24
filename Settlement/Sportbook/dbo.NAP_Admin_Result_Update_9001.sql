@@ -324,7 +324,7 @@ BEGIN
 			BEGIN
 				SELECT	@fthomescore = SUM(CAST(HomeValue AS INT)) 
 					   ,@ftawayscore = SUM(CAST(AwayValue AS INT)) 
-				FROM	ResultDetailOS AS r
+				FROM	ResultDetailOS AS r WITH(NOLOCK)
 				WHERE r.MatchId = @MatchID
 					AND r.ResourceId IN (SELECT sd.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) AS sd WHERE sd.ResourceID != '00')
 					AND r.ResultStatusID  IN (2,5)
