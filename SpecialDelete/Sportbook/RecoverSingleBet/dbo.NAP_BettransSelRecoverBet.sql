@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverBet]
 (
 	@TransIds		VARCHAR(MAX)	= ''
@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverBet]
 AS
 /*
 	Created: 20131022@Kathy
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 
 		- 20140102@Kathy: Add username2 column [Redmine:#10270]
@@ -41,6 +41,7 @@ AS
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, serverAlias [Redmine: #213451]
 
 	Param's Explanation:
 */
@@ -371,7 +372,7 @@ BEGIN
 			,@SiteDBGroupID AS SiteDBGroupID
 			,t.modds AS MasterOdds
 	FROM	@tblRecoverBet t
-		INNER JOIN custDB.dbo.Customer ag WITH (NOLOCK) ON	t.recommend = ag.custid
+		INNER JOIN custDB.dbo.Customer ag WITH (NOLOCK) ON	t.custid = ag.custid
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 	WHERE t.bettype <> 500
 	ORDER BY [site]

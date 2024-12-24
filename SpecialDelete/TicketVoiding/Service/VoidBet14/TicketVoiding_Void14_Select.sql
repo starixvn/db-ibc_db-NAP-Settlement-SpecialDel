@@ -21,6 +21,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		
 	Param's explanation:	
 		
@@ -741,7 +742,7 @@ BEGIN
 		   ,s.IsCashOut
 		   ,s.SiteDBGroupID
 	FROM CTE_OriginResult s
-		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 	ORDER BY CASE
 				WHEN s.OriginGroupName = 'CN88' THEN 1
 				WHEN s.OriginGroupName = 'Credit' THEN 2

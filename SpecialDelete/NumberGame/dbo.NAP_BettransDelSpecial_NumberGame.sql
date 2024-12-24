@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransDelSpecial_NumberGame] 
 	@Option			BIT = 0
 	,@MatchId		INT
@@ -17,7 +17,7 @@ AS
 /*
 	Created by: 20131015@Kathy
 	Task : SP deletebet (Number Game)
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	Original:account\deletebet.asp
 
 	Revisions:
@@ -47,6 +47,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20241125@Lani: [TVS] Change join type, serverAlias [Redmine: #213451]
 
 	Param's Explanation: 
 		- @Opition: 
@@ -115,7 +116,11 @@ BEGIN
 			)
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 
-	IF NOT EXISTS (			SELECT 1			FROM CustDB.dbo.customer WITH (NOLOCK)			WHERE userpwd = @UserPwd AND custid = @UserID AND roleid >= 5			)
+	IF NOT EXISTS (
+			SELECT 1
+			FROM CustDB.dbo.customer WITH (NOLOCK)
+			WHERE userpwd = @UserPwd AND custid = @UserID AND roleid >= 5
+			)
 	BEGIN
 		
 		SELECT @ErrMsg = 'Sorry. You can not process void bet due to either wrong password or insufficient permission!'
@@ -785,9 +790,9 @@ BEGIN
 			,su.Username AS SagUserName
 			,CASE 
 				WHEN b.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
-				ELSE su.site 
+				ELSE ci.site 
 			END AS EmailGroup
-			,su.site 
+			,ci.site 
 			,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
 			,@isITAdmin	AS IsITSupport
 			,m.MatchCode
@@ -802,9 +807,9 @@ BEGIN
 				ON b.custid = ci.custid
 			INNER JOIN #CTE_CustInfo cr WITH(NOLOCK)
 				ON b.creator = cr.custid	
-			INNER JOIN #CTE_CustInfo ag WITH(NOLOCK)
+			LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK)
 				ON b.recommend = ag.custid
-			INNER JOIN #CTE_CustInfo ma WITH(NOLOCK)
+			LEFT JOIN #CTE_CustInfo ma WITH(NOLOCK)
 				ON b.mrecommend = ma.custid
 			INNER JOIN #CTE_CustInfo su WITH(NOLOCK)
 				ON b.srecommend = su.custid

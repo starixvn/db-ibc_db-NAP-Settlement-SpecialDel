@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RecoverSingleType_Update]
 (
 	@RequestId			INT
@@ -19,11 +19,12 @@ AS
 /*	
 	Created by:20231227@Max
 	Task: [TVS] Recover Ticket issue type [Redmine: #196020]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20231227@Max: Create new SP [Redmine: #196020]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Param's explanation:
 		
@@ -854,14 +855,12 @@ BEGIN
 		SET username = c.username
 			,username2 = c.username2 
 			,creatorName = cr.username
-			,site = ag.site
+			,site = c.site
 	FROM	#tblTransInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON	t.custid = c.custid
 		INNER JOIN CustDB.dbo.Customer cr WITH(NOLOCK)
 			ON	t.creator = cr.custid
-		INNER JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
-			ON	t.recommend = ag.custid
 	
 	------ release data of TempVariableNumBer table
 	EXEC dbo.NAP_Admin_CheckingProcess

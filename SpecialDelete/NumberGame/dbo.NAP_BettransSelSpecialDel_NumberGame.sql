@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelSpecialDel_NumberGame] 
 	@Option			BIT = 0
 	,@MatchID		INT
@@ -15,7 +15,7 @@ AS
 	Date:   20131010
 	Original: 
 	Task: Select bets transaction need to delete (Number Game) [Redmine:#6627]
-	DB: DBTXN.BODB02  
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02  
 
 	Revisions: 
 		- 20140217@Kathy: Enhancement to Void Number Game Bet [Redmine:#11992]
@@ -31,6 +31,7 @@ AS
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Param's Explanation:
 			- @Opition: 
@@ -122,7 +123,7 @@ BEGIN
 							) THEN 1
 					ELSE 0
 					END AS IsDeposit
-				,ag.site
+				,c.site
 				,CASE 
 					WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 					ELSE b.STATUS
@@ -136,7 +137,6 @@ BEGIN
 				,m.sporttype
 				,b.modds
 			FROM dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 				INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
 				INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON b.custid = c.custid
 				INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid						
@@ -178,7 +178,7 @@ BEGIN
 							) THEN 1
 					ELSE 0
 					END AS IsDeposit
-				,ag.site
+				,c.site
 				,CASE 
 					WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 					ELSE b.STATUS
@@ -192,7 +192,6 @@ BEGIN
 				,m.sporttype
 				,b.modds
 			FROM dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 				INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
 				INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON b.custid = c.custid
 				INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid
@@ -242,7 +241,7 @@ BEGIN
 						) THEN 1
 				ELSE 0
 				END AS IsDeposit
-			,ag.site
+			,c.site
 			,CASE 
 				WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 				ELSE b.STATUS
@@ -256,7 +255,6 @@ BEGIN
 			,m.sporttype
 			,b.modds
 		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 			INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
 			INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON b.custid = c.custid
 			INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid
@@ -271,7 +269,8 @@ BEGIN
 			AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 
-	------------------------------------------------------------------------------	/* --1. Table invald/moved transid	*/
+	------------------------------------------------------------------------------
+	/* --1. Table invald/moved transid	*/
 	IF @Option = 0
 		SELECT '' AS InvalidTransIds
 	ELSE IF @Option = 1

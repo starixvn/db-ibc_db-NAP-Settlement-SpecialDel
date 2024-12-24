@@ -45,6 +45,7 @@ AS;
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -449,7 +450,6 @@ BEGIN
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = b.bettype
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
-			INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = b.matchid
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
 			AND	b.statusID IN (0, 1) -- running, waiting
@@ -761,7 +761,7 @@ BEGIN
 		@SiteDBGroupID AS SiteDBGroupID
 		,b.modds AS MasterOdds
 	FROM #Tickets b
-		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
+		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.custid = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 		LEFT JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid
 	ORDER BY CASE

@@ -75,6 +75,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Param's Explanation:
 */
@@ -512,7 +513,7 @@ BEGIN
 				 INNER JOIN #t_exchanges te WITH (NOLOCK)
 						 ON b.currency = te.exchangeid 	 
 				 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-						 ON b.recommend = c.custid
+						 ON b.custid = c.custid
 				 INNER JOIN #t_LicenseeNames tl WITH (NOLOCK)
 						 ON tl.LicenseeName = c.site -- filter for @LicenseeIDs	
 			WHERE @Sporttype BETWEEN 1 AND 99 -- sportbook only				
@@ -643,7 +644,7 @@ BEGIN
 				INNER JOIN #t_exchanges te WITH (NOLOCK)
 					     ON main.currency = te.exchangeid 
 				INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-						 ON main.recommend = c.custid
+						 ON main.custid = c.custid
 				INNER JOIN #t_LicenseeNames tl1 WITH (NOLOCK)
 						 ON c.site = tl1.LicenseeName -- filter for @LicenseeIDs						 
 			WHERE main.matchid =29 AND main.bettype = 29 -- parlay

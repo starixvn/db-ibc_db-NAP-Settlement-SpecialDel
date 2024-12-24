@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverCashOutTransaction_Update]
 (
 	@TransIds			VARCHAR(MAX),
@@ -9,7 +9,7 @@ AS
 /*
     Created by: 20170403@Kent
 	Task: Recover CashOut transaction
-	DB: DBTXN/BODB02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions:	
 		- 20170403@Kent: Integrate Cash-out [Redmine:#72059]
@@ -33,6 +33,7 @@ AS
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns and serverAlias [Redmine: #213451]
 
 	Param's Explanation:
 	
@@ -562,7 +563,7 @@ BEGIN
 			d.TransDesc,
 			d.StatusId,
 			d.UserName,				
-			c.Site AS GroupName,
+			ci.Site AS GroupName,
 			d.ExtraInfo,
 			d.BetdaqId,			
 			CURRENT_TIMESTAMP AS [DateTime],
@@ -582,9 +583,8 @@ BEGIN
 			d.SiteDBGroupID,
 			d.matchid
 	FROM #SpecialDeleteBets d
-		 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-			     ON d.recommend = c.custid
-	ORDER BY c.site ASC
+		 INNER JOIN CUSTDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = d.custid
+	ORDER BY ci.site ASC
 		   , d.TransId			
 	
 	-- Write useraction log	

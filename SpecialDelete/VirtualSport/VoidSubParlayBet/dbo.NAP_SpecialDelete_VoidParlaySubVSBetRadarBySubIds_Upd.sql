@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Upd] 		
 	@SubTransIds			VARCHAR(MAX),
 	@UserName 				NVARCHAR(50),
@@ -11,7 +11,7 @@ AS
 /*  
 	Created by: 20170831@Kent  
 	Task: 
-	DB: DBTXN/bodb02	    
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02	    
 
 	Revisions:  				
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]			
@@ -27,6 +27,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241126@Lani: [TVS] Get site from member, change serverAlias [Redmine: #213451]
 
 	Param's Explanation:				
 		- @SubTransIds : TransIds of sub parlay tickets				
@@ -570,13 +571,13 @@ BEGIN
 				ma.UserName AS MagUserName,
 				r.srecommend,
 				su.Username AS SagUserName,
-				ag.Currency,
-				ag.Site,
-				su.Site AS EmailGroup,	
+				c.Currency,
+				c.Site,
+				c.Site AS EmailGroup,	
 				@isITAdmin AS IsItSupport,
 				r.BetFrom 
 		FROM #tmpBetDelete r
-				LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
+				INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 						ON r.custid = c.custid
 				LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
 						ON r.recommend = ag.custid

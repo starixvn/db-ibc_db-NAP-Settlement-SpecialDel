@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select] 
 (
 	@MatchId          INT,
@@ -22,7 +22,7 @@ AS
 	Date: 
 	Original: [dbo].[Acc_BettransSelSpecialDel]
 	Task: Select bets transaction need to delete
-	DB: DBTXN/BODB02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions:
 		- 20140102@Kathy: - Add username2 column [Redmine:#10270]
@@ -104,6 +104,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, serverAlias [Redmine: #213451]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -1543,7 +1544,7 @@ BEGIN
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 			,s.modds AS MasterOdds
 	FROM CTE_SettledTypeFiltering s
-		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 	ORDER BY CASE
 				WHEN s.OriginGroupName = 'Credit' THEN 1

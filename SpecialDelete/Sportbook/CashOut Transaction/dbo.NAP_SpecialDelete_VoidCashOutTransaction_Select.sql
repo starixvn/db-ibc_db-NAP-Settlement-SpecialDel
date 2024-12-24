@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select]
 (
 	@MatchId			INT				= 0
@@ -10,7 +10,7 @@ AS
 /*
     Created by: 20170323@Kent
 	Task: Select Cash-out transaction for delete
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions:	
 		- 20170403@Kent: Integrate Cash-out [Redmine:#72059]			
@@ -26,6 +26,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230818@Max: [TVS] Cancel Cash Out Action - Search by BetID [Redmine: #186624]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20241125@Lani: [TVS] Change join type and serverAlias [Redmine: #213451]
 
 	Explanation's Param:
 		@MatchId: <> 0 - by MatchId
@@ -352,7 +353,7 @@ BEGIN
 			d.TransDesc,
 			d.UserName,			
 			d.TransDate,
-			c.site AS GroupName,
+			ci.site AS GroupName,
 			d.ExtraInfo,
 			d.BetdaqId,			
 			d.HomeId,
@@ -366,10 +367,10 @@ BEGIN
 			d.MatchId,
 			d.modds AS MasterOdds,
 			d.SiteDBGroupID
-	FROM #SpecialDeleteBets d		 
-		 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-				 ON d.recommend = c.custid		 	
-	ORDER BY c.site ASC, d.TransId ASC							 						 
+	FROM #SpecialDeleteBets d	
+		 INNER JOIN CUSTDB.dbo.Customer AS ci WITH (NOLOCK) ON d.custid = ci.custid	
+		 	
+	ORDER BY ci.site ASC, d.TransId ASC							 						 
 	
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #Durations

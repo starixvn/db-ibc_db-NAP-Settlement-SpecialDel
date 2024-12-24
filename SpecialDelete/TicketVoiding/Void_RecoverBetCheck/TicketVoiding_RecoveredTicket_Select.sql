@@ -15,6 +15,7 @@ AS;
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Param's explanation:	
 		
@@ -862,7 +863,7 @@ BEGIN
 	       ,s.modds AS MasterOdds
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
-		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 	ORDER BY CASE
 				WHEN s.GroupName = 'CN88' THEN 1
 				WHEN s.GroupName = 'Credit' THEN 2

@@ -42,6 +42,7 @@ AS
 		- 20231208@Max: [TVS] Abnormal Account - Add confirmation popup before saving request for auto void actions [Redmine: #198164]
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240305@Max: [TVS] Abnormal Account - Void full range of archived tickets [Redmine: #201130]
+		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' [Redmine: #213451]
 
 	Param's Explanation:
 */
@@ -263,6 +264,25 @@ BEGIN
 	FROM #InputUsernameList l1
 		LEFT JOIN #InputValidCustid_2 l2 ON l1.recommend = l2.custid 
 	WHERE l1.roleid = 1 AND l2.custid IS NULL
+
+	-- List member Offer Direct Member for Super/Master
+	INSERT INTO #InputValidCustid_1 (CustID)
+	SELECT ci.custid
+	FROM #InputUsernameList AS l 
+		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
+		ON l.custid = ci.srecommend
+	WHERE ci.recommend IN (-3,-4) 
+		AND ci.roleid = 1
+		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_1)
+
+	INSERT INTO #InputValidCustid_1 (CustID)
+	SELECT ci.custid
+	FROM #InputUsernameList AS l 
+		INNER JOIN CustDB.dbo.custInfo AS ci WITH (NOLOCK)
+		ON l.custid = ci.mrecommend
+	WHERE ci.recommend = -3
+		AND ci.roleid = 1
+		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_1)
 	
 	------------Prepare Data------------------------
 	INSERT INTO @bettype_tmp (bettype)

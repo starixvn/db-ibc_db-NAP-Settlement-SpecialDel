@@ -40,6 +40,7 @@ AS;
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Param's Explanation:			
 			- @TicketType:
@@ -314,7 +315,7 @@ BEGIN
 			 INNER JOIN @t_exchanges te
 					 ON b.currency = te.exchangeid -- filter for @CurrencyCodes			 
 			 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-					 ON b.recommend = c.custid
+					 ON b.custid = c.custid
 			 INNER JOIN @t_LicenseeNames tl
 					 ON tl.LicenseeName = c.site -- filter for @LicenseeIDs	
 		WHERE b.matchid IN (SELECT MatchId FROM @tmpMatchId)
@@ -422,7 +423,7 @@ BEGIN
 			 INNER JOIN @t_exchanges te
 					 ON main.currency = te.exchangeid  -- filter for @CurrencyCodes
 			 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-					 ON main.recommend = c.custid
+					 ON main.custid = c.custid
 			 INNER JOIN @t_LicenseeNames tl1
 					 ON tl1.LicenseeName = c.site -- filter for @LicenseeIDs	
 		WHERE main.matchid IN (9, 29) AND main.bettype IN (9, 29) -- parlay

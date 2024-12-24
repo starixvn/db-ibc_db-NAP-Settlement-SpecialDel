@@ -28,6 +28,7 @@ AS
   - 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
   - 20240715@July: HotFix - Cannot upload message for SA Gaming [Redmine: #207967]
   - 20240715@July: Upload Batch Message - New 3rd Party Products [Redmine: #207996]
+  - 20241125@Lani: Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' [Redmine: #213451]
   
 Explanation's Param:  
 	- @ProductIds: [1-99]
@@ -387,8 +388,8 @@ BEGIN
 		, sag.Username AS SagUserName
 	FROM #BetDelete bd
 		INNER JOIN CTE_CustInfo mem ON bd.custid = mem.custid
-		INNER JOIN CTE_CustInfo ag ON bd.recommend = ag.custid
-		INNER JOIN CTE_CustInfo mag ON bd.mrecommend = mag.custid
+		LEFT JOIN CTE_CustInfo ag ON bd.recommend = ag.custid
+		LEFT JOIN CTE_CustInfo mag ON bd.mrecommend = mag.custid
 		INNER JOIN CTE_CustInfo sag ON bd.srecommend = sag.custid
 	
 	--Gte invalid transids

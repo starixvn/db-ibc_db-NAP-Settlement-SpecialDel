@@ -78,6 +78,7 @@ AS;
 		- 20240826@July: [TVS] Void By Bet ID - Support void abnormal bet for main parlay ticket [Redmine: #209348]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
+		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -546,7 +547,7 @@ BEGIN
 		SELECT DISTINCT ag.custid, ci.site, ci.srecommend, ci.mrecommend
 		FROM CUSTDB.dbo.Customer ci WITH(NOLOCK)
 			INNER JOIN #SpecialDeleteBets ag
-			ON ci.custid = ag.recommend
+			ON ci.custid = ag.custid
 	)
 	--format group
 	, CTE_GroupInfo AS (
@@ -635,7 +636,7 @@ BEGIN
 		,VendorMatchId
 	FROM #SpecialDeleteBets d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
-		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.recommend = c.custid
+		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.custid = c.custid
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = d.matchid
 		OUTER APPLY (SELECT CASE 
 								WHEN d.betfrom = 'p' THEN '4-Phone Betting'
