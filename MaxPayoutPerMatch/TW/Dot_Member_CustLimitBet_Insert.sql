@@ -24,6 +24,7 @@ AS
 		- 20240612@Helen: Duplicate Key issue [Redmine:#00000]
 		- 20240808@Max: Max Payout - Integrate Virtually Sports (VS5) [Redmine: #209070]
 		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
+		- 20241031@Max: VS6 (Betby) - Company Max Payout & Max Payout Per Match [Redmine: #212547]
 	
 	Param's explanation:	
 		
@@ -37,14 +38,14 @@ BEGIN
 	END
 	
 
-	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186,188,147,177) AND (@sporttype NOT BETWEEN 190 AND 198))
+	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186,188,147,177,134) AND (@sporttype NOT BETWEEN 190 AND 198))
 		OR (@bettype IN(2799,10449,11099)) OR (@bettype BETWEEN 801 AND 806)
 	BEGIN
 		RETURN
 	END
 	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) 
 		OR (@sporttype IN (43,44) AND @sitetype <> 3)
-		OR (@sporttype IN (164,178,179,180,186,188,147,177)) 
+		OR (@sporttype IN (164,178,179,180,186,188,147,177,134)) 
 		OR (@sporttype BETWEEN 190 AND 198)
 	BEGIN
 		SET @payout = 0
