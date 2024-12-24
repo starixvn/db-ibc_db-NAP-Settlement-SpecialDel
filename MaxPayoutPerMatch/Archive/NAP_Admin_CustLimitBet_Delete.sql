@@ -19,6 +19,7 @@ AS
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240808@Max: Max Payout - Integrate Virtually Sports (VS5) [Redmine: #209070]
 		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
+		- 20241031@Max: VS6 (Betby) - Company Max Payout & Max Payout Per Match [Redmine: #212547]
 		- 20241203@Max: Improve performance of Max Payout per Match [Redmine: #214294]
 	
 	Param's explanation:	
@@ -78,12 +79,12 @@ BEGIN
 	SELECT m.Match3rdId, 1 EventTypeID
 	FROM dbo.Match3rd m WITH (NOLOCK)
 	WHERE m.eventdate <= @Archive_Date
-		AND m.SportType IN (147)
+		AND m.SportType IN (147,134)
 	UNION ALL
 	SELECT m14.Match3rdId, 1 EventTypeID
 	FROM dbo.Match3rd14 m14 WITH (NOLOCK)
 	WHERE m14.eventdate <= @Archive_Date
-		AND m14.SportType IN (147)
+		AND m14.SportType IN (147,134)
 
 	UNION ALL
 	SELECT m.EventID, 6 EventTypeID
