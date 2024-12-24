@@ -15,6 +15,7 @@ AS
 		- 20240508@Aries: Enhance duplicate feed results of providers for SportBook  [Redmine:#204796]
 		- 20241118@Aries: Fix an issue which is wrong settlement due to the lack of consistency when calculating Innnings [Redmine:#213767]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
+		- 20241224@Aries: Fix an issue due to that Final result (with isLive = 0) is not inserted scores [Redmine:#215732]
 		
 	Param's Explanation:
 		@Resources:
@@ -68,18 +69,17 @@ BEGIN
 					p.ProviderExternalId
 				   ,p.HomeValue
 				   ,p.AwayValue
-				   ,p.IsLive
 			FROM ProviderExternalResultDetailES AS p WITH(NOLOCK)
 			WHERE p.MatchId3rd = @MatchId3rd 
 				AND p.MatchId = @MatchId 
 				AND p.SourceId =  @SourceId
 				AND p.ResourceId =  r.ResourceId
+				AND ISNULL(p.IsLive,0) = ISNULL(r.IsLive,0)
 			ORDER BY ProviderExternalId DESC
 		) AS pr
 	WHERE pr.ProviderExternalId IS NULL
 		OR ISNULL(r.HomeValue,'') != ISNULL(pr.HomeValue,'') 
         OR ISNULL(r.AwayValue,'') != ISNULL(pr.AwayValue,'')
-		OR ISNULL(r.IsLive,0) != ISNULL(pr.IsLive,0)
 
 END
 GO
