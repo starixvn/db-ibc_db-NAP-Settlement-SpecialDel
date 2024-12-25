@@ -69,7 +69,8 @@ BEGIN
 			OddsType			  INT,
 			FilterOdds			  MONEY,
 			FilterBetteam		  NVARCHAR(10),
-			SettledType			  TINYINT
+			SettledType			  TINYINT,
+			sporttype			  SMALLINT	
 	)
 
 	CREATE TABLE #logInfo (
@@ -208,7 +209,7 @@ BEGIN
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT, IsOtherTicket BIT DEFAULT(0))
-	DECLARE @tmpOtherTicket AS TABLE (TransId BIGINT)
+	DECLARE @tmpOtherTicket AS TABLE (TransId BIGINT, sporttype SMALLINT, IsMixParlay BIT)
 
 	SET @WrongOddsInfoXML = CONVERT(XML, @WrongOddsInfo)
 	INSERT INTO #FilterInfo(
@@ -473,6 +474,7 @@ BEGIN
 			,FilterOdds
 			,FilterBetteam
 			,SettledType
+			,sporttype
 		)
 	SELECT  DISTINCT b.transid
 			,b.transid AS SubTransID
@@ -496,6 +498,7 @@ BEGIN
 			,b.odds
 			,b.betteam
 			,b.SettledType
+			,b.sporttype
 	FROM #tmpTransInfo b 
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType AND f.SubIssueTypeId = d.SubIssueTypeId
@@ -559,6 +562,7 @@ BEGIN
 				,FilterOdds
 				,FilterBetteam
 				,SettledType
+				,sporttype
 			)
 		SELECT  DISTINCT b.transid
 				,b.Subtransid 
@@ -579,6 +583,7 @@ BEGIN
 				,b.Subodds
 				,b.Subbetteam
 				,b.SettledType
+				,b.sporttype
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
 				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType AND f.SubIssueTypeId = d.SubIssueTypeId
@@ -669,7 +674,8 @@ BEGIN
 			)
 			--Remove transid-> NOT VOID affect main bettype
 			DELETE b
-				OUTPUT deleted.SubTransid INTO @tmpOtherTicket
+				OUTPUT deleted.SubTransid, deleted.sporttype, deleted.IsMixParlay
+				INTO @tmpOtherTicket (TransId, sporttype, IsMixParlay)
 			FROM #TVSTicketBets b
 				INNER JOIN cte tp ON tp.OddsType = b.OddsType
 			WHERE 1 = CASE WHEN b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) THEN 1
@@ -696,7 +702,8 @@ BEGIN
 			)
 			--Remove transid-> NOT VOID affect main bettype
 			DELETE b
-				OUTPUT deleted.SubTransid INTO @tmpOtherTicket
+				OUTPUT deleted.SubTransid, deleted.sporttype, deleted.IsMixParlay
+				INTO @tmpOtherTicket (TransId, sporttype, IsMixParlay)
 			FROM #TVSTicketBets b
 				INNER JOIN cte tp ON tp.OddsType = b.OddsType
 			WHERE 1 = CASE WHEN b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) THEN 1
@@ -720,7 +727,8 @@ BEGIN
 			)
 			--Remove transid-> NOT VOID affect main bettype
 			DELETE b
-				OUTPUT deleted.SubTransid INTO @tmpOtherTicket
+				OUTPUT deleted.SubTransid, deleted.sporttype, deleted.IsMixParlay
+				INTO @tmpOtherTicket (TransId, sporttype, IsMixParlay)
 			FROM #TVSTicketBets b
 				INNER JOIN cte tp ON tp.OddsType = b.OddsType
 			WHERE 1 = CASE WHEN b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) THEN 1
@@ -829,6 +837,14 @@ BEGIN
 			GROUP BY MatchId
 		)l 
 	
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpOtherTicket WHERE IsMixParlay = 1 AND sporttype = 1)
+	BEGIN
+		--Remove case LG/Early for soccer show Other Ticket have Parlay ticket
+		DELETE o
+		FROM @tmpOtherTicket o
+		WHERE o.IsMixParlay = 1 AND o.sporttype = 1
+	END
+
 	IF @IsShowLogOnly = 0
 	BEGIN
 		INSERT INTO @tmpLogInfoTickets (TransId, IsOtherTicket)
