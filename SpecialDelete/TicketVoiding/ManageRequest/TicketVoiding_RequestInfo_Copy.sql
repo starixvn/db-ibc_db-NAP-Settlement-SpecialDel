@@ -56,7 +56,6 @@ BEGIN
 		,IssueTypeId		TINYINT
 		,IssueTypeName		VARCHAR(100)
 		,SubIssueTypeName	VARCHAR(100)
-		,SubIssueTypeId		TINYINT
 		,OperatorInfo		XML
 		,Remark				VARCHAR(MAX)
 		,UserId				INT
@@ -121,7 +120,6 @@ BEGIN
 		,IssueTypeId
 		,IssueTypeName
 		,SubIssueTypeName 
-		,SubIssueTypeId
 		,OperatorInfo
 		,Remark
 		,UserId
@@ -145,7 +143,6 @@ BEGIN
 		,r.IssueTypeId
 		,i.IssueTypeName
 		,s.SubIssueTypeName
-		,s.SubIssueTypeId
 		,(SELECT	o.OperatorId AS '@OperatorId', o.OperatorTypeId AS '@TypeId'
 				FROM	dbo.TicketVoiding_OperatorInfo o WITH(NOLOCK)
 				WHERE	o.RequestId = @RequestId
@@ -335,7 +332,6 @@ BEGIN
 		  ,IssueTypeId
 		  ,IssueTypeName
 		  ,SubIssueTypeName
-		  ,SubIssueTypeId
 		  ,OperatorInfo
 		  ,ISNULL(t.Remark,'') AS Remark
 		  ,c.username AS RequestedBy
