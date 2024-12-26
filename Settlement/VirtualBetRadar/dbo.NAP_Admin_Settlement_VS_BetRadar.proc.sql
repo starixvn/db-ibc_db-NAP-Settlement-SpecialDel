@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member,bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="svc_tig,wsv_nap" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_VS_BetRadar] 
 	 @AdminId			INT
 	,@MatchId			INT
@@ -25,6 +25,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20231016@Aries: Auto Send Announcement When Refund VS [Redmine:#195333]
+		- 20241220@Louisa: Change excuter Dot_Member,bodbAdminNet to svc_tig,wsv_nap  [Redmine:#215599]
 		
 	Param's Explanation:
 		- @Hth: Total score which home team scored in Half Time(HT)
