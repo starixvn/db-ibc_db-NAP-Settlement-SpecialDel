@@ -23,6 +23,7 @@ AS
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+		- 20241212@Lani: [TVS] Add new column returned (ServiceAcceptTime, InputtedFromTime, MinAllowanceTime) - [Redmine: #215049]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -58,6 +59,7 @@ BEGIN
 		,OperatorInfo		XML
 		,Remark				VARCHAR(MAX)
 		,UserId				INT
+		,FilterFromTranstime	DATETIME
 		,VoidFromTime		DATETIME
 		,VoidToTime			DATETIME
 		,TotalSingleCount	INT
@@ -121,6 +123,7 @@ BEGIN
 		,OperatorInfo
 		,Remark
 		,UserId
+		,FilterFromTranstime
 		,VoidFromTime
 		,VoidToTime
 		,TotalSingleCount
@@ -146,6 +149,7 @@ BEGIN
 				FOR XML PATH ('r'), ROOT('root')) AS OperatorInfo
 		,r.Remark
 		,r.UserId
+		,rd.FilterFromTransTime
 		,rd.VoidFromTime
 		,rd.VoidToTime
 		,rd.SingleCount AS TotalSingleCount
@@ -179,7 +183,25 @@ BEGIN
                ,@MinuteOffset VARCHAR(10)
                ,@SecondOffset VARCHAR(10)
 			   ,@IssueDetail NVARCHAR(MAX)
+			   ,@ServiceAcceptTime VARCHAR(11)
+			   ,@MinAllowanceTime SMALLINT
 		
+		;WITH Cte AS (
+			SELECT CAST(RequestExtraInfo AS XML).value('(/r/@AA)[1]', 'VARCHAR(10)') AS AA
+				  ,CAST(RequestExtraInfo AS XML).value('(/r/@PA)[1]', 'VARCHAR(10)') AS PA
+				  ,CAST(RequestExtraInfo AS XML).value('(/r/@SA)[1]', 'VARCHAR(10)') AS SA
+			FROM @tmpRequestInfo
+		),
+		ValueCte AS (
+			SELECT AA AS Value FROM Cte
+			UNION ALL
+			SELECT PA AS Value FROM Cte
+			UNION ALL 
+			SELECT SA AS Value FROM Cte 
+		)
+		SELECT @MinAllowanceTime = CAST(MIN(Value) AS INT)
+		FROM ValueCte
+
 		SELECT @IssueDetail = IssueDetail
 		FROM @tmpRequestInfo
 
@@ -191,6 +213,9 @@ BEGIN
 								 , '')
 			 , @SecondOffset = IIF(CHARINDEX('SecondOffset:',@IssueDetail) > 0
 								 , SUBSTRING(@IssueDetail, CHARINDEX('SecondOffset:',@IssueDetail) + LEN('SecondOffset:'), LEN(@IssueDetail))
+								 , '')
+			 , @ServiceAcceptTime = IIF(CHARINDEX('ServiceAcceptTime:',@IssueDetail) > 0
+			                     , SUBSTRING(@IssueDetail, CHARINDEX('ServiceAcceptTime:',@IssueDetail) + LEN('ServiceAcceptTime:'), CHARINDEX(';ActualTime:',@IssueDetail) - (CHARINDEX('ServiceAcceptTime:',@IssueDetail) + LEN('ServiceAcceptTime:')))
 								 , '')
 	END
 	
@@ -306,7 +331,7 @@ BEGIN
 		  ,MistakenBy
 		  ,IssueTypeId
 		  ,IssueTypeName
-		  ,SubIssueTypeName 
+		  ,SubIssueTypeName
 		  ,OperatorInfo
 		  ,ISNULL(t.Remark,'') AS Remark
 		  ,c.username AS RequestedBy
@@ -320,6 +345,9 @@ BEGIN
 		  ,@TvDetectionValue AS TvDetectionValue
 		  ,@MinuteOffset AS MinuteOffset
 		  ,@SecondOffset AS SecondOffset
+		  ,@ServiceAcceptTime AS ServiceAcceptTime
+		  ,FilterFromTranstime
+		  ,@MinAllowanceTime AS MinAllowanceTime
 	FROM @tmpRequestInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.UserId
 
