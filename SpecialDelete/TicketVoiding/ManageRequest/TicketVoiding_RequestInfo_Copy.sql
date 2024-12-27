@@ -24,6 +24,7 @@ AS
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20241212@Lani: [TVS] Add new column returned (ServiceAcceptTime, InputtedFromTime, MinAllowanceTime) - [Redmine: #215049]
+		- 20241227@Lani: [TVS] Change data of 'MinAllowanceTime' column returned - [Redmine: #215946]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -185,22 +186,22 @@ BEGIN
 			   ,@IssueDetail NVARCHAR(MAX)
 			   ,@ServiceAcceptTime VARCHAR(11)
 			   ,@MinAllowanceTime SMALLINT
+			   ,@AcceptType SMALLINT
 		
+		SELECT @AcceptType = CAST(RequestExtraInfo AS XML).value('(/r/@MinType)[1]', 'SMALLINT')
+		FROM @tmpRequestInfo
+
 		;WITH Cte AS (
 			SELECT CAST(RequestExtraInfo AS XML).value('(/r/@AA)[1]', 'VARCHAR(10)') AS AA
 				  ,CAST(RequestExtraInfo AS XML).value('(/r/@PA)[1]', 'VARCHAR(10)') AS PA
 				  ,CAST(RequestExtraInfo AS XML).value('(/r/@SA)[1]', 'VARCHAR(10)') AS SA
 			FROM @tmpRequestInfo
-		),
-		ValueCte AS (
-			SELECT AA AS Value FROM Cte
-			UNION ALL
-			SELECT PA AS Value FROM Cte
-			UNION ALL 
-			SELECT SA AS Value FROM Cte 
 		)
-		SELECT @MinAllowanceTime = CAST(MIN(Value) AS INT)
-		FROM ValueCte
+		SELECT @MinAllowanceTime = CASE WHEN @AcceptType = 1 THEN AA
+										WHEN @AcceptType = 2 THEN SA
+										ELSE PA
+								   END
+		FROM Cte
 
 		SELECT @IssueDetail = IssueDetail
 		FROM @tmpRequestInfo
