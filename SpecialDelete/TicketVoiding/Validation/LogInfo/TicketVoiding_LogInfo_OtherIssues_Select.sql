@@ -16,6 +16,7 @@ AS
 	
 	Revisions: 
 		- 20241021@Max: Create new SP [Redmine: #211913]
+		- 20241216@Lani: Add 'GroupName' column returned [Redmine: #213960]
 		
 	Param's explanation:
 		
@@ -614,6 +615,10 @@ BEGIN
 			,m.SettlementStatus AS 'SettlementStatus'
 			,m.sporttype AS 'sporttype'
 		    ,ISNULL(tb.parentid, m.Subbettype) AS 'GroupBettypeId' --Return for web filter bettype
+			,CASE 
+				WHEN m.IsMixParlay = 1 THEN 'Parlay'
+				ELSE 'Single'
+			END AS 'GroupName'
 	FROM @tmpLogInfoTickets s
 		INNER JOIN #tmpTransInfo m ON s.transid = m.Subtransid
 		LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = m.Subbettype

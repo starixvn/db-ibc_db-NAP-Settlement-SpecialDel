@@ -29,6 +29,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240722@July: [TVS] Add Details function for traders of LG/Early teams [Redmine: #206715]
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
+		- 20241216@Lani: [TVS] Add 'GroupName' columns returned [Redmine: #213960]
 
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
@@ -817,8 +818,13 @@ BEGIN
 			   ,m.matchcode AS 'matchcode'
 			   ,m.SettlementStatus AS 'SettlementStatus'
 			   ,m.sporttype AS 'sporttype'
+			   ,CASE 
+					WHEN m.IsMixParlay = 1 THEN 'Parlay'
+					ELSE bt.typenamee 
+				END AS 'GroupName'
 		FROM @tmpLogInfoTickets s
 			INNER JOIN #tmpTransInfo m ON s.transid = m.Subtransid
+			INNER JOIN bettype AS bt WITH (NOLOCK) ON bt.typeid = m.Subbettype
 		WHERE m.matchid = @MatchId
 		FOR JSON PATH))
 
