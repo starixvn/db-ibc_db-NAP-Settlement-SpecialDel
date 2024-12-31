@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_SendNotify_VS
 	@MatchId			INT 
 AS
@@ -17,8 +17,12 @@ BEGIN
 			,@SportType			TINYINT
 			,@MatchIDMainParlay	INT = 0
 			,@BettypeMainParlay	SMALLINT = 0
+			,@IsCentral			BIT = 0 
 
 	SELECT @sporttype = m.sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT	
 
 	IF  @SportType = 188
 	BEGIN
@@ -63,12 +67,14 @@ BEGIN
 		ON b.custid		= c.custid
 	WHERE matchid		= @matchid
 		AND b.statusId	NOT IN (101, 102)
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	
 	--main parlay
 	;WITH cte_refno AS (
 		SELECT bm.custid, bm.refno
 		FROM dbo.bettransm bm WITH(NOLOCK)
 		WHERE bm.matchid = @matchid
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 	)
 	INSERT INTO @betTicket ( 
 		transid
@@ -93,6 +99,7 @@ BEGIN
 		AND b.statusId	NOT IN (101, 102)
 		AND b.custid  = r.custid
 		AND b.bettype = @BettypeMainParlay
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 	SET @totalTicket = (SELECT COUNT(1) FROM @betTicket)
 
