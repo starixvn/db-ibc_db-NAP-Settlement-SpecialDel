@@ -119,7 +119,6 @@ BEGIN
 		, SiteName
 		, IsDeposit
 	FROM @betTicket
-	WHERE IsDeposit = 1
 
 
 END
