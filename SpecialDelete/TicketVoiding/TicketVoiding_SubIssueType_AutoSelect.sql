@@ -6,12 +6,15 @@ ALTER PROCEDURE [dbo].[TicketVoiding_SubIssueType_AutoSelect]
 )
 AS
 /*	
-	Created by: 20221025@July
-	Task: TVS - VAR message [Redmine: #178088]
+	Created by: 20211013@Max
+	Task: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 	DB: DBPRO/bodb02
 	
 	Revisions: 
-		- 20221025@July: Create new SP - Change config DBTXN -> DBPRO [Redmine: #178088]
+		- 20211013@Max: Create new SP [Redmine: #155792]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20221025@July: TVS - VAR message [Redmine: #178088]
+		- 20241216@July: [TVS] Danger Accepted - Auto fill number of booking/goal kick/goal to the message template [Redmine: #214377]
 
 	Param's explanation:
 		
@@ -40,7 +43,7 @@ BEGIN
 					SELECT MatchId
 					FROM dbo.match_remark WITH (NOLOCK)
 					WHERE matchid = m.MatchId
-						AND SubType BETWEEN 2100 AND 2199
+						AND (SubType LIKE '21__' OR SubType LIKE '26__') --2100+N/2600+N
 			)mr
 	END
 	ELSE IF @MainSubIssueTypeId IN (3,111) --Main Booking Home/Away
@@ -53,7 +56,7 @@ BEGIN
 					SELECT MatchId
 					FROM dbo.match_remark WITH (NOLOCK)
 					WHERE matchid = m.MatchId
-						AND SubType BETWEEN 2900 AND 2999
+						AND (SubType LIKE '29__' OR SubType LIKE '34__') --2900+N/3400+N
 			)mr
 	END
 	ELSE IF @MainSubIssueTypeId = 73 --Main Goal Kick
@@ -66,7 +69,8 @@ BEGIN
 					SELECT MatchId
 					FROM dbo.match_remark WITH (NOLOCK)
 					WHERE matchid = m.MatchId
-						AND SubType BETWEEN 3900 AND 3999
+						AND (SubType LIKE '39__' OR SubType LIKE '43__') --3900+N/4300+N
+
 			)mr
 	END
 	ELSE IF @MainSubIssueTypeId IN (1, 55, 56) --Goal Home/Away
@@ -83,7 +87,7 @@ BEGIN
 					SELECT MatchId
 					FROM dbo.match_remark WITH (NOLOCK)
 					WHERE matchid = m.MatchId
-						AND SubType BETWEEN  400 AND 499
+						AND (SubType LIKE '4__' OR SubType LIKE '5__')  --400+N/500+N
 			)mr
 	END
 
