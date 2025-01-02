@@ -16,6 +16,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -39,8 +40,9 @@ BEGIN
 	    		,rs.HomeValue
 				,rs.AwayValue
 				,rs.ResultStatusId
-	           ,rs.ResultStatusID
+	            ,rs.ResultStatusID
 				,rs.SettlementStatusID 
+				,rs.OtherInfo
 	  	FROM dbo.ResultDetailES rs WITH (NOLOCK)  
 		WHERE rs.matchid = @matchid
 	END
@@ -51,8 +53,9 @@ BEGIN
 		SELECT rs.ResourceID
 	    		,rs.HomeValue
 				,rs.AwayValue
-	           ,rs.ResultStatusID
+	            ,rs.ResultStatusID
 				,rs.SettlementStatusID
+				,rs.OtherInfo
 	  	FROM dbo.ResultDetailOS rs WITH (NOLOCK) 
 		WHERE rs.matchid = @matchid
 	END
@@ -63,6 +66,7 @@ BEGIN
 				,rs.AwayValue
 				,rs.ResultStatusID
 				,rs.SettlementStatusID
+				,rs.OtherInfo
 	  	FROM  dbo.ResultDetail rs WITH (NOLOCK) 
 		WHERE rs.matchid = @matchid
 	END

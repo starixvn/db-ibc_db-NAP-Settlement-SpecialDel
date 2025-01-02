@@ -31,6 +31,7 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]    
 		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
+		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 
     Param's Explanation:
         - @Action: 'CAL', 'CAL-INST'
@@ -88,14 +89,14 @@ BEGIN
 			,@FTHome_Inst					INT
 			,@FTAway_Inst					INT
 		
-	DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20),RefResourceID VARCHAR(20),ResourceID VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), OddsType TINYINT, isCalculated BIT DEFAULT(0), MinusValue SMALLMONEY   DEFAULT(0),IsInstHTFT BIT, PRIMARY KEY (BetType,BetID))	
+	DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20),RefResourceID VARCHAR(20),ResourceID VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), OddsType TINYINT, isCalculated BIT DEFAULT(0), MinusValue SMALLMONEY   DEFAULT(0),IsInstHTFT BIT, AbandonedStatus SMALLINT, PRIMARY KEY (BetType,BetID))	
     DECLARE @tmpResources TABLE(SDTResourceId VARCHAR(20),HomeValue VARCHAR(2000),AwayValue VARCHAR(2000))
 	DECLARE @tmpParlayAffectedBettypes TABLE (BetType SMALLINT, TotalTicket INT)	
 
     DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,CustID INT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT, winlost MONEY, statuswinlost TINYINT, IsUndo BIT)
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT,modds SMALLMONEY, winlost MONEY, statuswinlost TINYINT, currentstatuswinlost TINYINT, IsUndo BIT)
 
-	CREATE TABLE #tmpTransSDT (TransID BIGINT,CustID INT, modds SMALLMONEY DEFAULT 0, OddsType SMALLINT, srecommend INT,bettype SMALLINT, IsMarked BIT, IsUndo BIT , BetdaqId BIGINT, currentStatuswinlost TINYINT,betteam VARCHAR(20),hdp1 SMALLMONEY,IsInstHTFT BIT)
+	CREATE TABLE #tmpTransSDT (TransID BIGINT,CustID INT, modds SMALLMONEY DEFAULT 0, OddsType SMALLINT, srecommend INT,bettype SMALLINT, IsMarked BIT, IsUndo BIT , BetdaqId BIGINT, currentStatuswinlost TINYINT,betteam VARCHAR(20),hdp1 SMALLMONEY,hdp2 SMALLMONEY,IsInstHTFT BIT)
 	CREATE CLUSTERED INDEX IX_tmpTransSDT_modds ON #tmpTransSDT (modds);
 
     CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -189,8 +190,9 @@ BEGIN
 			,bt.AwayValue = tbl.Away
 			,bt.isCalculated = tbl.isCal
 			,bt.MinusValue = IIF(@IsInstant = 1 AND @SportType = 2, 6, 0)
+			,bt.AbandonedStatus = tbl.AbandonedStatus
 		FROM @tmpSelectedRID AS bt
-			INNER JOIN OPENXML(@Handle,'root/r',1) WITH( Id VARCHAR(20),Home VARCHAR(2000),Away VARCHAR(2000),isCal BIT) AS tbl ON tbl.Id = bt.SDTResourceId
+			INNER JOIN OPENXML(@Handle,'root/r',1) WITH( Id VARCHAR(20),Home VARCHAR(2000),Away VARCHAR(2000),isCal BIT, AbandonedStatus SMALLINT) AS tbl ON tbl.Id = bt.SDTResourceId
 		
 		IF @Sporttype = 2
 		BEGIN
@@ -227,7 +229,7 @@ BEGIN
 		
 		EXEC sp_xml_removedocument @Handle
 
-	    INSERT INTO #tmpTransSDT(TransID, CustID, modds, OddsType, srecommend, bettype, IsMarked,BetdaqId, currentStatuswinlost,betteam,hdp1,IsInstHTFT)
+	    INSERT INTO #tmpTransSDT(TransID, CustID, modds, OddsType, srecommend, bettype, IsMarked,BetdaqId, currentStatuswinlost,betteam,hdp1,hdp2,IsInstHTFT)
 	    SELECT	b.transid
 	    	   ,b.CustID
 	    	   ,m.modds
@@ -239,6 +241,7 @@ BEGIN
 			   ,b.statuswinlost
 			   ,b.betteam
 			   ,b.hdp1
+			   ,b.hdp2
 			   ,sr.IsInstHTFT
 	    FROM bettrans AS b WITH (NOLOCK)
 	    	OUTER APPLY (
@@ -247,11 +250,11 @@ BEGIN
 	    					WHERE	t.TransId = b.transId
 	    	) AS mt
 	    	CROSS APPLY(
-	    					SELECT TOP 1 t.SDTpfId, t.HomeValue,t. AwayValue, t.OddsType, ISNULL(t.isCalculated, 0) AS isCalculated , t.MinusValue,  t.IsInstHTFT
+	    					SELECT TOP 1 t.SDTpfId, t.HomeValue,t. AwayValue, t.OddsType, ISNULL(t.isCalculated, 0) AS isCalculated , t.MinusValue,  t.IsInstHTFT, t.AbandonedStatus
 	    					FROM @tmpSelectedRID AS t
 	    					WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	    				) AS sr
-	    	CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, CASE WHEN b.bettype = 8814 THEN b.betid ELSE b.hdp1 END, sr.HomeValue, sr.AwayValue, b.transdesc,sr.MinusValue) AS m
+	    	CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, CASE WHEN b.bettype = 8814 THEN b.betid ELSE b.hdp1 END,b.hdp2, sr.HomeValue, sr.AwayValue, b.transdesc,sr.MinusValue, sr.AbandonedStatus) AS m
 	    WHERE b.matchid = @MatchId
 	    	AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			AND b.statusID NOT IN (1,101)
@@ -282,10 +285,11 @@ BEGIN
 									  ,CAST((IIF(ResourceID = '00', ISNULL(@FTHome_Inst,0), ISNULL(@HTHome_Inst,0)) +  CAST(t.HomeValue  AS INT)) AS VARCHAR(2000)) AS HomeValue
 									  ,CAST((IIF(ResourceID = '00', ISNULL(@FTAway_Inst,0), ISNULL(@HTAway_Inst,0)) +  CAST(t.AwayValue  AS INT)) AS VARCHAR(2000)) AS AwayValue
 									  ,6 AS MinusValue
+									  ,t.AbandonedStatus
 	    						FROM @tmpSelectedRID AS t
 	    						WHERE b.BetType = t.BetType AND t.BetID = 0
 	    					) AS sr
-					CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, sr.HomeValue, sr.AwayValue, NULL,sr.MinusValue) AS m
+					CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1,b.hdp2, sr.HomeValue, sr.AwayValue, NULL,sr.MinusValue, sr.AbandonedStatus) AS m
 				WHERE b.modds IS NULL 
 					AND b.IsInstHTFT = 1
 					AND m.modds IS NOT NULL
@@ -541,7 +545,8 @@ BEGIN
 																							,isCalculated		AS '@IsCalculated'
 																							,MinusValue			AS '@MinusValue'
 																						    ,@DeterminedType	AS '@DeterminedType'
-																							,IsInstHTFT			AS '@IsInstHTFT'																							
+																							,IsInstHTFT			AS '@IsInstHTFT'
+																							,AbandonedStatus	AS '@AbandonedStatus'
 																					   FROM	@tmpSelectedRID AS s
 																					   WHERE EXISTS (SELECT 1 FROM @tmpParlayAffectedBettypes AS p WHERE p.BetType = s.BetType)
 																					   FOR XML PATH ('Resource'), TYPE)

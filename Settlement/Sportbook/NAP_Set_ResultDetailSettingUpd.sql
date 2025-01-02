@@ -30,12 +30,14 @@ AS
 		- 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
-		  	
+		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
+		
 	Parameters Explanation:    
 		@Type: TINYINT
 			 1: Hold Result
 			 2: Confirm Refund
 			 3: Confirm Refund SDT
+			 4: Confirm refund ( when checked Early completed/Mercy rule)
 
 		@ResourceIds = '902401,904301,906301,905801,905701'
 
@@ -48,21 +50,24 @@ BEGIN
 	DECLARE @SportType			TINYINT  = 0
 			,@ActionId			INT
 			,@Remark			VARCHAR(500)
-			,@ResultTable		TINYINT	= 0	
+			,@ResultTable		TINYINT	= 0
+			,@ExternalResultTable TINYINT	= 0	
 			,@handle			INT
 			,@RemarkSDT			VARCHAR(500) = ''
+			,@RemarkSDTOtherInfo VARCHAR(500) = ''
 			,@IsValidateSOPRefund BIT = 0
 								
 	DECLARE @tmpResultDetail TABLE ( ResourceId	VARCHAR(20)	)
-	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OtherInfo VARCHAR(50))
 
 	SELECT	@ActionId = CASE	WHEN @Type = 1 THEN 81021
-								WHEN @Type IN (2,3) THEN 81032
+								WHEN @Type IN (2,3,4) THEN 81032
 								ELSE NULL
 						 END
 	SELECT @SportType = m.sporttype FROM dbo.Match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
 
 	SELECT @ResultTable =  r.ResultTable 
+			,@ExternalResultTable = r.ExternalResultTable
 			,@IsValidateSOPRefund = ISNULL(r.Setting,0) & 1
 	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK) 
 	WHERE r.Sporttype = @SportType
@@ -71,11 +76,7 @@ BEGIN
 			2: ResultDetailOS
 			3: ResultDetailES
 	*/
-	
-	IF @SportType = 8
-		SELECT @ResultTable = 2
-				,@IsValidateSOPRefund = 1
-
+ 
 	IF @ActionId IS NULL OR ( @Type = 2 AND @IsValidateSOPRefund = 0 )
 	RETURN
 
@@ -109,55 +110,101 @@ BEGIN
 		FROM	cteResourceOffer
 	END
 
-	IF @Type = 3 OR ISNULL(@SelectedResources,'') != ''
+	IF @Type IN ( 3, 4) OR ISNULL(@SelectedResources,'') != ''
 	BEGIN
 		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-		SELECT Id, ISNULL(Home,''), ISNULL(Away,'')
-		FROM OPENXML(@handle,'Resources/Resource',1) WITH(Id VARCHAR(20),Home VARCHAR(50),Away VARCHAR(50)) AS tbl
+		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue,OtherInfo)
+		SELECT Id, ISNULL(Home,''), ISNULL(Away,''),OtherInfo
+		FROM OPENXML(@handle,'Resources/Resource',1) WITH(Id VARCHAR(20),Home VARCHAR(50),Away VARCHAR(50), OtherInfo  VARCHAR(50)) AS tbl
 		EXEC sp_xml_removedocument @handle
 
-		IF EXISTS (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = 'OT') AND NOT EXISTS (SELECT 1 FROM @tmpResultDetail WHERE ResourceID = 'OT')
+		IF EXISTS (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID IN ('OT','EI')) AND NOT EXISTS (SELECT 1 FROM @tmpResultDetail WHERE ResourceID IN ('OT','EI'))
 		BEGIN
 			INSERT INTO @tmpResultDetail(ResourceId)
-			VALUES('OT')
+			SELECT ResourceId 
+			FROM @tmpResourcesWeb 
+			WHERE ResourceID IN ('OT','EI')
 		END
 
 		IF @IsEnabled = 1
 		BEGIN
             SELECT @RemarkSDT = STRING_AGG (ResourceId + '(' + HomeValue + '-' + AwayValue  + ')',', ')
+				  ,@RemarkSDTOtherInfo = STRING_AGG(IIF(@SportType = 8 ,OtherInfo,''),'')
 			FROM @tmpResourcesWeb
 
-			DELETE p
-            FROM dbo.ProviderExternalResultDetail AS p
-            WHERE p.MatchId = @MatchId 
-                AND p.SourceId = 99 -- Remove old confirm
-                AND p.ResourceId IN  (SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+			IF @ExternalResultTable = 1
+			BEGIN
+				DELETE p
+				FROM dbo.ProviderExternalResultDetail AS p
+				WHERE p.MatchId = @MatchId 
+					AND p.SourceId = 99 -- Remove old confirm
+					AND p.ResourceId IN  (SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
 
-			INSERT INTO dbo.ProviderExternalResultDetail (MatchId3rd,MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateBy,LastModifyBy)
-			SELECT	 0 AS MatchId3rd
-					,@MatchId AS MatchId
-					,99 AS SourceId
-					,ResourceId
-					,HomeValue
-					,AwayValue
-					,@AdminId AS CreateBy
-					,@AdminId AS LastModifyBy
-			FROM @tmpResourcesWeb
+				INSERT INTO dbo.ProviderExternalResultDetail (MatchId3rd,MatchId,SourceId,ResourceId,HomeValue,AwayValue,OtherInfo,CreateBy,LastModifyBy)
+				SELECT	 0 AS MatchId3rd
+						,@MatchId AS MatchId
+						,99 AS SourceId
+						,ResourceId
+						,HomeValue
+						,AwayValue
+						,OtherInfo
+						,@AdminId AS CreateBy
+						,@AdminId AS LastModifyBy
+				FROM @tmpResourcesWeb
+			END
+			IF @ExternalResultTable = 2
+			BEGIN
+				DELETE p
+				FROM dbo.ProviderExternalResultDetailOS AS p
+				WHERE p.MatchId = @MatchId 
+					AND p.SourceId = 99 -- Remove old confirm
+					AND p.ResourceId IN  (SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+
+				INSERT INTO dbo.ProviderExternalResultDetailOS (MatchId3rd,MatchId,SourceId,ResourceId,HomeValue,AwayValue,OtherInfo,CreateBy,LastModifyBy)
+				SELECT	 0 AS MatchId3rd
+						,@MatchId AS MatchId
+						,99 AS SourceId
+						,ResourceId
+						,HomeValue
+						,AwayValue
+						,OtherInfo
+						,@AdminId AS CreateBy
+						,@AdminId AS LastModifyBy
+				FROM @tmpResourcesWeb
+			END
 		END
 		ELSE
 		BEGIN
-			SELECT @RemarkSDT = STRING_AGG (p.ResourceId + '(' + p.HomeValue + '-' + p.AwayValue  + ')',', ')
-			FROM dbo.ProviderExternalResultDetail AS p
-			WHERE p.MatchId = @MatchId
-				AND p.SourceId = 99
-				AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+			IF @ExternalResultTable = 1
+			BEGIN
+				SELECT @RemarkSDT = STRING_AGG (p.ResourceId + '(' + p.HomeValue + '-' + p.AwayValue  + ')',', ')
+					  ,@RemarkSDTOtherInfo = STRING_AGG(IIF(@SportType = 8 ,OtherInfo,''),'')
+				FROM dbo.ProviderExternalResultDetail AS p
+				WHERE p.MatchId = @MatchId
+					AND p.SourceId = 99
+					AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
 
-			DELETE p
-            FROM dbo.ProviderExternalResultDetail AS p
-            WHERE p.MatchId = @MatchId 
-                AND p.SourceId = 99 -- Remove old confirm
-                AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+				DELETE p
+				FROM dbo.ProviderExternalResultDetail AS p
+				WHERE p.MatchId = @MatchId 
+					AND p.SourceId = 99 -- Remove old confirm
+					AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+			END
+			IF @ExternalResultTable = 2
+			BEGIN
+				SELECT @RemarkSDT = STRING_AGG (p.ResourceId + '(' + p.HomeValue + '-' + p.AwayValue  + ')',', ')
+					  ,@RemarkSDTOtherInfo = STRING_AGG(IIF(@SportType = 8 ,OtherInfo,''),'')
+				FROM dbo.ProviderExternalResultDetailOS AS p
+				WHERE p.MatchId = @MatchId
+					AND p.SourceId = 99
+					AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+
+				DELETE p
+				FROM dbo.ProviderExternalResultDetailOS AS p
+				WHERE p.MatchId = @MatchId 
+					AND p.SourceId = 99 -- Remove old confirm
+					AND p.ResourceId IN  ( SELECT r.ResourceId FROM @tmpResourcesWeb AS r)
+			END
 		END
 	END
 
@@ -266,6 +313,9 @@ BEGIN
 								WHEN 3 THEN 'NAP: Update Confirm-Refund-SDT ' + CASE @IsEnabled WHEN 0 THEN 'OFF ' ELSE  'ON ' END
 											+ ISNULL(@RemarkSDT,'')
 											+ IIF(@Is3x3 = 1,' Is3x3','')
+											+ IIF(@RemarkSDTOtherInfo = 'A', ' A', '')
+								WHEN 4 THEN 'NAP: Update Confirm-Refund (Mercy) ' + CASE @IsEnabled WHEN 0 THEN 'OFF ' ELSE  'ON ' END
+											+ '(' + @ResourceIds + ')'
 								ELSE '' END
 	
 	BEGIN TRY

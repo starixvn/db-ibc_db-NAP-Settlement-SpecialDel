@@ -1,0 +1,126 @@
+/*<info serverAlias="DBPRO-bodb02" executers="" isFunction="0"></info>*/
+/*
+    Created: 2024111@Louisa
+	Task: Refund Determined for Baseball [Redmine: #212365]
+	DB: DBPRO/bodb02
+*/
+ 
+USE bodb02
+GO 
+
+--1. Extend [SDTRefund] from TINYINT to  SMALLINT
+-----------------------------------------------------------------
+ ALTER TABLE dbo.settlementspecialbettypeprofile ALTER COLUMN SDTRefund INT
+ GO
+
+--2. Update setting for SDTRefund
+-----------------------------------------------------------------
+/*
+--Bit4 -> Bit5 -> Bit6 -> Bit7 -> Bit8 -> Bit9 -> Bit10 -> Bit11 -> Bit12 -> Bit13
+--Inn1 -> Inn2 -> Inn3 -> Inn4 -> Inn5 -> Inn6 -> Inn7  -> Inn8  -> Inn9  -> EI
+
+*/
+
+DECLARE @tmp_newSetting TABLE(bettype SMALLINT,betID BIGINT, SDTRefund INT )
+INSERT INTO @tmp_newSetting ( bettype,betID, SDTRefund )
+SELECT  8804, 803,32 UNION ALL
+SELECT  8804, 805,128 UNION ALL
+
+SELECT  8810, 801,8 UNION ALL
+SELECT  8810, 802,16 UNION ALL
+SELECT  8810, 803,32 UNION ALL
+SELECT  8810, 804,64 UNION ALL
+SELECT  8810, 805,128 UNION ALL
+SELECT  8810, 806,256 UNION ALL
+SELECT  8810, 807,512 UNION ALL
+SELECT  8810, 808,1024 UNION ALL
+
+SELECT  8811, 801,8 UNION ALL
+SELECT  8811, 802,16 UNION ALL
+SELECT  8811, 803,32 UNION ALL
+SELECT  8811, 804,64 UNION ALL
+SELECT  8811, 805,128 UNION ALL
+SELECT  8811, 806,256 UNION ALL
+SELECT  8811, 807,512 UNION ALL
+SELECT  8811, 808,1024 UNION ALL
+
+SELECT  8812, 801,8 UNION ALL
+SELECT  8812, 802,16 UNION ALL
+SELECT  8812, 803,32 UNION ALL
+SELECT  8812, 804,64 UNION ALL
+SELECT  8812, 805,128 UNION ALL
+SELECT  8812, 806,256 UNION ALL
+SELECT  8812, 807,512 UNION ALL
+SELECT  8812, 808,1024 UNION ALL
+
+SELECT  8813, 801,8 UNION ALL
+SELECT  8813, 802,16 UNION ALL
+SELECT  8813, 803,32 UNION ALL
+SELECT  8813, 804,64 UNION ALL
+SELECT  8813, 805,128 UNION ALL
+SELECT  8813, 806,256 UNION ALL
+SELECT  8813, 807,512 UNION ALL
+SELECT  8813, 808,1024 UNION ALL
+
+SELECT  8801, 0,8184 UNION ALL
+SELECT  8802, 0,8184 UNION ALL
+SELECT  8803, 0,8184 UNION ALL
+SELECT  8814, 0,8184 UNION ALL
+SELECT  8825, 0,8184 UNION ALL
+SELECT  8826, 0,8184 UNION ALL
+
+SELECT  8806, 803,32 UNION ALL
+SELECT  8806, 805,128 UNION ALL
+SELECT  8806, 807,512 UNION ALL
+
+SELECT  8807, 803,56 UNION ALL
+SELECT  8807, 805,248 UNION ALL
+SELECT  8807, 807,1016 UNION ALL
+
+SELECT  8808, 803,56 UNION ALL
+SELECT  8808, 805,248 UNION ALL
+
+SELECT  8809, 803,56 UNION ALL
+SELECT  8809, 805,248 UNION ALL
+
+SELECT  8805, 805,128 UNION ALL
+
+SELECT  8819, 802,16 UNION ALL
+SELECT  8819, 803,32 UNION ALL
+SELECT  8819, 804,64 UNION ALL
+SELECT  8819, 806,256 UNION ALL
+SELECT  8819, 807,512 
+
+UPDATE sp
+SET SDTRefund  =  s.SDTRefund
+FROM SettlementSpecialBettypeProfile sp  WITH (ROWLOCK,UPDLOCK)
+INNER JOIN @tmp_newSetting s ON sp.bettype = s.bettype AND sp.betID = s.betID
+WHERE sp.sporttype = 8
+
+
+UPDATE sp
+SET sp.SDTResourceId = CASE WHEN sp.bettype  = 8804 AND sp.betid = 803 THEN '880703'
+                            WHEN sp.bettype  = 8804 AND sp.betid = 805 THEN '880705'
+                            WHEN sp.bettype  = 8805 AND sp.betid = 805 THEN '880705'
+                            WHEN sp.bettype  = 8806 AND sp.betid = 803 THEN '880703'
+                            WHEN sp.bettype  = 8806 AND sp.betid = 805 THEN '880705'
+                            WHEN sp.bettype  = 8806 AND sp.betid = 807 THEN '880707'
+                            ELSE   sp.ResourceId 
+                        END
+FROM SettlementSpecialBettypeProfile sp  WITH (ROWLOCK,UPDLOCK)
+INNER JOIN @tmp_newSetting s ON sp.bettype = s.bettype AND sp.betID = s.betID
+WHERE SportType = 8  
+	AND sp.SDTResourceId IS NULL
+
+UPDATE sp
+SET sp.SDTpfId = sp.pfid                 
+FROM SettlementSpecialBettypeProfile sp  WITH (ROWLOCK,UPDLOCK)
+INNER JOIN @tmp_newSetting s ON sp.bettype = s.bettype AND sp.betID = s.betID
+WHERE sp.SportType = 8   
+	AND sp.SDTPfid IS NULL
+
+
+	 
+
+GO
+

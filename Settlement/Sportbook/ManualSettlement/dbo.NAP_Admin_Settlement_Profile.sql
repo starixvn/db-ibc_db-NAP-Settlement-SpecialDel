@@ -95,6 +95,7 @@ AS
 		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 		- 20241021@Aries: AutoPayout2 for Baseball AiO (Regular and Series Matches) [Redmine:#211632]
 		- 20241111@Aries: Support Auto Payout 2 for Volleyball [Redmine:#213198]
+		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -169,11 +170,12 @@ BEGIN
 			,@MatchAutoSetting	TINYINT
 			,@matchcode			NVARCHAR(50)
 			,@leagueid			INT
-			,@DeterminedRefundType		TINYINT		= 0
+			,@DeterminedRefundType		INT		= 0
 			,@RemarkSDT					VARCHAR(500) = ''
 			,@IsExistNetPosition BIT = 0
 			,@SiteDBGroupId		TINYINT = 0
 			,@ParlayKeyId		INT = 0
+			,@IsMercy BIT = 0
 
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, modds SMALLMONEY, winlost MONEY, statuswinlost TINYINT, currentstatuswinlost TINYINT)
 
@@ -185,11 +187,12 @@ BEGIN
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,CustID INT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT, winlost MONEY, statuswinlost TINYINT, DeadHeat TINYINT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT, RoundID VARCHAR(10), OrdNo SMALLINT,
-								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT, RefResourceId VARCHAR(20), IsWeb BIT
+								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT, RefResourceId VARCHAR(20), IsWeb BIT,
+								  AbandonedStatus SMALLINT,onlySDTCal BIT DEFAULT 0
 								  ,PRIMARY KEY (BetType,BetID))
-	DECLARE @tmpBettypeSDT TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),PRIMARY KEY (BetType,BetID))
+	DECLARE @tmpBettypeSDT TABLE(BetType SMALLINT, BetID BIGINT,ResourceId VARCHAR(20),RefResourceId VARCHAR(20),SDTResourceId VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),AbandonedStatus SMALLINT,onlySDTCal BIT DEFAULT 0,OddsType SMALLINT ,PRIMARY KEY (BetType,BetID))
 
-	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), IsWeb BIT)
+	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), IsWeb BIT, OtherInfo VARCHAR(2000))
 	DECLARE @tmpGetLog TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), BetType SMALLINT, BetID BIGINT, OrdNo SMALLINT, RoundName VARCHAR(20) )
 	
 	-- for cashout
@@ -299,11 +302,12 @@ BEGIN
 
 	BEGIN TRY  	
 		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue, IsWeb)
-		SELECT Id, ISNULL(Home,''), ISNULL(Away,''), 1
+		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue, IsWeb,OtherInfo)
+		SELECT Id, ISNULL(Home,''), ISNULL(Away,''), 1,OtherInfo
 		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 															,Home VARCHAR(50)
 															,Away VARCHAR(50)
+															,OtherInfo VARCHAR(50)
 											) AS tbl
 		EXEC sp_xml_removedocument @handle
 
@@ -331,11 +335,19 @@ BEGIN
 
 			IF @DeterminedType > 0 
 			BEGIN
-				INSERT INTO @tmpBettypeSDT(Bettype, BetID,SDTResourceId, SDTpfId)
-				SELECT DISTINCT s.BetType, s.BetID, s.SDTResourceId,s.SDTpfId
+				IF @SportType = 8 AND EXISTS (SELECT TOP 1 1 FROM @tmpResourcesWeb WHERE OtherInfo = 'Mercy')
+				BEGIN
+					SET @IsMercy = 1
+				END
+
+				INSERT INTO @tmpBettypeSDT(Bettype, BetID,s.ResourceId,RefResourceId,SDTResourceId, SDTpfId,onlySDTCal,OddsType)
+				SELECT DISTINCT s.BetType, s.BetID,s.ResourceId,s.RefResourceId, s.SDTResourceId,s.SDTpfId,IIF(RefResourceId = '00' AND @IsMercy = 1,1,0),s.OddsType
 				FROM	dbo.SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
 				WHERE	s.SportType = @SportType
-					AND ISNULL(s.SDTRefund,0) & @DeterminedType > 0
+					AND 1 = CASE WHEN @IsMercy = 0 AND ISNULL(s.SDTRefund,0) & @DeterminedType > 0 THEN 1
+								 WHEN @IsMercy = 1 AND ISNULL(s.DeterminedType,0) & @DeterminedType > 8 THEN 1
+								 ELSE 0
+							 END
 
 				SELECT	@DummyResourceIds = STRING_AGG(CAST(tbl.SDTResourceId AS VARCHAR(MAX)), ',')
 				FROM (SELECT DISTINCT SDTResourceId FROM @tmpBettypeSDT) AS tbl
@@ -353,8 +365,9 @@ BEGIN
 				UPDATE bt
 				SET  bt.HomeValue = tbl.Home
 					,bt.AwayValue = tbl.Away
+					,bt.AbandonedStatus = tbl.AbandonedStatus
 				FROM @tmpBettypeSDT AS bt
-					INNER JOIN OPENXML(@handle,'root/r',1) WITH( Id VARCHAR(20),Home VARCHAR(2000),Away VARCHAR(2000)) AS tbl ON tbl.Id = bt.SDTResourceId
+					INNER JOIN OPENXML(@handle,'root/r',1) WITH( Id VARCHAR(20),Home VARCHAR(2000),Away VARCHAR(2000),AbandonedStatus SMALLINT) AS tbl ON tbl.Id = bt.SDTResourceId
 				EXEC sp_xml_removedocument @handle
 
 				SET @DummyResourceIds = ''
@@ -363,6 +376,18 @@ BEGIN
 				SELECT @RemarkSDT = STRING_AGG(ResourceId + '(' + HomeValue + '-' + AwayValue + ')',', ')
 				FROM @tmpResourcesWeb
 				WHERE HomeValue != ''
+
+				IF ISNULL(@RemarkSDT,'') != '' AND EXISTS (SELECT TOP 1 1 FROM @tmpResourcesWeb WHERE OtherInfo = 'A') AND @SportType = 8
+				BEGIN
+					SET @RemarkSDT = @RemarkSDT + ', A'
+				END
+				ELSE IF @IsMercy = 1
+				BEGIN
+					SELECT @RemarkSDT = STRING_AGG(ResourceId,', ')
+					FROM @tmpResourcesWeb
+
+					SET @RemarkSDT = @RemarkSDT + ', Mercy'
+				END
 			END
 		END
 
@@ -627,8 +652,27 @@ BEGIN
 				SET  sr.SDTpfId = bt.SDTpfId
 					,sr.HomeValue = bt.HomeValue
 					,sr.AwayValue = bt.AwayValue
+					,sr.AbandonedStatus = bt.AbandonedStatus
+					,sr.onlySDTCal = bt.onlySDTCal
 				FROM @tmpSelectedRID AS sr
 					INNER JOIN @tmpBettypeSDT AS bt ON sr.BetType = bt.BetType AND sr.BetID = bt.BetID
+
+				IF @IsMercy = 1
+				BEGIN
+					INSERT INTO @tmpSelectedRID(ResourceID,RefResourceId, HomeValue, AwayValue, BetType, BetID, SDTpfId,OddsType,AbandonedStatus,onlySDTCal)
+					SELECT bt.ResourceID
+					      ,bt.RefResourceId
+						  ,bt.HomeValue
+						  ,bt.AwayValue
+						  ,bt.BetType
+						  ,bt.BetID
+						  ,bt.SDTpfId
+                          ,bt.OddsType
+						  ,bt.AbandonedStatus
+						  ,bt.onlySDTCal
+					FROM @tmpBettypeSDT AS bt
+					WHERE bt.BetType NOT IN (SELECT sr.BetType FROM @tmpSelectedRID AS sr)
+				END
 
 				INSERT INTO #tmpTransID(TransID, CustID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId, currentStatuswinlost) 
 				SELECT b.transid
@@ -647,16 +691,16 @@ BEGIN
 									WHERE	mt.TransId = b.transId
 					) AS mt
 					CROSS APPLY(
-									SELECT TOP 1 SDTpfId, HomeValue, AwayValue, t.OddsType
+									SELECT TOP 1 SDTpfId, HomeValue, AwayValue, t.OddsType,t.AbandonedStatus,ISNULL(t.onlySDTCal,0) AS onlySDTCal
 									FROM @tmpSelectedRID AS t
 									WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 								) AS sr
-					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, CASE WHEN b.bettype = 8814 THEN b.betid ELSE b.hdp1 END, sr.HomeValue, sr.AwayValue, b.transdesc,0) AS m
+					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, CASE WHEN b.bettype = 8814 THEN b.betid ELSE b.hdp1 END, b.hdp2, sr.HomeValue, sr.AwayValue, b.transdesc,0,sr.AbandonedStatus) AS m
 				WHERE b.matchid = @MatchId
 					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND statusID NOT IN (101)
 					AND	1 = CASE WHEN m.modds IS NOT NULL THEN 1
-								 WHEN m.modds IS NULL AND statusID NOT IN (103) THEN 1
+								 WHEN m.modds IS NULL AND statusID NOT IN (103) AND sr.onlySDTCal = 0 THEN 1								 
 								 ELSE 0
 						    END
 
@@ -1065,6 +1109,8 @@ BEGIN
 																						    ,SDTpfId			AS '@SDTpfId'
 																						    ,@DeterminedType	AS '@DeterminedType'
 																							,IsWeb				AS '@IsWeb'
+																							,AbandonedStatus	AS '@AbandonedStatus'
+																							,onlySDTCal			AS '@onlySDTCal'
 																							,CASE WHEN RefResourceId IS NOT NULL THEN RefResourceId ELSE NULL END AS '@RefResourceId' 
 																					   FROM	@tmpSelectedRID AS s
 																					   FOR XML PATH ('Resource'), TYPE)
