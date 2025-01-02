@@ -584,7 +584,7 @@ BEGIN
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-			,@isExistMatch3rd			= MAX (CASE WHEN Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147) THEN 1 ELSE 0 END)
+			,@isExistMatch3rd			= MAX (CASE WHEN Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147,134) THEN 1 ELSE 0 END)
 	FROM	#SpecialDeleteBets b
 		OUTER APPLY (
 					SELECT GroupId
