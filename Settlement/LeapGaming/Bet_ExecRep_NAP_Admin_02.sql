@@ -123,8 +123,6 @@ BEGIN
 			,apo	MONEY
 	)	
 	
-	SELECT @MainIDParlay  = ( SELECT TOP(1) matchid FROM @tmpMainParlayInfo)
-	
 	BEGIN TRY
 		SET @StartTime = SYSDATETIME()
 
@@ -223,6 +221,8 @@ BEGIN
 			IF(@CWLBettype > 0)
 			BEGIN
 				DECLARE @BalanceCWL  TABLE (custid INT, bef_winlost MONEY, after_winlost MONEY,winlostdate SMALLDATETIME, gametypeid SMALLINT)	
+
+				SELECT @MainIDParlay  = ( SELECT TOP(1) matchid FROM @tmpMainParlayInfo)
 
 				INSERT INTO @BalanceCWL (custid, bef_winlost, after_winlost, winlostdate, gametypeid)
 				SELECT custid

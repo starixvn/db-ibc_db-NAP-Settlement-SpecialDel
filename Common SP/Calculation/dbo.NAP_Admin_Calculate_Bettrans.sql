@@ -42,8 +42,6 @@ BEGIN
 	SELECT  @ErrCode	= 0
 		, @ErrMsg		= ''
 		, @BalanceUpd 	= NULL
-	
-	SELECT @MainIDParlay = (SELECT TOP(1) matchid FROM @BetTickets)
 
 	--BEGIN: CAPTURE value BALANCE before calculating
 	INSERT INTO #BalanceCWLBefore (
@@ -166,6 +164,7 @@ BEGIN
 
 		IF(@CWLBettype > 0)--BEGIN: integrating with company winlimit
 		BEGIN
+			SELECT @MainIDParlay = (SELECT TOP(1) matchid FROM @BetTickets)
 			--CAPTURE increase
 			INSERT INTO dbo.BalancePendingCreditGame (
 				custid
