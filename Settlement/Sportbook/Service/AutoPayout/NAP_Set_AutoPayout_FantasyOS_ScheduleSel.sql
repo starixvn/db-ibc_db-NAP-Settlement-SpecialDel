@@ -13,6 +13,8 @@ AS
 		- 20241001@Aries: Support Direct Payout for Australia NBL - Fantasy Matches [Redmine:#211429]
 		- 20241001@Aries: Support Direct Payout for Philippines PBA Governors Cup - Fantasy Matches of Basketball [Redmine:#210967]
 		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
+		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
+
 	Param's Explanation:
  
 */
@@ -70,7 +72,7 @@ BEGIN
 				) AS ar
 	WHERE m.eventstatus = 'running' 
 		AND m.eventdate BETWEEN @FromDate AND @ToDate
-		AND ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0))  & 16 > 0
+		AND ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0))  & 1 > 0
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
 		AND rs.IsExistAP IS NULL
 		AND ar.IsExistAR IS NULL
@@ -216,16 +218,28 @@ BEGIN
 			SELECT TOP 1 ss.WaitingTime
 			FROM dbo.SettlementSetting AS ss WITH (NOLOCK)
 			WHERE ss.LeagueId = m.LeagueId
-				AND ss.AutoType = 5
+				AND ss.AutoType = 6
 		) AS ss
+		OUTER APPLY(
+			SELECT TOP 1 ms.WaitingTime
+			FROM dbo.AutoPayoutSetting AS ms WITH (NOLOCK)
+			WHERE ms.matchId = m.matchId
+				AND ms.AutoType = 6
+		) AS ms
 		OUTER APPLY(
 			SELECT TOP 1 ssr.WaitingTime
 			FROM dbo.SettlementSetting AS ssr WITH (NOLOCK)
 			WHERE ssr.LeagueId = m.LeagueId
 				AND ssr.AutoType = 7
 		) AS ssr
-	WHERE 1 = CASE WHEN m.Action = 'CAL' AND m.LastParentCalculateDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,300), @CurrTime) THEN 1
-				   WHEN m.Action = 'REFUND' AND m.LastParentCalculateDate <= DATEADD(SECOND, - ISNULL(ssr.WaitingTime,0), @CurrTime) THEN 1
+		OUTER APPLY(
+			SELECT TOP 1 msr.WaitingTime
+			FROM dbo.AutoPayoutSetting AS msr WITH (NOLOCK)
+			WHERE msr.matchId = m.matchId
+				AND msr.AutoType = 7
+		) AS msr
+	WHERE 1 = CASE WHEN m.Action = 'CAL' AND m.LastParentCalculateDate <= DATEADD(SECOND, - COALESCE(ms.WaitingTime,ss.WaitingTime,300), @CurrTime) THEN 1
+				   WHEN m.Action = 'REFUND' AND m.LastParentCalculateDate <= DATEADD(SECOND, - COALESCE(msr.WaitingTime,ssr.WaitingTime,0), @CurrTime) THEN 1
 				   ELSE 0
 			  END
 		 

@@ -30,6 +30,8 @@ BEGIN
 			,@ToDate				DATETIME
 			,@Result_FromDate		DATETIME
 
+	DECLARE @tblLeagueID		TABLE(LeagueId INT)
+
 	DECLARE @ResultTableSetting TABLE (Sporttype SMALLINT, ResultTable TINYINT,ExternalResultTable TINYINT
 									   ,AP_Group SMALLINT
 									   ,AP_Check_M_Hold BIT, AP_Check_M_Hedge BIT,AP_Check_M_Setting BIT
@@ -80,6 +82,11 @@ BEGIN
 	SELECT	 @FromDate			= DATEADD(DAY,-1,@CurrentDate)
 			,@ToDate			= DATEADD(DAY,1,@CurrentDate)
 			,@Result_FromDate   = DATEADD(HOUR,-5,@CurrentDateTime)
+
+	INSERT INTO @tblLeagueID(LeagueId)
+	SELECT LeagueId
+	FROM SettlementSetting WITH(NOLOCK)
+	WHERE AutoType = 10
 
 	INSERT INTO @ResultTableSetting(Sporttype,ResultTable,ExternalResultTable
 	                               ,AP_Group ,AP_Check_M_Hold, AP_Check_M_Hedge,AP_Check_M_Setting
@@ -152,8 +159,9 @@ BEGIN
 	FROM dbo.match AS m WITH(NOLOCK)
 		INNER JOIN dbo.League AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
 		INNER JOIN @ResultTableSetting AS st ON st.sporttype = m.sporttype
-		LEFT JOIN	dbo.SettlementSetting AS ss WITH(NOLOCK) ON m.leagueid = ss.leagueid AND ss.AutoType = 6
-		LEFT JOIN	dbo.AutoPayoutSetting AS ms WITH(NOLOCK) ON m.matchId = ms.matchId AND ms.AutoType = 6
+		LEFT JOIN  dbo.SettlementSetting AS ss WITH(NOLOCK) ON m.leagueid = ss.leagueid AND ss.AutoType = 6
+		LEFT JOIN  dbo.AutoPayoutSetting AS ms WITH(NOLOCK) ON m.matchId = ms.matchId AND ms.AutoType = 6
+		LEFT JOIN  @tblLeagueID AS lf ON	l.leagueid = lf.leagueid
 	WHERE m.eventstatus IN ('running','completed')
 		AND m.eventdate BETWEEN @FromDate AND @ToDate
 		AND ISNULL(m.ChildMatchType,0) != 200
@@ -161,6 +169,7 @@ BEGIN
 					 WHEN AP_Check_M_Hedge = 1   AND CHARINDEX('hedge', m.matchcode) != 0					 THEN 0
 					 WHEN AP_Check_M_Setting = 1 AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 33 = 0 THEN 0
 					 ELSE 1 END
+		AND lf.leagueid IS NULL
 	
 
 	IF EXISTS(SELECT 1 FROM @ResultTableSetting WHERE ExternalResultTable = 1)
