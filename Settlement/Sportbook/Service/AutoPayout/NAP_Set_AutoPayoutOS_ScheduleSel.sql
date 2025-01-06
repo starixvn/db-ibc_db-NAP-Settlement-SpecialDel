@@ -1,7 +1,6 @@
 ﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_AutoPayoutOS_ScheduleSel
 	 @AutoPayoutGroup	SMALLINT
-	,@ResourceType		SMALLINT = 0
 AS
 /*
 	Creator: 20231002@Aries
@@ -15,9 +14,8 @@ AS
 		- 20240524@Aries: Enhance the AutoPayout2 for Overwatch of eSports [Redmine:#202948]
 		- 20240503@Aries: Support Auto Payout 2 for Basketball [Redmine:#203520]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
+		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 
-	Param's Explanation:
-		-@ResourceType: 0-ALL, 1-Main, 2-Early
 
 */
 BEGIN
@@ -32,6 +30,8 @@ BEGIN
 			,@ToDate				DATETIME
 			,@Result_FromDate		DATETIME
 
+	DECLARE @tblLeagueID		TABLE(LeagueId INT)
+
 	DECLARE @ResultTableSetting TABLE (Sporttype SMALLINT, ResultTable TINYINT,ExternalResultTable TINYINT
 									   ,AP_Group SMALLINT
 									   ,AP_Check_M_Hold BIT, AP_Check_M_Hedge BIT,AP_Check_M_Setting BIT
@@ -43,12 +43,16 @@ BEGIN
 	CREATE TABLE #Match (matchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),eventstatus NVARCHAR(100), leagueId INT,sporttype SMALLINT, ResultTable TINYINT,ExternalResultTable TINYINT
 						,AP_Check_R_MactchCompleted BIT, AP_Check_R_Hold BIT,AP_Check_R_CnfRefund BIT
 
+						,AP_Main BIT,AP_Main_TotalSource INT
 						,AP_Main_NumberProvider  TINYINT,AP_Main_WaitingTime  INT,AP_Main_HasTrader  BIT
 						,AP_Main_PrimaryProvider  VARCHAR(500),AP_Main_TotalPrimaryProvider  TINYINT, AP_Main_SecondaryProvider  VARCHAR(500), AP_Main_TotalSecondaryProvider TINYINT
+						,AP_Main_InactiveProvider  VARCHAR(500)
 
+						,AP_EAR  BIT,AP_EAR_TotalSource INT
 						,AP_EAR_NumberProvider  TINYINT,AP_EAR_WaitingTime  INT, AP_EAR_HasTrader  BIT 
 						,AP_EAR_PrimaryProvider  VARCHAR(500),AP_EAR_TotalPrimaryProvider  TINYINT, AP_EAR_SecondaryProvider  VARCHAR(500), AP_EAR_TotalSecondaryProvider TINYINT
-						
+						,AP_EAR_InactiveProvider  VARCHAR(500)
+
 						,GameType TINYINT)
 
 	IF OBJECT_ID('tempdb..#MatchResource') IS NOT NULL DROP TABLE #MatchResource
@@ -79,6 +83,11 @@ BEGIN
 			,@ToDate			= DATEADD(DAY,1,@CurrentDate)
 			,@Result_FromDate   = DATEADD(HOUR,-5,@CurrentDateTime)
 
+	INSERT INTO @tblLeagueID(LeagueId)
+	SELECT LeagueId
+	FROM SettlementSetting WITH(NOLOCK)
+	WHERE AutoType = 10
+
 	INSERT INTO @ResultTableSetting(Sporttype,ResultTable,ExternalResultTable
 	                               ,AP_Group ,AP_Check_M_Hold, AP_Check_M_Hedge,AP_Check_M_Setting
 								   ,AP_Check_R_MactchCompleted, AP_Check_R_Hold,AP_Check_R_CnfRefund
@@ -93,78 +102,75 @@ BEGIN
 	FROM SettlementResultTableSetting WITH(NOLOCK)
 	WHERE AP_Group = @AutoPayoutGroup
 
-	IF @ResourceType = 1
-	BEGIN
-		INSERT INTO #Match(matchId,eventstatus,leagueid,sporttype
-						  ,ResultTable,ExternalResultTable
-						  ,AP_Check_R_MactchCompleted, AP_Check_R_Hold,AP_Check_R_CnfRefund
+	INSERT INTO #Match(matchId,eventstatus,leagueid,sporttype
+					  ,ResultTable,ExternalResultTable
+					  ,AP_Check_R_MactchCompleted, AP_Check_R_Hold,AP_Check_R_CnfRefund
 
-						  ,AP_Main_NumberProvider,AP_Main_WaitingTime,AP_Main_HasTrader
-						  ,AP_Main_PrimaryProvider,AP_Main_TotalPrimaryProvider,AP_Main_SecondaryProvider,AP_Main_TotalSecondaryProvider
+					  ,AP_Main
+					  ,AP_Main_TotalSource
+					  ,AP_Main_NumberProvider
+					  ,AP_Main_WaitingTime
+					  ,AP_Main_HasTrader
+					  ,AP_Main_PrimaryProvider
+					  ,AP_Main_TotalPrimaryProvider
+					  ,AP_Main_SecondaryProvider
+					  ,AP_Main_TotalSecondaryProvider
+					  ,AP_Main_InactiveProvider
 
-						  ,AP_EAR_NumberProvider,AP_EAR_WaitingTime,AP_EAR_HasTrader
-						  ,AP_EAR_PrimaryProvider,AP_EAR_TotalPrimaryProvider,AP_EAR_SecondaryProvider,AP_EAR_TotalSecondaryProvider
-						  
-						  ,GameType)
-		SELECT m.matchId,m.eventstatus,m.leagueid,m.sporttype
-		      ,st.ResultTable,st.ExternalResultTable
-			  ,st.AP_Check_R_MactchCompleted, st.AP_Check_R_Hold,st.AP_Check_R_CnfRefund
+					  ,AP_EAR
+					  ,AP_EAR_TotalSource
+					  ,AP_EAR_NumberProvider
+					  ,AP_EAR_WaitingTime
+					  ,AP_EAR_HasTrader
+					  ,AP_EAR_PrimaryProvider
+					  ,AP_EAR_TotalPrimaryProvider
+					  ,AP_EAR_SecondaryProvider
+					  ,AP_EAR_TotalSecondaryProvider
+					  ,AP_EAR_InactiveProvider
 
-			  ,ISNULL(ss.Main_NumberProvider,st.AP_Main_NumberProvider),ISNULL(ss.RetryTime, st.AP_Main_WaitingTime) AS AP_Main_WaitingTime,ISNULL(ss.Main_HasTrader,1)
-			  ,ISNULL(ss.Main_PrimaryProvider,''),ISNULL(ss.Main_TotalPrimaryProvider,''),ISNULL(ss.Main_SecondaryProvider,''),ISNULL(ss.Main_TotalSecondaryProvider,'')
+					  ,GameType)
+	SELECT m.matchId,m.eventstatus,m.leagueid,m.sporttype
+	      ,st.ResultTable,st.ExternalResultTable
+		  ,st.AP_Check_R_MactchCompleted, st.AP_Check_R_Hold,st.AP_Check_R_CnfRefund
 
-			  ,ISNULL(ss.EAR_NumberProvider,st.AP_EAR_NumberProvider),ISNULL(ss.RetryTime, st.AP_Main_WaitingTime) AS AP_EAR_WaitingTime,ISNULL(ss.EAR_HasTrader,1)
-			  ,ISNULL(ss.EAR_PrimaryProvider,''),ISNULL(ss.EAR_TotalPrimaryProvider,''),ISNULL(ss.EAR_SecondaryProvider,''),ISNULL(ss.EAR_TotalSecondaryProvider,'')
+		  ,IIF(ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 1 = 1, 1,0) AS AP_Main
+		  ,(COALESCE(ms.Main_NumberProvider,ss.Main_NumberProvider,st.AP_Main_NumberProvider) + COALESCE(ms.Main_HasTrader,ss.Main_HasTrader,1)) AS AP_Main_TotalSource
+		  ,COALESCE(ms.Main_NumberProvider,ss.Main_NumberProvider,st.AP_Main_NumberProvider) AS  AP_Main_NumberProvider
+		  ,COALESCE(ms.WaitingTime,ss.WaitingTime, st.AP_Main_WaitingTime) AS AP_Main_WaitingTime
+		  ,COALESCE(ms.Main_HasTrader,ss.Main_HasTrader,1) AS AP_Main_HasTrader
+		  ,COALESCE(ms.Main_PrimaryProvider,ss.Main_PrimaryProvider,'') AS AP_Main_PrimaryProvider
+		  ,COALESCE(ms.Main_TotalPrimaryProvider,ss.Main_TotalPrimaryProvider,'') AS  AP_Main_TotalPrimaryProvider
+		  ,COALESCE(ms.Main_SecondaryProvider,ss.Main_SecondaryProvider,'') AS AP_Main_SecondaryProvider
+		  ,COALESCE(ms.Main_TotalSecondaryProvider,ss.Main_TotalSecondaryProvider,'') AS AP_Main_TotalSecondaryProvider
+		  ,COALESCE(ms.Main_InactiveProvider,ss.Main_InactiveProvider,'') AS AP_Main_InactiveProvider
 
-			  ,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
-		FROM dbo.match AS m WITH(NOLOCK)
-			INNER JOIN dbo.League AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
-			INNER JOIN @ResultTableSetting AS st ON st.sporttype = m.sporttype
-			LEFT JOIN	dbo.SettlementSetting AS ss WITH(NOLOCK) ON m.leagueid = ss.leagueid AND ss.AutoType = 6		
-		WHERE m.eventstatus = 'running'
-			AND m.eventdate BETWEEN @FromDate AND @ToDate
-			AND ISNULL(m.ChildMatchType,0) != 200
-			AND 1 = CASE WHEN AP_Check_M_Hold = 1	 AND ISNULL(m.SettlementStatus,0) & 87 != 0					 THEN 0
-						 WHEN AP_Check_M_Hedge = 1   AND CHARINDEX('hedge', m.matchcode) != 0					 THEN 0
-						 WHEN AP_Check_M_Setting = 1 AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 1 != 1 THEN 0
-						 ELSE 1 END
-	END
-	ELSE IF @ResourceType IN (0,2)
-	BEGIN
-		INSERT INTO #Match(matchId,eventstatus,leagueid,sporttype
-						  ,ResultTable,ExternalResultTable
-						  ,AP_Check_R_MactchCompleted, AP_Check_R_Hold,AP_Check_R_CnfRefund
-
-						  ,AP_Main_NumberProvider,AP_Main_WaitingTime,AP_Main_HasTrader
-						  ,AP_Main_PrimaryProvider,AP_Main_TotalPrimaryProvider,AP_Main_SecondaryProvider,AP_Main_TotalSecondaryProvider
-
-						  ,AP_EAR_NumberProvider,AP_EAR_WaitingTime,AP_EAR_HasTrader
-						  ,AP_EAR_PrimaryProvider,AP_EAR_TotalPrimaryProvider,AP_EAR_SecondaryProvider,AP_EAR_TotalSecondaryProvider
-						  
-						  ,GameType)
-		SELECT m.matchId,m.eventstatus,m.leagueid,m.sporttype
-		      ,st.ResultTable,st.ExternalResultTable
-			  ,st.AP_Check_R_MactchCompleted, st.AP_Check_R_Hold,st.AP_Check_R_CnfRefund
-
-			  ,ISNULL(ss.Main_NumberProvider,st.AP_Main_NumberProvider),ISNULL(ss.RetryTime, st.AP_Main_WaitingTime) AS AP_Main_WaitingTime,ISNULL(ss.Main_HasTrader,1)
-			  ,ISNULL(ss.Main_PrimaryProvider,''),ISNULL(ss.Main_TotalPrimaryProvider,''),ISNULL(ss.Main_SecondaryProvider,''),ISNULL(ss.Main_TotalSecondaryProvider,'')
-
-			  ,ISNULL(ss.EAR_NumberProvider,st.AP_EAR_NumberProvider),ISNULL(ss.RetryTime, st.AP_Main_WaitingTime) AS AP_EAR_WaitingTime,ISNULL(ss.EAR_HasTrader,1)
-			  ,ISNULL(ss.EAR_PrimaryProvider,''),ISNULL(ss.EAR_TotalPrimaryProvider,''),ISNULL(ss.EAR_SecondaryProvider,''),ISNULL(ss.EAR_TotalSecondaryProvider,'')
-
-			  ,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
-		FROM dbo.match AS m WITH(NOLOCK)
-			INNER JOIN dbo.League AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
-			INNER JOIN @ResultTableSetting AS st ON st.sporttype = m.sporttype
-			LEFT JOIN	dbo.SettlementSetting AS ss WITH(NOLOCK) ON m.leagueid = ss.leagueid AND ss.AutoType = 6			
-		WHERE m.eventstatus IN ('running','completed')
-			AND m.eventdate BETWEEN @FromDate AND @ToDate
-			AND ISNULL(m.ChildMatchType,0) != 200
-			AND 1 = CASE WHEN AP_Check_M_Hold = 1	 AND ISNULL(m.SettlementStatus,0) & 87 != 0					 THEN 0
-						 WHEN AP_Check_M_Hedge = 1   AND CHARINDEX('hedge', m.matchcode) != 0					 THEN 0
-						 WHEN AP_Check_M_Setting = 1 AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 1 != 1 THEN 0
-						 ELSE 1 END
-	END
+		  ,IIF(ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 32 = 32, 1,0) AS AP_EAR
+		  ,(COALESCE(ms.EAR_NumberProvider,ss.EAR_NumberProvider,st.AP_EAR_NumberProvider) + COALESCE(ms.EAR_HasTrader,ss.EAR_HasTrader,1)) AS AP_EAR_TotalSource
+		  ,COALESCE(ms.EAR_NumberProvider,ss.EAR_NumberProvider,st.AP_EAR_NumberProvider) AS AP_EAR_NumberProvider
+		  ,COALESCE(ms.EAR_WaitingTime,ss.EAR_WaitingTime, st.AP_Main_WaitingTime) AS AP_EAR_WaitingTime
+		  ,COALESCE(ms.EAR_HasTrader,ss.EAR_HasTrader,1) AS AP_EAR_HasTrader
+		  ,COALESCE(ms.EAR_PrimaryProvider,ss.EAR_PrimaryProvider,'') AS AP_EAR_PrimaryProvider
+		  ,COALESCE(ms.EAR_TotalPrimaryProvider,ss.EAR_TotalPrimaryProvider,'') AS AP_EAR_TotalPrimaryProvider
+		  ,COALESCE(ms.EAR_SecondaryProvider,ss.EAR_SecondaryProvider,'') AS AP_EAR_SecondaryProvider
+		  ,COALESCE(ms.EAR_TotalSecondaryProvider,ss.EAR_TotalSecondaryProvider,'') AS AP_EAR_TotalSecondaryProvider
+		  ,COALESCE(ms.EAR_InactiveProvider,ss.EAR_InactiveProvider,'') AS AP_EAR_InactiveProvider
+		  
+		  ,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
+	FROM dbo.match AS m WITH(NOLOCK)
+		INNER JOIN dbo.League AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
+		INNER JOIN @ResultTableSetting AS st ON st.sporttype = m.sporttype
+		LEFT JOIN  dbo.SettlementSetting AS ss WITH(NOLOCK) ON m.leagueid = ss.leagueid AND ss.AutoType = 6
+		LEFT JOIN  dbo.AutoPayoutSetting AS ms WITH(NOLOCK) ON m.matchId = ms.matchId AND ms.AutoType = 6
+		LEFT JOIN  @tblLeagueID AS lf ON	l.leagueid = lf.leagueid
+	WHERE m.eventstatus IN ('running','completed')
+		AND m.eventdate BETWEEN @FromDate AND @ToDate
+		AND ISNULL(m.ChildMatchType,0) != 200
+		AND 1 = CASE WHEN AP_Check_M_Hold = 1	 AND ISNULL(m.SettlementStatus,0) & 87 != 0					 THEN 0
+					 WHEN AP_Check_M_Hedge = 1   AND CHARINDEX('hedge', m.matchcode) != 0					 THEN 0
+					 WHEN AP_Check_M_Setting = 1 AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 33 = 0 THEN 0
+					 ELSE 1 END
+		AND lf.leagueid IS NULL
+	
 
 	IF EXISTS(SELECT 1 FROM @ResultTableSetting WHERE ExternalResultTable = 1)
 	BEGIN 
@@ -176,7 +182,11 @@ BEGIN
 			  ,MIN(CASE WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_PrimaryProvider,m.AP_EAR_PrimaryProvider) +',') > 0 THEN r.CreateDate
 						WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0 AND IIF(f.ResourceType = 1, m.AP_Main_NumberProvider,  m.AP_EAR_NumberProvider) > 1 THEN r.CreateDate
 						WHEN IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider)  = 0
-							 OR (IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 AND  IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) > 1) THEN r.CreateDate
+							 OR (	 IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 
+									AND  IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) >= 1
+									AND  IIF(f.ResourceType = 1,m.AP_Main_TotalSource,m.AP_EAR_TotalSource) > 1
+								) 
+							 THEN r.CreateDate
 						 ELSE NULL
 					 END) AS CreatedDate
 			  ,MAX(IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)) AS AP_TotalSecondaryProvider
@@ -200,14 +210,15 @@ BEGIN
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
 			AND ap.IsExistsAP IS NULL
-			AND 1 = CASE WHEN @ResourceType = 0 THEN 1
-			             WHEN @ResourceType = f.ResourceType THEN 1
+			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
+			             WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
 						 ELSE 0
 					END
 			AND 1 = CASE WHEN m.AP_Check_R_MactchCompleted = 1 AND f.ResourceType = 1 AND m.eventstatus ='completed' THEN 0
 						 WHEN m.AP_Main_NumberProvider = 0 AND f.ResourceType = 1 THEN 0
 			             WHEN m.AP_EAR_NumberProvider = 0 AND f.ResourceType = 2 THEN 0
 						 ELSE 1 END	
+			AND CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_InactiveProvider,m.AP_EAR_InactiveProvider) +',') = 0
         GROUP BY m.matchid,r.ResourceId,f.ResourceType
 	END
 
@@ -221,7 +232,11 @@ BEGIN
 			  ,MIN(CASE WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_PrimaryProvider,m.AP_EAR_PrimaryProvider) +',') > 0 THEN r.CreateDate
 						WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0 AND IIF(f.ResourceType = 1, m.AP_Main_NumberProvider,  m.AP_EAR_NumberProvider) > 1  THEN r.CreateDate
 						WHEN IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider)  = 0
-							 OR (IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 AND  IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) > 1) THEN r.CreateDate
+							 OR (	  IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 
+								 AND  IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) >= 1
+								 AND  IIF(f.ResourceType = 1,m.AP_Main_TotalSource,m.AP_EAR_TotalSource) > 1
+								) 
+							THEN r.CreateDate
 						ELSE NULL
 					 END) AS CreatedDate
 			  ,MAX(IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)) AS AP_TotalSecondaryProvider
@@ -245,14 +260,15 @@ BEGIN
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
 			AND ap.IsExistsAP IS NULL
-			AND 1 = CASE WHEN @ResourceType = 0 THEN 1
-			             WHEN @ResourceType = f.ResourceType THEN 1
+			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
+			             WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
 						 ELSE 0
 					END
 			AND 1 = CASE WHEN m.AP_Check_R_MactchCompleted = 1 AND f.ResourceType = 1 AND m.eventstatus ='completed' THEN 0
 						 WHEN m.AP_Main_NumberProvider = 0 AND f.ResourceType = 1 THEN 0
 			             WHEN m.AP_EAR_NumberProvider = 0 AND f.ResourceType = 2 THEN 0
 						 ELSE 1 END	
+			AND CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_InactiveProvider,m.AP_EAR_InactiveProvider) +',') = 0
         GROUP BY m.matchid,r.ResourceId,f.ResourceType	
 	END
 
@@ -266,7 +282,11 @@ BEGIN
 			  ,MIN(CASE WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_PrimaryProvider,m.AP_EAR_PrimaryProvider) +',') > 0 THEN r.CreateDate
 						WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0 AND IIF(f.ResourceType = 1, m.AP_Main_NumberProvider,  m.AP_EAR_NumberProvider) > 1  THEN r.CreateDate
 						WHEN IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider)  = 0
-							 OR (IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 AND  IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) > 1) THEN r.CreateDate
+							 OR (	 IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 
+								 AND IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) >= 1
+								 AND IIF(f.ResourceType = 1,m.AP_Main_TotalSource,m.AP_EAR_TotalSource) > 1
+								) 
+							 THEN r.CreateDate
 						 ELSE NULL
 					 END) AS CreatedDate
 			  ,MAX(IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)) AS AP_TotalSecondaryProvider
@@ -297,14 +317,15 @@ BEGIN
 			AND r.CreateDate > @Result_FromDate
 			AND ap.IsExistsAP IS NULL
 			AND ss.IsExistsProfile IS NOT NULL
-			AND 1 = CASE WHEN @ResourceType = 0 THEN 1
-			             WHEN @ResourceType = f.ResourceType THEN 1
+			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
+			             WHEN m.AP_EAR = 1  AND f.ResourceType = 2 THEN 1
 						 ELSE 0
 					END
 			AND 1 = CASE WHEN m.AP_Check_R_MactchCompleted = 1 AND f.ResourceType = 1 AND m.eventstatus ='completed' THEN 0
 						 WHEN m.AP_Main_NumberProvider = 0 AND f.ResourceType = 1 THEN 0
 			             WHEN m.AP_EAR_NumberProvider = 0 AND f.ResourceType = 2 THEN 0
 						 ELSE 1 END	
+			AND CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_InactiveProvider,m.AP_EAR_InactiveProvider) +',') = 0
         GROUP BY m.matchid,r.ResourceId,f.ResourceType
 	END
 
@@ -331,8 +352,8 @@ BEGIN
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2)  AS ResourceType FROM f_Set_MajorRound (m.sporttype)  f WHERE r.ResourceId = f.ResourceID) f
 		WHERE m.ResultTable = 1
 			AND ap.IsExistsAP IS NULL
-			AND 1 = CASE WHEN @ResourceType = 0 THEN 1
-			             WHEN @ResourceType = f.ResourceType THEN 1
+			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
+			             WHEN m.AP_EAR = 1  AND f.ResourceType = 2 THEN 1
 						 ELSE 0
 					END
 			AND 1 = CASE WHEN m.AP_Check_R_CnfRefund = 1 AND ISNULL(r.ResultSetting,0) & 6  != 0 THEN 0
@@ -366,8 +387,8 @@ BEGIN
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2)  AS ResourceType FROM f_Set_MajorRound (m.sporttype)  f WHERE r.ResourceId = f.ResourceID) f
 		WHERE m.ResultTable = 2
 			AND ap.IsExistsAP IS NULL			
-			AND 1 = CASE WHEN @ResourceType = 0 THEN 1
-			             WHEN @ResourceType = f.ResourceType THEN 1
+			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
+			             WHEN m.AP_EAR = 1  AND f.ResourceType = 2 THEN 1
 						 ELSE 0
 					END
 			AND 1 = CASE WHEN m.AP_Check_R_CnfRefund = 1 AND ISNULL(r.ResultSetting,0) & 6  != 0 THEN 0
@@ -407,8 +428,8 @@ BEGIN
 		WHERE m.ResultTable = 3
 			AND ap.IsExistsAP IS NULL
 			AND ss.IsExistsProfile IS NOT NULL
-			AND 1 = CASE WHEN @ResourceType = 0 THEN 1
-			             WHEN @ResourceType = f.ResourceType THEN 1
+			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
+			             WHEN m.AP_EAR = 1  AND f.ResourceType = 2 THEN 1
 						 ELSE 0
 					END
 			AND 1 = CASE WHEN m.AP_Check_R_CnfRefund = 1 AND ISNULL(r.ResultSetting,0) & 6  != 0 THEN 0
@@ -454,10 +475,12 @@ BEGIN
 	FROM CTE_Provider AS cte
 		INNER JOIN #Match AS m on cte.matchId = m.matchId
 		CROSS APPLY(
-			SELECT CASE WHEN cte.ResourceType = 1 AND m.AP_Main_HasTrader = cte.HasTrader AND IIF(m.AP_Main_TotalPrimaryProvider = 0,cte.TotalProvider,cte.TotalProviderSelected) >= m.AP_Main_NumberProvider  THEN 1										    
-						WHEN cte.ResourceType = 2 AND m.AP_EAR_HasTrader = cte.HasTrader AND IIF(m.AP_EAR_TotalPrimaryProvider = 0,cte.TotalProvider,cte.TotalProviderSelected) >= m.AP_EAR_NumberProvider THEN 1
-						WHEN cte.ResourceType = 1 AND DATEDIFF(second,cte.CreatedDate,@CurrentDateTime) > m.AP_Main_WaitingTime AND (IIF(m.AP_Main_TotalPrimaryProvider = 0,cte.TotalProvider,cte.TotalProviderSelected) < m.AP_Main_NumberProvider OR  m.AP_Main_HasTrader != cte.HasTrader ) THEN 2
-						WHEN cte.ResourceType = 2 AND DATEDIFF(second,cte.CreatedDate,@CurrentDateTime) > m.AP_EAR_WaitingTime AND (IIF(m.AP_EAR_TotalPrimaryProvider = 0,cte.TotalProvider,cte.TotalProviderSelected)< m.AP_EAR_NumberProvider  OR  m.AP_EAR_HasTrader != cte.HasTrader) THEN 2
+			SELECT CASE WHEN cte.ResourceType = 1 AND m.AP_Main_HasTrader = cte.HasTrader AND IIF(m.AP_Main_TotalPrimaryProvider = 0,cte.TotalProvider,cte.TotalProviderSelected) >= m.AP_Main_NumberProvider 
+							AND (m.AP_Main_TotalSource > 1 OR DATEDIFF(SECOND,cte.CreatedDate,@CurrentDateTime) > m.AP_Main_WaitingTime)  THEN 1					    
+						WHEN cte.ResourceType = 2 AND m.AP_EAR_HasTrader = cte.HasTrader AND IIF(m.AP_EAR_TotalPrimaryProvider = 0,cte.TotalProvider,cte.TotalProviderSelected) >= m.AP_EAR_NumberProvider 
+							AND (m.AP_EAR_TotalSource > 1 OR DATEDIFF(SECOND,cte.CreatedDate,@CurrentDateTime) > m.AP_EAR_WaitingTime) THEN 1
+						WHEN cte.ResourceType = 1 AND DATEDIFF(SECOND,cte.CreatedDate,@CurrentDateTime) > m.AP_Main_WaitingTime AND (IIF(m.AP_Main_TotalPrimaryProvider = 0,cte.TotalProvider,cte.TotalProviderSelected) < m.AP_Main_NumberProvider OR  m.AP_Main_HasTrader != cte.HasTrader ) THEN 2
+						WHEN cte.ResourceType = 2 AND DATEDIFF(SECOND,cte.CreatedDate,@CurrentDateTime) > m.AP_EAR_WaitingTime AND (IIF(m.AP_EAR_TotalPrimaryProvider = 0,cte.TotalProvider,cte.TotalProviderSelected)< m.AP_EAR_NumberProvider  OR  m.AP_EAR_HasTrader != cte.HasTrader) THEN 2
 						ELSE 0
 			END AS ResourceStatus
 		) AS s	
