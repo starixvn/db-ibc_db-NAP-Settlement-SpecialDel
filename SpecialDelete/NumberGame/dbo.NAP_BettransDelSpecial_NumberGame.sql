@@ -488,7 +488,10 @@ BEGIN
 				SELECT transid
 				FROM #BetDelete
 				)
-
+		
+		CREATE TABLE #BetBefore (transid bigint, custid INT,winlostdate SMALLDATETIME,balance MONEY,winlost MONEY,gametypeid SMALLINT)
+		CREATE TABLE #BetAfter (transid bigint, custid INT,winlostdate SMALLDATETIME,balance MONEY,winlost MONEY,gametypeid SMALLINT)
+		
 		CREATE TABLE #BeforeUpd (
 			custid INT
 			,winlostdate SMALLDATETIME
@@ -509,6 +512,17 @@ BEGIN
 		DECLARE @tblCreditPending TVP_BalanceList
 		
 		--Get data before update
+		INSERT INTO #BetBefore (transid,custid,winlostdate,balance,winlost,gametypeid )
+		SELECT b.transid, b.custid,b.winlostdate,(b.winlost - b.actual_stake + b.playercomm) AS balance
+					,CASE 
+						WHEN b.ruben = 1 THEN b.winlost - b.actual_stake
+						ELSE 0
+					END AS winlost
+				,b.bettype AS gametypeid
+		FROM bettrans b WITH (NOLOCK)
+		WHERE b.transid IN (SELECT transid FROM #BetDelete	)
+		GROUP BY b.CustID, b.winlostdate, b.bettype
+
 		INSERT INTO #BeforeUpd (
 			custid
 			,winlostdate
@@ -516,20 +530,13 @@ BEGIN
 			,winlost
 			,gametypeid
 			)
-		SELECT b.custid
-			,b.winlostdate
-			,SUM(b.winlost - b.actual_stake + b.playercomm) balance
-			,SUM(CASE 
-					WHEN b.ruben = 1 THEN b.winlost - b.actual_stake
-					ELSE 0
-				END) AS winlost
-			,b.bettype
-		FROM bettrans b WITH (NOLOCK)
-		WHERE b.transid IN (
-				SELECT transid
-				FROM #BetDelete
-				)
-		GROUP BY b.CustID, b.winlostdate, b.bettype
+		SELECT custid
+			,winlostdate
+			,SUM(balance)
+			,SUM(winlost)
+			,gametypeid
+		FROM #BetBefore
+		GROUP BY  CustID,  winlostdate, gametypeid
 
 		-- STEP 2 : Update
 		UPDATE bettrans WITH (ROWLOCK, UPDLOCK)
@@ -587,6 +594,17 @@ BEGIN
 		END
 
 		--Get data after update
+		INSERT INTO #BetAfter (transid, custid,winlostdate,balance,winlost,gametypeid)
+		SELECT b.transid, b.custid,b.winlostdate,(b.winlost - b.actual_stake + b.playercomm) AS balance
+			,CASE 
+				WHEN b.ruben = 1 THEN b.winlost - b.actual_stake 
+				ELSE 0 
+			END AS winlost
+			,b.bettype AS gametypeid
+		FROM bettrans b WITH (NOLOCK)
+		WHERE b.transid IN (SELECT transid	FROM #BetDelete	)
+		GROUP BY b.CustID, b.winlostdate, b.bettype
+
 		INSERT INTO #AfterUpd (
 			custid
 			,winlostdate
@@ -594,20 +612,13 @@ BEGIN
 			,winlost
 			,gametypeid
 			)
-		SELECT b.custid
-			,b.winlostdate
-			,SUM(b.winlost - b.actual_stake + b.playercomm) balance
-			,SUM(CASE 
-					WHEN b.ruben = 1 THEN b.winlost - b.actual_stake 
-					ELSE 0 
-				END) AS winlost
-			,b.bettype
-		FROM bettrans b WITH (NOLOCK)
-		WHERE b.transid IN (
-				SELECT transid
-				FROM #BetDelete
-				)
-		GROUP BY b.CustID, b.winlostdate, b.bettype
+		SELECT custid
+			,winlostdate
+			,SUM(balance)
+			,SUM(winlost)
+			,gametypeid
+		FROM #BetAfter
+		GROUP BY CustID, winlostdate, gametypeid
 
 		INSERT INTO @tblCreditPending (custID, balance)
 		SELECT a.custid
@@ -655,9 +666,9 @@ BEGIN
 			,(a.winlost - b.winlost) AS Balance
 			,81
 			,a.gametypeid
-			,@MatchId
-		FROM #BeforeUpd b
-			INNER JOIN #AfterUpd a 
+			,b.transid
+		FROM #BetBefore b
+			INNER JOIN #BetAfter a 
 				ON	a.custid = b.custid
 					AND a.winlostdate = b.winlostdate
 					AND a.gametypeid = b.gametypeid
@@ -676,9 +687,9 @@ BEGIN
 			,ABS(a.winlost - b.winlost) AS Balance
 			,81
 			,a.gametypeid
-			,@MatchId
-		FROM #BeforeUpd b
-			INNER JOIN #AfterUpd a 
+			,b.transid
+		FROM #BetBefore b
+			INNER JOIN #BetAfter a 
 				ON	a.custid = b.custid
 					AND a.winlostdate = b.winlostdate
 					AND a.gametypeid = b.gametypeid
@@ -825,6 +836,8 @@ BEGIN
 		DROP TABLE #BeforeUpd
 		DROP TABLE #AfterUpd
 		DROP TABLE #CTE_CustInfo
+		DROP TABLE #BetBefore
+		DROP TABLE #BetAfter
 
 	END
 	
