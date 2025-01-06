@@ -667,9 +667,7 @@ BEGIN
 			,b.transid
 		FROM #BetBefore b
 			INNER JOIN #BetAfter a 
-				ON	a.custid = b.custid
-					AND a.winlostdate = b.winlostdate
-					AND a.gametypeid = b.gametypeid
+				ON a.transid = b.transid
 		WHERE (a.winlost - b.winlost) > 0
 
 		INSERT INTO BalancePendingDebitGame (
@@ -688,9 +686,7 @@ BEGIN
 			,b.transid
 		FROM #BetBefore b
 			INNER JOIN #BetAfter a 
-				ON	a.custid = b.custid
-					AND a.winlostdate = b.winlostdate
-					AND a.gametypeid = b.gametypeid
+				ON	a.transid = b.transid
 		WHERE (a.winlost - b.winlost) < 0
 		
 		----------------Insert Max Payout Queue----------------
