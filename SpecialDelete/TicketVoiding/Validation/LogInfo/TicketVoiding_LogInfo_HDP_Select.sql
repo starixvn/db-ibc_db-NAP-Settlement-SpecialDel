@@ -30,6 +30,7 @@ AS
 		- 20240722@July: [TVS] Add Details function for traders of LG/Early teams [Redmine: #206715]
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
 		- 20241216@Lani: [TVS] Add 'GroupName' columns returned [Redmine: #213960]
+		- 20250102@Lani: [TVS] Add new filter (FilterBetTypeId, FilterX, FilterY) [Redmine: #215545]
 
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
@@ -55,6 +56,8 @@ BEGIN
 			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
 			,@MatchId				   INT
 			,@LogInfoTicketsJson	  VARBINARY(MAX) = NULL
+			,@FilterX				  NVARCHAR(50) = NULL
+			,@FilterY				  NVARCHAR(50) = NULL
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -108,6 +111,9 @@ BEGIN
 		,IsLinkGroup1X2			BIT DEFAULT(0) --Soccer: call API get link log | Other sports: No.default = 0
 		,IsLinkGroupAIO			BIT DEFAULT(0) --Soccer: call API get link log | Other sports: No.default = 0
 		,LiveIndicator			BIT DEFAULT(0)
+		,FilterBetTypeId		INT
+		,FilterX				NVARCHAR(50) -- Get X of bettype
+		,FilterY				NVARCHAR(50) -- Get Y of bettype
 	)
 	CREATE TABLE #logInfoVoidPage (
 		RequestId						INT
@@ -192,6 +198,8 @@ BEGIN
 	  ,WalletType TINYINT
 	  ,RefCode BIGINT
 	  ,SettledType TINYINT -- 1: Instant Settlement, 2: Normal Settlement
+	  ,FilterX NVARCHAR(50)
+	  ,FilterY NVARCHAR(50)
 	)
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 	DECLARE @Validation AS TABLE (
@@ -220,6 +228,9 @@ BEGIN
 			,IsLinkGroup1X2
 			,IsLinkGroupAIO
 			,LiveIndicator
+			,FilterBetTypeId
+			,FilterX
+			,FilterY
 		)
 	SELECT t.c.value('@MatchId','INT') AS MatchID
 			,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
@@ -233,6 +244,9 @@ BEGIN
 			,t.c.value('@IsLinkGroup1X2','BIT') AS IsLinkGroup1X2
 			,t.c.value('@IsLinkGroupAIO','BIT') AS IsLinkGroupAIO
 			,t.c.value('@LiveIndicator','BIT') AS LiveIndicator
+			,t.c.value('@FilterBetTypeId','INT') AS FilterBetTypeId
+			,t.c.value('@FilterX','NVARCHAR(50)') AS FilterX
+			,t.c.value('@FilterY','NVARCHAR(50)') AS FilterY
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
 
@@ -354,6 +368,8 @@ BEGIN
 	       ,SiteDBGroupID 
 		   ,WalletType 
 	       ,RefCode 
+		   ,FilterX
+		   ,FilterY
 	)
 	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,checkt ,bid
@@ -361,7 +377,8 @@ BEGIN
 		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,s_checkt ,s_tdes ,s_sid ,sre
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
-		,wt ,refc
+		,wt ,refc, CASE WHEN isP = 0 THEN bid ELSE bcheck END AS FilterX
+		,CASE WHEN isP = 0 THEN RIGHT(bid, 2) ELSE RIGHT(bcheck, 2) END AS FilterY
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -468,7 +485,7 @@ BEGIN
 			,b.Subbettype
 			,b.SubstatusID
 			,d.SubIssueTypeId
-			,CASE WHEN (@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7) THEN 'HDP'
+			,CASE WHEN @IssueTypeId = 4 AND b.bettype = d.FilterBetTypeId THEN 'HDP'
 				  WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 THEN 'PH' --1X2
 				  WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 THEN 'PH' --AIO
 			END AS GroupName
@@ -498,26 +515,26 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
-		AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
-							AND d.SubIssueTypeId IN (8,9) 
+		AND 1 = CASE WHEN (@IssueTypeId = 4 AND b.bettype = d.FilterBetTypeId) 
+							AND d.SubIssueTypeId IN (8) 
 							AND 1 = CASE WHEN xHDPHome.HomeFavorite <> 0 AND b.hdp1 = xHDPHome.HomeFavorite THEN 1
 										WHEN xHDPHome.HomeFavorite = 0 AND b.hdp1 = 0 AND b.hdp2 = 0 THEN 1 --case input hdp value filter = 0
 									ELSE 0 END
 							AND d.HomeFavorite IS NOT NULL THEN 1
-					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
-							AND d.SubIssueTypeId IN (8,9) 
+					 WHEN (@IssueTypeId = 4 AND b.bettype = d.FilterBetTypeId) 
+							AND d.SubIssueTypeId IN (8) 
 							AND 1 = CASE WHEN xHDPAway.AwayFavorite <> 0 AND b.hdp2 = xHDPAway.AwayFavorite THEN 1
 										WHEN xHDPAway.AwayFavorite = 0 AND b.hdp2 = 0 AND b.hdp1 = 0 THEN 1 --case input hdp value filter = 0
 									ELSE 0 END
 							AND d.AwayFavorite IS NOT NULL THEN 1
-					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
-							AND d.SubIssueTypeId IN (22,24) 
+					 WHEN (@IssueTypeId = 4 AND b.bettype = d.FilterBetTypeId) 
+							AND d.SubIssueTypeId IN (22) 
 							AND 1 = CASE WHEN xHDPvalue.HdpValue <> 0 AND b.hdp2 = xHDPvalue.HdpValue THEN 1
 										WHEN xHDPvalue.HdpValue = 0 AND b.hdp2 = 0 AND b.hdp1 = 0 THEN 1 --case input hdp value filter = 0
 									ELSE 0 END
 							AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
-							AND d.SubIssueTypeId IN (23,25) 
+					 WHEN (@IssueTypeId = 4 AND b.bettype = d.FilterBetTypeId) 
+							AND d.SubIssueTypeId IN (23) 
 							AND 1 = CASE WHEN xHDPvalue.HdpValue <> 0 AND b.hdp1 = xHDPvalue.HdpValue THEN 1
 										WHEN xHDPvalue.HdpValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0 THEN 1 --case input hdp value filter = 0
 									ELSE 0 END
@@ -592,26 +609,26 @@ BEGIN
 				AND 1 = CASE WHEN b.sporttype = 1 AND d.IsMainMatch = 'true' THEN 1
 				             WHEN b.sporttype <> 1 THEN 1 
 							 ELSE 0 END
-				AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
-								AND d.SubIssueTypeId IN (8,9) 
+				AND 1 = CASE WHEN (@IssueTypeId = 4 AND b.Subbettype = d.FilterBetTypeId) 
+								AND d.SubIssueTypeId IN (8) 
 								AND 1 = CASE WHEN xHDPHome.HomeFavorite <> 0 AND b.Subhdp1 = xHDPHome.HomeFavorite THEN 1
 											WHEN xHDPHome.HomeFavorite = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0 THEN 1 --case input hdp value filter = 0
 										ELSE 0 END
 								AND d.HomeFavorite IS NOT NULL THEN 1
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
-								AND d.SubIssueTypeId IN (8,9) 
+							 WHEN (@IssueTypeId = 4 AND b.Subbettype = d.FilterBetTypeId) 
+								AND d.SubIssueTypeId IN (8) 
 								AND 1 = CASE WHEN xHDPAway.AwayFavorite <> 0 AND b.Subhdp2 = xHDPAway.AwayFavorite THEN 1
 											WHEN xHDPAway.AwayFavorite = 0 AND b.Subhdp2 = 0 AND b.Subhdp1 = 0 THEN 1 --case input hdp value filter = 0
 										ELSE 0 END
 								AND d.AwayFavorite IS NOT NULL THEN 1
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
-								AND d.SubIssueTypeId IN (22,24) 
+							 WHEN (@IssueTypeId = 4 AND b.Subbettype = d.FilterBetTypeId) 
+								AND d.SubIssueTypeId IN (22) 
 								AND 1 = CASE WHEN xHDPvalue.HdpValue <> 0 AND b.Subhdp2 = xHDPvalue.HdpValue THEN 1
 											WHEN xHDPvalue.HdpValue = 0 AND b.Subhdp2 = 0 AND b.Subhdp1 = 0 THEN 1 --case input hdp value filter = 0
 										ELSE 0 END
 								AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
-								AND d.SubIssueTypeId IN (23,25) 
+							 WHEN (@IssueTypeId = 4 AND b.Subbettype = d.FilterBetTypeId) 
+								AND d.SubIssueTypeId IN (23) 
 								AND 1 = CASE WHEN xHDPvalue.HdpValue <> 0 AND b.Subhdp1 = xHDPvalue.HdpValue THEN 1
 											WHEN xHDPvalue.HdpValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0 THEN 1 --case input hdp value filter = 0
 										ELSE 0 END
@@ -621,7 +638,23 @@ BEGIN
 						ELSE 0 END
 	END  
 
-	
+	/* Remove invalid data */
+	SELECT @FilterX = FilterX, @FilterY = FilterY FROM #FilterInfo
+	IF (@FilterX <> '' OR @FilterY <> '')
+	BEGIN
+		DELETE tb
+		FROM #TVSTicketBets AS tb
+		OUTER APPLY 
+		(
+			SELECT t.transid, t.bettype
+			FROM #tmpTransInfo AS t
+			INNER JOIN #FilterInfo AS f ON f.FilterBetTypeId = t.bettype
+			WHERE t.transid = tb.transid
+			AND (f.FilterX = '' OR t.FilterX = f.FilterX )
+			AND (f.FilterY = '' OR t.FilterY = f.FilterY)
+		) AS tmp 
+		WHERE tmp.bettype IS NULL
+	END
 
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
@@ -663,9 +696,10 @@ BEGIN
 	IF @MainMatchId IS NOT NULL
 	BEGIN
 		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
-									  FROM #TVSTicketBets 
-									  WHERE matchid = @MainMatchId
-									  AND 1 = CASE WHEN IsMixParlay = 0 AND ((@IssueTypeId = 4 AND Subbettype <> 1)OR (@IssueTypeId = 5 AND Subbettype <> 7)) THEN 1
+									  FROM #TVSTicketBets AS b
+									  INNER JOIN #FilterInfo AS f ON b.matchid = f.MatchId
+									  WHERE b.matchid = @MainMatchId
+									  AND 1 = CASE WHEN IsMixParlay = 0 AND (@IssueTypeId = 4 AND Subbettype <> f.FilterBetTypeId) THEN 1
 												   WHEN IsMixParlay = 1 THEN 1
 												   ELSE 0 END
 									  FOR XML PATH ('')
@@ -746,10 +780,10 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpLogInfoTickets (TransId)
 		SELECT TransId
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK) 
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK) 
+		INNER JOIN #FilterInfo AS f ON s.MatchId = f.MatchId
 		WHERE RequestId = @RequestId
-			AND 1 = CASE WHEN IssueTypeId = 4 AND bettype = 1 THEN 1
-						 WHEN IssueTypeId = 5 AND bettype = 7 THEN 1
+			AND 1 = CASE WHEN IssueTypeId = 4 AND bettype = f.FilterBetTypeId THEN 1
 						 ELSE 0 END
 		UNION ALL
 		SELECT s.TransId
@@ -866,14 +900,15 @@ BEGIN
 		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CashOutCount, SettleCount, InstantlySettleCount, PoolHouseCashOutCount, PoolHouseSettleCount, PoolHouseInstantlySettleCount)
 		SELECT @RequestId
 				,b.matchid
-				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS CashOutCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) AND b.SettledType = 2 THEN s.TransId ELSE NULL END) AS SettleCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) AND b.SettledType = 1 THEN s.TransId ELSE NULL END) AS InstantlySettleCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype <> 1) OR (@IssueTypeId = 5 AND b.bettype <> 7)) AND b.betdaqid = -2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseCashOutCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype <> 1) OR (@IssueTypeId = 5 AND b.bettype <> 7)) AND b.SettledType = 2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseSettleCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype <> 1) OR (@IssueTypeId = 5 AND b.bettype <> 7)) AND b.SettledType = 1 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
+				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype = f.FilterBetTypeId)) AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS CashOutCount
+				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype = f.FilterBetTypeId)) AND b.SettledType = 2 THEN s.TransId ELSE NULL END) AS SettleCount
+				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype = f.FilterBetTypeId)) AND b.SettledType = 1 THEN s.TransId ELSE NULL END) AS InstantlySettleCount
+				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype <> f.FilterBetTypeId)) AND b.betdaqid = -2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseCashOutCount
+				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype <> f.FilterBetTypeId)) AND b.SettledType = 2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseSettleCount
+				, COUNT(CASE WHEN ((@IssueTypeId = 4 AND b.bettype <> f.FilterBetTypeId)) AND b.SettledType = 1 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN #tmpTransInfo b ON b.transid = s.transid AND b.matchid = s.MatchId AND b.IsMixParlay = 0
+			INNER JOIN #FilterInfo f ON b.matchid = f.MatchId
 		WHERE s.RequestId = @RequestId AND b.StatusId IN (111, 112, 113)
 		GROUP BY b.matchid
 
