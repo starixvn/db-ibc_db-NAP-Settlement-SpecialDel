@@ -521,7 +521,6 @@ BEGIN
 				,b.bettype AS gametypeid
 		FROM bettrans b WITH (NOLOCK)
 		WHERE b.transid IN (SELECT transid FROM #BetDelete	)
-		GROUP BY b.CustID, b.winlostdate, b.bettype
 
 		INSERT INTO #BeforeUpd (
 			custid
@@ -603,7 +602,6 @@ BEGIN
 			,b.bettype AS gametypeid
 		FROM bettrans b WITH (NOLOCK)
 		WHERE b.transid IN (SELECT transid	FROM #BetDelete	)
-		GROUP BY b.CustID, b.winlostdate, b.bettype
 
 		INSERT INTO #AfterUpd (
 			custid
