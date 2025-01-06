@@ -25,6 +25,7 @@ AS
 		- 20240930@Aries: Fix the issue duplicated settlement DBTrans and SiteDBs for HP5  [Redmine:#211434]
 		- 20241001@Aries: Fix the issue missing param @AllowRefund for Happy5  [Redmine:#211648]
 		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine:#210875]
+		- 20241211@Louisa: add matchid for BalancePendingCreditGame [Redmine:#215066]
 
 	Param's Explanation:
 		
@@ -325,21 +326,23 @@ BEGIN
 			FROM #tmpTransOutput t
 			GROUP BY custid, winlostdate, bettype
 
-			INSERT INTO dbo.BalancePendingCreditGame (custid,winlostdate,bettype,GameTypeID,balance)
+			INSERT INTO dbo.BalancePendingCreditGame (custid,winlostdate,bettype,GameTypeID,balance,RefID)
 			SELECT custid
 				,winlostdate
 				,@CWLBettype
 				,GameTypeID
 				,(after_winlost - bef_winlost) AS Balance
+				,@MatchId
 			FROM @BalanceCWL t
 			WHERE (after_winlost - bef_winlost) > 0
 			
-			INSERT INTO dbo.BalancePendingDebitGame (custid,winlostdate,bettype,GameTypeID,balance)
+			INSERT INTO dbo.BalancePendingDebitGame (custid,winlostdate,bettype,GameTypeID,balance,RefID)
 			SELECT custid
 				,winlostdate
 				,@CWLBettype
 				,GameTypeID
 				,ABS(after_winlost - bef_winlost) AS Balance
+				,@MatchId
 			FROM @BalanceCWL
 			WHERE (after_winlost - bef_winlost) < 0
 

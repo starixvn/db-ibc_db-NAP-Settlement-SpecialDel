@@ -20,6 +20,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221109@Louisa: log more info [Redmine:#178694]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
+		- 20241211@Louisa: add matchid for BalancePendingCreditGame [Redmine:#215066]
 
 	Param's Explanation:
 		
@@ -28,7 +29,8 @@ BEGIN
 	SET NOCOUNT ON 
 	
 	DECLARE @strBetTicket		VARCHAR(MAX),
-			@handle 			INT
+			@handle 			INT,
+			@MainIDParlay		INT
 
 	DECLARE @tmpTransMPO TABLE (TransID BIGINT,actualPO MONEY)
 
@@ -40,7 +42,7 @@ BEGIN
 	SELECT  @ErrCode	= 0
 		, @ErrMsg		= ''
 		, @BalanceUpd 	= NULL
-	
+
 	--BEGIN: CAPTURE value BALANCE before calculating
 	INSERT INTO #BalanceCWLBefore (
 		custid
@@ -162,6 +164,7 @@ BEGIN
 
 		IF(@CWLBettype > 0)--BEGIN: integrating with company winlimit
 		BEGIN
+			SELECT @MainIDParlay = (SELECT TOP(1) matchid FROM @BetTickets)
 			--CAPTURE increase
 			INSERT INTO dbo.BalancePendingCreditGame (
 				custid
@@ -169,12 +172,14 @@ BEGIN
 				,bettype
 				,GameTypeID
 				,balance
+				,RefID
 			)
 			SELECT a.custid
 				,a.winlostdate
 				,@CWLBettype AS bettype
 				,a.gametypeid
 				,(a.winlost - b.winlost) AS Balance
+				,@MainIDParlay
 			FROM #BalanceCWLBefore b
 				INNER JOIN #BalanceCWLAfter a 
 				ON	a.custid 			= b.custid
@@ -189,12 +194,14 @@ BEGIN
 				,bettype
 				,GameTypeID
 				,balance
+				,RefID
 			)
 			SELECT a.custid
 				,a.winlostdate
 				,@CWLBettype AS bettype
 				,a.gametypeid
 				,ABS(a.winlost - b.winlost) AS Balance
+				,@MainIDParlay
 			FROM #BalanceCWLBefore b
 				INNER JOIN #BalanceCWLAfter a 
 				ON	a.custid 			= b.custid

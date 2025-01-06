@@ -24,6 +24,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241220@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
+		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -44,8 +45,8 @@ BEGIN
 	DECLARE @beforeUpd 	TVP_BalanceWalletChange
 		  , @afterUpd 	TVP_BalanceWalletChange
 		
-	CREATE TABLE #balanceGameBefore (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
-	CREATE TABLE #balanceGameAfter (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
+	CREATE TABLE #balanceGameBefore (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT, TransId BIGINT)
+	CREATE TABLE #balanceGameAfter (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT, TransId BIGINT)
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)	
 	
 	CREATE TABLE #BetDelete (
@@ -106,6 +107,7 @@ BEGIN
 	BEGIN TRY
 		INSERT INTO #tblTransIds (transid)
 		SELECT DISTINCT value 
+
 		FROM STRING_SPLIT(@TransIds,',')		
 		
 	END TRY
@@ -393,10 +395,10 @@ BEGIN
 	--Get data before update
 	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
 	BEGIN
-		INSERT INTO #balanceGameBefore(custid, winlostdate, balance, winlost, gametypeid, groupid)
+		INSERT INTO #balanceGameBefore(custid, winlostdate, balance, winlost, gametypeid, groupid, TransId)
 		SELECT b.custid, b.winlostdate
-			, SUM(b.winlost - b.actual_stake)
-			, SUM(CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END)
+			, b.winlost - b.actual_stake
+			, (CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END)
 			,b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -404,6 +406,7 @@ BEGIN
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
 				ELSE 1201
 			END AS groupId
+			, b.TransId
 		FROM dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN #BetDelete tmp 
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
@@ -416,13 +419,6 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
-		GROUP BY b.custid, b.winlostdate, b.bettype
-			,CASE 
-				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
-				WHEN b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120THEN 81
-				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
-				ELSE 1201
-			END
 	END
 	--capture balance before
 	INSERT INTO @BeforeUpd (
@@ -506,10 +502,10 @@ BEGIN
 	--Get data after update
 	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
 	BEGIN
-		INSERT INTO #balanceGameAfter(custid, winlostdate, balance, winlost, gametypeid, groupid)
+		INSERT INTO #balanceGameAfter(custid, winlostdate, balance, winlost, gametypeid, groupid, TransId)
 		SELECT b.custid, b.winlostdate
-			, SUM(b.winlost - b.actual_stake)
-			, SUM(CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END)
+			, (b.winlost - b.actual_stake)
+			, (CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END)
 			,b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -517,6 +513,7 @@ BEGIN
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
 				ELSE 1201
 			END
+			, b.TransId
 		FROM dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN #BetDelete tmp 
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
@@ -529,13 +526,6 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
-		GROUP BY b.custid, b.winlostdate, b.bettype
-			,CASE
-				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
-				WHEN tmp.Bettype BETWEEN 81 AND 120 OR tmp.Bettype BETWEEN 8101 AND 8120 THEN 81
-				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
-				ELSE 1201
-			END
 	END
 	--capture balance after
 	INSERT INTO @AfterUpd (
@@ -595,21 +585,20 @@ BEGIN
 			,bettype		SMALLINT
 			,gametypeid		SMALLINT			
 			,Increased 		BIT
+			,TransId		BIGINT
 		)
 
-		INSERT INTO #balanceGameChange (custid, winlostdate, balance, bettype, gametypeid, Increased)
+		INSERT INTO #balanceGameChange (custid, winlostdate, balance, bettype, gametypeid, Increased, TransId)
 		SELECT	b.custid
 				,b.winlostdate
 				,a.winlost - b.winlost
 				,a.groupid
 				,a.gametypeid
 				,CASE WHEN a.winlost > b.winlost THEN 1 ELSE 0 END
+				,a.TransId
 		FROM	#balanceGameBefore b
 			INNER JOIN #balanceGameAfter a 
-				ON	b.custid 		= a.custid
-				AND b.winlostdate 	= a.winlostdate
-				AND a.gametypeid = b.gametypeid
-				AND a.groupid = b.groupid
+				ON b.TransId = a.TransId
 		WHERE	b.winlost <> a.winlost
 		
 		INSERT INTO dbo.BalancePendingDebitGame (
@@ -618,12 +607,14 @@ BEGIN
 				,balance
 				,bettype
 				,GameTypeID
+				,RefID
 		)
 		SELECT	custid
 				,winlostdate
 				,ABS(balance)
 				,bettype
 				,gametypeid
+				,TransId
 		FROM	#balanceGameChange
 		WHERE	Increased = 0
 
@@ -633,12 +624,14 @@ BEGIN
 				,balance
 				,bettype
 				,GameTypeID
+				,RefID
 		)
 		SELECT	custid
 				,winlostdate
 				,balance
 				,bettype
 				,gametypeid
+				,TransId
 		FROM	#balanceGameChange
 		WHERE	Increased = 1
 		
