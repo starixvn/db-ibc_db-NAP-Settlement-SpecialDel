@@ -929,6 +929,8 @@ BEGIN
 	DROP TABLE #tempmatch
 	DROP TABLE #matchList
 	DROP TABLE #InstMatchInfo
+
+
 	DROP TABLE #tempBettrans
 END
 GO
