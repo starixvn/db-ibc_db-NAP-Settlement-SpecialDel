@@ -18,11 +18,12 @@ AS
 		- 20241002@Aries: direct payout for early soccer [Redmine:#211079]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 		- 20241212@Aries: Support to add a parameter to the new Live column for Provider Tables [Redmine:#215143]
+		- 20241223@Aries: Enhance the Provider Log for AutoRefund of Soccer's Early Result [Redmine:#215493]
 */
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #Data(ResourceId VARCHAR(20),SourceId SMALLINT,SourceName VARCHAR(50), HomeValue VARCHAR(50),AwayValue VARCHAR(50),OtherInfo VARCHAR(50),CreateDate DATETIME,AutoPayoutStatus TINYINT, Remark VARCHAR(1000), RankNo INT, IsLive BIT)		
+	CREATE TABLE #Data(ResourceId VARCHAR(20),SourceId SMALLINT,SourceName VARCHAR(50), HomeValue VARCHAR(50),AwayValue VARCHAR(50),OtherInfo VARCHAR(50),CreateDate DATETIME,AutoPayoutStatus TINYINT, Remark VARCHAR(1000), RankNo INT, IsLive BIT, [DataType] TINYINT DEFAULT 1)		
 	CREATE TABLE #ResourceInfo(ResourceId VARCHAR(20) PRIMARY KEY,OrdNo SMALLINT)		
 
 	DECLARE @tmpResourceID			TABLE (ResourceID VARCHAR(20))
@@ -144,6 +145,26 @@ BEGIN
 						 ELSE 0
 					END 
 
+		INSERT INTO #Data(ResourceId,HomeValue,AwayValue,CreateDate,AutoPayoutStatus,Remark,RankNo, [DataType])
+		SELECT CASE WHEN ap.TypeId = 1 THEN '00'
+                    ELSE ap.ResourceID 
+               END AS ResourceId
+			  ,ap.HomeValue
+			  ,ap.AwayValue
+			  ,ap.CreateDate
+			  ,ap.StatusId
+			  ,ap.Remark
+			  ,1 AS RankNo
+			  ,2 AS [DataType]
+		FROM  AutoRefundResult AS ap WITH(NOLOCK)
+			LEFT JOIN  @tmpResourceID AS r ON (ap.TypeId = 1 AND r.ResourceID IN ('01', '00')) OR (ap.TypeId = 7 AND r.ResourceID = ap.ResourceID)
+		WHERE ap.matchID = @MatchID
+			AND ap.TypeId IN (1,7)
+			AND 1 = CASE WHEN ISNULL(@ResourceIDs,'') = ''	THEN 1
+						 WHEN r.ResourceID IS NOT NULL		THEN 1
+						 ELSE 0
+					END 
+
 		INSERT INTO #Data(ResourceId, SourceId,SourceName,HomeValue,AwayValue,CreateDate,RankNo)
 		SELECT IIF(pr.TypeId = 1,'01','00') AS ResourceId
 			  ,pr.SourceId
@@ -180,6 +201,23 @@ BEGIN
 						 WHEN r.ResourceID IS NOT NULL		THEN 1
 						 ELSE 0
 					END
+
+		INSERT INTO #Data(ResourceId,HomeValue,AwayValue,CreateDate,AutoPayoutStatus,Remark,RankNo,[DataType])
+		SELECT ap.ResourceId
+			  ,NULL AS HomeValue
+			  ,NULL AS AwayValue
+			  ,ap.CreateDate
+			  ,ap.StatusId
+			  ,ap.Remark
+			  ,1 AS RankNo
+			  ,2 AS [DataType]
+		FROM  AutoRefundResultOS AS ap WITH(NOLOCK)
+			LEFT JOIN  @tmpResourceID AS r ON r.ResourceID = ap.ResourceID
+		WHERE ap.matchID = @MatchID
+			AND 1 = CASE WHEN ISNULL(@ResourceIDs,'') = ''	THEN 1
+						 WHEN r.ResourceID IS NOT NULL		THEN 1
+						 ELSE 0
+					END
 	END
 
 	SELECT d.ResourceId 
@@ -192,6 +230,7 @@ BEGIN
 		  ,d.Remark
 		  ,tbl.OrdNo
 		  ,d.IsLive
+		  ,d.[DataType]
 	FROM #Data AS d
 		OUTER APPLY(
 			SELECT TOP 1  r.OrdNo
