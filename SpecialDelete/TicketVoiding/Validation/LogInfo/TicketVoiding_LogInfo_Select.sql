@@ -79,7 +79,7 @@ AS
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
-		- 20250106@Lani: [TVS] Change sp called of issue type 'Wrong 1st HDP' [Redmine: #215545]
+		- 20250106@Lani: [TVS] Change sp called of issue type 'Wrong 1st HDP & OU'  [Redmine: #215545]
 
 	Param's explanation:
 		
@@ -190,7 +190,7 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 7 --Wrong 1st OU
 	BEGIN
-		EXEC dbo.TicketVoiding_LogInfo_OU_Select
+		EXEC dbo.TicketVoiding_LogInfo_1stOU_Select
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
