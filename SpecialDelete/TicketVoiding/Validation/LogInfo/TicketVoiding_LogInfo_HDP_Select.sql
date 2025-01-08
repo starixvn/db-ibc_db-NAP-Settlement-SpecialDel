@@ -245,8 +245,8 @@ BEGIN
 			,t.c.value('@IsLinkGroupAIO','BIT') AS IsLinkGroupAIO
 			,t.c.value('@LiveIndicator','BIT') AS LiveIndicator
 			,t.c.value('@FilterBetTypeId','SMALLINT') AS FilterBetTypeId
-			,t.c.value('@FilterX','NVARCHAR(50)') AS FilterX
-			,t.c.value('@FilterY','NVARCHAR(50)') AS FilterY
+			,t.c.value('@FilterBetIdX','NVARCHAR(50)') AS FilterBetIdX
+			,t.c.value('@FilterBetIdY','NVARCHAR(50)') AS FilterBetIdY
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
 
