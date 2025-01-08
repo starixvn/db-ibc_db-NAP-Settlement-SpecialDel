@@ -30,7 +30,7 @@ AS
 		- 20240722@July: [TVS] Add Details function for traders of LG/Early teams [Redmine: #206715]
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
 		- 20241216@Lani: [TVS] Add 'GroupName' columns returned [Redmine: #213960]
-		- 20250102@Lani: [TVS] Add new filter (FilterBetTypeId, FilterX, FilterY) [Redmine: #215545]
+		- 20250102@Lani: [TVS] Add new filter (FilterBetTypeId, FilterBetIdX, FilterBetIdY) [Redmine: #215545]
 
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
@@ -56,8 +56,6 @@ BEGIN
 			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
 			,@MatchId				   INT
 			,@LogInfoTicketsJson	  VARBINARY(MAX) = NULL
-			,@FilterX				  NVARCHAR(50) = NULL
-			,@FilterY				  NVARCHAR(50) = NULL
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -77,7 +75,9 @@ BEGIN
 			SubIssueTypeId		  SMALLINT,
 			GroupName			  VARCHAR(50),
 			LiveIndicator		  BIT,
-			SettledType			  TINYINT
+			SettledType			  TINYINT,
+			FilterBetIdX		  NVARCHAR(50),
+			FilterBetIdY		  NVARCHAR(50)
 	)
 
 	CREATE TABLE #logInfo (
@@ -111,9 +111,9 @@ BEGIN
 		,IsLinkGroup1X2			BIT DEFAULT(0) --Soccer: call API get link log | Other sports: No.default = 0
 		,IsLinkGroupAIO			BIT DEFAULT(0) --Soccer: call API get link log | Other sports: No.default = 0
 		,LiveIndicator			BIT DEFAULT(0)
-		,FilterBetTypeId		INT
-		,FilterX				NVARCHAR(50) -- Get X of bettype
-		,FilterY				NVARCHAR(50) -- Get Y of bettype
+		,FilterBetTypeId		SMALLINT
+		,FilterBetIdX			NVARCHAR(50) -- Get X of bettype
+		,FilterBetIdY			NVARCHAR(50) -- Get Y of bettype
 	)
 	CREATE TABLE #logInfoVoidPage (
 		RequestId						INT
@@ -198,8 +198,8 @@ BEGIN
 	  ,WalletType TINYINT
 	  ,RefCode BIGINT
 	  ,SettledType TINYINT -- 1: Instant Settlement, 2: Normal Settlement
-	  ,FilterX NVARCHAR(50)
-	  ,FilterY NVARCHAR(50)
+	  ,FilterBetIdX NVARCHAR(50)
+	  ,FilterBetIdY NVARCHAR(50)
 	)
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 	DECLARE @Validation AS TABLE (
@@ -229,8 +229,8 @@ BEGIN
 			,IsLinkGroupAIO
 			,LiveIndicator
 			,FilterBetTypeId
-			,FilterX
-			,FilterY
+			,FilterBetIdX
+			,FilterBetIdY
 		)
 	SELECT t.c.value('@MatchId','INT') AS MatchID
 			,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
@@ -244,7 +244,7 @@ BEGIN
 			,t.c.value('@IsLinkGroup1X2','BIT') AS IsLinkGroup1X2
 			,t.c.value('@IsLinkGroupAIO','BIT') AS IsLinkGroupAIO
 			,t.c.value('@LiveIndicator','BIT') AS LiveIndicator
-			,t.c.value('@FilterBetTypeId','INT') AS FilterBetTypeId
+			,t.c.value('@FilterBetTypeId','SMALLINT') AS FilterBetTypeId
 			,t.c.value('@FilterX','NVARCHAR(50)') AS FilterX
 			,t.c.value('@FilterY','NVARCHAR(50)') AS FilterY
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
@@ -368,8 +368,8 @@ BEGIN
 	       ,SiteDBGroupID 
 		   ,WalletType 
 	       ,RefCode 
-		   ,FilterX
-		   ,FilterY
+		   ,FilterBetIdX
+		   ,FilterBetIdY
 	)
 	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,checkt ,bid
@@ -377,8 +377,8 @@ BEGIN
 		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,s_checkt ,s_tdes ,s_sid ,sre
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
-		,wt ,refc, CASE WHEN isP = 0 THEN bid ELSE bcheck END AS FilterX
-		,CASE WHEN isP = 0 THEN RIGHT(bid, 2) ELSE RIGHT(bcheck, 2) END AS FilterY
+		,wt ,refc, CASE WHEN isP = 0 THEN bid ELSE bcheck END AS FilterBetIdX
+		,CASE WHEN isP = 0 THEN RIGHT(bid, 2) ELSE RIGHT(bcheck, 2) END AS FilterBetIdY
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -470,6 +470,8 @@ BEGIN
 			,GroupName
 			,LiveIndicator
 			,SettledType
+			,FilterBetIdX
+			,FilterBetIdY
 		)
 	SELECT  DISTINCT b.transid
 			,b.transid AS SubTransID
@@ -491,6 +493,8 @@ BEGIN
 			END AS GroupName
 			,b.liveindicator
 			,b.SettledType
+			,b.FilterBetIdX
+			,b.FilterBetIdY
 	FROM	#tmpTransInfo b 
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		OUTER APPLY (
@@ -639,22 +643,14 @@ BEGIN
 	END  
 
 	/* Remove invalid data */
-	SELECT @FilterX = FilterX, @FilterY = FilterY FROM #FilterInfo
-	IF (@FilterX <> '' OR @FilterY <> '')
-	BEGIN
-		DELETE tb
-		FROM #TVSTicketBets AS tb
-		OUTER APPLY 
-		(
-			SELECT t.transid, t.bettype
-			FROM #tmpTransInfo AS t
-			INNER JOIN #FilterInfo AS f ON f.FilterBetTypeId = t.bettype
-			WHERE t.transid = tb.transid
-			AND (f.FilterX = '' OR t.FilterX = f.FilterX )
-			AND (f.FilterY = '' OR t.FilterY = f.FilterY)
-		) AS tmp 
-		WHERE tmp.bettype IS NULL
-	END
+	DELETE tb
+	FROM #TVSTicketBets AS tb
+	INNER JOIN #FilterInfo AS f ON f.MatchId = tb.matchid
+	WHERE 1 = CASE WHEN 
+					(f.FilterBetIdX = '' OR tb.FilterBetIdX = f.FilterBetIdX OR (f.FilterBetIdX LIKE '>%' AND tb.FilterBetIdX > RIGHT(f.FilterBetIdX,2)))
+					AND (f.FilterBetIdY = '' OR tb.FilterBetIdY = f.FilterBetIdY OR (f.FilterBetIdY LIKE '>%' AND tb.FilterBetIdY > RIGHT(f.FilterBetIdY,2))) THEN 0
+					ELSE 1
+				END
 
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)

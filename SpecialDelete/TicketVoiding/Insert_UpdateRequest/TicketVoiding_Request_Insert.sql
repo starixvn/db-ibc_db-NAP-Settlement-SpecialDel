@@ -79,6 +79,8 @@ AS
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 		- 20241022@July: [TVS] New Issue Type "Other Issues" [Redmine: #211913]
+		- 20250108@Lani: [TVS] Separate SP of updating request detail for wrong HDP/OU and 1st HDP/OU issue types [Redmine: #215545]
+
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -149,7 +151,7 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId IN (5)
 	BEGIN
-		EXEC dbo.TicketVoiding_RequestDetail_HDP_Update
+		EXEC dbo.TicketVoiding_RequestDetail_1stHDP_Update
 				 @RequestId		 = @RequestId		
 				,@IssueTypeId	 = @IssueTypeId	
 				,@UserId		 = @UserId		
@@ -171,7 +173,7 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId IN (7)
 	BEGIN
-		EXEC dbo.TicketVoiding_RequestDetail_OU_Update
+		EXEC dbo.TicketVoiding_RequestDetail_1stOU_Update
 				 @RequestId		 = @RequestId		
 				,@IssueTypeId	 = @IssueTypeId	
 				,@UserId		 = @UserId		
