@@ -31,13 +31,9 @@ DECLARE  @StartRow	INT
 
 
 INSERT INTO #tmpCust(c,a)
-SELECT 23052753 AS custId , @Amount AS a
+SELECT 19176813 AS custId , @Amount AS a
 UNION
-SELECT 46755897 AS custId, @Amount AS a
-UNION
-SELECT 49896970 AS custId, @Amount AS a
-UNION
-SELECT 53846136 AS custId, @Amount AS a
+SELECT 5013852 AS custId, @Amount AS a
 
 DECLARE @SId INT
 EXEC [dbo].[NAP_SabaProgramStatus_Ins] @ProgramId = @ProgramId,@IsTest = 1, @SId = @SId OUTPUT
