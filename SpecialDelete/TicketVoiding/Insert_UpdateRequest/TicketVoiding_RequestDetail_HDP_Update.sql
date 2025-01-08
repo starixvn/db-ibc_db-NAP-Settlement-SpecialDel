@@ -24,6 +24,7 @@ AS
 		- 20230802@July: Remove code get list bettype Poolhouse [Redmine: #190441]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
+		- 20250108@Lani: [TVS] Save new filter (FilterBetIdX, FilterBetIdY, FilterBetTypeId) of 'Wrong HDP' issue type [Redmine: #215545]
 
 	Param's explanation:
 		+ @IssueTypeId : 4 - Wrong HDP, 5 - Wrong 1st HDP
@@ -111,24 +112,27 @@ BEGIN
 					 + ';PoolHouseSingleCount:' + CAST(t.c.value('@PoolHouseSingleCount','INT') AS VARCHAR(50))
 					 + ';PoolHouseMainParlayCount:' + CAST(t.c.value('@PoolHouseMainParlayCount','INT') AS VARCHAR(50)) AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8,9) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' 
+			,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' 
 					THEN '<r HomeFavorite="' + REPLACE(t.c.value('@HomeFavorite','VARCHAR(50)') , '&', '&amp;') + '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
-				  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8,9) AND ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') <> '' 
+				  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8) AND ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') <> '' 
 					THEN '<r AwayFavorite="' + REPLACE(t.c.value('@AwayFavorite','VARCHAR(50)') , '&', '&amp;') + '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
-				  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (22,23,24,25) AND ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') <> '' 
+				  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (22,23) AND ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') <> '' 
 					THEN '<r HdpValue="' + REPLACE(t.c.value('@HdpValue','VARCHAR(50)') , '&', '&amp;') 
 				  ELSE '' END 
 				    + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') 
 				    + CASE WHEN t.c.value('@IsMainMatch','VARCHAR(10)') = 'False' 
 						THEN '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10)) 
-						     + '" />'
+						     + '" '
 					  ELSE 
 							 '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10))
 							+ '" IsLinkGroup1X2="' + CAST(t.c.value('@IsLinkGroup1X2','BIT') AS VARCHAR(10))
 							+ '" IsLinkGroupAIO="' + CAST(t.c.value('@IsLinkGroupAIO','BIT') AS VARCHAR(10))
 							+ '" PoolHouseCheckedBetTypes="' + t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') 
-							+ '" />'
+							+ '" '
 					 END
+				   + 'FilterBetTypeId="' + CAST(t.c.value('@FilterBetTypeId','SMALLINT') AS VARCHAR(20)) + '" '
+				   + 'FilterBetIdX="' + t.c.value('@FilterBetIdX','NVARCHAR(50)') + '" '
+				   + 'FilterBetIdY="' + t.c.value('@FilterBetIdY','NVARCHAR(50)') + '" />'
 			AS WrongHDP
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
@@ -235,7 +239,7 @@ BEGIN
 							+ ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidToTime: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
 							+ CASE WHEN @IssueTypeId = 4 THEN ', WrongHDP: ' + l.WrongHDP
-								   WHEN @IssueTypeId = 5 THEN ', Wrong 1st HDP: ' + l.WrongHDP ELSE '' END
+								   ELSE '' END
 							FROM #tblGetLogInfo l
 
 	-- Write Log
