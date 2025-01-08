@@ -985,7 +985,7 @@ BEGIN
 			SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName, OrdNo
 			FROM @tmpResourcesWeb r
 				INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
-			WHERE r.ResourceID IN ('0101','0102','0103','0104','0105', '0001', 'ET', 'PEN')
+			WHERE r.ResourceID IN ('0101','0102','0103','0104','0105','0106','0107', '0001', 'ET', 'PEN')
 		END
 
 		SELECT @ResultRemarkLog = STRING_AGG(CAST(ISNULL(RoundName,ResourceID) + 

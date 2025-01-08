@@ -71,6 +71,7 @@ AS
 			- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 			- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 			- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
+			- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -89,7 +90,7 @@ AS
 					multiple select: '1,2'
 		@MatchType  : 0: all, 1: normal/real, 2:Virtual
 		@IsIncludeTest: 1: include test matches, 0: exclude test matches
-		@AutoSetting : '': not select or select All; 1-Auto Payout (bit[1]); 16: Direct (bit[5]); 0: Turn off Autopayout  | Ex: @AutoSetting = '16,0'
+		@AutoSetting : '': not select or select All; 33-Auto Payout (bit[1]bit[6]); 16: Direct (bit[5]); 0: Turn off Autopayout  | Ex: @AutoSetting = '16,0'
 					multiple select: @AutoSetting = '1,0'
 		@Page:		0 - Multisports Page
 					1 - Move Ticket Page
@@ -436,9 +437,9 @@ BEGIN
 
 		DELETE m
 		FROM #tmpMatchIds m
-		WHERE 1 = CASE WHEN @AutoValue = 0 THEN CASE when  m.AutoSetting & 17 > 0 THEN 1  ELSE 0 END
+		WHERE 1 = CASE WHEN @AutoValue = 0 THEN CASE when  m.AutoSetting & 49 > 0 THEN 1  ELSE 0 END
 				   		WHEN @minValue = 0 
-				   			AND m.AutoSetting & (@AutoValue ^17) > 0  
+				   			AND m.AutoSetting & (@AutoValue ^49) > 0  
 				   			AND m.AutoSetting & @AutoValue = 0
 				   			THEN 1
 				   		WHEN @minValue > 0 AND m.AutoSetting & @AutoValue = 0 THEN 1
