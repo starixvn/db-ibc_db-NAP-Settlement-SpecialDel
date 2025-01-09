@@ -29,6 +29,7 @@ AS
 		- 20240722@July: [TVS] Add Details function for traders of LG/Early teams [Redmine: #206715]
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
 		- 20241216@Lani: [TVS] Add 'GroupName' column returned [Redmine: #213960]
+		- 20250109@Lani: [TVS] Add new filter (FilterBetTypeId, FilterBetIdX, FilterBetIdY) [Redmine: #215545]
 
 	Param's explanation:
 		+ @WrongOUInfo, @Wrong1stOUInfo:
@@ -72,7 +73,9 @@ BEGIN
 			SubIssueTypeId		  SMALLINT,
 			GroupName			  VARCHAR(50),
 			LiveIndicator		  BIT,
-			SettledType			  TINYINT
+			SettledType			  TINYINT,
+			FilterBetIdX		  NVARCHAR(50),
+			FilterBetIdY		  NVARCHAR(50)
 	)
 
 	CREATE TABLE #logInfo (
@@ -104,6 +107,9 @@ BEGIN
 		,IsLinkGroup1X2			BIT DEFAULT(0) --Soccer: call API get link log | Other sports: No.default = 0
 		,IsLinkGroupAIO			BIT DEFAULT(0) --Soccer: call API get link log | Other sports: No.default = 0
 		,LiveIndicator			BIT DEFAULT(0)
+		,FilterBetTypeId				SMALLINT
+		,FilterBetIdX					NVARCHAR(50)
+		,FilterBetIdY					NVARCHAR(50)
 	)
 	CREATE TABLE #logInfoVoidPage (
 		RequestId						INT
@@ -188,6 +194,8 @@ BEGIN
 	  ,WalletType TINYINT
 	  ,RefCode BIGINT
 	  ,SettledType TINYINT -- 1: Instant Settlement, 2: Normal Settlement
+	  ,FilterBetIdX NVARCHAR(50)
+	  ,FilterBetIdY NVARCHAR(50)
 	)
 
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
@@ -215,6 +223,9 @@ BEGIN
 			,IsLinkGroup1X2
 			,IsLinkGroupAIO
 			,LiveIndicator
+			,FilterBetTypeId
+			,FilterBetIdX
+			,FilterBetIdY
 		)
 	SELECT t.c.value('@MatchId','INT') AS MatchID
 			,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
@@ -226,6 +237,9 @@ BEGIN
 			,t.c.value('@IsLinkGroup1X2','BIT') AS IsLinkGroup1X2
 			,t.c.value('@IsLinkGroupAIO','BIT') AS IsLinkGroupAIO
 			,t.c.value('@LiveIndicator','BIT') AS LiveIndicator
+			,t.c.value('@FilterBetTypeId','SMALLINT') AS FilterBetTypeId
+			,t.c.value('@FilterBetIdX','NVARCHAR(50)') AS FilterBetIdX
+			,t.c.value('@FilterBetIdY','NVARCHAR(50)') AS FilterBetIdY
 	FROM	@WrongOUInfoXML.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@WrongOUInfoXML = NULL ))
 
@@ -347,6 +361,8 @@ BEGIN
 	       ,SiteDBGroupID 
 		   ,WalletType 
 	       ,RefCode
+		   ,FilterBetIdX
+		   ,FilterBetIdY
 	)
 	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,checkt ,bid
@@ -354,7 +370,8 @@ BEGIN
 		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,s_checkt ,s_tdes ,s_sid ,sre
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
-		,wt ,refc
+		,wt ,refc, CASE WHEN isP = 0 THEN LEFT(bid,3) ELSE LEFT(bcheck,3) END AS FilterBetIdX
+		,CASE WHEN isP = 0 THEN RIGHT(bid, 2) ELSE RIGHT(bcheck, 2) END AS FilterBetIdY
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -446,6 +463,8 @@ BEGIN
 			,GroupName
 			,LiveIndicator
 			,SettledType
+			,FilterBetIdX
+			,FilterBetIdY
 		)
 	SELECT  DISTINCT b.transid
 			,b.transid AS SubTransID
@@ -461,12 +480,14 @@ BEGIN
 			,b.Subbettype
 			,b.SubstatusID
 			,d.SubIssueTypeId
-			,CASE WHEN (@IssueTypeId = 6 AND b.bettype = 3) OR (@IssueTypeId = 7 AND b.bettype = 8) THEN 'OU'
+			,CASE WHEN @IssueTypeId = 6 AND b.bettype = d.FilterBetTypeId THEN 'OU'
 				  WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 THEN 'PH' --1X2
 				  WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 THEN 'PH' --AIO
 			END AS GroupName
 			,b.liveindicator
 			,b.SettledType
+			,b.FilterBetIdX
+			,b.FilterBetIdY
 	FROM #tmpTransInfo b 
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		CROSS APPLY (
@@ -481,8 +502,7 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
-		AND 1 = CASE WHEN @IssueTypeId = 6 AND b.bettype = 3 AND b.hdp1 = xHDPou.WrongMarket THEN 1
-					 WHEN @IssueTypeId = 7 AND b.bettype = 8 AND b.hdp1 = xHDPou.WrongMarket THEN 1
+		AND 1 = CASE WHEN @IssueTypeId = 6 AND b.bettype = d.FilterBetTypeId AND b.hdp1 = xHDPou.WrongMarket THEN 1
 					 WHEN b.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1 --Only support soccer
 					 WHEN b.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1 --Only support soccer 
 					 ELSE 0 END
@@ -508,6 +528,8 @@ BEGIN
 				,GroupName
 				,LiveIndicator
 				,SettledType
+				,FilterBetIdX
+				,FilterBetIdY
 			)
 		SELECT  DISTINCT b.transid
 				,b.Subtransid 
@@ -526,6 +548,8 @@ BEGIN
 				,CASE WHEN b.sporttype = 1 THEN 'PH' ELSE 'OU' END AS GroupName
 				,b.liveindicator
 				,b.SettledType
+				,b.FilterBetIdX
+				,b.FilterBetIdY
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
 				CROSS APPLY (
@@ -543,12 +567,22 @@ BEGIN
 				AND 1 = CASE WHEN b.sporttype = 1 AND d.IsMainMatch = 'true' THEN 1
 				             WHEN b.sporttype <> 1 THEN 1 
 							 ELSE 0 END
-				AND 1 = CASE WHEN @IssueTypeId = 6 AND b.Subbettype = 3 AND b.Subhdp1 = xHDPou.WrongMarket THEN 1
-							 WHEN @IssueTypeId = 7 AND b.Subbettype = 8 AND b.Subhdp1 = xHDPou.WrongMarket THEN 1
+				AND 1 = CASE WHEN @IssueTypeId = 6 AND b.Subbettype = d.FilterBetTypeId AND b.Subhdp1 = xHDPou.WrongMarket THEN 1
 							 WHEN b.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1
 							 WHEN b.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1
 						ELSE 0 END
 	END  
+
+	/*Remove invalid data*/
+	DELETE tb
+	FROM #TVSTicketBets AS tb
+	INNER JOIN #FilterInfo AS f ON tb.matchid = f.MatchId
+	WHERE 1 = CASE WHEN 
+					(f.FilterBetIdX = '' OR tb.FilterBetIdX = f.FilterBetIdX OR (f.FilterBetIdX LIKE '>%' AND tb.FilterBetIdX > RIGHT(f.FilterBetIdX,2)))
+					AND (f.FilterBetIdY = '' OR tb.FilterBetIdY = f.FilterBetIdY OR (f.FilterBetIdY LIKE '>%' AND tb.FilterBetIdY > RIGHT(f.FilterBetIdY,2))) THEN 0
+					ELSE 1
+			  END
+
 
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
@@ -588,9 +622,10 @@ BEGIN
 	IF @MainMatchId IS NOT NULL
 	BEGIN
 		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
-									  FROM #TVSTicketBets 
-									  WHERE matchid = @MainMatchId
-									  AND 1 = CASE WHEN IsMixParlay = 0 AND ((@IssueTypeId = 6 AND Subbettype <> 3)OR (@IssueTypeId = 7 AND Subbettype <> 8)) THEN 1
+									  FROM #TVSTicketBets AS b
+									  INNER JOIN #FilterInfo AS f ON b.matchid = f.MatchId
+									  WHERE b.matchid = @MainMatchId
+									  AND 1 = CASE WHEN IsMixParlay = 0 AND (@IssueTypeId = 6 AND Subbettype <> f.FilterBetTypeId) THEN 1
 												   WHEN IsMixParlay = 1 THEN 1
 												   ELSE 0 END
 									  FOR XML PATH ('')
@@ -671,10 +706,10 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpLogInfoTickets (TransId)
 		SELECT TransId
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK) 
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK) 
+		INNER JOIN #FilterInfo AS f ON s.MatchId = f.MatchId
 		WHERE RequestId = @RequestId
-			AND 1 = CASE WHEN IssueTypeId = 6 AND bettype = 3 THEN 1
-						 WHEN IssueTypeId = 7 AND bettype = 8 THEN 1
+			AND 1 = CASE WHEN IssueTypeId = 6 AND bettype = f.FilterBetTypeId THEN 1
 						 ELSE 0 END
 		UNION ALL
 		SELECT s.TransId
@@ -791,14 +826,15 @@ BEGIN
 		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CashOutCount, SettleCount, InstantlySettleCount, PoolHouseCashOutCount, PoolHouseSettleCount, PoolHouseInstantlySettleCount)
 		SELECT @RequestId
 				,b.matchid
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype = 3) OR (@IssueTypeId = 7 AND b.bettype = 8)) AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS CashOutCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype = 3) OR (@IssueTypeId = 7 AND b.bettype = 8)) AND b.SettledType = 2 THEN s.TransId ELSE NULL END) AS SettleCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype = 3) OR (@IssueTypeId = 7 AND b.bettype = 8)) AND b.SettledType = 1 THEN s.TransId ELSE NULL END) AS InstantlySettleCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype <> 3) OR (@IssueTypeId = 7 AND b.bettype <> 8)) AND b.betdaqid = -2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseCashOutCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype <> 3) OR (@IssueTypeId = 7 AND b.bettype <> 8)) AND b.SettledType = 2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseSettleCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype <> 3) OR (@IssueTypeId = 7 AND b.bettype <> 8)) AND b.SettledType = 1 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
+				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype = f.FilterBetTypeId AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS CashOutCount
+				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype = f.FilterBetTypeId AND b.SettledType = 2 THEN s.TransId ELSE NULL END) AS SettleCount
+				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype = f.FilterBetTypeId AND b.SettledType = 1 THEN s.TransId ELSE NULL END) AS InstantlySettleCount
+				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype <> f.FilterBetTypeId AND b.betdaqid = -2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseCashOutCount
+				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype <> f.FilterBetTypeId AND b.SettledType = 2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseSettleCount
+				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype <> f.FilterBetTypeId AND b.SettledType = 1 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN #tmpTransInfo b ON b.transid = s.transid AND b.matchid = s.MatchId AND b.IsMixParlay = 0
+			INNER JOIN #FilterInfo f ON b.matchid = s.MatchId
 		WHERE s.RequestId = @RequestId AND b.StatusId IN (111, 112, 113)
 		GROUP BY b.matchid
 		
