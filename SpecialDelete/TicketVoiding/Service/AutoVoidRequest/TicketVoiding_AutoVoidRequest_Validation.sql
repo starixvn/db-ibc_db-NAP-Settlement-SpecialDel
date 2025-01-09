@@ -33,6 +33,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
+		- 20250109@Max: [TVS] Update for voiding bettype Net Possion 501 [Redmine: #216611]
 
 	Param's explanation:
 		
@@ -236,12 +237,12 @@ BEGIN
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 			LEFT JOIN dbo.CashOutSelling c WITH (NOLOCK) ON c.TransID = t.TransId 
-		WHERE t.TicketType IN (1,3) AND b.statusID NOT IN (101,102,103)
+		WHERE t.TicketType IN (1,3,4) AND b.statusID NOT IN (101,102,103)
 		
 		INSERT INTO #SingleTickets (TransId, RequestId, MatchId, IssueTypeId, TicketType, transdate, winlostdate)
 		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, TicketType, t.transdate, t.winlostdate
 		FROM #tmpTransIds t
-		WHERE t.TicketType = 1
+		WHERE t.TicketType IN (1,4)
 
 		INSERT INTO #ParlayTickets (TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate)
 		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, bm.transdate, bm.winlostdate
