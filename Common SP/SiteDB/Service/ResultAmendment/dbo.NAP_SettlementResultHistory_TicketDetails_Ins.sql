@@ -13,30 +13,48 @@ AS
 	Revisions:
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240528@Aries: Support new changes on Result Amendment [Redmine: #205688]
+		- 20241206@Aries: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
 */
 BEGIN	
 	SET NOCOUNT ON
-	CREATE TABLE #Resource(ResourceID VARCHAR(20), SeqNo INT,PRIMARY KEY(ResourceID))
+	
 	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
 	CREATE NONCLUSTERED INDEX IDX_refno ON #tblTrans (refno)
 
+	DECLARE @Resource TABLE(ResourceID VARCHAR(20), SeqNo INT,PRIMARY KEY(ResourceID))
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
 	DECLARE  @batchNo			INT 			= 2000
 			,@batchCount		INT 			= 0
+			,@BroadcastSessionIdInstant		VARCHAR(100)		= @SessionId + '_instant'
 
 	INSERT INTO #tblTrans(TransId,TicketType,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
 	SELECT t.t AS TransId
 		  ,IIF(l.matchid = 29,'m',l.TicketType)
 		  ,t.bt AS bettype
-		  ,t.bi AS betid
+		  ,IIF(l.TicketType = 'p',TRY_CAST(t.bc AS FLOAT),t.bi) AS betid
 		  ,t.rf AS refno
 		  ,t.w AS winlost
 		  ,t.bef_w AS bef_winlost
 		  ,t.[sid] AS statusid
 		  ,t.bef_sid AS bef_statusid
 	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
-	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
+	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,bc NVARCHAR(50),rf BIGINT) AS t
 	WHERE l.BroadcastSessionId  = @SessionId
+		AND (t.bef_w != t.w OR (l.TicketType = 'p' AND l.matchid != 29))
+		AND t.bef_sid != 0
+	UNION ALL
+	SELECT t.t AS TransId
+		  ,IIF(l.matchid = 29,'m',l.TicketType)
+		  ,t.bt AS bettype
+		  ,IIF(l.TicketType = 'p',TRY_CAST(t.bc AS FLOAT),t.bi)  AS betid
+		  ,t.rf AS refno
+		  ,t.w AS winlost
+		  ,t.bef_w AS bef_winlost
+		  ,t.[sid] AS statusid
+		  ,t.bef_sid AS bef_statusid
+	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
+	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,bc NVARCHAR(50),rf BIGINT) AS t
+	WHERE l.BroadcastSessionId  = @BroadcastSessionIdInstant
 		AND (t.bef_w != t.w OR (l.TicketType = 'p' AND l.matchid != 29))
 		AND t.bef_sid != 0
 
@@ -47,7 +65,7 @@ BEGIN
 		WHERE matchid =	@matchid
 			AND SessionId = @SessionID
 	)
-	INSERT INTO #Resource(ResourceID,SeqNo)
+	INSERT INTO @Resource(ResourceID,SeqNo)
 	SELECT ResourceID  = x.r.value('(@Id)[1]','NVARCHAR(50)')
 	   ,   SeqNo
 	FROM CTE_ResourceID
@@ -82,7 +100,7 @@ BEGIN
 											 	  ELSE 'None'
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),bef_winlost,2),'0')
-						,'" Id="',ISNULL(s.ResourceID,'')
+						,'" Id="',ISNULL(r.ResourceID,'')
 						,'" /></root>') AS ExtraInfo_Before
 			   ,CONCAT('<root><r status="',  CASE WHEN statusid = 1	 THEN 'WAITING' 
 											 	  WHEN statusid = 0	 THEN 'RUNNING' 
@@ -95,12 +113,17 @@ BEGIN
 											 	  ELSE 'None'
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),winlost,2),'0')
-						,'" Id="',ISNULL(s.ResourceID,'')
+						,'" Id="',ISNULL(r.ResourceID,'')
 						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
 			INNER JOIN SettlementSpecialBettypeProfile AS s WITH(NOLOCK) ON s.bettype = t.bettype AND  (s.BetID = 0 OR t.BetID = s.BetID)AND s.SportType = @sportType
-			INNER JOIN #Resource AS r ON  s.ResourceID = r.ResourceID 
+			CROSS APPLY(
+				SELECT STRING_AGG(re.ResourceID,',') AS ResourceID, MIN(SeqNo) AS SeqNo
+				FROM @Resource AS re
+				WHERE CHARINDEX(','+re.ResourceID+',',','+ ISNULL(JSON_VALUE(s.APSetting,'$."refResourceIds"'),s.ResourceID) + ',') > 0
+			) AS r
 		WHERE t.TicketType = 's'
+			AND r.SeqNo IS NOT NULL
 			AND NOT EXISTS (SELECT TOP 1 1 
 						    FROM SettlementResultHistory_TicketDetails AS h WITH(NOLOCK)  
 						    WHERE h.transId = t.transId
@@ -139,12 +162,16 @@ BEGIN
 		FROM @tmpTransIDBatch AS t
 			CROSS APPLY(SELECT TOP 1 r.SeqNo, r.ResourceID 
 			            FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK) 
-							INNER JOIN #Resource AS r ON  s.ResourceID = r.ResourceID 
-						WHERE s.bettype = t.bettype
+							CROSS APPLY(SELECT STRING_AGG(re.ResourceID,',') AS ResourceID, MIN(re.SeqNo) AS SeqNo
+										FROM @Resource AS re
+										WHERE CHARINDEX(','+re.ResourceID+',',','+ ISNULL(JSON_VALUE(s.APSetting,'$."refResourceIds"'),s.ResourceID) + ',') > 0
+										) AS r
+						WHERE s.bettype = t.bettype AND (s.BetID = 0 OR  s.BetID = t.BetID) 
 							AND s.SportType = @sportType
 			) AS tbl
 			INNER JOIN #tblTrans AS tp ON tp.refno = t.refno AND tp.TicketType = 'm'
 		WHERE t.TicketType = 'p'
+			AND tbl.SeqNo IS NOT NULL
 			AND NOT EXISTS (SELECT TOP 1 1 
 						    FROM SettlementResultHistory_TicketDetails AS h WITH(NOLOCK) 
 						    WHERE h.transId = tp.transid

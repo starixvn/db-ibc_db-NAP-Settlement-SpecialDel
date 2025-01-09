@@ -31,6 +31,7 @@ AS
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20241113@Louisa: set priority of action MoveEvent higher than Settlement for WinlostDate value [Redmine:#213613]
+		- 20241206@Aries: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
 
     Param's Explanation:
         
@@ -49,7 +50,7 @@ BEGIN
 			,@TableName VARCHAR(128) 
 
 	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
-	DECLARE @tmpParlayOutput TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT)		
+	DECLARE @tmpParlayOutput TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT,betcheck NVARCHAR(50))		
 	
 	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
 	
@@ -134,7 +135,8 @@ BEGIN
 				,inserted.ruben
 				,deleted.statusid	
 				,inserted.bettype
-		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status, ruben,bef_statusid,bettype)
+				,inserted.betcheck
+		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status, ruben,bef_statusid,bettype,betcheck)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpParlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -209,7 +211,8 @@ BEGIN
 				,inserted.ruben
 				,deleted.statusid	
 				,INSERTED.bettype
-		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype)
+				,inserted.betcheck
+		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype,betcheck)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpParlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -253,7 +256,8 @@ BEGIN
 				,inserted.ruben
 				,deleted.statusid
 				,INSERTED.bettype
-		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype)
+				,inserted.betcheck
+		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype,betcheck)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpParlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid        
@@ -286,6 +290,7 @@ BEGIN
 					,bef_statusid AS 'bef_sid' 
 					,refno AS 'rf' 
 					,bettype AS 'bt' 
+					,betcheck AS 'bc'
                         FROM	@tmpParlayOutput
 			FOR JSON AUTO
 		)

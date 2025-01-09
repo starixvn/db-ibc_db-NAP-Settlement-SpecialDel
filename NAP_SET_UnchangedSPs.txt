@@ -1,1 +1,6 @@
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
+Settlement\Sportbook\Calculation\Parlay\dbo.NAP_Admin_Calculate_MP_broker.sql
+Settlement\Sportbook\Service\ServiceBroker\DBTXN\dbo.SSB_ParlaySettlement_UpdateData.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Profile_Parlay.sql
+Common SP\Calculation\f_Set_SDT_OS_modds.sql
+Settlement\Sportbook\InstantSettlement\NAP_Admin_Settlement_Profile_Instant_Push.sql

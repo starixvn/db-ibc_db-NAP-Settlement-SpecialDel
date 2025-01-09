@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
     @matchid                        INT
     ,@mode                          VARCHAR(20) = 'CAL'
@@ -169,6 +169,7 @@ AS
         - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
         - 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20250108@Louisa: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
 
     Param's Explanation:
         @action             @mode
@@ -426,6 +427,7 @@ BEGIN
 							,@matchid				= @matchid
 							,@ActionId				= @ActionId
 							,@IsCalculateBalance	= @IsCalculateBalance
+							,@BroadcastSessionId	 = @BroadcastSessionId
 							,@ErrMessage			= @ErrMessage OUTPUT
 							,@ErrCode				= @ErrCode  OUTPUT
 				END

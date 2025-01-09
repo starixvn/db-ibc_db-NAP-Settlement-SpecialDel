@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_03]
 	,@MatchId	INT = 0
 	,@ActionID				INT = NULL
 	,@IsCalculateBalance	BIT = 0
+	,@BroadcastSessionId	VARCHAR(50)		= NULL
 	,@ErrMessage			VARCHAR(300) = '' OUTPUT
 	,@ErrCode				INT			 = 0  OUTPUT
 AS
@@ -20,6 +21,7 @@ AS
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230214@Louisa: New way to update balance for cashout Basketball [Redmine:#182677]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20250108@Louisa: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
 
 	Param's Explanation:  
 		   
@@ -248,6 +250,7 @@ BEGIN
 			,@TransInfoJson = @TransInfoJson
 			,@SettlementAction = @Mode
 			,@TicketType = 's'
+			,@BroadcastSessionId = @BroadcastSessionId
 	END
 			
 	IF @IsCalculateBalance = 1 AND (@IsSiteDB = 1 OR @IsCentral = 1) ---except cashout soccer
@@ -279,6 +282,7 @@ BEGIN
 								+ ',MatchId = ' + CAST(@MatchId AS VARCHAR)
 								+ ',@ActionID = ' + CAST(@ActionID AS VARCHAR)
 								+ ',@IsCalculateBalance = ' + CAST(@IsCalculateBalance AS VARCHAR)
+								+ CASE WHEN @BroadcastSessionId IS NOT NULL THEN ',@BroadcastSessionId = ''' + @BroadcastSessionId + '''' ELSE '' END
 	
 		exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL
 			, @MessageType			= NULL

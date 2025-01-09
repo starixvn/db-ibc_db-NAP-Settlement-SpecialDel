@@ -62,6 +62,7 @@ AS
 		- 20240409@Aries: Enhance Refund Game Winner matches for Tennis [Redmine: #203638]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241206@Kathy: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -180,7 +181,7 @@ BEGIN
 			,@sqlCommand
 			,@BroadcastSessionId
 
-		IF @sportType = 50 
+		IF @sportType IN (2,43,50) 
 		BEGIN
 			UPDATE SettlementResultHistory  WITH(UPDLOCK, ROWLOCK)
 			SET  StatusID = 100
