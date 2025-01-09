@@ -568,6 +568,8 @@ BEGIN
 				,GroupName
 				,LiveIndicator
 				,SettledType
+				,FilterBetIdX
+				,FilterBetIdY
 			)
 		SELECT  DISTINCT b.transid
 				,b.Subtransid 
@@ -586,6 +588,8 @@ BEGIN
 				,CASE WHEN b.sporttype = 1 THEN 'PH' ELSE 'HDP' END AS GroupName
 				,b.liveindicator
 				,b.SettledType
+				,b.FilterBetIdX
+				,b.FilterBetIdY
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
 				OUTER APPLY (
