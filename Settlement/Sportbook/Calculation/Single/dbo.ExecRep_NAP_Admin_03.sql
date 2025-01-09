@@ -93,6 +93,9 @@ BEGIN
 			,SettlementTime DATETIME
 			,bef_winlost MONEY
 			,bef_statusid TINYINT
+			,bettype SMALLINT
+			,betid BIGINT
+			,refno BIGINT
 	)
 
 	---parse XML
@@ -205,12 +208,18 @@ BEGIN
 					,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END				
 					,deleted.winlost
 					,deleted.statusid		
+					,deleted.bettype
+					,deleted.betid
+					,deleted.refno
 			INTO @tmpTransInfo (
 				CustId, Balance		
 				,transId
 				,statuswinlost,WinLost,aWinLost
 				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,SettlementTime,FcUpdateTime				
 				,bef_winlost, bef_statusid
+				,bettype
+				,betid
+				,refno
 			)
 	FROM	dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN @tempTrans t
@@ -237,6 +246,9 @@ BEGIN
 					,SettlementTime AS 'st'
 					,bef_winlost AS 'bef_w' 
 					,bef_statusid AS 'bef_sid' 
+					,bettype AS 'bt'
+					,betid AS 'bi' 
+					,refno  AS 'rf' 
 					
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
