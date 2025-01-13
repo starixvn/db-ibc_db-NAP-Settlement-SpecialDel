@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_MatchSelDetail]
 	@MatchId INT
 AS
@@ -16,6 +16,7 @@ AS
 		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 		- 20220706@Louisa: Fix cannot get resultdetail Badminton [Redmine:#171261]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
+		- 20250113@Hughie: Apply SOP for Soccer [Redmine:#216004]
 
 	Parameters Explanation:    
 	
@@ -33,7 +34,7 @@ BEGIN
 		, AutoSetting TINYINT, MainType TINYINT, ChildMatchType TINYINT 
 	)
 	
-	DECLARE  @tmpResult_Info TABLE (matchid INT, ResourceId VARCHAR(20), HomeValue VARCHAR(20), AwayValue VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT )
+	DECLARE  @tmpResult_Info TABLE (matchid INT, ResourceId VARCHAR(20), HomeValue VARCHAR(20), AwayValue VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT, ResultSetting TINYINT)
 
 	--get match info
 	INSERT INTO @tmpMatch_Info ( matchid, ParentId, sporttype, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting, MainType, ChildMatchType)
@@ -58,8 +59,8 @@ BEGIN
 		WHERE m.matchid =  @ParentId
 		OR (m.ParentID IS NOT NULL AND m.ParentID = @ParentId AND ISNULL(m.ChildMatchType,0) = 204)
 
-		INSERT INTO @tmpResult_Info (matchid, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId  )
-		SELECT r.matchid, r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusId, r.SettlementStatusID
+		INSERT INTO @tmpResult_Info (matchid, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting  )
+		SELECT r.matchid, r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusId, r.SettlementStatusID, r.ResultSetting
 		FROM dbo.ResultDetail r WITH(NOLOCK)
 			INNER JOIN @tmpMatch_Info m ON m.matchid = r.MatchId
 		WHERE m.matchid <> @MatchId
@@ -70,7 +71,7 @@ BEGIN
 	FROM @tmpMatch_Info
 	WHERE matchid = @MatchId
 
-	SELECT r.MatchId, m.ChildMatchType, r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusID, r.SettlementStatusId
+	SELECT r.MatchId, m.ChildMatchType, r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusID, r.SettlementStatusId, r.ResultSetting
 	FROM @tmpMatch_Info m
 		INNER JOIN @tmpResult_Info r 
 			ON m.matchid = r.matchid

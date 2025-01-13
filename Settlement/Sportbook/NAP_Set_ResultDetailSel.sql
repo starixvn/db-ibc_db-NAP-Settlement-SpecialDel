@@ -19,6 +19,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
+		- 20250113@Hughie: Apply SOP for Soccer [Redmine:#216004]
 		
 	Param's explanation:
 		
@@ -37,6 +38,7 @@ BEGIN
 		,ResultStatusID TINYINT
 		,SettlementStatusID TINYINT
 		,OtherInfo	VARCHAR(50)
+		,ResultSetting TINYINT
 	)
 
 	DECLARE @tmpExternalResult TABLE 
@@ -149,7 +151,7 @@ BEGIN
 
 	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.ResultTable = 1 )
 	BEGIN
-		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
+		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID, ResultSetting )
     		SELECT    rs.MatchId
 					, 0
 					, rs.ResourceId
@@ -157,6 +159,7 @@ BEGIN
 					, rs.AwayValue
 					, rs.ResultStatusID
 					, rs.SettlementStatusID
+					, rs.ResultSetting
 			FROM    dbo.[ResultDetail] rs WITH (NOLOCK)
 				INNER JOIN #tblMatchID m 
 					ON rs.MatchId = m.MatchId  
@@ -221,6 +224,7 @@ BEGIN
 		,ResultStatusID
 		,SettlementStatusID
 		,OtherInfo
+		,ResultSetting
 	FROM @tmpResultDetail ORDER BY MatchID, SourceId, ResourceId
 
 END
