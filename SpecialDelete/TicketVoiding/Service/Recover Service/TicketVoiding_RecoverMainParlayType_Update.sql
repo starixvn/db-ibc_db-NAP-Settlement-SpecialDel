@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RecoverMainParlayType_Update] 
 (
 	@RequestId			INT
@@ -7,23 +7,22 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RecoverMainParlayType_Update]
 	,@TransIds			VARCHAR(MAX)
 	,@UserId			INT
 	,@IP				VARCHAR(50)		= ''
-	,@IssueTypeId		TINYINT = 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
-	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
 	,@ResettledTransIds   VARCHAR(MAX)	= NULL	OUTPUT
 )
 AS
 /*	
 	Created by:20231227@Max
 	Task: [TVS] Recover Ticket issue type [Redmine: #196020]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20231227@Max: Create new SP [Redmine: #196020]
 		- 20240304@Max: Set LogActionId [Redmine: #196020]
+		- 20241218@July: Modify ErrCode [Redmine: #213398]
 
 	Param's explanation:
 		
@@ -149,7 +148,7 @@ BEGIN
 		SET @totalMainParlay = @@ROWCOUNT
 		IF @totalMainParlay = 0
 		BEGIN		  			
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'						
+			SELECT @ErrCode = 100, @ErrMsg = 'No ticket found.'						
 			
 			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 			RETURN
@@ -200,7 +199,7 @@ BEGIN
 					@IsExistParlay = 1			
 				  , @IsReleased	= 1	
 
-			SELECT @ErrCode = 112, @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+			SELECT @ErrCode = 99, @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
 			
 			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 			RETURN		  		

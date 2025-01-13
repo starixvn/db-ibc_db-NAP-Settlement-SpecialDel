@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Archive_Select]
 	,@MatchId			INT				= NULL
 	,@IsExcludeTest		BIT				= 1
 	,@Status			INT				= 0
-	,@ProductIds		VARCHAR(MAX)	= NULL
+	,@ProductTypeIds	VARCHAR(MAX)	= NULL
 	,@IssueTypeId		VARCHAR(MAX)	= NULL
 	,@SubIssueType		VARCHAR(MAX)	= NULL
 	,@RequestId			INT				= NULL
@@ -59,6 +59,7 @@ AS
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20241206@July: [TVS] Add new filter [Redmine: #214113]
+		- 20241218@July: Show manage request 'Completed' for case No insert Service & VoidingHistory status done [Redmine: #213398]
 
 	Param's explanation:	
 		@Status: 
@@ -137,13 +138,14 @@ BEGIN
 	SELECT	value AS SubIssueTypeId
 	FROM STRING_SPLIT(@SubIssueType, ',')
 
-	SELECT  @IsBasketball = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
-	      , @IsCricket = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
-	      , @IsEsports = CASE WHEN CHARINDEX('3',@ProductIds) > 0 THEN 1 ELSE 0 END
-	      , @IsSoccer = CASE WHEN CHARINDEX('4',@ProductIds) > 0 THEN 1 ELSE 0 END
-	      , @IsOtherSports = CASE WHEN CHARINDEX('5',@ProductIds) > 0 THEN 1 ELSE 0 END
-	      , @IsOtherProducts = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
-		  , @IsMainParlay = CASE WHEN CHARINDEX('7',@ProductIds) > 0 THEN 1 ELSE 0 END
+	SET @ProductTypeIds = ',' + @ProductTypeIds + ','
+	SELECT  @IsBasketball = CASE WHEN CHARINDEX(',1,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+	      , @IsCricket = CASE WHEN CHARINDEX(',2,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+	      , @IsEsports = CASE WHEN CHARINDEX(',3,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+	      , @IsSoccer = CASE WHEN CHARINDEX(',4,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+	      , @IsOtherSports = CASE WHEN CHARINDEX(',5,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+	      , @IsOtherProducts = CASE WHEN CHARINDEX(',6,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
+		  , @IsMainParlay = CASE WHEN CHARINDEX(',7,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
 
 	INSERT INTO @tmpSporttype (Sporttype)
 	SELECT DISTINCT SportType 
@@ -512,7 +514,7 @@ BEGIN
 			,t.IssueTypeId
 			,CASE WHEN vh.statusID IS NULL AND s.statusID IS NULL THEN ''
 				  ELSE CASE WHEN vh.statusID = 3 OR s.statusID = 3 THEN 'Failed'
-							WHEN vh.statusID = 2 AND s.statusID = 2 THEN 'Completed'
+							WHEN vh.statusID = 2 AND (s.statusID = 2 OR s.statusID IS NULL) THEN 'Completed'
 							ELSE 'Running' END
 				  END AS Status
 			,t.FilterBy
@@ -585,7 +587,7 @@ BEGIN
 				--New
 				WHEN @Status = 0 AND vh.statusID IS NULL AND s.statusID IS NULL THEN 1 
 				--Completed
-				WHEN @Status = 2 AND vh.statusID = 2 AND s.statusID = 2 THEN 1 
+				WHEN @Status = 2 AND vh.statusID = 2 AND (s.statusID = 2 OR s.statusID IS NULL) THEN 1 
 				--Failed
 				WHEN @Status = 3 AND (vh.statusID = 3 OR s.statusID = 3) THEN 1 
 				--Running

@@ -33,6 +33,7 @@ AS
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
 
 	Param's explanation:
 		
@@ -62,7 +63,7 @@ BEGIN
 			,vh.VoidingHistoryId
 			,vh.UserId
 			,@MatchId
-			,@RequestDetailId
+			,ISNULL(@RequestDetailId,0) AS RequestDetailId
 			,vh.TransIds
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH (NOLOCK) ON rd.RequestId = vh.RequestId	
@@ -74,9 +75,9 @@ BEGIN
 		AND 1 = CASE WHEN @IssueTypeId = 11 AND @MatchId = 0 THEN 1
 					 WHEN rd.MatchId = @MatchId THEN 1
 				ELSE 0 END
-		AND (rd.Id = @RequestDetailId OR @RequestDetailId IS NULL)
+		AND (rd.Id = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
 
-	IF @IssuetypeId = 12 AND @RequestDetailId IS NOT NULL --Wrong Market Offered issuetype
+	IF @IssuetypeId = 12 AND ISNULL(@RequestDetailId,0) <> 0 --Wrong Market Offered issuetype
 	BEGIN
 		DECLARE @tmpTicketInfo TABLE (
 			RequestId		INT

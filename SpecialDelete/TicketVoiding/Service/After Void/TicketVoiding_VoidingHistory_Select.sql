@@ -11,6 +11,7 @@ AS
 		- 20230103@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20241223@July: [TVS] Support case after void steps are completed, except send email/Letstalk failed & user manually  [Redmine: #213398]
 
 	Param's explanation:	
 	
@@ -21,6 +22,8 @@ BEGIN
 	DECLARE  @xmlVoidData		XML
 			,@VoidingHistoryId  INT
 			,@SingleTransIds	VARCHAR(MAX) = NULL
+			,@BroadcastSessionId VARCHAR(100)
+			,@IssueTypeId		TINYINT
 
 	CREATE TABLE #tmpVoidingHistory(
 		VoidingHistoryId INT
@@ -56,6 +59,7 @@ BEGIN
 		,IsHasSettledTicket BIT
 		,TotalTicket INT --totalTicket
 		,IsRunAutoAfterVoid BIT
+		,BroadcastSessionId VARCHAR(100)
 	)
 
 	INSERT INTO #tmpVoidingHistory (VoidingHistoryId, VoidData, BroadcastSessionId, RequestId)
@@ -73,10 +77,12 @@ BEGIN
 		INNER JOIN #tmpVoidingHistory t ON t.RequestId = vh.RequestId AND t.BroadcastSessionId = vh.BroadcastSessionId
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tmpVoidingHistory t WHERE t.VoidingHistoryId = vh.VoidingHistoryId)
 
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpVoidingHistory vh
-							  INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON vh.RequestId = r.RequestId
-							  WHERE r.IssueTypeId = 22 --Recover Ticket
-			)
+	SET @IssueTypeId = (SELECT TOP 1 r.IssueTypeId
+						FROM TicketVoiding_Request r WITH(NOLOCK)
+							INNER JOIN #tmpVoidingHistory vh ON vh.RequestId = r.RequestId
+					   )
+			
+	IF @IssueTypeId = 22 --Recover Ticket
 	BEGIN
 		SET @SingleTransIds =  STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
 									  FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
@@ -91,12 +97,13 @@ BEGIN
 		SET IsFinish = 1
 			,@xmlVoidData = t.VoidData
 			,@VoidingHistoryId = t.VoidingHistoryId
+			,@BroadcastSessionId = t.BroadcastSessionId
 		FROM #tmpVoidingHistory t
 		WHERE t.IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
 
-		INSERT INTO #tmpVoidData ( VoidingHistoryId, IssueTypeId, SubIssueTypeId, SubIssueTypeName, SubIssueTypeNameCS
+		INSERT INTO #tmpVoidData ( VoidingHistoryId, BroadcastSessionId, IssueTypeId, SubIssueTypeId, SubIssueTypeName, SubIssueTypeNameCS
 								, Reason, ReasonSC, ContentChineseTraditional, ContentChineseSimplified, ContentNewChineseSimplified
 								, ContentEnglish, ContentSpanish, ContentItalian, ContentJapanese, ContentKorean
 								, ContentThai, CreatorId, CreatorName, DecidedBy, VoidFromTime
@@ -104,7 +111,8 @@ BEGIN
 						)
 		SELECT 
 			 @VoidingHistoryId AS VoidingHistoryId
-			,T.C.value('@IssueTypeId', 'INT') AS IssueTypeId
+			,@BroadcastSessionId AS BroadcastSessionId
+			,@IssueTypeId AS IssueTypeId
 			,T.C.value('@SubIssueTypeId', 'INT') AS SubIssueTypeId
 			,T.C.value('@SubIssueTypeName', 'VARCHAR(500)') AS SubIssueTypeName
 			,T.C.value('@SubIssueTypeNameCS', 'NVARCHAR(256)') AS SubIssueTypeNameCS
@@ -136,6 +144,7 @@ BEGIN
 	/*****************Return table **************************/
 	SELECT 
 		 VoidingHistoryId 
+		,BroadcastSessionId --Support insert Service & insert Letstalk status = 1
 		,IssueTypeId 
 		,SubIssueTypeId
 		,SubIssueTypeName

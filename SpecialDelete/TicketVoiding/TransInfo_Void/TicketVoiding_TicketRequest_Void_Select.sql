@@ -14,6 +14,7 @@ AS
 		- 20221124@Max: Create new SP [Redmine: #180863]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
 
 	Param's explanation:	
 		- @TransIds: '12343091763609600,12343108943478784'
@@ -26,18 +27,18 @@ BEGIN
 	SELECT s.TransId, s.MatchId, s.SiteDBGroupID
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId AND ISNULL(IsCancelCO,0) = 0
-			AND (s.RequestDetailId = @RequestDetailId OR @RequestDetailId IS NULL)
+			AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
 
 	--Parlay ticket 
 	SELECT s.TransId, s.MatchId, s.SiteDBGroupID
 	FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId
-			AND (s.RequestDetailId = @RequestDetailId OR @RequestDetailId IS NULL)
+			AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
 
 	--Cancel CO ticket
 	SELECT s.TransId, s.MatchId, s.SiteDBGroupID
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId AND IsCancelCO = 1
-			AND (s.RequestDetailId = @RequestDetailId OR @RequestDetailId IS NULL)
+			AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
 END
 

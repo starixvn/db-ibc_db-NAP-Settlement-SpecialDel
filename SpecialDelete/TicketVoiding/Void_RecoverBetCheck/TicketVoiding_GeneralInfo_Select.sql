@@ -28,6 +28,7 @@ AS
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241015@Max: [TVS] Void/Recover Bet Check -Missing some licensee customer in the negative balance list [Redmine: #212190]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
 
 	Param's explanation:
 		
@@ -131,7 +132,7 @@ BEGIN
 					) m
 	WHERE rd.RequestId = @RequestId 
 		AND (rd.MatchId IN (SELECT MatchId FROM @tmp_MatchId) OR @MatchIds = '')
-		AND (rd.Id = @RequestDetailId OR @RequestDetailId IS NULL)
+		AND (rd.Id = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
 
 	SELECT @IssueTypeId = (SELECT TOP 1 IssueTypeId FROM #tmpMatch)
 
@@ -188,7 +189,7 @@ BEGIN
 
 		--Remove voidinghistory not follow RequestDetailId input
 		 DELETE FROM #tmpVoidingHistory 
-		 WHERE 1 = CASE WHEN RequestDetailId <> @RequestDetailId THEN 1
+		 WHERE 1 = CASE WHEN RequestDetailId <> ISNULL(@RequestDetailId,0) THEN 1
 					    WHEN RequestDetailId IS NULL THEN 1 
 						ELSE 0 END
 	END
