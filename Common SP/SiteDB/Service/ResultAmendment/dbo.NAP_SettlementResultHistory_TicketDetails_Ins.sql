@@ -42,7 +42,7 @@ BEGIN
 	WHERE l.BroadcastSessionId  = @SessionId
 		AND (t.bef_w != t.w OR (l.TicketType = 'p' AND l.matchid != 29))
 		AND t.bef_sid != 0
-		AND t.statusid != 0
+		AND t.sid != 0
 	UNION ALL
 	SELECT t.t AS TransId
 		  ,IIF(l.matchid = 29,'m',l.TicketType)
@@ -58,7 +58,7 @@ BEGIN
 	WHERE l.BroadcastSessionId  = @BroadcastSessionIdInstant
 		AND (t.bef_w != t.w OR (l.TicketType = 'p' AND l.matchid != 29))
 		AND t.bef_sid != 0
-		AND t.statusid != 0
+		AND t.sid != 0
 	;WITH CTE_ResourceID AS (
 		SELECT  CAST(h.[ActualResult] AS XML)  AS ActualResult
 			   ,SeqNo
