@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_NAP_Currency_MaxPayoutSetting] (
 )
 RETURNS TABLE
@@ -10,6 +10,7 @@ AS
 	
 	Revisions:
 		- 20230830@Kathy: Set Max Payout for Non-sports Products [Redmine:#193259]
+		- 20250110@Hughie: Adjust Company Max Payout for for DDD, IND, IDD, IDR [Redmine:#216692]
 		
 */
 RETURN (
@@ -31,13 +32,13 @@ RETURN (
 		(3,64,50000),
 		(3,35,50000),
 		(3,16,50000),
-		(3,47,500000),
+		(3,47,720000),
 		(3,43,2000000),
 		(3,67,200000),
 		(3,69,100000),
-		(3,22,500000),
-		(3,33,500000),
-		(3,34,500000),
+		(3,22,720000),
+		(3,33,720000),
+		(3,34,720000),
 		--(3,10,4000000),
 		--(3,11,40000)	
 		(3,14,2500000)
