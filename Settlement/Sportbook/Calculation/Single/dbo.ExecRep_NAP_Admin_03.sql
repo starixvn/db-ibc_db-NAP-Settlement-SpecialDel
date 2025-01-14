@@ -5,9 +5,9 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_03]
 	,@MatchId	INT = 0
 	,@ActionID				INT = NULL
 	,@IsCalculateBalance	BIT = 0
-	,@BroadcastSessionId	VARCHAR(50)		= NULL
 	,@ErrMessage			VARCHAR(300) = '' OUTPUT
 	,@ErrCode				INT			 = 0  OUTPUT
+	,@BroadcastSessionId	VARCHAR(50)		= NULL
 AS
 /*
 	Created: 20211130@Kathy.Nguyen	

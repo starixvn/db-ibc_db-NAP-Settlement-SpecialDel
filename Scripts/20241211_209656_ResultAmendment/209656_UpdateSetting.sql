@@ -10,7 +10,7 @@ GO
 
 UPDATE SettlementSpecialBettypeProfile
 SET APSetting = JSON_MODIFY(ISNULL(APSetting,'{}'), '$.refResourceIds', 'Q1,Q2,01')
-WHERE SportType = 2 AND bettype IN (633)
+WHERE SportType = 2 AND bettype IN (8,403,404,633)
 
 UPDATE SettlementSpecialBettypeProfile
 SET APSetting = JSON_MODIFY(ISNULL(APSetting,'{}'), '$.refResourceIds', 'Q3,Q4,00')
@@ -18,20 +18,12 @@ WHERE SportType = 2 AND bettype IN (634)
 
 UPDATE SettlementSpecialBettypeProfile
 SET APSetting = JSON_MODIFY(ISNULL(APSetting,'{}'), '$.refResourceIds', 'Q1,Q2,Q3,Q4,00')
-WHERE SportType = 2 AND bettype IN (603,632,635,636,637,638, 639,640,641,642,643,644)
+WHERE SportType = 2 AND bettype IN (3,401,402,603,632,635,636,637,638, 639,640,641,642,643,644)
 
 UPDATE SettlementSpecialBettypeProfile
 SET APSetting = JSON_MODIFY(ISNULL(APSetting,'{}'), '$.refResourceIds', 'Q1,Q2,01,Q3,Q4,00')
-WHERE SportType = 2 AND bettype IN (645)
+WHERE SportType = 2 AND bettype IN (645,646)
 
 UPDATE SettlementSpecialBettypeProfile
 SET APSetting = JSON_MODIFY(ISNULL(APSetting,'{}'), '$.refResourceIds', 'Q3,Q4,00')
 WHERE SportType = 2 AND bettype IN (624,625,626,649)
-
-UPDATE SettlementSpecialBettypeProfile
-SET APSetting = JSON_MODIFY(ISNULL(APSetting,'{}'), '$.refResourceIds', '01')
-WHERE SportType = 2 AND bettype IN (648)
-
-UPDATE SettlementSpecialBettypeProfile
-SET APSetting = JSON_MODIFY(ISNULL(APSetting,'{}'), '$.refResourceIds', '00')
-WHERE SportType = 2 AND bettype IN (647)

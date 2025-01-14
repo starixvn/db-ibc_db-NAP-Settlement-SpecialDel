@@ -31,7 +31,7 @@ BEGIN
 	SELECT t.t AS TransId
 		  ,IIF(l.matchid = 29,'m',l.TicketType)
 		  ,t.bt AS bettype
-		  ,IIF(l.TicketType = 'p',TRY_CAST(t.bc AS FLOAT),t.bi) AS betid
+		  ,IIF(l.TicketType = 'p',TRY_CAST(t.bc AS BIGINT),t.bi) AS betid
 		  ,t.rf AS refno
 		  ,t.w AS winlost
 		  ,t.bef_w AS bef_winlost
@@ -47,7 +47,7 @@ BEGIN
 	SELECT t.t AS TransId
 		  ,IIF(l.matchid = 29,'m',l.TicketType)
 		  ,t.bt AS bettype
-		  ,IIF(l.TicketType = 'p',TRY_CAST(t.bc AS FLOAT),t.bi)  AS betid
+		  ,IIF(l.TicketType = 'p',TRY_CAST(t.bc AS BIGINT),t.bi)  AS betid
 		  ,t.rf AS refno
 		  ,t.w AS winlost
 		  ,t.bef_w AS bef_winlost
@@ -89,7 +89,7 @@ BEGIN
 		INSERT INTO SettlementResultHistory_TicketDetails(SessionID,Transid,SeqNo,ExtraInfo_Before,ExtraInfo_After)
 		SELECT  @SessionId
 			   ,t.transId
-			   ,r.SeqNo
+			   ,ISNULL(mr.SeqNo,r.SeqNo) AS SeqNo
 			   ,CONCAT('<root><r status="',	 CASE WHEN bef_statusid = 1	  THEN 'WAITING' 
 											 	  WHEN bef_statusid = 0	  THEN 'RUNNING' 
 											 	  WHEN bef_statusid = 101 THEN 'REJECT' 
@@ -118,11 +118,17 @@ BEGIN
 						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
 			INNER JOIN SettlementSpecialBettypeProfile AS s WITH(NOLOCK) ON s.bettype = t.bettype AND  (s.BetID = 0 OR t.BetID = s.BetID)AND s.SportType = @sportType
+			OUTER APPLY (
+                SELECT TOP 1 mre.SeqNo
+                FROM  @Resource AS mre
+                WHERE mre.ResourceID = ISNULL(s.RefResourceId,s.ResourceID)
+            ) AS  mr
 			CROSS APPLY(
-				SELECT STRING_AGG(re.ResourceID,',') AS ResourceID, MIN(SeqNo) AS SeqNo
+				SELECT STRING_AGG(re.ResourceID,',') AS ResourceID, MIN(re.SeqNo) AS SeqNo
 				FROM @Resource AS re
-				WHERE CHARINDEX(','+re.ResourceID+',',','+ ISNULL(JSON_VALUE(s.APSetting,'$."refResourceIds"'),s.ResourceID) + ',') > 0
-			) AS r
+				WHERE CHARINDEX(','+re.ResourceID+',',','+ ISNULL(JSON_VALUE(s.APSetting,'$."refResourceIds"'),ISNULL(s.RefResourceId,s.ResourceID)) + ',') > 0
+					AND 1 = IIF(mr.SeqNo IS NOT NULL  AND re.SeqNo != mr.SeqNo,0,1)
+			) AS r					
 		WHERE t.TicketType = 's'
 			AND r.SeqNo IS NOT NULL
 			AND NOT EXISTS (SELECT TOP 1 1 
@@ -161,12 +167,18 @@ BEGIN
 						,'" Id="',ISNULL(tbl.ResourceID,'')
 						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
-			CROSS APPLY(SELECT TOP 1 r.SeqNo, r.ResourceID 
+			CROSS APPLY(SELECT TOP 1 ISNULL(mr.SeqNo,r.SeqNo) AS SeqNo, r.ResourceID 
 			            FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK) 
+							OUTER APPLY (
+								SELECT TOP 1 mre.SeqNo
+								FROM  @Resource AS mre
+								WHERE mre.ResourceID = ISNULL(s.RefResourceId,s.ResourceID)
+							) AS  mr
 							CROSS APPLY(SELECT STRING_AGG(re.ResourceID,',') AS ResourceID, MIN(re.SeqNo) AS SeqNo
 										FROM @Resource AS re
-										WHERE CHARINDEX(','+re.ResourceID+',',','+ ISNULL(JSON_VALUE(s.APSetting,'$."refResourceIds"'),s.ResourceID) + ',') > 0
-										) AS r
+										WHERE CHARINDEX(','+re.ResourceID+',',','+ ISNULL(JSON_VALUE(s.APSetting,'$."refResourceIds"'),ISNULL(s.RefResourceId,s.ResourceID)) + ',') > 0
+											AND 1 = IIF(mr.SeqNo IS NOT NULL  AND re.SeqNo != mr.SeqNo,0,1)
+										) AS r						
 						WHERE s.bettype = t.bettype AND (s.BetID = 0 OR  s.BetID = t.BetID) 
 							AND s.SportType = @sportType
 			) AS tbl
