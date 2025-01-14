@@ -370,8 +370,8 @@ BEGIN
 		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,s_checkt ,s_tdes ,s_sid ,sre
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
-		,wt ,refc, CASE WHEN isP = 0 THEN LEFT(bid,3) ELSE LEFT(bcheck,3) END AS FilterBetIdX
-		,CASE WHEN isP = 0 THEN RIGHT(bid, 2) ELSE RIGHT(bcheck, 2) END AS FilterBetIdY
+		,wt ,refc, CASE WHEN isP = 0 THEN LEFT(bid,3) ELSE LEFT(s_bcheck,3) END AS FilterBetIdX
+		,CASE WHEN isP = 0 THEN RIGHT(bid, 2) ELSE RIGHT(s_bcheck, 2) END AS FilterBetIdY
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
