@@ -4,7 +4,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_1stOU_Select]
 	@RequestId			  INT = 0
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
-	,@IssueTypeId		  INT = 6
+	,@IssueTypeId		  INT = 7
 	,@WrongOUInfo		  VARCHAR(MAX) = NULL
 	,@TransInfoJson		  VARCHAR(MAX) = NULL
 )

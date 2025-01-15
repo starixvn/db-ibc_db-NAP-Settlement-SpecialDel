@@ -4,7 +4,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_1stHDP_Select]
 	 @RequestId			  INT = 0
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
-	,@IssueTypeId		  INT = 4
+	,@IssueTypeId		  INT = 5
 	,@WrongHDPInfo		  VARCHAR(MAX) = NULL
 	,@TransInfoJson		  VARCHAR(MAX) = NULL
 )
