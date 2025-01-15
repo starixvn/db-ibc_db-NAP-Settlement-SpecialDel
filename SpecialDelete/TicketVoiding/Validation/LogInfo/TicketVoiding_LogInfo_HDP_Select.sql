@@ -198,8 +198,6 @@ BEGIN
 	  ,WalletType TINYINT
 	  ,RefCode BIGINT
 	  ,SettledType TINYINT -- 1: Instant Settlement, 2: Normal Settlement
-	  ,FilterBetIdX NVARCHAR(50)
-	  ,FilterBetIdY NVARCHAR(50)
 	)
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 	DECLARE @Validation AS TABLE (
@@ -368,8 +366,6 @@ BEGIN
 	       ,SiteDBGroupID 
 		   ,WalletType 
 	       ,RefCode 
-		   ,FilterBetIdX
-		   ,FilterBetIdY
 	)
 	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,checkt ,bid
@@ -377,8 +373,7 @@ BEGIN
 		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,s_checkt ,s_tdes ,s_sid ,sre
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
-		,wt ,refc, CASE WHEN isP = 0 THEN LEFT(bid,3) ELSE LEFT(s_bcheck,3) END AS FilterBetIdX
-		,CASE WHEN isP = 0 THEN RIGHT(bid, 2) ELSE RIGHT(s_bcheck, 2) END AS FilterBetIdY
+		,wt ,refc
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -493,8 +488,8 @@ BEGIN
 			END AS GroupName
 			,b.liveindicator
 			,b.SettledType
-			,b.FilterBetIdX
-			,b.FilterBetIdY
+			,CASE WHEN b.IsMixParlay = 0 THEN b.betid ELSE b.Subbetcheck END AS FilterBetIdX
+			,CASE WHEN b.IsMixParlay = 0 THEN RIGHT(b.betid,2) ELSE RIGHT(b.Subbetcheck,2) END AS FilterBetIdY
 	FROM	#tmpTransInfo b 
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		OUTER APPLY (
@@ -588,8 +583,8 @@ BEGIN
 				,CASE WHEN b.sporttype = 1 THEN 'PH' ELSE 'HDP' END AS GroupName
 				,b.liveindicator
 				,b.SettledType
-				,b.FilterBetIdX
-				,b.FilterBetIdY
+				,CASE WHEN b.IsMixParlay = 0 THEN b.betid ELSE b.Subbetcheck END AS FilterBetIdX
+				,CASE WHEN b.IsMixParlay = 0 THEN RIGHT(b.betid,2) ELSE RIGHT(b.Subbetcheck,2) END AS FilterBetIdY
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
 				OUTER APPLY (
@@ -649,9 +644,9 @@ BEGIN
 	/* Remove invalid data */
 	DELETE tb
 	FROM #TVSTicketBets AS tb
-	INNER JOIN #FilterInfo AS f ON f.MatchId = tb.matchid
+	INNER JOIN #FilterInfo AS f ON f.MatchId = tb.matchid AND tb.Subbettype = f.FilterBetTypeId
 	WHERE 1 = CASE WHEN 
-					(f.FilterBetIdX = '' OR tb.FilterBetIdX = f.FilterBetIdX OR (f.FilterBetIdX LIKE '>%' AND tb.FilterBetIdX > RIGHT(f.FilterBetIdX,2)))
+					(f.FilterBetIdX = '' OR tb.FilterBetIdX LIKE f.FilterBetIdX + '%')
 					AND (f.FilterBetIdY = '' OR tb.FilterBetIdY = f.FilterBetIdY OR (f.FilterBetIdY LIKE '>%' AND tb.FilterBetIdY > RIGHT(f.FilterBetIdY,2))) THEN 0
 					ELSE 1
 				END

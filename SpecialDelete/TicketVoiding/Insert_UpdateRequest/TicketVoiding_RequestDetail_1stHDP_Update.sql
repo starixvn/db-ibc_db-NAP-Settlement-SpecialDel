@@ -112,11 +112,11 @@ BEGIN
 					 + ';PoolHouseSingleCount:' + CAST(t.c.value('@PoolHouseSingleCount','INT') AS VARCHAR(50))
 					 + ';PoolHouseMainParlayCount:' + CAST(t.c.value('@PoolHouseMainParlayCount','INT') AS VARCHAR(50)) AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8,9) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' 
+			,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (9) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' 
 					THEN '<r HomeFavorite="' + REPLACE(t.c.value('@HomeFavorite','VARCHAR(50)') , '&', '&amp;') + '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
-				  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8,9) AND ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') <> '' 
+				  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (9) AND ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') <> '' 
 					THEN '<r AwayFavorite="' + REPLACE(t.c.value('@AwayFavorite','VARCHAR(50)') , '&', '&amp;') + '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
-				  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (22,23,24,25) AND ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') <> '' 
+				  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (24,25) AND ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') <> '' 
 					THEN '<r HdpValue="' + REPLACE(t.c.value('@HdpValue','VARCHAR(50)') , '&', '&amp;') 
 				  ELSE '' END 
 				    + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') 
@@ -235,8 +235,7 @@ BEGIN
 							+ ', FilterFromTransTime: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) +  ', FilterToTransTime: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
 							+ ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidToTime: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
-							+ CASE WHEN @IssueTypeId = 4 THEN ', WrongHDP: ' + l.WrongHDP
-								   WHEN @IssueTypeId = 5 THEN ', Wrong 1st HDP: ' + l.WrongHDP ELSE '' END
+							+ CASE WHEN @IssueTypeId = 5 THEN ', Wrong 1st HDP: ' + l.WrongHDP ELSE '' END
 							FROM #tblGetLogInfo l
 
 	-- Write Log
