@@ -480,8 +480,8 @@ BEGIN
 			END AS GroupName
 			,b.liveindicator
 			,b.SettledType
-			,CASE WHEN b.IsMixParlay = 0 THEN b.betid ELSE b.Subbetcheck END AS FilterBetIdX
-			,CASE WHEN b.IsMixParlay = 0 THEN RIGHT(b.betid,2) ELSE RIGHT(b.Subbetcheck,2) END AS FilterBetIdY
+			,b.betid AS FilterBetIdX
+			,RIGHT(b.betid,2) AS FilterBetIdY
 	FROM #tmpTransInfo b 
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		CROSS APPLY (
@@ -542,8 +542,8 @@ BEGIN
 				,CASE WHEN b.sporttype = 1 THEN 'PH' ELSE 'OU' END AS GroupName
 				,b.liveindicator
 				,b.SettledType
-				,CASE WHEN b.IsMixParlay = 0 THEN b.betid ELSE b.Subbetcheck END AS FilterBetIdX
-				,CASE WHEN b.IsMixParlay = 0 THEN RIGHT(b.betid,2) ELSE RIGHT(b.Subbetcheck,2) END AS FilterBetIdY
+				,b.Subbetcheck AS FilterBetIdX
+				,RIGHT(b.Subbetcheck,2) AS FilterBetIdY
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
 				CROSS APPLY (
