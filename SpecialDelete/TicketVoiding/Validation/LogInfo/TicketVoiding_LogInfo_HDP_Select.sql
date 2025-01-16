@@ -777,8 +777,7 @@ BEGIN
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK) 
 		INNER JOIN #FilterInfo AS f ON s.MatchId = f.MatchId
 		WHERE RequestId = @RequestId
-			AND 1 = CASE WHEN IssueTypeId = 4 AND bettype = f.FilterBetTypeId THEN 1
-						 ELSE 0 END
+			AND IssueTypeId = 4 AND bettype = f.FilterBetTypeId 
 		UNION ALL
 		SELECT s.TransId
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) 
