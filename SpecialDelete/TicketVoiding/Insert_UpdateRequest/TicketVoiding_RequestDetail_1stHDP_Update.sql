@@ -235,7 +235,7 @@ BEGIN
 							+ ', FilterFromTransTime: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) +  ', FilterToTransTime: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
 							+ ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidToTime: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
-							+ CASE WHEN @IssueTypeId = 5 THEN ', Wrong 1st HDP: ' + l.WrongHDP ELSE '' END
+							+ ', Wrong 1st HDP: ' + l.WrongHDP
 							FROM #tblGetLogInfo l
 
 	-- Write Log

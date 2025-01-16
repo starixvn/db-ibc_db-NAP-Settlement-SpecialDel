@@ -475,7 +475,7 @@ BEGIN
 			,b.Subbettype
 			,b.SubstatusID
 			,d.SubIssueTypeId
-			,CASE WHEN @IssueTypeId = 6 AND b.bettype = d.FilterBetTypeId THEN 'OU'
+			,CASE WHEN b.bettype = d.FilterBetTypeId THEN 'OU'
 				  WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 THEN 'PH' --1X2
 				  WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 THEN 'PH' --AIO
 			END AS GroupName
@@ -497,7 +497,7 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
-		AND 1 = CASE WHEN @IssueTypeId = 6 AND b.bettype = d.FilterBetTypeId AND b.hdp1 = xHDPou.WrongMarket THEN 1
+		AND 1 = CASE WHEN b.bettype = d.FilterBetTypeId AND b.hdp1 = xHDPou.WrongMarket THEN 1
 					 WHEN b.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1 --Only support soccer
 					 WHEN b.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1 --Only support soccer 
 					 ELSE 0 END
@@ -562,7 +562,7 @@ BEGIN
 				AND 1 = CASE WHEN b.sporttype = 1 AND d.IsMainMatch = 'true' THEN 1
 				             WHEN b.sporttype <> 1 THEN 1 
 							 ELSE 0 END
-				AND 1 = CASE WHEN @IssueTypeId = 6 AND b.Subbettype = d.FilterBetTypeId AND b.Subhdp1 = xHDPou.WrongMarket THEN 1
+				AND 1 = CASE WHEN b.Subbettype = d.FilterBetTypeId AND b.Subhdp1 = xHDPou.WrongMarket THEN 1
 							 WHEN b.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1
 							 WHEN b.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1
 						ELSE 0 END
@@ -620,7 +620,7 @@ BEGIN
 									  FROM #TVSTicketBets AS b
 									  INNER JOIN #FilterInfo AS f ON b.matchid = f.MatchId
 									  WHERE b.matchid = @MainMatchId
-									  AND 1 = CASE WHEN IsMixParlay = 0 AND (@IssueTypeId = 6 AND Subbettype <> f.FilterBetTypeId) THEN 1
+									  AND 1 = CASE WHEN IsMixParlay = 0 AND Subbettype <> f.FilterBetTypeId THEN 1
 												   WHEN IsMixParlay = 1 THEN 1
 												   ELSE 0 END
 									  FOR XML PATH ('')
@@ -821,12 +821,12 @@ BEGIN
 		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CashOutCount, SettleCount, InstantlySettleCount, PoolHouseCashOutCount, PoolHouseSettleCount, PoolHouseInstantlySettleCount)
 		SELECT @RequestId
 				,b.matchid
-				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype = f.FilterBetTypeId AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS CashOutCount
-				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype = f.FilterBetTypeId AND b.SettledType = 2 THEN s.TransId ELSE NULL END) AS SettleCount
-				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype = f.FilterBetTypeId AND b.SettledType = 1 THEN s.TransId ELSE NULL END) AS InstantlySettleCount
-				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype <> f.FilterBetTypeId AND b.betdaqid = -2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseCashOutCount
-				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype <> f.FilterBetTypeId AND b.SettledType = 2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseSettleCount
-				, COUNT(CASE WHEN @IssueTypeId = 6 AND b.bettype <> f.FilterBetTypeId AND b.SettledType = 1 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
+				, COUNT(CASE WHEN b.bettype = f.FilterBetTypeId AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS CashOutCount
+				, COUNT(CASE WHEN b.bettype = f.FilterBetTypeId AND b.SettledType = 2 THEN s.TransId ELSE NULL END) AS SettleCount
+				, COUNT(CASE WHEN b.bettype = f.FilterBetTypeId AND b.SettledType = 1 THEN s.TransId ELSE NULL END) AS InstantlySettleCount
+				, COUNT(CASE WHEN b.bettype <> f.FilterBetTypeId AND b.betdaqid = -2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseCashOutCount
+				, COUNT(CASE WHEN b.bettype <> f.FilterBetTypeId AND b.SettledType = 2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseSettleCount
+				, COUNT(CASE WHEN b.bettype <> f.FilterBetTypeId AND b.SettledType = 1 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN #tmpTransInfo b ON b.transid = s.transid AND b.matchid = s.MatchId AND b.IsMixParlay = 0
 			INNER JOIN #FilterInfo f ON b.matchid = s.MatchId

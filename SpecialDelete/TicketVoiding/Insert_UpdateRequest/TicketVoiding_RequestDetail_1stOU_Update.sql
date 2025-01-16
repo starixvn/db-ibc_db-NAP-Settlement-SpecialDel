@@ -228,7 +228,7 @@ BEGIN
 							+ ', FilterFromTransTime: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) +  ', FilterToTransTime: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
 							+ ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidToTime: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
-							+ CASE WHEN @IssueTypeId = 7 THEN ', Wrong 1st OU: ' + l.WrongOU ELSE '' END
+							+ ', Wrong 1st OU: ' + l.WrongOU
 							FROM #tblGetLogInfo l
 	-- Write Log
 	SET @EndTime = GETDATE()
