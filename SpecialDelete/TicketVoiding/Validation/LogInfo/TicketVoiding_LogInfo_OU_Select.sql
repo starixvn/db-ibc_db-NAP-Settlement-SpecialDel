@@ -4,7 +4,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_OU_Select]
 	@RequestId			  INT = 0
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
-	,@IssueTypeId		  INT = 6
 	,@WrongOUInfo		  VARCHAR(MAX) = NULL
 	,@TransInfoJson		  VARCHAR(MAX) = NULL
 )
@@ -490,7 +489,7 @@ BEGIN
 			FROM STRING_SPLIT(d.WrongMarket, '&')
 			WHERE value <> ''				
 		)xHDPou
-		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType
+		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = 6 AND b.bettype = f.BetType
 	WHERE b.betfrom <> 'P'  
 		AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 		AND b.liveindicator = d.LiveIndicator AND b.IsMixParlay = 0
@@ -552,7 +551,7 @@ BEGIN
 					FROM STRING_SPLIT(d.WrongMarket, '&')
 					WHERE value <> ''				
 				)xHDPou
-				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType
+				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = 6 AND b.Subbettype = f.BetType
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 						WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 						ELSE 0 END

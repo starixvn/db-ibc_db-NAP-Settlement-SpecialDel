@@ -164,7 +164,6 @@ BEGIN
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
-			,@IssueTypeId		   = @IssueTypeId
 			,@WrongHDPInfo		   = @WrongHDPInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
@@ -174,7 +173,6 @@ BEGIN
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
-			,@IssueTypeId		   = @IssueTypeId
 			,@WrongHDPInfo		   = @Wrong1stHDPInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
@@ -182,7 +180,6 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_LogInfo_OU_Select
 			 @RequestId			   = @RequestId
-			,@IssueTypeId		   = @IssueTypeId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@WrongOUInfo		   = @WrongOUInfo
@@ -194,7 +191,6 @@ BEGIN
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
-			,@IssueTypeId		   = @IssueTypeId
 			,@WrongOUInfo		   = @Wrong1stOUInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
