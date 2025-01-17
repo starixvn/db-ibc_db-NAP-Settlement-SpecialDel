@@ -5,7 +5,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_1stOU_Update]
 	,@IssueTypeId			TINYINT		= NULL
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
-	,@WrongOUInfo		    VARCHAR(MAX) = NULL
+	,@Wrong1stOUInfo		    VARCHAR(MAX) = NULL
 	,@TransInfoJson			VARCHAR(MAX) = NULL
 	,@IsEditRequest			INT = 0
 )
@@ -37,7 +37,7 @@ BEGIN
 			,@SB_Error			 BIT = 0
 			,@LogDataContent	 NVARCHAR(MAX)
 
-	DECLARE	@WrongOUInfoXML		 XML = NULL	
+	DECLARE	@Wrong1stOUInfoXML		 XML = NULL	
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -84,7 +84,7 @@ BEGIN
 	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,s_btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
 	) tbl
 
-	SET @WrongOUInfoXML = CONVERT(XML, @WrongOUInfo)
+	SET @Wrong1stOUInfoXML = CONVERT(XML, @Wrong1stOUInfo)
 	INSERT INTO #tblGetLogInfo( 
 			RequestID				
 			,MatchID				
@@ -124,8 +124,8 @@ BEGIN
 							+ '" />'
 						END
 					AS WrongOU
-	FROM @WrongOUInfoXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@WrongOUInfoXML = NULL))
+	FROM @Wrong1stOUInfoXML.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@Wrong1stOUInfoXML = NULL))
 
 	IF @IsEditRequest = 1
 	BEGIN

@@ -4,7 +4,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_1stOU_Select]
 	@RequestId			  INT = 0
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
-	,@WrongOUInfo		  VARCHAR(MAX) = NULL
+	,@Wrong1stOUInfo		  VARCHAR(MAX) = NULL
 	,@TransInfoJson		  VARCHAR(MAX) = NULL
 )
 AS
@@ -44,7 +44,7 @@ BEGIN
 
 	DECLARE @SingleCount			  INT = 0
 			,@MainParlayCount		  INT = 0
-	        ,@WrongOUInfoXML		  XML = NULL
+	        ,@Wrong1stOUInfoXML		  XML = NULL
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) = ''
 			,@OldActionId			  TINYINT
@@ -204,7 +204,7 @@ BEGIN
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
 
-	SET @WrongOUInfoXML = CONVERT(XML, @WrongOUInfo)
+	SET @Wrong1stOUInfoXML = CONVERT(XML, @Wrong1stOUInfo)
 	INSERT INTO #FilterInfo(
 			MatchId
 			,FilterFromTransTime
@@ -227,8 +227,8 @@ BEGIN
 			,t.c.value('@IsLinkGroup1X2','BIT') AS IsLinkGroup1X2
 			,t.c.value('@IsLinkGroupAIO','BIT') AS IsLinkGroupAIO
 			,t.c.value('@LiveIndicator','BIT') AS LiveIndicator
-	FROM	@WrongOUInfoXML.nodes('/root/r') AS T(C)
-	OPTION (OPTIMIZE FOR (@WrongOUInfoXML = NULL ))
+	FROM	@Wrong1stOUInfoXML.nodes('/root/r') AS T(C)
+	OPTION (OPTIMIZE FOR (@Wrong1stOUInfoXML = NULL ))
 
 	BEGIN -- Instant Settlement declaration
 		

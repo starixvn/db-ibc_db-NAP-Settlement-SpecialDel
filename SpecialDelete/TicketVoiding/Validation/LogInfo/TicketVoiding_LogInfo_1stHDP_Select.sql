@@ -4,7 +4,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_1stHDP_Select]
 	 @RequestId			  INT = 0
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
-	,@WrongHDPInfo		  VARCHAR(MAX) = NULL
+	,@Wrong1stHDPInfo	  VARCHAR(MAX) = NULL
 	,@TransInfoJson		  VARCHAR(MAX) = NULL
 )
 AS
@@ -32,7 +32,7 @@ AS
 		- 20250106@Lani: [TVS] Separate SP for getting loginfo of issuetype Wrong HDP and Wrong 1st HDP [Redmine: #215545]
 
 	Param's explanation:
-		+ @WrongHDPInfo, @Wrong1stHDPInfo:
+		+ @Wrong1stHDPInfo, @Wrong1stHDPInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId="" PoolHouseCheckedBetTypes ="1,2,3,4" IsMainMatch="true" IsLinkGroup1X2 ="" IsLinkGroupAIO = "" LiveIndicator =""/></root>
 	         (*) PoolHouseCheckedBetTypes   : ALL - (all bettype của ticket)
 											 '1,2,3' - (bettype selected)
@@ -45,7 +45,7 @@ BEGIN
 
 	DECLARE @SingleCount			  INT = 0
 			,@MainParlayCount		  INT = 0
-			,@WrongHDPInfoXML		  XML = NULL
+			,@Wrong1stHDPInfoXML	  XML = NULL
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 	 		,@OldActionId			  TINYINT
@@ -206,7 +206,7 @@ BEGIN
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
 
-	SET @WrongHDPInfoXML = CONVERT(XML, @WrongHDPInfo)
+	SET @Wrong1stHDPInfoXML = CONVERT(XML, @Wrong1stHDPInfo)
 	INSERT INTO #FilterInfo( 
 			MatchID				
 			,FilterFromTransTime	
@@ -233,8 +233,8 @@ BEGIN
 			,t.c.value('@IsLinkGroup1X2','BIT') AS IsLinkGroup1X2
 			,t.c.value('@IsLinkGroupAIO','BIT') AS IsLinkGroupAIO
 			,t.c.value('@LiveIndicator','BIT') AS LiveIndicator
-	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
+	FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
 
 	BEGIN -- Instant Settlement declaration
 		

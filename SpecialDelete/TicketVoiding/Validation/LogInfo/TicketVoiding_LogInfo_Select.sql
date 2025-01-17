@@ -173,7 +173,7 @@ BEGIN
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
-			,@WrongHDPInfo		   = @Wrong1stHDPInfo
+			,@Wrong1stHDPInfo	   = @Wrong1stHDPInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 6 --Wrong OU
@@ -191,7 +191,7 @@ BEGIN
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
-			,@WrongOUInfo		   = @Wrong1stOUInfo
+			,@Wrong1stOUInfo	   = @Wrong1stOUInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId IN (8,9) --EKO,WKO

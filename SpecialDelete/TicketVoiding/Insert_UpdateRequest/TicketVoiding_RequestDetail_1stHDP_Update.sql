@@ -5,7 +5,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_1stHDP_Update]
 	,@IssueTypeId			TINYINT		= NULL
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
-	,@WrongHDPInfo			VARCHAR(MAX) = NULL
+	,@Wrong1stHDPInfo			VARCHAR(MAX) = NULL
 	,@TransInfoJson			VARCHAR(MAX) = NULL
 	,@IsEditRequest			INT = 0 
 )
@@ -38,7 +38,7 @@ BEGIN
 			,@SB_Error			 BIT = 0
 			,@LogDataContent	 NVARCHAR(MAX)
 
-	DECLARE	 @WrongHDPInfoXML	 XML = NULL	
+	DECLARE	 @Wrong1stHDPInfoXML	 XML = NULL	
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -85,7 +85,7 @@ BEGIN
 	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,s_btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
 	) tbl
 
-	SET @WrongHDPInfoXML = CONVERT(XML, @WrongHDPInfo)
+	SET @Wrong1stHDPInfoXML = CONVERT(XML, @Wrong1stHDPInfo)
 	INSERT INTO #tblGetLogInfo( 
 			RequestID				
 			,MatchID				
@@ -131,8 +131,8 @@ BEGIN
 							+ '" />'
 					 END
 			AS WrongHDP
-	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
+	FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
 
 	IF @IsEditRequest = 1
 	BEGIN

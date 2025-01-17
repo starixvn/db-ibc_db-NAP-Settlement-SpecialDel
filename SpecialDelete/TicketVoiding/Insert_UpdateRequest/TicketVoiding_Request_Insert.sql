@@ -156,7 +156,7 @@ BEGIN
 				,@IssueTypeId	 = @IssueTypeId	
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
-				,@WrongHDPInfo	 = @Wrong1stHDPInfo
+				,@Wrong1stHDPInfo= @Wrong1stHDPInfo
 				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END
@@ -178,7 +178,7 @@ BEGIN
 				,@IssueTypeId	 = @IssueTypeId	
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
-				,@WrongOUInfo	 = @Wrong1stOUInfo
+				,@Wrong1stOUInfo = @Wrong1stOUInfo
 				,@TransInfoJson	 = @TransInfoJson		
 				,@IsEditRequest	 = @IsEditRequest
 	END
