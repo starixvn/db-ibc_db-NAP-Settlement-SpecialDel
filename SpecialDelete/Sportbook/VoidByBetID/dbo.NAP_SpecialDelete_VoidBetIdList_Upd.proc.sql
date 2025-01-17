@@ -118,6 +118,7 @@ AS
 	  - 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 	  - 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 	  - 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
+	  - 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
 
 	 Param's Explanation:   
 */
@@ -793,6 +794,7 @@ BEGIN
 		ON	main.transid = tmpmain.transid 
 		AND main.matchid = tmpmain.matchid		
 	WHERE main.SiteDBGroupID = @SiteDBGroupID
+		AND main.statusID NOT IN (101,102,103)
 
 	--Get data before update
 	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistMatch3rd = 1 OR @IsExistVS3 = 1 
@@ -822,7 +824,9 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
-			) AND b.SiteDBGroupID = @SiteDBGroupID
+			) 
+			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND b.statusID NOT IN (101,102,103)
 	END
 
 	--Insert tmp table for correct balance CO
@@ -834,6 +838,7 @@ BEGIN
 	FROM dbo.bettrans main WITH (NOLOCK)
 	WHERE main.SiteDBGroupID = @SiteDBGroupID 
 		AND transid IN (SELECT transid FROM #SpecialDeleteBets)
+		AND main.statusID NOT IN (101,102,103)
 
 	--capture balance before
 	INSERT INTO @BeforeUpd (
@@ -1042,7 +1047,9 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
-			) AND b.SiteDBGroupID = @SiteDBGroupID
+			) 
+			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND b.statusID NOT IN (101,102,103)
 	END
 	--capture balance after
 	INSERT INTO @AfterUpd (
