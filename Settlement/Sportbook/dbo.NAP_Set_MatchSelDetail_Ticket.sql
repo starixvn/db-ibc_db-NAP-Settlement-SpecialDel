@@ -181,8 +181,8 @@ BEGIN
 					ELSE 2
 				END
 
-		INSERT INTO @status (GroupId, betCount, betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betParlayCount, betParlayRunningCount, betParlayWaitingCount)
-		SELECT t.GroupId, 0, 0, 0, 0, 0, 0, 0, 0
+		INSERT INTO @status (GroupId, betCount, betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betParlayCount, betParlayRunningCount, betParlayWaitingCount, betRefundedCount)
+		SELECT t.GroupId, 0, 0, 0, 0, 0, 0, 0, 0, 0
 		FROM (VALUES (1),(2)) AS t (GroupId)
 		WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @status s WHERE s.GroupId = t.GroupId)
 
