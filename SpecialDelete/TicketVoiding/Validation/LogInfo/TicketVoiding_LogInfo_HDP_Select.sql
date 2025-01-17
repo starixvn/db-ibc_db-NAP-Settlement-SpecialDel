@@ -645,8 +645,9 @@ BEGIN
 	FROM #TVSTicketBets AS tb
 	INNER JOIN #FilterInfo AS f ON f.MatchId = tb.matchid AND tb.Subbettype = f.FilterBetTypeId
 	WHERE 1 = CASE WHEN 
-					(f.FilterBetIdX = '' OR tb.FilterBetIdX LIKE f.FilterBetIdX + '%')
-					AND (f.FilterBetIdY = '' OR tb.FilterBetIdY = f.FilterBetIdY OR (f.FilterBetIdY LIKE '>%' AND tb.FilterBetIdY > RIGHT(f.FilterBetIdY,2))) THEN 0
+					(f.FilterBetIdX = '' OR tb.FilterBetIdX LIKE f.FilterBetIdX + '%' OR tb.FilterBetIdX LIKE '%' + f.FilterBetIdX + '%' OR tb.FilterBetIdX LIKE '%' + f.FilterBetIdX)
+					AND (f.FilterBetIdY = '' OR tb.FilterBetIdY = f.FilterBetIdY OR (f.FilterBetIdY LIKE '>%' AND tb.FilterBetIdY > RIGHT(f.FilterBetIdY,2))
+					OR tb.FilterBetIdY LIKE '%' + f.FilterBetIdY + '%' OR tb.FilterBetIdY LIKE '%' + f.FilterBetIdY) THEN 0
 					ELSE 1
 				END
 
