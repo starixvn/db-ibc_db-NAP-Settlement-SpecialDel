@@ -573,8 +573,7 @@ BEGIN
 	INNER JOIN #FilterInfo AS f ON tb.matchid = f.MatchId
 	WHERE 1 = CASE WHEN 
 					(	f.FilterBetIdX = '' 
-						OR tb.FilterBetIdX LIKE f.FilterBetIdX + '%' 
-						OR tb.FilterBetIdX LIKE '%' + f.FilterBetIdX + '%' )
+						OR tb.FilterBetIdX LIKE f.FilterBetIdX + '%' )
 					AND 
 					(	f.FilterBetIdY = '' 
 						OR tb.FilterBetIdY = f.FilterBetIdY 
