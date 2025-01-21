@@ -10,25 +10,16 @@ ALTER PROCEDURE [dbo].[NAP_Set_ExternalResultDetailUpd]
 AS 
 /*
     Created by: 20250109@Hughie
-    Task: Save Trader Score button [Readmine:#150425]
+    Task: Save Trader Score button [Readmine:#216004]
     DB: DBPRO/BODB02 
     
-    Revisions:            
-		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
-		- 20210504@Louisa: Save Cricket results [Redmine:#154472]
-		- 20210506@Louisa: SOP for Cricket [Redmine:#153915]
-		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
-		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
-		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
-		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+    Revisions:
 
 	Param's Explanation:
 		@SelectedResources: <Resources>
 						    	<Resource Id="01" Home="2" Away="3" />
 						    	<Resource Id="00" Home="3" Away="4" />
 						      </Resources>
-
-		If it's Final Result, SourceId= ""
 */
 
 BEGIN
