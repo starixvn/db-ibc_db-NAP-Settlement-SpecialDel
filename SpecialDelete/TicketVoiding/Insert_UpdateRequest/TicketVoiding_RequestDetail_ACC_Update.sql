@@ -74,6 +74,7 @@ BEGIN
 	  ,SiteDBGroupID SMALLINT
 	  ,IsVoid14 BIT DEFAULT(0)
 	  ,IsChecked BIT DEFAULT(0)	
+	  ,StatusId TINYINT
 	)
 	
 	SET @AbnormalAccountInfoXML = CONVERT(XML, @AbnormalAccountInfo)
@@ -118,10 +119,11 @@ BEGIN
 			  ,SiteDBGroupID
 			  ,IsVoid14
 			  ,IsChecked
+			  ,StatusId
 			)
-		SELECT MatchId ,TransId ,CustId ,BetType ,BetId ,IsMixParlay ,SiteDbGroupId ,IsVoid14, IsChecked
+		SELECT MatchId ,TransId ,CustId ,BetType ,BetId ,IsMixParlay ,SiteDbGroupId ,IsVoid14, IsChecked, StatusId
 		FROM OPENJSON(@Decompress_TransInfoJson) 
-		WITH( MatchId INT, TransId BIGINT ,CustId INT ,BetType SMALLINT ,BetId BIGINT ,IsMixParlay BIT ,SiteDbGroupId SMALLINT ,IsVoid14 BIT, IsChecked BIT 
+		WITH( MatchId INT, TransId BIGINT ,CustId INT ,BetType SMALLINT ,BetId BIGINT ,IsMixParlay BIT ,SiteDbGroupId SMALLINT ,IsVoid14 BIT, IsChecked BIT, StatusId TINYINT
 		) tbl
 		
 		DECLARE @tmpModifiedTicket TABLE(
@@ -148,6 +150,7 @@ BEGIN
 	    WHERE 1 = CASE WHEN b.IsChecked = 0 AND (a.IsChecked IS NULL OR a.IsChecked = 0) THEN 1 
 		               WHEN b.IsChecked = 1 AND a.IsChecked = 0 THEN 1
 					   ELSE 0 END
+			AND b.StatusId IN (112) --WON
 
 	END
 	
