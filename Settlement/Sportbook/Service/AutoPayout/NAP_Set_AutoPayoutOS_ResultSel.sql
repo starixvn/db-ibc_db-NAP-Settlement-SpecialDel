@@ -19,7 +19,7 @@ AS
 		- 20241118@Aries: Fix an issue which is wrong settlement due to the lack of consistency when calculating Innnings [Redmine:#213767]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
-
+		- 20250120@Aries: Enhance the Validate Order for Auto Payout2 [Redmine:#209415]
 
 	Param's Explanation:
 
@@ -143,8 +143,6 @@ BEGIN
 		  ,m.AwayValue
 		  ,m.CreateDate
 		  ,ss.HasAwayValue
-		  ,ss.relatedCalResources
-		  ,ss.relatedSettResources
 	FROM @Result AS m
 		OUTER APPLY (
 			SELECT TOP 1 tbl.ResourceId
@@ -154,8 +152,6 @@ BEGIN
 		OUTER APPLY (SELECT  TOP 1 
 							 s.HasAwayValue
 							,s.pfID
-							,JSON_VALUE(s.APSetting,'$."relatedCalResources"') AS relatedCalResources
-							,JSON_VALUE(s.APSetting,'$."relatedSettResources"') AS relatedSettResources
 				     FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
 					 WHERE s.ResourceID = m.ResourceID
 						AND s.SportType = @SportType

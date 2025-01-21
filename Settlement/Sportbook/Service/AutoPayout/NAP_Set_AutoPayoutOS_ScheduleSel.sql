@@ -15,6 +15,7 @@ AS
 		- 20240503@Aries: Support Auto Payout 2 for Basketball [Redmine:#203520]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
+		- 20250120@Aries: Enhance the Validate Order for Auto Payout2 [Redmine:#209415]
 
 
 */
@@ -472,6 +473,8 @@ BEGIN
 		  ,s.ResourceStatus
 		  ,m.AP_Main_WaitingTime AS MainRetryTime
 		  ,m.AP_EAR_WaitingTime  AS EarlyRetryTime
+		  ,ssp.relatedCalResources
+		  ,ssp.relatedSettResources
 	FROM CTE_Provider AS cte
 		INNER JOIN #Match AS m on cte.matchId = m.matchId
 		CROSS APPLY(
@@ -484,6 +487,13 @@ BEGIN
 						ELSE 0
 			END AS ResourceStatus
 		) AS s	
+		OUTER APPLY (SELECT  TOP 1 
+							 JSON_VALUE(ss.APSetting,'$."relatedCalResources"') AS relatedCalResources
+							,JSON_VALUE(ss.APSetting,'$."relatedSettResources"') AS relatedSettResources
+				     FROM SettlementSpecialBettypeProfile AS ss WITH(NOLOCK)
+					 WHERE ss.ResourceID = cte.ResourceID
+						AND ss.SportType = m.SportType
+		) AS ssp
 	WHERE s.ResourceStatus != 0
 
 END
