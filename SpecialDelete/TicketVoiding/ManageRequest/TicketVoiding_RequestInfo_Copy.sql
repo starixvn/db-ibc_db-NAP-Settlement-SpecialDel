@@ -201,8 +201,10 @@ BEGIN
 		)
 		SELECT @MinAllowanceTime = CASE WHEN @AcceptType = 1 THEN AA
 										WHEN @AcceptType = 2 THEN SA
-										ELSE PA
-								   END
+										ELSE PA END
+			 , @MinAcceptTypeName = CASE WHEN @AcceptType = 1 THEN 'Auto Accept'
+											 WHEN @AcceptType = 2 THEN 'Second Accept'
+											 ELSE 'Pending Accept' END
 		FROM Cte
 
 		SELECT @IssueDetail = IssueDetail
@@ -220,10 +222,6 @@ BEGIN
 			 , @ServiceAcceptTime = IIF(CHARINDEX('ServiceAcceptTime:',@IssueDetail) > 0
 			                     , SUBSTRING(@IssueDetail, CHARINDEX('ServiceAcceptTime:',@IssueDetail) + LEN('ServiceAcceptTime:'), CHARINDEX(';ActualTime:',@IssueDetail) - (CHARINDEX('ServiceAcceptTime:',@IssueDetail) + LEN('ServiceAcceptTime:')))
 								 , '')
-
-		SELECT @MinAcceptTypeName = CASE WHEN @AcceptType = 1 THEN 'Auto Accept'
-											 WHEN @AcceptType = 2 THEN 'Second Accept'
-											 ELSE 'Pending Accept' END
 	END
 	
 	IF @IssueTypeId IN (19,21,23,12,24,25) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB
