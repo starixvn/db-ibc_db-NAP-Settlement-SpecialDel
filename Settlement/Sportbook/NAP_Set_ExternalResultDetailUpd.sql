@@ -10,11 +10,12 @@ ALTER PROCEDURE [dbo].[NAP_Set_ExternalResultDetailUpd]
 AS 
 /*
     Created by: 20250109@Hughie
-    Task: Save Trader Score button [Readmine:#216004]
+    Task: Save Trader Score button 
     DB: DBPRO/BODB02 
     
     Revisions:
-		-
+		-20250109@Hughie: Create new SP [Readmine:#216004]
+
 	Param's Explanation:
 		@SelectedResources: <Resources>
 						    	<Resource Id="01" Home="2" Away="3" />
