@@ -26,7 +26,7 @@ AS
 		- 20241212@Lani: [TVS] Add new column returned (ServiceAcceptTime, InputtedFromTime, MinAllowanceTime) - [Redmine: #215049]
 		- 20241227@Lani: [TVS] Change data of 'MinAllowanceTime' column returned - [Redmine: #215946]
 		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
-
+		- 20250121@Lani: [TVS] Return MinAcceptType column for Danger Accept/Red Card/Wrong Score issue type - [Redmine: #216153]
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
 					         Reduced Overs, Not Participate, Abandoned
@@ -188,6 +188,7 @@ BEGIN
 			   ,@ServiceAcceptTime VARCHAR(11)
 			   ,@MinAllowanceTime SMALLINT
 			   ,@AcceptType SMALLINT
+			   ,@MinAcceptTypeName NVARCHAR(50)
 		
 		SELECT @AcceptType = CAST(RequestExtraInfo AS XML).value('(/r/@MinType)[1]', 'SMALLINT')
 		FROM @tmpRequestInfo
@@ -219,6 +220,10 @@ BEGIN
 			 , @ServiceAcceptTime = IIF(CHARINDEX('ServiceAcceptTime:',@IssueDetail) > 0
 			                     , SUBSTRING(@IssueDetail, CHARINDEX('ServiceAcceptTime:',@IssueDetail) + LEN('ServiceAcceptTime:'), CHARINDEX(';ActualTime:',@IssueDetail) - (CHARINDEX('ServiceAcceptTime:',@IssueDetail) + LEN('ServiceAcceptTime:')))
 								 , '')
+
+		SELECT @MinAcceptTypeName = CASE WHEN @AcceptType = 1 THEN 'Auto Accept'
+											 WHEN @AcceptType = 2 THEN 'Second Accept'
+											 ELSE 'Pending Accept' END
 	END
 	
 	IF @IssueTypeId IN (19,21,23,12,24,25) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB
@@ -350,6 +355,7 @@ BEGIN
 		  ,@ServiceAcceptTime AS ServiceAcceptTime
 		  ,FilterFromTranstime
 		  ,@MinAllowanceTime AS MinAllowanceTime
+		  ,@MinAcceptTypeName AS MinAcceptType
 	FROM @tmpRequestInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.UserId
 
