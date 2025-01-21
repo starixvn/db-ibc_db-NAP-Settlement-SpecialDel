@@ -14,7 +14,7 @@ AS
     DB: DBPRO/BODB02 
     
     Revisions:
-
+		-
 	Param's Explanation:
 		@SelectedResources: <Resources>
 						    	<Resource Id="01" Home="2" Away="3" />
