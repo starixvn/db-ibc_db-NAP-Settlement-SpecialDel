@@ -68,6 +68,7 @@ AS
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
+		- 20250121@Lani: [TVS] Return 'GroupBettypeId' column [Redmine: #217176]
 
 	Param's explanation:	
 		
@@ -2223,9 +2224,12 @@ BEGIN
 		   ,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 		   ,s.GroupPHaffected -- Affect isuetype : HDP,OU,ODDS
 		   ,s.VendorMatchId
+		   ,CASE WHEN g.ParentBettypeId IS NOT NULL THEN g.ParentBettypeId 
+				 ELSE s.bettype END AS GroupBettypeId
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
+		LEFT JOIN f_TVS_GroupBettypeId() g ON s.bettype = g.TypeID
 	WHERE 1 = CASE WHEN @IssueTypeId <> 13 THEN 1
 				   WHEN @IssueTypeId = 13 AND  s.statusId IN (SELECT statusID FROM @Status_tmp)	 THEN 1 
 				   ELSE 0 END
