@@ -980,7 +980,7 @@ BEGIN
 						  ELSE 0 END AS GroupPHaffected
 					,b.modds
 					,CASE WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NOT NULL THEN g.GroupBettypeId
-						  ELSE NULL END AS GroupBettypeId
+						  ELSE b.bettype END AS GroupBettypeId
 			FROM	#tmpTransInfo b
 			   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			   LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = b.bettype
@@ -1101,7 +1101,7 @@ BEGIN
 																	 ELSE 2 END
 						      ELSE 0 END AS GroupPHaffected
 						,CASE WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NOT NULL THEN g.GroupBettypeId
-							  ELSE NULL END AS GroupBettypeId
+							  ELSE bm.bettype END AS GroupBettypeId
 				FROM	#tmpTransInfo bm 
 						CROSS APPLY (
 									SELECT TOP (1) transid
