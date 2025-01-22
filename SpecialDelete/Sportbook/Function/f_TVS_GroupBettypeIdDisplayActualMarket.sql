@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" isFunction="1"></info>*/
-CREATE FUNCTION f_TVS_GroupBettypeId()
+CREATE FUNCTION f_TVS_GroupBettypeIdDisplayActualMarket()
 RETURNS TABLE
 /*
     Created: 20250122@Lani
@@ -15,8 +15,9 @@ RETURNS TABLE
 AS
 	RETURN (
 		-- HDP bettype
-		SELECT CONVERT(SMALLINT,1) AS ParentBettypeId
+		SELECT CONVERT(SMALLINT,1) AS GroupBettypeId
 			  ,CONVERT(SMALLINT,1) AS TypeId
+		UNION ALL SELECT 1,7
 		UNION ALL SELECT 1,609
 		UNION ALL SELECT 1,637
 		UNION ALL SELECT 1,153
