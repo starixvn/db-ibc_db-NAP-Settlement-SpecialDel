@@ -11,6 +11,7 @@ AS
 		- 20230117@July: Create new SP - get requests will run Letstalk [Redmine: #180625]
 		- 20240925@Max: Exclude recover issuetype [Redmine: #186029]
 		- 20250108@July: Filter range date send Letstalk [Redmine: #213398]
+		- 20250129@Max: Update range date send Letstalk [Redmine: #213398]
 		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services [Redmine: #224490]
 
 	Param's explanation:	
@@ -24,7 +25,7 @@ BEGIN
 		  , @cnt_Row			INT
 		  , @SettingTime		DATETIME
 	
-	SET @SettingTime = DATEADD(MONTH, -2, CAST(GETDATE() AS DATE))
+	SET @SettingTime = DATEADD(MONTH, -1, CAST(GETDATE() AS DATE))
 	DECLARE @tmpInfoGetLetstalk TABLE (
 			 RequestID			INT
 			,VoidingHistoryId	INT
