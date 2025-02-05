@@ -829,6 +829,7 @@ BEGIN
 			   ,m.liveawayscore AS 'liveawayscore'
 			   ,m.betid AS 'betid'
 			   ,m.betcheck AS 'betcheck'
+			   ,m.Subbetcheck AS 'subbetcheck'
 			   ,m.Subchecktime AS 'Subchecktime'
 			   ,m.IsMixParlay AS 'IsMixParlay'
 			   ,m.Transdesc AS 'Transdesc'
