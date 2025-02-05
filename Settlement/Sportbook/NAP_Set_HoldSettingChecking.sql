@@ -20,7 +20,8 @@ AS
 		-  20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		-  20240807@Aries: Add hold match info [Redmineid:#200934]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
-		
+		- 20250205@Louisa: Apply SOP for Soccer [Redmine:#216004]
+
 	Parameters Explanation:    
 		@IsEarly = 0 : Check dbo.Match.SettlementStatus bit[1]-Pending, bit[2]-Undecided, bit[3]-UnderSettlement, bit[5]-MTDHold, bit[7]-Hold Key
 		@IsEarly = 1 : Check dbo.Match.SettlementStatus bit 1,2,3,5,7 and check ResultSetting dbo.ResultDetail/ES/OS    
@@ -105,6 +106,33 @@ BEGIN
 				ON r.ResourceId = rs.ResourceID
 			WHERE r.MatchId  = @MatchId
 				AND ISNULL(r.ResultSetting,0) & 1 = 1 
+		END
+
+		IF @ErrMsg IS NOT NULL AND @ErrMsg != ''
+		BEGIN
+			SET @ErrCode = 1001039 
+		END
+	END
+	ELSE
+	BEGIN
+		IF @SportType = 1 AND ISNULL(@SelectedResources,'') <> ''
+		BEGIN
+			
+			EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+
+			;WITH cte_ResourceID AS
+			(	SELECT DISTINCT Id	
+				FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20) ) AS tbl
+			)
+
+			SELECT @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again. ResourceIDs: ' + STRING_AGG(CONVERT(VARCHAR(MAX),r.ResourceId),',')	
+			FROM ResultDetail r WITH(NOLOCK)
+				INNER JOIN @tmpResourceID rs
+					ON r.ResourceId = rs.ResourceID
+			WHERE r.MatchId  = @MatchId
+				AND ISNULL(r.ResultSetting,0) & 1 = 1 
+			
+			EXEC sp_xml_removedocument @handle
 		END
 
 		IF @ErrMsg IS NOT NULL AND @ErrMsg != ''

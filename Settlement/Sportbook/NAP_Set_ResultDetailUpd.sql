@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_ExternalResultDetailUpd]
+CREATE PROCEDURE [dbo].[NAP_Set_ResultDetailUpd]
 (
 	 @MatchId INT   
 	,@UserId INT 

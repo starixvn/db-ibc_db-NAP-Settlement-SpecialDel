@@ -41,6 +41,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20240905@Aries: Enhance the settlement by Selection for Betbuilder  [Redmine:#208782]
 		- 20241028@Aries: Direct payout for early soccer [Redmine:#211079]
+		- 20250205@Louisa: Apply SOP for Soccer [Redmine:#216004] 
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR, 'CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT'
@@ -88,6 +89,8 @@ BEGIN
 			,@cornerCommand VARCHAR(100)
 			,@undoResultDetailCommand	VARCHAR(100)
 			,@IsResultHTCal	BIT
+			,@ConfirmHT	INT	
+			,@ConfirmFT	INT
 
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	
@@ -629,5 +632,26 @@ BEGIN
 						,@SelectedResources = @SelectedResources
 			END 
 		END
+	END
+	ELSE IF @Action = 'SaveScore'
+	BEGIN
+		SET @calCommand = 'NAP_Admin_Settlement-SaveScore' 
+		EXEC dbo.NAP_Admin_Match_Update 
+				@Command         = @calCommand
+				,@MatchID        = @matchid
+				,@creator        = @AdminId
+				,@HTHome		 = @HalfTimeHome
+				,@HTAway		 = @HalfTimeAway
+				,@FTHome		 = @FullTimeHome
+				,@FTAway		 = @FullTimeAway
+		
+		SELECT @ConfirmHT	= CASE WHEN @HalfTimeHome IS NOT NULL THEN @AdminId ELSE NULL END
+				,@ConfirmFT = CASE WHEN @FullTimeHome IS NOT NULL THEN @AdminId ELSE NULL END
+
+			EXEC dbo.NAP_updateMatch_remark 
+				 @matchid       = @matchid
+				,@command       = 'S'	
+				,@ConfirmHT		= @ConfirmHT
+				,@ConfirmFT		= @ConfirmFT
 	END
 END
