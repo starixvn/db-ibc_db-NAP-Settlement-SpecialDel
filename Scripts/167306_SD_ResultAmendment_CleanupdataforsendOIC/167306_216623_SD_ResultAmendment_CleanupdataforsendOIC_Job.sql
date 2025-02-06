@@ -1,12 +1,13 @@
-/*<info serverAlias="DBLIC-bodb_Licensee,DBLIC_STANDBY-bodb_Licensee" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBOIC-bodb_OIC" executers="" isFunction="0"></info>*/
 /*
-	Created: July
-	Date: 20220112
-	Task: SD - Result Amendment - Clean up data - Only support data within 6 months [Redmine: #167306]
-	DB: DBLIC-bodb_Licensee,DBLIC_STANDBY-bodb_Licensee
+	Created: 20250206@July
+	Task: SD - Result Amendment - Clean up data - Only support data within 6 months [Redmine: #216623]
+	DB: DBOIC-bodb_OIC
 	
 	Revisions:
-		- 20220112@July: Result Amendment - Clean up data - Only support data within 6 months [Redmine: #167306]
+		- 20250206@July: Result Amendment - Clean up data - Only support data within 6 months [Redmine: #216623]
+	
+	Note: Tranfer job clean up data 6 months from DBLIC to DBOIC 
 */
 USE [msdb]
 GO
@@ -24,7 +25,7 @@ IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
 END
 
 DECLARE @jobId BINARY(16)
-EXEC @ReturnCode =  msdb.dbo.sp_add_job @job_name=N'bodb_Licensee : ResultAmendment - Task CleanUp data for send OIC', 
+EXEC @ReturnCode =  msdb.dbo.sp_add_job @job_name=N'bodb_OIC : ResultAmendment - Task CleanUp data for send OIC', 
 		@enabled=1, 
 		@notify_level_eventlog=0, 
 		@notify_level_email=0, 
