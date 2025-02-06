@@ -760,6 +760,7 @@ BEGIN
 		,b.SettlementStatus
 		,b.sporttype
 		,b.matchid AS GroupName
+		,b.transid AS subtransid
 	FROM #tmpTransInfo b
 		INNER JOIN #transIdTemp t ON t.transid = b.transid
 
