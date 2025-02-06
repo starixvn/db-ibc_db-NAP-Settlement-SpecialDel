@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_ACC_Update]
 (
 	@RequestId				INT
@@ -27,6 +27,7 @@ AS
 		- 20240327@Max: [CTS] - [TVS] - Missing Void Info - Not auto-mark PA [Redmine: #201993]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20241224@July: [TVS] Abnormal Account - Enhance Auto Void (Instant with Policy) [Redmine: #214444]
 
 	Param's explanation:
 */
@@ -53,8 +54,10 @@ BEGIN
 			,@ToDate				 DATETIME = NULL
 			,@maxdate 				 DATETIME = '9999-01-01'
 			,@row_count				 INT = 0
+			,@ModifiedTicketJson     VARCHAR(MAX) = NULL
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
+		   ,@Decompress_ModifiedTicketJson NVARCHAR(MAX) = NULL
 
 	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
@@ -69,32 +72,88 @@ BEGIN
       ,betid BIGINT
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
-	  ,IsVoid14 BIT
+	  ,IsVoid14 BIT DEFAULT(0)
+	  ,IsChecked BIT DEFAULT(0)	
+	  ,StatusId TINYINT
 	)
-	INSERT INTO #tmpTransInfo( 
-		   matchid
-		  ,transid 
-		  ,custid	
-		  ,bettype
-		  ,betid
-		  ,IsMixParlay
-		  ,SiteDBGroupID
-		  ,IsVoid14
-		)
-	SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb ,isV14
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT ,isV14 BIT
-	) tbl
-
+	
 	SET @AbnormalAccountInfoXML = CONVERT(XML, @AbnormalAccountInfo)
 	SELECT @UserNames = t.c.value('@Usernames','NVARCHAR(MAX)') 
 			,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
 			,@StatusIds = t.c.value('@StatusIds','VARCHAR(50)')
 			,@FromDate = t.c.value('@FromDate','DATETIME')
 			,@ToDate = CASE WHEN t.c.value('@ToDate','DATETIME') = '1900-01-01 00:00:00.000' THEN @maxdate ELSE t.c.value('@ToDate','DATETIME') END
+			,@ModifiedTicketJson = t.c.value('@ModifiedTicketJson','VARCHAR(MAX)')
 	FROM @AbnormalAccountInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AbnormalAccountInfoXML = NULL))
 
+	IF @ActionId <> 10
+	BEGIN
+		--DB get from SP validation
+		INSERT INTO #tmpTransInfo( 
+			   matchid
+			  ,transid 
+			  ,custid	
+			  ,bettype
+			  ,betid
+			  ,IsMixParlay
+			  ,SiteDBGroupID
+			  ,IsVoid14
+			  ,IsChecked
+			)
+		SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb ,isV14, IsChecked
+		FROM OPENJSON(@Decompress_TransInfoJson) 
+		WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT ,isV14 BIT, IsChecked BIT 
+		) tbl
+	END
+	ELSE  --action = 10 Auto Void (Instant with Policy)
+	BEGIN
+		-- Web insert 
+		INSERT INTO #tmpTransInfo( 
+			   matchid
+			  ,transid 
+			  ,custid	
+			  ,bettype
+			  ,betid
+			  ,IsMixParlay
+			  ,SiteDBGroupID
+			  ,IsVoid14
+			  ,IsChecked
+			  ,StatusId
+			)
+		SELECT MatchId ,TransId ,CustId ,BetType ,BetId ,IsMixParlay ,SiteDbGroupId ,IsVoid14, IsChecked, StatusId
+		FROM OPENJSON(@Decompress_TransInfoJson) 
+		WITH( MatchId INT, TransId BIGINT ,CustId INT ,BetType SMALLINT ,BetId BIGINT ,IsMixParlay BIT ,SiteDbGroupId SMALLINT ,IsVoid14 BIT, IsChecked BIT, StatusId TINYINT
+		) tbl
+		
+		DECLARE @tmpModifiedTicket TABLE(
+		   transid BIGINT
+		  ,IsChecked BIT DEFAULT(0)
+		)
+
+		SET @Decompress_ModifiedTicketJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @ModifiedTicketJson, 1)) AS NVARCHAR(MAX))
+
+		IF @Decompress_ModifiedTicketJson <> 'null'
+		BEGIN 
+			INSERT INTO @tmpModifiedTicket( 
+				transid 
+				,IsChecked
+			)
+			SELECT TransId, IsChecked
+			FROM OPENJSON(@Decompress_ModifiedTicketJson) 
+			WITH( TransId BIGINT, IsChecked BIT)
+		END
+		
+		DELETE b
+		FROM #tmpTransInfo b WITH (ROWLOCK)
+			LEFT JOIN @tmpModifiedTicket a ON b.transid = a.transid
+	    WHERE 1 = CASE WHEN b.IsChecked = 0 AND (a.IsChecked IS NULL OR a.IsChecked = 0) THEN 1 
+		               WHEN b.IsChecked = 1 AND a.IsChecked = 0 THEN 1
+					   ELSE 0 END
+			AND b.StatusId IN (112) --WON
+
+	END
+	
 	INSERT INTO #TempMatch(MatchId, IsOutright, IsVoid14)
 	SELECT  DISTINCT matchid,
 			CASE WHEN bettype <> 10 THEN 0 ELSE 1 END,

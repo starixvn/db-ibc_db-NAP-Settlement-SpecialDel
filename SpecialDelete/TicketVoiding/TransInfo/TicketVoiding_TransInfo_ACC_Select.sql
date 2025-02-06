@@ -24,6 +24,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid', serverAlias [Redmine: #213451]
+		- 20241224@July: [TVS] Abnormal Account - Enhance Auto Void (Instant with Policy) [Redmine: #214444]
 
 	Param's explanation:	
 		- @AbnormalAccounts: <roor><r @UserNames = 'abc,xyz' @ProductIds="1,2" @StatusIds="112,111" @FromDate="" @ToDate=""/></root>
@@ -47,6 +48,7 @@ BEGIN
 		,betid BIGINT
 		,statusID TINYINT
 		,recommend INT
+		,mrecommend INT
 		,srecommend INT
 		,winlostdate SMALLDATETIME
 		,IsMixParlay BIT
@@ -55,6 +57,29 @@ BEGIN
 		,winlost	MONEY
 		,actual_stake	MONEY
 		,modds SMALLMONEY
+		,transdate DATETIME
+		,checktime DATETIME
+		,hdp1 SMALLMONEY
+		,hdp2 SMALLMONEY
+		,livehomescore SMALLINT
+		,liveawayscore SMALLINT
+		,liveindicator BIT
+		,betteam NVARCHAR(10)
+		,betdaqid BIGINT
+		,betfrom NVARCHAR(4)
+		,statuswinlost TINYINT
+		,odds MONEY
+		,oddstype TINYINT
+		,betcheck NVARCHAR(50)
+		,stake MONEY
+		,Status NVARCHAR(10)
+		,oddsid INT
+		,CurrencyName NVARCHAR(50)
+		,oddsspread MONEY
+	    ,Transdesc NVARCHAR(1000)
+	    ,WalletType TINYINT
+	    ,RefCode BIGINT
+	    ,ExtraInfo VARCHAR(1000)
 	)
 	
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT)
@@ -210,6 +235,7 @@ BEGIN
 			,betid 
 			,statusID 
 			,recommend 
+			,mrecommend
 			,srecommend 
 			,winlostdate
 			,IsMixParlay 
@@ -218,6 +244,29 @@ BEGIN
 			,winlost
 			,actual_stake
 			,modds
+		    ,transdate 
+		    ,checktime 
+		    ,hdp1 
+		    ,hdp2 
+		    ,livehomescore 
+		    ,liveawayscore 
+		    ,liveindicator 
+		    ,betteam 
+		    ,betdaqid 
+		    ,betfrom 
+		    ,statuswinlost 
+		    ,odds 
+		    ,oddstype 
+		    ,betcheck 
+		    ,stake 
+		    ,Status 
+		    ,oddsid 
+			,CurrencyName
+			,oddsspread
+		    ,Transdesc
+		    ,WalletType
+		    ,RefCode
+		    ,ExtraInfo
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -227,6 +276,7 @@ BEGIN
 		,b.betid
 		,b.statusID 
 		,b.recommend 
+		,b.mrecommend
 		,b.srecommend 
 		,b.winlostdate
 		,CASE WHEN b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END AS IsMixParlay 
@@ -235,6 +285,29 @@ BEGIN
 		,b.winlost
 		,b.actual_stake
 		,b.modds
+		,b.transdate 
+		,b.checktime 
+		,b.hdp1 
+		,b.hdp2 
+		,b.livehomescore 
+		,b.liveawayscore 
+		,b.liveindicator 
+		,b.betteam 
+		,b.betdaqid 
+		,b.betfrom 
+		,b.statuswinlost 
+		,b.odds 
+		,b.oddstype 
+		,b.betcheck 
+		,b.stake 
+		,b.Status 
+		,b.oddsid 
+		,b.CurrencyName
+		,b.oddsspread
+		,b.Transdesc
+		,b.WalletType
+		,b.RefCode
+		,b.ExtraInfo
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -281,6 +354,7 @@ BEGIN
 			,betid 
 			,statusID 
 			,recommend 
+			,mrecommend
 			,srecommend
 			,winlostdate
 			,IsMixParlay 
@@ -289,6 +363,29 @@ BEGIN
 			,winlost
 			,actual_stake
 			,modds
+			,transdate 
+		    ,checktime 
+		    ,hdp1 
+		    ,hdp2 
+		    ,livehomescore 
+		    ,liveawayscore 
+		    ,liveindicator 
+		    ,betteam 
+		    ,betdaqid 
+		    ,betfrom 
+		    ,statuswinlost 
+		    ,odds 
+		    ,oddstype 
+		    ,betcheck 
+		    ,stake 
+		    ,Status 
+		    ,oddsid 
+			,CurrencyName
+			,oddsspread
+		    ,Transdesc
+		    ,WalletType
+		    ,RefCode
+		    ,ExtraInfo
 			)
 		SELECT b.matchid
 			,b.TransId
@@ -298,6 +395,7 @@ BEGIN
 			,b.betid
 			,b.statusID 
 			,b.recommend 
+			,b.mrecommend
 			,b.srecommend
 			,b.winlostdate
 			,CASE WHEN b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END AS IsMixParlay 
@@ -306,6 +404,29 @@ BEGIN
 			,b.winlost
 			,b.actual_stake
 			,b.modds
+			,b.transdate 
+		    ,b.checktime 
+		    ,b.hdp1 
+		    ,b.hdp2 
+		    ,b.livehomescore 
+		    ,b.liveawayscore 
+		    ,b.liveindicator 
+		    ,b.betteam 
+		    ,b.betdaqid 
+		    ,b.betfrom 
+		    ,b.statuswinlost 
+		    ,b.odds 
+		    ,b.oddstype 
+		    ,b.betcheck 
+		    ,b.stake 
+		    ,b.Status 
+		    ,b.oddsid 
+			,b.CurrencyName
+			,b.oddsspread
+			,b.Transdesc
+			,b.WalletType
+			,b.RefCode
+			,b.ExtraInfo
 		FROM dbo.bettrans14 b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -344,6 +465,7 @@ BEGIN
 		,betid AS 'bid'
 		,statusID AS 'sid'
 		,recommend AS 're'
+		,mrecommend AS 'mre'
 		,srecommend AS 'sre'
 		,winlostdate AS 'wld'
 		,IsMixParlay AS 'isP'
@@ -352,6 +474,29 @@ BEGIN
 		,winlost AS 'wl'
 		,actual_stake AS 'act_s'
 		,modds AS 'm'
+		,transdate AS 'tdate'
+		,checktime AS 'checkt' 
+		,hdp1 AS 'hdp1' 
+		,hdp2 AS 'hdp2' 
+		,livehomescore AS 'lh'  
+		,liveawayscore AS 'la'  
+		,liveindicator AS 'li'  
+		,betteam AS 'bteam'   
+		,betdaqid AS 'bdaq'   
+		,betfrom AS 'bfr'   
+		,statuswinlost AS 'statuswl'   
+		,odds AS 'o'   
+		,oddstype AS 'ost'   
+		,betcheck AS 'bcheck'   
+		,stake AS 'stake'   
+		,Status AS 's'   
+		,oddsid AS 'oid'   
+		,CurrencyName AS 'curr'
+		,oddsspread AS 'os' 
+		,Transdesc AS 'tdes'
+		,WalletType AS 'wt'
+		,RefCode AS 'refc'
+		,ExtraInfo AS 'ex'
 	FROM #TransInfo
 	FOR JSON PATH))
 
