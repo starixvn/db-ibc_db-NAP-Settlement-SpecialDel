@@ -96,6 +96,7 @@ AS
 		- 20241021@Aries: AutoPayout2 for Baseball AiO (Regular and Series Matches) [Redmine:#211632]
 		- 20241111@Aries: Support Auto Payout 2 for Volleyball [Redmine:#213198]
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
+		- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -166,7 +167,6 @@ BEGIN
 			,@IsAppliedSOP				BIT = 1
 			,@AutoSetting		TINYINT
 			,@HasAutoPayout		BIT = 0
-			,@HasAutoRefund		BIT = 0
 			,@MatchAutoSetting	TINYINT
 			,@matchcode			NVARCHAR(50)
 			,@leagueid			INT
@@ -261,8 +261,6 @@ BEGIN
 	
 				
 	SET @HasAutoPayout = IIF(@AutoSetting & 2 > 0,1,0)
-	SET @HasAutoRefund = IIF(@AutoSetting & 4 > 0,1,0)
-
 
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp
@@ -987,7 +985,7 @@ BEGIN
 			SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName, OrdNo
 			FROM @tmpResourcesWeb r
 				INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
-			WHERE r.ResourceID IN ('0101','0102','0103','0104','0105', '0001', 'ET', 'PEN')
+			WHERE r.ResourceID IN ('0101','0102','0103','0104','0105','0106','0107', '0001', 'ET', 'PEN')
 		END
 
 		SELECT @ResultRemarkLog = STRING_AGG(CAST(ISNULL(RoundName,ResourceID) + 
@@ -1001,24 +999,6 @@ BEGIN
 		  		GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   			) AS tbl1
 		
-		IF  @sportType IN (5,9) AND EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL')
-		BEGIN
-			EXEC dbo.NAP_Set_GetRefundResult
-				@MatchId		= @MatchID
-				,@Sporttype		= @sportType
-				,@CalculateResources	= @SelectedResources
-				,@ResourceRefund = @ResourceRefund OUTPUT
-		END
-
-		IF ISNULL(@ResourceRefund, '')  <> ''
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
-				@MatchId		 = @MatchID
-				,@ResourceIds	 = @ResourceRefund
-				,@RowCount		 = @IsExistAR OUTPUT
-		END
-
-
 		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
 		SELECT @Remark = '<distinct>'
 							+ CASE 
@@ -1045,7 +1025,6 @@ BEGIN
 									END
 									+ CASE 
 										WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL THEN '<r n="CalcChild" v="' + @ChildMatchIds + '"/>'
-										WHEN @sportType IN (5,9) AND   @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL' THEN '<r n="Auto Refund" v="' + CAST(@IsExistAR AS VARCHAR(1)) + '"/>'
 										ELSE '' 
 									END
 							END								
