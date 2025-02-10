@@ -127,8 +127,8 @@ BEGIN
 
 			SELECT @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again. ResourceIDs: ' + STRING_AGG(CONVERT(VARCHAR(MAX),r.ResourceId),',')	
 			FROM ResultDetail r WITH(NOLOCK)
-				INNER JOIN @tmpResourceID rs
-					ON r.ResourceId = rs.ResourceID
+				INNER JOIN cte_ResourceID rs
+					ON r.ResourceId = rs.Id
 			WHERE r.MatchId  = @MatchId
 				AND ISNULL(r.ResultSetting,0) & 1 = 1 
 			
