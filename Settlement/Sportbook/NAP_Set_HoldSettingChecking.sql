@@ -125,7 +125,7 @@ BEGIN
 				FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20) ) AS tbl
 			)
 
-			SELECT @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again. ResourceIDs: ' + STRING_AGG(CONVERT(VARCHAR(MAX),r.ResourceId),',')	
+			SELECT @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again. ResourceIDs: ' + STRING_AGG(CONVERT(VARCHAR(MAX),(CASE r.ResourceId WHEN '00' THEN 'FT' ELSE 'HT' END)),',')	
 			FROM ResultDetail r WITH(NOLOCK)
 				INNER JOIN cte_ResourceID rs
 					ON r.ResourceId = rs.Id
