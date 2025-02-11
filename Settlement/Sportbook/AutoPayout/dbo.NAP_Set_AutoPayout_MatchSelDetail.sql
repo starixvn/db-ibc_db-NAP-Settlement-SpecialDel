@@ -65,7 +65,6 @@ BEGIN
 			INNER JOIN @tmpMatch_Info m ON m.matchid = r.MatchId
 		WHERE m.matchid = @MatchId
 			AND r.ResourceId IN ( '01', '00')
-			AND ISNULL(r.ResultSetting,0) & 1 = 1	
 	END
 
 	SELECT  matchid, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting
