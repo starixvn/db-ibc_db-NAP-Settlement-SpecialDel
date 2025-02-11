@@ -79,6 +79,7 @@ AS
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
+		- 20250106@Lani: [TVS] Change sp called of issue type 'Wrong 1st HDP & OU'  [Redmine: #215545]
 
 	Param's explanation:
 		
@@ -163,25 +164,22 @@ BEGIN
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
-			,@IssueTypeId		   = @IssueTypeId
 			,@WrongHDPInfo		   = @WrongHDPInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 5 --Wrong 1st HDP
 	BEGIN
-		EXEC dbo.TicketVoiding_LogInfo_HDP_Select
+		EXEC dbo.TicketVoiding_LogInfo_1stHDP_Select
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
-			,@IssueTypeId		   = @IssueTypeId
-			,@WrongHDPInfo		   = @Wrong1stHDPInfo
+			,@Wrong1stHDPInfo	   = @Wrong1stHDPInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 6 --Wrong OU
 	BEGIN
 		EXEC dbo.TicketVoiding_LogInfo_OU_Select
 			 @RequestId			   = @RequestId
-			,@IssueTypeId		   = @IssueTypeId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@WrongOUInfo		   = @WrongOUInfo
@@ -189,12 +187,11 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 7 --Wrong 1st OU
 	BEGIN
-		EXEC dbo.TicketVoiding_LogInfo_OU_Select
+		EXEC dbo.TicketVoiding_LogInfo_1stOU_Select
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
-			,@IssueTypeId		   = @IssueTypeId
-			,@WrongOUInfo		   = @Wrong1stOUInfo
+			,@Wrong1stOUInfo	   = @Wrong1stOUInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId IN (8,9) --EKO,WKO
