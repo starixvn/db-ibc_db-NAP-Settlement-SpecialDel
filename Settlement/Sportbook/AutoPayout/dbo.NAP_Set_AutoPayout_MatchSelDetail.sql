@@ -51,7 +51,7 @@ BEGIN
 		,@MainType = MainType
 	FROM @tmpMatch_Info
 
-	IF @sporttype = 1
+	IF @sporttype = 1 AND @ParentId  IS NOT NULL AND ISNULL(@MainType,0) = 33 ---Main match and corner match
 	BEGIN
 		INSERT INTO @tmpMatch_Info (matchid, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting, ChildMatchType)
 		SELECT matchid, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting, ChildMatchType
@@ -63,9 +63,17 @@ BEGIN
 		SELECT r.matchid, r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusId, r.SettlementStatusID, r.ResultSetting
 		FROM dbo.ResultDetail r WITH(NOLOCK)
 			INNER JOIN @tmpMatch_Info m ON m.matchid = r.MatchId
+		WHERE m.matchid <> @MatchId
+			AND r.ResourceId IN ( '01', '00')
+		
+	END
+
+		INSERT INTO @tmpResult_Info (matchid, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting  )
+		SELECT r.matchid, r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusId, r.SettlementStatusID, r.ResultSetting
+		FROM dbo.ResultDetail r WITH(NOLOCK)
+			INNER JOIN @tmpMatch_Info m ON m.matchid = r.MatchId
 		WHERE m.matchid = @MatchId
 			AND r.ResourceId IN ( '01', '00')
-	END
 
 	SELECT  matchid, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting
 	FROM @tmpMatch_Info
