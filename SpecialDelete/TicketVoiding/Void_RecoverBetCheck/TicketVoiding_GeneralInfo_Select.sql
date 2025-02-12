@@ -189,7 +189,7 @@ BEGIN
 
 		--Remove voidinghistory not follow RequestDetailId input
 		 DELETE FROM #tmpVoidingHistory 
-		 WHERE 1 = CASE WHEN RequestDetailId <> ISNULL(@RequestDetailId,0) THEN 1
+		 WHERE 1 = CASE WHEN RequestDetailId <> @RequestDetailId THEN 1
 					    WHEN RequestDetailId IS NULL THEN 1 
 						ELSE 0 END
 	END
