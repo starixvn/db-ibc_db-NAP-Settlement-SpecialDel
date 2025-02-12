@@ -26,6 +26,7 @@ BEGIN
 
 	SELECT ar.ID
           ,ar.Sporttype
+          ,ar.ResourceID
           ,t.[Action]                      
           ,t.matchType  
           ,t.childMatchType  

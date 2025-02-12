@@ -10,6 +10,7 @@ AS
 		- 20241205@Aries: Enhance Direct Payout for Soccer's Early Result [Redmine:#214832]
 		- 20250226@Aries: Support to apply Direct Payout for All Early Result of Soccer (Phase 2) [Redmine:#218482]
 		- 20250402@Hughie: Direct Payout- Soccer- Early PEN- Enhancement [Redmine:#222688]
+		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 
 	Param's Explanation:
  
@@ -42,12 +43,14 @@ BEGIN
 
 	SELECT m.matchid 
 		, m.leagueid
+		, m.sporttype
 		, rd.ResourceId
 		, rd.HomeValue
 		, rd.AwayValue
 		, rd.LastModifyDate
 		, ssp.relatedCalResources
 		, ssp.relatedSettResources
+		, m.ChildMatchType
 	FROM dbo.match m WITH(NOLOCK)	
 		INNER JOIN dbo.League l WITH(NOLOCK)
 			ON m.leagueid = l.leagueid

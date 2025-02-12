@@ -12,6 +12,8 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20200311@Sol: PH5 Enhancement - Early popyp auto fill [Redmine:#128076]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+
 		
 	Param's Explanation:
 */
@@ -27,6 +29,7 @@ BEGIN
 	-- Match Info 
 	SELECT	m.LeagueID
 			,m.MatchID
+			,m.sporttype
 			,m.matchcode
 			,m.kickofftime
 			,playTime = datediff(minute, m.kickofftime, CURRENT_TIMESTAMP) 

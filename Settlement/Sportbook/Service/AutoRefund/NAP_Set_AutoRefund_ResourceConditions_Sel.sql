@@ -10,23 +10,25 @@ AS
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 
 	Param's Explanation:
-        - @ResourceInfo = '[{"sportType":1,"resourceID":"376","matchType":2,"childMatchType":202}]'
+        - @ResourceInfo = '[{"sportType":1,"resourceId":"376","matchType":2,"childMatchType":202,"ruleId":0}]'
  
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE @Resource TABLE (Sporttype SMALLINT, ResourceID VARCHAR(20), MatchType TINYINT, ChildMatchType	TINYINT)
+	DECLARE @Resource TABLE (Sporttype SMALLINT, ResourceID VARCHAR(20), MatchType TINYINT, ChildMatchType	TINYINT, RuleID	TINYINT)
 
-	INSERT INTO @Resource (Sporttype, ResourceID, MatchType, ChildMatchType)
+	INSERT INTO @Resource (Sporttype, ResourceID, MatchType, ChildMatchType,RuleID)
 	SELECT tbl.sportType
 		  ,tbl.resourceId
 		  ,tbl.matchType
           ,tbl.childMatchType
+          ,tbl.ruleId
 	FROM OPENJSON(@ResourceInfo) WITH (
 			sportType		SMALLINT
 		   ,resourceId		VARCHAR(20)	
 		   ,matchType		TINYINT
            ,childMatchType	TINYINT
+           ,ruleId          TINYINT
 	) AS tbl
 
 	SELECT ar.ID
@@ -34,6 +36,7 @@ BEGIN
           ,ar.ResourceID
           ,t.matchType  
           ,t.childMatchType 
+          ,tt.[id] AS RuleID
           ,tt.[name] AS RuleName
           ,ttt.[action] AS sourceAction
           ,ttt.sourceMatchType
@@ -49,7 +52,8 @@ BEGIN
             ) AS t
         OUTER APPLY OPENJSON(t.Conditions)
             WITH (   
-                      name                          VARCHAR(MAX)    '$.name'
+                      id                            VARCHAR(MAX)    '$.id'
+                     ,name                          VARCHAR(MAX)    '$.name'
                      ,conditions                    NVARCHAR(MAX)   AS JSON  
             ) AS tt
        OUTER APPLY OPENJSON(tt.Conditions)
@@ -67,6 +71,7 @@ BEGIN
             AND ar.ResourceID = r.ResourceID
             AND t.matchType = r.matchType
             AND t.childMatchType = r.childMatchType
+            AND tt.id = IIF(r.RuleID IS NULL OR r.RuleID  = 0,tt.id, r.RuleID)
     )
 END
 GO

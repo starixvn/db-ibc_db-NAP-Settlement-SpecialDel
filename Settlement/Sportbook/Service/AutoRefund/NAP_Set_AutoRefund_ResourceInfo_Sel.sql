@@ -15,14 +15,15 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE @Resource TABLE (MatchId INT,ParentId INT, Sporttype SMALLINT, ResultTable TINYINT, sourceResource VARCHAR(20), sourceMatchType TINYINT, sourceChildMatchType	TINYINT)
-	DECLARE @MacthResource TABLE (MatchId INT,ParentId INT, Sporttype SMALLINT, ResultTable TINYINT, sourceResource VARCHAR(20), sourceMatchType TINYINT, sourceChildMatchType	TINYINT,HomeValue VARCHAR(50),AwayValue  VARCHAR(50),ResultStatusID TINYINT, SettlementStatusID TINYINT, ResultSetting TINYINT)
+	DECLARE @Resource TABLE (MatchId INT,ParentId INT, Sporttype SMALLINT, ResultTable TINYINT, ExternalResultTable TINYINT, sourceResource VARCHAR(20), sourceMatchType TINYINT, sourceChildMatchType	TINYINT)
+	DECLARE @MacthResource TABLE (MatchId INT,ParentId INT, Sporttype SMALLINT, ResultTable TINYINT, ExternalResultTable TINYINT, sourceResource VARCHAR(20), sourceMatchType TINYINT, sourceChildMatchType	TINYINT,HomeValue VARCHAR(50),AwayValue  VARCHAR(50),CfmHomeValue VARCHAR(50),CfmAwayValue  VARCHAR(50),ResultStatusID TINYINT, SettlementStatusID TINYINT, ResultSetting TINYINT)
 
-	INSERT INTO @Resource (MatchId,ParentId, Sporttype,ResultTable, sourceMatchType, sourceChildMatchType,sourceResource)
+	INSERT INTO @Resource (MatchId,ParentId, Sporttype,ResultTable,ExternalResultTable, sourceMatchType, sourceChildMatchType,sourceResource)
 	SELECT tbl.MatchId
 		  ,m.ParentId
           ,tbl.sportType
 		  ,st.ResultTable
+		  ,st.ExternalResultTable
 		  ,tbl.sourceMatchType
 		  ,tbl.sourceChildMatchType
           ,tbl.sourceResource
@@ -38,24 +39,24 @@ BEGIN
 	
 	IF EXISTS (SELECT TOP 1 1 FROM @Resource WHERE ResultTable = 1)
 	BEGIN
-		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
-		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
+		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable,ExternalResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
+		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable,r.ExternalResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
 			   ,rd.HomeValue,rd.AwayValue,rd.ResultStatusID,rd.SettlementStatusID,rd.ResultSetting
 		FROM @Resource AS r
 			INNER JOIN ResultDetail AS rd WITH(NOLOCK) ON r.MatchId = rd.MatchId AND r.sourceResource = rd.resourceId 
 		WHERE r.sourceMatchType = 1 --Current
 			AND r.ResultTable = 1
 		
-		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
-		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
+		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable,ExternalResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
+		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable,r.ExternalResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
 			   ,rd.HomeValue,rd.AwayValue,rd.ResultStatusID,rd.SettlementStatusID,rd.ResultSetting
 		FROM @Resource AS r
 			INNER JOIN ResultDetail AS rd WITH(NOLOCK) ON r.ParentId = rd.MatchId AND r.sourceResource = rd.resourceId 
 		WHERE r.sourceMatchType = 2 --Parent
 			AND r.ResultTable = 1
 		
-		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
-		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
+		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable,ExternalResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
+		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable,r.ExternalResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
 			   ,rd.HomeValue,rd.AwayValue,rd.ResultStatusID,rd.SettlementStatusID,rd.ResultSetting
 		FROM @Resource AS r
 			INNER JOIN match AS cm WITH(NOLOCK) ON cm.ParentId = r.ParentId AND  cm.ChildMatchType  = r.sourceChildMatchType 
@@ -66,30 +67,80 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1 FROM @Resource WHERE ResultTable = 2)
 	BEGIN
-		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
-		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
+		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable,ExternalResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
+		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable,r.ExternalResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
 			   ,rd.HomeValue,rd.AwayValue,rd.ResultStatusID,rd.SettlementStatusID,rd.ResultSetting
 		FROM @Resource AS r
-			INNER JOIN ResultDetail AS rd WITH(NOLOCK) ON r.MatchId = rd.MatchId AND r.sourceResource = rd.resourceId 
+			INNER JOIN ResultDetailOS AS rd WITH(NOLOCK) ON r.MatchId = rd.MatchId AND r.sourceResource = rd.resourceId 
 		WHERE r.sourceMatchType = 1 --Current
 			AND r.ResultTable = 1
 		
-		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
-		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
+		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable,ExternalResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
+		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable,r.ExternalResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
 			   ,rd.HomeValue,rd.AwayValue,rd.ResultStatusID,rd.SettlementStatusID,rd.ResultSetting
 		FROM @Resource AS r
-			INNER JOIN ResultDetail AS rd WITH(NOLOCK) ON r.ParentId = rd.MatchId AND r.sourceResource = rd.resourceId 
+			INNER JOIN ResultDetailOS AS rd WITH(NOLOCK) ON r.ParentId = rd.MatchId AND r.sourceResource = rd.resourceId 
 		WHERE r.sourceMatchType = 2 --Parent
 			AND r.ResultTable = 1
 		
-		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
-		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
+		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable,ExternalResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
+		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable, r.ExternalResultTable,r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
 			   ,rd.HomeValue,rd.AwayValue,rd.ResultStatusID,rd.SettlementStatusID,rd.ResultSetting
 		FROM @Resource AS r
 			INNER JOIN match AS cm WITH(NOLOCK) ON cm.ParentId = r.ParentId AND  cm.ChildMatchType  = r.sourceChildMatchType 
-			INNER JOIN ResultDetail AS rd WITH(NOLOCK) ON cm.MatchId = rd.MatchId AND r.sourceResource = rd.resourceId 
+			INNER JOIN ResultDetailOS AS rd WITH(NOLOCK) ON cm.MatchId = rd.MatchId AND r.sourceResource = rd.resourceId 
 		WHERE r.sourceMatchType = 3 --Relate
 			AND r.ResultTable = 1
+	END
+
+	IF EXISTS (SELECT TOP 1 1 FROM @Resource WHERE ResultTable = 3)
+	BEGIN
+		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable,ExternalResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
+		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable,r.ExternalResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
+			   ,rd.HomeValue,rd.AwayValue,rd.ResultStatusID,rd.SettlementStatusID,rd.ResultSetting
+		FROM @Resource AS r
+			INNER JOIN ResultDetailES AS rd WITH(NOLOCK) ON r.MatchId = rd.MatchId AND r.sourceResource = rd.resourceId 
+		WHERE r.sourceMatchType = 1 --Current
+			AND r.ResultTable = 1
+		
+		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable,ExternalResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
+		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable,r.ExternalResultTable, r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
+			   ,rd.HomeValue,rd.AwayValue,rd.ResultStatusID,rd.SettlementStatusID,rd.ResultSetting
+		FROM @Resource AS r
+			INNER JOIN ResultDetailES AS rd WITH(NOLOCK) ON r.ParentId = rd.MatchId AND r.sourceResource = rd.resourceId 
+		WHERE r.sourceMatchType = 2 --Parent
+			AND r.ResultTable = 1
+		
+		INSERT INTO @MacthResource(MatchId,ParentId, Sporttype,ResultTable,ExternalResultTable, sourceMatchType, sourceChildMatchType,sourceResource,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,ResultSetting)
+		SELECT	r.MatchId,r.ParentId, r.Sporttype,r.ResultTable, r.ExternalResultTable,r.sourceMatchType, r.sourceChildMatchType,r.sourceResource
+			   ,rd.HomeValue,rd.AwayValue,rd.ResultStatusID,rd.SettlementStatusID,rd.ResultSetting
+		FROM @Resource AS r
+			INNER JOIN match AS cm WITH(NOLOCK) ON cm.ParentId = r.ParentId AND  cm.ChildMatchType  = r.sourceChildMatchType 
+			INNER JOIN ResultDetailES AS rd WITH(NOLOCK) ON cm.MatchId = rd.MatchId AND r.sourceResource = rd.resourceId 
+		WHERE r.sourceMatchType = 3 --Relate
+			AND r.ResultTable = 1
+	END
+
+	IF EXISTS (SELECT TOP 1 1 FROM @MacthResource WHERE ExternalResultTable = 1 AND ResultSetting & 6 > 0)
+	BEGIN
+		UPDATE mr
+		SET  mr.CfmHomeValue = p.HomeValue
+			,mr.CfmAwayValue = p.AwayValue
+		FROM @MacthResource AS mr
+		INNER JOIN ProviderExternalResultDetail AS p ON p.MatchId = mr.MatchId AND p.ResourceId = mr.sourceResource AND p.SourceId = 99
+		WHERE mr.ExternalResultTable = 1 
+			AND mr.ResultSetting & 6 > 0
+	END
+
+	IF EXISTS (SELECT TOP 1 1 FROM @MacthResource WHERE ExternalResultTable = 2 AND ResultSetting & 6 > 0)
+	BEGIN
+		UPDATE mr
+		SET  mr.CfmHomeValue = p.HomeValue
+			,mr.CfmAwayValue = p.AwayValue
+		FROM @MacthResource AS mr
+		INNER JOIN ProviderExternalResultDetailOS AS p ON p.MatchId = mr.MatchId AND p.ResourceId = mr.sourceResource AND p.SourceId = 99
+		WHERE mr.ExternalResultTable = 1 
+			AND mr.ResultSetting & 6 > 0
 	END
 
 	SELECT * 
