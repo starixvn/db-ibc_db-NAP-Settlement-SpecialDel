@@ -15,7 +15,7 @@ DECLARE @ProgramId SMALLINT		= 1
 	   ,@WalletId  TINYINT		= 2
 	   ,@Creator   INT			= 10278938		
 
-DECLARE @ListCust VARCHAR(MAX) = '[{"c":1, "a":100},{"c":2, "a":100}]'
+DECLARE @ListCust VARCHAR(MAX) = '[{"c":1813891, "a":10}]'
 
 DROP TABLE IF EXISTS #@tmpCust2k
 CREATE TABLE #@tmpCust2k(c INT,a  MONEY)
