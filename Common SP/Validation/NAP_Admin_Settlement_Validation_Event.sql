@@ -126,8 +126,10 @@ BEGIN
 			,@IsCheckSettlementStatusEarly = CASE WHEN @Mode = 'EAR' THEN 1
 													ELSE 0 END
 
-	--alway check hold status
-	SELECT @IsHoldChecking = 1
+	--alway check hold status (except Refund All (Pos))
+	SELECT @IsHoldChecking = CASE WHEN @Action = 'REFUND' AND @Mode = 'ALL' AND @SDTRecord  = 0 THEN 0
+								  ELSE 1
+								  END
 
 	SELECT @IsResultSettingChecking =  CASE WHEN  @SportType = 2 AND @LeagueGroupID = 122						THEN 0
 											WHEN  @SportType = 43 AND @LeagueGroupID IN (151, 215)				THEN 0
@@ -251,6 +253,7 @@ BEGIN
 			@MatchId	= @MatchId
 			,@SelectedResources = @SelectedResources
 			,@IsEarly	= @IsCheckHoldEarly
+			--,@IsAuto = @IsAuto
 			,@ErrCode	= @ErrCode OUTPUT
 			,@ErrMsg	= @ErrMsg OUTPUT
 
