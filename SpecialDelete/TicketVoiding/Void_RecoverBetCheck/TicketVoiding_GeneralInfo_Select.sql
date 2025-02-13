@@ -93,7 +93,7 @@ BEGIN
 			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.leagueid END
 			,r.UserId
 			,r.DecidedBy
-			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.kickofftime END 
+			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.GlobalShowTime END 
 			,r.IssueTypeId
 			,CASE WHEN r.IssuetypeId IN (22) THEN r.CreatedDate ELSE NULL END AS RecoveredTime
 			,m.sporttype
@@ -102,11 +102,11 @@ BEGIN
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		OUTER APPLY (
-					SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.kickofftime, sporttype, NULL AS VendorMatchId, NULL AS RaceId
+					SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.GlobalShowTime, sporttype, NULL AS VendorMatchId, NULL AS RaceId
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE rd.MatchId = m.matchid
 					UNION
-					SELECT	m14.MatchId, m14.homeid, m14.awayid, m14.leagueid, m14.kickofftime, sporttype, NULL, NULL
+					SELECT	m14.MatchId, m14.homeid, m14.awayid, m14.leagueid, m14.globalshowtime, sporttype, NULL, NULL
 					FROM	dbo.match14 m14 WITH(NOLOCK)
 					WHERE rd.MatchId = m14.matchid
 
@@ -189,7 +189,7 @@ BEGIN
 
 		--Remove voidinghistory not follow RequestDetailId input
 		 DELETE FROM #tmpVoidingHistory 
-		 WHERE 1 = CASE WHEN RequestDetailId <> ISNULL(@RequestDetailId,0) THEN 1
+		 WHERE 1 = CASE WHEN RequestDetailId <> @RequestDetailId THEN 1
 					    WHEN RequestDetailId IS NULL THEN 1 
 						ELSE 0 END
 	END

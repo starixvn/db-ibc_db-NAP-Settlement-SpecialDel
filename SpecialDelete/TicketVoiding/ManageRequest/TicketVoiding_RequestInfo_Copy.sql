@@ -26,7 +26,7 @@ AS
 		- 20241212@Lani: [TVS] Add new column returned (ServiceAcceptTime, InputtedFromTime, MinAllowanceTime) - [Redmine: #215049]
 		- 20241227@Lani: [TVS] Change data of 'MinAllowanceTime' column returned - [Redmine: #215946]
 		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
-
+		- 20250121@Lani: [TVS] Return MinAcceptType column for Danger Accept/Red Card/Wrong Score issue type - [Redmine: #216153]
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
 					         Reduced Overs, Not Participate, Abandoned
@@ -188,6 +188,7 @@ BEGIN
 			   ,@ServiceAcceptTime VARCHAR(11)
 			   ,@MinAllowanceTime SMALLINT
 			   ,@AcceptType SMALLINT
+			   ,@MinAcceptTypeName NVARCHAR(50)
 		
 		SELECT @AcceptType = CAST(RequestExtraInfo AS XML).value('(/r/@MinType)[1]', 'SMALLINT')
 		FROM @tmpRequestInfo
@@ -200,8 +201,10 @@ BEGIN
 		)
 		SELECT @MinAllowanceTime = CASE WHEN @AcceptType = 1 THEN AA
 										WHEN @AcceptType = 2 THEN SA
-										ELSE PA
-								   END
+										ELSE PA END
+			 , @MinAcceptTypeName = CASE WHEN @AcceptType = 1 THEN 'Auto Accept'
+											 WHEN @AcceptType = 2 THEN 'Second Accept'
+											 ELSE 'Pending Accept' END
 		FROM Cte
 
 		SELECT @IssueDetail = IssueDetail
@@ -350,6 +353,7 @@ BEGIN
 		  ,@ServiceAcceptTime AS ServiceAcceptTime
 		  ,FilterFromTranstime
 		  ,@MinAllowanceTime AS MinAllowanceTime
+		  ,@MinAcceptTypeName AS MinAcceptType
 	FROM @tmpRequestInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.UserId
 
