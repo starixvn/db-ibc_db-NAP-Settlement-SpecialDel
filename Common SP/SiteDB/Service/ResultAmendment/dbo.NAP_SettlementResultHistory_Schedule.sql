@@ -9,6 +9,7 @@ AS
 	Revisions:
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240425@Aries: Fix IsCalculating = 99 [Redmine: #201480]
+		- 20241206@Aries: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
 
 	Param's Explanation:  
 		- @WrongResult: '<root><r Id="96801004" Home="20" Away="" RefBettypeID ="9680" G="1" OtherInfo="16776" Action="CAL" LogDate="2023-11-24 03:25:22.243" /></root>'	 
@@ -115,13 +116,13 @@ BEGIN
 				,IIF(s.MaxCalculating = 3 OR p.MaxCalculating = 3,1,0) AS HasError
 		FROM SettlementResultHistory AS h WITH(NOLOCK)
 			LEFT JOIN match AS m WITH(NOLOCK) ON m.matchid = h.matchid
-			OUTER APPLY (SELECT TOP 1 MIN(qs.IsCalculating) AS  MinCalculating, MAX(qs.IsCalculating) AS  MaxCalculating
+			OUTER APPLY (SELECT TOP 1 MIN(IIF(qs.IsCalculating NOT IN(2,3),0,qs.IsCalculating)) AS  MinCalculating,  MAX(IIF(qs.IsCalculating NOT IN(2,3),0,qs.IsCalculating))  AS  MaxCalculating
 						 FROM @tblParentMatch AS m
 							INNER JOIN Single_Calculate_Queue AS qs WITH(NOLOCK)  ON  qs.matchid = m.matchid 
 						 WHERE m.ParentId = h.matchid
 							AND qs.BroadcastSessionId = h.SessionID
 			) AS s
-			OUTER APPLY (SELECT TOP 1 MIN(qp.IsCalculating) AS  MinCalculating, MAX(qp.IsCalculating) AS  MaxCalculating
+			OUTER APPLY (SELECT TOP 1 MIN(IIF(qp.IsCalculating NOT IN(2,3),0,qp.IsCalculating)) AS  MinCalculating, MAX(IIF(qp.IsCalculating NOT IN(2,3),0,qp.IsCalculating)) AS  MaxCalculating
 						 FROM @tblParentMatch AS m 
 							INNER JOIN Parlay_Calculate_Queue AS qp WITH(NOLOCK) ON  qp.matchid = m.matchid 
 						 WHERE m.ParentId = h.matchid

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_03] 
 	@transIds	VARCHAR(MAX)
 	,@Mode		VARCHAR(20)
@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_03]
 	,@IsCalculateBalance	BIT = 0
 	,@ErrMessage			VARCHAR(300) = '' OUTPUT
 	,@ErrCode				INT			 = 0  OUTPUT
+	,@BroadcastSessionId	VARCHAR(50)		= NULL
 AS
 /*
 	Created: 20211130@Kathy.Nguyen	
@@ -20,6 +21,7 @@ AS
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230214@Louisa: New way to update balance for cashout Basketball [Redmine:#182677]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20250108@Louisa: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
 
 	Param's Explanation:  
 		   
@@ -91,6 +93,9 @@ BEGIN
 			,SettlementTime DATETIME
 			,bef_winlost MONEY
 			,bef_statusid TINYINT
+			,bettype SMALLINT
+			,betid BIGINT
+			,refno BIGINT
 	)
 
 	---parse XML
@@ -203,12 +208,18 @@ BEGIN
 					,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END				
 					,deleted.winlost
 					,deleted.statusid		
+					,deleted.bettype
+					,deleted.betid
+					,deleted.refno
 			INTO @tmpTransInfo (
 				CustId, Balance		
 				,transId
 				,statuswinlost,WinLost,aWinLost
 				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,SettlementTime,FcUpdateTime				
 				,bef_winlost, bef_statusid
+				,bettype
+				,betid
+				,refno
 			)
 	FROM	dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN @tempTrans t
@@ -235,6 +246,9 @@ BEGIN
 					,SettlementTime AS 'st'
 					,bef_winlost AS 'bef_w' 
 					,bef_statusid AS 'bef_sid' 
+					,bettype AS 'bt'
+					,betid AS 'bi' 
+					,refno  AS 'rf' 
 					
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
@@ -248,6 +262,7 @@ BEGIN
 			,@TransInfoJson = @TransInfoJson
 			,@SettlementAction = @Mode
 			,@TicketType = 's'
+			,@BroadcastSessionId = @BroadcastSessionId
 	END
 			
 	IF @IsCalculateBalance = 1 AND (@IsSiteDB = 1 OR @IsCentral = 1) ---except cashout soccer
@@ -279,6 +294,7 @@ BEGIN
 								+ ',MatchId = ' + CAST(@MatchId AS VARCHAR)
 								+ ',@ActionID = ' + CAST(@ActionID AS VARCHAR)
 								+ ',@IsCalculateBalance = ' + CAST(@IsCalculateBalance AS VARCHAR)
+								+ CASE WHEN @BroadcastSessionId IS NOT NULL THEN ',@BroadcastSessionId = ''' + @BroadcastSessionId + '''' ELSE '' END
 	
 		exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL
 			, @MessageType			= NULL

@@ -21,6 +21,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@IsPingoal			BIT				= 0
 	,@IsSettleRelated	BIT				= 0
 	,@RemarkInfo		VARCHAR(MAX)	= NULL
+	,@IsOrg				BIT				= 1		OUTPUT
 AS
 /*	Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -62,6 +63,7 @@ AS
 		- 20240409@Aries: Enhance Refund Game Winner matches for Tennis [Redmine: #203638]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20241206@Aries: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -147,6 +149,11 @@ BEGIN
 				,N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT'
 				,@ErrMsg	= @ErrMsg OUTPUT
 				,@ErrCode	= @ErrCode OUTPUT
+			
+			IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_')
+			BEGIN
+				SELECT @IsOrg = 0
+			END
 		END TRY
 
 		BEGIN CATCH
@@ -180,7 +187,7 @@ BEGIN
 			,@sqlCommand
 			,@BroadcastSessionId
 
-		IF @sportType = 50 
+		IF @sportType = 50
 		BEGIN
 			UPDATE SettlementResultHistory  WITH(UPDLOCK, ROWLOCK)
 			SET  StatusID = 100

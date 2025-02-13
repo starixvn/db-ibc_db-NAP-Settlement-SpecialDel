@@ -32,6 +32,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]    
 		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
+		- 20241206@Kathy: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
 
     Param's Explanation:
         - @Action: 'CAL', 'CAL-INST'
@@ -343,6 +344,7 @@ BEGIN
 	    	   ,@IsSettingByProfile  = 1
 	    	   ,@StrTransIds		 = @StrTransIds
 	    	   ,@IsCalculateBalance	 = 1
+			   ,@BroadcastSessionId	 = @BroadcastSessionIdInstant
 	    	   ,@ErrCode			 = @ErrCode OUTPUT
 	    	   ,@ErrMessage			 = @ErrMsg OUTPUT
 
@@ -358,6 +360,7 @@ BEGIN
 	    			   ,@IsSettingByProfile  = 1
 	    			   ,@StrTransIds		 = @StrUndoTransIds
 	    			   ,@IsCalculateBalance	 = 1
+					   ,@BroadcastSessionId	 = @BroadcastSessionIdInstant
 	    			   ,@ErrCode			 = @ErrCode OUTPUT
 	    			   ,@ErrMessage			 = @ErrMsg OUTPUT
 				END
@@ -409,6 +412,7 @@ BEGIN
 					   ,@CashoutVersion		 = 2 
 					   ,@strTransIds		 = @strTransIds
 					   ,@IsCalculateBalance	 = 1
+					   ,@BroadcastSessionId	 = @BroadcastSessionIdInstant
 					   ,@ErrCode			 = @ErrCode OUTPUT
 					   ,@ErrMessage			 = @ErrMsg OUTPUT
 				END
@@ -434,6 +438,7 @@ BEGIN
 						   ,@CashoutVersion		 = 2 
 						   ,@strTransIds		 = @StrUndoTransIds
 						   ,@IsCalculateBalance	 = 1
+						   ,@BroadcastSessionId	 = @BroadcastSessionIdInstant
 						   ,@ErrCode			 = @ErrCode OUTPUT
 						   ,@ErrMessage			 = @ErrMsg OUTPUT
 					END
