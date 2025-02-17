@@ -1,14 +1,15 @@
-/*<info serverAlias="DBLIC-bodb_Licensee" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBOIC-bodb_OIC" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_CleanUpDataSendOIC]
 AS
 /*  
 	Created by: July  
 	Date: 20220112
 	Task: SD - Result Amendment - Clean up data - Only support data within 6 months
-	DB: DBLIC-bodb_Licensee
+	DB: DBOIC-bodb_OIC
 
 	Revisions:  
 		- 20220112@July: Create new SP [Redmine: #167306]
+		- 20250122@July: Integrate - Change DB for sending data to OIC [Redmine: #216623]
 
 	Param's explanation:	
 */   

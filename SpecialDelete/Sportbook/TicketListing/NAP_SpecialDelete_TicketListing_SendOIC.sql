@@ -1,4 +1,4 @@
-/*<info serverAlias="DBLIC-bodb_Licensee" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBOIC-bodb_OIC" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_SendOIC]
 (
 	 @MatchID				INT
@@ -9,13 +9,14 @@ AS
 /*  
 	Created by: 20211119@July  
 	Task: SD - Send data to OIC instead of file
-	DB: DBLIC-bodb_Licensee   
+	DB: DBOIC-bodb_OIC   
 
 	Revisions:  
 		- 20211119@July: Create new SP [Redmine: #159115]
 		- 20230623@July: Ticket listing - Enhance performance when sending data to many Licensees at a time [Redmine: #190071]
 		- 20240614@Max: [TVS] Ticket Listing - Insert data to DB053 [Redmine: #206452]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20250122@July: Integrate - Change DB for sending data to OIC [Redmine: #216623]
 
 	Param's explanation:	
 */   
