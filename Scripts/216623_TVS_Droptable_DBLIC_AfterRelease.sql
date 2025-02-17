@@ -16,3 +16,28 @@ IF OBJECT_ID (N'LicenseeResultAmendment', N'U') IS NOT NULL
 
 IF OBJECT_ID (N'LicenseeResultAmendmentDetails', N'U') IS NOT NULL
 	DROP TABLE dbo.LicenseeResultAmendmentDetails	
+
+DECLARE @command VARCHAR(MAX)
+DECLARE @tmpDropObjectsName TABLE ( command VARCHAR(MAX), IsDrop BIT)
+
+INSERT INTO @tmpDropObjectsName (command)
+SELECT 'DROP PROCEDURE ' + name
+ FROM dbo.sysobjects
+ WHERE (type = 'P')
+ AND (
+	name LIKE 'NAP_SpecialDelete_TicketListing_CleanUpDataSendOIC%'
+OR	name LIKE 'NAP_SpecialDelete_TicketListing_SendOIC%'
+)
+SELECT * FROM @tmpDropObjectsName
+WHILE (1=1)
+BEGIN
+	UPDATE TOP (1) @tmpDropObjectsName
+	SET @command = command, IsDrop = 1
+	WHERE IsDrop IS NULL
+
+	IF @@ROWCOUNT = 0 BREAK;
+	
+	EXEC (@command)
+
+END
+
