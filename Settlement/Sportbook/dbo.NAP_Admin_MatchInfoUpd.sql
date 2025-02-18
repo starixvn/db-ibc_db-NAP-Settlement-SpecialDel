@@ -644,6 +644,7 @@ BEGIN
 				,@HTAway		 = @HalfTimeAway
 				,@FTHome		 = @FullTimeHome
 				,@FTAway		 = @FullTimeAway
+				,@GoalRecord	 = @GoalRecord
 		
 		SELECT @ConfirmHT	= CASE WHEN @HalfTimeHome IS NOT NULL THEN @AdminId ELSE NULL END
 				,@ConfirmFT = CASE WHEN @FullTimeHome IS NOT NULL THEN @AdminId ELSE NULL END
