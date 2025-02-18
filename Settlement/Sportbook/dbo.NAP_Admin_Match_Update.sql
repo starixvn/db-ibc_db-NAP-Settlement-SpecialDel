@@ -546,8 +546,8 @@ BEGIN
 			 ,finalawayscore = ISNULL(@FTAway, finalawayscore) 
 			 ,hthomescore	 = ISNULL(@HTHome, hthomescore) 
 			 ,htawayscore	 = ISNULL(@HTAway, htawayscore) 
-			 ,changetime	= GETDATE()
-             ,GoalRecord    = @GoalRecord
+			 ,GoalRecord     = ISNULL(@GoalRecord,GoalRecord)
+             ,changetime	= GETDATE()
 		WHERE matchid = @MatchId
 			AND eventstatus <> N'completed'
 	END
