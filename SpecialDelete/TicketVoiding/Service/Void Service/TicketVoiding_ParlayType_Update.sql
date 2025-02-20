@@ -362,7 +362,6 @@ BEGIN
 	FROM	#tmpMainTransId t
 		INNER JOIN dbo.bettrans b WITH(ROWLOCK)
 			ON t.TransId = b.transid
-	WHERE b.statusID NOT IN (101,102,103)
 	GROUP BY b.custid
 
 	INSERT INTO @tblCreditPending (custID, balance)  

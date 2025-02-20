@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_CancelCashOutType_Update]
+ALTER PROCEDURE [dbo].[TicketVoiding_CancelCashOutType_Update]
 (
 	 @RequestId			INT
 	,@MatchId			INT
@@ -261,7 +261,6 @@ BEGIN
 		FROM dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN #tmpTransId s
 			ON s.transId = b.transid							
-		WHERE b.statusID NOT IN (101,102,103)
 	) AS temp
 	GROUP BY temp.custid				
 	

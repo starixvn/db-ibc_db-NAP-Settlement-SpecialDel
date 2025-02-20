@@ -508,8 +508,7 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
-			)
-			AND b.statusID NOT IN (101,102,103)
+			)AND b.statusID NOT IN (101,102,103)
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -707,7 +706,7 @@ BEGIN
 		FROM dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN #tmpTransId tmp 
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
-		WHERE (tmp.Bettype BETWEEN 1101 AND 1199
+		WHERE tmp.Bettype BETWEEN 1101 AND 1199
 			OR tmp.bettype BETWEEN 81 AND 120 OR tmp.bettype BETWEEN 8101 AND 8120
 			OR tmp.Bettype BETWEEN 1201 AND 1299
 			OR tmp.bettype BETWEEN 2700 AND 2899
@@ -715,8 +714,6 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
-		)
-		AND b.statusID NOT IN (101,102,103)
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -756,7 +753,6 @@ BEGIN
 		FROM	#tmpTransId t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.TransId = b.transid
-		WHERE b.statusID NOT IN (101,102,103)
 	)b
 	GROUP BY b.matchid
 			,b.custid

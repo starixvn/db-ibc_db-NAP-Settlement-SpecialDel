@@ -824,8 +824,7 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
-			) 
-			AND b.SiteDBGroupID = @SiteDBGroupID
+			) AND b.SiteDBGroupID = @SiteDBGroupID
 			AND b.statusID NOT IN (101,102,103)
 	END
 
@@ -1047,9 +1046,7 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
-			) 
-			AND b.SiteDBGroupID = @SiteDBGroupID
-			AND b.statusID NOT IN (101,102,103)
+			) AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 	--capture balance after
 	INSERT INTO @AfterUpd (
