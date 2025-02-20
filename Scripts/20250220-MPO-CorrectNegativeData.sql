@@ -15,8 +15,9 @@ USE bodb02
 GO
 
 BEGIN
-	UPDATE l SET l.AccumTurnover = l.AccumTurnover + 50
-				, l.AccumPayout = l.AccumPayout + 13637.07
+
+	UPDATE l SET l.AccumTurnover = l.AccumTurnover + 50 --Get from CustLimitBetHistory_LIC
+				, l.AccumPayout = l.AccumPayout + 13637.07 --Get from CustLimitBetHistory_LIC
 	FROM dbo.CustLimitBet_LIC l WITH (ROWLOCK, UPDLOCK)
 	WHERE l.Matchid = 29
 		AND l.CustID = 155424995
