@@ -147,11 +147,7 @@ BEGIN
 		GroupBettypeId		  SMALLINT
     )
 
-	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT, betid BIGINT)	
-
-	DECLARE @StatusIds	 VARCHAR(50) =''
-		   ,@FilterBy	 TINYINT = NULL
 	
 	CREATE TABLE #tmpTransInfo(
 			   matchid INT
@@ -251,20 +247,7 @@ BEGIN
 
 	IF @IssueTypeId IN (11,20,13) --11: AbnormalBet, 20: Duplicate Tickets, 13: Abnormal account
 	BEGIN
-		IF @IssueTypeId IN (11,20)
-		BEGIN
-			SELECT @FilterBy = FilterBy
-			FROM dbo.TicketVoiding_RequestDetail WITH (NOLOCK)
-			WHERE RequestId = @RequestId
-		END
-		IF @IssueTypeId = 13
-		BEGIN
-			SET @StatusIds = (SELECT TOP 1 TicketStatusIds FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId)
-			INSERT INTO @Status_tmp (StatusId)
-			SELECT DISTINCT value 
-			FROM STRING_SPLIT(@StatusIds, ',')
-		END
-
+		
 		INSERT INTO #TVSTicketBets(
 				GroupID			
 				,transid		
@@ -362,7 +345,7 @@ BEGIN
 				,b.statuswinlost
 				,b.modds
 				,b.oddsid
-				,CASE WHEN @IssueTypeId IN (11,20) AND @FilterBy IS NOT NULL THEN 1 ELSE 0 END AS IsMixParlay
+				,CASE WHEN b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END AS IsMixParlay
 				,b.statusID
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
@@ -372,6 +355,20 @@ BEGIN
 			)ts
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
+	
+		IF @IssueTypeId = 13
+		BEGIN
+			DECLARE @StatusIds	 VARCHAR(50) =''
+
+			SELECT @StatusIds = TicketStatusIds
+			FROM dbo.TicketVoiding_RequestDetail WITH (NOLOCK)
+			WHERE RequestId = @RequestId
+
+			DELETE b
+			FROM #tmpTransInfo b
+			WHERE b.statusID NOT IN (SELECT DISTINCT value FROM STRING_SPLIT(@StatusIds, ','))
+		END
+		
 	END
 	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7, 2, 19, 21, 23, 12, 24, 25, 18) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU, WrongOdds, ReducedOver, Not Participate, Abandoned
 	BEGIN
@@ -1604,9 +1601,6 @@ BEGIN
 	FROM CTE_InstantSettlementSubgrouping s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
-	WHERE 1 = CASE WHEN @IssueTypeId <> 13 THEN 1
-				   WHEN @IssueTypeId = 13 AND  s.statusId IN (SELECT statusID FROM @Status_tmp)	 THEN 1 
-				   ELSE 0 END
 	ORDER BY CASE
 				WHEN s.OriginGroupName = 'Credit' THEN 1
 				WHEN s.OriginGroupName = '8RM/BARM' THEN 2
