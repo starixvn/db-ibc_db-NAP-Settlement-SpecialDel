@@ -1420,10 +1420,10 @@ BEGIN
 		,ma.custid 		AS Mrecommend
 		,su.username 	AS SAgUsername
 		,su.custid 		AS SRecommend
-		,su.site 
+		,ci.site 
 		,CASE 
 			WHEN b.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
-			ELSE su.site 
+			ELSE ci.site 
 		END AS EmailGroup
 		,@isITAdmin		AS IsITSupport
 		,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
