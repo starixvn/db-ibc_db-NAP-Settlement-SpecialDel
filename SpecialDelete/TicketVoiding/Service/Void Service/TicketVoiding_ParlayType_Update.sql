@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ParlayType_Update]
 	@RequestId			INT
 	,@MatchId			INT
@@ -15,7 +15,7 @@ AS
 /*	Created by: Kathy
 	Date 20181212
 	Task: view voided ticket [Redmine:#90155]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
@@ -33,6 +33,7 @@ AS
 		- 20230712@Max: Scale out credit - Fix issue child match cricket [Redmine: #181595]
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
 		- 20240321@Max: [TVS] Remove parameters when calling SP for settling parlay tickets [Redmine: #202022]
+		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
 
 	Param's explanation:	
 		
@@ -196,6 +197,7 @@ BEGIN
 	FROM	#tmpSubTransId t
 		INNER JOIN dbo.bettransm AS b WITH (NOLOCK)  
 			ON	b.transid = t.TransId
+	WHERE b.statusID NOT IN (101,102,103)
 
 	-- BackUp tickets of bettransm  
 	INSERT INTO zzzbettransm (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
@@ -207,6 +209,7 @@ BEGIN
 	FROM	#tmpSubTransId t
 		INNER JOIN dbo.bettransm AS b WITH (NOLOCK)  
 			ON	t.transid = b.transid   
+	WHERE b.statusID NOT IN (101,102,103)
 	
 	INSERT INTO @tmpMatchId(MatchId)
 	SELECT DISTINCT MatchId
@@ -341,6 +344,7 @@ BEGIN
 	FROM	#tmpMainTransId t
 		INNER JOIN dbo.bettrans b WITH(ROWLOCK)
 			ON t.TransId = b.transid
+	WHERE b.statusID NOT IN (101,102,103)
 	GROUP BY b.custid
 
 	/*Calculate main parlay ticket*/

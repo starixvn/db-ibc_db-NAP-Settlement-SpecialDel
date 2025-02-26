@@ -1,5 +1,5 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_CancelCashOutType_Update]
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[TicketVoiding_CancelCashOutType_Update]
 (
 	 @RequestId			INT
 	,@MatchId			INT
@@ -15,11 +15,12 @@ CREATE PROCEDURE [dbo].[TicketVoiding_CancelCashOutType_Update]
 AS
 /* Created by: 20230221@July
 	Task: [TVS] Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20230221@July: Create new SP [Redmine: #176998]
 		- 20231215@Max: [TVS] Include negative balance member by cancel cash out action to email [Redmine: #196706]
+		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
 
 	Explanation's Param:
 
@@ -168,7 +169,8 @@ BEGIN
 			b.winlostdate, b.betfrom, @session AS betcheck, b.checktime, b.matchid, b.bettype, 'CO', SYSDATETIME(), b.SiteDBGroupID, @VoidingHistoryId
 	FROM	dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #tmpTransId s ON	s.transId = b.transid
-	
+	WHERE b.statusID NOT IN (101,102,103)
+
 	--> capture before		
 	INSERT INTO @BeforeUpd (custid, balance, balanceType)
 	SELECT temp.custid
@@ -180,6 +182,7 @@ BEGIN
 		FROM dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN #tmpTransId s
 			ON s.transId = b.transid
+		WHERE b.statusID NOT IN (101,102,103)
 	) AS temp
 	GROUP BY temp.custid
 	
@@ -207,6 +210,7 @@ BEGIN
 	FROM	dbo.bettrans b 
 		INNER JOIN #tmpTransId s ON	b.transid = s.transId
 		INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON b.transid = c.TransID		
+	WHERE b.statusID NOT IN (101,102,103)
 
 	SET @transInfo = COMPRESS((
 	SELECT	b.transId AS 't'

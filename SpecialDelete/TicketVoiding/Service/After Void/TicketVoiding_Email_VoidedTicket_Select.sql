@@ -608,8 +608,8 @@ BEGIN
 			,ma.username AS MagUserName
 			,su.username AS SagUserName
 			,CASE WHEN ag.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'BetFair'
-				  ELSE su.site END AS EmailGroup
-			,su.site
+				  ELSE c.site END AS EmailGroup
+			,c.site
 			,t.IsCashOut
 			,@IsITSupport AS IsITSupport
 			,@IsITSupportCreatedRequest AS IsITSupportCreatedRequest

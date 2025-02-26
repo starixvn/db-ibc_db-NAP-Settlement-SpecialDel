@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_SingleType_Update]
 	@RequestId			INT
 	,@MatchId			INT
@@ -16,7 +16,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_SingleType_Update]
 AS
 /*	Created by: 20181212@Kathy
 	Task: void single ticket [Redmine:#90155]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
@@ -62,9 +62,9 @@ AS
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
+		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
 
 	Param's explanation:	
-		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
 		
 */      
 BEGIN
@@ -500,7 +500,7 @@ BEGIN
 		FROM dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN #tmpTransId tmp 
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
-		WHERE tmp.Bettype BETWEEN 1101 AND 1199
+		WHERE (tmp.Bettype BETWEEN 1101 AND 1199
 			OR b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120
 			OR b.bettype BETWEEN 1201 AND 1299
 			OR b.bettype BETWEEN 2700 AND 2899
@@ -508,6 +508,7 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
+			)AND b.statusID NOT IN (101,102,103)
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -526,7 +527,8 @@ BEGIN
 		,main.betdaqid
 	FROM	dbo.bettrans main WITH (NOLOCK)
 		INNER JOIN #tmpTransId t ON t.TransId = main.transid
-	
+	WHERE main.statusID NOT IN (101,102,103)
+
 	--capture balance before voiding
 	INSERT INTO @BeforeUpd(
 		matchid
@@ -610,6 +612,7 @@ BEGIN
 		FROM @tmpTransIdBatch AS t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)  
 				ON b.transid = t.TransId
+		WHERE b.statusID NOT IN (101,102,103)
 
 		SELECT @xmlTransId = (SELECT	t.TransId AS '@transid'
 										,t.betid AS '@betid'
