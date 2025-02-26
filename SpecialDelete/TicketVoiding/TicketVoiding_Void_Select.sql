@@ -68,6 +68,7 @@ AS
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
+		- 20250121@Lani: [TVS] Return 'GroupBettypeId' column [Redmine: #217176]
 
 	Param's explanation:	
 		
@@ -158,7 +159,8 @@ BEGIN
 		CheckTimeCashOut	  DATETIME,
 		statuswinlost		  TINYINT,
 		GroupPHaffected		  TINYINT, --  0: both 1X2 and AIO are NOT affected, 1:  only 1X2 is affected , 2: only AIO is affected
-		VendorMatchId		VARCHAR(50)
+		VendorMatchId		  VARCHAR(50),
+		GroupBettypeId		  SMALLINT
     )
 
 	CREATE TABLE #tblBetType
@@ -922,6 +924,7 @@ BEGIN
 					,CheckTimeCashOut
 					,GroupPHaffected
 					,modds
+					,GroupBettypeId
 				)
 			SELECT DISTINCT
 					b.transid AS GroupID
@@ -976,8 +979,12 @@ BEGIN
 																 ELSE 2 END
 						  ELSE 0 END AS GroupPHaffected
 					,b.modds
+					,CASE WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NOT NULL THEN g.GroupBettypeId
+						  WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NULL THEN b.bettype 
+						  ELSE NULL END AS GroupBettypeId
 			FROM	#tmpTransInfo b
 			   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
+			   LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = b.bettype
 			   CROSS APPLY (
 							SELECT TOP (1) transid
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
@@ -1042,6 +1049,7 @@ BEGIN
 						,IsCancelCashOut
 						,statuswinlost
 						,GroupPHaffected
+						,GroupBettypeId
 					)
 				SELECT DISTINCT
 						bm.transid AS GroupID
@@ -1093,6 +1101,9 @@ BEGIN
 																	 WHEN f.GroupMatch <> 0 THEN 2
 																	 ELSE 2 END
 						      ELSE 0 END AS GroupPHaffected
+						,CASE WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NOT NULL THEN g.GroupBettypeId
+							  WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NULL THEN bm.Subbettype 
+							  ELSE NULL END AS GroupBettypeId
 				FROM	#tmpTransInfo bm 
 						CROSS APPLY (
 									SELECT TOP (1) transid
@@ -1100,6 +1111,7 @@ BEGIN
 									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId
 							) ts
 						LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON bm.Subbettype = f.BetType AND f.IssueTypeId = @IssueTypeId
+						LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = bm.Subbettype
 				WHERE	bm.matchid = @MatchId
 						AND bm.SubstatusID NOT IN (101, 102, 103) -- reject, void, refund
 						AND bm.Subbetfrom <> 'P' AND bm.IsMixParlay = 1
@@ -1858,6 +1870,7 @@ BEGIN
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
 			   ,s.VendorMatchId
+			   ,s.GroupBettypeId
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1944,6 +1957,7 @@ BEGIN
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
 			   ,s.VendorMatchId
+			   ,s.GroupBettypeId
 		FROM	#TVSTicketBets s 
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
@@ -2019,6 +2033,7 @@ BEGIN
 			   ,s.CheckTimeCashOut
 			   ,s.GroupPHaffected
 			   ,s.VendorMatchId
+			   ,s.GroupBettypeId
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2103,6 +2118,7 @@ BEGIN
 		   ,s.CheckTimeCashOut
 		   ,s.GroupPHaffected 
 		   ,s.VendorMatchId
+		   ,s.GroupBettypeId
 		FROM	#TVSTicketBets s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2223,6 +2239,7 @@ BEGIN
 		   ,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 		   ,s.GroupPHaffected -- Affect isuetype : HDP,OU,ODDS
 		   ,s.VendorMatchId
+		   ,s.GroupBettypeId
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
