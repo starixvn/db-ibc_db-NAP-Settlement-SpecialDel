@@ -7,7 +7,9 @@ ALTER PROCEDURE [dbo].[NAP_updateMatch_remark]
 	@IsFinalRound       BIT = 0,
 	@IsMovedMatch		BIT = 1,
 	@IsRefundHT			BIT = NULL,
-	@IsResultHTCal		BIT = NULL
+	@IsResultHTCal		BIT = NULL,
+	@ConfirmHT			INT = NULL,
+	@ConfirmFT			INT = NULL
 WITH RECOMPILE
 /*  
 	Created: Kathy
@@ -35,6 +37,7 @@ WITH RECOMPILE
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]  
+		- 20250205@Louisa: Apply SOP for Soccer [Redmine:#216004] 
 
 	Param's Explanation: 
 */
@@ -471,5 +474,14 @@ BEGIN
 		WHERE matchid = @matchid
 	END
 
+	---Fuction Save Trader Score for soccer
+	IF @command = 'S' 
+	BEGIN
+		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
+		SET ConfirmHT		= ISNULL(@ConfirmHT, ConfirmHT)
+			,ConfirmFT		= ISNULL(@ConfirmFT, ConfirmFT)
+			,RepUpdateTime	= SYSDATETIME() 
+		WHERE matchid = @matchid
+	END
 END
 GO

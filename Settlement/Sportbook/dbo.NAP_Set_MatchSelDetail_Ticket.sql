@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Ticket]
 	@matchid 				INT
     ,@IsRefundPage 		BIT = 0
@@ -11,6 +11,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220927@Kathy: Check HTDone [Redmine:#178120]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20250113@Hughie: Apply SOP for Soccer [Redmine: #216004] 
 
 */
 BEGIN
@@ -38,7 +39,7 @@ BEGIN
 
 	DECLARE @status TABLE (GroupId TINYINT
 		,betCount INT, betWaitingCount INT, betRunningCount INT, betSettledCount INT, betMarkedCount INT
-		,betParlayCount INT, betParlayWaitingCount INT, betParlayRunningCount INT
+		,betParlayCount INT, betParlayWaitingCount INT, betParlayRunningCount INT, betRefundedCount INT
 	)
 
 	CREATE TABLE #Data (
@@ -55,6 +56,7 @@ BEGIN
 		,betParlaySettledCount INT DEFAULT(0)
 		,betParlayMarkedCount INT DEFAULT(0)
 		,betParlayCount	INT DEFAULT(0)
+		,BetRefundedCount INT DEFAULT(0)
 
 		,ExistLG		BIT
 		,ExistHTLG		BIT
@@ -85,7 +87,7 @@ BEGIN
 		@IsCentral = @IsCentral OUTPUT
 	
 	INSERT INTO #Data (bettype, isParlay
-			,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betCount
+			,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, BetRefundedCount, betCount
 			, IsLive		
 		)
 	SELECT	b.bettype, 0 isParlay
@@ -93,6 +95,7 @@ BEGIN
 			,SUM(CASE WHEN b.statusID = 1 THEN 1 ELSE 0 END) AS betWaitingCount
 			,SUM(CASE WHEN b.statusID BETWEEN 111 AND 113 OR b.statusID = 103 THEN 1 ELSE 0 END) AS betSettledCount
 			,SUM(CASE WHEN b.statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
+			,SUM(CASE WHEN b.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount
 			,COUNT(1) AS betCount			
 			,MAX(CASE WHEN b.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive	
 	FROM	dbo.bettrans b WITH(NOLOCK)
@@ -108,7 +111,7 @@ BEGIN
 	
 
 	INSERT INTO #Data (bettype, isParlay
-		,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betCount
+		,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, BetRefundedCount, betCount
 		, IsLive			
 	)
 	SELECT	bm.bettype, 1 isParlay			
@@ -116,6 +119,7 @@ BEGIN
 			,SUM(CASE WHEN bm.statusID = 1 THEN 1 ELSE 0 END) betWaitingCount
 			,SUM(CASE WHEN bm.statusID BETWEEN 111 AND 113 OR bm.statusId = 103 THEN 1 ELSE 0 END) AS betSettledCount
 			,SUM(CASE WHEN bm.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
+			,SUM(CASE WHEN bm.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount
 			,COUNT(1) betCount
 			,MAX(CASE WHEN bm.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
 	FROM	dbo.bettransm bm WITH(NOLOCK)
@@ -153,7 +157,7 @@ BEGIN
     BEGIN			
         -- check match status
 		INSERT INTO @status (GroupId, betCount, betRunningCount, betSettledCount, betMarkedCount, betWaitingCount
-				, betParlayCount, betParlayRunningCount, betParlayWaitingCount
+				, betParlayCount, betParlayRunningCount, betParlayWaitingCount, betRefundedCount
 		)
 		SELECT	CASE 
 					WHEN g.groupId IN (1,3) THEN 1 -- HT, HT FGLG
@@ -167,7 +171,8 @@ BEGIN
 			
 			,SUM(b.betParlayCount) AS betParlayCount
 			,MAX(b.betParlayRunningCount) AS betParlayRunningCount
-			,SUM(b.betParlayWaitingCount) AS betParlayWaitingCount		
+			,SUM(b.betParlayWaitingCount) AS betParlayWaitingCount
+			,SUM(b.BetRefundedCount) AS BetRefundedCount
 		FROM	#Data b
 			INNER JOIN @tmpBettypes g
 				ON	b.bettype = g.BetType
@@ -176,8 +181,8 @@ BEGIN
 					ELSE 2
 				END
 
-		INSERT INTO @status (GroupId, betCount, betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betParlayCount, betParlayRunningCount, betParlayWaitingCount)
-		SELECT t.GroupId, 0, 0, 0, 0, 0, 0, 0, 0
+		INSERT INTO @status (GroupId, betCount, betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betParlayCount, betParlayRunningCount, betParlayWaitingCount, betRefundedCount)
+		SELECT t.GroupId, 0, 0, 0, 0, 0, 0, 0, 0, 0
 		FROM (VALUES (1),(2)) AS t (GroupId)
 		WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @status s WHERE s.GroupId = t.GroupId)
 
@@ -202,6 +207,7 @@ BEGIN
 			,SUM(t.betParlayCount) AS betParlayCount
 			,SUM(t.betParlayWaitingCount) AS betParlayWaitingCount
 			,SUM(t.betParlayRunningCount) AS betParlayRunningCount
+			,SUM(t.betRefundedCount) AS betRefundedCount
 	FROM(
 		SELECT	
 				--CASE 
@@ -218,6 +224,7 @@ BEGIN
 				,betParlayCount
 				,betParlayWaitingCount
 				,betParlayRunningCount
+				,betRefundedCount
 		FROM	@status						
 	) t
 	GROUP BY t.GroupId

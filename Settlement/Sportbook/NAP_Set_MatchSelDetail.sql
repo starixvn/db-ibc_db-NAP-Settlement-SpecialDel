@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail]
 	@matchid 			INT
     ,@IsRefundPage 		BIT = 0
@@ -9,6 +9,7 @@ AS
    
     Revisions:   
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20250225@Hughie: Apply SOP for Soccer [Redmine:#216004]
 
 */
 
@@ -88,6 +89,7 @@ BEGIN
 		,l.LeagueGroupID 
 		,m.SettlementStatus
 		,m.EventStatusReason
+		,mr.OfferLive
      FROM dbo.match m WITH (NOLOCK)
         LEFT OUTER JOIN dbo.match_remark mr WITH (NOLOCK) 
 			ON	m.matchid = mr.matchid

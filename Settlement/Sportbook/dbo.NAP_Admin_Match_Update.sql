@@ -77,7 +77,8 @@ AS
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
-		
+		- 20250205@Louisa: Apply SOP for Soccer [Redmine:#216004] 
+
     Parameters Explanation:
 		 @SelectedResources = <Resources>
                                     <Resource Id="00" Home="1" Away="3" /> 
@@ -536,6 +537,19 @@ BEGIN
 			,changetime = GETDATE()
 		WHERE matchid = @MatchId
 		
+	END
+
+	IF @Command = 'NAP_Admin_Settlement-SaveScore'
+	BEGIN
+		UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
+		SET  finalhomescore	 = ISNULL(@FTHome ,finalhomescore)
+			 ,finalawayscore = ISNULL(@FTAway, finalawayscore) 
+			 ,hthomescore	 = ISNULL(@HTHome, hthomescore) 
+			 ,htawayscore	 = ISNULL(@HTAway, htawayscore) 
+			 ,GoalRecord     = ISNULL(@GoalRecord,GoalRecord)
+             ,changetime	= GETDATE()
+		WHERE matchid = @MatchId
+			AND eventstatus <> N'completed'
 	END
 
 END

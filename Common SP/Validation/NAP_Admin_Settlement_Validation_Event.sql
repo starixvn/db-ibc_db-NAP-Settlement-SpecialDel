@@ -34,6 +34,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 		- 20241028@Aries: Direct payout for early soccer [Redmine:#211079]
 		- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
+		- 20250211@Hughie: Apply SOP for Soccer [Redmine:#216004]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
@@ -125,13 +126,16 @@ BEGIN
 			,@IsCheckSettlementStatusEarly = CASE WHEN @Mode = 'EAR' THEN 1
 													ELSE 0 END
 
-	--alway check hold status
-	SELECT @IsHoldChecking = 1
+	--alway check hold status (except Refund All (Pos))
+	SELECT @IsHoldChecking = CASE WHEN @Action = 'REFUND' AND @Mode = 'ALL' AND @SDTRecord  = 0 THEN 0
+								  ELSE 1
+								  END
 
 	SELECT @IsResultSettingChecking =  CASE WHEN  @SportType = 2 AND @LeagueGroupID = 122						THEN 0
 											WHEN  @SportType = 43 AND @LeagueGroupID IN (151, 215)				THEN 0
 											WHEN  @sporttype IN (8, 50) AND @ChildMatchType = 200  					THEN 0
 											WHEN  Setting & 4 > 0 AND @Action = 'REFUND' AND @IsAuto = 1		THEN 0	
+											WHEN  @SportType = 1 AND @Mode IN ('ALL','HT','FT')							THEN 0
 											ELSE  1
 										END
 	FROM dbo.SettlementResultTableSetting s WITH(NOLOCK)
@@ -249,6 +253,7 @@ BEGIN
 			@MatchId	= @MatchId
 			,@SelectedResources = @SelectedResources
 			,@IsEarly	= @IsCheckHoldEarly
+			--,@IsAuto = @IsAuto
 			,@ErrCode	= @ErrCode OUTPUT
 			,@ErrMsg	= @ErrMsg OUTPUT
 
