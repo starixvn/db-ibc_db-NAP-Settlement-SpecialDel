@@ -479,7 +479,6 @@ BEGIN
 					  ELSE NULL END AS GroupBettypeId
 		FROM	#tmpTransInfo b
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
-			   LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = b.bettype
 			CROSS APPLY (
 						SELECT TOP 1 TransId
 						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
