@@ -8,6 +8,7 @@ AS
 	Revisions:
 		- 20241002@Kathy: direct payout for early soccer [Redmine:#211079]
 		- 20241205@Aries: Enhance Direct Payout for Soccer's Early Result [Redmine:#214832]
+		- 20250226@Aries: Support to apply Direct Payout for All Early Result of Soccer (Phase 2) [Redmine:#218482]
 
 	Param's Explanation:
  
@@ -85,7 +86,5 @@ BEGIN
 			AND rd.LastModifyDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,1), @CurrTime)
 			AND rd.HomeValue NOT LIKE '%NT%' 
 			AND rd.AwayValue NOT LIKE '%NT%'
-			AND ((rd.ResourceID  LIKE '38[12][0-2][0-9]' AND CAST(RIGHT(rd.ResourceID, 2) AS INT) BETWEEN 1 AND 25)
-				 OR rd.ResourceID  LIKE '38[45]0[1-5]' )
 END
 GO
