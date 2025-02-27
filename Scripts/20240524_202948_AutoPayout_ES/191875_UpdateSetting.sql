@@ -12,3 +12,4 @@ UPDATE SettlementResultTableSetting
 SET  AP_EAR_CheckList  = '1,2,3,94,99'
 WHERE Sporttype = 43
 
+ 
