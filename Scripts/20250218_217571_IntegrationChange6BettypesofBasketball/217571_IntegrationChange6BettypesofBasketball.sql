@@ -1,4 +1,4 @@
-/* info serverAlias="DBPRO-bodb02" executers="" isFunction="0"  /info */
+/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
     Created: 20250213@Hughie
 	Task: Integration - Change 6 bet types of Basketball [Redmine: #217571]
