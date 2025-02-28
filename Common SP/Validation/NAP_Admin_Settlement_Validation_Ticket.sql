@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Settlement_Validation_Ticket
 (
 	 @matchid		INT = 0
@@ -36,6 +36,7 @@ AS
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230612@Louisa: HF - missing get Auto settled results [Redmine:#189594] 
 		- 20230920@Kathy: Remove check ticket at central before moving [Redmine:#194268]
+		- 20252802@Aries.Nguyen: Enhance the logic code to decrease the amount of calling SPs into NAP_Set_ServerInfo [RedmineID: #218790]
 
 	Param's Explanation:
 		This SP is called after pass [NAP_Admin_Settlement_Validation_Event]
@@ -100,8 +101,7 @@ BEGIN
 
 	SET @currentdate = CURRENT_TIMESTAMP
 
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
+	SET @IsCentral = [dbo].[f_CheckServerCentral]()
 
 	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
 

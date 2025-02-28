@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Checking] 
 	  @MatchId 				INT = NULL
 	, @MatchIds 			VARCHAR(4000) = NULL OUTPUT
@@ -48,7 +48,8 @@ AS
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
-		
+		- 20252802@Aries.Nguyen: Enhance the logic code to decrease the amount of calling SPs into NAP_Set_ServerInfo [RedmineID: #218790]
+
 	Param's Explanation:
 		
 */
@@ -92,8 +93,7 @@ BEGIN
     FROM	dbo.[match] WITH (NOLOCK)
     WHERE	matchid = @matchid
 
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
+	SET @IsCentral = [dbo].[f_CheckServerCentral]()
 
 	--cal/undo/refund FT/HT/Game/Set
 	--cal early sports settle by profile except early soccer
