@@ -14,9 +14,11 @@ AS
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220318@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 		- 20230112@July: Wrong Score - No need to exclude Home/Away bet types [Redmine: #182805]
+		- 20250228@Lani: TVS - Wrong Score - Add new sub type and related event function [Redmine: #216151]
 
     Parameters Explanation:    
 		IssueTypeId = 1 Danger Accepted
+		IssueTypeId = 3 Wrong Score
 */
 
 RETURN (
@@ -188,5 +190,24 @@ RETURN (
 	UNION ALL SELECT 1,85,391
 	UNION ALL SELECT 1,85,393
 
+	-- WRONG SCORE
+	--Next Goal - Home
+	UNION ALL SELECT 3,140,402
+	UNION ALL SELECT 3,140,404
+	UNION ALL SELECT 3,140,409
+	UNION ALL SELECT 3,140,462
+	UNION ALL SELECT 3,140,464
+	--Next Goal - Away
+	UNION ALL SELECT 3,141,401
+	UNION ALL SELECT 3,141,403
+	UNION ALL SELECT 3,141,407
+	UNION ALL SELECT 3,141,461
+	UNION ALL SELECT 3,141,463
+	--Next Corner - Home
+	UNION ALL SELECT 3,142,483
+	UNION ALL SELECT 3,142,485
+	--Next Corner - Away
+	UNION ALL SELECT 3,143,482
+	UNION ALL SELECT 3,143,484
 )
 GO
