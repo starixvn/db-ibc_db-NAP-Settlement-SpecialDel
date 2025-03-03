@@ -143,7 +143,6 @@ AS
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' columns, serverAlias [Redmine: #213451]
 		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
-		- 20250303@Lani: [TVS]  Basketball - Integrate 6 new bet types: Recover Ticket - Winlost calculation is incorrect for Win/Lose 1/2 case [Redmine: #218916]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -1364,7 +1363,7 @@ BEGIN
 		BEGIN
 			DELETE b
 			FROM #SpecialDeleteBets b
-				LEFT JOIN f_TVS_OddsTypeBettypes() f ON f.BetType = b.FilterBettype
+				LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.FilterBettype
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Odds tp
 				WHERE tp.OddsType = b.OddsType 
 					AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds = tp.Odds THEN 1

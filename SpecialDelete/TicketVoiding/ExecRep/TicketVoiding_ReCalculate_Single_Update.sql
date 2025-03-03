@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_Single_Update]
 (
 	@TransIds					VARCHAR(MAX)
@@ -9,7 +9,7 @@ AS
 /*	Created by: Max
 	Date 20200212
 	Task: Abnormal Void Bets Automation [Redmine: #128359]
-	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
+	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20200212@Max: Create new SP [Redmine: #128359]
@@ -21,7 +21,6 @@ AS
 		- 20220926@Max: Enhance code logic [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
-		- 20250303@Lani: [TVS]  Basketball - Integrate 6 new bet types: Recover Ticket - Winlost calculation is incorrect for Win/Lose 1/2 case [Redmine: #218916]
 		
 	Param's explanation:	
 		
@@ -119,7 +118,7 @@ BEGIN
     SELECT t.TransID, CASE WHEN (ot.oddstype = 1 OR b.bettype = 38) THEN 1 ELSE 0 END AS isDecimalOdd, srecommend, b.bettype, t.sporttype, t.creator
     FROM @tbl_transIDs t
         INNER LOOP JOIN dbo.bettrans b  WITH (NOLOCK) ON b.transid = t.transid
-        LEFT JOIN dbo.f_TVS_OddsTypeBettypes() AS ot ON ot.bettype = b.bettype
+        LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b.bettype
     WHERE b.statuswinlost IS NOT NULL
         AND b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN b.SiteDBGroupID ELSE 0 END
          

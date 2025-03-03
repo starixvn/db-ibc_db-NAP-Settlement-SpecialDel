@@ -17,7 +17,6 @@ AS
 	Revisions: 
 		- 20240916@Max: Create new SP [Redmine:#186029]
 		- 20241216@Lani: Add 'GroupName' column returned [Redmine: #213960]
-		- 20250303@Lani: [TVS]  Basketball - Integrate 6 new bet types: Recover Ticket - Winlost calculation is incorrect for Win/Lose 1/2 case [Redmine: #218916]
 		
 	Param's explanation:
 		
@@ -525,7 +524,7 @@ BEGIN
 				)
 				INSERT INTO @tmp_TransId (TransId)
 				SELECT b.transid FROM #TVSTicketBets b
-					LEFT JOIN f_TVS_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 				WHERE EXISTS (SELECT TOP 1 1 FROM cte tp
 					WHERE tp.OddsType = b.OddsType 
 						AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
@@ -555,7 +554,7 @@ BEGIN
 				)
 				INSERT INTO @tmp_TransId (TransId)
 				SELECT b.transid FROM #TVSTicketBets b
-					LEFT JOIN f_TVS_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 				WHERE EXISTS (SELECT TOP 1 1 FROM cte tp
 					WHERE tp.OddsType = b.OddsType 
 						AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
@@ -588,7 +587,7 @@ BEGIN
 				)
 				DELETE b
 				FROM #TVSTicketBets b
-					LEFT JOIN f_TVS_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 				WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
 					WHERE tp.OddsType = b.OddsType 
 						AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
@@ -614,7 +613,7 @@ BEGIN
 
 			DELETE b
 			FROM #TVSTicketBets b
-				LEFT JOIN f_TVS_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+				LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Odds tp
 				WHERE tp.OddsType = b.OddsType 
 					AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds = tp.Odds THEN 1

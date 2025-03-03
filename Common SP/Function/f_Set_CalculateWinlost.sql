@@ -19,8 +19,6 @@ AS
 
 	Revisions:		
 		- 20220309@Kathy: Calculate winlost [Redmine:#169300]
-		- 20250303@Lani: [TVS]  Fix bug - Basketball - Integrate 6 new bet types: Recover Ticket - Winlost calculation is incorrect for Win/Lose 1/2 case [Redmine: #218916]
-
 
 */
 
@@ -53,7 +51,7 @@ RETURN (
 				WHEN @bettype IN (468,469) THEN @odds
 				ELSE (CASE 
 						WHEN @odds < 0 THEN 1 
-	   					WHEN EXISTS (SELECT TOP 1 1 FROM dbo.f_TVS_OddsTypeBettypes() ot WHERE ot.BetType = @bettype AND ot.OddsType = 1) THEN @odds - 1 ----/*DECIMAL ONLY*/
+	   					WHEN EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_OddsTypeBettypes() ot WHERE ot.BetType = @bettype AND ot.OddsType = 1) THEN @odds - 1 ----/*DECIMAL ONLY*/
 						ELSE @odds 
 					END)
 				END AS odds
