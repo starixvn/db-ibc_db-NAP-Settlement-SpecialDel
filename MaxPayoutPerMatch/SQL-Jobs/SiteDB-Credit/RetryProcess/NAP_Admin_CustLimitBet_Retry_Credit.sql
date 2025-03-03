@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSIC-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBSIC-bodb02" executers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Retry_Credit]
 (
 	@QueueId	BIGINT
