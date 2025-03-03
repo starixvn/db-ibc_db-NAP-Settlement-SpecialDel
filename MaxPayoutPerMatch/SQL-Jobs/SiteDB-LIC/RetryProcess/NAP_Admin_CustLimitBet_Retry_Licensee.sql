@@ -26,7 +26,7 @@ BEGIN
 
 	CREATE TABLE #CustLimitBet_RetryTransId_LIC (TransId BIGINT, TryCount TINYINT)
 
-	DECLARE @CustLimitBet_RetryTransId_Batch AS TABLE (TransId BIGINT, IsProcessed BIT DEFAULT (0))
+	DECLARE @CustLimitBet_RetryTransId_Batch AS TABLE (TransId BIGINT, MatchId INT, CustId INT, IsProcessed BIT DEFAULT (0))
 
 	--Prepare data for LIC
 	INSERT #CustLimitBet_RetryTransId_LIC (TransId, TryCount)
@@ -52,7 +52,7 @@ BEGIN
 				DELETE @CustLimitBet_RetryTransId_Batch
 
 				DELETE TOP(2000) t1
-				OUTPUT DELETED.TransId, 0 INTO @CustLimitBet_RetryTransId_Batch (TransId, IsProcessed)
+				OUTPUT DELETED.TransId, t2.Matchid, t2.CustID, 0 INTO @CustLimitBet_RetryTransId_Batch (TransId, MatchId, CustId, IsProcessed)
 				FROM #CustLimitBet_RetryTransId_LIC t1
 					INNER JOIN dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
 				WHERE t1.TryCount = @TryCount
@@ -81,7 +81,7 @@ BEGIN
 					CROSS APPLY (
 							SELECT SUM(l.TurnoverAdjust) AS TurnoverAdjust
 							FROM dbo.CustLimitBetHistory_LIC l WITH (NOLOCK)
-							WHERE l.Transid = t.transid
+							WHERE l.Transid = t.transid AND l.Matchid = t.MatchId AND l.CustID = t.CustId
 							GROUP BY l.Matchid, l.CustID, l.Transid
 					) t1
 					WHERE t1.TurnoverAdjust = 0
@@ -97,7 +97,7 @@ BEGIN
 							(
 								SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
 								FROM @CustLimitBet_RetryTransId_Batch t1
-									INNER JOIN dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
+									INNER JOIN dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK) ON t2.Transid = t1.transid AND t2.Matchid = t1.MatchId AND t2.CustID = t1.CustId
 								WHERE t1.IsProcessed = 0
 								GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
 							)tmpsum
@@ -111,7 +111,7 @@ BEGIN
 						, -MAX(t1.PayoutAdjust)
 						, t1.EventTypeID
 					FROM @CustLimitBet_RetryTransId_Batch t
-						INNER JOIN dbo.CustLimitBetHistory_LIC t1 WITH (NOLOCK) ON t1.Transid = t.transid
+						INNER JOIN dbo.CustLimitBetHistory_LIC t1 WITH (NOLOCK) ON t1.Transid = t.transid AND t1.Matchid = t.MatchId AND t1.CustID = t.CustId
 					WHERE t.IsProcessed = 0
 					GROUP BY t1.Matchid, t1.CustId, t.transid, t1.EventTypeID
 
