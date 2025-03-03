@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,DBACC-bodb02,DBWH-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02,DBACC-bodb02,DBWH-bodb02" executers="" viewers="" isFunction="1"></info>*/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
