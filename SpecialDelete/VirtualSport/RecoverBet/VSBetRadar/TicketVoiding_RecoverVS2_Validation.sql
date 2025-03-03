@@ -86,10 +86,17 @@ BEGIN
 			ELSE NULL
 		END AS [Action]
 		,b.matchid
+		,b.status
 	FROM #tblTransIds r
 		INNER JOIN dbo.zzzbettrans z WITH (NOLOCK) ON z.transid = r.transid
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = r.transid
-		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
+		CROSS APPLY (
+				SELECT rs.EventStatus, rs.BetStatus, o.EventDate, rs.SportType
+				FROM	dbo.VSOutright o WITH (NOLOCK) 
+						INNER JOIN dbo.VSRaceInfo rs WITH (NOLOCK) 
+						ON rs.EventID = o.EventID
+				WHERE o.Orid = z.oddsid
+		)m
 		CROSS APPLY (
 			SELECT DISTINCT p.pfID,p.Bettype
 			FROM STRING_SPLIT(@Resources,',') AS rs

@@ -3,7 +3,7 @@ ALTER PROCEDURE dbo.TicketVoiding_CheckingProcess
 (
 	 @MatchId					INT
 	,@Lock						BIT = 0
-	,@Type						INT = 1
+	,@Type						INT = 4
 )	
 AS
 /*
@@ -48,7 +48,7 @@ BEGIN
 				,@ErrMsg			= @ErrMsg OUTPUT
 		END
 
-		SELECT IIF(@ErrCode = 0 AND @avaiableProcess = 0,1,@ErrCode)  AS ErrCode, @ErrMsg AS ErrMessage
+		SELECT IIF(@ErrCode = 0 AND @avaiableProcess = 0,1,@ErrCode)  AS ErrorCode, @ErrMsg AS ErrorMsg
 	END
 	ELSE
 	BEGIN
