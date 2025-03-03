@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bet14] (
 	@transIds VARCHAR(MAX)
 	,@MatchId	INT = 0
@@ -7,13 +7,14 @@ AS
 /*
 	Created by: 20190715@Helen
 	Task: Settlement  
-	DB: DBTRANS/BODB02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
 		- 20210304@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210922@Louisa: Remove @CutOffDate [Redmine:#159903]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20250303@Lani: [TVS]  Basketball - Integrate 6 new bet types: Recover Ticket - Winlost calculation is incorrect for Win/Lose 1/2 case [Redmine: #218916]
 		
 	Param's Explanation:  
 		   
@@ -87,7 +88,7 @@ BEGIN
 	, srecommend, b14.bettype
 	FROM @tbl_transIDs t
 		INNER LOOP JOIN dbo.bettrans14 b14	WITH (NOLOCK) ON b14.transid = t.transid AND ISNULL(b14.betdaqid, 0) <> -2
-		LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b14.bettype
+		LEFT JOIN dbo.f_TVS_OddsTypeBettypes() AS ot ON ot.bettype = b14.bettype
 		 
 	-- update if bettype belongs to the CN88 site or not
 	UPDATE tmp
