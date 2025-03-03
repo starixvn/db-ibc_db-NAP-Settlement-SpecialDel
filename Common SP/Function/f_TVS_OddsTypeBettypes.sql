@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02,DBACC-bodb02,DBWH-bodb02" executers="" viewers="" isFunction="1"></info>*/
 CREATE FUNCTION [dbo].[f_TVS_OddsTypeBettypes] ()
 RETURNS TABLE
 WITH SCHEMABINDING
