@@ -32,6 +32,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
 		- 20240102@July: [TVS] Display a note for Min TransId of cash out ticket [Redmine: #199907]
+		- 20250403@Lani: [TVS] Get ticket of related event [Redmine: #216151]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -216,9 +217,6 @@ BEGIN
 	FROM @WrongScoreInfoXML.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL ))
 
-	SELECT TOP (1) @FilterBy = FilterBy 
-				 , @MatchId = MatchId 
-	FROM #FilterInfo
 	
 	INSERT INTO #tmpTransInfo( 
 		matchid 
@@ -351,6 +349,15 @@ BEGIN
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 	
+	--Delete ticket having subissuetype exclude bettype
+	DELETE b
+	FROM #tmpTransInfo AS b
+	INNER JOIN #FilterInfo AS f ON b.matchid = f.MatchId
+	WHERE EXISTS (SELECT TOP 1 1
+				  FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() AS d
+				  WHERE d.BetType = b.Subbettype AND d.SubIssueTypeId = f.SubIssueTypeId AND d.IssueTypeId = @IssueTypeId)
+
+
 	--Init Validation
 	INSERT INTO @Validation (MatchId, ScoreId, LiveScores)
 	SELECT DISTINCT MatchId, ScoreId, CAST(livehomescore AS VARCHAR(10)) + '-' + CAST(liveawayscore AS VARCHAR(10)) AS LiveScores
@@ -370,6 +377,8 @@ BEGIN
 			, @CancelCOFromTime			= NULL
 			, @CancelCOToTime			= NULL
 			, @VoidFromTime_tmp			= NULL
+			, @Matchid					= 0
+			, @FilterBy					= 1
 
 		UPDATE TOP(1) m SET
 			m.isFinish = 1
@@ -379,6 +388,8 @@ BEGIN
 			,@PATime = m.PATime
 			,@SATime = m.SATime
 			,@ScoreId = m.ScoreId
+			,@MatchId = m.MatchId
+			,@FilterBy = m.FilterBy
 		FROM #FilterInfo m
 		WHERE m.isFinish IS NULL
 
@@ -477,6 +488,9 @@ BEGIN
 		END 
 	END			
 	
+	SELECT TOP (1) @FilterBy = FilterBy
+	FROM #FilterInfo
+
 	-- Get ticket void
 	INSERT INTO #TVSTicketBets(
 			transid		
@@ -511,7 +525,7 @@ BEGIN
 			,b.betid
 			,b.SiteDBGroupID
 			,b.liveindicator
-			,@MatchId
+			,b.matchid
 			,b.statusID
 			,b.SubstatusID
 			,d.ScoreId
@@ -525,15 +539,15 @@ BEGIN
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
-	WHERE	b.matchid = @matchid AND b.IsMixParlay = 0 
+	WHERE	b.IsMixParlay = 0 
 			AND 1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 						WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 						ELSE 0 END
 			AND b.betfrom <> 'P'
 			AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
-			AND 1 = CASE WHEN @FilterBy = 1 AND b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-						 WHEN @FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-						 WHEN @FilterBy = 4 AND ((b.checktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))THEN 1
+			AND 1 = CASE WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
+						 WHEN d.FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
+						 WHEN d.FilterBy = 4 AND ((b.checktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))THEN 1
 					   ELSE 0 END 
 
 	-- Get ticket cancel cashout
@@ -571,7 +585,7 @@ BEGIN
 			,b.betid
 			,b.SiteDBGroupID
 			,b.liveindicator
-			,@MatchId
+			,b.matchid
 			,b.statusID
 			,b.SubstatusID
 			,d.ScoreId
@@ -582,21 +596,21 @@ BEGIN
 	FROM #tmpTransInfo b
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
-	WHERE	b.matchid = @matchid AND b.IsMixParlay = 0 
+	WHERE	b.IsMixParlay = 0 
 			AND 1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 						WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 						ELSE 0 END
 			AND b.betfrom <> 'P'
 			AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
-			AND 1 = CASE WHEN @FilterBy = 1
+			AND 1 = CASE WHEN d.FilterBy = 1
 							AND b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
 							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
 						THEN 1
-						 WHEN @FilterBy = 2 
+						 WHEN d.FilterBy = 2 
 							AND ISNULL(b.checktime, b.transdate) NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
 							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
 						THEN 1
-						 WHEN @FilterBy = 4
+						 WHEN d.FilterBy = 4
 							AND ((b.checktime NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))
 							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
 						THEN 1
@@ -655,7 +669,7 @@ BEGIN
 				,b.Subliveawayscore
 				,b.IsMixParlay
 				,b.Subliveindicator
-				,@MatchId
+				,b.matchid
 				,b.statusID
 				,b.SubstatusID
 				,d.ScoreId
@@ -678,9 +692,9 @@ BEGIN
 				AND b.liveindicator = 0
 				AND b.statusID NOT IN (102, 103)
 				AND 1 = CASE WHEN b.Sublivehomescore = 0 AND b.Subliveawayscore = 0 AND b.Subliveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
-				AND 1 = CASE WHEN @FilterBy = 1 AND b.Subtransdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-						     WHEN @FilterBy = 2 AND ISNULL(b.Subchecktime, b.Subtransdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-						     WHEN @FilterBy = 4 AND ((b.Subchecktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.Subtransdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime)) THEN 1
+				AND 1 = CASE WHEN d.FilterBy = 1 AND b.Subtransdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
+						     WHEN d.FilterBy = 2 AND ISNULL(b.Subchecktime, b.Subtransdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
+						     WHEN d.FilterBy = 4 AND ((b.Subchecktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.Subtransdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime)) THEN 1
 							ELSE 0 END 
 	END
 
@@ -708,8 +722,9 @@ BEGIN
 			UPDATE v SET v.IsExistedInOtherRequest = 1
 			FROM @Validation v
 				INNER JOIN #TransidInRequest t ON t.MatchId = v.MatchId
-			WHERE 1 = CASE WHEN @FilterBy = 2 THEN 1
-						   WHEN @FilterBy <> 2 AND t.ScoreId = v.ScoreId THEN 1
+				INNER JOIN #FilterInfo f ON f.MatchId = t.MatchId
+			WHERE 1 = CASE WHEN f.FilterBy = 2 THEN 1
+						   WHEN f.FilterBy <> 2 AND t.ScoreId = v.ScoreId THEN 1
 						   ELSE 0 END
 		END
 		
@@ -721,8 +736,8 @@ BEGIN
 
 	--Data Section
 	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, InstantlySettleCount, SettleCount, MainParlayCount, ScoreId, HighLightMinTime)
-	SELECT @MatchId AS MatchId
-		,CASE WHEN @FilterBy = 2 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END AS LiveScores
+	SELECT f.MatchId AS MatchId
+		,CASE WHEN f.FilterBy = 2 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END AS LiveScores
 		,MIN(act.VoidTime) AS VoidFromTime
 		,MAX(act.VoidTime) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
@@ -734,15 +749,16 @@ BEGIN
 		,MIN(act.VoidTime) AS HighLightMinTime
 	FROM #TVSTicketBets b
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
+		INNER JOIN #FilterInfo f ON f.MatchId = b.matchid
 		CROSS APPLY (SELECT CASE 
-								WHEN @FilterBy IN (1,4) THEN b.transdate
-								WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-								WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
+								WHEN f.FilterBy IN (1,4) THEN b.transdate
+								WHEN f.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+								WHEN f.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
 							 END AS VoidTime
 					)act
 	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-	GROUP BY CASE WHEN @FilterBy = 2 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END, b.ScoreId
-	ORDER BY CASE WHEN @FilterBy = 2 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END, b.ScoreId
+	GROUP BY CASE WHEN f.FilterBy = 2 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END, b.ScoreId, f.MatchId
+	ORDER BY CASE WHEN f.FilterBy = 2 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END, b.ScoreId, f.MatchId
 
 	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsCancelCashOut = 1)
 	BEGIN
@@ -770,7 +786,7 @@ BEGIN
 	END
 
 	/* Display warning message in case void second accept tickets before the allowance time of this type */
-	IF @FilterBy = 2 AND EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE accepttype = 2)
+	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE FilterBy = 2) AND EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE accepttype = 2)
 	BEGIN
 		DECLARE @tmp_SAChecking AS TABLE (MatchId INT, VoidFromTime DATETIME, SAFromTime DATETIME)
 		INSERT INTO @tmp_SAChecking (MatchId, VoidFromTime, SAFromTime)
@@ -794,11 +810,12 @@ BEGIN
 				FROM #logInfo l
 					INNER JOIN @tmp_SAChecking s ON s.MatchId = l.MatchId
 					INNER JOIN #TVSTicketBets t ON t.matchid = l.MatchId
+					INNER JOIN #FilterInfo f ON t.matchid = f.MatchId
 				WHERE t.accepttype = 2
 					AND v.MatchId = l.MatchId
-					AND 1 = CASE WHEN @FilterBy = 1 AND t.transdate BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
-										WHEN @FilterBy = 2 AND t.checktime IS NOT NULL AND t.checktime BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
-										WHEN @FilterBy = 2 AND t.checktime IS NULL AND t.transdate BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
+					AND 1 = CASE WHEN f.FilterBy = 1 AND t.transdate BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
+								 WHEN f.FilterBy = 2 AND t.checktime IS NOT NULL AND t.checktime BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
+								 WHEN f.FilterBy = 2 AND t.checktime IS NULL AND t.transdate BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
 							ELSE 0 END
 			)l
 		
