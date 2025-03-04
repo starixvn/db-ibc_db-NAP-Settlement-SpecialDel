@@ -530,7 +530,7 @@ BEGIN
 
 		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM #tmpTransOutput)
 		BEGIN
-			SET @transInfoJson = (
+			SET @transInfoJson = COMPRESS((
 					SELECT	transId AS 't'
 							,modds AS 'm'
 							,odds AS 'o'				
@@ -556,7 +556,7 @@ BEGIN
 				
 				FROM	#tmpTransOutput
 				FOR JSON AUTO
-			)
+			))
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
 			SELECT 'TVS', 'Recover-VS2', 'bettrans', 'U', @matchid, @transInfoJson, 's', 1
