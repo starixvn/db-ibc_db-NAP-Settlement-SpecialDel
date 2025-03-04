@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_RecoverVS2_Update]
 	@MatchID					   INT			= 0
 	,@TransInfoJson                 VARCHAR(MAX)    = ''
+	,@Action						VARCHAR(50)	= 'Re-Cal'
 	,@UserId						INT = 0
 	,@IP							VARCHAR(15) = ''
     ,@ErrorMsg						VARCHAR(300)	= ''	OUTPUT
@@ -45,6 +46,7 @@ BEGIN
         EXEC dbo.TicketVoiding_ReCalculate_Single_Update
             @TransIds = @TransInfoJson
 			,@Mode = 'RECOVER-VS2'
+			,@Action = @Action
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 		
 		--delete zzzbettrans
