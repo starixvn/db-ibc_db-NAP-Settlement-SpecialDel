@@ -5,7 +5,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_Single_Update]
 	,@CalledByBrokerService     BIT         = 0
 	,@RunOnServer				VARCHAR(100) = NULL
 	,@Mode						VARCHAR(50) = ''
-	,@Action					VARCHAR(50) = ''
 	,@NegativeBalanceUsers		VARCHAR(MAX) = '' OUTPUT
 )
 AS
@@ -394,6 +393,7 @@ BEGIN
 			,@transInfoJson VARBINARY(MAX)
 			,@IsCentral		BIT
 			,@CustIds VARCHAR(MAX)
+			,@status VARCHAR(50) = NULL
 			
 		DECLARE @BeforeUpd		TVP_BalanceWalletChange
 			,@AfterUpd			TVP_BalanceWalletChange
@@ -471,108 +471,60 @@ BEGIN
 		) AS t
 
 		SET @StartTime = SYSDATETIME()
+		SET @settlementTime = GETDATE()
+		SET @FcUpdateTime = SYSDATETIME()
 
-		IF @Action = 'Re-Cal'
-		BEGIN
-			SET @SettlementTime = GETDATE();
-
-			UPDATE  b
-			SET  b.odds				= t.odds
-				,b.modds			= t.modds
-				,b.statuswinlost	= t.statuswinlost
-				,b.SettlementTime	= IIF(t.IsUpdateTime = 1, @SettlementTime, b.SettlementTime)	
-				,b.WinLost			= t.WinLost
-				,b.aWinLost			= t.aWinLost				
-				,b.mWinLost			= t.mWinLost		
-				,b.sWinLost			= t.sWinLost
-				,b.PlayerComm		= t.PlayerComm	
-				,b.Comm				= t.Comm	
-				,b.aComm			= t.aComm	
-				,b.sComm			= t.sComm	
-				,b.Status			= t.Status
-				,b.StatusID			= t.StatusID
-				,b.ruben			= t.ruben
-				,b.ExtraInfo		= t.ExtraInfo
-				,@matchId			= b.matchid
-			OUTPUT	 inserted.transid
-					,deleted.custid, (inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
-					,inserted.modds, inserted.odds, inserted.statuswinlost
-					,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
-					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
-					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-					,inserted.Status,inserted.StatusID,inserted.ruben, deleted.ruben, inserted.ExtraInfo
-					,deleted.winlost,deleted.statusid	
-					,deleted.bettype,deleted.betid,deleted.refno
-					,deleted.winlostdate
-					,deleted.actual_stake
-			INTO #tmpTransOutput (
-					transId
-					,custid, Balance
-					,modds, odds, statuswinlost
-					,SettlementTime
-					,WinLost,aWinLost,mWinLost,sWinLost
-					,PlayerComm,Comm,aComm,sComm
-					,Status,StatusID,ruben, before_ruben, extrainfo
-					,bef_winlost, bef_statusid	
-					,bettype,betid,refno
-					,winlostdate
-					,actual_stake
-				)
-			FROM dbo.bettrans AS b WITH (ROWLOCK, UPDLOCK)
-				INNER JOIN #tmpTrans AS t ON  t.transid = b.transid
-			WHERE ISNULL(b.betdaqid,0) <> -2
-		END
-		ELSE IF @Action = 'Refund'
-		BEGIN
-			SET @SettlementTime = GETDATE();
-			SET @FcUpdateTime = SYSDATETIME()
-
-			UPDATE	b
-			SET	 b.Status			= t.Status
-				,b.statusID			= t.statusID	
-				,b.SettlementTime	= @SettlementTime			
-				,b.winlost			= t.winlost
-				,b.awinlost			= t.awinlost
-				,b.mwinlost			= t.mwinlost
-				,b.swinlost			= t.swinlost
-				,b.playercomm		= t.playercomm
-				,b.comm				= t.comm
-				,b.acomm			= t.acomm
-				,b.scomm			= t.scomm
-				,b.ruben			= t.ruben
-				,b.statuswinlost	= t.statuswinlost
-				,b.odds				= t.odds
-				,b.FcUpdateTime		= @FcUpdateTime
-				,@matchId			= b.matchid
-			OUTPUT	 inserted.transid
-					,deleted.custid, (inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
-					,inserted.odds, inserted.statuswinlost
-					,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
-					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
-					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-					,inserted.Status,inserted.StatusID,inserted.ruben, deleted.ruben
-					,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
-					,deleted.winlost,deleted.statusid	
-					,deleted.bettype,deleted.betid,deleted.refno
-					,deleted.winlostdate
-					,deleted.actual_stake
-			INTO #tmpTransOutput (
-					 transId
-					,custid, Balance
-					,odds, statuswinlost
-					,SettlementTime
-					,WinLost,aWinLost,mWinLost,sWinLost
-					,PlayerComm,Comm,aComm,sComm
-					,Status,StatusID,ruben, before_ruben
-					,FcUpdateTime
-					,bef_winlost, bef_statusid
-					,bettype,betid,refno
-					,winlostdate
-					,actual_stake
+		UPDATE  b
+		SET  @status			= t.status
+			,b.odds				= t.odds
+			,b.modds			= CASE WHEN @status IN ('Refund', 'running') THEN b.modds ELSE t.modds END
+			,b.statuswinlost	= t.statuswinlost
+			,b.SettlementTime	= IIF(t.IsUpdateTime = 1, @SettlementTime, b.SettlementTime)
+			,b.WinLost			= t.WinLost
+			,b.aWinLost			= t.aWinLost				
+			,b.mWinLost			= t.mWinLost		
+			,b.sWinLost			= t.sWinLost
+			,b.PlayerComm		= t.PlayerComm	
+			,b.Comm				= t.Comm	
+			,b.aComm			= t.aComm	
+			,b.sComm			= t.sComm	
+			,b.Status			= t.Status
+			,b.StatusID			= t.StatusID
+			,b.ruben			= t.ruben
+			,b.ExtraInfo		= CASE WHEN @status IN ('Refund', 'running') THEN b.ExtraInfo ELSE t.ExtraInfo END
+			,b.FcUpdateTime		= CASE WHEN @status = 'Refund' THEN @FcUpdateTime ELSE b.FcUpdateTime END
+			,@matchId			= b.matchid
+		OUTPUT	 inserted.transid
+				,deleted.custid, (inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
+				,inserted.modds, inserted.odds, inserted.statuswinlost
+				,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.Status,inserted.StatusID,inserted.ruben, deleted.ruben, inserted.ExtraInfo
+				,deleted.winlost,deleted.statusid	
+				,deleted.bettype,deleted.betid,deleted.refno
+				,deleted.winlostdate
+				,deleted.actual_stake
+				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
+		INTO #tmpTransOutput (
+				transId
+				,custid, Balance
+				,modds, odds, statuswinlost
+				,SettlementTime
+				,WinLost,aWinLost,mWinLost,sWinLost
+				,PlayerComm,Comm,aComm,sComm
+				,Status,StatusID,ruben, before_ruben, extrainfo
+				,bef_winlost, bef_statusid	
+				,bettype,betid,refno
+				,winlostdate
+				,actual_stake
+				,FcUpdateTime
 			)
-			FROM dbo.bettrans AS b WITH (ROWLOCK, UPDLOCK) 
-				INNER JOIN #tmpTrans AS t  ON  t.transid = b.transid
-		END
+		FROM dbo.bettrans AS b WITH (ROWLOCK, UPDLOCK)
+			INNER JOIN #tmpTrans AS t ON  t.transid = b.transid
+		WHERE 1 = CASE WHEN @status IN ('Refund', 'running') THEN 1 
+						WHEN @status NOT IN ('Refund', 'running') AND ISNULL(b.betdaqid,0) <> -2 THEN 1
+					ELSE 0 END
 
 		SET @EndTime = SYSDATETIME()
 
