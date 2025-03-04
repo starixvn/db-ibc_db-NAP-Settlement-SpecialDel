@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RecoverVS2_Update]
 	@MatchID					   INT			= 0
 	,@TransInfoJson                 VARCHAR(MAX)    = ''
