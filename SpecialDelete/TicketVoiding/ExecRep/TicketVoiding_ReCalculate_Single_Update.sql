@@ -522,9 +522,6 @@ BEGIN
 			)
 		FROM dbo.bettrans AS b WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #tmpTrans AS t ON  t.transid = b.transid
-		WHERE 1 = CASE WHEN @status IN ('Refund', 'running') THEN 1 
-						WHEN @status NOT IN ('Refund', 'running') AND ISNULL(b.betdaqid,0) <> -2 THEN 1
-					ELSE 0 END
 
 		SET @EndTime = SYSDATETIME()
 
