@@ -391,7 +391,7 @@ BEGIN
 		DECLARE @StartTime DATETIME
 			,@FcUpdateTime DATETIME
 			,@EndTime DATETIME
-			,@transInfoJson VARCHAR(MAX)
+			,@transInfoJson VARBINARY(MAX)
 			,@IsCentral		BIT
 			,@CustIds VARCHAR(MAX)
 			
@@ -629,8 +629,7 @@ BEGIN
 				,2 AS WalletType -- sub tickets always bet from cash wallet
 				,SUM(t.bef_winlost - t.actual_stake + t.PlayerComm) AS balance
 			FROM	#tmpTransOutput t
-			GROUP BY @matchid
-					,custid
+			GROUP BY custid
 
 			INSERT INTO @AfterUpd(
 				matchid
@@ -647,8 +646,7 @@ BEGIN
 				,2 AS WalletType -- sub tickets always bet from cash wallet
 				,SUM(t.WinLost - t.actual_stake + t.PlayerComm) AS balance
 			FROM	#tmpTransOutput t
-			GROUP BY @matchid
-					,custid
+			GROUP BY custid
 
 			---INSERT data into pending balance table   
 			EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
