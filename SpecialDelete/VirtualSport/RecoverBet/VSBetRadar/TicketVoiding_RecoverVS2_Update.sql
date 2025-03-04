@@ -36,7 +36,7 @@ BEGIN
 
 	INSERT INTO #RecoverBet (TransID, MatchId, CustId, bettype)
 	SELECT   t.t AS transId, b.matchid, b.custid, b.bettype
-	FROM OPENJSON(@TransJson) WITH (t BIGINT) AS t
+	FROM OPENJSON(@TransInfoJson) WITH (t BIGINT) AS t
 	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.t = b.TransId
  
     BEGIN TRY
