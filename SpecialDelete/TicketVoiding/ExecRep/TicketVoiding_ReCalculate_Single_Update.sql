@@ -419,6 +419,7 @@ BEGIN
 				   ,ruben				TINYINT
 				   ,ExtraInfo			VARCHAR(1000)
 				   ,IsUpdateTime		BIT
+				   ,creator				INT
 		)
 
 		CREATE TABLE #tmpTransOutput (  transId BIGINT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON)
@@ -430,9 +431,10 @@ BEGIN
 										,bef_winlost MONEY,bef_statusid TINYINT, bettype SMALLINT, winlostdate	SMALLDATETIME
 										,actual_stake MONEY
 										,betid BIGINT,refno BIGINT
-										,FcUpdateTime DATETIME2)
+										,FcUpdateTime DATETIME2
+										,creator INT)
 	
-		INSERT INTO #tmpTrans(transId,odds,modds,statuswinlost,WinLost,aWinLost,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,ExtraInfo,IsUpdateTime)
+		INSERT INTO #tmpTrans(transId,odds,modds,statuswinlost,WinLost,aWinLost,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,ExtraInfo,IsUpdateTime,creator)
 		SELECT   t.t		AS transId
 				,t.o		AS odds
 				,t.mo	    AS modds 	
@@ -450,6 +452,7 @@ BEGIN
 				,t.r	    AS ruben
 				,t.e	    AS ExtraInfo
 				,t.tm		AS IsUpdateTime
+				,t.cr		AS creator
 		FROM OPENJSON(@TransIds) WITH (
 					t		BIGINT
 				   ,o		SMALLMONEY
@@ -468,6 +471,7 @@ BEGIN
 				   ,r		TINYINT
 				   ,e		VARCHAR(1000)
 				   ,tm		BIT
+				   ,cr		INT
 		) AS t
 
 		SET @StartTime = SYSDATETIME()
@@ -493,6 +497,7 @@ BEGIN
 			,b.ruben			= t.ruben
 			,b.ExtraInfo		= CASE WHEN @status IN ('Refund', 'running') THEN b.ExtraInfo ELSE t.ExtraInfo END
 			,b.FcUpdateTime		= CASE WHEN @status = 'Refund' THEN @FcUpdateTime ELSE b.FcUpdateTime END
+			,b.creator			= t.creator
 			,@matchId			= b.matchid
 		OUTPUT	 inserted.transid
 				,deleted.custid, (inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
@@ -506,6 +511,7 @@ BEGIN
 				,deleted.winlostdate
 				,deleted.actual_stake
 				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
+				,inserted.creator
 		INTO #tmpTransOutput (
 				transId
 				,custid, Balance
@@ -519,6 +525,7 @@ BEGIN
 				,winlostdate
 				,actual_stake
 				,FcUpdateTime
+				,creator
 			)
 		FROM dbo.bettrans AS b WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #tmpTrans AS t ON  t.transid = b.transid
@@ -550,6 +557,7 @@ BEGIN
 							,bettype AS 'bt'
 							,betid AS 'bi' 
 							,refno AS 'rf' 
+							,creator AS 'cr'
 				
 				FROM	#tmpTransOutput
 				FOR JSON AUTO
