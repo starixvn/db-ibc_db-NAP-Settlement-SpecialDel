@@ -93,7 +93,7 @@ BEGIN
 			
 		SET @Body = 'SP: Nap_Admin_CustLimitBet_CheckData_Job' + CHAR(13) + CHAR(10)
 		+ 'Check from ' + CONVERT(varchar, @StartTime, 120) + ' to ' + CONVERT(varchar, @EndTime, 120) + CHAR(13) + CHAR(10) + CHAR(13) + CHAR(10)
-		+ @ErrorMessage + CHAR(13) + CHAR(10)
+		+ @ErrMsg_Duplicate + CHAR(13) + CHAR(10)
 		
 		
 		EXEC msdb.dbo.sp_send_dbmail
