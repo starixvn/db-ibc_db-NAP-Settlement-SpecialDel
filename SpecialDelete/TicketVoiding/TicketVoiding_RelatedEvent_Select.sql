@@ -18,6 +18,7 @@ AS
 		- 20231013@July: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20240514@July: [TVS] EKO/WKOT - Add message template to the Add Request page [Redmine: #203776]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20250306@Lani: [TVS] Return more columns (match_remark.subtype) [Redmine: #216151]
 
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
@@ -53,23 +54,26 @@ BEGIN
 			END
 		END
 
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype, mr.SubType
 		FROM dbo.match m WITH (NOLOCK)
+		INNER JOIN match_remark mr WITH (NOLOCK) ON m.matchid = mr.matchid
 		WHERE 1 = CASE WHEN m.sporttype NOT IN (50,8) AND m.ParentID = @MatchId THEN 1
 					WHEN m.sporttype IN (50,8) AND m.ParentID = @MatchId AND m.ChildMatchType <> 200 THEN 1
 				ELSE 0 END
 		UNION ALL
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype, mr.SubType
 		FROM #LinkedMatch_tmp lm
 		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.LinkedMatchID = m.matchid
+		INNER JOIN match_remark mr WITH (NOLOCK) ON mr.matchid = lm.LinkedMatchID
 		ORDER BY matchcode ASC
 
 		DROP TABLE #LinkedMatch_tmp
 	END
 	ELSE
 	BEGIN
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 0 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 0 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype, mr.SubType
 		FROM dbo.match m WITH (NOLOCK)
+		INNER JOIN match_remark mr WITH (NOLOCK) ON  m.matchid = mr.matchid
 		WHERE m.matchid = @MatchId
 			AND m.eventdate = @EventDate
 			AND 1 = CASE WHEN m.sporttype NOT IN (50,8) THEN 1
