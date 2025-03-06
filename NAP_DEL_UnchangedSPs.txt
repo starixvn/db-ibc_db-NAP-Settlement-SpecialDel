@@ -34,3 +34,4 @@ SpecialDelete\TicketVoiding\Service\Recover Service\TicketVoiding_RecoverSingleT
 SpecialDelete\Sportbook\CashOut Transaction\dbo.NAP_SpecialDelete_VoidCashOutTransaction_Update.sql
 SpecialDelete\TicketVoiding\Service\Void Service\TicketVoiding_Ticket_Update.sql
 SpecialDelete\TicketVoiding\Service\Void Service\TicketVoiding_Queue_Job.sql
+SpecialDelete\TicketVoiding\TicketVoiding_GetBetTypesHaveTickets.sql
