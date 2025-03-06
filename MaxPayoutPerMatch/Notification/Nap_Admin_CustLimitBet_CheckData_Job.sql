@@ -443,13 +443,13 @@ BEGIN
 		END
 	END
 
-	-------------------------check duplicate data in queue table for reject action --------------------------------------------------------------------
+	-------------------------check duplicate data in queue table for void/recover/settle action --------------------------------------------------------------------
 
 	--SELECT TOP 1 COUNT(1), q.ActionID, q.CustID, q.Matchid, q.EventTypeID, min(q.CreatedDate) MinDate , max (CreatedDate) MaxDate, q.Transids
 
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBetQueue Q with (nolock)
-				WHERE q.ActionID IN (1,3,4,5)
+				WHERE q.ActionID IN (1,3,4,5,6)
 					AND q.CreatedDate BETWEEN @StartTime AND @EndTime
 				GROUP BY q.ActionID, q.CustID, q.Matchid, q.Transids, q.EventTypeID
 				HAVING count(1) > 1
