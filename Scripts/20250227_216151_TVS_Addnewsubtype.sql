@@ -67,13 +67,13 @@ INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEng
 INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,137,'Soccer - Wrong Score',N'足球 - 由于比分显示错误')
 INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,139,'Soccer - Wrong Score',N'足球 - 由于比分显示错误')
 --Next goal
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,145,'Danger Accept In Goal',N'有进球的危险时段中误被接受')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,145,'Soccer - Danger Accept In Goal',N'足球 - 有进球的危险时段中误被接受')
 --Next corner
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,147,'Danger Accept In Corner',N'在有角球的危险时段中误被接受')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,147,'Soccer - Danger Accept In Corner',N'足球 - 在有角球的危险时段中误被接受')
 --Next goal kick
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,146,'Goal Kick has been completed',N'龙门球赛事已结束')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,146,'Soccer - Goal Kick has been completed',N'足球 - 龙门球赛事已结束')
 --Next booking
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,144,'Booking has been completed',N' 罚牌赛事已结束')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,144,'Soccer - Booking has been completed',N'足球 - 罚牌赛事已结束')
 
 
 
