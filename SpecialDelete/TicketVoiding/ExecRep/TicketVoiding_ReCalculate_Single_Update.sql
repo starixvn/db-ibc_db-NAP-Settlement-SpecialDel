@@ -585,8 +585,8 @@ BEGIN
 			SELECT	@matchId AS Matchid
 				,t.custid
 				,4 AS balanceType
-				,0 AS BonusID
 				,2 AS WalletType -- sub tickets always bet from cash wallet
+				,0 AS BonusID			
 				,SUM(t.bef_winlost - t.actual_stake + t.bef_PlayerComm) AS balance
 			FROM	#tmpTransOutput t
 			GROUP BY custid
@@ -602,8 +602,8 @@ BEGIN
 			SELECT	@matchId AS Matchid
 				,t.custid
 				,4 AS balanceType
-				,0 AS BonusID
 				,2 AS WalletType -- sub tickets always bet from cash wallet
+				,0 AS BonusID
 				,SUM(t.WinLost - t.actual_stake + t.PlayerComm) AS balance
 			FROM	#tmpTransOutput t
 			GROUP BY custid
