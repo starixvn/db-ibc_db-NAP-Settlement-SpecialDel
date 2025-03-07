@@ -432,7 +432,8 @@ BEGIN
 										,actual_stake MONEY
 										,betid BIGINT,refno BIGINT
 										,FcUpdateTime DATETIME2
-										,creator INT)
+										,creator INT
+										,bef_PlayerComm MONEY)
 	
 		INSERT INTO #tmpTrans(transId,odds,modds,statuswinlost,WinLost,aWinLost,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,ExtraInfo,IsUpdateTime,creator)
 		SELECT   t.t		AS transId
@@ -512,6 +513,7 @@ BEGIN
 				,deleted.actual_stake
 				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 				,inserted.creator
+				,deleted.playercomm
 		INTO #tmpTransOutput (
 				transId
 				,custid, Balance
@@ -526,6 +528,7 @@ BEGIN
 				,actual_stake
 				,FcUpdateTime
 				,creator
+				,bef_PlayerComm
 			)
 		FROM dbo.bettrans AS b WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #tmpTrans AS t ON  t.transid = b.transid
@@ -584,7 +587,7 @@ BEGIN
 				,4 AS balanceType
 				,0 AS BonusID
 				,2 AS WalletType -- sub tickets always bet from cash wallet
-				,SUM(t.bef_winlost - t.actual_stake + t.PlayerComm) AS balance
+				,SUM(t.bef_winlost - t.actual_stake + t.bef_PlayerComm) AS balance
 			FROM	#tmpTransOutput t
 			GROUP BY custid
 
