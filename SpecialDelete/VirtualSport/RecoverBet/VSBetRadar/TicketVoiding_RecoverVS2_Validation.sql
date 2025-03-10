@@ -61,7 +61,7 @@ BEGIN
 		,b.modds
 		,b.ExtraInfo
 		,b.currency
-		,b.actual_stake
+		,b.actual_stake AS ActualStake
 		,b.adiscount
 		,b.apositiontaking
 		,b.discount
