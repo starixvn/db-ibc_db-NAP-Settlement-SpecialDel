@@ -1,17 +1,16 @@
-﻿/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_OU_Select]
 (	
 	@RequestId			  INT = 0
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
 	,@WrongOUInfo		  VARCHAR(MAX) = NULL
-	,@TransInfoJson		  VARCHAR(MAX) = NULL
 )
 AS
 /*	
 	Created by: 20220510@Max
 	Task: Refactor code issue type Wrong OU & Wrong 1st OU [Redmine: #172281]
-	DB: DBCTG/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20220510@Max: Create new SP [Redmine: #172281]
@@ -29,10 +28,10 @@ AS
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
 		- 20241216@Lani: [TVS] Add 'GroupName' column returned [Redmine: #213960]
 		- 20250109@Lani: [TVS] Add new filter (FilterBetTypeId, FilterBetIdX, FilterBetIdY) [Redmine: #215545]
-		- 20250224@Lani: [TVS] Basketball - Integrate 6 new bet types (Change data type of inputted 'FilterBetTypeId' column) [Redmine: #217848]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory for Wrong OU issue types [Redmine: #217771]
 
 	Param's explanation:
-		+ @WrongOUInfo, @Wrong1stOUInfo:
+		+ @WrongOUInfo
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" WrongMarket ="" SubIssueTypeId="" PoolHouseCheckedBetTypes ="1,2,3,4" IsMainMatch="true" IsLinkGroup1X2 ="" IsLinkGroupAIO = "" LiveIndicator =""/></root>
 			(*) PoolHouseCheckedBetTypes   : ALL - (all bettype của ticket)
 											 '1,2,3' - (bettype selected)
@@ -48,36 +47,16 @@ BEGIN
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) = ''
 			,@OldActionId			  TINYINT
-			,@TransInfoJson_Output	  VARBINARY(MAX) = NULL
+			,@TransInfoJson			  VARBINARY(MAX) = NULL
 			,@PHBettypes			  VARCHAR(MAX) =''
 			,@MainMatchId			  INT
 			,@PoolHouseCheckedBetTypes VARCHAR(MAX) = ''
 			,@MatchId				   INT
 			,@LogInfoTicketsJson      VARBINARY(MAX) = NULL
-
-	CREATE TABLE #TVSTicketBets (
-			transid               BIGINT,
-			SubTransid            BIGINT,
-			refno                 BIGINT,
-			custid                INT,
-			transdate             DATETIME,
-			bettype               SMALLINT,
-			Subbettype			  SMALLINT,
-			livehomescore         SMALLINT,
-			liveawayscore         SMALLINT,
-			betdaqid              BIGINT,
-			IsMixParlay           BIT DEFAULT(0),
-			matchid               INT,
-			StatusId			  TINYINT,
-			SubStatusId			  TINYINT,
-			SubIssueTypeId		  SMALLINT,
-			GroupName			  VARCHAR(50),
-			LiveIndicator		  BIT,
-			SettledType			  TINYINT,
-			FilterBetIdX		  NVARCHAR(50),
-			FilterBetIdY		  NVARCHAR(50)
-	)
-
+			,@SiteDBGroupID			  SMALLINT
+	
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+	
 	CREATE TABLE #logInfo (
 		 MatchId						INT
 		,LiveScores						NVARCHAR(300)
@@ -107,17 +86,12 @@ BEGIN
 		,IsLinkGroup1X2			BIT DEFAULT(0) --Soccer: call API get link log | Other sports: No.default = 0
 		,IsLinkGroupAIO			BIT DEFAULT(0) --Soccer: call API get link log | Other sports: No.default = 0
 		,LiveIndicator			BIT DEFAULT(0)
-		,FilterBetTypeId				NVARCHAR(50)
-		,FilterBetIdX					NVARCHAR(50)
-		,FilterBetIdY					NVARCHAR(50)
+		,FilterBetTypeId		SMALLINT
+		,FilterBetIdX			NVARCHAR(50)
+		,FilterBetIdY			NVARCHAR(50)
+		,Sporttype				SMALLINT
+		,MatchId_tmp			INT
 	)
-
-	CREATE TABLE #FilterBetTypeTbl
-	(
-		Matchid INT,
-		FilterBetTypeId NVARCHAR(50)
-	)
-
 	CREATE TABLE #logInfoVoidPage (
 		RequestId						INT
 		,MatchId						INT
@@ -131,7 +105,7 @@ BEGIN
 		,PoolHouseMainParlayCount 		INT
 	)
 
-	CREATE TABLE #tmpTransInfo(
+	CREATE TABLE #TVSTicketBets(
 	   matchid INT
 	  ,transid BIGINT
 	  ,Subtransid BIGINT
@@ -180,7 +154,6 @@ BEGIN
 	  ,CurrencyName NVARCHAR(50)
 	  ,betdaqid BIGINT
 	  ,ExtraInfo VARCHAR(1000)
-	  ,BonusID INT
 	  ,winlost	MONEY
 	  ,actual_stake MONEY
 	  ,winlostdate SMALLDATETIME
@@ -201,6 +174,10 @@ BEGIN
 	  ,WalletType TINYINT
 	  ,RefCode BIGINT
 	  ,SettledType TINYINT -- 1: Instant Settlement, 2: Normal Settlement
+	  ,GroupName		  VARCHAR(50)
+	  ,SubIssueTypeId	  SMALLINT
+	  ,FilterBetIdX		  NVARCHAR(50)
+	  ,FilterBetIdY		  NVARCHAR(50)
 	)
 
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
@@ -242,16 +219,16 @@ BEGIN
 			,t.c.value('@IsLinkGroup1X2','BIT') AS IsLinkGroup1X2
 			,t.c.value('@IsLinkGroupAIO','BIT') AS IsLinkGroupAIO
 			,t.c.value('@LiveIndicator','BIT') AS LiveIndicator
-			,t.c.value('@FilterBetTypeId','NVARCHAR(50)') AS FilterBetTypeId
+			,t.c.value('@FilterBetTypeId','SMALLINT') AS FilterBetTypeId
 			,t.c.value('@FilterBetIdX','NVARCHAR(50)') AS FilterBetIdX
 			,t.c.value('@FilterBetIdY','NVARCHAR(50)') AS FilterBetIdY
 	FROM	@WrongOUInfoXML.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@WrongOUInfoXML = NULL ))
 
-	INSERT INTO #FilterBetTypeTbl (Matchid, FilterBetTypeId)
-	SELECT Matchid, f.VALUE
-	FROM #FilterInfo
-	CROSS APPLY STRING_SPLIT(FilterBetTypeId,',') AS f
+	--Init Validation
+	INSERT INTO @Validation (MatchId, IsPoolHouseAffected)
+	SELECT MatchId, CASE WHEN d.IsLinkGroup1X2 = 0 AND d.IsLinkGroupAIO = 0 THEN 0 ELSE 1 END
+	FROM #FilterInfo d
 
 	BEGIN -- Instant Settlement declaration
 		
@@ -312,94 +289,361 @@ BEGIN
 		DROP TABLE #CTE_isCal
 	END
 	
-	INSERT INTO #tmpTransInfo( 
-		    matchid 
-	       ,transid 
-		   ,Subtransid 
-	       ,refno 
-	       ,custid 	
-           ,hdp1 
-           ,hdp2 
-           ,livehomescore 
-           ,liveawayscore 
-           ,liveindicator 
-	       ,odds 
-	       ,oddsspread 
-           ,betfrom 
-           ,bettype 
-           ,betteam 
-	       ,betcheck 
-	       ,Status 
-           ,transdate 
-	       ,checktime 
-	       ,betid 
-	       ,Transdesc 
-	       ,statusID 
-	       ,Subcustid 
-	       ,Subhdp1 
-           ,Subhdp2 
-	       ,Sublivehomescore 
-           ,Subliveawayscore 
-	       ,Subliveindicator 
-	       ,Subodds 
-	       ,Suboddsspread 
-	       ,Subbetfrom 
-	       ,Subbettype 
-	       ,Subbetteam  
-	       ,Subbetcheck 
-	       ,SubStatus 
-	       ,Subtransdate 
-	       ,Subchecktime 
-	       ,SubTransdesc  
-	       ,SubstatusID 
-	       ,srecommend 
-	       ,mrecommend 
-	       ,recommend 
-           ,creator 
-	       ,stake 
-	       ,oddstype 
-	       ,CurrencyName 
-	       ,betdaqid 
-	       ,ExtraInfo 
-	       ,BonusID 
-	       ,winlost	
-	       ,actual_stake 
-	       ,winlostdate 
-	       ,modds 
-	       ,statuswinlost 
-           ,IsMixParlay 
-	       ,SiteDBGroupID 
-		   ,WalletType 
-	       ,RefCode
-	)
-	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
-		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,checkt ,bid
-		,tdes ,sid ,s_c ,s_hdp1 ,s_hdp2 ,s_lh ,s_la ,s_li ,s_o ,s_os
-		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,s_checkt ,s_tdes ,s_sid ,sre
-		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
-		,acstake ,wld ,m ,statuswl ,isP ,sitedb
-		,wt ,refc
-	FROM STRING_SPLIT(@TransInfoJson, ',') f
-		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+	UPDATE d
+	SET d.Sporttype = m.sporttype, MatchId_tmp = d.MatchId
+	FROM #FilterInfo d
+		INNER JOIN dbo.match m ON d.MatchId = m.MatchId
+
+	--Cricket/Baseball - Get child match
+	INSERT INTO #FilterInfo (MatchId
+			,FilterFromTransTime
+			,FilterToTransTime
+			,WrongMarket
+			,SubIssueTypeId
+			,PoolHouseCheckedBetTypes
+			,IsMainMatch
+			,IsLinkGroup1X2
+			,IsLinkGroupAIO
+			,LiveIndicator
+			,FilterBetTypeId
+			,FilterBetIdX
+			,FilterBetIdY
+			,Sporttype
+			,MatchId_tmp
+			) 
+	SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
+			,d.WrongMarket
+			,d.SubIssueTypeId
+			,d.PoolHouseCheckedBetTypes
+			,d.IsMainMatch
+			,d.IsLinkGroup1X2
+			,d.IsLinkGroupAIO
+			,d.LiveIndicator
+			,d.FilterBetTypeId
+			,d.FilterBetIdX
+			,d.FilterBetIdY
+			,m.Sporttype
+			,d.MatchId
+	FROM #FilterInfo d
+		INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
+	WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+
+	--Search single tickets
+	INSERT INTO #TVSTicketBets(
+			matchid 
+			,transid
+			,Subtransid 
+			,custid                
+			,transdate 
+			,checktime 
+			,hdp1 
+			,hdp2 
+			,livehomescore 
+			,liveawayscore 
+			,liveindicator 
+			,betteam 
+			,creator 
+			,refno 
+			,betid 
+			,bettype 
+			,betdaqid 
+			,betfrom 
+			,statusID 
+			,WalletType 
+			,RefCode 
+			,Subcustid         
+			,Sublivehomescore 
+			,Subliveawayscore 
+			,Subhdp1 
+			,Subhdp2 
+			,Subbetfrom 
+			,Subbettype 
+			,SubstatusID 
+			,Subtransdate 
+			,Subchecktime 
+			,Subliveindicator 
+			,recommend 
+			,mrecommend 
+			,srecommend 
+			,statuswinlost 
+			,IsMixParlay 
+			,odds 
+			,Subodds 
+			,oddsspread 
+			,oddstype 
+			,betcheck 
+			,Subbetcheck 
+			,stake 
+			,CurrencyName 
+			,Transdesc 
+			,ExtraInfo 
+			,winlost        
+			,actual_stake 
+			,Status
+			,SubStatus 
+			,Subbetteam  
+			,Suboddsspread 
+			,SubTransdesc  
+			,modds 
+			,SiteDBGroupID
+			,FilterBetIdX
+			,FilterBetIdY
+			,SubIssueTypeId
+			,GroupName
+		)
+	SELECT d.MatchId_tmp
+		,b.TransId
+		,b.transid AS SubTransID
+		,b.custid
+		,b.transdate
+		,b.checktime
+		,b.hdp1
+		,b.hdp2
+		,b.livehomescore
+		,b.liveawayscore
+		,b.liveindicator
+		,b.betteam
+		,b.creator
+		,b.refno
+		,b.betid
+		,b.bettype
+		,b.betdaqid 
+		,b.betfrom 
+		,b.statusID 
+		,b.WalletType 
+		,b.RefCode 
+		,b.custid Subcustid         
+		,b.livehomescore AS Sublivehomescore 
+		,b.liveawayscore AS Subliveawayscore 
+		,b.hdp1 AS Subhdp1 
+		,b.hdp2 AS Subhdp2 
+		,b.betfrom AS Subbetfrom 
+		,b.bettype AS Subbettype 
+		,b.statusID AS SubstatusID 
+		,b.transdate AS Subtransdate 
+		,b.checktime AS Subchecktime 
+		,b.liveindicator AS Subliveindicator 
+		,b.recommend 
+		,b.mrecommend 
+		,b.srecommend 
+		,b.statuswinlost 
+		,0 AS IsMixParlay 
+		,b.odds 
+		,b.odds AS Subodds 
+		,b.oddsspread
+		,b.oddstype 
+		,b.betcheck 
+		,b.betcheck AS Subbetcheck 
+		,b.stake 
+		,b.CurrencyName 
+		,b.Transdesc 
+		,b.ExtraInfo 
+		,b.winlost        
+		,b.actual_stake 
+		,b.Status
+		,b.status AS SubStatus 
+		,b.betteam AS Subbetteam  
+		,b.oddsspread AS Suboddsspread 
+		,b.transdesc SubTransdesc  
+		,b.modds 
+		,b.SiteDBGroupID
+		,b.betid AS FilterBetIdX
+		,RIGHT(b.betid,2) AS FilterBetIdY
+		,d.SubIssueTypeId
+		,CASE WHEN b.bettype = d.FilterBetTypeId THEN 'OU'
+				WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 THEN 'PH' --1X2
+				WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 THEN 'PH' --AIO
+		END AS GroupName
+	FROM dbo.bettrans b WITH(NOLOCK)
+		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		CROSS APPLY (
-				SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
-					  ,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,CASE WHEN checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE checkt END AS checkt ,bid
-					  ,tdes ,sid ,s_c ,s_hdp1 ,s_hdp2 ,s_lh ,s_la ,s_li ,s_o ,s_os
-					  ,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,CASE WHEN s_checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE s_checkt END AS s_checkt ,s_tdes ,s_sid ,sre
-					  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
-					  ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
-					  ,wt ,refc
-				FROM OPENJSON(t.Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
-					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(4) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
-					 ,tdes NVARCHAR(1000) ,sid TINYINT ,s_c INT ,s_hdp1 SMALLMONEY ,s_hdp2 SMALLMONEY ,s_lh SMALLINT ,s_la SMALLINT ,s_li BIT ,s_o SMALLMONEY ,s_os MONEY 
-					 ,s_bfr NVARCHAR(4) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
-					 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
-					 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
-					 ,wt TINYINT ,refc BIGINT
-				)
-		) tbl
-	WHERE f.value <> ''
+			SELECT DISTINCT value AS WrongMarket
+			FROM STRING_SPLIT(d.WrongMarket, '&')
+			WHERE value <> ''				
+		)xHDPou
+		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = 6 AND b.bettype = f.BetType
+	WHERE b.betfrom <> 'P'
+		AND b.SiteDBGroupID = @SiteDBGroupID
+		AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+		AND b.liveindicator = d.LiveIndicator 
+		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+					 ELSE 0 END
+		AND 1 = CASE WHEN b.bettype = d.FilterBetTypeId AND b.hdp1 = xHDPou.WrongMarket THEN 1
+					 WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1 --Only support soccer
+					 WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1 --Only support soccer 
+					 ELSE 0 END
+
+	---get sub ticket of a mix parlay	
+	IF EXISTS (
+				SELECT TOP(1) 1
+				FROM dbo.bettransm AS bm WITH (NOLOCK)
+					INNER JOIN #FilterInfo d ON bm.matchid = d.MatchId
+				WHERE bm.statusID NOT IN (101, 102, 103)
+					AND bm.betfrom <> 'P' 
+			 )
+	BEGIN		
+		INSERT INTO #TVSTicketBets(
+				matchid 
+				,transid
+				,Subtransid 
+				,custid                
+				,transdate 
+				,checktime 
+				,hdp1 
+				,hdp2 
+				,livehomescore 
+				,liveawayscore 
+				,liveindicator 
+				,betteam 
+				,creator 
+				,refno 
+				,betid 
+				,bettype 
+				,betdaqid 
+				,betfrom 
+				,statusID 
+				,WalletType 
+				,RefCode 
+				,Subcustid         
+				,Sublivehomescore 
+				,Subliveawayscore 
+				,Subhdp1 
+				,Subhdp2 
+				,Subbetfrom 
+				,Subbettype 
+				,SubstatusID 
+				,Subtransdate 
+				,Subchecktime 
+				,Subliveindicator 
+				,recommend 
+				,mrecommend 
+				,srecommend 
+				,statuswinlost 
+				,IsMixParlay 
+				,odds 
+				,Subodds 
+				,oddsspread 
+				,oddstype 
+				,betcheck 
+				,Subbetcheck 
+				,stake 
+				,CurrencyName 
+				,Transdesc 
+				,ExtraInfo 
+				,winlost        
+				,actual_stake 
+				,Status
+				,SubStatus 
+				,Subbetteam  
+				,Suboddsspread 
+				,SubTransdesc  
+				,modds 
+				,SiteDBGroupID
+				,FilterBetIdX
+				,FilterBetIdY
+				,SubIssueTypeId
+				,GroupName
+			)
+		SELECT d.MatchId_tmp
+			,b.TransId
+			,sub.transid AS SubTransID
+			,b.custid
+			,b.transdate
+			,b.checktime
+			,b.hdp1
+			,b.hdp2
+			,b.livehomescore
+			,b.liveawayscore
+			,b.liveindicator
+			,b.betteam
+			,b.creator
+			,b.refno
+			,b.betid
+			,b.bettype
+			,b.betdaqid 
+			,b.betfrom 
+			,b.statusID 
+			,b.WalletType 
+			,b.RefCode 
+			,b.custid Subcustid         
+			,sub.livehomescore AS Sublivehomescore 
+			,sub.liveawayscore AS Subliveawayscore 
+			,sub.hdp1 AS Subhdp1 
+			,sub.hdp2 AS Subhdp2 
+			,sub.betfrom AS Subbetfrom 
+			,sub.bettype AS Subbettype 
+			,sub.statusID AS SubstatusID 
+			,sub.transdate AS Subtransdate 
+			,sub.checktime AS Subchecktime 
+			,sub.liveindicator AS Subliveindicator 
+			,b.recommend 
+			,b.mrecommend 
+			,b.srecommend 
+			,b.statuswinlost 
+			,1 AS IsMixParlay 
+			,b.odds 
+			,Sub.odds AS Subodds 
+			,b.oddsspread
+			,b.oddstype 
+			,b.betcheck 
+			,sub.betcheck AS Subbetcheck 
+			,b.stake 
+			,b.CurrencyName 
+			,b.Transdesc 
+			,b.ExtraInfo 
+			,b.winlost        
+			,b.actual_stake 
+			,b.Status
+			,sub.status AS SubStatus 
+			,sub.betteam AS Subbetteam  
+			,sub.oddsspread AS Suboddsspread 
+			,sub.transdesc SubTransdesc  
+			,b.modds
+			,sub.SiteDBGroupID
+			,sub.betcheck AS FilterBetIdX
+			,RIGHT(sub.betcheck,2) AS FilterBetIdY
+			,d.SubIssueTypeId
+			,CASE WHEN d.sporttype = 1 THEN 'PH' ELSE 'OU' END AS GroupName
+		FROM #FilterInfo d
+			 INNER JOIN dbo.bettransm sub ON d.MatchId = sub.matchid
+			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
+			 CROSS APPLY (
+			 	SELECT DISTINCT value AS WrongMarket
+			 	FROM STRING_SPLIT(d.WrongMarket, '&')
+			 	WHERE value <> ''				
+			 )xHDPou
+			 LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = 6 AND sub.bettype = f.BetType
+		WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+					   WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
+					   ELSE 0 END
+				AND sub.betfrom <> 'P'
+				AND b.matchid = 29 AND b.bettype = 29 
+				AND sub.liveindicator = d.LiveIndicator
+				AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+				AND 1 = CASE WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' THEN 1
+				             WHEN d.sporttype <> 1 THEN 1 
+							 ELSE 0 END
+				AND 1 = CASE WHEN sub.bettype = d.FilterBetTypeId AND sub.hdp1 = xHDPou.WrongMarket THEN 1
+							 WHEN d.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1
+							 WHEN d.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1
+						ELSE 0 END
+				AND sub.SiteDBGroupID = @SiteDBGroupID
+	END 
+
+	/*Remove invalid data*/
+	DELETE tb
+	FROM #TVSTicketBets AS tb
+		INNER JOIN #FilterInfo AS f ON tb.matchid = f.MatchId
+	WHERE 1 = CASE WHEN 
+					(	f.FilterBetIdX = '' 
+						OR tb.FilterBetIdX LIKE f.FilterBetIdX + '%' )
+					AND 
+					(	f.FilterBetIdY = '' 
+						OR tb.FilterBetIdY = f.FilterBetIdY 
+						OR (f.FilterBetIdY LIKE '>%' AND tb.FilterBetIdY > RIGHT(f.FilterBetIdY,2))) THEN 0
+					ELSE 1
+			  END
 
 	---UPDATE column show loginfo details
 	BEGIN
@@ -413,14 +657,14 @@ BEGIN
 			,eventstatus = ISNULL(m.eventstatus,'')
 			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
 			,username = ci.username
-		FROM #tmpTransInfo b
+		FROM #TVSTicketBets b
 			INNER JOIN dbo.match m WITH (NOLOCK) ON	b.matchid = m.matchid
 			INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK) ON b.custid = ci.custid
 	
 		-- update Isdeposit
 		UPDATE b
 			SET IsDeposit = 1
-		FROM	#tmpTransInfo b
+		FROM	#TVSTicketBets b
 		WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = b.srecommend)
 	
 		-- update get instant/settle
@@ -442,160 +686,10 @@ BEGIN
 										END
 								ELSE 2
 							END
-		FROM #tmpTransInfo b 
+		FROM #TVSTicketBets b 
 		WHERE ISNULL(b.betdaqid,0) <> -2 AND b.SubStatusId IN (111, 112, 113) 
 	
 	END
-
-	--Init Validation
-	INSERT INTO @Validation (MatchId, IsPoolHouseAffected)
-	SELECT MatchId, CASE WHEN d.IsLinkGroup1X2 = 0 AND d.IsLinkGroupAIO = 0 THEN 0 ELSE 1 END
-	FROM #FilterInfo d
-	
-	INSERT INTO #TVSTicketBets(
-			transid		
-			,SubTransid		
-			,refno			
-			,custid				
-			,transdate		
-			,bettype 					
-			,livehomescore 	
-			,liveawayscore 			
-			,betdaqid	
-			,matchid
-			,StatusId
-			,Subbettype
-			,SubStatusId
-			,SubIssueTypeId
-			,GroupName
-			,LiveIndicator
-			,SettledType
-			,FilterBetIdX
-			,FilterBetIdY
-		)
-	SELECT  DISTINCT b.transid
-			,b.transid AS SubTransID
-			,b.refno
-			,b.custid
-			,b.transdate
-			,b.bettype
-			,b.livehomescore
-			,b.liveawayscore
-			,b.betdaqid
-			,b.matchid
-			,b.statusID
-			,b.Subbettype
-			,b.SubstatusID
-			,d.SubIssueTypeId
-			,CASE WHEN b.bettype = fb.FilterBetTypeId AND b.matchid = fb.Matchid THEN 'OU'
-				  WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 THEN 'PH' --1X2
-				  WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 THEN 'PH' --AIO
-			END AS GroupName
-			,b.liveindicator
-			,b.SettledType
-			,b.betid AS FilterBetIdX
-			,RIGHT(b.betid,2) AS FilterBetIdY
-	FROM #tmpTransInfo b 
-		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
-		INNER JOIN #FilterBetTypeTbl fb ON fb.Matchid = b.matchid AND fb.FilterBetTypeId = b.bettype
-		CROSS APPLY (
-			SELECT DISTINCT value AS WrongMarket
-			FROM STRING_SPLIT(d.WrongMarket, '&')
-			WHERE value <> ''				
-		)xHDPou
-		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = 6 AND b.bettype = f.BetType
-	WHERE b.betfrom <> 'P'  
-		AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
-		AND b.liveindicator = d.LiveIndicator AND b.IsMixParlay = 0
-		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-					 ELSE 0 END
-		AND 1 = CASE WHEN b.bettype = fb.FilterBetTypeId AND b.hdp1 = xHDPou.WrongMarket AND b.matchid = fb.Matchid THEN 1
-					 WHEN b.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1 --Only support soccer
-					 WHEN b.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1 --Only support soccer 
-					 ELSE 0 END
-	
-	---get sub ticket of a mix parlay	
-	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsMixParlay = 1)
-	BEGIN		
-		INSERT INTO #TVSTicketBets(
-				 transid
-				,SubTransid		
-				,refno			
-				,custid						
-				,transdate		
-				,bettype					
-				,livehomescore	
-				,liveawayscore			
-				,IsMixParlay
-				,matchid
-				,StatusId
-				,Subbettype
-				,SubStatusId
-				,SubIssueTypeId
-				,GroupName
-				,LiveIndicator
-				,SettledType
-				,FilterBetIdX
-				,FilterBetIdY
-			)
-		SELECT  DISTINCT b.transid
-				,b.Subtransid 
-				,b.refno
-				,b.custid				
-				,b.Subtransdate
-				,b.bettype
-				,b.Sublivehomescore
-				,b.Subliveawayscore
-				,b.IsMixParlay
-				,b.matchid
-				,b.statusID
-				,b.Subbettype
-				,b.SubstatusID
-				,d.SubIssueTypeId
-				,CASE WHEN b.sporttype = 1 THEN 'PH' ELSE 'OU' END AS GroupName
-				,b.liveindicator
-				,b.SettledType
-				,b.Subbetcheck AS FilterBetIdX
-				,RIGHT(b.Subbetcheck,2) AS FilterBetIdY
-		FROM	#FilterInfo d
-				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
-				INNER JOIN #FilterBetTypeTbl fb ON fb.Matchid = b.matchid AND b.Subbettype = fb.FilterBetTypeId
-				CROSS APPLY (
-					SELECT DISTINCT value AS WrongMarket
-					FROM STRING_SPLIT(d.WrongMarket, '&')
-					WHERE value <> ''				
-				)xHDPou
-				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = 6 AND b.Subbettype = f.BetType
-		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-						WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
-						ELSE 0 END
-				AND b.Subbetfrom <> 'P'
-				AND b.Subliveindicator = d.LiveIndicator
-				AND b.Subtransdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
-				AND 1 = CASE WHEN b.sporttype = 1 AND d.IsMainMatch = 'true' THEN 1
-				             WHEN b.sporttype <> 1 THEN 1 
-							 ELSE 0 END
-				AND 1 = CASE WHEN b.Subbettype = fb.FilterBetTypeId AND b.Subhdp1 = xHDPou.WrongMarket AND b.matchid = fb.Matchid THEN 1
-							 WHEN b.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1
-							 WHEN b.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1
-						ELSE 0 END
-	END  
-
-	/*Remove invalid data*/
-	DELETE tb
-	FROM #TVSTicketBets AS tb
-	INNER JOIN #FilterInfo AS f ON tb.matchid = f.MatchId
-	WHERE 1 = CASE WHEN 
-					(	f.FilterBetIdX = '' 
-						OR tb.FilterBetIdX LIKE f.FilterBetIdX + '%' )
-					AND 
-					(	f.FilterBetIdY = '' 
-						OR tb.FilterBetIdY = f.FilterBetIdY 
-						OR (f.FilterBetIdY LIKE '>%' AND tb.FilterBetIdY > RIGHT(f.FilterBetIdY,2))) THEN 0
-					ELSE 1
-			  END
-
 
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
@@ -605,14 +699,14 @@ BEGIN
 		FROM #TVSTicketBets t
 			CROSS APPLY (
 						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
-						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+						FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
 						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
 						UNION ALL
 						SELECT rp.TransId, rp.MainTransId, rp.RequestId
-						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
+						FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
 						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
 				)tmp
-			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
+			INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
 		WHERE r.RequestId <> @RequestId 
 			AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
 			
@@ -636,7 +730,7 @@ BEGIN
 	BEGIN
 		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
 									  FROM #TVSTicketBets AS b
-									  INNER JOIN #FilterBetTypeTbl AS f ON b.matchid = f.MatchId
+									  INNER JOIN #FilterInfo AS f ON b.matchid = f.MatchId
 									  WHERE b.matchid = @MainMatchId
 									  AND 1 = CASE WHEN IsMixParlay = 0 AND Subbettype <> f.FilterBetTypeId THEN 1
 												   WHEN IsMixParlay = 1 THEN 1
@@ -709,6 +803,31 @@ BEGIN
 		FROM #logInfo l
 	END
 
+	CREATE TABLE #CTE_RequestDetail (RequestId INT, MatchId INT, Sporttype SMALLINT, TransIds VARCHAR(MAX), IssueDetail NVARCHAR(MAX), VoidFromTime DATETIME, VoidToTime DATETIME, MainParlayCount INT, ActionId TINYINT)
+	CREATE TABLE #CTE_Ticket_Single (RequestId INT, MatchId INT, TransId BIGINT, Bettype SMALLINT)
+	CREATE TABLE #CTE_Ticket_SubParlay (RequestId INT, MatchId INT, TransId BIGINT)
+
+	DECLARE @cnt_s INT , @cnt_p INT	
+
+	INSERT INTO #CTE_RequestDetail (RequestId, MatchId, Sporttype, TransIds, IssueDetail, VoidFromTime, VoidToTime, MainParlayCount, ActionId)
+	SELECT rd.RequestId, MatchId, Sporttype, TransIds, IssueDetail, VoidFromTime, VoidToTime, MainParlayCount, ActionId
+	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
+	WHERE rd.RequestId = @RequestId
+
+	INSERT INTO #CTE_Ticket_Single (RequestId, MatchId, TransId, Bettype)
+	SELECT RequestId, MatchId, TransId, Bettype
+	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
+	WHERE RequestId = @RequestId
+	SET @cnt_s = @@ROWCOUNT
+
+	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId)
+	SELECT RequestId, MatchId, TransId
+	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
+	WHERE RequestId = @RequestId
+	SET @cnt_p = @@ROWCOUNT
+
+
 	IF @IsShowLogOnly = 0
 	BEGIN
 		INSERT INTO @tmpLogInfoTickets (TransId)
@@ -719,21 +838,18 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpLogInfoTickets (TransId)
 		SELECT TransId
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK) 
-		INNER JOIN #FilterBetTypeTbl AS f ON s.MatchId = f.MatchId AND f.FilterBetTypeId = s.Bettype
-		WHERE RequestId = @RequestId
-			AND IssueTypeId = 6 AND bettype = f.FilterBetTypeId
+		FROM #CTE_Ticket_Single AS s WITH (NOLOCK) 
+			INNER JOIN #FilterInfo AS f ON s.MatchId = f.MatchId
+		WHERE bettype = f.FilterBetTypeId
 		UNION ALL
 		SELECT s.TransId
-		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) 
+		FROM #CTE_Ticket_SubParlay s WITH (NOLOCK) 
 			CROSS APPLY (
 				SELECT TOP 1 sporttype
-				FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+				FROM #CTE_RequestDetail rd WITH (NOLOCK) 
 				WHERE s.MatchId = rd.MatchId
-					AND rd.RequestId = @RequestId
 			)rd
-		WHERE s.RequestId = @RequestId
-			AND rd.Sporttype <> 1 --Other sports
+		WHERE rd.Sporttype <> 1 --Other sports
 	END
 
 	WHILE (1=1)
@@ -796,8 +912,8 @@ BEGIN
 					ELSE bt.typenamee
 				END AS 'GroupName'
 		FROM @tmpLogInfoTickets s
-			INNER JOIN #tmpTransInfo m ON s.transid = m.Subtransid
-			INNER JOIN bettype AS bt WITH (NOLOCK) ON bt.typeid = m.Subbettype
+			INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
+			INNER JOIN dbo.bettype AS bt WITH (NOLOCK) ON bt.typeid = m.Subbettype
 		WHERE m.matchid = @MatchId
 		FOR JSON PATH))
 
@@ -808,13 +924,15 @@ BEGIN
 
 	END
 
+
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
+		
 		/*Support case uncheck bettype PH -> still show PH count = 0 & case voided*/
 		UPDATE v
 		SET v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE 1 END
 		FROM @Validation v
-		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON v.MatchId = rd.MatchId
+			INNER JOIN #CTE_RequestDetail rd WITH (NOLOCK) ON v.MatchId = rd.MatchId
 		WHERE rd.RequestId = @RequestId AND rd.Sporttype = 1
 			AND rd.TransIds LIKE '%IsMainMatch="true"%' AND rd.TransIds NOT LIKE '%PoolHouseCheckedBetTypes="-1"%'
 
@@ -845,40 +963,39 @@ BEGIN
 				, COUNT(CASE WHEN b.bettype <> f.FilterBetTypeId AND b.betdaqid = -2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseCashOutCount
 				, COUNT(CASE WHEN b.bettype <> f.FilterBetTypeId AND b.SettledType = 2 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseSettleCount
 				, COUNT(CASE WHEN b.bettype <> f.FilterBetTypeId AND b.SettledType = 1 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-			INNER JOIN #tmpTransInfo b ON b.transid = s.transid AND b.matchid = s.MatchId AND b.IsMixParlay = 0
-			INNER JOIN #FilterBetTypeTbl f ON b.matchid = f.MatchId AND b.Subbettype = f.FilterBetTypeId
-		WHERE s.RequestId = @RequestId AND b.StatusId IN (111, 112, 113)
+		FROM #CTE_Ticket_Single s WITH (NOLOCK)
+			INNER JOIN #TVSTicketBets b ON b.transid = s.transid AND b.IsMixParlay = 0
+			INNER JOIN #FilterInfo f ON b.matchid = f.MatchId
+		WHERE b.StatusId IN (111, 112, 113)
 		GROUP BY b.matchid
 		
 		--Check score for void message
-		IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
+		IF @cnt_s > 0
 		BEGIN
 			INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
-			SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(10)) + '-' + CAST(b.liveawayscore AS VARCHAR(10))
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
-				INNER JOIN #tmpTransInfo b ON b.transid = s.TransId AND b.IsMixParlay = 0
-			WHERE s.RequestId = @RequestId AND f.GroupName <> '2H'
+			SELECT b.MatchId, CAST(b.livehomescore AS VARCHAR(10)) + '-' + CAST(b.liveawayscore AS VARCHAR(10))
+			FROM #CTE_Ticket_Single s WITH (NOLOCK)
+				INNER JOIN #TVSTicketBets b ON b.transid = s.TransId AND b.IsMixParlay = 0
+				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
+			WHERE f.GroupName <> '2H'
 		END
 
-		IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
+		IF @cnt_p > 0
 		BEGIN
 			INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
-			SELECT s.MatchId, CAST(b.Sublivehomescore AS VARCHAR(10)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(10))
-			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
-				INNER JOIN #tmpTransInfo b ON b.Subtransid = s.TransId AND b.IsMixParlay = 1
+			SELECT b.MatchId, CAST(b.Sublivehomescore AS VARCHAR(10)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(10))
+			FROM #CTE_Ticket_SubParlay s WITH (NOLOCK)
+				INNER JOIN #TVSTicketBets b ON b.Subtransid = s.TransId AND b.IsMixParlay = 1
 				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.Subbettype			
-			WHERE s.RequestId = @RequestId AND f.GroupName <> '2H'
+			WHERE f.GroupName <> '2H'
 		END
 
 		IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
 		BEGIN
 			INSERT INTO @tblScoreMessage (MatchId, ScoreOfMatch) 
 			SELECT rd.MatchId, CAST(m.livehomescore AS VARCHAR(10)) + '-' + CAST(m.liveawayscore AS VARCHAR(10))
-			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+			FROM #CTE_RequestDetail rd WITH (NOLOCK)
 				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rd.MatchId
-			WHERE rd.RequestId = @RequestId
 		END
 
 		-- 3. Loginfo table
@@ -899,7 +1016,7 @@ BEGIN
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 		    ,v.LogInfoTicketsJson
-		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+		FROM #CTE_RequestDetail rd WITH (NOLOCK)
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
 			CROSS APPLY(
 				SELECT DISTINCT '|' + l.ScoreNormalTicket
@@ -914,13 +1031,9 @@ BEGIN
 				FOR XML PATH('')
 			)sm(ScoreOfMatch)
 			INNER JOIN @Validation v ON rd.MatchId = v.MatchId
-		WHERE rd.RequestId = @RequestId
 
-		-- 4. Unmark table (No need -> return table)
-		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
-		
-		-- 5. Transinfo table (No need -> return table)
-		SELECT @TransInfoJson_Output AS TransInfoJson
+		-- 4. Unmark/Transinfo table (No need -> return table)
+		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpUnmarkTransId
 
 		RETURN;
 	END
@@ -962,14 +1075,13 @@ BEGIN
 		-- 3. Loginfo table (No need -> return table)
 		SELECT MatchId FROM #logInfo WHERE Matchid IS NULL
 
-		-- 4. Unmark table (No need -> return table)
-		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
+		-- 4. Unmark/Transinfo table (No need -> return table)
+		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpUnmarkTransId
 		
-		-- 5. Transinfo table (No need -> return table)
-		SELECT @TransInfoJson_Output AS TransInfoJson
-
 		RETURN;
 	END
+
+	SET @OldActionId = (SELECT TOP 1 ISNULL(ActionId,0) FROM #CTE_RequestDetail WITH(NOLOCK))
 
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
@@ -981,21 +1093,16 @@ BEGIN
 	END
 	ELSE IF @IsShowLogOnly = 0 AND @RequestId <> 0 
 	BEGIN
-		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
-
+		
 		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Edit request filter on UI -> unmark ticket 
 			INSERT INTO @tmpUnmarkTransId (TransId)
 			SELECT um.TransId
-			FROM (
-					SELECT s.TransId
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
-					WHERE s.RequestId = @RequestId
-					UNION ALL
-					SELECT p.TransId
-					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay p WITH(NOLOCK)
-					WHERE p.RequestId = @RequestId
+			FROM ( 
+					SELECT TransId FROM #CTE_Ticket_Single s
+					UNION ALL 
+					SELECT TransId FROM #CTE_Ticket_SubParlay p
 				)um
 				LEFT JOIN #TVSTicketBets tp ON um.TransId = tp.SubTransid 
 			WHERE tp.TransId IS NULL 
@@ -1018,23 +1125,23 @@ BEGIN
 		BEGIN
 			--Unmark ticket 
 			INSERT INTO @tmpUnmarkTransId (TransId)
-			SELECT s.TransId
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
-			WHERE s.RequestId = @RequestId
-			UNION ALL
-			SELECT p.TransId
-			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay p WITH(NOLOCK)
-			WHERE p.RequestId = @RequestId
+			SELECT TransId FROM #CTE_Ticket_Single s
+			UNION ALL 
+			SELECT TransId FROM #CTE_Ticket_SubParlay p
+			
 		END
 
 	END
-	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM @tmpUnmarkTransId
+
+	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(mt.TransId AS VARCHAR(50)) 
+											FROM @tmpUnmarkTransId mt
+											WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction m WITH (NOLOCK) WHERE mt.TransId = m.TransId)
 											FOR XML PATH('')), 1,1,'')
 											,'')
 
-	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-										FROM @tmpMarkTransId
+	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(mt.TransId AS VARCHAR(50)) 
+										FROM @tmpMarkTransId mt
+										WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction m WITH (NOLOCK) WHERE mt.TransId = m.TransId)
 										FOR XML PATH('')), 1,1,'')
 										,'')
 
@@ -1093,25 +1200,22 @@ BEGIN
 	   INNER JOIN @Validation v ON l.MatchId = v.MatchId
 	GROUP BY l.MatchId, w.scores, v.LogInfoTicketsJson
 
-	-- 4. List ticket unmark/mark (if any)
-	SELECT @UnmarkTransIds AS UnmarkTransIds
-		  ,@MarkTransIds AS MarkTransIds
-
-	-- 5. Transinfo table
-	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
-		,t.transid AS 't'
-		,t.Subtransid  AS 's_t'
+	SET @TransInfoJson = COMPRESS((SELECT b.matchid AS 'mid'
+		,b.transid AS 't'
+		,b.Subtransid  AS 's_t'
 		,b.custid AS  'c'           
 		,b.bettype AS 'btype'
 		,b.betid AS 'bid'
 		,b.Subbettype AS 's_btype'
 		,b.IsMixParlay AS 'isP'
 		,b.SiteDBGroupID AS 'sitedb'
-	FROM #TVSTicketBets t
-		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+	FROM #TVSTicketBets B
 	FOR JSON PATH))
 	
-	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
+	-- 4. List ticket unmark/mark & Transinfo table (if any)
+	SELECT @UnmarkTransIds AS UnmarkTransIds
+		  ,@MarkTransIds AS MarkTransIds
+		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
@@ -1119,7 +1223,8 @@ BEGIN
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #FilterInfo
 	DROP TABLE #logInfoVoidPage
-	DROP TABLE #tmpTransInfo
-	DROP TABLE #FilterBetTypeTbl
+	DROP TABLE #CTE_Ticket_Single
+	DROP TABLE #CTE_Ticket_SubParlay
+	DROP TABLE #CTE_RequestDetail
 END
 GO
