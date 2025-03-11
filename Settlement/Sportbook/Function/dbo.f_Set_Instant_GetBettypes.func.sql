@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_Instant_GetBettypes] ()
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -11,6 +11,7 @@ AS
     Revisions:
 		- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
 		- 20191209@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
+		- 20250221@Lani: [TVS] Basketball - Integrate 6 new bettypes [Redmine: #217848]
      Columns Explanation:    
 		- InstantType: bits[0|1:1H,0|2:2H]
     
@@ -39,6 +40,8 @@ RETURN (
 		UNION ALL SELECT 464 , 1
 		UNION ALL SELECT 434 , 2
 		UNION ALL SELECT 435 , 3
+		UNION ALL SELECT 651 , 3
+		UNION ALL SELECT 652 , 3
 		--Corner bettype
 		UNION ALL SELECT 475 , 3
 		UNION ALL SELECT 476 , 1

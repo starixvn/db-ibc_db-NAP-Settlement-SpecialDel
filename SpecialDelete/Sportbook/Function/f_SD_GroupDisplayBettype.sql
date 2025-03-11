@@ -1,5 +1,5 @@
 /*<info serverAlias="DBACC-bodb02,DBPRO-bodb02,DBBAH-bodb02,DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="1" isNested="1"></info>*/
-CREATE FUNCTION [dbo].[f_SD_GroupDisplayBettype] ()
+ALTER FUNCTION [dbo].[f_SD_GroupDisplayBettype] ()
 RETURNS TABLE
 RETURN
 /*
@@ -11,6 +11,7 @@ RETURN
 		- 20191226@Charles: Incorporate PHAIO 5 [123395]
 		- 20200924@July: TVS - Resettled Affected Tickets - Add server DBBAH  [Redmine: #138552]
 		- 20240522@Max: [TVS] Wrong Market Offered issue type [Redmine: #197051]
+		- 20250221@Lani: [TVS] Basketball - Integrate 6 new bet types [Redmine: #217848]
 
 	Param's Explanation:    
 		You need to use option: option (maxrecursion 0) at the statement if the lengh of string exceed 100 levels      
@@ -122,6 +123,8 @@ RETURN
 		,(402, 402), (462, 402) -- Away Team Over/Under
 		,(403, 403), (463, 403) -- 1H Home Team Over/Under
 		,(404, 404), (464, 404) -- 1 H Away Team Over/Under
+		,(615, 615), (651, 615) -- Quarter X Home Team Over/Under (dec)
+		,(616, 616), (652, 616) -- Quarter X Away Team Over/Under (dec)
 		
 		,(194, 194), (470, 194) -- Corners Odd/Even
 		,(203, 203), (471, 203) -- 1H Corners Odd/Even

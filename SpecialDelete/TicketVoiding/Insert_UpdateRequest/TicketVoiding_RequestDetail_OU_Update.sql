@@ -24,6 +24,7 @@ AS
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
 		- 20250109@Lani: [TVS] Save new filter (FilterBetIdX, FilterBetIdY, FilterBetTypeId) of 'Wrong HDP' issue type [Redmine: #215545]
+		- 20250224@Lani: [TVS] Basketball - Integrate 6 new bet types (Change data type of inputted 'FilterBetTypeId' column) [Redmine: #217848]
 
 	Param's explanation:
 		+ @IssueTypeId : 6 - Wrong OU, 7 - Wrong 1st OU
@@ -123,7 +124,7 @@ BEGIN
 							+ '" PoolHouseCheckedBetTypes="' + t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') 
 							+ '" '
 						END
-				    + 'FilterBetTypeId="' + CAST(t.c.value('@FilterBetTypeId','SMALLINT') AS VARCHAR(20)) + '" '
+				    + 'FilterBetTypeId="' + CAST(t.c.value('@FilterBetTypeId','NVARCHAR(50)') AS NVARCHAR(50)) + '" '
 				    + 'FilterBetIdX="' + t.c.value('@FilterBetIdX','NVARCHAR(50)') + '" '
 				    + 'FilterBetIdY="' + t.c.value('@FilterBetIdY','NVARCHAR(50)') + '" />'
 

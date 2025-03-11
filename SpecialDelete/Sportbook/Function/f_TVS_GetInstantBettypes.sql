@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_TVS_GetInstantBettypes] ()
 RETURNS TABLE
 AS
@@ -9,6 +9,7 @@ AS
     Revisions:
 		- 20220615@July: [TVS] Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 		- 20230821@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
+		- 20250221@Lani: [TVS] Basketball - Integrate 6 new bettypes [Redmine: #217848]
 
     Parameters Explanation:    
 */
@@ -21,14 +22,14 @@ RETURN (
 		FROM dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)		
 		WHERE s.SportType = 1 and s.DeterminedType = 2  -- cal ht
 	)
-	SELECT ISNULL(s.BetType, f.bettype) AS bettype, ISNULL(f.InstantType,2) AS InstantType, NULL AS BetID, NULL AS ResourceId, 1 AS SportType
+	SELECT ISNULL(s.BetType, f.bettype) AS bettype, ISNULL(f.InstantType,2) AS InstantType, NULL AS BetID, NULL AS ResourceId
 	FROM cte s
 		FULL JOIN f_Set_Instant_GetBettypes () f
 			ON s.BetType = f.bettype
 
 	UNION ALL
 
-	SELECT  s.BetType, NULL AS InstantType, s.BetID, ISNULL(S.RefResourceId,s.SDTResourceId) AS ResourceId, 2 AS SportType
+	SELECT  s.BetType, NULL AS InstantType, s.BetID, ISNULL(S.RefResourceId,s.SDTResourceId) AS ResourceId
 	FROM	dbo.SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
 	WHERE	s.SportType = 2
 		AND (  ISNULL(s.DeterminedType,0) > 0 

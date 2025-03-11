@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_MatchLockingTicketSel
 	@MatchId INT 
 	,@KeyId INT
@@ -14,6 +14,7 @@ AS
 		- 20210506@Kathy: Get number of ticket of locked  [Redmine:#151475]
 		- 20220913@Louisa: Support delete locking at SiteDB after release Scale out DBTrans [RedmineId:#177711]
 		- 20230208@Louisa: remove block code check by [f_Set_SettingByProfile] [RedmineId:#179505]
+		- 20250305@Lani: Change alias server [Redmine: #217848]
 
 */
 BEGIN

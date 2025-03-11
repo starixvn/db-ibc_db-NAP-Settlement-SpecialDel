@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,DBACC-bodb02,DBWH-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02,DBACC-bodb02,DBWH-bodb02" executers="" viewers="" isFunction="1"></info>*/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -25,7 +25,7 @@ AS
 		- 20220128@Louisa: Cricket AIO Phase 2 [Redmine:#166335]
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
-		
+		- 20250303@Lani: Add new decimal bettype of Basketball [Redmine:#217848]
     Parameters Explanation:    
 		- oddsType
 			+ 1: Decimal Odds
@@ -276,7 +276,12 @@ RETURN (
 	UNION ALL SELECT 644, 1
 	UNION ALL SELECT 645, 1
 	UNION ALL SELECT 646, 1
-
+	UNION ALL SELECT 647, 1 
+	UNION ALL SELECT 648, 1
+	UNION ALL SELECT 649, 1
+	UNION ALL SELECT 650, 1
+	UNION ALL SELECT 651, 1
+	UNION ALL SELECT 652, 1
 	--Cricket AIO
 	UNION ALL SELECT 501 , 1
 	UNION ALL SELECT 9400, 1
