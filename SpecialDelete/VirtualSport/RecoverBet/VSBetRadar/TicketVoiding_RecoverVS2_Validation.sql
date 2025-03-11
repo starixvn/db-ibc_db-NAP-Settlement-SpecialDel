@@ -78,6 +78,11 @@ BEGIN
 		,b.SiteDBGroupID
 		,b.oddsid
 		,z.creator AS CreatorBackup
+		,b.statuswinlost
+		,b.playercomm
+		,b.acomm
+		,b.comm
+		,b.scomm
 		,CASE WHEN m.eventstatus = 'completed'
 					THEN CASE
 							WHEN m.betstatus LIKE '%' + 'Refund' + '%' THEN @Action_Refund
