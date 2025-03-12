@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 (
 	 @UserNames			NVARCHAR(MAX) = ''
@@ -44,7 +44,6 @@ AS
 		- 20240305@Max: [TVS] Abnormal Account - Void full range of archived tickets [Redmine: #201130]
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' [Redmine: #213451]
 		- 20241224@July: [TVS] Abnormal Account - Enhance Auto Void (Instant with Policy) [Redmine: #214444]
-		- 20250311@Max: [TVS] Enhance the Auto Void flow (Instant with Policy) of Abnormal Account  [#Redmine: #217979]
 
 	Param's Explanation:
 */
@@ -77,6 +76,11 @@ BEGIN
 			,@IsBeingMovebetdate	  BIT = 0 --1: movebet date comming up or being
 			,@BeingMovebetDate		  SMALLDATETIME
 			,@currentdate			  SMALLDATETIME = GETDATE()
+
+	DECLARE @SiteDBGroupID			 SMALLINT
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT, srecommend INT)
@@ -208,28 +212,74 @@ BEGIN
 		  ,RefCode
 		  ,ExtraInfo
 		)
-	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,mre ,sre
-		,wld ,isP ,sitedb, isV14, wl, act_s
-		,m ,tdate ,checkt ,hdp1 ,hdp2 ,lh ,la ,li
-		,bteam ,bdaq ,bfr ,statuswl ,o ,ost ,bcheck ,stake ,s ,oid ,curr
-	    ,os ,tdes ,wt ,refc ,ex
-	FROM STRING_SPLIT(@TransInfoJson, ',') f
-		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
-		CROSS APPLY (
-				SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,mre ,sre
-					  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb ,isV14, wl, act_s
-					  ,m ,tdate ,CASE WHEN checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE checkt END AS checkt ,hdp1 ,hdp2 ,lh ,la ,li
-					  ,bteam ,bdaq ,bfr ,statuswl ,o ,ost ,bcheck ,stake ,s ,oid ,curr
-					  ,os ,tdes ,wt ,refc ,ex
-				FROM OPENJSON(t.Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT ,mre INT,sre INT
-					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT, isV14 BIT, wl MONEY, act_s MONEY
-					  ,m SMALLMONEY, tdate DATETIME, checkt DATETIME, hdp1 SMALLMONEY, hdp2 SMALLMONEY,lh SMALLINT, la SMALLINT, li BIT
-					  ,bteam NVARCHAR(10), bdaq BIGINT, bfr NVARCHAR(4), statuswl TINYINT, o MONEY, ost TINYINT, bcheck NVARCHAR(50), stake MONEY, s NVARCHAR(10), oid INT, curr NVARCHAR(50)	
-					  ,os MONEY, tdes NVARCHAR(1000), wt TINYINT, refc BIGINT, ex VARCHAR(1000)
-				)
-		) tbl
-	WHERE f.value <> ''
+	SELECT matchid
+		  ,transid 
+		  ,refno
+		  ,b.custid		
+		  ,b.bettype
+		  ,betid
+		  ,statusID
+		  ,b.recommend
+		  ,b.mrecommend
+		  ,b.srecommend
+		  ,winlostdate
+		  ,CASE WHEN b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END AS IsMixParlay 
+		  ,b.SiteDBGroupID
+		  ,0 AS IsVoid14
+		  ,winlost
+		  ,actual_stake
+		  ,modds
+		  ,transdate 
+		  ,checktime 
+		  ,hdp1 
+		  ,hdp2 
+		  ,livehomescore 
+		  ,liveawayscore 
+		  ,liveindicator 
+		  ,betteam 
+		  ,betdaqid 
+		  ,betfrom 
+		  ,statuswinlost 
+		  ,odds 
+		  ,oddstype 
+		  ,betcheck 
+		  ,stake 
+		  ,Status 
+		  ,oddsid 
+		  ,CurrencyName
+		  ,oddsspread
+		  ,Transdesc
+		  ,WalletType
+		  ,RefCode
+		  ,ExtraInfo
+	FROM dbo.bettrans b WITH (NOLOCK)
+		inner join CustDB.dbo.custinfo ci with (nolock) on ci.custid = b.custid
+		INNER JOIN #TmpInValidUserName c ON c.Username = ci.username
+		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+		OUTER APPLY (
+				SELECT TOP 1 1 LeagueGroupID 
+				FROM dbo.match m WITH (NOLOCK)
+					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+				WHERE m.matchid = b.matchid
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
+			)ml
+		LEFT JOIN CustDB.dbo.Dep_CustSuper dc WITH(NOLOCK) ON dc.custid = b.srecommend
+	WHERE b.statusID NOT IN (101, 102, 103)
+		AND b.betfrom <> 'P'
+		AND b.SiteDBGroupID = @SiteDBGroupID
+		AND b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
+		AND 1 = CASE 
+					WHEN @IsSB = 1 
+						AND b.bettype BETWEEN 801 AND 806 
+						AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
+					WHEN (@IsSB = 1 OR @IsOutright = 1 OR @IsParlay = 1)
+						AND b.bettype NOT BETWEEN 801 AND 806-- MG
+						AND ml.LeagueGroupID IS NULL THEN 1
+					WHEN @IsSaba = 1 
+						AND ml.LeagueGroupID IS NOT NULL THEN 1								
+				ELSE 0 END	
+		AND dc.custid IS NULL
+
 
 	---UPDATE column show Affected Ticket popup
 	BEGIN
@@ -597,8 +647,8 @@ BEGIN
 	BEGIN
 		INSERT INTO #TransidInRequest (TransId)
 		SELECT DISTINCT rs.TransId
-		FROM  dbo.TicketVoiding_Request r WITH (NOLOCK) 
-			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK) ON rs.RequestId = r.RequestId
+		FROM  DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK) 
+			INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK) ON rs.RequestId = r.RequestId
 			CROSS APPLY (
 						SELECT TOP 1 t.MatchId, t.transid, t.StatusId
 						FROM #transIdTemp t
@@ -633,13 +683,13 @@ BEGIN
 	END
 	ELSE IF @RequestId <> 0 
 	BEGIN
-		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
+		SELECT @OldActionId = ISNULL(ActionId,0) FROM DBCTG.bodb02.dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
 
 		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Edit from to time of Abnormal account issue -> unmark ticket change void time
 			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #transIdTemp tp WHERE rdt.TransId = tp.transid)
 												AND rdt.RequestId = @RequestId
 												AND rdt.bettype NOT IN (9,29,10)
@@ -667,7 +717,7 @@ BEGIN
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId
 		BEGIN
 			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CONVERT(VARCHAR(50), rdt.transid)
-											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 											WHERE rdt.RequestId = @RequestId
 												AND rdt.bettype NOT IN (9,29,10)
 											FOR XML PATH('')), 1, 1, '')
@@ -695,10 +745,30 @@ BEGIN
 		  ,@NumberOfTickets AS NumberOfTickets
 		  ,@IsInValidTotalTicket AS IsInValidTotalTicket
 		  ,@IsBeingMovebetdate AS IsBeingMovebetdate
-		  ,@UnmarkTransIds AS UnmarkTransIds
+		  
+	--2. List ticket unmark (if any)
+	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 
-	--2. List TransId 
+	--3. List TransinfoJson
+	IF @ActionId <> 10
+	BEGIN
+		SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
+			,t.transid AS 't'
+			,b.custid AS  'c'           
+			,b.bettype AS 'btype'
+			,b.betid AS 'bid'
+			,b.IsMixParlay AS 'isP'
+			,b.SiteDBGroupID AS 'sitedb'
+			,b.IsVoid14 AS 'isV14'
+		FROM #transIdTemp t
+			INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+		FOR JSON PATH))
+	END
+
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
+
+	--4. List TransId for case auto void with policy
 	SELECT b.transid
 		,b.refno
 		,b.username
@@ -745,7 +815,7 @@ BEGIN
 	FROM #tmpTransInfo b
 		INNER JOIN #transIdTemp t ON t.transid = b.transid
 
-	--3. List members winlost amount for case auto void with policy
+	--5. List members winlost amount for case auto void with policy
 	SELECT DISTINCT b.custid
 		,c.username
 		,c.credit AS GivenCredit
