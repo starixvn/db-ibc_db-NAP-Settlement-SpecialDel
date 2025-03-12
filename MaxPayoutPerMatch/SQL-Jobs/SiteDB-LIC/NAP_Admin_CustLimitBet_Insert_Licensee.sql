@@ -18,6 +18,7 @@ AS
 		- 20230712@Max: Clone from DBTRANS - [Redmine: #181595]
 		- 20240118@Louisa: Support Max Payout for VS4 [Redmine:#199700]
 		- 20240325@Max: Max Payout - NAP_Admin_CustLimitBetQueue_Insert_Parlay Enhancement [Redmine: #202058]
+		- 20250225@Max: Enhance case duplicate rejected parlay ticket in queue [Redmine: #218599]
 
 	Param's explanation:	
 		
@@ -118,10 +119,7 @@ BEGIN
 					,m.sporttype
 					,b.bettype
 				FROM dbo.bettrans b WITH (NOLOCK)
-					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
-					INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 					INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
-					INNER JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 				WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
 					AND b.SiteDBGroupID = @SiteDBGroupID
 					AND b.matchid = @MatchId
@@ -145,9 +143,6 @@ BEGIN
 						,3 --deposit
 						,b.transid
 					FROM dbo.bettrans b WITH (NOLOCK)
-						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
-						INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
-						INNER JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 					WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
 						AND b.SiteDBGroupID = @SiteDBGroupID
 						AND b.matchid = 29
@@ -168,14 +163,21 @@ BEGIN
 						,b.transid
 					FROM @tmpRejectTransId t
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.TransId				
-						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
-						INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
-						INNER JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 					WHERE b.SiteDBGroupID = @SiteDBGroupID
 						AND b.matchid = 29
 						AND b.statusID = 101
 				END
-			
+
+			--Delete invalid transid in case insert queue duplicate
+			DELETE t
+			FROM #CustLimitBet_tmp t
+			CROSS APPLY (
+					SELECT SUM(l.TurnoverAdjust) AS TurnoverAdjust
+					FROM dbo.CustLimitBetHistory_LIC l WITH (NOLOCK)
+					WHERE l.Matchid = t.Matchid AND l.CustID = t.CustId AND l.Transid = t.transid
+					GROUP BY l.Matchid, l.CustID, l.Transid
+			) t1
+			WHERE t1.TurnoverAdjust = 0			
 		END TRY
 		BEGIN CATCH
 			SELECT	 @ErrCode = ERROR_NUMBER()
@@ -244,12 +246,12 @@ BEGIN
 					GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
 				)tmp
 
-			IF @ActionId IN (1,3,4,5) 
+			IF @ActionId IN (1,2,3,4,5) 
 			BEGIN
 				INSERT INTO dbo.CustLimitBetHistory_LIC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
 				SELECT t.CustId, t.MatchId, t.transid
-					, CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.TurnoverAdjust) ELSE MAX(t1.TurnoverAdjust) END
-					,CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.PayoutAdjust) ELSE MAX(t1.PayoutAdjust) END
+					, CASE WHEN @ActionId IN (1,4,2) THEN -MAX(t1.TurnoverAdjust) ELSE MAX(t1.TurnoverAdjust) END
+					,CASE WHEN @ActionId IN (1,4,2) THEN -MAX(t1.PayoutAdjust) ELSE MAX(t1.PayoutAdjust) END
 					, t1.EventTypeID
 				FROM #CustLimitBet_LIC t
 					INNER JOIN dbo.CustLimitBetHistory_LIC t1 WITH (NOLOCK) ON t1.Matchid = t.MatchId and t1.CustID = t.CustId and t1.Transid = t.transid

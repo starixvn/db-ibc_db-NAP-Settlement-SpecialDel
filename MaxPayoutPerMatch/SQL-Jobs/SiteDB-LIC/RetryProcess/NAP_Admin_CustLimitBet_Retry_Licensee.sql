@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSID-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBSID-bodb02" executers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Retry_Licensee]
 (
 	@QueueId	BIGINT
@@ -12,6 +12,7 @@ AS
     DB: DBSID/bodb02
     Revisions:
 		- 20230712@Max: Clone from DBTRANS - [Redmine: #181595]
+		- 20250225@Max: Enhance case duplicate rejected parlay ticket in queue [Redmine: #218599]
 	
 	Param's explanation:	
 		
@@ -25,7 +26,7 @@ BEGIN
 
 	CREATE TABLE #CustLimitBet_RetryTransId_LIC (TransId BIGINT, TryCount TINYINT)
 
-	DECLARE @CustLimitBet_RetryTransId_Batch AS TABLE (TransId BIGINT)
+	DECLARE @CustLimitBet_RetryTransId_Batch AS TABLE (TransId BIGINT, MatchId INT, CustId INT, IsProcessed BIT DEFAULT (0))
 
 	--Prepare data for LIC
 	INSERT #CustLimitBet_RetryTransId_LIC (TransId, TryCount)
@@ -51,7 +52,7 @@ BEGIN
 				DELETE @CustLimitBet_RetryTransId_Batch
 
 				DELETE TOP(2000) t1
-				OUTPUT DELETED.TransId INTO @CustLimitBet_RetryTransId_Batch
+				OUTPUT DELETED.TransId, t2.Matchid, t2.CustID, 0 INTO @CustLimitBet_RetryTransId_Batch (TransId, MatchId, CustId, IsProcessed)
 				FROM #CustLimitBet_RetryTransId_LIC t1
 					INNER JOIN dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
 				WHERE t1.TryCount = @TryCount
@@ -73,6 +74,18 @@ BEGIN
 
 				IF @rowcountLIC > 0
 				BEGIN
+					--Delete invalid transid in case insert queue duplicate
+					UPDATE t
+						SET IsProcessed = 1
+					FROM @CustLimitBet_RetryTransId_Batch t
+					CROSS APPLY (
+							SELECT SUM(l.TurnoverAdjust) AS TurnoverAdjust
+							FROM dbo.CustLimitBetHistory_LIC l WITH (NOLOCK)
+							WHERE l.Transid = t.transid AND l.Matchid = t.MatchId AND l.CustID = t.CustId
+							GROUP BY l.Matchid, l.CustID, l.Transid
+					) t1
+					WHERE t1.TurnoverAdjust = 0
+
 					--UPDATE CustLimitBet_LIC
 					UPDATE t SET t.AccumTurnover = (t.AccumTurnover + tmp.AccumTurnover), t.AccumPayout = (t.AccumPayout + tmp.AccumPayout), t.LastQueueID = @QueueId, t.ModifiedDate = GETDATE()
 					FROM dbo.CustLimitBet_LIC t WITH (ROWLOCK)
@@ -84,12 +97,23 @@ BEGIN
 							(
 								SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
 								FROM @CustLimitBet_RetryTransId_Batch t1
-									INNER JOIN dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
+									INNER JOIN dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK) ON t2.Transid = t1.transid AND t2.Matchid = t1.MatchId AND t2.CustID = t1.CustId
+								WHERE t1.IsProcessed = 0
 								GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
 							)tmpsum
 							WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
 							GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
 						)tmp
+
+					INSERT INTO dbo.CustLimitBetHistory_LIC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
+					SELECT t1.CustId, t1.MatchId, t.transid
+						, -MAX(t1.TurnoverAdjust)
+						, -MAX(t1.PayoutAdjust)
+						, t1.EventTypeID
+					FROM @CustLimitBet_RetryTransId_Batch t
+						INNER JOIN dbo.CustLimitBetHistory_LIC t1 WITH (NOLOCK) ON t1.Transid = t.transid AND t1.Matchid = t.MatchId AND t1.CustID = t.CustId
+					WHERE t.IsProcessed = 0
+					GROUP BY t1.Matchid, t1.CustId, t.transid, t1.EventTypeID
 
 					--Update Retry queue
 					UPDATE q SET
