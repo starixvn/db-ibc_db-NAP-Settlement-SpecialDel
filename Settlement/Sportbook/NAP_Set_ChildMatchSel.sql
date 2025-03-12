@@ -13,6 +13,7 @@ AS
 		- 20210906@Louisa: Get child match for Volleyball [Redmine:#160478]
 		- 20211108@Louisa: In-house Replicator: Delete Action [Redmine:#164393] 
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
+		- 20250312@Kaka: Support SOP and AutoPayout2 for Beach Volleyball [Redmine:#217843] 
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -39,6 +40,7 @@ BEGIN
 		AND ISNULL(m.IsDeleted,0) = 0
 		AND 1 = CASE WHEN m.sporttype = 6 AND ISNULL(m.ChildMatchType, 0) IN (11, 12, 14, 15, 16, 17) THEN 1
 					 WHEN m.sporttype = 18 AND ISNULL(m.ChildMatchType, 0) IN (11, 12, 14, 15, 16, 17, 18, 19) THEN 1
+					 WHEN m.sporttype = 45 AND ISNULL(m.ChildMatchType, 0) IN (11, 12, 14, 15) THEN 1
 					 ELSE 0
 				END
 					
