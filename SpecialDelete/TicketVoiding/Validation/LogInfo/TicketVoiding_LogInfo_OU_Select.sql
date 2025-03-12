@@ -28,7 +28,7 @@ AS
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
 		- 20241216@Lani: [TVS] Add 'GroupName' column returned [Redmine: #213960]
 		- 20250109@Lani: [TVS] Add new filter (FilterBetTypeId, FilterBetIdX, FilterBetIdY) [Redmine: #215545]
-		- 20250311@July: [TVS] Enhance the Out-of-Memory for Wrong OU issue types [Redmine: #217771]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:
 		+ @WrongOUInfo
