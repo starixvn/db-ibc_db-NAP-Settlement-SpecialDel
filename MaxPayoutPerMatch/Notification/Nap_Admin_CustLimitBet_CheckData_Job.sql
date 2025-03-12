@@ -2,7 +2,8 @@
 ALTER PROCEDURE [dbo].[Nap_Admin_CustLimitBet_CheckData_Job]
 	@StartTime DATETIME OUTPUT,
 	@EndTime DATETIME OUTPUT,
-	@ErrorMessage VARCHAR(MAX) OUTPUT
+	@ErrorMessage VARCHAR(MAX) OUTPUT,
+	@ErrMsg_Duplicate VARCHAR(MAX) OUTPUT
 AS
 /*	
 	Created: 20211111@Tina
@@ -26,6 +27,7 @@ AS
 		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
 		- 20241031@Max: VS6 (Betby) - Company Max Payout & Max Payout Per Match [Redmine: #212547]
 		- 20241203@Max: Improve performance of Max Payout per Match [Redmine: #214294]
+		- 20250305@Max: Replace action reject by another actions for rule check duplicate [Redmine: #218599]
 
 	Param's explanation:		
 		
@@ -40,6 +42,7 @@ BEGIN
 			@CRLF CHAR(2)
 
 	SET @ErrorMessage = ''
+	SET @ErrMsg_Duplicate = ''
 	
 	SET @StartTime   = DATEADD(MINUTE,-35,GETDATE())
 	SET @EndTime   = DATEADD(MINUTE, -2,GETDATE())
@@ -440,19 +443,19 @@ BEGIN
 		END
 	END
 
-	-------------------------check duplicate data in queue table for reject action --------------------------------------------------------------------
+	-------------------------check duplicate data in queue table for void/recover/settle action --------------------------------------------------------------------
 
 	--SELECT TOP 1 COUNT(1), q.ActionID, q.CustID, q.Matchid, q.EventTypeID, min(q.CreatedDate) MinDate , max (CreatedDate) MaxDate, q.Transids
 
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBetQueue Q with (nolock)
-				WHERE q.ActionID = 2
+				WHERE q.ActionID IN (1,3,4,5,6)
 					AND q.CreatedDate BETWEEN @StartTime AND @EndTime
 				GROUP BY q.ActionID, q.CustID, q.Matchid, q.Transids, q.EventTypeID
 				HAVING count(1) > 1
 				)
 	BEGIN
-		SELECT TOP 1 @ErrorMessage = @ErrorMessage +  '4. Duplicate data in Queue table. ' + @CRLF
+		SELECT TOP 1 @ErrMsg_Duplicate = @ErrMsg_Duplicate +  '4. Duplicate data in Queue table. ' + @CRLF
 	END
 
 	----------------------------------------------------------------------------------------------------------------------------------------------------
