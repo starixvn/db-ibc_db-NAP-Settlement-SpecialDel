@@ -26,7 +26,7 @@ AS
 		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
-		- 20250305@Lani: [TVS] Edit log data content [Redmine: #216151]
+		- 20250305@Lani: [TVS] Edit log data content and TypeAccept column[Redmine: #216151]
 
 	Param's explanation:
 */
@@ -134,6 +134,7 @@ BEGIN
 			AS IssueDetail
 			,t.c.value('@SubIssueTypeId','INT') AS SubIssueTypeId
 			,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') + '" SA="' + t.c.value('@SATime','VARCHAR(10)') + 
+			+ '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)')
 			+ '" ScoreId="' + t.c.value('@ScoreId','VARCHAR(20)') 
 			+ '" IsCheckedVar="' + CAST (t.c.value('@IsCheckedVar','BIT') AS VARCHAR(10))
 			+ '" MinTime="' + ISNULL(CONVERT(VARCHAR(50),NULLIF(t.c.value('@MinTime','DATETIME'),''), 121),'')
