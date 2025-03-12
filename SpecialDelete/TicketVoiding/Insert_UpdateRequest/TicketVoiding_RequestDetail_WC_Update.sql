@@ -267,9 +267,6 @@ BEGIN
 
 	IF @FilterBy <> 2
 	BEGIN
-		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20))
-							+', Actual Score: ' + @actualscore
-							+', Wrong Score: ' 
 		SELECT @LogDataContent =' MatchId: ' + CAST(l.MatchID AS VARCHAR(20))
 								+', Actual Score: ' + SUBSTRING(l.IssueDetail, CHARINDEX(';Act:',l.IssueDetail) + 5, LEN(l.IssueDetail))
 								+', Wrong Score: '

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBBAH-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_TVS_CheckingSubIssueTypeIdExcludeBettypes] ()
 RETURNS TABLE
 --WITH SCHEMABINDING
