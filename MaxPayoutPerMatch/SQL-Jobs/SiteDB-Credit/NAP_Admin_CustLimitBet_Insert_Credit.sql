@@ -19,6 +19,7 @@ AS
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 		- 20240118@Louisa: Support Max Payout for VS4 [Redmine:#199700]
 		- 20240325@Max: Max Payout - NAP_Admin_CustLimitBetQueue_Insert_Parlay Enhancement [Redmine: #202058]
+		- 20250225@Max: Enhance case duplicate rejected parlay ticket in queue [Redmine: #218599]
 	
 	Param's explanation:	
 		
@@ -174,7 +175,22 @@ BEGIN
 						AND b.matchid = 29
 						AND b.statusID = 101
 				END
-			
+
+			--Delete invalid transid in case insert queue duplicate
+			DELETE t
+			FROM #CustLimitBet_tmp t
+			CROSS APPLY (
+					SELECT SUM(l1.TurnoverAdjust) AS TurnoverAdjust
+					FROM dbo.CustLimitBetHistory_MBC l1 WITH (NOLOCK)
+					WHERE l1.Matchid = t.Matchid AND l1.CustID = t.CustId AND l1.Transid = t.transid
+					GROUP BY l1.Matchid, l1.CustID, l1.Transid
+					UNION ALL
+					SELECT SUM(l2.TurnoverAdjust) AS TurnoverAdjust
+					FROM dbo.CustLimitBetHistory_789 l2 WITH (NOLOCK)
+					WHERE l2.Matchid = t.Matchid AND l2.CustID = t.CustId AND l2.Transid = t.transid
+					GROUP BY l2.Matchid, l2.CustID, l2.Transid
+			) t1
+			WHERE t1.TurnoverAdjust = 0		
 		END TRY
 		BEGIN CATCH
 			SELECT	 @ErrCode = ERROR_NUMBER()
@@ -260,12 +276,12 @@ BEGIN
 					GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
 				)tmp
 
-			IF @ActionId IN (1,3,4,5) 
+			IF @ActionId IN (1,2,3,4,5) 
 			BEGIN
 				INSERT INTO dbo.CustLimitBetHistory_MBC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
 				SELECT t.CustId, t.MatchId, t.transid
-					, CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.TurnoverAdjust) ELSE MAX(t1.TurnoverAdjust) END
-					,CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.PayoutAdjust) ELSE MAX(t1.PayoutAdjust) END
+					, CASE WHEN @ActionId IN (1,4,2) THEN -MAX(t1.TurnoverAdjust) ELSE MAX(t1.TurnoverAdjust) END
+					,CASE WHEN @ActionId IN (1,4,2) THEN -MAX(t1.PayoutAdjust) ELSE MAX(t1.PayoutAdjust) END
 					, t1.EventTypeID
 				FROM #CustLimitBet_tmp t
 					INNER JOIN dbo.CustLimitBetHistory_MBC t1 WITH (NOLOCK) ON t1.Matchid = t.MatchId and t1.CustID = t.CustId and t1.Transid = t.transid
@@ -293,12 +309,12 @@ BEGIN
 					GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
 				)tmp
 
-			IF @ActionId IN (1,3,4,5) 
+			IF @ActionId IN (1,2,3,4,5) 
 			BEGIN
 				INSERT INTO dbo.CustLimitBetHistory_789 (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
 				SELECT t.CustId, t.MatchId, t.transid
-					, CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.TurnoverAdjust) ELSE MAX(t1.TurnoverAdjust) END
-					,CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.PayoutAdjust) ELSE MAX(t1.PayoutAdjust) END
+					, CASE WHEN @ActionId IN (1,4,2) THEN -MAX(t1.TurnoverAdjust) ELSE MAX(t1.TurnoverAdjust) END
+					,CASE WHEN @ActionId IN (1,4,2) THEN -MAX(t1.PayoutAdjust) ELSE MAX(t1.PayoutAdjust) END
 					, t1.EventTypeID
 				FROM #CustLimitBet_789 t
 					INNER JOIN dbo.CustLimitBetHistory_789 t1 WITH (NOLOCK) ON t1.Matchid = t.MatchId and t1.CustID = t.CustId and t1.Transid = t.transid
