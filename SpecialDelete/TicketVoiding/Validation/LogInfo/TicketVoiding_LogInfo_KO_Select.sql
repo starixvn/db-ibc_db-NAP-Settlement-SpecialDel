@@ -546,7 +546,7 @@ BEGIN
 							 ELSE gr.GroupName
 							 END
 		FROM #TVSTicketBets b
-			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON t.custid = f.CustID
+			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON b.custid = f.CustID
 			CROSS APPLY (SELECT CASE
 								WHEN f.CustID IS NULL
 									AND b.username <> '12EU'
@@ -764,8 +764,8 @@ BEGIN
 			FROM #TransidInRequest
 		END
 
-		-- 3. Loginfo table (No need -> return table)
-		SELECT NULL AS MatchId
+		-- 3. Loginfo table 
+		SELECT MatchId, LogInfoTicketsJson FROM @Validation
 
 		-- 4. Unmark/Transinfo table (No need -> return table)
 		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpUnmarkTransId
@@ -868,8 +868,9 @@ BEGIN
 		FROM #TransidInRequest
 	END
 
-	-- 3. Loginto table (no-need but must return)
-	SELECT NULL AS MatchId
+	-- 3. Loginfo table 
+	SELECT MatchId, LogInfoTicketsJson FROM @Validation
+
 
 	SET @TransInfoJson = COMPRESS((SELECT b.matchid AS 'mid'
 		,b.transid AS 't'

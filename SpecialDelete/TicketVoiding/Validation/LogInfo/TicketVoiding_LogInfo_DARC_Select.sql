@@ -293,7 +293,7 @@ BEGIN
 		INNER JOIN dbo.match m ON d.MatchId = m.MatchId
 
 	--Cricket/Baseball - Get child match
-	INSERT INTO #FilterInfo (MatchID, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId, AATime, PATime, SATime)
+	INSERT INTO #FilterInfo (MatchID, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId, AATime, PATime, SATime, Sporttype, MatchId_tmp)
 	SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime
 		  , d.FilterBy, d.SubIssueTypeId, d.AATime, d.PATime, d.SATime
 		  , m.Sporttype
