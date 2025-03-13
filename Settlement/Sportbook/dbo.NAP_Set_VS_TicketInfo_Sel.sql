@@ -16,6 +16,7 @@ AS
 		- 20240704@Aries: VS5 - Virtually Sports [Redmine:#207309]
 		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
 		- 20241023@Louisa: Modify code for VS6 and Change Service Alias from DBTXN to DBSIG,DBCTG  [Redmine:#210733]
+		- 20240312@Jane: Integration VS7 - Kiron [Redmine:#219147]
 		
 	Param explanation:  
 		- @MatchId: Get list ticket running, won, lose, draw
@@ -36,8 +37,7 @@ BEGIN
 	CREATE TABLE #CustInfo(custid INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),username NVARCHAR(100))
 	CREATE TABLE #tmpRefno(refno BIGINT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON), statusID tinyint)
 
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
+	SET @IsCentral = [dbo].[f_CheckServerCentral]()
 
 	SELECT @parlayBettype  = CASE WHEN @Sporttype = 188 THEN 10449
 								  WHEN @Sporttype IN (190,191,192,194,195,196,197,193) THEN 2799
@@ -127,6 +127,17 @@ BEGIN
 			AND p.bettype = @parlayBettype
 			AND p.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE p.SiteDBGroupID END
 
+		RETURN
+	END
+	-- VS7
+	ELSE IF @Sporttype IN (125,126,127) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
+	BEGIN
+		SELECT b.transid,b.statusID
+		FROM dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK)
+		WHERE b.matchid = @matchid
+			AND b.bettype IN (15500,15501)
+			AND b.StatusID IN (0,111,112,113)
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		RETURN
 	END
 	ELSE IF ISNULL(@ResourceIds,'') <> ''
