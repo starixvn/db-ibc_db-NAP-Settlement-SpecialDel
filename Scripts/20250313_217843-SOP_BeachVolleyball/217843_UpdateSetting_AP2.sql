@@ -1,6 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="" isFunction="0"></info>*/
 /*
-    Created: 20250313@Aries
+    Created: 20250313@Harley
 	Task: Support AutoPayout2 for Beach Volleyball [Redmine:#217843]
 	DB: DBPRO/bodb02
 */
