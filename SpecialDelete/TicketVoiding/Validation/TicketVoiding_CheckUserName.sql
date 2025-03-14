@@ -745,30 +745,10 @@ BEGIN
 		  ,@NumberOfTickets AS NumberOfTickets
 		  ,@IsInValidTotalTicket AS IsInValidTotalTicket
 		  ,@IsBeingMovebetdate AS IsBeingMovebetdate
-		  
-	--2. List ticket unmark (if any)
-	SELECT @UnmarkTransIds AS UnmarkTransIds
+		  ,@UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 
-	--3. List TransinfoJson
-	IF @ActionId <> 10
-	BEGIN
-		SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
-			,t.transid AS 't'
-			,b.custid AS  'c'           
-			,b.bettype AS 'btype'
-			,b.betid AS 'bid'
-			,b.IsMixParlay AS 'isP'
-			,b.SiteDBGroupID AS 'sitedb'
-			,b.IsVoid14 AS 'isV14'
-		FROM #transIdTemp t
-			INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-		FOR JSON PATH))
-	END
-
-	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
-
-	--4. List TransId for case auto void with policy
+	--2. List TransId for case auto void with policy
 	SELECT b.transid
 		,b.refno
 		,b.username
@@ -815,7 +795,7 @@ BEGIN
 	FROM #tmpTransInfo b
 		INNER JOIN #transIdTemp t ON t.transid = b.transid
 
-	--5. List members winlost amount for case auto void with policy
+	--3. List members winlost amount for case auto void with policy
 	SELECT DISTINCT b.custid
 		,c.username
 		,c.credit AS GivenCredit
