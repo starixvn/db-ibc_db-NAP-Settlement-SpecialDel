@@ -749,7 +749,7 @@ BEGIN
 		,MIN(act.VoidTime) AS HighLightMinTime
 	FROM #TVSTicketBets b
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
-		INNER JOIN #FilterInfo f ON f.MatchId = b.matchid
+		INNER JOIN #FilterInfo f ON f.MatchId = b.matchid AND f.ScoreId = b.ScoreId
 		CROSS APPLY (SELECT CASE 
 								WHEN f.FilterBy IN (1,4) THEN b.transdate
 								WHEN f.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
@@ -810,9 +810,10 @@ BEGIN
 				FROM #logInfo l
 					INNER JOIN @tmp_SAChecking s ON s.MatchId = l.MatchId
 					INNER JOIN #TVSTicketBets t ON t.matchid = l.MatchId
-					INNER JOIN #FilterInfo f ON t.matchid = f.MatchId
+					INNER JOIN #FilterInfo f ON t.matchid = f.MatchId AND t.ScoreId = f.ScoreId
 				WHERE t.accepttype = 2
 					AND v.MatchId = l.MatchId
+					AND v.ScoreId = l.ScoreId
 					AND 1 = CASE WHEN f.FilterBy = 1 AND t.transdate BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
 								 WHEN f.FilterBy = 2 AND t.checktime IS NOT NULL AND t.checktime BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
 								 WHEN f.FilterBy = 2 AND t.checktime IS NULL AND t.transdate BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
