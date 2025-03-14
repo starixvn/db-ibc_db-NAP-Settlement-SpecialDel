@@ -20,6 +20,7 @@ AS
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20241025@July: [TVS] Add new Advanced Mode for TVS - [Redmine: #212394]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -36,10 +37,6 @@ BEGIN
 
 	DECLARE	 @WrongMarketOfferedXML		  XML = NULL
 			,@topBatch			  INT = 4500
-
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
@@ -86,9 +83,15 @@ BEGIN
 		  ,VoidToTime  
 		)
 	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb ,isCCO, vft, vtt
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isCCO BIT, vft DATETIME , vtt DATETIME
-	) tbl
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+			SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb ,isCCO, vft, vtt
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
+			WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isCCO BIT, vft DATETIME , vtt DATETIME
+			)
+		) tbl
+	WHERE f.value <> ''
 
 	SET @WrongMarketOfferedXML = CONVERT(XML, @WrongMarketOfferedInfo)
 	INSERT INTO #tblGetLogInfo( 

@@ -27,6 +27,7 @@ AS
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
 		- 20250305@Lani: [TVS] Edit log data content and TypeAccept column[Redmine: #216151]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:
 */
@@ -43,10 +44,6 @@ BEGIN
 			,@MatchId				INT
 			,@FilterBy				TINYINT = NULL
 			,@actualscore			VARCHAR(100)
-
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
@@ -92,9 +89,15 @@ BEGIN
 		  ,IsCancelCashOut
 		)
 	SELECT mid ,t ,s_t ,c ,btype ,bid , vft, vtt ,isP ,sitedb ,isCCO
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT, vft DATETIME , vtt DATETIME ,isP BIT ,sitedb SMALLINT, isCCO BIT
-	) tbl
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+			SELECT mid ,t ,s_t ,c ,btype ,bid , vft, vtt ,isP ,sitedb ,isCCO
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
+			WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT, vft DATETIME , vtt DATETIME ,isP BIT ,sitedb SMALLINT, isCCO BIT
+			)
+		) tbl
+	WHERE f.value <> ''
 
 	SET @WrongScoreInfoXML = CONVERT(xml, @WrongScoreInfo)
 	INSERT INTO #tblGetLogInfo( 

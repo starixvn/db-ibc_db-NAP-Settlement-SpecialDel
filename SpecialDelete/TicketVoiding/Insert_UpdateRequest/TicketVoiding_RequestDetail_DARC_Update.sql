@@ -26,6 +26,7 @@ AS
 		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:
 		+ @IssueTypeId: 1 - Danger Accepted, 10 - Red Card
@@ -86,9 +87,15 @@ BEGIN
 		  ,IsCancelCashOut
 		)
 	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb ,isCCO
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isCCO BIT
-	) tbl
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+			SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb ,isCCO
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
+			WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isCCO BIT
+			)
+		) tbl
+	WHERE f.value <> ''
 
 	SET @DARCInfoXML = CONVERT(XML, @DARCInfo)
 	INSERT INTO #tblGetLogInfo( 

@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_OU_Update]
 (
 	@RequestId				INT
-	,@IssueTypeId			TINYINT		= NULL
+	,@IssueTypeId			TINYINT		= 6
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
 	,@WrongOUInfo		    VARCHAR(MAX) = NULL
@@ -25,9 +25,9 @@ AS
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
 		- 20250109@Lani: [TVS] Save new filter (FilterBetIdX, FilterBetIdY, FilterBetTypeId) of 'Wrong HDP' issue type [Redmine: #215545]
 		- 20250224@Lani: [TVS] Basketball - Integrate 6 new bet types (Change data type of inputted 'FilterBetTypeId' column) [Redmine: #217848]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:
-		+ @IssueTypeId : 6 - Wrong OU, 7 - Wrong 1st OU
 */
 BEGIN
 	SET NOCOUNT ON
@@ -64,7 +64,6 @@ BEGIN
       ,Subtransid BIGINT
 	  ,custid	INT	
       ,bettype SMALLINT
-      ,Subbettype SMALLINT
 	  ,betid BIGINT
       ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
@@ -75,15 +74,20 @@ BEGIN
 		  ,Subtransid
 		  ,custid		
 		  ,bettype
-		  ,Subbettype
 		  ,betid
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT mid ,t ,s_t ,c ,btype ,s_btype ,bid ,isP ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,s_btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
-	) tbl
+	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+			SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
+			WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
+			)
+		) tbl
+	WHERE f.value <> ''
 
 	SET @WrongOUInfoXML = CONVERT(XML, @WrongOUInfo)
 	INSERT INTO #tblGetLogInfo( 
