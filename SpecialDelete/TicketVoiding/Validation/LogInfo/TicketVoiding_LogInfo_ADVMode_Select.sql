@@ -170,7 +170,6 @@ BEGIN
 	  ,SubIssueTypeId	 SMALLINT
 	  ,IsCancelCashOut	 BIT
 	)
-	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 
 	DECLARE @Validation AS TABLE (
 			 Id						 INT
@@ -977,35 +976,6 @@ BEGIN
 		WHERE b.StatusId IN (111, 112, 113)
 		GROUP BY b.Id, s.matchid 
 
-		--Check score for void message
-		IF @cnt_s > 0
-		BEGIN
-			INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
-			SELECT b.MatchId, CAST(b.livehomescore AS VARCHAR(10)) + '-' + CAST(b.liveawayscore AS VARCHAR(10))
-			FROM #CTE_Ticket_Single s WITH (NOLOCK)
-				INNER JOIN #TVSTicketBets b ON b.transid = s.TransId AND b.IsMixParlay = 0
-				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
-			WHERE f.GroupName <> '2H'
-		END
-
-		IF @cnt_p > 0
-		BEGIN
-			INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
-			SELECT b.MatchId, CAST(b.Sublivehomescore AS VARCHAR(10)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(10))
-			FROM #CTE_Ticket_SubParlay s WITH (NOLOCK)
-				INNER JOIN #TVSTicketBets b ON b.Subtransid = s.TransId AND b.IsMixParlay = 1
-				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.Subbettype			
-			WHERE f.GroupName <> '2H'
-		END
-
-		IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
-		BEGIN
-			INSERT INTO @tblScoreMessage (MatchId, ScoreOfMatch) 
-			SELECT rd.MatchId, CAST(m.livehomescore AS VARCHAR(10)) + '-' + CAST(m.liveawayscore AS VARCHAR(10))
-			FROM #CTE_RequestDetail rd WITH (NOLOCK)
-				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rd.MatchId
-		END
-
 		-- 3. Loginfo Table
 		SELECT rd.Id
 		      ,rd.MatchId
@@ -1013,8 +983,6 @@ BEGIN
 			  ,rd.VoidToTime
 			  ,rd.SingleCount
 			  ,rd.MainParlayCount
-			  ,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
-			  ,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			  ,t.CancelCashOutCount
 			  ,t.SettleCount
 			  ,v.LogInfoTicketsJson
@@ -1024,12 +992,6 @@ BEGIN
 				FROM #CTE_RequestDetail  WITH (NOLOCK)
 			)rd
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId AND rd.Id = t.Id
-			CROSS APPLY(
-				SELECT DISTINCT '|' + l.ScoreNormalTicket FROM @tblScoreMessage l WHERE l.MatchId = rd.MatchId FOR XML PATH('')
-			)s2(ScoreTicket2H)
-			CROSS APPLY(
-				SELECT DISTINCT '|' + l.ScoreOfMatch FROM @tblScoreMessage l WHERE l.MatchId = rd.MatchId FOR XML PATH('')
-			)sm(ScoreOfMatch)
 			INNER JOIN @Validation v ON rd.MatchId = v.MatchId AND v.Id = rd.Id
 
 		-- 4. Unmark/Transinfo table (No need -> return table)
