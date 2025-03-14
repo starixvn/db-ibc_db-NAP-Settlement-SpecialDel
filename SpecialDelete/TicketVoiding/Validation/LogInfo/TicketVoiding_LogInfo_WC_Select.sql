@@ -722,7 +722,7 @@ BEGIN
 			UPDATE v SET v.IsExistedInOtherRequest = 1
 			FROM @Validation v
 				INNER JOIN #TransidInRequest t ON t.MatchId = v.MatchId
-				INNER JOIN #FilterInfo f ON f.MatchId = t.MatchId
+				INNER JOIN #FilterInfo f ON f.MatchId = t.MatchId AND f.ScoreId = v.ScoreId
 			WHERE 1 = CASE WHEN f.FilterBy = 2 THEN 1
 						   WHEN f.FilterBy <> 2 AND t.ScoreId = v.ScoreId THEN 1
 						   ELSE 0 END
