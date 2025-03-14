@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_KO_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_KO_Select]
 (	
 	 @RequestId			  INT = 0
 	,@ActionId			  INT = 5
