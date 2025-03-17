@@ -92,6 +92,7 @@ BEGIN
 		END AS [Action]
 		,b.matchid
 		,b.status
+		,m.SportType
 	FROM #tblTransIds r
 		INNER JOIN dbo.zzzbettrans z WITH (NOLOCK) ON z.transid = r.transid
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = r.transid
