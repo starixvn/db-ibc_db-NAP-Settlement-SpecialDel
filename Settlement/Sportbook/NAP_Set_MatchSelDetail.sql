@@ -10,6 +10,7 @@ AS
     Revisions:   
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20250225@Hughie: Apply SOP for Soccer [Redmine:#216004]
+		- 20250317@Aries: Add new validate rule FT that must not be Draw for Ice Hockey [Redmine:#213682]
 
 */
 
@@ -90,6 +91,7 @@ BEGIN
 		,m.SettlementStatus
 		,m.EventStatusReason
 		,mr.OfferLive
+		,m.ChildMatchType
      FROM dbo.match m WITH (NOLOCK)
         LEFT OUTER JOIN dbo.match_remark mr WITH (NOLOCK) 
 			ON	m.matchid = mr.matchid
