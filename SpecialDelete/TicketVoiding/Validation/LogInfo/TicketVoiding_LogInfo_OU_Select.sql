@@ -391,7 +391,7 @@ BEGIN
 			,SubIssueTypeId
 			,GroupName
 		)
-	SELECT d.MatchId_tmp
+	SELECT DISTINCT d.MatchId_tmp
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -545,7 +545,7 @@ BEGIN
 				,SubIssueTypeId
 				,GroupName
 			)
-		SELECT d.MatchId_tmp
+		SELECT DISTINCT d.MatchId_tmp
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
@@ -1081,7 +1081,6 @@ BEGIN
 		RETURN;
 	END
 
-	SET @OldActionId = (SELECT TOP 1 ISNULL(ActionId,0) FROM #CTE_RequestDetail WITH(NOLOCK))
 
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
@@ -1093,6 +1092,7 @@ BEGIN
 	END
 	ELSE IF @IsShowLogOnly = 0 AND @RequestId <> 0 
 	BEGIN
+		SET @OldActionId = (SELECT TOP 1 ISNULL(ActionId,0) FROM #CTE_RequestDetail WITH(NOLOCK))
 		
 		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
@@ -1209,7 +1209,7 @@ BEGIN
 		,b.Subbettype AS 's_btype'
 		,b.IsMixParlay AS 'isP'
 		,b.SiteDBGroupID AS 'sitedb'
-	FROM #TVSTicketBets B
+	FROM #TVSTicketBets b
 	FOR JSON PATH))
 	
 	-- 4. List ticket unmark/mark & Transinfo table (if any)

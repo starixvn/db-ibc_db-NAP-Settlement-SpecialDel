@@ -1283,7 +1283,7 @@ BEGIN
 		,b.Subbettype AS 's_btype'
 		,b.IsMixParlay AS 'isP'
 		,b.SiteDBGroupID AS 'sitedb'
-	FROM #TVSTicketBets B
+	FROM #TVSTicketBets b
 	FOR JSON PATH))
 	
 	-- 4. List ticket unmark/mark & Transinfo table (if any)
