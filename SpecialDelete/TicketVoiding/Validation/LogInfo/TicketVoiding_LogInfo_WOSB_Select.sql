@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_WOSB_Select]
 (	
 	@RequestId			  INT = 0
@@ -12,11 +12,12 @@ AS
 /*	
 	Created by: 20240916@Max
 	Task: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
-	DB: DBCTG/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20240916@Max: Create new SP [Redmine:#186029]
 		- 20241216@Lani: Add 'GroupName' column returned [Redmine: #213960]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 		
 	Param's explanation:
 		

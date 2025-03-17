@@ -303,43 +303,46 @@ BEGIN
 		INNER JOIN dbo.match m ON d.MatchId = m.MatchId
 
 	--Cricket/Baseball - Get child match
-	INSERT INTO #FilterInfo( 
-			 MatchID				
-			,FilterFromTransTime	
-			,FilterToTransTime			
-			,HomeFavorite
-			,AwayFavorite
-			,HdpValue
-			,SubIssueTypeId
-			,PoolHouseCheckedBetTypes
-			,IsMainMatch
-			,IsLinkGroup1X2
-			,IsLinkGroupAIO
-			,LiveIndicator
-			,FilterBetTypeId
-			,FilterBetIdX
-			,FilterBetIdY
-			,Sporttype
-			,MatchId_tmp
-		) 
-	SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
-			,d.HomeFavorite
-			,d.AwayFavorite
-			,d.HdpValue
-			,d.SubIssueTypeId
-			,d.PoolHouseCheckedBetTypes
-			,d.IsMainMatch
-			,d.IsLinkGroup1X2
-			,d.IsLinkGroupAIO
-			,d.LiveIndicator
-			,d.FilterBetTypeId
-			,d.FilterBetIdX
-			,d.FilterBetIdY
-			,m.Sporttype
-			,d.MatchId
-	FROM #FilterInfo d
-		INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
-	WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))
+	BEGIN
+		INSERT INTO #FilterInfo( 
+				 MatchID				
+				,FilterFromTransTime	
+				,FilterToTransTime			
+				,HomeFavorite
+				,AwayFavorite
+				,HdpValue
+				,SubIssueTypeId
+				,PoolHouseCheckedBetTypes
+				,IsMainMatch
+				,IsLinkGroup1X2
+				,IsLinkGroupAIO
+				,LiveIndicator
+				,FilterBetTypeId
+				,FilterBetIdX
+				,FilterBetIdY
+				,Sporttype
+				,MatchId_tmp
+			) 
+		SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
+				,d.HomeFavorite
+				,d.AwayFavorite
+				,d.HdpValue
+				,d.SubIssueTypeId
+				,d.PoolHouseCheckedBetTypes
+				,d.IsMainMatch
+				,d.IsLinkGroup1X2
+				,d.IsLinkGroupAIO
+				,d.LiveIndicator
+				,d.FilterBetTypeId
+				,d.FilterBetIdX
+				,d.FilterBetIdY
+				,m.Sporttype
+				,d.MatchId
+		FROM #FilterInfo d
+			INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
+		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+	END
 
 	--Search single tickets
 	INSERT INTO #TVSTicketBets(

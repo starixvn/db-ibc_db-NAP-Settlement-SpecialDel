@@ -217,11 +217,14 @@ BEGIN
 		INNER JOIN dbo.match m ON d.MatchId = m.MatchId
 
 	--Cricket/Baseball - Get child match
-	INSERT INTO #FilterInfo (MatchId, KickOffTime, MatchId_tmp)
-	SELECT m.MatchId, d.KickOffTime, d.MatchId
-	FROM #FilterInfo d
-		INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
-	WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))
+	BEGIN
+		INSERT INTO #FilterInfo (MatchId, KickOffTime, Sporttype, MatchId_tmp)
+		SELECT m.MatchId, d.KickOffTime, m.sporttype, d.MatchId
+		FROM #FilterInfo d
+			INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
+		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+	END
 
 	INSERT INTO #TVSTicketBets(
 			matchid 
