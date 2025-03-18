@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 	,@StatusIds			VARCHAR(50)  = NULL
 	,@FromDate			DATETIME     = NULL
     ,@ToDate			DATETIME     = NULL
-	,@TransInfoJson		VARCHAR(MAX) = NULL
+	,@AdjustVoidLimit	VARCHAR(MAX) = NULL
 	,@IsVoidAllArchivedTickets	BIT = 0
 )
 AS
@@ -44,6 +44,7 @@ AS
 		- 20240305@Max: [TVS] Abnormal Account - Void full range of archived tickets [Redmine: #201130]
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' [Redmine: #213451]
 		- 20241224@July: [TVS] Abnormal Account - Enhance Auto Void (Instant with Policy) [Redmine: #214444]
+		- 20250311@Max: [TVS] Enhance the Auto Void flow (Instant with Policy) of Abnormal Account  [#Redmine: #217979]
 
 	Param's Explanation:
 */
@@ -70,7 +71,6 @@ BEGIN
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 			,@OldActionId			  TINYINT
-			,@TransInfoJson_Output	  VARBINARY(MAX) = NULL
 			,@FromWinlostDate_14	  DATETIME = NULL
 			,@ToWinlostDate_14		  DATETIME = NULL
 			,@IsBeingMovebetdate	  BIT = 0 --1: movebet date comming up or being
@@ -78,9 +78,7 @@ BEGIN
 			,@currentdate			  SMALLDATETIME = GETDATE()
 
 	DECLARE @SiteDBGroupID			 SMALLINT
-
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT, srecommend INT)
@@ -159,13 +157,9 @@ BEGIN
 									),1,1,'')
 
 	IF @invalidUserName IS NOT NULL
-	BEGIN
-		 
-		SELECT @InvalidUserName AS InvalidUserName
-			
+	BEGIN		 
+		SELECT @InvalidUserName AS InvalidUserName		
 		SELECT NULL AS UnmarkTransIds
-
-		SELECT @TransInfoJson_Output AS TransInfoJson
 
 		RETURN;
 	END
@@ -429,8 +423,6 @@ BEGIN
 		      ,@InvalidUserName AS InvalidUserName
 
 		SELECT NULL AS UnmarkTransIds
-		
-		SELECT @TransInfoJson_Output AS TransInfoJson
 
 		RETURN;
 	END
@@ -792,17 +784,34 @@ BEGIN
 		,b.sporttype
 		,b.matchid AS GroupName
 		,b.transid AS subtransid
+		,1 AS IsChecked
 	FROM #tmpTransInfo b
 		INNER JOIN #transIdTemp t ON t.transid = b.transid
 
 	--3. List members winlost amount for case auto void with policy
+	DECLARE @tmp_result AS TABLE (CustId INT, CurrentLosing MONEY, CurrentWinning MONEY, GivenCredit MONEY, username VARCHAR(100))
+	INSERT INTO @tmp_result (CustId, username, GivenCredit, CurrentWinning, CurrentLosing)
 	SELECT DISTINCT b.custid
 		,c.username
 		,c.credit AS GivenCredit
+		,SUM(CASE WHEN b.statusID = 112 THEN ABS(b.winlost - b.actual_stake) ELSE 0 END) AS CurrentWinning
+		,SUM(CASE WHEN b.statusID = 113 THEN ABS(b.winlost - b.actual_stake) ELSE 0 END) AS CurrentLosing
 	FROM #tmpTransInfo b
 		INNER JOIN #transIdTemp t ON t.transid = b.transid
 		INNER JOIN CustDB.dbo.custinfo c WITH (NOLOCK) ON c.custid = b.custid	
-	ORDER BY c.username
+	GROUP BY b.custid, b.username, c.credit
+
+	SELECT t.CustId
+		,t.username
+		,t.GivenCredit
+		,t.CurrentLosing
+		,t.CurrentWinning
+		,IIF(CurrentLosing > GivenCredit, 1, 0) AS IsHighlight
+		,t.CurrentWinning AS EstimateVoidAmount
+		,(-CurrentLosing + CurrentWinning - CurrentWinning) AS WinLostAfterVoid
+		
+	FROM @tmp_result t
+	ORDER BY t.username
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1
