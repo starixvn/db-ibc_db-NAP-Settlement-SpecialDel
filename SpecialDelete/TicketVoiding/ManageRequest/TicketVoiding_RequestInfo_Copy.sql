@@ -27,10 +27,11 @@ AS
 		- 20241227@Lani: [TVS] Change data of 'MinAllowanceTime' column returned - [Redmine: #215946]
 		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
 		- 20250121@Lani: [TVS] Return MinAcceptType column for Danger Accept/Red Card/Wrong Score issue type - [Redmine: #216153]
+		- 20250318@Lani: [TVS] Copy request info - Support more issue type [Redmine: #219039]
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
 					         Reduced Overs, Not Participate, Abandoned
-							 Wrong Market Offered, Technical Error
+							 Wrong Market Offered, Technical Error, WrongOU/1st, WrongHDP/1stHDP, WrongOdds
 
 	Noted: Case issue Wrong Score have scores -> get min voidtime of scores
 		
@@ -141,7 +142,7 @@ BEGIN
 		,rd.TransIds AS RequestExtraInfo
 		,r.Provider
 		,rd.IssueDetail
-		,CASE WHEN r.IssueTypeId = 12 THEN r.MistakenBy ELSE NULL END AS MistakenBy --Only Wrong Market Offered
+		,CASE WHEN r.IssueTypeId IN (2,4,5,6,7,12) THEN r.MistakenBy ELSE NULL END AS MistakenBy --Wrong Market Offered, Wrong HDP/1stHDP, WrongOU, Wrong Odds
 		,r.IssueTypeId
 		,i.IssueTypeName
 		,s.SubIssueTypeName
@@ -224,7 +225,7 @@ BEGIN
 								 , '')
 	END
 	
-	IF @IssueTypeId IN (19,21,23,12,24,25) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB
+	IF @IssueTypeId IN (19,21,23,12,24,25,2,4,5,6,7) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB, Wrong HDP/1stHDP, WrongOU/1stOU, Wrong Odds
 	BEGIN
 		INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, BetId, Betteam, OddsId)
 		SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
@@ -321,6 +322,57 @@ BEGIN
 		END
 	END
 	
+	IF @IssueTypeId IN (4,5,6,7) --Wrong HDP/1stHDP, WrongOU/1stOU
+	BEGIN
+		DECLARE @FilterFavoriteType VARCHAR(50)
+				,@FavoriteValue     VARCHAR(50)
+				,@RequestExtraInfo  VARCHAR(MAX)
+				,@ActualMarket		VARCHAR(50)
+				,@WrongMarket		VARCHAR(50)
+
+		SELECT @RequestExtraInfo = RequestExtraInfo FROM @tmpRequestInfo
+
+		IF (@IssueTypeId IN (4,5))
+		BEGIN
+			SELECT @FilterFavoriteType = CASE WHEN CHARINDEX('HomeFavorite=',@RequestExtraInfo) > 0 THEN 'h'
+											  WHEN CHARINDEX('AwayFavorite=',@RequestExtraInfo) > 0 THEN 'a'
+											  ELSE NULL
+										 END,
+				  @FavoriteValue = CASE WHEN (CHARINDEX('HomeFavorite=',@RequestExtraInfo) > 0) THEN CAST(@RequestExtraInfo AS XML).value('(/r/@HomeFavorite)[1]', 'VARCHAR(50)')
+										WHEN (CHARINDEX('AwayFavorite=',@RequestExtraInfo) > 0) THEN CAST(@RequestExtraInfo AS XML).value('(/r/@AwayFavorite)[1]', 'VARCHAR(50)')
+										ELSE NULL
+								   END,
+				  @ActualMarket = CASE WHEN (CHARINDEX('HomeFavorite=',@RequestExtraInfo) > 0) OR (CHARINDEX('AwayFavorite=',@RequestExtraInfo) > 0) THEN CAST(@RequestExtraInfo AS XML).value('(/r/@ActualMarket)[1]', 'VARCHAR(50)')
+									   ELSE NULL
+								  END
+		END
+		ELSE
+		BEGIN
+			SELECT @WrongMarket = CAST(@RequestExtraInfo AS XML).value('(/r/@WrongMarket)[1]', 'VARCHAR(50)'),
+				   @ActualMarket = CAST(@RequestExtraInfo AS XML).value('(/r/@ActualMarket)[1]', 'VARCHAR(50)')
+		END
+	END
+
+
+	IF @IssueTypeId IN (2) --WrongOdds
+	BEGIN
+		DECLARE @FromOddsNotVoidHomeOver   VARCHAR(10)
+				,@ToOddsNotVoidHomeOver    VARCHAR(10)
+				,@FromOddsNotVoidAwayUnder VARCHAR(10)
+				,@ToOddsNotVoidAwayUnder   VARCHAR(10)
+				,@CorrectOddsHomeOver	   VARCHAR(10)
+				,@CorrectOddsAwayUnder	   VARCHAR(10)
+
+		SELECT @RequestExtraInfo = RequestExtraInfo FROM @tmpRequestInfo
+
+		SELECT @FromOddsNotVoidHomeOver = CAST(@RequestExtraInfo AS XML).value('(/r/@FromOddsNotVoidHomeOver)[1]', 'VARCHAR(10)'),
+			   @ToOddsNotVoidHomeOver = CAST(@RequestExtraInfo AS XML).value('(/r/@ToOddsNotVoidHomeOver)[1]', 'VARCHAR(10)'),
+			   @FromOddsNotVoidAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@FromOddsNotVoidAwayUnder)[1]', 'VARCHAR(10)'),
+			   @ToOddsNotVoidAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@ToOddsNotVoidAwayUnder)[1]', 'VARCHAR(10)'),
+			   @CorrectOddsHomeOver =  CAST(@RequestExtraInfo AS XML).value('(/r/@CorrectOddsHomeOver)[1]', 'VARCHAR(10)'),
+			   @CorrectOddsAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@CorrectOddsAwayUnder)[1]', 'VARCHAR(10)')
+
+	END
 	/*****************Return table **************************/
 	-- 1. Table infor request
 	SELECT RequestId 
@@ -354,6 +406,16 @@ BEGIN
 		  ,FilterFromTranstime
 		  ,@MinAllowanceTime AS MinAllowanceTime
 		  ,@MinAcceptTypeName AS MinAcceptType
+		  ,@FilterFavoriteType AS FilterFavoriteType
+		  ,@FavoriteValue AS FavoriteValue
+		  ,@ActualMarket AS ActualMarket
+		  ,@WrongMarket AS WrongMarket
+		  ,@FromOddsNotVoidHomeOver AS FromOddsNotVoidHomeOver
+		  ,@ToOddsNotVoidHomeOver AS ToOddsNotVoidHomeOver
+		  ,@FromOddsNotVoidAwayUnder AS FromOddsNotVoidAwayUnder
+		  ,@ToOddsNotVoidAwayUnder AS ToOddsNotVoidAwayUnder
+		  ,@CorrectOddsHomeOver AS CorrectOddsHomeOver
+		  ,@CorrectOddsAwayUnder AS CorrectOddsAwayUnder
 	FROM @tmpRequestInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.UserId
 
