@@ -31,6 +31,7 @@ AS
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
+		- 20250319@Kaka: Support SOP and AutoPayout2 for Beach Volleyball - [Redmine:#217843]
 		
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -80,7 +81,7 @@ BEGIN
 	IF @ActionId IS NULL OR ( @Type = 2 AND @IsValidateSOPRefund = 0 )
 	RETURN
 
-	IF @SportType IN (18,58) --get all ResourceID from web
+	IF @SportType IN (18,58,45) --get all ResourceID from web
 	BEGIN
 		INSERT INTO @tmpResultDetail ( ResourceId)
 		SELECT DISTINCT	fs.value FROM STRING_SPLIT(@ResourceIds,',') fs
