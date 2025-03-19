@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb0" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_Select]
 (	
 	@MatchId              INT = 0
@@ -11,7 +11,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_Select]
 	,@IsLinkGroup1X2	  BIT = 0
 	,@IsLinkGroupAIO	  BIT = 0
 	,@LiveIndicator		  BIT = 0
-	,@TransInfoJson		  VARCHAR(MAX) 
 	,@HomeFavorite		  VARCHAR(50) = NULL
 	,@AwayFavorite		  VARCHAR(50) = NULL
 	,@HdpValue			  VARCHAR(50) = NULL
@@ -22,13 +21,14 @@ AS
 /*	
 	Created by: 20220523@July
 	Task: Affected Pool House Ticket popup  [Redmine: #172486]
-	DB: DBCTG/bodb02
+	DB: DBCTG/bodb02,DBSIC-bodb02,DBSID-bodb0
 	
 	Revisions: 
 		- 20220523@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230403@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
+		- 20250319@Lani: [TVS] Enhance out of memory issue - remove TransInfoJson [Redmine: #217771]
 
 	Param's explanation:
 
@@ -50,7 +50,6 @@ BEGIN
 			,@IsLinkGroup1X2	   = @IsLinkGroup1X2
 			,@IsLinkGroupAIO	   = @IsLinkGroupAIO
 			,@LiveIndicator		   = @LiveIndicator
-			,@TransInfoJson		   = @TransInfoJson
 			,@HomeFavorite		   = @HomeFavorite
 			,@AwayFavorite		   = @AwayFavorite
 			,@HdpValue			   = @HdpValue
@@ -68,7 +67,6 @@ BEGIN
 			,@IsLinkGroup1X2	   = @IsLinkGroup1X2
 			,@IsLinkGroupAIO	   = @IsLinkGroupAIO
 			,@LiveIndicator		   = @LiveIndicator
-			,@TransInfoJson		   = @TransInfoJson
 			,@WrongMarket		   = @WrongMarket
 	END
 	IF @IssueTypeId = 2
@@ -77,7 +75,6 @@ BEGIN
 			@RequestId			   = @RequestId
 			,@IssueTypeId		   = @IssueTypeId
 			,@ActionId			   = @ActionId
-			,@TransInfoJson		   = @TransInfoJson
 			,@WrongOddsInfo		   = @WrongOddsInfo
 	END
 	SET NOCOUNT OFF
