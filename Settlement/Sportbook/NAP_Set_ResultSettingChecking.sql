@@ -28,6 +28,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241111@Aries: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
+		- 20250320@Jane: Support SOP and AutoPayout2 for Beach Volleyball - [Redmine:#217843]
 
 
 	Param's Explanation:
@@ -56,19 +57,11 @@ BEGIN
 	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
 	WHERE r.Sporttype = @SportType
 	
-	IF @SportType = 8
-		SET @ResultTable = 2
-	
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 
 	INSERT INTO @tmpResourceID(ResourceID)
 	SELECT DISTINCT Id	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20) ) AS tbl
 	EXEC sp_xml_removedocument @handle
-
-	IF @Sporttype = 45
-	BEGIN
-		DELETE @tmpResourceID WHERE ResourceID <> '00'
-	END
 
 	IF @ResultTable = 1
 	BEGIN
