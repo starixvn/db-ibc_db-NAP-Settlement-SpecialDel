@@ -30,7 +30,7 @@ BEGIN
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) = ''
 			,@OldActionId			  TINYINT
-			,@TransInfoJson_Output	  VARBINARY(MAX) = NULL
+			,@TransInfoJson			  VARBINARY(MAX) = NULL
 			,@MainMatchId			  INT
 			,@LogInfoTicketsJson	  VARBINARY(MAX) = NULL
 			,@SiteDBGroupID			  SMALLINT
@@ -1178,7 +1178,7 @@ BEGIN
 
 	
 	-- 4. List ticket unmark/mark & Transinfo table (if any)
-	SET @TransInfoJson_Output = COMPRESS((SELECT b.matchid AS 'mid'
+	SET @TransInfoJson = COMPRESS((SELECT b.matchid AS 'mid'
 		,b.transid AS 't'
 		,b.Subtransid  AS 's_t'
 		,b.custid AS  'c'           
@@ -1192,7 +1192,7 @@ BEGIN
 	
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
-		  ,CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
+		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

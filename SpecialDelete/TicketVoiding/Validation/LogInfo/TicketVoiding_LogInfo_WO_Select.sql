@@ -357,6 +357,8 @@ BEGIN
 				,ToOddsNotVoidHomeOver	
 				,FromOddsNotVoidAwayUnder
 				,ToOddsNotVoidAwayUnder	
+				,Sporttype
+				,MatchId_tmp
 			)
 		SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
 				,d.SubIssueTypeId

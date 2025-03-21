@@ -305,7 +305,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))
 	BEGIN
 		INSERT INTO #FilterInfo (Id, MatchId, AdvancedExtraInfo, FilterFromTransTime, FilterToTransTime, SubIssueTypeId, Sporttype, MatchId_tmp)
-		SELECT d.Id, m.MatchId, d.AdvancedExtraInfo, d.FilterFromTransTime, d.FilterToTransTime, m.sporttype, d.MatchId
+		SELECT d.Id, m.MatchId, d.AdvancedExtraInfo, d.FilterFromTransTime, d.FilterToTransTime, d.SubIssueTypeId, m.sporttype, d.MatchId
 		FROM #FilterInfo d
 			INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
 		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
