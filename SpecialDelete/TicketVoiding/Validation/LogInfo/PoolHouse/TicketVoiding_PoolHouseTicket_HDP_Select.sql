@@ -436,6 +436,15 @@ BEGIN
 		END  
 	END
 	
+	--Update Main MatchID for child match cricket/baseball
+	IF EXISTS(SELECT TOP 1 1 FROM @tmpMatch WHERE Sporttype IN (50,8))
+	BEGIN
+		UPDATE d
+		SET d.matchid = m.ParentID
+		FROM #TVSTicketBets d
+			INNER JOIN @tmpMatch m ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
+	END
+
 	IF @ActionId NOT IN (2)
 	BEGIN
 		INSERT INTO #TransidInRequest (TransId)
