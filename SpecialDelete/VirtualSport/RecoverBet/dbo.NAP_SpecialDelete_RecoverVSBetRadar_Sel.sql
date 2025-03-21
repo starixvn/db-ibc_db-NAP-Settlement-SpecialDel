@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverVSBetRadar_Sel] 
 	@TicketType			VARCHAR(100),
 	@Type				VARCHAR(100)	= NULL,
@@ -23,6 +23,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
+		- 20250220@Max: [TVS] Recover ticket of Virtual Sports 2 [Redmine: #212323]		
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -86,7 +87,8 @@ BEGIN
 		SubHdp2			SMALLMONEY,
 		SubOdds			SMALLMONEY,
 		SubTransdesc	NVARCHAR(2000),
-		VendorMatchId VARCHAR(50)
+		VendorMatchId VARCHAR(50),
+		MatchId			INT
 	)
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
@@ -146,7 +148,8 @@ BEGIN
 				SubHdp1,
 				SubHdp2,
 				SubOdds,
-				SubTransdesc)
+				SubTransdesc,
+				MatchId)
 		SELECT  z.Stake,
 				m.AwayId,
 				z.BetCheck,
@@ -187,7 +190,8 @@ BEGIN
 				NULL AS SubHdp1,
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
-				NULL AS SubTransdesc
+				NULL AS SubTransdesc,
+				z.matchid
 		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON	z.transid = b.transid
@@ -256,7 +260,8 @@ BEGIN
 				SubHdp2,
 				SubOdds,
 				SubTransdesc,
-				VendorMatchId)
+				VendorMatchId,
+				MatchId)
 		SELECT  z.Stake,
 				0 AS AwayId,
 				z.BetCheck,
@@ -298,7 +303,8 @@ BEGIN
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
 				NULL AS SubTransdesc,
-				VendorMatchId
+				VendorMatchId,
+				z.matchid
 		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON	z.transid = b.transid
@@ -713,7 +719,8 @@ BEGIN
 			r.SubOdds,
 			r.SubTransdesc,
 			@SiteDBGroupID AS SiteDBGroupID,
-			VendorMatchId
+			VendorMatchId,
+			MatchId
 	FROM #RecoverBet r
 	     CROSS APPLY (SELECT CASE 
 								WHEN r.IsDeposit = 0  
