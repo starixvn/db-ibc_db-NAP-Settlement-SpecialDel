@@ -69,6 +69,7 @@ AS
 		- 20250219@July: [TVS] Apply new Void Request page for some issue types of TVS [Redmine: #191397]
 		- 20250321@Lani: [TVS] Enhance out of memory issue [Redmine: #217771]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
+	
 	Param's explanation:	
 		
 */
@@ -318,8 +319,9 @@ BEGIN
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail WITH (NOLOCK)
 			WHERE RequestId = @RequestId
 
-			DELETE b
+			DELETE d
 			FROM #TVSTicketBets AS b
+				INNER JOIN bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
 			WHERE b.statusID NOT IN (SELECT DISTINCT value FROM STRING_SPLIT(@StatusIds, ','))
 		END
 		
@@ -443,9 +445,11 @@ BEGIN
 			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND d.TicketType <> 2
 			AND 1 = CASE WHEN TicketType = 3 AND b.betdaqid = - 1 THEN 0 ELSE 1 END--case cancel CO voided -> running - NO show betlist
+			AND d.TicketType <> 2
 					
 		---get sub ticket of a mix parlay	
 		IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid WHERE matchid = @MatchId AND TicketType = 2)
+								
 		BEGIN		
 			INSERT INTO #TVSTicketBets(
 					GroupID			
@@ -498,7 +502,6 @@ BEGIN
 					b.transid AS GroupID
 					,b.transid AS TransId
 					,bm.transid AS SubTransID
-					,bm.refno
 					,b.custid				
 					,b.odds
 					,bm.odds AS SubOdds
@@ -529,24 +532,13 @@ BEGIN
 					,1 AS IsMixParlay
 					,b.modds
 					,b.winlost - b.actual_stake AS WinLost
-					,0
 					,bm.liveindicator AS Subliveindicator
 					,b.statusID AS mainstatusid
 					,b.ExtraInfo
 					,b.actual_stake AS ActualStake
 					,d.matchid AS MatchId
-					,bm.SiteDBGroupID
-					,0 AS IsCancelCashOut
 					,b.statuswinlost
-					,CASE WHEN f.GroupMatch IS NULL THEN 0 
-						  WHEN f.GroupMatch IS NOT NULL THEN 
-															CASE WHEN f.GroupMatch = 0 AND f.BetType IN (5,15) THEN 1
-																	WHEN f.GroupMatch <> 0 THEN 2
-																	ELSE 2 END
-						    ELSE 0 END AS GroupPHaffected
-					,CASE WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NOT NULL THEN g.GroupBettypeId
 						  WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NULL THEN bm.bettype
-					      ELSE NULL END AS GroupBettypeId
 			FROM	#TmpTransid AS d
 					INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
 					INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
@@ -558,114 +550,81 @@ BEGIN
 					AND bm.SiteDBGroupID = @SiteDBGroupID
 					AND d.TicketType = 2
 					AND b.matchid = 29 AND b.bettype = 29
-		END 
-		
-	END
-	ELSE IF @IssueTypeId in (8,9,26) AND @RequestId <> 0 --EKO, WKO, WOName
-	BEGIN
-		INSERT INTO #TVSTicketBets(
-				GroupID			
-				,transid		
-				,SubTransid		
-				,refno			
-				,custid			
-				,odds			
-				,SubOdds	
-				,oddsspread			
-				,OddsType		
-				,transdate		
-				,bettype 		
-				,betteam 		
-				,SubBetTeam
-				,betcheck	
-				,SubBetcheck	
-				,hdp1 			
-				,hdp2 			
-				,livehomescore 	
-				,liveawayscore 	
-				,creator		
-				,Stake			
-				,currencyname		
-				,STATUS			
-				,SubStatus	
-				,srecommend
-				,mrecommend		
-				,recommend		
-				,betid			
-				,Transdesc		
-				,betdaqid	
-				,ExtraInfo
-				,IsCashOut
-				,WalletType
-				,RefCode
-				,BonusID
-				,WinLost
-				,IsMarked
-				,LiveIndicator
-				,mainstatusid
-			    ,ActualStake
-				,matchid
-				,SiteDBGroupID
-				,statuswinlost
-				,modds
-			)
-		SELECT 
-				b.transid AS GroupID
-				,b.transid
-				,b.transid AS SubTransID
-				,b.refno
-				,b.custid
-				,b.odds
-				,b.odds AS SubOdds
-				,b.oddsspread			
-				,b.OddsType
-				,b.transdate
-				,b.bettype
-				,b.betteam
-				,b.betteam AS SubBetteam
-				,b.betcheck
-				,b.betcheck AS SubBetcheck
-				,b.hdp1
-				,b.hdp2
-				,b.livehomescore
-				,b.liveawayscore
-				,b.creator
-				,b.stake
-				,b.CurrencyName
-				,b.STATUS
+					b.transid AS GroupID
+					,b.transid AS TransId
+					,bm.transid AS SubTransID
+					,bm.refno
+					,b.custid				
+					,b.odds
+					,bm.odds AS SubOdds
+					,bm.oddsspread AS Suboddsspread
+					,b.OddsType
+					,bm.transdate AS Subtransdate
+					,b.bettype
+					,b.betteam
+					,bm.betteam AS Subbetteam
+					,b.betcheck				
+					,bm.betcheck AS Subbetcheck
+					,bm.hdp1 AS Subhdp1
+					,bm.hdp2 AS Subhdp2
+					,b.hdp1
+					,b.hdp2
+					,bm.livehomescore AS Sublivehomescore
+					,bm.liveawayscore AS Subliveawayscore
+					,b.creator
+					,b.stake
+					,b.currencyname				
+					,b.status
 				,b.status AS SubStatus
-				,b.srecommend
-				,b.mrecommend
-				,b.recommend
-				,b.betid
-				,b.Transdesc
-				,b.betdaqid
-				,b.ExtraInfo
-				,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
-				,b.WalletType
-				,b.RefCode
-				,b.BonusID
-				,b.WinLost - b.actual_stake AS WinLost
-				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-				,b.liveindicator
-				,b.statusID AS mainstatusid
-			    ,b.actual_stake AS ActualStake
+					,b.srecommend
+					,b.mrecommend
+					,b.recommend
+					,bm.transdesc AS SubTransdesc
+					,bm.bettype AS Subbettype
+					,1 AS IsMixParlay
+					,b.modds
+					,b.winlost - b.actual_stake AS WinLost
+					,0
+					,bm.liveindicator AS Subliveindicator
+					,b.statusID AS mainstatusid
+					,b.ExtraInfo
+					,b.actual_stake AS ActualStake
 				,d.matchid AS MatchId
-				,b.SiteDBGroupID
-				,b.statuswinlost
-				,b.modds
+					,bm.SiteDBGroupID
+					,0 AS IsCancelCashOut
+					,b.statuswinlost
+					,CASE WHEN f.GroupMatch IS NULL THEN 0 
 		FROM #TmpTransid AS d
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
 			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
+						  WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NULL THEN bm.bettype
 		WHERE b.statusID NOT IN (101, 102, 103) 
 			  AND b.SiteDBGroupID = @SiteDBGroupID
 			  AND d.TicketType <> 2
-		
-		---get sub ticket of a mix parlay	
+					INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
+					LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON bm.bettype = f.BetType AND f.IssueTypeId = @IssueTypeId
+					LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = bm.bettype
+			WHERE	bm.matchid = @MatchId
+					AND bm.statusID NOT IN (101, 102, 103) -- reject, void, refund
+					AND bm.betfrom <> 'P'
+					AND bm.SiteDBGroupID = @SiteDBGroupID
+					AND d.TicketType = 2
+					AND b.matchid = 29
+					AND b.bettype = 29
+			
+			--Re-scan data for case miss by page split
 		IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid WHERE matchid = @MatchId AND TicketType = 2)
-		BEGIN		
-			INSERT INTO #TVSTicketBets(
+			SELECT d.TransId
+			FROM #TmpTransid AS d
+			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
+			WHERE bm.statusID NOT IN (101, 102, 103)
+				AND d.TicketType = 2
+				AND NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets t WHERE t.Subtransid = d.transid)
+				AND bm.SiteDBGroupID = @SiteDBGroupID
+
+			IF @@ROWCOUNT > 0
+			BEGIN
+				INSERT INTO #TVSTicketBets(
 					GroupID			
 					,transid		
 					,SubTransid		
@@ -707,13 +666,15 @@ BEGIN
 					,ActualStake
 					,matchid
 					,SiteDBGroupID
+					,IsCancelCashOut
 					,statuswinlost
+					,GroupPHaffected
+					,GroupBettypeId
 				)
-			SELECT 
+				SELECT DISTINCT
 					b.transid AS GroupID
 					,b.transid 
 					,bm.transid AS SubTransID
-					,bm.refno
 					,bm.custid AS Subcustid				
 					,b.odds
 					,bm.odds AS SubOdds
@@ -727,8 +688,6 @@ BEGIN
 					,bm.betcheck AS Subbetcheck
 					,bm.hdp1 AS Subhdp1
 					,bm.hdp2 AS Subhdp2
-					,bm.hdp1
-					,bm.hdp2
 					,bm.livehomescore AS Sublivehomescore
 					,bm.liveawayscore AS Subliveawayscore
 					,b.creator
@@ -741,16 +700,13 @@ BEGIN
 					,b.recommend
 					,bm.Transdesc AS SubTransdesc
 					,bm.bettype AS Subbettype
-					,1 AS IsMixParlay
 					,b.modds
 					,b.winlost - b.actual_stake AS WinLost
-					,0
 					,bm.liveindicator AS Subliveindicator
 					,b.statusID AS mainstatusid
 					,b.ExtraInfo
 					,b.actual_stake AS ActualStake
 					,d.matchid AS MatchId
-					,bm.SiteDBGroupID
 					,b.statuswinlost
 			FROM	#TmpTransid AS d
 					INNER JOIN bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
@@ -761,8 +717,6 @@ BEGIN
 					AND bm.SiteDBGroupID = @SiteDBGroupID
 					AND d.TicketType = 2
 					AND b.matchid = 29 AND b.bettype = 29
-		END 
-	END
 
 	--Re-scan data for case miss by page split
 	INSERT INTO @tmp_MissingTransId (TransId, MatchId)
@@ -775,8 +729,6 @@ BEGIN
 		AND bm.SiteDBGroupID = @SiteDBGroupID
 
 	IF @@ROWCOUNT > 0
-	BEGIN
-		INSERT INTO #TVSTicketBets(
 			GroupID			
 			,transid		
 			,SubTransid		
@@ -824,35 +776,35 @@ BEGIN
 			,GroupBettypeId
 		)
 		SELECT DISTINCT
-				b.transid AS GroupID
+						b.transid AS GroupID
 				,b.transid AS TransId
 				,bm.transid AS SubTransID
 				,bm.refno
 				,b.custid				
-				,b.odds
+						,b.odds
 				,bm.odds AS SubOdds
 				,bm.oddsspread AS Suboddsspread
-				,b.OddsType
+						,b.OddsType
 				,bm.transdate AS Subtransdate
-				,b.bettype
-				,b.betteam
+						,b.bettype
+						,b.betteam
 				,bm.betteam AS Subbetteam
 				,b.betcheck				
 				,bm.betcheck AS Subbetcheck
 				,bm.hdp1 AS Subhdp1
 				,bm.hdp2 AS Subhdp2
-				,b.hdp1
-				,b.hdp2
+						,b.hdp1
+						,b.hdp2
 				,bm.livehomescore AS Sublivehomescore
 				,bm.liveawayscore AS Subliveawayscore
-				,b.creator
-				,b.stake
+						,b.creator
+						,b.stake
 				,b.currencyname				
 				,b.status
 				,bm.status AS SubStatus
-				,b.srecommend
-				,b.mrecommend
-				,b.recommend
+						,b.srecommend
+						,b.mrecommend
+						,b.recommend
 				,bm.transdesc AS SubTransdesc
 				,bm.bettype AS Subbettype
 				,1 AS IsMixParlay
@@ -860,13 +812,13 @@ BEGIN
 				,b.winlost - b.actual_stake AS WinLost
 				,0
 				,bm.liveindicator AS Subliveindicator
-				,b.statusID AS mainstatusid
+						,b.statusID AS mainstatusid
 				,b.ExtraInfo
 				,b.actual_stake AS ActualStake
 				,d.matchid AS MatchId
 				,bm.SiteDBGroupID
 				,0 AS IsCancelCashOut
-				,b.statuswinlost
+						,b.statuswinlost
 				,CASE WHEN f.GroupMatch IS NULL THEN 0 
 						WHEN f.GroupMatch IS NOT NULL THEN 
 														CASE WHEN f.GroupMatch = 0 AND f.BetType IN (5,15) THEN 1
@@ -886,6 +838,12 @@ BEGIN
 				AND bm.SiteDBGroupID = @SiteDBGroupID
 				AND b.matchid = 29
 				AND b.bettype = 29
+				WHERE	bm.matchid = @MatchId
+						AND bm.statusID NOT IN (101, 102, 103) -- reject, void, refund
+						AND bm.betfrom <> 'P'
+						AND bm.SiteDBGroupID = @SiteDBGroupID
+						AND b.matchid = 29
+						AND b.bettype = 29
 				
 		--Write log
 		DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
@@ -911,6 +869,20 @@ BEGIN
 		BEGIN CATCH
 		END CATCH 
 	END
+		END 
+		
+	END
+
+	--Update Main MatchID for child match cricket (Sporttype = 50)
+	UPDATE d
+	SET d.matchid = m.ParentID
+	FROM #TVSTicketBets d
+		INNER JOIN dbo.match m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
+	
+	--Remove Invalid data
+	DELETE t
+	FROM #TVSTicketBets t
+	WHERE @MatchId IS NOT NULL AND t.matchid <> @MatchId
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
