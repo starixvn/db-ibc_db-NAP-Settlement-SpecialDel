@@ -8,7 +8,7 @@
 USE bodb02
 GO
 
-UPDATE SettlementResultTableSetting 
+UPDATE SettlementResultTableSetting WITH(ROWLOCK,UPDLOCK)
 SET IsAppliedSOP = 1
 	,Setting = 7
 WHERE sporttype = 45
