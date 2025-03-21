@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb0" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_Select]
 (	
 	@MatchId              INT = 0
@@ -21,7 +21,7 @@ AS
 /*	
 	Created by: 20220523@July
 	Task: Affected Pool House Ticket popup  [Redmine: #172486]
-	DB: DBCTG/bodb02,DBSIC-bodb02,DBSID-bodb0
+	DB: DBCTG/bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20220523@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
