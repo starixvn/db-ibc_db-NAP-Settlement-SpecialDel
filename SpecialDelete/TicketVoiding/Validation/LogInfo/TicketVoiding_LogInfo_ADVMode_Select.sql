@@ -68,7 +68,8 @@ BEGIN
 		,FilterFromTransTime	DATETIME
 		,FilterToTransTime		DATETIME
 		,SubIssueTypeId			SMALLINT
-		,isFinish				BIT
+		,Sporttype				SMALLINT
+		,MatchId_tmp			INT
 	)
 
 	CREATE TABLE #TVSTicketBets(
@@ -295,11 +296,21 @@ BEGIN
 		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = d.Bettype
 	WHERE bt.typenamee LIKE '%Fancy'
 
-	INSERT INTO #FilterInfo (Id, MatchId, FilterFromTransTime, FilterToTransTime) --Cricket/Baseball
-	SELECT d.Id, d.MatchId, d.FilterFromTransTime, d.FilterToTransTime
+	UPDATE d
+	SET d.Sporttype = m.sporttype, MatchId_tmp = d.MatchId
 	FROM #FilterInfo d
-		INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
-	WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+		INNER JOIN dbo.match m ON d.MatchId = m.MatchId
+
+	--Cricket/Baseball - Get child match
+	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))
+	BEGIN
+		INSERT INTO #FilterInfo (Id, MatchId, AdvancedExtraInfo, FilterFromTransTime, FilterToTransTime, SubIssueTypeId, Sporttype, MatchId_tmp)
+		SELECT d.Id, m.MatchId, d.AdvancedExtraInfo, d.FilterFromTransTime, d.FilterToTransTime, m.sporttype, d.MatchId
+		FROM #FilterInfo d
+			INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
+		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+
+	END
 
 	--Search single tickets
 	INSERT INTO #TVSTicketBets(
@@ -385,7 +396,7 @@ BEGIN
 			,SubIssueTypeId
 			,IsCancelCashOut
 		)
-	SELECT DISTINCT @MatchID AS matchid
+	SELECT DISTINCT d.MatchId_tmp AS matchid
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -589,7 +600,7 @@ BEGIN
 			    ,SubIssueTypeId
 			    ,IsCancelCashOut
 			)
-		SELECT DISTINCT @MatchID AS matchid
+		SELECT DISTINCT d.MatchId_tmp AS matchid
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
@@ -1183,6 +1194,7 @@ BEGIN
 		INNER JOIN @Validation v ON l.MatchId = v.MatchId AND l.Id = v.Id
 	GROUP BY l.Id, l.MatchId, v.LogInfoTicketsJson
 
+	-- 4. List ticket unmark/mark & Transinfo table (if any)
 	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
 		,t.Subtransid  AS 's_t'
@@ -1205,7 +1217,6 @@ BEGIN
 			)li
 	FOR JSON PATH))
 		
-	-- 4. List ticket unmark/mark & Transinfo table (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson

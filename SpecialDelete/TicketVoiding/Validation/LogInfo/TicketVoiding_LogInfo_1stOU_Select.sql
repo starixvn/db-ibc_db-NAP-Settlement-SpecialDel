@@ -284,32 +284,35 @@ BEGIN
 		INNER JOIN dbo.match m ON d.MatchId = m.MatchId
 
 	--Cricket/Baseball - Get child match
-	INSERT INTO #FilterInfo (MatchId
-			,FilterFromTransTime
-			,FilterToTransTime
-			,WrongMarket
-			,SubIssueTypeId
-			,PoolHouseCheckedBetTypes
-			,IsMainMatch
-			,IsLinkGroup1X2
-			,IsLinkGroupAIO
-			,LiveIndicator
-			,Sporttype
-			,MatchId_tmp
-			) 
-	SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
-			,d.WrongMarket
-			,d.SubIssueTypeId
-			,d.PoolHouseCheckedBetTypes
-			,d.IsMainMatch
-			,d.IsLinkGroup1X2
-			,d.IsLinkGroupAIO
-			,d.LiveIndicator
-			,m.Sporttype
-			,d.MatchId
-	FROM #FilterInfo d
-		INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
-	WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))
+	BEGIN
+		INSERT INTO #FilterInfo (MatchId
+				,FilterFromTransTime
+				,FilterToTransTime
+				,WrongMarket
+				,SubIssueTypeId
+				,PoolHouseCheckedBetTypes
+				,IsMainMatch
+				,IsLinkGroup1X2
+				,IsLinkGroupAIO
+				,LiveIndicator
+				,Sporttype
+				,MatchId_tmp
+				) 
+		SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
+				,d.WrongMarket
+				,d.SubIssueTypeId
+				,d.PoolHouseCheckedBetTypes
+				,d.IsMainMatch
+				,d.IsLinkGroup1X2
+				,d.IsLinkGroupAIO
+				,d.LiveIndicator
+				,m.Sporttype
+				,d.MatchId
+		FROM #FilterInfo d
+			INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
+		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+	END
 
 	--Search single tickets
 	INSERT INTO #TVSTicketBets(
@@ -1027,9 +1030,6 @@ BEGIN
 		-- 3. Loginfo table (No need -> return table)
 		SELECT MatchId FROM #logInfo WHERE Matchid IS NULL
 
-		-- 4. Unmark table (No need -> return table)
-		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
-		
 		-- 4. Unmark/Transinfo table (No need -> return table)
 		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpUnmarkTransId
 		
@@ -1153,6 +1153,7 @@ BEGIN
 	   INNER JOIN @Validation v ON l.MatchId = v.MatchId
 	GROUP BY l.MatchId, w.scores, v.LogInfoTicketsJson
 
+	-- 4. List ticket unmark/mark & Transinfo table (if any)
 	SET @TransInfoJson = COMPRESS((SELECT b.matchid AS 'mid'
 		,b.transid AS 't'
 		,b.Subtransid  AS 's_t'
@@ -1165,7 +1166,6 @@ BEGIN
 	FROM #TVSTicketBets b
 	FOR JSON PATH))
 	
-	-- 4. List ticket unmark/mark & Transinfo table (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson

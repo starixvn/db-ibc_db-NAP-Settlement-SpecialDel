@@ -1,5 +1,5 @@
 ﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_1stHDP_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_1stHDP_Select]
 (	
 	 @RequestId			  INT = 0
 	,@ActionId			  INT = 5
@@ -41,7 +41,7 @@ AS
 
 */
 BEGIN
-	SET NOCOUNT ON 
+	SET NOCOUNT ON; 
 
 	DECLARE @SingleCount			  INT = 0
 			,@MainParlayCount		  INT = 0
@@ -1000,7 +1000,7 @@ BEGIN
 				, COUNT(CASE WHEN b.bettype <> 7 AND b.SettledType = 1 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
 		FROM #CTE_Ticket_Single s WITH (NOLOCK)
 			INNER JOIN #TVSTicketBets b ON b.transid = s.transid AND b.matchid = s.MatchId AND b.IsMixParlay = 0
-		WHERE s.RequestId = @RequestId AND b.StatusId IN (111, 112, 113)
+		WHERE b.StatusId IN (111, 112, 113)
 		GROUP BY b.matchid
 
 		--Check score for void message
@@ -1018,7 +1018,7 @@ BEGIN
 		BEGIN
 			INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
 			SELECT s.MatchId, CAST(b.Sublivehomescore AS VARCHAR(10)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(10))
-			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
+			FROM #CTE_Ticket_SubParlay s WITH (NOLOCK)
 				INNER JOIN #TVSTicketBets b ON b.Subtransid = s.TransId AND b.IsMixParlay = 1
 				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.Subbettype			
 			WHERE f.GroupName <> '2H'
@@ -1231,6 +1231,7 @@ BEGIN
 		INNER JOIN @Validation v ON l.MatchId = v.MatchId
 	GROUP BY l.MatchId, w.scores, v.LogInfoTicketsJson
 
+	-- 4. List ticket unmark/mark & Transinfo table (if any)
 	SET @TransInfoJson = COMPRESS((SELECT b.matchid AS 'mid'
 		,b.transid AS 't'
 		,b.Subtransid  AS 's_t'
@@ -1243,7 +1244,6 @@ BEGIN
 	FROM #TVSTicketBets b
 	FOR JSON PATH))
 	
-	-- 4. List ticket unmark/mark & Transinfo table (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson

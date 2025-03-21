@@ -1053,7 +1053,7 @@ BEGIN
 		BEGIN
 			INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
 			SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(10)) + '-' + CAST(b.liveawayscore AS VARCHAR(10))
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+			FROM #CTE_Ticket_Single s WITH (NOLOCK)
 				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
 				INNER JOIN #TVSTicketBets b ON b.transid = s.TransId AND b.IsMixParlay = 0
 			WHERE f.GroupName <> '2H'
@@ -1277,6 +1277,7 @@ BEGIN
 		INNER JOIN @Validation v ON l.MatchId = v.MatchId
 	GROUP BY l.MatchId, w.scores, v.LogInfoTicketsJson
 
+	-- 4. List ticket unmark/mark & Transinfo table (if any)
 	SET @TransInfoJson = COMPRESS((SELECT b.matchid AS 'mid'
 		,b.transid AS 't'
 		,b.Subtransid  AS 's_t'
@@ -1289,7 +1290,6 @@ BEGIN
 	FROM #TVSTicketBets b
 	FOR JSON PATH))
 	
-	-- 4. List ticket unmark/mark & Transinfo table (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson

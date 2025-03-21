@@ -480,8 +480,7 @@ BEGIN
 		FROM #FilterInfo d
 			 INNER JOIN dbo.bettransm sub ON d.MatchId = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
-		WHERE	 sub.transdate >= d.KickOffTime  
-				AND b.transdate >= d.KickOffTime
+		WHERE	 sub.transdate >= d.KickOffTime  AND b.transdate >= d.KickOffTime
 				AND 1= CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 							WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
@@ -874,7 +873,7 @@ BEGIN
 	-- 3. Loginfo table 
 	SELECT MatchId, LogInfoTicketsJson FROM @Validation
 
-
+	-- 4. List ticket unmark/mark & Transinfo table (if any)
 	SET @TransInfoJson = COMPRESS((SELECT b.matchid AS 'mid'
 		,b.transid AS 't'
 		,b.Subtransid  AS 's_t'
@@ -887,7 +886,6 @@ BEGIN
 	FROM #TVSTicketBets b
 	FOR JSON PATH))
 	
-	-- 4. List ticket unmark/mark & Transinfo table (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson

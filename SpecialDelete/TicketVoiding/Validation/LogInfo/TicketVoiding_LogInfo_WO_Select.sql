@@ -335,49 +335,52 @@ BEGIN
 		INNER JOIN dbo.match m ON d.MatchId = m.MatchId
 
 	--Cricket/Baseball - Get child match
+	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))
+	BEGIN
 		INSERT INTO #FilterInfo(
-			MatchId
-			,FilterFromTransTime
-			,FilterToTransTime
-			,SubIssueTypeId
-			,PoolHouseCheckedBetTypes
-			,IsLinkGroup1X2
-			,IsLinkGroupAIO
-			,LiveIndicator
-			,FilterFavoriteType
-			,FavoriteValue
-			,WrongOU
-			,Spread
-			,AllowanceRate
-			,CorrectOddsHomeOver
-			,CorrectOddsAwayUnder
-			,FromOddsNotVoidHomeOver 
-			,ToOddsNotVoidHomeOver	
-			,FromOddsNotVoidAwayUnder
-			,ToOddsNotVoidAwayUnder	
-		)
-	SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
-			,d.SubIssueTypeId
-			,d.PoolHouseCheckedBetTypes
-			,d.IsLinkGroup1X2
-			,d.IsLinkGroupAIO
-			,d.LiveIndicator
-			,d.FilterFavoriteType
-			,d.FavoriteValue
-			,d.WrongOU
-			,d.Spread
-			,d.AllowanceRate
-			,d.CorrectOddsHomeOver
-			,d.CorrectOddsAwayUnder
-			,d.FromOddsNotVoidHomeOver 
-			,d.ToOddsNotVoidHomeOver	
-			,d.FromOddsNotVoidAwayUnder
-			,d.ToOddsNotVoidAwayUnder	
-			,m.Sporttype
-			,d.MatchId
-	FROM #FilterInfo d
-		INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
-	WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+				MatchId
+				,FilterFromTransTime
+				,FilterToTransTime
+				,SubIssueTypeId
+				,PoolHouseCheckedBetTypes
+				,IsLinkGroup1X2
+				,IsLinkGroupAIO
+				,LiveIndicator
+				,FilterFavoriteType
+				,FavoriteValue
+				,WrongOU
+				,Spread
+				,AllowanceRate
+				,CorrectOddsHomeOver
+				,CorrectOddsAwayUnder
+				,FromOddsNotVoidHomeOver 
+				,ToOddsNotVoidHomeOver	
+				,FromOddsNotVoidAwayUnder
+				,ToOddsNotVoidAwayUnder	
+			)
+		SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
+				,d.SubIssueTypeId
+				,d.PoolHouseCheckedBetTypes
+				,d.IsLinkGroup1X2
+				,d.IsLinkGroupAIO
+				,d.LiveIndicator
+				,d.FilterFavoriteType
+				,d.FavoriteValue
+				,d.WrongOU
+				,d.Spread
+				,d.AllowanceRate
+				,d.CorrectOddsHomeOver
+				,d.CorrectOddsAwayUnder
+				,d.FromOddsNotVoidHomeOver 
+				,d.ToOddsNotVoidHomeOver	
+				,d.FromOddsNotVoidAwayUnder
+				,d.ToOddsNotVoidAwayUnder	
+				,m.Sporttype
+				,d.MatchId
+		FROM #FilterInfo d
+			INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
+		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
+	END
 
 	--Search single tickets
 	INSERT INTO #TVSTicketBets(
@@ -1274,8 +1277,8 @@ BEGIN
 	END
 	ELSE IF @IsShowLogOnly = 0 AND @RequestId <> 0 
 	BEGIN
-		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
-
+		SET @OldActionId = (SELECT TOP 1 ISNULL(ActionId,0) FROM #CTE_RequestDetail WITH(NOLOCK))
+		
 		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Edit request filter on UI -> unmark ticket 
