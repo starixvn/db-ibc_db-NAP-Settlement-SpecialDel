@@ -40,10 +40,6 @@ BEGIN
 
 	DECLARE	@WrongOUInfoXML		 XML = NULL	
 
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
-
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
 			,MatchID				INT

@@ -41,10 +41,6 @@ BEGIN
 			,@FilterBy				TINYINT = NULL -- (NULL: sing & mix parlay, 3: subparlay)
 			,@SubIssueTypeId		TINYINT = NULL
 
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
-
 	CREATE TABLE #tmpMatch (MatchId INT, IsOutright BIT, IsMoved14 BIT)
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT

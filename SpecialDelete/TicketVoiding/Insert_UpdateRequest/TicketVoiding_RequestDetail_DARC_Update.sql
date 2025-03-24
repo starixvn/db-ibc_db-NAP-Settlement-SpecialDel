@@ -43,10 +43,6 @@ BEGIN
 	DECLARE	 @DARCInfoXML		  XML = NULL
 			,@topBatch			  INT = 4500
 
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
-
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
 			,MatchID				INT
