@@ -169,18 +169,21 @@ BEGIN
 	WHERE s.RequestId = @RequestId 
 		AND ISNULL(IsCancelCO,0) = 0 
 		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
+		AND s.SiteDBGroupID = @SiteDBGroupID
 
 	UNION ALL 
 	SELECT DISTINCT s.TransId, 2 --Parlay ticket
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId
 		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
+		AND s.SiteDBGroupID = @SiteDBGroupID
 
 	UNION ALL 
 	SELECT DISTINCT s.TransId, 3 --Cancel CO ticket
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId AND IsCancelCO = 1
 		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
+		AND s.SiteDBGroupID = @SiteDBGroupID
 
 	IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid WHERE TicketType = 3)
 	BEGIN
@@ -308,9 +311,8 @@ BEGIN
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail WITH (NOLOCK)
 			WHERE RequestId = @RequestId
 
-			DELETE d
-			FROM #TmpTransid AS d
-				INNER JOIN #TVSTicketBets AS b ON d.TransId = b.TransId
+			DELETE b
+			FROM #TVSTicketBets AS b
 			WHERE b.statusID NOT IN (SELECT DISTINCT value FROM STRING_SPLIT(@StatusIds, ','))
 		END
 		
