@@ -296,7 +296,7 @@ BEGIN
 				,CASE WHEN b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END AS IsMixParlay
 				,b.statusID
 		FROM #TmpTransid AS d
-			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			   AND b.SiteDBGroupID = @SiteDBGroupID
@@ -426,7 +426,7 @@ BEGIN
 					  WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NULL THEN b.bettype 
 					  ELSE NULL END AS GroupBettypeId
 		FROM	#TmpTransid AS d
-			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.transid
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.transid
 			LEFT JOIN dbo.CashOutSelling AS c WITH (NOLOCK) ON b.TransId = c.TransID
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON b.bettype = f.BetType AND f.IssueTypeId = @IssueTypeId
@@ -652,7 +652,7 @@ BEGIN
 				,b.statuswinlost
 				,b.modds
 		FROM #TmpTransid AS d
-			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE b.statusID NOT IN (101, 102, 103) 
 			  AND b.SiteDBGroupID = @SiteDBGroupID
