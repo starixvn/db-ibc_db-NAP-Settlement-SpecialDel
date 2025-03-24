@@ -429,19 +429,14 @@ BEGIN
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.transid
 			LEFT JOIN dbo.CashOutSelling AS c WITH (NOLOCK) ON b.TransId = c.TransID
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
-			CROSS APPLY (
-						SELECT TOP 1 TransId
-						FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-						WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId 
-						AND 1 = CASE WHEN IsCancelCO = 1 AND b.betdaqid = - 1 THEN 0 --case cancel CO voided -> running - NO show betlist
-										ELSE 1 END
-				) ts
 			LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON b.bettype = f.BetType AND f.IssueTypeId = @IssueTypeId
 			LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = b.bettype
 		WHERE b.matchid = @MatchId 
 			AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND d.TicketType <> 2
+			AND 1 = CASE WHEN TicketType = 3 AND b.betdaqid = - 1 THEN 0 ELSE 1 END--case cancel CO voided -> running - NO show betlist
+										
 					
 		---get sub ticket of a mix parlay	
 		IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid AS d
