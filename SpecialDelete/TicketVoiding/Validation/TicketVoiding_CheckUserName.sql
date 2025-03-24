@@ -741,7 +741,7 @@ BEGIN
 		,b.credit AS GivenCredit
 		,tmp.AdjustLimit AS AdjustVoidLimit
 	FROM #tmpTransInfo b
-		INNER JOIN @AdjustVoidLimit_tmp tmp ON tmp.CustId = b.custid
+		LEFT JOIN @AdjustVoidLimit_tmp tmp ON tmp.CustId = b.custid
 	ORDER BY b.username
 
 	DROP TABLE #InputUsernameList
