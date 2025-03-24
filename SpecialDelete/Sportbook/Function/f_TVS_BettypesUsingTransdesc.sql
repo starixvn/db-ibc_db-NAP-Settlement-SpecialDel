@@ -1,14 +1,16 @@
-/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_TVS_BettypesUsingTransdesc] ()
 RETURNS TABLE
 AS
 /*
     Created: 20240726@Max
     Task: Add list bettypes using transdesc column [Redmine: #197051]
-	DB: DBCTG/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
     Revisions:
 		- 20240726@Max: Create function [Redmine: #197051]
+		- 20250311@July: Add alias server [Redmine: #217771]
+		
     Parameters Explanation:    
 		TypeId = 0 ;single player
 			   = 1 ;player and odds
