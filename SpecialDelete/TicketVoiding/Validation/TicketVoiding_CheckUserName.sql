@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName_UAT1]
+ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 (
 	 @UserNames			NVARCHAR(MAX) = ''
 	,@RequestId			INT = 0
@@ -89,6 +89,7 @@ BEGIN
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tmp_checkedTransId AS TABLE (TransId BIGINT)
+	DECLARE @AdjustVoidLimit_tmp AS TABLE (CustId INT, AdjustLimit MONEY) 
 
 	INSERT INTO #InputUsernameList (Username, custid, roleid, credit)
 	SELECT CAST(l.value AS NVARCHAR(30))
@@ -97,6 +98,15 @@ BEGIN
 			,ci.credit
 	FROM STRING_SPLIT(@UserNames, ',') l
 		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = ci.username
+
+	IF @AdjustVoidLimit <> ''
+	BEGIN
+		INSERT INTO @AdjustVoidLimit_tmp (CustId , AdjustLimit)
+		SELECT ci, av
+		FROM OPENJSON(@AdjustVoidLimit) 
+		WITH( ci INT, av MONEY
+	) tbl
+	END
 
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
@@ -650,7 +660,16 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 
 	--2. List TransId for case auto void with policy
-	;WITH RankedData AS (
+	;WITH Capicity AS (
+		SELECT SUM(CASE WHEN statusid = 112 THEN winlost ELSE 0 END) AS tot_win
+			,SUM(CASE WHEN statusid = 113 THEN winlost ELSE 0 END) AS tot_lose
+			,t.custid
+			,ISNULL(tmp.AdjustLimit, t.credit) AS credit
+		FROM #tmpTransInfo t
+			INNER JOIN @AdjustVoidLimit_tmp tmp ON tmp.CustId = t.custid
+		GROUP BY t.custid, credit, tmp.AdjustLimit
+	)
+	,RankedData AS (
 		SELECT 
 			transid,
 			winlost,
@@ -663,10 +682,10 @@ BEGIN
 	SELECT transid
 	FROM RankedData r
 		CROSS APPLY (
-			SELECT TOP 1 1 AS IsChecked
-			FROM #InputValidCustid_tmp t
+			SELECT TOP 1 credit AS credit
+			FROM Capicity t
 			WHERE t.custid = r.custid
-				AND r.RunningTotal <= t.credit
+				AND r.RunningTotal <= ABS(t.credit - (ABS(t.tot_lose) - t.tot_win))
 		)t
 
 	SELECT b.transid
@@ -720,8 +739,9 @@ BEGIN
 	SELECT DISTINCT b.CustId
 		,b.username
 		,b.credit AS GivenCredit
-		,0 AS AdjustVoidLimit
+		,tmp.AdjustLimit AS AdjustVoidLimit
 	FROM #tmpTransInfo b
+		INNER JOIN @AdjustVoidLimit_tmp tmp ON tmp.CustId = b.custid
 	ORDER BY b.username
 
 	DROP TABLE #InputUsernameList
