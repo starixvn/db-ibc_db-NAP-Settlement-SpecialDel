@@ -9,6 +9,7 @@ AS
 	Revisions:
 		- 20220324@Louisa: Cleanup History data for trigger on table ResultDetail/OS/ES [Redmine:#170548]
 		- 20220928@Kathy: Cleanup History data for trigger on table match
+		- 20250325@Hughie: Cleanup History data for trigger on table match3rd, VSOutright, VSRaceInfo, SMP_MarketSelection_History, SMP_Market_History [Redmine:#221187]
 */
 BEGIN
     SET NOCOUNT ON
@@ -38,6 +39,76 @@ BEGIN
 		DELETE TOP(@batch) mt
 		FROM dbo.Match_Tracking mt WITH(ROWLOCK, UPDLOCK)
 		WHERE mt.UpdateTime < @compareDate
+	
+		IF @@ROWCOUNT < @batch
+			BREAK			
+
+		WAITFOR DELAY '00:00:00:280'
+
+	END
+
+	WHILE (1=1)
+	BEGIN
+
+		DELETE TOP(@batch) ms
+		FROM dbo.SMP_MarketSelection_History ms WITH(ROWLOCK, UPDLOCK)
+		WHERE ms.LogDate < @compareDate
+	
+		IF @@ROWCOUNT < @batch
+			BREAK			
+
+		WAITFOR DELAY '00:00:00:280'
+
+	END
+
+	WHILE (1=1)
+	BEGIN
+
+		DELETE TOP(@batch) mh
+		FROM dbo.SMP_Market_History mh WITH(ROWLOCK, UPDLOCK)
+		WHERE mh.LogDate < @compareDate
+	
+		IF @@ROWCOUNT < @batch
+			BREAK			
+
+		WAITFOR DELAY '00:00:00:280'
+
+	END
+
+	WHILE (1=1)
+	BEGIN
+
+		DELETE TOP(@batch) m3t
+		FROM dbo.Match3rd_Tracking m3t WITH(ROWLOCK, UPDLOCK)
+		WHERE m3t.UpdateTime < @compareDate
+	
+		IF @@ROWCOUNT < @batch
+			BREAK			
+
+		WAITFOR DELAY '00:00:00:280'
+
+	END
+
+	WHILE (1=1)
+	BEGIN
+
+		DELETE TOP(@batch) vot
+		FROM dbo.VSOutright_Tracking vot WITH(ROWLOCK, UPDLOCK)
+		WHERE vot.UpdateTime < @compareDate
+	
+		IF @@ROWCOUNT < @batch
+			BREAK			
+
+		WAITFOR DELAY '00:00:00:280'
+
+	END
+
+	WHILE (1=1)
+	BEGIN
+
+		DELETE TOP(@batch) vrt
+		FROM dbo.VSRaceInfo_Tracking vrt WITH(ROWLOCK, UPDLOCK)
+		WHERE vrt.UpdateTime < @compareDate
 	
 		IF @@ROWCOUNT < @batch
 			BREAK			
