@@ -82,7 +82,7 @@ BEGIN
 
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT, credit MONEY)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
-	CREATE TABLE #InputValidCustid_tmp (custid INT, Username NVARCHAR(30), credit MONEY)
+	CREATE TABLE #InputValidCustid_tmp (custid INT, Username NVARCHAR(30), credit MONEY, AdjustLimit MONEY)
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
@@ -98,15 +98,6 @@ BEGIN
 			,ci.credit
 	FROM STRING_SPLIT(@UserNames, ',') l
 		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = ci.username
-
-	IF @AdjustVoidLimit <> ''
-	BEGIN
-		INSERT INTO @AdjustVoidLimit_tmp (CustId , AdjustLimit)
-		SELECT ci, av
-		FROM OPENJSON(@AdjustVoidLimit) 
-		WITH( ci INT, av MONEY
-	) tbl
-	END
 
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
@@ -276,7 +267,17 @@ BEGIN
 		AND ci.roleid = 1
 		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_tmp)
 
-	
+	IF @AdjustVoidLimit <> ''
+	BEGIN
+		INSERT INTO @AdjustVoidLimit_tmp (CustId , AdjustLimit)
+		SELECT ci, av
+		FROM OPENJSON(@AdjustVoidLimit) 
+		WITH( ci INT, av MONEY) tbl
+
+		UPDATE t SET t.AdjustLimit = tmp.AdjustLimit
+		FROM #InputValidCustid_tmp t
+			INNER JOIN @AdjustVoidLimit_tmp tmp ON tmp.CustId = t.custid 
+	END
 	------------Prepare Data------------------------
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -500,16 +501,12 @@ BEGIN
 
 	----------End of data prepare-----------------
 	--3. TransId in request table
-	declare @TransInfoJson			 VARBINARY(MAX)
-	declare @pre as table (transid bigint)
-
-	------ info for deployer
+	DECLARE @TransInfoJson			 VARBINARY(MAX)
 	DECLARE @StartRow INT 
 			, @StopRow INT 
 			, @MaxRow INT  -- Keep the total row of your data
 			, @Threshold INT  -- the number of each batch
-		
-	DECLARE @debug_message VARCHAR(500)
+
 	SET @MaxRow = (SELECT MAX(ID) FROM #tmpTransInfo)
 	SET @Threshold = 20000
 
@@ -531,9 +528,11 @@ BEGIN
 				WHERE ID BETWEEN @StartRow AND @StopRow
 					FOR JSON PATH))
 
-					--select @TransInfoJson
-				insert into #TransidInRequest
-				EXEC DBCTG.bodb02.dbo.TicketVoiding_Test @TransInfoJson = @TransInfoJson
+				--select @TransInfoJson
+				INSERT INTO #TransidInRequest
+				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest 
+					@TransInfoJson = @TransInfoJson
+					,@RequestId = @RequestId
 
 				IF @StopRow = @MaxRow BREAK
 
@@ -554,34 +553,6 @@ BEGIN
 		
 		SET @NumberOfTickets = @@ROWCOUNT
 	END
-	--IF @ActionId NOT IN (2)
-	--BEGIN
-	--	INSERT INTO #TransidInRequest (TransId)
-	--	SELECT DISTINCT rs.TransId
-	--	FROM  DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK) 
-	--		INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK) ON rs.RequestId = r.RequestId
-	--		CROSS APPLY (
-	--					SELECT TOP 1 t.MatchId, t.transid, t.StatusId
-	--					FROM #tmpTransInfo t
-	--					WHERE t.MatchId = rs.MatchId 
-	--						AND rs.TransId = t.transid
-	--			)t
-	--	WHERE r.RequestId <> @RequestId 
-	--	AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
-	--	AND 1 = CASE WHEN r.IssueTypeId IN (11,15) AND t.StatusId NOT IN (111,112,113) THEN 1
-	--				 WHEN r.IssueTypeId NOT IN (11,15) THEN 1
-	--				 ELSE 0 END
-					
-	--	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
-	--	BEGIN
-	--		SELECT @IsExistedInOtherRequest = 1
-	--	END
-
-	--	DELETE FROM #tmpTransInfo
-	--	WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
-		
-	--	SET @NumberOfTickets = @@ROWCOUNT
-	--END
 
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
@@ -666,8 +637,8 @@ BEGIN
 			,t.custid
 			,ISNULL(tmp.AdjustLimit, t.credit) AS credit
 		FROM #tmpTransInfo t
-			INNER JOIN @AdjustVoidLimit_tmp tmp ON tmp.CustId = t.custid
-		GROUP BY t.custid, credit, tmp.AdjustLimit
+			INNER JOIN #InputValidCustid_tmp tmp ON tmp.CustId = t.custid
+		GROUP BY t.custid, t.credit, tmp.AdjustLimit
 	)
 	,RankedData AS (
 		SELECT 
