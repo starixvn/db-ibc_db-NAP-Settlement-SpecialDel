@@ -52,30 +52,6 @@ BEGIN
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	/*CREATE TABLE #TVSTicketBets (
-			transid               BIGINT,
-			SubTransid            BIGINT,
-			refno                 BIGINT,
-			custid                INT,
-			transdate             DATETIME,
-			bettype               SMALLINT,
-			Subbettype			  SMALLINT,
-			livehomescore         SMALLINT,
-			liveawayscore         SMALLINT,
-			betdaqid              BIGINT,
-			IsMixParlay           BIT DEFAULT(0),
-			matchid               INT,
-			StatusId			  TINYINT,
-			SubStatusId			  TINYINT,
-			SubIssueTypeId		  SMALLINT,
-			GroupName			  VARCHAR(50),
-			OddsType			  INT,
-			FilterOdds			  MONEY,
-			FilterBetteam		  NVARCHAR(10),
-			SettledType			  TINYINT,
-			sporttype			  SMALLINT	
-	)*/
-
 	CREATE TABLE #logInfo (
 		 MatchId						INT
 		,LiveScores						NVARCHAR(300)
@@ -510,13 +486,12 @@ BEGIN
 				  WHEN f.BetType IS NOT NULL AND f.GroupMatch = 0 THEN 'PH' --1X2
 				  WHEN f.BetType IS NOT NULL AND f.GroupMatch <> 0 THEN 'PH' --AIO
 			END AS GroupName
-	FROM #TVSTicketBets b 
+	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType AND f.SubIssueTypeId = d.SubIssueTypeId
-	WHERE b.betfrom <> 'P'  
+	WHERE b.betfrom <> 'P' AND b.SiteDBGroupID = @SiteDBGroupID  
 		AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 		AND b.liveindicator = d.LiveIndicator 
-		AND b.IsMixParlay = 0
 		AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
@@ -554,8 +529,9 @@ BEGIN
 	IF EXISTS (
 					SELECT TOP(1) 1
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
+						INNER JOIN #FilterInfo d ON bm.matchid = d.MatchId
 					WHERE bm.statusID NOT IN (101, 102, 103)
-						AND bm.betfrom <> 'P' AND bm.matchid = @MatchId
+						AND bm.betfrom <> 'P'
 					)
 	BEGIN	
 		INSERT INTO #TVSTicketBets(
@@ -683,11 +659,11 @@ BEGIN
 		FROM #FilterInfo d
 			 INNER JOIN dbo.bettransm sub ON d.MatchId = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
-				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND sub.bettype = f.BetType AND f.SubIssueTypeId = d.SubIssueTypeId
+			 LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND sub.bettype = f.BetType AND f.SubIssueTypeId = d.SubIssueTypeId
 		WHERE 1 = CASE WHEN @ActionId <> 2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 						WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 						ELSE 0 END
-				AND sub.betfrom <> 'P'
+				AND sub.betfrom <> 'P' AND b.SiteDBGroupID = @SiteDBGroupID 
 				AND sub.liveindicator = d.LiveIndicator
 				AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 				AND 1 = CASE WHEN d.SubIssueTypeId IN (6) 
@@ -1188,19 +1164,19 @@ BEGIN
 
 		-- 3. Loginfo table
 		SELECT rd.MatchId
-			,SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) AS LiveScores
-			,rd.VoidFromTime
-			,rd.VoidToTime
-			,SUBSTRING(rd.IssueDetail, CHARINDEX('SingleCount:',rd.IssueDetail) + LEN('SingleCount:'), CHARINDEX(';PoolHouseSingleCount:',rd.IssueDetail) - (CHARINDEX('SingleCount:',rd.IssueDetail) + LEN('SingleCount:'))) AS SingleCount
+			,CASE WHEN @SiteDBGroupID = 0 THEN SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) ELSE NULL END AS LiveScores
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
+			,CASE WHEN @SiteDBGroupID = 0 THEN SUBSTRING(rd.IssueDetail, CHARINDEX('SingleCount:',rd.IssueDetail) + LEN('SingleCount:'), CHARINDEX(';PoolHouseSingleCount:',rd.IssueDetail) - (CHARINDEX('SingleCount:',rd.IssueDetail) + LEN('SingleCount:'))) ELSE NULL END AS SingleCount
 			,t.CashOutCount
 			,t.SettleCount
 			,t.InstantlySettleCount
-			,CASE WHEN rd.Sporttype <> 1 THEN rd.MainParlayCount ELSE 0 END AS MainParlayCount --Other sports
-			,SUBSTRING(rd.IssueDetail,CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail) + LEN('PoolHouseSingleCount:'), CHARINDEX(';PoolHouseMainParlayCount:',rd.IssueDetail) - ( CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail)+ LEN('PoolHouseSingleCount:'))) AS PoolHouseSingleCount
+			,CASE WHEN @SiteDBGroupID = 0 THEN CASE WHEN rd.Sporttype <> 1 THEN rd.MainParlayCount ELSE 0 END ELSE NULL END AS MainParlayCount --Other sports
+			,CASE WHEN @SiteDBGroupID = 0 THEN SUBSTRING(rd.IssueDetail,CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail) + LEN('PoolHouseSingleCount:'), CHARINDEX(';PoolHouseMainParlayCount:',rd.IssueDetail) - ( CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail)+ LEN('PoolHouseSingleCount:'))) ELSE NULL END AS PoolHouseSingleCount
 			,t.PoolHouseCashOutCount
 			,t.PoolHouseSettleCount 
 			,t.PoolHouseInstantlySettleCount
-			,CASE WHEN rd.Sporttype = 1 THEN rd.MainParlayCount ELSE 0 END AS PoolHouseMainParlayCount --Soccer
+			,CASE WHEN @SiteDBGroupID = 0 THEN CASE WHEN rd.Sporttype = 1 THEN rd.MainParlayCount ELSE 0 END ELSE NULL END AS PoolHouseMainParlayCount --Soccer
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 		    ,v.LogInfoTicketsJson

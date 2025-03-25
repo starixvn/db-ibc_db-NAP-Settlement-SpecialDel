@@ -639,12 +639,12 @@ BEGIN
 
 		-- 3.Loginfo table
 		SELECT DISTINCT rd.MatchId
-			,rd.VoidFromTime
-			,rd.VoidToTime
-			,rd.SingleCount
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.SingleCount ELSE NULL END AS SingleCount
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.MainParlayCount ELSE NULL END AS MainParlayCount
 			,tmp.InstantlySettleCount
 			,tmp.SettleCount
-			,rd.MainParlayCount
 		FROM #CTE_RequestDetail rd WITH (NOLOCK)
 			LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId
 			

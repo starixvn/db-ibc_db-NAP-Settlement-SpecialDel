@@ -1098,22 +1098,22 @@ BEGIN
 
 		-- 3. Loginfo Table
 		SELECT rd.MatchId
-			,SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) AS LiveScores
-			,rd.VoidFromTime
-			,rd.VoidToTime
-			,rd.SingleCount
+			,CASE WHEN @SiteDBGroupID = 0 THEN SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) ELSE NULL END AS LiveScores
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.SingleCount ELSE NULL END AS SingleCount
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.MainParlayCount ELSE NULL END AS MainParlayCount
+			,CASE WHEN @SiteDBGroupID = 0 THEN a.HighLightMinTime ELSE NULL END AS HighLightMinTime
+			,CASE WHEN @SiteDBGroupID = 0 THEN a.HighlightAcceptType ELSE NULL END AS HighlightAcceptType
+			,CASE WHEN @SiteDBGroupID = 0 THEN a.MinTransId ELSE NULL END AS MinTransId
+			,CASE WHEN @SiteDBGroupID = 0 THEN a.ActionType ELSE NULL END AS ActionType
+		    ,CASE WHEN @SiteDBGroupID = 0 THEN a.TransVoidToTime ELSE NULL END AS TransVoidToTime
 			,t.CashOutCount
 			,t.InstantlySettleCount
 			,t.SettleCount
-			,rd.MainParlayCount
-			,a.HighLightMinTime
-			,a.HighlightAcceptType
+			,t.CancelCashOutCount
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
-			,t.CancelCashOutCount
-			,a.MinTransId
-			,a.ActionType
-		    ,a.TransVoidToTime
 		FROM #CTE_RequestDetail rd WITH (NOLOCK)
 			CROSS APPLY (
 					SELECT CONVERT(XML, rd.TransIds)

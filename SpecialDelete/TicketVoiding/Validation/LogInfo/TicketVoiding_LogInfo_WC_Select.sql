@@ -1113,15 +1113,15 @@ BEGIN
 
 			-- 3.Loginfo table
 			SELECT rd.MatchId
-				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS LiveScores
-				,rd.IssueDetail AS ActualScore
-				,rd.VoidFromTime
-				,rd.VoidToTime
-				,rd.SingleCount
+				,CASE WHEN @SiteDBGroupID = 0 THEN CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) ELSE NULL END AS LiveScores
+				,CASE WHEN @SiteDBGroupID = 0 THEN rd.IssueDetail ELSE NULL END AS ActualScore
+			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
+			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.SingleCount ELSE NULL END AS SingleCount
+			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.MainParlayCount ELSE NULL END AS MainParlayCount
 				,tmp.CashOutCount
 				,tmp.InstantlySettleCount
 				,tmp.SettleCount
-				,rd.MainParlayCount
 				,a.ScoreId AS ScoreId
 				,tmp.CancelCashOutCount
 				,a.HighLightMinTime

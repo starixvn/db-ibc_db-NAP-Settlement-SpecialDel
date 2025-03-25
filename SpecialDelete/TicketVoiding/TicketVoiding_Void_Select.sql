@@ -76,6 +76,8 @@ BEGIN
 	SET NOCOUNT ON	
 
 	DECLARE @SiteDBGroupID SMALLINT
+	
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmp_MissingTransId AS TABLE (TransId BIGINT PRIMARY KEY)
 
@@ -161,8 +163,6 @@ BEGIN
 	   ,TicketType  TINYINT
 	)
 
-	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-
 	INSERT INTO #TmpTransid (TransId,TicketType)
 	SELECT DISTINCT s.TransId, 1   --Single ticket (exclude cancel CO)
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK)
@@ -190,8 +190,8 @@ BEGIN
 		--Fix case Cancel Cashout -> Cashout again. Expect: NO show betlist
 		DELETE t
 		FROM  #TmpTransid AS t
-		INNER JOIN dbo.zzzbettrans z WITH (NOLOCK) ON t.transid = z.transid AND z.comstatus ='CO'
-		WHERE TicketType = 3
+			INNER JOIN dbo.zzzbettrans z WITH (NOLOCK) ON t.transid = z.transid AND z.comstatus ='CO'
+		WHERE TicketType = 3 AND z.SiteDBGroupID = @SiteDBGroupID
 	END
 
 	IF @IssueTypeId IN (11,20,13) --11: AbnormalBet, 20: Duplicate Tickets, 13: Abnormal account
@@ -436,7 +436,6 @@ BEGIN
 			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND d.TicketType <> 2
 			AND 1 = CASE WHEN TicketType = 3 AND b.betdaqid = - 1 THEN 0 ELSE 1 END--case cancel CO voided -> running - NO show betlist
-										
 					
 		---get sub ticket of a mix parlay	
 		IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid AS d

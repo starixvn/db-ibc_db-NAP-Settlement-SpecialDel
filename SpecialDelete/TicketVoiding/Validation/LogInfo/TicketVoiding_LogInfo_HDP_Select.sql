@@ -1079,19 +1079,19 @@ BEGIN
 
 		-- 3. Loginfo table
 		SELECT rd.MatchId
-			,SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) AS LiveScores
-			,rd.VoidFromTime
-			,rd.VoidToTime
-			,SUBSTRING(rd.IssueDetail, CHARINDEX('SingleCount:',rd.IssueDetail) + LEN('SingleCount:'), CHARINDEX(';PoolHouseSingleCount:',rd.IssueDetail) - (CHARINDEX('SingleCount:',rd.IssueDetail) + LEN('SingleCount:'))) AS SingleCount
+			,CASE WHEN @SiteDBGroupID = 0 THEN SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) ELSE NULL END AS LiveScores
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+			,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
+			,CASE WHEN @SiteDBGroupID = 0 THEN SUBSTRING(rd.IssueDetail, CHARINDEX('SingleCount:',rd.IssueDetail) + LEN('SingleCount:'), CHARINDEX(';PoolHouseSingleCount:',rd.IssueDetail) - (CHARINDEX('SingleCount:',rd.IssueDetail) + LEN('SingleCount:')))  ELSE NULL END AS SingleCount
 			,t.CashOutCount
 			,t.SettleCount
 			,t.InstantlySettleCount
-			,CASE WHEN rd.Sporttype <> 1 THEN rd.MainParlayCount ELSE 0 END AS MainParlayCount --Other sports
-			,SUBSTRING(rd.IssueDetail,CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail) + LEN('PoolHouseSingleCount:'), CHARINDEX(';PoolHouseMainParlayCount:',rd.IssueDetail) - ( CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail)+ LEN('PoolHouseSingleCount:'))) AS PoolHouseSingleCount
+			,CASE WHEN @SiteDBGroupID = 0 THEN CASE WHEN rd.Sporttype <> 1 THEN rd.MainParlayCount ELSE 0 END ELSE NULL END AS MainParlayCount --Other sports
+			,CASE WHEN @SiteDBGroupID = 0 THEN SUBSTRING(rd.IssueDetail,CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail) + LEN('PoolHouseSingleCount:'), CHARINDEX(';PoolHouseMainParlayCount:',rd.IssueDetail) - ( CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail)+ LEN('PoolHouseSingleCount:')))  ELSE NULL END AS PoolHouseSingleCount
 			,t.PoolHouseCashOutCount
 			,t.PoolHouseSettleCount 
 			,t.PoolHouseInstantlySettleCount
-			,CASE WHEN rd.Sporttype = 1 THEN rd.MainParlayCount ELSE 0 END AS PoolHouseMainParlayCount --Soccer
+			,CASE WHEN @SiteDBGroupID = 0 THEN CASE WHEN rd.Sporttype = 1 THEN rd.MainParlayCount ELSE 0 END ELSE NULL END AS PoolHouseMainParlayCount --Soccer
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			,v.LogInfoTicketsJson

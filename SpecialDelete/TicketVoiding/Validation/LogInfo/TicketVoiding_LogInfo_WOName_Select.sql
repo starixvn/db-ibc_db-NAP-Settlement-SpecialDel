@@ -517,8 +517,8 @@ BEGIN
 			,b.modds
 			,sub.SiteDBGroupID
 		FROM #FilterInfo d
-			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
-			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
+			INNER JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
+			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			INNER JOIN @tmpCurrencyIds c ON b.currency = c.CurrencyId
 	WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 				   WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1

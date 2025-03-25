@@ -989,11 +989,11 @@ BEGIN
 
 		-- 3. Loginfo Table
 		SELECT rd.Id
-		      ,rd.MatchId
-			  ,rd.VoidFromTime
-			  ,rd.VoidToTime
-			  ,rd.SingleCount
-			  ,rd.MainParlayCount
+		      ,CASE WHEN @SiteDBGroupID = 0 THEN rd.MatchId ELSE NULL END AS MatchId
+			  ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+			  ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
+			  ,CASE WHEN @SiteDBGroupID = 0 THEN rd.SingleCount ELSE NULL END AS SingleCount
+			  ,CASE WHEN @SiteDBGroupID = 0 THEN rd.MainParlayCount ELSE NULL END AS MainParlayCount
 			  ,t.CancelCashOutCount
 			  ,t.SettleCount
 			  ,v.LogInfoTicketsJson
