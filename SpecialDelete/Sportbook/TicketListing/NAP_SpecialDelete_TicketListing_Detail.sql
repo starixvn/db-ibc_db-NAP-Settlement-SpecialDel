@@ -96,6 +96,7 @@ AS;
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -178,11 +179,11 @@ BEGIN
 	FROM dbo.match3rd WITH (NOLOCK)
 	WHERE match3rdId = @MatchID
 
-	UNION --Virtual Horse Racing & Virtual Dog Racing
+	UNION --Virtual Horse Racing & Virtual Dog Racing, VS7
 	SELECT EventID
 	FROM dbo.VSRaceInfo WITH (NOLOCK)
 	WHERE EventID = @MatchID
-		AND SportType IN (177,198)
+		AND SportType IN (177,198,125,126,127)
 
 	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
 	CREATE TABLE #T_Match (matchtype VARCHAR(10), matchid INT, sporttype SMALLINT, homeid INT, awayid INT
@@ -233,7 +234,7 @@ BEGIN
 	FROM dbo.VSRaceInfo r (NOLOCK)
 		INNER JOIN dbo.VSOutright o WITH (NOLOCK) ON o.EventID = r.EventID
 	WHERE r.EventID = @MatchId
-		AND r.SportType IN (177,198)
+		AND r.SportType IN (177,198,125,126,127)
 
 	SELECT @Sporttype = sporttype 
 		  ,@SettlementStatus = SettlementStatus
@@ -1034,7 +1035,7 @@ BEGIN
 	FROM #SpecialDeleteBets b
 		INNER JOIN #T_Match m WITH (NOLOCK) 
 			ON CASE WHEN (b.bettype IN (7901) OR bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13011) THEN 'match3rd' -- 7901: Bitcoin Over/Under
-					WHEN b.bettype IN (2770,2771) THEN 'VSRaceInfo'						
+					WHEN b.bettype IN (2770,2771,15500,15501) THEN 'VSRaceInfo'						
 				ELSE 'match' 
 			END = m.matchtype  
 

@@ -22,6 +22,7 @@ AS
 		- 20240618@July: [TVS] Support void wrong odds of Home/Away or Over/Under at the same time [Redmine: #205558]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's explanation:		
 */
@@ -32,7 +33,7 @@ BEGIN
 		, eventdate DATETIME, matchcode NVARCHAR(100), ParentId INT, Kickofftime DATETIME
 		, VendorMatchId VARCHAR(50), RaceId VARCHAR(10))
 	
-	IF @Sporttype NOT IN (147,177,198) OR @Sporttype IS NULL
+	IF @Sporttype NOT IN (147,177,198,125,126,127) OR @Sporttype IS NULL
 	BEGIN
 		INSERT INTO #MatchInfo(matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ParentId, Kickofftime)
 		SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode, m.parentid, m.kickofftime
@@ -65,8 +66,8 @@ BEGIN
 				AND m.Match3rdId = @MatchId
 	END
 
-	-- Virtual Horse Racing & Virtual Dog Racing
-	IF @Sporttype IN (177,198)
+	-- Virtual Horse Racing & Virtual Dog Racing, VS7
+	IF @Sporttype IN (177,198,125,126,127)
 	BEGIN 
 		INSERT INTO #MatchInfo(matchid, leagueid, sporttype, eventdate, Kickofftime, VendorMatchId, RaceId) 
 		SELECT DISTINCT	m.EventID, m.leagueid, m.sporttype, o.eventdate, m.EventTime, VendorMatchId, m.Distance

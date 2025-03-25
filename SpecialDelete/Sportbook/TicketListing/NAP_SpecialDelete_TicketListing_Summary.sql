@@ -89,6 +89,7 @@ AS
 		- 20240729@July: Fix data length  [Redmine: #208544]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -168,7 +169,7 @@ BEGIN
 	SELECT EventID, sporttype
 	FROM dbo.VSRaceInfo WITH (NOLOCK)
 	WHERE EventID = @MatchID
-		AND SportType IN (177,198)
+		AND SportType IN (177,198,125,126,127)
 
 	SELECT @SportType = sporttype FROM @tmpMatchId
 

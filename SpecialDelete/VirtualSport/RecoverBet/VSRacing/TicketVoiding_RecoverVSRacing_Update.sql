@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_RecoverVS2_Update]
+ALTER PROCEDURE [dbo].[TicketVoiding_RecoverVSRacing_Update]
 	@MatchID					   INT			= 0
 	,@TransInfoJson                 VARCHAR(MAX)    = ''
 	,@UserId						INT = 0
@@ -14,7 +14,8 @@ AS
 	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02	    
 
 	Revisions:  		
-		- 20250220@Max: [TVS] Recover ticket of Virtual Sports 2 [Redmine: #212323]			
+		- 20250220@Max: [TVS] Recover ticket of Virtual Sports 2 [Redmine: #212323]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's Explanation:		
 */
@@ -44,7 +45,7 @@ BEGIN
 
         EXEC dbo.TicketVoiding_ReCalculate_Single_Update
             @TransIds = @TransInfoJson
-			,@Mode = 'RECOVER-VS2'
+			,@Mode = 'RECOVER-VS'
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 		
 		--delete zzzbettrans
@@ -98,7 +99,7 @@ BEGIN
 
 		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Recover
 			@MatchId = @MatchID
-			,@sporttype = 198 -- hardcode for both 198,177
+			,@sporttype = 198 -- hardcode for both 198,177,125,126,127
 			,@TransidList = @TransIds_MaxPO
 
 		--> Return data to web	

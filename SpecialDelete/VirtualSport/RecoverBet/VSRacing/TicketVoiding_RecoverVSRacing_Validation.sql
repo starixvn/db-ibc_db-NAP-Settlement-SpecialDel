@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_RecoverVS2_Validation]
+ALTER PROCEDURE [dbo].[TicketVoiding_RecoverVSRacing_Validation]
 (
 	@TransIds	VARCHAR(MAX)
 	,@Resources	VARCHAR(MAX)
@@ -13,7 +13,8 @@ AS
 	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02	    
 
 	Revisions:  		
-		- 20250220@Max: [TVS] Recover ticket of Virtual Sports 2 [Redmine: #212323]			
+		- 20250220@Max: [TVS] Recover ticket of Virtual Sports 2 [Redmine: #212323]		
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -111,7 +112,7 @@ BEGIN
 			WHERE p.BetType = b.bettype
 		)rs
 		LEFT JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON mt.TransId = r.transid
-	WHERE m.sporttype IN (198,177)
+	WHERE m.sporttype IN (198,177,125,126,127)
 		AND m.eventdate > @Movebetdate
 		AND b.statusID = 102
 		AND b.SiteDBGroupID = @SiteDBGroupID

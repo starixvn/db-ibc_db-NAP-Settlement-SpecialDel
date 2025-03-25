@@ -15,6 +15,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 */
 BEGIN
@@ -43,9 +44,9 @@ BEGIN
 			SELECT TOP 1 r.SportType
 			FROM dbo.VSRaceInfo r WITH (NOLOCK)
 			WHERE s.SportType = r.sporttype AND r.EventID = @MatchId
-					AND r.sporttype IN (177,198) --Virtual Horse Racing & Virtual Dog Racing
+					AND r.sporttype IN (177,198,125,126,127) --Virtual Horse Racing & Virtual Dog Racing
 		)m
-	WHERE s.ProductID IN (5,27,77,83,88,71)
+	WHERE s.ProductID IN (5,27,77,83,88,71,106)
         
     IF @ProductId IS NULL
     BEGIN 

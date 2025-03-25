@@ -23,6 +23,7 @@ AS
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241216@July: [TVS] Danger Accepted - Auto fill number of booking/goal kick/goal to the message template [Redmine: #214377]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's explanation:	
 		- @Type: 0 - Normal (get match from match table)
@@ -172,7 +173,7 @@ BEGIN
 			FROM dbo.Match3rd14 AS match WITH (NOLOCK) 
 			WHERE match.Match3rdId = @matchID
 
-			UNION ALL --Virtual Sports 2 (Betradar)
+			UNION ALL --Virtual Sports 2 (Betradar), VS7
 			SELECT DISTINCT
 				r.EventID AS matchid,
 				NULL,
@@ -192,7 +193,7 @@ BEGIN
 			FROM dbo.VSOutright o WITH (NOLOCK)
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) ON r.EventID = o.EventID
 			WHERE r.EventID = @matchID
-				AND r.SportType IN (177,198)
+				AND r.SportType IN (177,198,125,126,127)
 			UNION ALL 
 			SELECT DISTINCT
 				r.EventID AS matchid,
@@ -213,7 +214,7 @@ BEGIN
 			FROM dbo.VSOutright14 o WITH (NOLOCK)
 			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) ON r.EventID = o.EventID
 			WHERE r.EventID = @matchID
-				AND r.SportType IN (177,198)
+				AND r.SportType IN (177,198,125,126,127)
 		END
 		ELSE IF @Type = 1
 		BEGIN
