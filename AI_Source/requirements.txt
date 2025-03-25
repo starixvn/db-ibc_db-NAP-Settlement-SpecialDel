@@ -1,0 +1,14 @@
+transformers
+torch
+accelerate
+datasets
+scikit-learn
+pandas
+numpy ==1.26.4
+sqlalchemy
+pyodbc
+flask
+llama-cpp-python ==0.2.77
+faiss
+sentence_transformers
+collections
