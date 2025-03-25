@@ -285,7 +285,7 @@ BEGIN
 			,modds 
 			,SiteDBGroupID
 		)
-	SELECT   d.MatchId_tmp AS MatchId
+	SELECT  DISTINCT d.MatchId_tmp AS MatchId
 			,b.TransId
 			,b.transid AS SubTransID
 			,b.custid
@@ -420,7 +420,7 @@ BEGIN
 					,modds 
 					,SiteDBGroupID
 				)
-			SELECT d.MatchId_tmp AS MatchId
+		SELECT DISTINCT d.MatchId_tmp AS MatchId
 				,b.TransId
 				,sub.transid AS SubTransID
 				,b.custid

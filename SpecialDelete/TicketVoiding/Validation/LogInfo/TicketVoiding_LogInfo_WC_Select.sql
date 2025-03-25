@@ -349,7 +349,7 @@ BEGIN
 			,CheckTimeCashOut
 			,AcceptModeCashOut
 		)
-	SELECT d.MatchId_tmp
+	SELECT DISTINCT d.MatchId_tmp AS matchid
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -502,7 +502,7 @@ BEGIN
 				,modds 
 				,SiteDBGroupID
 			)
-		SELECT DISTINCT d.MatchId_tmp
+		SELECT DISTINCT d.MatchId_tmp AS matchid
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid

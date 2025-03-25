@@ -387,7 +387,7 @@ BEGIN
 			,SubIssueTypeId
 			,GroupName
 		)
-	SELECT DISTINCT d.MatchId_tmp
+	SELECT DISTINCT d.MatchId_tmp AS matchid
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -509,7 +509,7 @@ BEGIN
 					AND bm.betfrom <> 'P' 
 			 )
 	BEGIN		
-				INSERT INTO #TVSTicketBets(
+		INSERT INTO #TVSTicketBets(
 				matchid 
 				,transid
 				,Subtransid 
@@ -569,7 +569,7 @@ BEGIN
 				,SubIssueTypeId
 				,GroupName
 			)
-				SELECT d.MatchId_tmp
+	SELECT DISTINCT d.MatchId_tmp AS matchid
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
