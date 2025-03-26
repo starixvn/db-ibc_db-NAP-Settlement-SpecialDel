@@ -28,6 +28,7 @@ AS
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241224@July: [TVS] Abnormal Account - Enhance Auto Void (Instant with Policy) [Redmine: #214444]
+		- 20250311@Max: [TVS] Enhance the Auto Void flow (Instant with Policy) of Abnormal Account  [#Redmine: #217979]
 
 	Param's explanation:
 */
@@ -103,7 +104,7 @@ BEGIN
 			)
 		SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb ,isV14, IsChecked
 		FROM OPENJSON(@Decompress_TransInfoJson) 
-		WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT ,isV14 BIT, IsChecked BIT 
+		WITH( MatchId INT, TransId BIGINT ,CustId INT ,BetType SMALLINT ,BetId BIGINT ,IsMixParlay BIT ,SiteDbGroupId SMALLINT ,IsVoid14 BIT, IsChecked BIT
 		) tbl
 	END
 	ELSE  --action = 10 Auto Void (Instant with Policy)
