@@ -855,10 +855,11 @@ BEGIN
 				,IsInValidTotalTickets
 				,IsExistedInOtherRequest
 				,ScoreId
+				,MatchId
 			FROM @Validation
 
 			-- 2. TransId in request table
-			SELECT RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+			SELECT RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds, MatchId
 			FROM #TransidInRequest
 
 			-- 3.Loginfo table
@@ -1026,12 +1027,13 @@ BEGIN
 				,1 AS IsInValidTotalTickets
 				,IsExistedInOtherRequest
 				,ScoreId
+				,MatchId
 			FROM @Validation
 		
 			-- 2. TransId in request table
 			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 			BEGIN
-				SELECT RequestId, r.ScoreId, c.username AS CreatedBy,
+				SELECT MatchId, RequestId, r.ScoreId, c.username AS CreatedBy,
 					STUFF((
 					SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 					FROM #TransidInRequest
@@ -1044,7 +1046,7 @@ BEGIN
 			END
 			ELSE
 			BEGIN 
-				SELECT RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+				SELECT MatchId, RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 				FROM #TransidInRequest
 			END
 
@@ -1165,12 +1167,14 @@ BEGIN
 			,IsInValidTotalTickets
 			,IsExistedInOtherRequest
 			,ScoreId
+			,MatchId
 		FROM @Validation
 
 		-- 2. TransId in request table
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
-			SELECT RequestId
+			SELECT MatchId
+				,RequestId
 				,r.ScoreId
 				,c.username AS CreatedBy
 				,STUFF((
