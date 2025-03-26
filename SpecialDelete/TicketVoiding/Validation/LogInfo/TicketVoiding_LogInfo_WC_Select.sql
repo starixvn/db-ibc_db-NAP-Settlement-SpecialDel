@@ -1042,7 +1042,7 @@ BEGIN
 					,1,2,'') AS TransIds
 				FROM #TransidInRequest r
 					INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
-				GROUP BY r.RequestId, r.ScoreId, c.username
+				GROUP BY r.RequestId, r.ScoreId, c.username, MatchId
 			END
 			ELSE
 			BEGIN 
@@ -1185,7 +1185,7 @@ BEGIN
 				,1,2,'') AS TransIds
 			FROM #TransidInRequest r
 				INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
-			GROUP BY r.RequestId, r.ScoreId, c.username
+			GROUP BY r.RequestId, r.ScoreId, c.username, MatchId
 		END
 		ELSE
 		BEGIN
