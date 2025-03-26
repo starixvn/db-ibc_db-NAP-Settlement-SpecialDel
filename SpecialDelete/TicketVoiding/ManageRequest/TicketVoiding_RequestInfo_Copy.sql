@@ -30,7 +30,8 @@ AS
 		- 20250318@Lani: [TVS] Copy request info - Support more issue type [Redmine: #219039]
 		- 20250318@Lani: [TVS] Copy request info - Support Wrong HDP - Home/Away Virtual Head Reverse sub types [Redmine: #222346]
 		- 20250421@Lani: [TVS] Copy request info - Update message templates of Wrong HDP, 1st HDP, OU, 1st OU, Odds [Redmine: #223867]
-
+		- 20250326@July: Get count ticket child of Cricket/Basketball  - [Redmine: #217771]
+		
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
 					         Reduced Overs, Not Participate, Abandoned
@@ -51,6 +52,8 @@ BEGIN
 		  , @RequestExtraInfo	VARCHAR(MAX)
 		  ,	@Sporttype			SMALLINT
 
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+	
 	DECLARE @tmpRequestInfo TABLE (
 		 RequestId			INT
 		,MatchId			INT
@@ -194,6 +197,19 @@ BEGIN
 
 	SELECT @RequestExtraInfo = RequestExtraInfo, @IssueDetail = IssueDetail, @Sporttype = Sporttype FROM @tmpRequestInfo
 
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN matchid = @MatchId THEN 1
+					WHEN sporttype IN (50,8) AND (ParentID = @MatchId) THEN 1
+					ELSE 0 END
+	UNION
+	SELECT MatchId
+	FROM dbo.match14 WITH(NOLOCK)
+	WHERE  1 = CASE WHEN matchid = @MatchId THEN 1
+					WHEN sporttype IN (50,8) AND (ParentID = @MatchId) THEN 1
+					ELSE 0 END
+
 	IF @IssueTypeId IN (1,10,3) --DA,RC,WC
 	BEGIN
 		DECLARE @TvDetectionValue VARCHAR(10)
@@ -241,12 +257,17 @@ BEGIN
 		SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON s.TransId = b.TransId
-		WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
+			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
+		WHERE s.RequestId = @RequestId 
+			AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
+
 		UNION ALL
 		SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON s.TransId = b.TransId
-		WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
+			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
+		WHERE s.RequestId = @RequestId 
+			AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
 		
 		IF EXISTS (SELECT TOP 1 1 
 				FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) 
@@ -256,7 +277,9 @@ BEGIN
 			SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CASE WHEN ISNULL(b.betcheck,'') = '' THEN 0 ELSE b.betcheck END AS BetId, betteam, oddsid
 			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
 				INNER JOIN dbo.bettransm b WITH (NOLOCK) ON s.TransId = b.TransId
-			WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
+				INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
+			WHERE s.RequestId = @RequestId 
+				AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
 		END
 		
 		SELECT @LiveStatus = CASE WHEN kq.Live_cnt > 0 AND kq.NonLive_cnt > 0 THEN ' '
