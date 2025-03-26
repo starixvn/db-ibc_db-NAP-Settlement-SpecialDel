@@ -1189,7 +1189,7 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			SELECT RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+			SELECT RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds, MatchId
 			FROM #TransidInRequest
 		END
 
