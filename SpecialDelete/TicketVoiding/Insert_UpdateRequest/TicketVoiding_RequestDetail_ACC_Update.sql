@@ -102,7 +102,7 @@ BEGIN
 			  ,IsVoid14
 			  ,IsChecked
 			)
-		SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb ,isV14, IsChecked
+		SELECT MatchId ,TransId ,CustId ,BetType ,BetId ,IsMixParlay ,SiteDbGroupId ,IsVoid14, IsChecked
 		FROM OPENJSON(@Decompress_TransInfoJson) 
 		WITH( MatchId INT, TransId BIGINT ,CustId INT ,BetType SMALLINT ,BetId BIGINT ,IsMixParlay BIT ,SiteDbGroupId SMALLINT ,IsVoid14 BIT, IsChecked BIT
 		) tbl
