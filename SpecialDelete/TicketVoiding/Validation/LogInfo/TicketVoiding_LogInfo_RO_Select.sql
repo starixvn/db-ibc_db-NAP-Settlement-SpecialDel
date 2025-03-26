@@ -289,7 +289,7 @@ BEGIN
 			,FilterBettype
 			,FilterBetteam
 		)
-	SELECT b.matchid
+	SELECT @MatchId AS matchid
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -441,7 +441,7 @@ BEGIN
 				,FilterBettype
 				,FilterBetteam
 			)
-		SELECT sub.matchid
+		SELECT @MatchId AS matchid
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
@@ -805,19 +805,15 @@ BEGIN
 		,SUM(MainParlayCount) AS MainParlayCount
 	FROM #logInfo l
 
-	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
+	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
 		,transid AS 't'
 		,Subtransid  AS 's_t'
 		,custid AS  'c'           
 		,bettype AS 'btype'
 		,betid AS 'bid'
-		,li.VoidFromTime AS 'vft'
-		,li.VoidToTime AS 'vtt'
 		,IsMixParlay AS 'isP'
 		,SiteDBGroupID AS 'sitedb'
-		,@MatchId AS 'm_mid'
-	FROM #TVSTicketBets t
-		INNER JOIN #logInfo li ON t.matchid = li.MatchId
+	FROM #TVSTicketBets
 	FOR JSON PATH))
 	
 	-- 4. List ticket unmark/mark & Transinfo table (if any)

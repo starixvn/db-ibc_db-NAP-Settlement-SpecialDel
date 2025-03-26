@@ -79,7 +79,15 @@ BEGIN
 	
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	DECLARE @tmp_MissingTransId AS TABLE (TransId BIGINT PRIMARY KEY)
+	DECLARE @tmp_MissingTransId AS TABLE (TransId BIGINT PRIMARY KEY, MatchId INT)
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN matchid = @MatchId THEN 1
+					WHEN sporttype IN (50,8) AND (ParentID = @MatchId) THEN 1
+					ELSE 0 END
 
 	CREATE TABLE #TVSTicketBets (
 		GroupID               BIGINT,
@@ -160,11 +168,12 @@ BEGIN
 	CREATE TABLE #TmpTransid
 	(
 		TransId		BIGINT PRIMARY KEY
+	   ,MatchId		INT
 	   ,TicketType  TINYINT
 	)
 
-	INSERT INTO #TmpTransid (TransId,TicketType)
-	SELECT DISTINCT s.TransId, 1   --Single ticket (exclude cancel CO)
+	INSERT INTO #TmpTransid (TransId, MatchId, TicketType)
+	SELECT DISTINCT s.TransId, MatchId, 1   --Single ticket (exclude cancel CO)
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId 
 		AND ISNULL(IsCancelCO,0) = 0 
@@ -172,14 +181,14 @@ BEGIN
 		AND s.SiteDBGroupID = @SiteDBGroupID
 
 	UNION ALL 
-	SELECT DISTINCT s.TransId, 2 --Parlay ticket
+	SELECT DISTINCT s.TransId, MatchId, 2 --Parlay ticket
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId
 		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
 		AND s.SiteDBGroupID = @SiteDBGroupID
 
 	UNION ALL 
-	SELECT DISTINCT s.TransId, 3 --Cancel CO ticket
+	SELECT DISTINCT s.TransId, MatchId, 3 --Cancel CO ticket
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId AND IsCancelCO = 1
 		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
@@ -287,7 +296,7 @@ BEGIN
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 				,b.actual_stake AS ActualStake
-				,b.matchid
+				,d.matchid AS MatchId
 				,b.winlostdate
 				,b.SiteDBGroupID
 				,b.statuswinlost
@@ -297,11 +306,11 @@ BEGIN
 				,b.statusID
 		FROM #TmpTransid AS d
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
+			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			   AND b.SiteDBGroupID = @SiteDBGroupID
 			   AND d.TicketType <> 2
-			   AND b.matchid = @MatchId
 	
 		IF @IssueTypeId = 13
 		BEGIN
@@ -410,7 +419,7 @@ BEGIN
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 				,b.actual_stake AS ActualStake
-				,b.matchid
+				,d.matchid AS MatchId
 				,b.SiteDBGroupID
 				,b.statuswinlost
 				,b.modds
@@ -427,20 +436,18 @@ BEGIN
 					  ELSE NULL END AS GroupBettypeId
 		FROM	#TmpTransid AS d
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.transid
+			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
 			LEFT JOIN dbo.CashOutSelling AS c WITH (NOLOCK) ON b.TransId = c.TransID
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON b.bettype = f.BetType AND f.IssueTypeId = @IssueTypeId
 			LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = b.bettype
-		WHERE b.matchid = @MatchId 
-			AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
+		WHERE b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND d.TicketType <> 2
 			AND 1 = CASE WHEN TicketType = 3 AND b.betdaqid = - 1 THEN 0 ELSE 1 END--case cancel CO voided -> running - NO show betlist
 					
 		---get sub ticket of a mix parlay	
-		IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid AS d
-								  INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
-								  WHERE bm.matchid = @MatchId AND d.TicketType = 2 AND bm.statusID NOT IN (101, 102, 103))
+		IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid WHERE matchid = @MatchId AND TicketType = 2)
 		BEGIN		
 			INSERT INTO #TVSTicketBets(
 					GroupID			
@@ -529,7 +536,7 @@ BEGIN
 					,b.statusID AS mainstatusid
 					,b.ExtraInfo
 					,b.actual_stake AS ActualStake
-					,bm.matchid
+					,d.matchid AS MatchId
 					,bm.SiteDBGroupID
 					,0 AS IsCancelCashOut
 					,b.statuswinlost
@@ -545,15 +552,14 @@ BEGIN
 			FROM	#TmpTransid AS d
 					INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
 					INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
+					INNER JOIN @tmpMatchId tm ON tm.matchid = bm.matchid
 					LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON bm.bettype = f.BetType AND f.IssueTypeId = @IssueTypeId
 					LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = bm.bettype
-			WHERE	bm.matchid = @MatchId
-					AND bm.statusID NOT IN (101, 102, 103) -- reject, void, refund
+			WHERE	bm.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND bm.betfrom <> 'P'
 					AND bm.SiteDBGroupID = @SiteDBGroupID
 					AND d.TicketType = 2
-					AND b.matchid = 29
-					AND b.bettype = 29
+					AND b.matchid = 29 AND b.bettype = 29
 		END 
 		
 	END
@@ -646,23 +652,20 @@ BEGIN
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 			    ,b.actual_stake AS ActualStake
-				,b.matchid
+				,d.matchid AS MatchId
 				,b.SiteDBGroupID
 				,b.statuswinlost
 				,b.modds
 		FROM #TmpTransid AS d
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
+			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE b.statusID NOT IN (101, 102, 103) 
 			  AND b.SiteDBGroupID = @SiteDBGroupID
 			  AND d.TicketType <> 2
-			  AND b.matchid = @MatchId
-			
 		
 		---get sub ticket of a mix parlay	
-		IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid AS d
-								  INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
-								  WHERE bm.matchid = @MatchId AND d.TicketType = 2 AND bm.statusID NOT IN (101, 102, 103))
+		IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid WHERE matchid = @MatchId AND TicketType = 2)
 		BEGIN		
 			INSERT INTO #TVSTicketBets(
 					GroupID			
@@ -748,27 +751,26 @@ BEGIN
 					,b.statusID AS mainstatusid
 					,b.ExtraInfo
 					,b.actual_stake AS ActualStake
-					,bm.matchid
+					,d.matchid AS MatchId
 					,bm.SiteDBGroupID
 					,b.statuswinlost
 			FROM	#TmpTransid AS d
 					INNER JOIN bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
 					INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno
+					INNER JOIN @tmpMatchId tm ON tm.matchid = bm.matchid
 			WHERE	bm.statusID NOT IN (101, 102, 103)
 					AND bm.betfrom <> 'P'
 					AND bm.SiteDBGroupID = @SiteDBGroupID
 					AND d.TicketType = 2
-					AND b.matchid = 29
-					AND b.bettype = 29
-					AND bm.matchid  = @MatchId
+					AND b.matchid = 29 AND b.bettype = 29
 		END 
 	END
 
 	--Re-scan data for case miss by page split
-	INSERT INTO @tmp_MissingTransId (TransId)
-	SELECT d.TransId
+	INSERT INTO @tmp_MissingTransId (TransId, MatchId)
+	SELECT d.TransId, d.MatchId
 	FROM #TmpTransid AS d
-	INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
+		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
 	WHERE bm.statusID NOT IN (101, 102, 103)
 		AND d.TicketType = 2
 		AND NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets t WHERE t.Subtransid = d.transid)
@@ -863,7 +865,7 @@ BEGIN
 				,b.statusID AS mainstatusid
 				,b.ExtraInfo
 				,b.actual_stake AS ActualStake
-				,bm.matchid
+				,d.matchid AS MatchId
 				,bm.SiteDBGroupID
 				,0 AS IsCancelCashOut
 				,b.statuswinlost
@@ -881,8 +883,7 @@ BEGIN
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
 				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON bm.bettype = f.BetType AND f.IssueTypeId = @IssueTypeId
 				LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = bm.bettype
-		WHERE	bm.matchid = @MatchId
-				AND bm.statusID NOT IN (101, 102, 103) -- reject, void, refund
+		WHERE	bm.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND bm.betfrom <> 'P'
 				AND bm.SiteDBGroupID = @SiteDBGroupID
 				AND b.matchid = 29
