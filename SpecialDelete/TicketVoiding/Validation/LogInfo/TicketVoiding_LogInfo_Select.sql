@@ -221,14 +221,14 @@ BEGIN
 			,@IssueTypeId		   = @IssueTypeId
 			,@ReducedOverInfo	   = @ReducedOverInfo
 	END
-	ELSE IF @IssueTypeId = 21 --Not Participate (Use same SP with Reduced Over)
+	ELSE IF @IssueTypeId = 21 --Not Participate
 	BEGIN
-		EXEC dbo.TicketVoiding_LogInfo_RO_Select
+		EXEC dbo.TicketVoiding_LogInfo_NP_Select
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
-			,@ReducedOverInfo	   = @NotParticipateInfo
+			,@NotParticipateInfo   = @NotParticipateInfo
 	END
 	ELSE IF @IssueTypeId = 24 --Technical Error
 	BEGIN
