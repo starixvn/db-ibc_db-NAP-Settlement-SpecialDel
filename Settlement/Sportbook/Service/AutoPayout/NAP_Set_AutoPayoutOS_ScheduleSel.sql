@@ -16,6 +16,7 @@ AS
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 		- 20250120@Aries: Enhance the Validate Order for Auto Payout2 [Redmine:#209415]
+		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
 
 
 */
@@ -54,10 +55,19 @@ BEGIN
 						,AP_EAR_PrimaryProvider  VARCHAR(500),AP_EAR_TotalPrimaryProvider  TINYINT, AP_EAR_SecondaryProvider  VARCHAR(500), AP_EAR_TotalSecondaryProvider TINYINT
 						,AP_EAR_InactiveProvider  VARCHAR(500)
 
-						,GameType TINYINT)
+						,GameType TINYINT
+						
+						,hthomescore	INT
+						,htawayscore	INT
+						,finalhomescore	INT
+						,finalawayscore	INT)
 
 	IF OBJECT_ID('tempdb..#MatchResource') IS NOT NULL DROP TABLE #MatchResource
 	CREATE TABLE #MatchResource (matchId INT,IsTrader SMALLINT DEFAULT 0,ResourceId VARCHAR(20), ResourceType SMALLINT,CreatedDate DATETIME,TotalProvider TINYINT DEFAULT 0,TotalPrimaryProvider TINYINT DEFAULT 0,TotalSecondaryProvider TINYINT DEFAULT 0,AP_TotalSecondaryProvider TINYINT)
+
+	IF OBJECT_ID('tempdb..#MatchResourceConfirmDate') IS NOT NULL DROP TABLE #MatchResourceConfirmDate
+	CREATE TABLE #MatchResourceConfirmDate (matchId INT,ResourceId VARCHAR(20),HomeValue VARCHAR(50), AwayValue VARCHAR(50), CreatedDate DATETIME)
+
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		 @SPName = @procName
@@ -129,7 +139,12 @@ BEGIN
 					  ,AP_EAR_TotalSecondaryProvider
 					  ,AP_EAR_InactiveProvider
 
-					  ,GameType)
+					  ,GameType
+					  
+					  ,hthomescore
+					  ,htawayscore
+					  ,finalhomescore	
+					  ,finalawayscore)
 	SELECT m.matchId,m.eventstatus,m.leagueid,m.sporttype
 	      ,st.ResultTable,st.ExternalResultTable
 		  ,st.AP_Check_R_MactchCompleted, st.AP_Check_R_Hold,st.AP_Check_R_CnfRefund
@@ -157,7 +172,14 @@ BEGIN
 		  ,COALESCE(ms.EAR_InactiveProvider,ss.EAR_InactiveProvider,'') AS AP_EAR_InactiveProvider
 		  
 		  ,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
+
+		  ,IIF(mr.ConfirmHT > 0 AND m.hthomescore IS NOT NULL,m.hthomescore, NULL)
+		  ,IIF(mr.ConfirmHT > 0 AND m.htawayscore IS NOT NULL,m.htawayscore, NULL) 
+		  ,IIF(mr.ConfirmFT > 0 AND m.finalhomescore IS NOT NULL,m.finalhomescore, NULL) 
+		  ,IIF(mr.ConfirmFT > 0 AND m.finalawayscore IS NOT NULL,m.finalawayscore, NULL) 
+		  
 	FROM dbo.match AS m WITH(NOLOCK)
+		INNER JOIN dbo.match_remark AS mr  WITH(NOLOCK) ON mr.matchid =  m.matchid
 		INNER JOIN dbo.League AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
 		INNER JOIN @ResultTableSetting AS st ON st.sporttype = m.sporttype
 		LEFT JOIN  dbo.SettlementSetting AS ss WITH(NOLOCK) ON m.leagueid = ss.leagueid AND ss.AutoType = 6
@@ -171,7 +193,6 @@ BEGIN
 					 WHEN AP_Check_M_Setting = 1 AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 33 = 0 THEN 0
 					 ELSE 1 END
 		AND lf.leagueid IS NULL
-	
 
 	IF EXISTS(SELECT 1 FROM @ResultTableSetting WHERE ExternalResultTable = 1)
 	BEGIN 
@@ -328,6 +349,53 @@ BEGIN
 						 ELSE 1 END	
 			AND CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_InactiveProvider,m.AP_EAR_InactiveProvider) +',') = 0
         GROUP BY m.matchid,r.ResourceId,f.ResourceType
+	END
+
+	IF EXISTS(SELECT 1 FROM @ResultTableSetting WHERE ResultTable = 0)
+	BEGIN
+		
+		INSERT INTO #MatchResourceConfirmDate (matchId,ResourceId,HomeValue, AwayValue, CreatedDate)
+		SELECT m.MatchId
+			  ,r.ResourceID
+			  ,IIF (r.ResourceID = '00', CAST(m.finalhomescore AS VARCHAR(50)),  CAST(m.hthomescore AS VARCHAR(50)))
+			  ,IIF (r.ResourceID = '00', CAST(m.finalawayscore AS VARCHAR(50)),  CAST(m.htawayscore AS VARCHAR(50)))
+			  ,pe.CreateDate
+		FROM #Match AS m
+			CROSS APPLY (SELECT r.ResourceID
+						 FROM (VALUES ('00'),('01')) AS r(ResourceID)
+						 WHERE 1 = CASE WHEN r.ResourceID = '00' AND m.finalhomescore IS NOT NULL THEN 1
+										WHEN r.ResourceID = '01' AND m.hthomescore IS NOT NULL THEN 1
+										ELSE 0
+									END
+			) AS r 
+			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
+						 FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
+						 WHERE os.MatchId = m.matchid
+								AND os.ResourceId = r.ResourceID 
+								AND ISNULL(os.SourceID,0) = 0
+						) AS ap
+			OUTER APPLY (
+					SELECT TOP 1 pr.ProviderExternalId AS LastProviderExternalId
+					FROM dbo.ProviderExternalResultDetailOS AS pr WITH(NOLOCK)
+					WHERE pr.MatchId = m.matchid 
+						AND pr.ResourceId = r.ResourceID
+						AND pr.SourceId = 97
+					ORDER BY pr.ProviderExternalId DESC
+				) AS pid
+			OUTER APPLY (
+					SELECT TOP 1 p.CreateDate  
+					FROM dbo.ProviderExternalResultDetailOS AS p WITH(NOLOCK)
+					WHERE p.ProviderExternalId = pid.LastProviderExternalId
+						AND p.HomeValue = IIF(r.ResourceID = '00', CAST(m.finalhomescore AS VARCHAR(50)),  CAST(m.hthomescore AS VARCHAR(50)))
+						AND p.AwayValue = IIF(r.ResourceID = '00', CAST(m.finalawayscore AS VARCHAR(50)),  CAST(m.htawayscore AS VARCHAR(50)))
+				) AS pe
+		WHERE m.ResultTable = 0
+			AND ap.IsExistsAP IS NULL
+
+		INSERT INTO #MatchResource(matchId,ResourceId,CreatedDate,ResourceType,IsTrader)
+		SELECT matchId,ResourceId,CreatedDate,1 AS ResourceType,1 AS IsTrader
+		FROM #MatchResourceConfirmDate
+		WHERE CreatedDate IS NOT NULL
 	END
 
 	IF EXISTS(SELECT 1 FROM @ResultTableSetting WHERE ResultTable = 1)
@@ -496,6 +564,9 @@ BEGIN
 		) AS ssp
 	WHERE s.ResourceStatus != 0
 
+	SELECT matchId,ResourceId,HomeValue, AwayValue
+	FROM #MatchResourceConfirmDate
+	WHERE CreatedDate IS NULL
 END
 GO
 

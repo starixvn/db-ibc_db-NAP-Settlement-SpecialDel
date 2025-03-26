@@ -20,6 +20,7 @@ AS
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 		- 20250120@Aries: Enhance the Validate Order for Auto Payout2 [Redmine:#209415]
+		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
 
 	Param's Explanation:
 
@@ -54,6 +55,45 @@ BEGIN
 	SELECT DISTINCT value
 	FROM STRING_SPLIT(@ResourceIds,',')
 	WHERE value != ''
+
+	IF @ResultTable = 0
+	BEGIN
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate)
+		SELECT m.MatchId
+			  ,r.ResourceID
+			  ,IIF (r.ResourceID = '00', CAST(m.finalhomescore AS VARCHAR(50)),  CAST(m.hthomescore AS VARCHAR(50)))
+			  ,IIF (r.ResourceID = '00', CAST(m.finalawayscore AS VARCHAR(50)),  CAST(m.htawayscore AS VARCHAR(50)))
+			  ,3 AS ResultStatusID
+			  ,NULL AS SettlementStatusID
+			  ,pe.CreateDate
+		FROM dbo.match AS m WITH(NOLOCK)
+			INNER JOIN dbo.match_remark AS mr  WITH(NOLOCK) ON mr.matchid =  m.matchid
+			CROSS APPLY (SELECT r.ResourceID
+						 FROM (VALUES ('00'),('01')) AS r(ResourceID)
+						 WHERE 1 = CASE WHEN mr.ConfirmFT > 0 AND r.ResourceID = '00' AND m.finalhomescore IS NOT NULL THEN 1
+										WHEN mr.ConfirmHT > 0 AND r.ResourceID = '01' AND m.hthomescore IS NOT NULL THEN 1
+										ELSE 0
+									END
+			) AS r 
+			CROSS APPLY (
+					SELECT TOP 1 pr.ProviderExternalId AS LastProviderExternalId
+					FROM dbo.ProviderExternalResultDetailOS AS pr WITH(NOLOCK)
+					WHERE pr.MatchId = m.matchid 
+						AND pr.ResourceId = r.ResourceID
+						AND pr.SourceId = 97
+					ORDER BY pr.ProviderExternalId DESC
+				) AS pid
+			CROSS APPLY (
+					SELECT TOP 1 p.CreateDate  
+					FROM dbo.ProviderExternalResultDetailOS AS p WITH(NOLOCK)
+					WHERE p.ProviderExternalId = pid.LastProviderExternalId
+						AND p.HomeValue = IIF(r.ResourceID = '00', CAST(m.finalhomescore AS VARCHAR(50)),  CAST(m.hthomescore AS VARCHAR(50)))
+						AND p.AwayValue = IIF(r.ResourceID = '00', CAST(m.finalawayscore AS VARCHAR(50)),  CAST(m.htawayscore AS VARCHAR(50)))
+				) AS pe
+		WHERE m.matchid = @MatchId
+			AND r.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)
+	
+	END
 
 	IF @ResultTable = 1
 	BEGIN
