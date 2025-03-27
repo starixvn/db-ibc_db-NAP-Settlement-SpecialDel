@@ -80,7 +80,7 @@ BEGIN
 
 		DELETE TOP(@batch) m3t
 		FROM dbo.Match3rd_Tracking m3t WITH(ROWLOCK, UPDLOCK)
-		WHERE m3t.UpdateTime < @compareDate
+		WHERE m3t.UpdateTimeHistory < @compareDate
 	
 		IF @@ROWCOUNT < @batch
 			BREAK			

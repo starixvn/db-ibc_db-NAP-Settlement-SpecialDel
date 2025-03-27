@@ -33,7 +33,7 @@ CREATE TABLE [dbo].[Match3rd_Tracking](
 	[finalhomescore] [int] NULL,
 	[finalawayscore] [int] NULL,
 	[matchcode] [nvarchar](50) NULL,
-	[UpdateTime]	[DATETIME]
+	[UpdateTimeHistory]	[DATETIME]
     CONSTRAINT [PK_Match3rd_Tracking_RowId] PRIMARY KEY NONCLUSTERED 
     (
 	    [RowId] ASC
@@ -45,9 +45,9 @@ CREATE CLUSTERED INDEX [CIX_Match3rd_Tracking_Match3rdId] ON [dbo].[Match3rd_Tra
 	[Match3rdId]
 )
 
-CREATE CLUSTERED INDEX [IX_Match3rd_Tracking_UpdateTime] ON [dbo].[Match3rd_Tracking]
+CREATE NONCLUSTERED INDEX [IX_Match3rd_Tracking_UpdateTimeHistory] ON [dbo].[Match3rd_Tracking]
 (
-	[UpdateTime]
+	[UpdateTimeHistory]
 )
 
 

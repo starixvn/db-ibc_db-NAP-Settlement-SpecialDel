@@ -9,7 +9,7 @@
 								1. Match3rd_Tracking
 ----------------------------------------------------------------------------------------*/
 
-ALTER TRIGGER [dbo].[Match3rd_Upd] ON [dbo].[Match3rd] 
+CREATE TRIGGER [dbo].[Match3rd_Upd] ON [dbo].[Match3rd] 
 AFTER UPDATE
 AS
 	SET NOCOUNT ON
@@ -37,7 +37,7 @@ AS
 		,finalhomescore
 		,finalawayscore
 		,matchcode
-		,UpdateTime		
+		,UpdateTimeHistory		
 	)
 	SELECT d.Match3rdId
 			, d.League3rdId AS League3rdId
@@ -61,7 +61,7 @@ AS
 			, d.finalhomescore AS finalhomescore
 			, d.finalawayscore AS finalawayscore
 			, d.matchcode AS matchcode
-			, GETDATE() AS UpdateTime
+			, GETDATE() AS UpdateTimeHistory
 	FROM INSERTED i
 		INNER JOIN  DELETED d ON i.Match3rdId = d.Match3rdId
 
@@ -70,7 +70,7 @@ GO
 /*----------------------------------------------------------------------------------------
 								2. VSOutright_Tracking
 ----------------------------------------------------------------------------------------*/
-ALTER TRIGGER [dbo].[VSOutright_Upd] ON [dbo].VSOutright 
+CREATE TRIGGER [dbo].[VSOutright_Upd] ON [dbo].VSOutright 
 AFTER UPDATE
 AS
 	SET NOCOUNT ON
@@ -123,7 +123,7 @@ GO
 /*----------------------------------------------------------------------------------------
 								3. VSRaceInfo_Tracking
 ----------------------------------------------------------------------------------------*/
-ALTER TRIGGER [dbo].[VSRaceInfo_Upd] ON [dbo].VSRaceInfo 
+CREATE TRIGGER [dbo].[VSRaceInfo_Upd] ON [dbo].VSRaceInfo 
 AFTER UPDATE
 AS
 	SET NOCOUNT ON
