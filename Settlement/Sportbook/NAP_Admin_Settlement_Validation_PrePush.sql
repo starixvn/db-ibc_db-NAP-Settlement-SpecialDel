@@ -33,6 +33,7 @@ AS
 		- 20240502@204698: Direct Payout- Kabadi/Icehockey- missing check live odds are closed [Redmine:#204698]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20241002@Kathy: direct payout for early soccer [Redmine:#211079]
+		- 20250319@Jane: Support SOP and AutoPayout2 for Beach Volleyball - [Redmine:#217843]
      
     Param's Explanation:
 
@@ -177,7 +178,7 @@ BEGIN
 
 	END
 	
-	ELSE IF @CheckType = 1 AND @sporttype IN (6,18)
+	ELSE IF @CheckType = 1 AND @sporttype IN (6,18,45)
 	BEGIN
 		INSERT INTO @tmpMatchRunningOdds ( Matchid )
 				SELECT DISTINCT o.matchid
