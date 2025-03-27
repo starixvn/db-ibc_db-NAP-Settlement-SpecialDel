@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
+ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName_UAT1]
 (
 	 @UserNames			NVARCHAR(MAX) = ''
 	,@RequestId			INT = 0
@@ -97,7 +97,7 @@ BEGIN
 			,ci.roleid
 			,ci.credit
 	FROM STRING_SPLIT(@UserNames, ',') l
-		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = ci.username
+		LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = ci.username
 
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
@@ -156,9 +156,7 @@ BEGIN
 
 	--1. Check valid
 	SET @invalidUserName = STUFF((SELECT  ',' + l.username
-								  FROM #InputUsernameList l
-									LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.username = ci.username
-									WHERE ci.custid IS NULL	
+								  FROM #InputUsernameList l	WHERE custid IS NULL	
 									FOR XML PATH ('')
 									),1,1,'')
 
@@ -184,7 +182,7 @@ BEGIN
 	
 	IF @IsVoidAllArchivedTickets = 1
 	BEGIN
-		SET @FromWinlostDate_14 = (SELECT MIN(winlostdate) FROM #tmpTransInfo)
+		SET @FromWinlostDate_14 = (SELECT MIN(winlostdate) FROM dbo.bettrans14 WITH (NOLOCK))
 
 		SELECT @FromWinlostDate_14 = CASE WHEN @FromWinlostDate_14 <= @FromDate THEN @FromDate ELSE @FromWinlostDate_14 END
 		SET @ToWinlostDate_14 = @ToDate
@@ -408,6 +406,125 @@ BEGIN
 						AND ml.LeagueGroupID IS NOT NULL THEN 1								
 				ELSE 0 END	
 		AND dc.custid IS NULL
+
+	IF @FromWinlostDate_14 IS NOT NULL
+	BEGIN
+		--Search single tickets (bettrans14)
+		INSERT INTO #tmpTransInfo( 
+			   matchid
+			  ,transid 
+			  ,refno
+			  ,custid		
+			  ,bettype
+			  ,betid
+			  ,statusID
+			  ,recommend
+			  ,mrecommend
+			  ,srecommend
+			  ,winlostdate
+			  ,IsMixParlay
+			  ,SiteDBGroupID
+			  ,IsVoid14
+			  ,winlost
+			  ,actual_stake
+			  ,modds
+			  ,transdate 
+			  ,checktime 
+			  ,hdp1 
+			  ,hdp2 
+			  ,livehomescore 
+			  ,liveawayscore 
+			  ,liveindicator 
+			  ,betteam 
+			  ,betdaqid 
+			  ,betfrom 
+			  ,statuswinlost 
+			  ,odds 
+			  ,oddstype 
+			  ,betcheck 
+			  ,stake 
+			  ,Status 
+			  ,oddsid 
+			  ,CurrencyName
+			  ,oddsspread
+			  ,Transdesc
+			  ,WalletType
+			  ,RefCode
+			  ,ExtraInfo
+			  ,username
+			  ,credit
+			  --,AdjustVoidLimit
+			)
+		SELECT matchid
+			  ,transid 
+			  ,refno
+			  ,b.custid		
+			  ,b.bettype
+			  ,betid
+			  ,statusID
+			  ,b.recommend
+			  ,b.mrecommend
+			  ,b.srecommend
+			  ,winlostdate
+			  ,CASE WHEN b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END AS IsMixParlay 
+			  ,b.SiteDBGroupID
+			  ,1 AS IsVoid14
+			  ,(winlost - actual_stake) AS winlost
+			  ,actual_stake
+			  ,modds
+			  ,transdate 
+			  ,checktime 
+			  ,hdp1 
+			  ,hdp2 
+			  ,livehomescore 
+			  ,liveawayscore 
+			  ,liveindicator 
+			  ,betteam 
+			  ,betdaqid 
+			  ,betfrom 
+			  ,statuswinlost 
+			  ,odds 
+			  ,oddstype 
+			  ,betcheck 
+			  ,stake 
+			  ,Status 
+			  ,oddsid 
+			  ,CurrencyName
+			  ,oddsspread
+			  ,Transdesc
+			  ,WalletType
+			  ,RefCode
+			  ,ExtraInfo
+			  ,c.Username
+			  ,c.credit
+			  --,c.AdjustLimit
+		FROM dbo.bettrans14 b WITH (NOLOCK)
+			INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+			OUTER APPLY (
+					SELECT TOP 1 1 LeagueGroupID 
+					FROM dbo.match14 m WITH (NOLOCK)
+						INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+					WHERE m.matchid = b.matchid
+						AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
+				)ml
+			LEFT JOIN CustDB.dbo.Dep_CustSuper dc WITH(NOLOCK) ON dc.custid = b.srecommend
+		WHERE b.statusID NOT IN (101, 102, 103)
+			AND b.betfrom <> 'P'
+			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND b.winlostdate BETWEEN @FromWinlostDate_14 AND @ToWinlostDate_14 
+			AND 1 = CASE 
+						WHEN @IsSB = 1 
+							AND b.bettype BETWEEN 801 AND 806 
+							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
+						WHEN (@IsSB = 1 OR @IsOutright = 1 OR @IsParlay = 1)
+							AND b.bettype NOT BETWEEN 801 AND 806-- MG
+							AND ml.LeagueGroupID IS NULL THEN 1
+						WHEN @IsSaba = 1 
+							AND ml.LeagueGroupID IS NOT NULL THEN 1								
+					ELSE 0 END	
+			AND dc.custid IS NULL
+	END
 
 	---UPDATE column show Affected Ticket popup
 	BEGIN
