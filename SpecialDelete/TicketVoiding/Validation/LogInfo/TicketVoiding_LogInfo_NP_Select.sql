@@ -32,28 +32,20 @@ BEGIN
 			,@UnmarkTransIds		  VARCHAR(MAX) = ''
 			,@OldActionId			  TINYINT
 			,@TransInfoJson			  VARBINARY(MAX) = NULL
-			,@SiteDBGroupID			SMALLINT
-
+			,@NotParticipateInfoXML   XML = NULL
+			,@MatchId				  INT = 0
+			,@SiteDBGroupID			  SMALLINT
+	
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #FilterInfo(
 		MatchId				INT
-		,Bettype				SMALLINT
-		,FilterSet          NVARCHAR(50)
-        ,FilterRuns		    SMALLMONEY
+		,Bettype			SMALLINT
 		,FilterTransdesc	NVARCHAR(2000)
-		,FilterLive			BIT
-		,FilterNonLive		BIT
-		,IsFancy			BIT DEFAULT (0)
 	)
 	DECLARE @tmpMatchId TABLE (MatchId INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
-	DECLARE	 @NotParticipateInfoXML   XML = NULL
-		    ,@VoidFromTime			  DATETIME = NULL
-		    ,@VoidToTime			  DATETIME = NULL
-			,@MatchId				  INT = 0
-	
 	CREATE TABLE #logInfo (
 		 MatchId				INT
 		,LiveScores				NVARCHAR(300)
@@ -66,7 +58,6 @@ BEGIN
 	)
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
-
 	CREATE TABLE #logInfoVoidPage (RequestId INT, MatchId INT, InstantlySettleCount INT, SettleCount INT)
 	CREATE TABLE #TVSTicketBets(
 	   matchid INT
@@ -132,13 +123,8 @@ BEGIN
 	  ,CheckTimeCashOut DATETIME
 	  ,WalletType TINYINT
 	  ,RefCode BIGINT
-	  ,FilterSet  NVARCHAR(50)
-	  ,FilterLiveIndicator BIT
 	  ,FilterTransdesc NVARCHAR(1000)
-	  ,FilterHdp1 SMALLMONEY
-	  ,FilterHdp2 SMALLMONEY
 	  ,FilterBettype	SMALLINT
-	  ,FilterBetteam NVARCHAR(10)
 	)
 
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
@@ -151,27 +137,17 @@ BEGIN
 		)
 	
 	SET @NotParticipateInfoXML = CONVERT(XML, @NotParticipateInfo)
-	INSERT INTO #FilterInfo (MatchId, Bettype, FilterTransdesc, FilterSet, FilterRuns, FilterLive, FilterNonLive)
+	INSERT INTO #FilterInfo (MatchId, FilterTransdesc, Bettype)
 	SELECT t.c.value('@MatchId','INT')		
-		,bt.bettype
 		,t.c.value('@PlayerId','NVARCHAR(1000)')
-		,t.c.value('@FilterWicketOver','NVARCHAR(50)')
-		,t.c.value('@Runs','SMALLMONEY')
-		,t.c.value('@Live','BIT')
-		,t.c.value('@NonLive','BIT')
+		,bt.bettype
 	FROM @NotParticipateInfoXML.nodes('root/r') t(c)
 		CROSS APPLY (
-			SELECT value AS bettype
+			SELECT value AS BetType
 			FROM STRING_SPLIT (t.c.value('@BetTypeIds','VARCHAR(2000)'),',')
 		)bt
-		
 	OPTION (OPTIMIZE FOR (@NotParticipateInfoXML = NULL))
 	
-	UPDATE d SET d.IsFancy = 1
-	FROM #FilterInfo d
-		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = d.Bettype
-	WHERE bt.typenamee LIKE '%Fancy'
-
 	SET @MatchId = (SELECT TOP(1) MatchId FROM #FilterInfo)
 
 	--Init Validation
@@ -276,13 +252,8 @@ BEGIN
 			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
-			,FilterSet
-			,FilterLiveIndicator
 			,FilterTransdesc
-			,FilterHdp1
-			,FilterHdp2
 			,FilterBettype
-			,FilterBetteam
 		)
 	SELECT @MatchId AS matchid
 		,b.TransId
@@ -341,13 +312,8 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
-		,CONVERT(NVARCHAR(50), b.betid) AS FilterSet
-		,b.liveindicator AS FilterLiveIndicator
 		,b.transdesc AS FilterTransdesc
-		,b.hdp1 AS FilterHdp1
-		,b.hdp2 AS FilterHdp2
 		,b.bettype AS FilterBettype
-		,b.betteam AS FilterBetteam
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN @tmpMatchId m ON m.MatchId = b.matchid
 		INNER JOIN @bettype_tmp d ON b.bettype = d.bettype
@@ -428,13 +394,8 @@ BEGIN
 				,SubTransdesc  
 				,modds 
 				,SiteDBGroupID
-				,FilterSet
-				,FilterLiveIndicator
 				,FilterTransdesc
-				,FilterHdp1
-				,FilterHdp2
 				,FilterBettype
-				,FilterBetteam
 			)
 		SELECT @MatchId AS matchid
 			,b.TransId
@@ -497,13 +458,8 @@ BEGIN
 			,sub.transdesc SubTransdesc  
 			,b.modds
 			,sub.SiteDBGroupID
-			,sub.betcheck AS FilterSet
-			,sub.liveindicator AS FilterLiveIndicator
 			,sub.transdesc AS FilterTransdesc
-			,sub.hdp1 AS FilterHdp1
-			,sub.hdp2 AS FilterHdp2
 			,sub.bettype AS FilterBettype
-			,sub.betteam AS FilterBetteam
 		FROM @tmpMatchId d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -525,16 +481,7 @@ BEGIN
 			SELECT TOP 1 Bettype
 			FROM #FilterInfo f
 			WHERE f.Bettype = b.FilterBettype
-				AND 1 = CASE WHEN f.FilterLive = 1 AND b.FilterLiveIndicator = 1 THEN 1
-							WHEN f.FilterNonLive = 1 AND b.FilterLiveIndicator = 0 THEN 1
-					ELSE 0 END
-				AND (f.FilterSet = '' OR b.FilterSet LIKE f.FilterSet + '%')
-				AND (f.FilterTransdesc = '' OR b.FilterTransdesc = f.FilterTransdesc)
-				AND 1 = CASE WHEN f.FilterRuns = '' THEN 1
-							WHEN f.FilterRuns <> '' AND f.IsFancy = 0 AND b.FilterHdp1 > FilterRuns THEN 1
-							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 > f.FilterRuns THEN 1
-							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'n' AND b.FilterHdp1 > f.FilterRuns THEN 1
-					ELSE 0 END
+				AND b.FilterTransdesc = f.FilterTransdesc
 		)t
 	WHERE t.Bettype IS NULL
 

@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select]
 	 @MatchId			INT
     ,@RequestId			INT = NULL
     ,@IssueTypeId		INT = NULL
-	,@RequestDetailId INT = NULL --Support WMO(12) issuetype
+	,@RequestDetailId   INT = NULL --Support WMO(12) issuetype
 )
 AS
 /*	Created by: Kathy
@@ -173,10 +173,12 @@ BEGIN
 	)
 
 	INSERT INTO #TmpTransid (TransId, MatchId, TicketType)
-	SELECT DISTINCT s.TransId, MatchId, 1   --Single ticket (exclude cancel CO)
+	SELECT DISTINCT s.TransId
+			, MatchId
+			, CASE WHEN IsCancelCO = 1 THEN 3  --Cancel CO ticket
+				   ELSE 1 END AS TicketType	--Single ticket (exclude cancel CO)
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId 
-		AND ISNULL(IsCancelCO,0) = 0 
 		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
 		AND s.SiteDBGroupID = @SiteDBGroupID
 
@@ -184,13 +186,6 @@ BEGIN
 	SELECT DISTINCT s.TransId, MatchId, 2 --Parlay ticket
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId
-		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
-		AND s.SiteDBGroupID = @SiteDBGroupID
-
-	UNION ALL 
-	SELECT DISTINCT s.TransId, MatchId, 3 --Cancel CO ticket
-	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK)
-	WHERE s.RequestId = @RequestId AND IsCancelCO = 1
 		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
 		AND s.SiteDBGroupID = @SiteDBGroupID
 
@@ -410,7 +405,7 @@ BEGIN
 				,b.Transdesc
 				,b.betdaqid
 				,b.ExtraInfo
-				,CASE WHEN b.betdaqid = -2 AND ISNULL(CASE WHEN d.TicketType = 3 AND b.betdaqid = -2 THEN 1 ELSE 0 END,0) = 0 THEN 1 ELSE 0 END AS IsCashOut
+				,CASE WHEN d.TicketType = 1 AND b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
