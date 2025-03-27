@@ -227,6 +227,7 @@ BEGIN
 	--Init Validation
 	INSERT INTO @Validation (MatchId, ScoreId, LiveScores)
 	SELECT DISTINCT MatchId, ScoreId, CAST(livehomescore AS VARCHAR(10)) + '-' + CAST(liveawayscore AS VARCHAR(10)) AS LiveScores
+	FROM #FilterInfo
 
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -1287,7 +1288,7 @@ BEGIN
 					,1,2,'') AS TransIds
 				FROM #TransidInRequest r
 					INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
-				GROUP BY r.RequestId, r.ScoreId, c.username, MatchId
+				GROUP BY MatchId, r.RequestId, r.ScoreId, c.username
 			END
 			ELSE
 			BEGIN 

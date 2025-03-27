@@ -36,93 +36,22 @@ BEGIN
 		    ,@SiteDBGroupID			  SMALLINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-
-	-- Constant
-	DECLARE @MBCGroup_Name	VARCHAR(50) = 'MBC Group'
-		   ,@789y_Name		VARCHAR(50) = '789y'
-		   ,@777_Name		VARCHAR(50) = '777'
-
-	CREATE TABLE #FilterInfo (
-		 MatchId				INT
-		,CurrencyIds			VARCHAR(MAX)
-		,LicenseeNames			VARCHAR(MAX)
+	DECLARE @Validation AS TABLE (
+		 MatchId                 INT
+		,IsInValidTotalTickets   BIT DEFAULT(0) 
+		,IsExistedInOtherRequest BIT DEFAULT(0) 
+		,IsHasSettledTicket		 BIT DEFAULT(0) 
+		,IsHasInstantlySettledTicket BIT DEFAULT(0) 
+		,LogInfoTicketsJson		 VARCHAR(MAX)
 	)
-
-	SET @WrongOfferedNameXML = CONVERT(XML, @WrongOfferedNameInfo)
-	INSERT INTO #FilterInfo (MatchId, CurrencyIds ,LicenseeNames)
-	SELECT  t.c.value('@MatchId','INT')
-		  , t.c.value('@CurrencyIds','VARCHAR(MAX)')
-		  , t.c.value('@LicenseeNames','VARCHAR(MAX)')
-	FROM @WrongOfferedNameXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@WrongOfferedNameXML = NULL)) 
-
-	SELECT @MatchId = MatchId
-		  ,@CurrencyIds = CurrencyIds
-		  ,@LicenseeNames = LicenseeNames
-	FROM #FilterInfo
 
 	DECLARE @tmpCurrencyIds AS TABLE (CurrencyId INT)
 	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
 	DECLARE @tmpLicenseeNames TABLE(LicenseeName VARCHAR(100), GroupName VARCHAR(100))	
 	DECLARE @tmpUIRepresentativeLicenseeGroupNames TABLE (GroupName VARCHAR(100))	
-	
-	INSERT INTO @tmpCurrencyIds(CurrencyId)
-	SELECT value AS CurrencyId
-	FROM STRING_SPLIT(@CurrencyIds, ',') 
-	WHERE value <> ''		 		
-
-	INSERT INTO @tmpLicenseeNames(LicenseeName, GroupName)
-	SELECT ss.value AS LicenseeName, ss.value AS GroupName
-	FROM STRING_SPLIT(@LicenseeNames, ',') ss
-	WHERE value <> ''
-
-	-- Replace all UI representative groups (MBCGroup and 789y) by their real credit licensees
-	DELETE FROM @tmpLicenseeNames 
-	OUTPUT DELETED.GroupName 
-			INTO @tmpUIRepresentativeLicenseeGroupNames(GroupName)
-	WHERE LicenseeName IN (@MBCGroup_Name, @789y_Name, @777_Name)
-	
-	IF @@ROWCOUNT > 0
-	BEGIN
-		;WITH CTE_CreditSite AS
-		(
-			SELECT [site], ISNULL(SiteLabel,'') AS SiteLabel
-			FROM CustDB.dbo.Site WITH(NOLOCK) 
-			WHERE isLicensee = 0		  
-			  AND isActive = 1
-		)
-		INSERT INTO @tmpLicenseeNames(LicenseeName, GroupName)
-		SELECT cte.[site] AS LicenseeName, t.GroupName
-		FROM @tmpUIRepresentativeLicenseeGroupNames AS t
-			 CROSS APPLY (
-							SELECT cte.[site]
-							FROM CTE_CreditSite cte
-							WHERE 1 = CASE
-										  WHEN t.GroupName = @MBCGroup_Name AND cte.SiteLabel NOT IN (@789y_Name, @777_Name) THEN 1
-										  WHEN t.GroupName = @789y_Name AND cte.SiteLabel = @789y_Name THEN 1
-										  WHEN t.GroupName = @777_Name AND cte.SiteLabel = @777_Name THEN 1
-										  ELSE 0 
-									  END
-						 ) AS cte
-	END					 		
-
-	INSERT INTO #FilterInfo (MatchId)
-	SELECT MatchId
-	FROM dbo.match m WITH(NOLOCK)
-	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
-				   WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID = @MatchId THEN 1
-			       ELSE 0 END
-
-	DECLARE @Validation AS TABLE (
-			 MatchId                 INT
-			,IsInValidTotalTickets   BIT DEFAULT(0) 
-			,IsExistedInOtherRequest BIT DEFAULT(0) 
-			,IsHasSettledTicket		 BIT DEFAULT(0) 
-			,IsHasInstantlySettledTicket BIT DEFAULT(0) 
-			,LogInfoTicketsJson		 VARCHAR(MAX)
-		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tmpMatchId TABLE (MatchId INT)
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
 	CREATE TABLE #TVSTicketBets(
@@ -198,6 +127,83 @@ BEGIN
 	  ,GroupName VARCHAR(100)
 	  ,SettledType		 TINYINT -- 1: Instant Settlement, 2: Normal Settlement, 3: SABA Time Machine Settlement
 	)
+	
+			-- Constant
+	DECLARE @MBCGroup_Name	VARCHAR(50) = 'MBC Group'
+		   ,@789y_Name		VARCHAR(50) = '789y'
+		   ,@777_Name		VARCHAR(50) = '777'
+
+	CREATE TABLE #FilterInfo (
+		 MatchId				INT
+		,CurrencyIds			VARCHAR(MAX)
+		,LicenseeNames			VARCHAR(MAX)
+	)
+	
+	SET @WrongOfferedNameXML = CONVERT(XML, @WrongOfferedNameInfo)
+	INSERT INTO #FilterInfo (MatchId, CurrencyIds ,LicenseeNames)
+	SELECT  t.c.value('@MatchId','INT')
+		  , t.c.value('@CurrencyIds','VARCHAR(MAX)')
+		  , t.c.value('@LicenseeNames','VARCHAR(MAX)')
+	FROM @WrongOfferedNameXML.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@WrongOfferedNameXML = NULL)) 
+
+	--Init Validation
+	INSERT INTO @Validation (MatchId)
+	SELECT MatchId
+	FROM #FilterInfo
+
+	SELECT @MatchId = MatchId
+		  ,@CurrencyIds = CurrencyIds
+		  ,@LicenseeNames = LicenseeNames
+	FROM #FilterInfo
+
+	INSERT INTO @tmpCurrencyIds(CurrencyId)
+	SELECT value AS CurrencyId
+	FROM STRING_SPLIT(@CurrencyIds, ',') 
+	WHERE value <> ''		 		
+
+	INSERT INTO @tmpLicenseeNames(LicenseeName, GroupName)
+	SELECT ss.value AS LicenseeName, ss.value AS GroupName
+	FROM STRING_SPLIT(@LicenseeNames, ',') ss
+	WHERE value <> ''
+
+	-- Replace all UI representative groups (MBCGroup and 789y) by their real credit licensees
+	DELETE FROM @tmpLicenseeNames 
+	OUTPUT DELETED.GroupName 
+			INTO @tmpUIRepresentativeLicenseeGroupNames(GroupName)
+	WHERE LicenseeName IN (@MBCGroup_Name, @789y_Name, @777_Name)
+	
+	IF @@ROWCOUNT > 0
+	BEGIN
+		;WITH CTE_CreditSite AS
+		(
+			SELECT [site], ISNULL(SiteLabel,'') AS SiteLabel
+			FROM CustDB.dbo.Site WITH(NOLOCK) 
+			WHERE isLicensee = 0		  
+			  AND isActive = 1
+		)
+		INSERT INTO @tmpLicenseeNames(LicenseeName, GroupName)
+		SELECT cte.[site] AS LicenseeName, t.GroupName
+		FROM @tmpUIRepresentativeLicenseeGroupNames AS t
+			 CROSS APPLY (
+							SELECT cte.[site]
+							FROM CTE_CreditSite cte
+							WHERE 1 = CASE
+										  WHEN t.GroupName = @MBCGroup_Name AND cte.SiteLabel NOT IN (@789y_Name, @777_Name) THEN 1
+										  WHEN t.GroupName = @789y_Name AND cte.SiteLabel = @789y_Name THEN 1
+										  WHEN t.GroupName = @777_Name AND cte.SiteLabel = @777_Name THEN 1
+										  ELSE 0 
+									  END
+						 ) AS cte
+	END		
+
+	--Cricket/Baseball - Get child match
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match m WITH(NOLOCK)
+	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
+				   WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID = @MatchId THEN 1
+			       ELSE 0 END
 
 	BEGIN -- Instant Settlement declaration
 		
@@ -259,6 +265,8 @@ BEGIN
 									 ELSE 0 END
 				)f	 	
 		END
+		DROP TABLE #CTE_match
+		DROP TABLE #CTE_isCal
 	END	
 
 	--Search single tickets
@@ -381,7 +389,7 @@ BEGIN
 		,b.modds 
 		,b.SiteDBGroupID
 	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
+		INNER JOIN @tmpMatchId d ON d.MatchId = b.matchid
 		INNER JOIN @tmpCurrencyIds c ON b.currency = c.CurrencyId
 	WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 				   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
@@ -393,7 +401,7 @@ BEGIN
 	IF EXISTS (
 					SELECT TOP(1) 1
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
-						INNER JOIN #FilterInfo d oN d.MatchId = bm.matchid
+						INNER JOIN @tmpMatchId d oN d.MatchId = bm.matchid
 					WHERE bm.statusID NOT IN (101, 102, 103)
 						AND bm.betfrom <> 'P' 
 					)
@@ -516,7 +524,7 @@ BEGIN
 			,sub.transdesc SubTransdesc  
 			,b.modds
 			,sub.SiteDBGroupID
-		FROM #FilterInfo d
+		FROM @tmpMatchId d
 			INNER JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			INNER JOIN @tmpCurrencyIds c ON b.currency = c.CurrencyId
@@ -762,8 +770,8 @@ BEGIN
 			FROM #TransidInRequest
 		END
 
-		-- 3. Loginfo table (No need -> return table)
-		SELECT NULL AS MatchId, LogInfoTicketsJson
+		-- 3. Loginfo table 
+		SELECT MatchId, LogInfoTicketsJson
 		FROM @Validation
 
 		-- 4. Unmark/Transinfo table (No need -> return table)
@@ -864,8 +872,8 @@ BEGIN
 		FROM #TransidInRequest
 	END
 
-	-- 3. Loginto table (no-need but must return)
-	SELECT NULL AS MatchId, LogInfoTicketsJson
+	-- 3. Loginto table 
+	SELECT MatchId, LogInfoTicketsJson
 	FROM @Validation
 
 	SET @TransInfoJson = COMPRESS((SELECT b.matchid AS 'mid'
@@ -888,8 +896,6 @@ BEGIN
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
 	DROP TABLE #InstantSettlementBettypes
-	DROP TABLE #CTE_match
-	DROP TABLE #CTE_isCal
 	DROP TABLE #CTE_Ticket_Single
 	DROP TABLE #CTE_Ticket_SubParlay
 	DROP TABLE #CTE_RequestDetail
