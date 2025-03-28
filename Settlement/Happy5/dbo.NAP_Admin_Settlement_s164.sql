@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap,Dot_Casino" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Settlement_s164
 	@MatchId		INT
 	,@Action		VARCHAR(20)		= 'CAL'
@@ -25,6 +25,7 @@ AS
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20241211@Louisa: add matchid for BalancePendingCreditGame [Redmine:#215066]
+		- 20250328@Hughie: Extend data type of currency from tinyint to smallint [Redmine:#222173]
 
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -49,7 +50,7 @@ BEGIN
 			,@batchPO				SMALLINT = 500
 	
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT
-		,custid INT, currency TINYINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
+		,custid INT, currency SMALLINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
 		,transdate DATETIME, bettype SMALLINT
 	)
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, winlost MONEY, actualPO MONEY, IsApplyMaxPO BIT)
