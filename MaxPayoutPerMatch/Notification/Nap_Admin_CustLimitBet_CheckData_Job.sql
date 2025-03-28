@@ -30,6 +30,7 @@ AS
 		- 20250305@Max: Replace action reject by another actions for rule check duplicate [Redmine: #218599]
 		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
 		- 20250403@Max: Enhance detection function when the system has duplicated code in the queue [Redmine: #222735]
+		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]  
 
 	Param's explanation:		
 		
@@ -76,7 +77,7 @@ BEGIN
 	SELECT m.EventID, m.sporttype
 	FROM dbo.VSRaceInfo m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
-		AND m.sporttype IN (177,198)
+		AND m.sporttype IN (177,198,125,126,127)
 
 	INSERT INTO #NonSBRunningMatch(matchid)
 	SELECT m.matchid
