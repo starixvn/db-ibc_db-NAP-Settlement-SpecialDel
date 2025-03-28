@@ -24,6 +24,7 @@ AS
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20250220@Max: [TVS] Recover ticket of Virtual Sports 2 [Redmine: #212323]		
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -317,8 +318,8 @@ BEGIN
 					 ON r.EventID = o.EventID
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 		  AND z.winlostdate >= @before_yesterday
-		  AND (r.sporttype BETWEEN 181 AND 185 OR r.SportType IN (177,198)) -- Inspired VS 181		  				  			  				
-		  AND b.bettype IN (1231,1232,1233,1237,1238,2770,2771)		
+		  AND (r.sporttype BETWEEN 181 AND 185 OR r.SportType IN (177,198,125,126,127)) -- Inspired VS 181		  				  			  				
+		  AND b.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)		
 		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
 
 		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
