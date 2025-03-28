@@ -37,6 +37,7 @@ AS;
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
+		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
 
 	Param's explanation:	
 		
@@ -66,7 +67,7 @@ BEGIN
               betfrom         NVARCHAR(4),
               Betteam         NVARCHAR(10),
               Bettype         SMALLINT,
-              Currency        TINYINT,
+              Currency        SMALLINT,
               CurrencyName    NVARCHAR(50),
               Hdp1            SMALLMONEY,
               Hdp2            SMALLMONEY,

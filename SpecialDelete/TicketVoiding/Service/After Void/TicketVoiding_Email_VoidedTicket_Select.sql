@@ -43,6 +43,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
 
 	Param's explanation:	
 		
@@ -70,7 +71,7 @@ BEGIN
 		,betfrom		NVARCHAR(4)
 		,Betteam		NVARCHAR(10)
 		,Bettype		SMALLINT
-		,Currency		TINYINT
+		,Currency		SMALLINT
 		,CurrencyName	NVARCHAR(50)
 		,Hdp1			SMALLMONEY
 		,Hdp2			SMALLMONEY

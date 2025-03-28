@@ -28,6 +28,7 @@ AS
 		- 20241031@Max: VS6 (Betby) - Company Max Payout & Max Payout Per Match [Redmine: #212547]
 		- 20241203@Max: Improve performance of Max Payout per Match [Redmine: #214294]
 		- 20250305@Max: Replace action reject by another actions for rule check duplicate [Redmine: #218599]
+		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
 
 	Param's explanation:		
 		
@@ -54,7 +55,7 @@ BEGIN
 	CREATE TABLE #RunningMatch (matchid INT PRIMARY KEY, sporttype SMALLINT)
 	CREATE TABLE #NonSBRunningMatch (matchid INT PRIMARY KEY)
 
-	CREATE TABLE #Result_tmp (Transid BIGINT, matchid INT, custid INT, Currency TINYINT)
+	CREATE TABLE #Result_tmp (Transid BIGINT, matchid INT, custid INT, Currency SMALLINT)
 
 	SET @SiteDBGroupID = (SELECT dbo.f_Get_SiteDBGroupID())
 
