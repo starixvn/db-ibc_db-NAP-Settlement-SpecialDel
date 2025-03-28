@@ -11,6 +11,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20250225@Hughie: Apply SOP for Soccer [Redmine:#216004]
 		- 20250317@Aries: Add new validate rule FT that must not be Draw for Ice Hockey [Redmine:#213682]
+		- 20250328@Hughie: Enhance the Regular Time Match of Ice Hockey [Redmine:#221769]
 
 */
 
@@ -92,11 +93,14 @@ BEGIN
 		,m.EventStatusReason
 		,mr.OfferLive
 		,m.ChildMatchType
+		,ls.LeagueType
      FROM dbo.match m WITH (NOLOCK)
         LEFT OUTER JOIN dbo.match_remark mr WITH (NOLOCK) 
 			ON	m.matchid = mr.matchid
 		INNER JOIN dbo.league l WITH (NOLOCK) 
 			ON	m.leagueid = l.leagueid
+		LEFT JOIN dbo.LeagueSetting ls WITH (NOLOCK) 
+			ON	l.leagueid = ls.leagueid
 		OUTER APPLY (
 			SELECT	TOP (1) CAST(1 AS BIT) AS HasInstantCompleted
 			FROM	dbo.AutoPayoutResult WITH(NOLOCK)
