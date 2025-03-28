@@ -21,6 +21,7 @@ AS
 		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
 		- 20241031@Max: VS6 (Betby) - Company Max Payout & Max Payout Per Match [Redmine: #212547]
 		- 20241203@Max: Improve performance of Max Payout per Match [Redmine: #214294]
+		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]  
 	
 	Param's explanation:	
 		
@@ -90,12 +91,12 @@ BEGIN
 	SELECT m.EventID, 6 EventTypeID
 	FROM dbo.VSRaceInfo m WITH (NOLOCK)
 	WHERE m.EventTime <= @Archive_Date
-		AND m.SportType IN (177,198)
+		AND m.SportType IN (177,198,125,126,127)
 	UNION ALL
 	SELECT m14.EventID, 6 EventTypeID
 	FROM dbo.VSRaceInfo14 m14 WITH (NOLOCK)
 	WHERE m14.EventTime <= @Archive_Date
-		AND m14.SportType IN (177,198)
+		AND m14.SportType IN (177,198,125,126,127)
 
 	--Get clean up data
 	IF @SiteDBGroupID IN (0,3)
