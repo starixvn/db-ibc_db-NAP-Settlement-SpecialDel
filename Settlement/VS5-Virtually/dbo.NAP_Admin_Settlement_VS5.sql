@@ -19,7 +19,7 @@ AS
 	
 	Revision:
 		- 20240704@Aries: Initial [Redmine:#207309]
- 
+		- 20250328@Louisa: extend data type of currency from tinyint to smallint [Redmine:#222173] 
 */
 
 BEGIN
@@ -51,7 +51,7 @@ BEGIN
 										  )
 
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT
-		,custid INT, currency TINYINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
+		,custid INT, currency SMALLINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
 		,transdate DATETIME, bettype SMALLINT,OddsType SMALLINT
 	)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT) 

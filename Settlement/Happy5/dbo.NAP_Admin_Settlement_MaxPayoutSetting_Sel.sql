@@ -9,6 +9,7 @@ AS
 
 	Revisions:
 		- 20240520@Aries: Created  [Redmine:#202389]
+		- 20250328@Louisa: extend data type of currency from tinyint to smallint [Redmine:#222173]
 
 	Param's Explanation:
 		
@@ -24,7 +25,7 @@ BEGIN
 				,tbl.cur	    AS Currency 		
 		FROM OPENJSON(@ListCust) WITH (
 				c		INT
-			   ,cur		TINYINT
+			   ,cur		SMALLINT
 
 		) AS tbl
 	)

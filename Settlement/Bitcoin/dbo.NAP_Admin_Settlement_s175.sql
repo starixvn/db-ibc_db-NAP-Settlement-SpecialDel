@@ -24,6 +24,7 @@ AS
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230901@Helen: Bitcoin issue [Redmine: #193538]
 		- 20230830@Kathy: Set Max Payout for Non-sports Products [Redmine:#193259]
+		- 20250328@Louisa: extend data type of currency from tinyint to smallint [Redmine:#222173]
 
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -58,7 +59,7 @@ BEGIN
 	)
 
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT
-		,custid INT, currency TINYINT, actualPO MONEY, winlost MONEY,IsApplyMaxPO BIT
+		,custid INT, currency SMALLINT, actualPO MONEY, winlost MONEY,IsApplyMaxPO BIT
 		,transdate DATETIME, bettype SMALLINT
 	)
 	CREATE TABLE #BalanceBefore (custid INT, balance MONEY, winlost MONEY, winlostdate SMALLDATETIME, gametypeid SMALLINT)

@@ -18,6 +18,7 @@ AS
 	
 	Revision:
 		- 20241023@Louisa: Initial [Redmine:#210733]
+		- 20250328@Louisa: extend data type of currency from tinyint to smallint [Redmine:#222173]
 
 	Param's explaination
 		@Action: Refund	   - @ActionId: 81056
@@ -57,7 +58,7 @@ BEGIN
 										  )
 
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT
-		,custid INT, currency TINYINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
+		,custid INT, currency SMALLINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
 		,transdate DATETIME, bettype SMALLINT,OddsType SMALLINT
 	)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT) 
