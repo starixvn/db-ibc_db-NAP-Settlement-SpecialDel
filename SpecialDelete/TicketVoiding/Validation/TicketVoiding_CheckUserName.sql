@@ -677,7 +677,7 @@ BEGIN
 
 				--select @TransInfoJson
 				INSERT INTO #TransidInRequest
-				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest_UAT1
+				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest
 					@TransInfoJson = @TransInfoJson
 					,@RequestId = @RequestId
 
