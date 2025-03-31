@@ -289,6 +289,10 @@ BEGIN
 		FROM OPENJSON(@AdjustVoidLimit) 
 		WITH( ci INT, av MONEY) tbl
 
+		DELETE t
+		FROM #InputValidCustid_tmp t
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM @AdjustVoidLimit_tmp a WHERE a.CustId = t.custid)
+
 		UPDATE t SET t.AdjustLimit = tmp.AdjustLimit
 		FROM #InputValidCustid_tmp t
 			INNER JOIN @AdjustVoidLimit_tmp tmp ON tmp.CustId = t.custid 
