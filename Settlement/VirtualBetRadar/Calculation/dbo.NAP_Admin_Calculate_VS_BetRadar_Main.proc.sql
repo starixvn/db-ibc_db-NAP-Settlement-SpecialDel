@@ -34,6 +34,7 @@ AS
 		- 20221109@Louisa: log more info [Redmine:#178694]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20231016@Aries: Auto Send Announcement When Refund VS [Redmine:#195333]
+		- 20250331@Kaka: Upgrade ExchangeID data type [Redmine:#222173]
 
 	Param's Explanation:
 		- ? @Mode:
@@ -120,7 +121,7 @@ BEGIN
 		, [scomm] 			[MONEY]
 		, [StatusID] 		[TINYINT]
 		, [modds] 			[SMALLMONEY]
-		, [currency]		[TINYINT]
+		, [currency]		[SMALLINT]
 		, [transdate]		[DATETIME]
 		, [IsApplyMaxPO]	[BIT]
 		, [sporttype]		[SMALLINT]
