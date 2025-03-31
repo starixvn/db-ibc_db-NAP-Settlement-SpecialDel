@@ -975,10 +975,9 @@ BEGIN
 		BEGIN	
 			DECLARE CustomerCursor CURSOR FOR
 			SELECT  CustId, Credit
-				, Sum(case when statusid = 112 then winlost else 0 end) as tot_win
-				, Sum(case when statusid = 113 then winlost else 0 end) as tot_lose
-			FROM #tmpTransInfo
-			group by custid, credit
+				, tot_win
+				, tot_lose
+			FROM @tmp_custinfo t
 
 			OPEN CustomerCursor;
 
@@ -990,8 +989,9 @@ BEGIN
 
 				DECLARE TransactionCursor CURSOR FOR
 				SELECT TransId, winlost
-				FROM #tmpTransInfo
-				WHERE CustId = @CustId and statusID = 112
+				FROM #tmpTransInfo t
+				WHERE CustId = @CustId AND statusID = 112
+					AND NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.transid = t.transid)
 				ORDER BY winlost desc;
 
 				OPEN TransactionCursor;
