@@ -813,28 +813,28 @@ BEGIN
 		--2.2. Get duplicate groups
 		;WITH GroupedData AS (
 			SELECT
-				custid,
+				t.custid,
 				matchid,
 				bettype,
 				betteam,
 				t.transid,
 				winlost,
-				DENSE_RANK() OVER (PARTITION BY custid ORDER BY matchid, bettype, betteam) AS group_number
+				DENSE_RANK() OVER (PARTITION BY t.custid ORDER BY matchid, bettype, betteam) AS group_number
 			FROM #tmpTransInfo t
-				LEFT JOIN @tmp_checkedTransId t1 ON t1.TransId = t.transid
+				LEFT JOIN #SelectedTrans t1 ON t1.TransId = t.transid
 			WHERE matchid <> 29
 				AND t1.TransId IS NULL
 				AND statusID = 112
 		),FilteredGroups AS (
-			SELECT group_number
+			SELECT group_number, custid
 			FROM GroupedData
-			GROUP BY group_number
+			GROUP BY group_number, custid
 			HAVING COUNT(*) > 1
 		)
 		INSERT INTO @tmp_Dup (CustId, TransId, winlost, group_number)
 		SELECT g.custid, g.transid, g.winlost, g.group_number
 		FROM GroupedData g
-			INNER JOIN FilteredGroups fg ON g.group_number = fg.group_number
+			INNER JOIN FilteredGroups fg ON g.group_number = fg.group_number AND g.custid = fg.custid
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.transid = g.transid)
 	
 		INSERT INTO @tmp_remaining (CustId, TransId, winlost)
