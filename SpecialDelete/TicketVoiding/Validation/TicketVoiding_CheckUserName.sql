@@ -928,6 +928,14 @@ BEGIN
 				DEALLOCATE CustomerCursor;
 			END
 
+			DELETE c
+			FROM @tmp_custinfo c 
+				CROSS APPLY (
+					SELECT TOP 1 1 AS IsDone
+					FROM #SelectedTrans s
+					WHERE s.CustId = c.CustId
+				)s
+
 			IF EXISTS (SELECT TOP 1 1 FROM @tmp_Dup d WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.CustId = d.CustId))
 				AND EXISTS (SELECT TOP 1 1 FROM @tmp_remaining)
 			BEGIN
