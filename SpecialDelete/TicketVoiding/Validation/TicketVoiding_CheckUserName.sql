@@ -927,7 +927,8 @@ BEGIN
 				CLOSE CustomerCursor;
 				DEALLOCATE CustomerCursor;
 			END
-			ELSE IF NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans WHERE IsNeeded IS NOT NULL)
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmp_Dup d WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.CustId = d.CustId))
 				AND EXISTS (SELECT TOP 1 1 FROM @tmp_remaining)
 			BEGIN
 				DECLARE CustomerCursor CURSOR FOR
