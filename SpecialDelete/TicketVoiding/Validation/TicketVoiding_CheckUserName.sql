@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName_UAT1]
+ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 (
 	 @UserNames			NVARCHAR(MAX) = ''
 	,@RequestId			INT = 0
@@ -90,6 +90,14 @@ BEGIN
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tmp_checkedTransId AS TABLE (TransId BIGINT)
 	DECLARE @AdjustVoidLimit_tmp AS TABLE (CustId INT, AdjustLimit MONEY) 
+	DECLARE @tmp_MatchInfo AS TABLE (
+		MatchId INT, IsOutright BIT, IsVoid14 BIT
+		,homeid INT
+		,awayid INT
+		,leagueid INT
+		,matchcode NVARCHAR(50)
+		,sporttype SMALLINT
+	)
 
 	INSERT INTO #InputUsernameList (Username, custid, roleid, credit)
 	SELECT CAST(l.value AS NVARCHAR(30))
@@ -151,12 +159,22 @@ BEGIN
 	  ,RefCode BIGINT
 	  ,ExtraInfo VARCHAR(1000)
 	  ,credit money
+	  ,AdjustVoidLimit money
 	  ,id [int] IDENTITY (1,1) PRIMARY KEY
 	)
 
+	--create nonclustered index ix_cust_status on #tmpTransInfo (custid,statusid) include (winlost)
+
+	CREATE TABLE #SelectedTrans (
+		TransId BIGINT,
+		CustId INT,
+		AdjustedAmount MONEY,
+		IsNeeded 	BIT
+	);
+
 	--1. Check valid
 	SET @invalidUserName = STUFF((SELECT  ',' + l.username
-								  FROM #InputUsernameList l	WHERE custid IS NULL	
+								  FROM #InputUsernameList l WHERE custid IS NULL	
 									FOR XML PATH ('')
 									),1,1,'')
 
@@ -265,7 +283,7 @@ BEGIN
 		AND ci.roleid = 1
 		AND ci.custid NOT IN (SELECT custid FROM #InputValidCustid_tmp)
 
-	IF @AdjustVoidLimit <> ''
+	IF @AdjustVoidLimit <> ''	
 	BEGIN
 		INSERT INTO @AdjustVoidLimit_tmp (CustId , AdjustLimit)
 		SELECT ci, av
@@ -276,6 +294,7 @@ BEGIN
 		FROM #InputValidCustid_tmp t
 			INNER JOIN @AdjustVoidLimit_tmp tmp ON tmp.CustId = t.custid 
 	END
+
 	------------Prepare Data------------------------
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -294,6 +313,7 @@ BEGIN
 		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 
+	--Range active
 	INSERT INTO #tmpTransInfo( 
 		   matchid
 		  ,transid 
@@ -337,6 +357,7 @@ BEGIN
 		  ,ExtraInfo
 		  ,username
 		  ,credit
+		  ,AdjustVoidLimit
 		)
 	SELECT matchid
 		  ,transid 
@@ -380,6 +401,7 @@ BEGIN
 		  ,ExtraInfo
 		  ,c.Username
 		  ,c.credit
+		  ,c.AdjustLimit
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -453,7 +475,7 @@ BEGIN
 			  ,ExtraInfo
 			  ,username
 			  ,credit
-			  --,AdjustVoidLimit
+			  ,AdjustVoidLimit
 			)
 		SELECT matchid
 			  ,transid 
@@ -497,7 +519,7 @@ BEGIN
 			  ,ExtraInfo
 			  ,c.Username
 			  ,c.credit
-			  --,c.AdjustLimit
+			  ,c.AdjustLimit
 		FROM dbo.bettrans14 b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -526,38 +548,57 @@ BEGIN
 			AND dc.custid IS NULL
 	END
 
-	---UPDATE column show Affected Ticket popup
+	--UPDATE column show Affected Ticket popup
 	BEGIN
-		UPDATE b
-		SET matchcode 	= m.matchcode
-			,homeid 	= m.homeid
-			,awayid 	= m.awayid
-			,leagueid 	= m.leagueid
-			,sporttype 	= m.sporttype
-			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
-			,eventstatus = ISNULL(m.eventstatus,'')
-			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
-		FROM #tmpTransInfo b
-			INNER JOIN dbo.match m WITH (NOLOCK) ON	b.matchid = m.matchid
-		WHERE b.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-			AND b.IsVoid14 = 0
+		INSERT INTO @tmp_MatchInfo (MatchId, IsOutright, IsVoid14)
+		SELECT DISTINCT t.matchid, 0, 0
+		FROM #tmpTransInfo t
+		WHERE t.bettype <> 10
+			AND t.IsVoid14 = 0
 			
+		INSERT INTO @tmp_MatchInfo (MatchId, IsOutright, IsVoid14)
+		SELECT DISTINCT t.matchid, 1, 0
+		FROM #tmpTransInfo t
+		WHERE t.bettype = 10
+			AND t.IsVoid14 = 0
+
+		IF EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1)
+		BEGIN
+			INSERT INTO @tmp_MatchInfo (MatchId, IsOutright, IsVoid14)
+			SELECT DISTINCT t.matchid, 0, 1
+			FROM #tmpTransInfo t
+			WHERE t.bettype <> 10
+				AND t.IsVoid14 = 1
+			
+			INSERT INTO @tmp_MatchInfo (MatchId, IsOutright, IsVoid14)
+			SELECT DISTINCT t.matchid, 1, 1
+			FROM #tmpTransInfo t
+			WHERE t.bettype = 10
+				AND t.IsVoid14 = 1
+		END
+
 		UPDATE b
 		SET matchcode 	= m.matchcode
 			,homeid 	= m.homeid
 			,awayid 	= m.awayid
 			,leagueid 	= m.leagueid
 			,sporttype 	= m.sporttype
-			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
-			,eventstatus = ISNULL(m.eventstatus,'')
-			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
-		FROM #tmpTransInfo b
+		FROM @tmp_MatchInfo b
 			INNER JOIN dbo.match m WITH (NOLOCK) ON	b.matchid = m.matchid
-		WHERE b.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-			AND b.IsVoid14 = 1
+		WHERE b.IsVoid14 = 0 AND IsOutright = 0
+			
+		IF EXISTS (SELECT TOP 1 1 FROM @tmp_MatchInfo WHERE IsVoid14 = 1)
+		UPDATE b
+		SET matchcode 	= m.matchcode
+			,homeid 	= m.homeid
+			,awayid 	= m.awayid
+			,leagueid 	= m.leagueid
+			,sporttype 	= m.sporttype
+		FROM @tmp_MatchInfo b
+			INNER JOIN dbo.match14 m WITH (NOLOCK) ON	b.matchid = m.matchid
+		WHERE b.IsVoid14 = 1 AND IsOutright = 0
 
-		-- UPDATE eventtype = 2 [Outright bettype]
-		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 0 AND bettype IN (10)))
+		IF EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE @IsOutright = 1)
 		BEGIN
 			UPDATE b
 			SET matchcode 	= odds.matchcode
@@ -565,40 +606,29 @@ BEGIN
 				,awayid 	= 0
 				,leagueid 	= odds.leagueid
 				,sporttype 	= l.sporttype
-				,eventstatus = ISNULL(odds.oddsstatus,'')
-				,SettlementStatus = 0
-			FROM #tmpTransInfo b
+			FROM @tmp_MatchInfo b
 				INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
 				ON	b.matchid = odds.orid
 				INNER JOIN dbo.league l WITH (NOLOCK) 
 				ON	odds.leagueid = l.leagueid
-			WHERE b.bettype IN (10) AND b.IsVoid14 = 0
-		END
+			WHERE IsOutright = 1 AND b.IsVoid14 = 0
 
-		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1 AND bettype IN (10)))
-		BEGIN
-			UPDATE b
-			SET matchcode 	= odds.matchcode
-				,homeid		= odds.teamid
-				,awayid 	= 0
-				,leagueid 	= odds.leagueid
-				,sporttype 	= l.sporttype
-				,eventstatus = ISNULL(odds.oddsstatus,'')
-				,SettlementStatus = 0
-			FROM #tmpTransInfo b
-				INNER JOIN dbo.outright14 AS odds WITH (NOLOCK) 
-				ON	b.matchid = odds.orid
-				INNER JOIN dbo.league l WITH (NOLOCK) 
-				ON	odds.leagueid = l.leagueid
-			WHERE b.bettype IN (10) AND b.IsVoid14 = 1
+			IF EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1)
+			BEGIN
+				UPDATE b
+				SET matchcode 	= odds.matchcode
+					,homeid		= odds.teamid
+					,awayid 	= 0
+					,leagueid 	= odds.leagueid
+					,sporttype 	= l.sporttype
+				FROM @tmp_MatchInfo b
+					INNER JOIN dbo.outright14 AS odds WITH (NOLOCK) 
+					ON	b.matchid = odds.orid
+					INNER JOIN dbo.league l WITH (NOLOCK) 
+					ON	odds.leagueid = l.leagueid
+				WHERE @IsOutright = 1 AND b.IsVoid14 = 1
+			END
 		END
-
-		-- update username column
-		UPDATE al
-		SET username = ci.username
-		FROM #tmpTransInfo al
-			INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK)
-				ON al.custid = ci.custid
 
 		-- update Isdeposit
 		UPDATE b 
@@ -647,7 +677,7 @@ BEGIN
 
 				--select @TransInfoJson
 				INSERT INTO #TransidInRequest
-				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest 
+				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest_UAT1
 					@TransInfoJson = @TransInfoJson
 					,@RequestId = @RequestId
 
@@ -736,7 +766,6 @@ BEGIN
 		SET @IsInValidTotalTicket = 1 
 
 	/*****************Return table **************************/
-	
 	-- 1. Validate Table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
 		  ,@InvalidUserName AS InvalidUserName
@@ -748,34 +777,249 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 
 	--2. List TransId for case auto void with policy
-	;WITH Capicity AS (
-		SELECT SUM(CASE WHEN statusid = 112 THEN winlost ELSE 0 END) AS tot_win
-			,SUM(CASE WHEN statusid = 113 THEN winlost ELSE 0 END) AS tot_lose
-			,t.custid
-			,ISNULL(tmp.AdjustLimit, t.credit) AS credit
-		FROM #tmpTransInfo t
-			INNER JOIN #InputValidCustid_tmp tmp ON tmp.CustId = t.custid
-		GROUP BY t.custid, t.credit, tmp.AdjustLimit
-	)
-	,RankedData AS (
-		SELECT 
-			transid,
-			winlost,
-			custid,
-			SUM(winlost) OVER (PARTITION BY custid ORDER BY winlost DESC, matchid ROWS UNBOUNDED PRECEDING) AS RunningTotal
-		FROM #tmpTransInfo
-		WHERE statusID = 112
-	)
-	INSERT INTO @tmp_checkedTransId (TransId)
-	SELECT transid
-	FROM RankedData r
-		CROSS APPLY (
-			SELECT TOP 1 credit AS credit
-			FROM Capicity t
-			WHERE t.custid = r.custid
-				AND r.RunningTotal <= ABS(t.credit - (ABS(t.tot_lose) - t.tot_win))
-		)t
+	IF @ActionId = 10
+	BEGIN
+		DECLARE @tmp_Dup AS TABLE (CustId INT, TransId BIGINT, winlost MONEY, group_number INT)
+		DECLARE @tmp_remaining AS TABLE (CustId INT, TransId BIGINT, winlost MONEY)
+		DECLARE @tmp_custinfo AS TABLE (CustId INT, tot_win MONEY, tot_lose MONEY, credit MONEY)
+		DECLARE @CustId INT, @Credit MONEY, @RunningTotal MONEY, @TransId BIGINT, @Amount MONEY, @tot_lose money, @tot_win money
 
+		INSERT INTO @tmp_custinfo (CustId, tot_lose, tot_win, credit)
+		SELECT t.custid
+			,ABS(SUM(CASE WHEN statusid = 113 THEN winlost ELSE 0 END)) AS tot_lose
+			,ABS(SUM(CASE WHEN statusid = 112 THEN winlost ELSE 0 END)) AS tot_lose
+			,ISNULL(t.AdjustVoidLimit, t.credit) AS credit
+		FROM #tmpTransInfo t
+		GROUP BY t.custid, t.credit, t.AdjustVoidLimit
+
+		--2.1. Get list cust has current losing <= givencredit/adjust
+		;WITH cte AS (
+			SELECT t.custid
+				,tot_lose
+				,credit
+			FROM @tmp_custinfo t
+		)
+		INSERT INTO #SelectedTrans (TransId)
+		SELECT r.transid
+		FROM #tmpTransInfo r
+			CROSS APPLY (
+				SELECT TOP 1 credit AS credit
+				FROM cte t
+				WHERE t.custid = r.custid
+					AND t.tot_lose <= t.credit
+			)t
+
+		--2.2. Get duplicate groups
+		;WITH GroupedData AS (
+			SELECT
+				custid,
+				matchid,
+				bettype,
+				betteam,
+				t.transid,
+				winlost,
+				DENSE_RANK() OVER (PARTITION BY custid ORDER BY matchid, bettype, betteam) AS group_number
+			FROM #tmpTransInfo t
+				LEFT JOIN @tmp_checkedTransId t1 ON t1.TransId = t.transid
+			WHERE matchid <> 29
+				AND t1.TransId IS NULL
+				AND statusID = 112
+		),FilteredGroups AS (
+			SELECT group_number
+			FROM GroupedData
+			GROUP BY group_number
+			HAVING COUNT(*) > 1
+		)
+		INSERT INTO @tmp_Dup (CustId, TransId, winlost, group_number)
+		SELECT g.custid, g.transid, g.winlost, g.group_number
+		FROM GroupedData g
+		INNER JOIN FilteredGroups fg ON g.group_number = fg.group_number;
+	
+		INSERT INTO @tmp_remaining (CustId, TransId, winlost)
+		SELECT custid, transid, winlost
+		FROM #tmpTransInfo t
+		WHERE statusID = 112
+			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmp_checkedTransId WHERE transid = t.transid)
+			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Dup WHERE transid = t.transid)
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmp_Dup)
+		BEGIN
+			-- Step 1
+			;WITH cte AS (
+				SELECT t.custid
+					,tot_lose
+					,tot_win
+					,credit
+				FROM @tmp_custinfo t
+			)
+			, grp_sum AS (
+				SELECT custid, SUM(winlost) AS total_grp_winlost
+				FROM @tmp_Dup
+				GROUP BY custid
+			)
+			INSERT INTO #SelectedTrans (transid, CustId, AdjustedAmount, IsNeeded)
+			SELECT t2.transid, t2.CustId, t2.winlost, gs.IsNeeded
+			FROM @tmp_Dup t2
+				INNER JOIN cte t1 ON t2.custid = t1.custid
+				CROSS APPLY (	
+					SELECT TOP 1 CASE WHEN gs.total_grp_winlost < ABS(t1.credit - (ABS(t1.tot_lose) - t1.tot_win)) THEN 1 ELSE 0 END AS IsNeeded
+					FROM grp_sum gs 
+					WHERE gs.CustId = t1.CustId
+						AND gs.total_grp_winlost <= ABS(t1.credit - (ABS(t1.tot_lose) - t1.tot_win))
+				)gs
+
+			IF EXISTS (SELECT TOP 1 1 FROM #SelectedTrans WHERE ISNULL(IsNeeded, 0) = 1)
+			BEGIN
+				DECLARE CustomerCursor CURSOR FOR
+				SELECT  t.CustId, Credit
+					, t.tot_win - s.sum_winlost AS tot_win
+					, tot_lose
+				FROM @tmp_custinfo t
+					CROSS APPLY (
+						SELECT SUM(AdjustedAmount) AS sum_winlost
+						FROM #SelectedTrans s 
+						WHERE s.CustId = t.CustId
+					)s
+
+				OPEN CustomerCursor;
+
+				FETCH NEXT FROM CustomerCursor INTO @CustId, @Credit, @tot_win, @tot_lose;
+
+				WHILE @@FETCH_STATUS = 0
+				BEGIN
+					SET @RunningTotal = 0;
+
+					DECLARE TransactionCursor CURSOR FOR
+					SELECT TransId, winlost
+					FROM @tmp_remaining
+					WHERE CustId = @CustId
+					ORDER BY winlost desc;
+
+					OPEN TransactionCursor;
+
+					FETCH NEXT FROM TransactionCursor INTO @TransId, @Amount;
+
+					WHILE @@FETCH_STATUS = 0
+					BEGIN
+						IF @RunningTotal + @Amount <= ABS(@Credit - (ABS(@tot_lose) - @tot_win))
+						BEGIN
+							SET @RunningTotal = @RunningTotal + @Amount;
+							INSERT INTO #SelectedTrans (TransId, CustId, AdjustedAmount)
+							VALUES (@TransId, @CustId, @Amount);
+						END
+
+						FETCH NEXT FROM TransactionCursor INTO @TransId, @Amount;
+					END
+
+					CLOSE TransactionCursor;
+					DEALLOCATE TransactionCursor;
+
+					FETCH NEXT FROM CustomerCursor INTO @CustId, @Credit, @tot_win, @tot_lose;
+				END
+
+				CLOSE CustomerCursor;
+				DEALLOCATE CustomerCursor;
+			END
+			ELSE IF NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans WHERE IsNeeded IS NOT NULL)
+				AND EXISTS (SELECT TOP 1 1 FROM @tmp_remaining)
+			BEGIN
+				DECLARE CustomerCursor CURSOR FOR
+				SELECT  t.CustId, Credit
+					, t.tot_win AS tot_win
+					, tot_lose
+				FROM @tmp_custinfo t
+
+				OPEN CustomerCursor;
+
+				FETCH NEXT FROM CustomerCursor INTO @CustId, @Credit, @tot_win, @tot_lose;
+
+				WHILE @@FETCH_STATUS = 0
+				BEGIN
+					SET @RunningTotal = 0;
+
+					DECLARE TransactionCursor CURSOR FOR
+					SELECT TransId, winlost
+					FROM @tmp_remaining
+					WHERE CustId = @CustId
+					ORDER BY winlost desc;
+
+					OPEN TransactionCursor;
+
+					FETCH NEXT FROM TransactionCursor INTO @TransId, @Amount;
+
+					WHILE @@FETCH_STATUS = 0
+					BEGIN
+						IF @RunningTotal + @Amount <= ABS(@Credit - (ABS(@tot_lose) - @tot_win))
+						BEGIN
+							SET @RunningTotal = @RunningTotal + @Amount;
+							INSERT INTO #SelectedTrans (TransId, CustId, AdjustedAmount)
+							VALUES (@TransId, @CustId, @Amount);
+						END
+
+						FETCH NEXT FROM TransactionCursor INTO @TransId, @Amount;
+					END
+
+					CLOSE TransactionCursor;
+					DEALLOCATE TransactionCursor;
+
+					FETCH NEXT FROM CustomerCursor INTO @CustId, @Credit, @tot_win, @tot_lose;
+				END
+
+				CLOSE CustomerCursor;
+				DEALLOCATE CustomerCursor;
+			END
+		END
+		ELSE
+		BEGIN	
+			DECLARE CustomerCursor CURSOR FOR
+			SELECT  CustId, Credit
+				, Sum(case when statusid = 112 then winlost else 0 end) as tot_win
+				, Sum(case when statusid = 113 then winlost else 0 end) as tot_lose
+			FROM #tmpTransInfo
+			group by custid, credit
+
+			OPEN CustomerCursor;
+
+			FETCH NEXT FROM CustomerCursor INTO @CustId, @Credit, @tot_win, @tot_lose;
+
+			WHILE @@FETCH_STATUS = 0
+			BEGIN
+				SET @RunningTotal = 0;
+
+				DECLARE TransactionCursor CURSOR FOR
+				SELECT TransId, winlost
+				FROM #tmpTransInfo
+				WHERE CustId = @CustId and statusID = 112
+				ORDER BY winlost desc;
+
+				OPEN TransactionCursor;
+
+				FETCH NEXT FROM TransactionCursor INTO @TransId, @Amount;
+
+				WHILE @@FETCH_STATUS = 0
+				BEGIN
+					IF @RunningTotal + @Amount <= ABS(@Credit - (ABS(@tot_lose) - @tot_win))
+					BEGIN
+						SET @RunningTotal = @RunningTotal + @Amount;
+						INSERT INTO #SelectedTrans (TransId, CustId, AdjustedAmount)
+						VALUES (@TransId, @CustId, @Amount);
+					END
+
+					FETCH NEXT FROM TransactionCursor INTO @TransId, @Amount;
+				END
+
+				CLOSE TransactionCursor;
+				DEALLOCATE TransactionCursor;
+
+				FETCH NEXT FROM CustomerCursor INTO @CustId, @Credit, @tot_win, @tot_lose;
+			END
+
+			CLOSE CustomerCursor;
+			DEALLOCATE CustomerCursor;
+		END
+	END
+
+	--Return table of ticket
 	SELECT b.transid
 		,b.refno
 		,b.username
@@ -805,31 +1049,28 @@ BEGIN
 		,b.IsMixParlay
 		,b.SiteDBGroupID
 		,b.actual_stake
-		,b.WalletType
 		,b.RefCode
 		,b.ExtraInfo
 		,b.winlostdate
 		,b.IsDeposit
-		,b.homeid 
-		,b.awayid 
-		,b.leagueid 
-		,b.IsNeutral
-		,b.matchcode 
-		,b.SettlementStatus
-		,b.sporttype
+		,m.homeid 
+		,m.awayid 
+		,m.leagueid 
+		,m.matchcode 
+		,m.sporttype
 		,b.matchid AS GroupName
 		,b.transid AS subtransid
 		,IIF(tmp.TransId IS NOT NULL, 1, 0) AS IsChecked
 	FROM #tmpTransInfo b
-		LEFT JOIN @tmp_checkedTransId tmp ON tmp.TransId = b.transid
+		INNER JOIN @tmp_MatchInfo m ON m.MatchId = b.matchid
+		LEFT JOIN #SelectedTrans tmp ON tmp.TransId = b.transid
 
 	--3. List members winlost amount for case auto void with policy
 	SELECT DISTINCT b.CustId
 		,b.username
 		,b.credit AS GivenCredit
-		,tmp.AdjustLimit AS AdjustVoidLimit
+		,b.AdjustVoidLimit AS AdjustVoidLimit
 	FROM #tmpTransInfo b
-		LEFT JOIN @AdjustVoidLimit_tmp tmp ON tmp.CustId = b.custid
 	ORDER BY b.username
 
 	DROP TABLE #InputUsernameList
@@ -837,5 +1078,6 @@ BEGIN
 	DROP TABLE #TransidInRequest
 	DROP TABLE #tmpTransInfo
 	DROP TABLE #InputValidCustid_tmp
+	DROP TABLE #SelectedTrans
 END
 
