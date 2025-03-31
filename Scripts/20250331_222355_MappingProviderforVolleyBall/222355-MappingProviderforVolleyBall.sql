@@ -1,10 +1,10 @@
 /*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20250331@Hughie
-	Task	  : map Provider SBO, LSports, BetConstruct, Sofascore to Beach Volleyball  [Redmine:#217843]
+	Task	  : map Provider SBO, LSports, BetConstruct, Sofascore to Beach Volleyball  [Redmine:#222355]
 	DB		  : DBPRO/bodb02
 	Revisions:
-		20250331@Hughie: Mapping Provider [Redmine:#217843]
+		20250331@Hughie: Mapping Provider [Redmine:#222355]
 */
 USE bodb02
 GO
