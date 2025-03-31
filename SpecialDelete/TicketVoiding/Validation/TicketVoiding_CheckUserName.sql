@@ -88,7 +88,6 @@ BEGIN
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @tmp_checkedTransId AS TABLE (TransId BIGINT)
 	DECLARE @AdjustVoidLimit_tmp AS TABLE (CustId INT, AdjustLimit MONEY) 
 	DECLARE @tmp_MatchInfo AS TABLE (
 		MatchId INT, IsOutright BIT, IsVoid14 BIT
@@ -414,6 +413,7 @@ BEGIN
 			)ml
 		LEFT JOIN CustDB.dbo.Dep_CustSuper dc WITH(NOLOCK) ON dc.custid = b.srecommend
 	WHERE b.statusID NOT IN (101, 102, 103)
+		AND statusID IN (SELECT statusID FROM @Status_tmp)
 		AND b.betfrom <> 'P'
 		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
@@ -532,6 +532,7 @@ BEGIN
 				)ml
 			LEFT JOIN CustDB.dbo.Dep_CustSuper dc WITH(NOLOCK) ON dc.custid = b.srecommend
 		WHERE b.statusID NOT IN (101, 102, 103)
+			AND statusID IN (SELECT statusID FROM @Status_tmp)
 			AND b.betfrom <> 'P'
 			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND b.winlostdate BETWEEN @FromWinlostDate_14 AND @ToWinlostDate_14 
@@ -841,8 +842,8 @@ BEGIN
 		SELECT custid, transid, winlost
 		FROM #tmpTransInfo t
 		WHERE statusID = 112
-			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmp_checkedTransId WHERE transid = t.transid)
-			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Dup WHERE transid = t.transid)
+			AND NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.transid = t.transid)
+			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Dup d WHERE d.transid = t.transid)
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmp_Dup)
 		BEGIN
