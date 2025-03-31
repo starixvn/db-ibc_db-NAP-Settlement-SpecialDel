@@ -808,6 +808,7 @@ BEGIN
 				WHERE t.custid = r.custid
 					AND t.tot_lose <= t.credit
 			)t
+		WHERE statusid = 112
 
 		--2.2. Get duplicate groups
 		;WITH GroupedData AS (
@@ -833,7 +834,8 @@ BEGIN
 		INSERT INTO @tmp_Dup (CustId, TransId, winlost, group_number)
 		SELECT g.custid, g.transid, g.winlost, g.group_number
 		FROM GroupedData g
-		INNER JOIN FilteredGroups fg ON g.group_number = fg.group_number;
+			INNER JOIN FilteredGroups fg ON g.group_number = fg.group_number
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.transid = g.transid)
 	
 		INSERT INTO @tmp_remaining (CustId, TransId, winlost)
 		SELECT custid, transid, winlost
