@@ -26,6 +26,7 @@ AS
 		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
+		- 20250305@Lani: [TVS] Edit log data content and TypeAccept column[Redmine: #216151]
 
 	Param's explanation:
 */
@@ -41,7 +42,7 @@ BEGIN
 	DECLARE	 @WrongScoreInfoXML		  XML = NULL
 			,@MatchId				INT
 			,@FilterBy				TINYINT = NULL
-			,@actualscore			VARCHAR(50)
+			,@actualscore			VARCHAR(100)
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -133,6 +134,7 @@ BEGIN
 			AS IssueDetail
 			,t.c.value('@SubIssueTypeId','INT') AS SubIssueTypeId
 			,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') + '" SA="' + t.c.value('@SATime','VARCHAR(10)') + 
+			+ '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)')
 			+ '" ScoreId="' + t.c.value('@ScoreId','VARCHAR(20)') 
 			+ '" IsCheckedVar="' + CAST (t.c.value('@IsCheckedVar','BIT') AS VARCHAR(10))
 			+ '" MinTime="' + ISNULL(CONVERT(VARCHAR(50),NULLIF(t.c.value('@MinTime','DATETIME'),''), 121),'')
@@ -261,17 +263,13 @@ BEGIN
 
 	-- Get content of log data 
 	SET @LogDataContent = ''
-	SELECT @actualscore = SUBSTRING(l.IssueDetail, CHARINDEX(';Act:',l.IssueDetail) + 5, LEN(l.IssueDetail))
-		, @MatchId = l.MatchID
-		, @FilterBy = l.FilterBy
-	FROM #tblGetLogInfo l
+	SELECT @FilterBy = l.FilterBy FROM #tblGetLogInfo l
 
 	IF @FilterBy <> 2
 	BEGIN
-		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20))
-							+', Actual Score: ' + @actualscore
-							+', Wrong Score: ' 
-		SELECT @LogDataContent = @LogDataContent
+		SELECT @LogDataContent =' MatchId: ' + CAST(l.MatchID AS VARCHAR(20))
+								+', Actual Score: ' + SUBSTRING(l.IssueDetail, CHARINDEX(';Act:',l.IssueDetail) + 5, LEN(l.IssueDetail))
+								+', Wrong Score: '
 								+', SubIssueTypeId: ' + CAST(l.SubIssueTypeId AS VARCHAR(20))
 								+ CAST(l.LiveHomeScore AS VARCHAR(5)) +'-'
 								+ CAST(l.LiveAwayScore AS VARCHAR(5))+' ('
@@ -283,7 +281,7 @@ BEGIN
 	BEGIN
 		SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20)) 
 							+ ', SubIssueTypeId: ' + CAST(l.SubIssueTypeId AS VARCHAR(20))
-							+ ', Actual Score: ' + @actualscore
+							+ ', Actual Score: ' + SUBSTRING(l.IssueDetail, CHARINDEX(';Act:',l.IssueDetail) + 5, LEN(l.IssueDetail))
 							+ ', FilterFrom: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) 
 							+ ', FilterTo: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21) 
 							+ ', VoidFrom: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)

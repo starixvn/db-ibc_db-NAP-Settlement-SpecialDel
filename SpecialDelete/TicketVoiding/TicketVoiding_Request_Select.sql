@@ -54,6 +54,7 @@ AS
 		- 20241025@July: [TVS] Add new Advanced Mode for TVS - [Redmine: #212394]
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+		- 20250314@Lani: [TVS] Remove @wrongscore variable [Redmine: #216151]
 
 	Param's explanation:	
 	
@@ -193,7 +194,6 @@ BEGIN
                ,@MinuteOffset VARCHAR(10)
                ,@SecondOffset VARCHAR(10)
 			   ,@IssueDetail NVARCHAR(MAX)
-			   ,@ActualScore NVARCHAR(10) --WC
 
 		SELECT TOP (1) @IssueDetail = rd.IssueDetail
 		FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
@@ -214,10 +214,6 @@ BEGIN
 			 , @SecondOffset = IIF(CHARINDEX('SecondOffset:',@IssueDetail) > 0
 								 , SUBSTRING(@IssueDetail, CHARINDEX('SecondOffset:',@IssueDetail) + LEN('SecondOffset:'), LEN(@IssueDetail))
 								 , '')
-			 , @ActualScore = IIF(CHARINDEX('TvDetectionValue:',@IssueDetail) > 0
-								  , SUBSTRING(@IssueDetail, CHARINDEX('Act:',@IssueDetail) + LEN('Act:'), CHARINDEX(';TvDetectionValue:',@IssueDetail) - (CHARINDEX('Act:',@IssueDetail) + LEN('Act:')))
-								  , SUBSTRING(@IssueDetail, CHARINDEX(';Act:',@IssueDetail) + 5, LEN(@IssueDetail)) -- Support ver old
-								  )
 	END
 
 	IF @IssueTypeId <> 13 -- Except for AC 
@@ -250,7 +246,12 @@ BEGIN
 				,rd.ProductIds -- Apply for issuetype Recover Ticket (22)
 				,rd.AdvancedExtraInfo
 				,CASE WHEN @IssueTypeId IN (12,24,25,18) THEN rd.IssueDetail ELSE NULL END AS AllBetTypesSelectionJson -- Apply for issuetype WMO(12), TE(24),Wrong Odds(SB)(25), Other Issues(18)
-				,@ActualScore AS ActualScore
+				,CASE WHEN @IssueTypeId IN (3) THEN 
+								  IIF(CHARINDEX('TvDetectionValue:',rd.IssueDetail) > 0
+								  , SUBSTRING(rd.IssueDetail, CHARINDEX('Act:',rd.IssueDetail) + LEN('Act:'), CHARINDEX(';TvDetectionValue:',rd.IssueDetail) - (CHARINDEX('Act:',rd.IssueDetail) + LEN('Act:')))
+								  , SUBSTRING(rd.IssueDetail, CHARINDEX(';Act:',rd.IssueDetail) + 5, LEN(rd.IssueDetail))
+								  ) 
+					  ELSE NULL END AS ActualScore
 				,@TvDetectionValue AS TvDetectionValue
 				,@ServiceAcceptTime AS ServiceAcceptTime
 				,@ActualTime AS ActualTime
