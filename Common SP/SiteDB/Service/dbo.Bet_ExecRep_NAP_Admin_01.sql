@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBACC-bodb02,DBAGE-bodb02,DBBOF-bodb02,DBADM-bodb02,DBTP-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01] 
 	@SiteDBGroupId SMALLINT
 	,@SessionId BIGINT = NULL
@@ -48,6 +48,7 @@ AS
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]		
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20241113@Louisa: set priority of action MoveEvent higher than Settlement for WinlostDate value [Redmine:#213613]
+		- 20250401@Hughie: Extend data type of currency from tinyint to smallint [Redmine:#222173]
 
 	Param's Explanation:  
 		   
@@ -90,7 +91,7 @@ BEGIN
 		,transdate	 DATETIME 
 		,comstatus NVARCHAR(40),checktime	DATETIME	
 		,actualrate	FLOAT,recommend	INT	,mrecommend	INT	,srecommend	INT, stake MONEY,actual_stake MONEY	
-		,currency	TINYINT	
+		,currency	SMALLINT	
 		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate FLOAT, MainMatchId INT
 	)
 	

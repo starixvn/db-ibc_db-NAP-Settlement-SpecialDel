@@ -1,4 +1,4 @@
-/*<info serverAlias="SBSETTLE-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBACC-bodb02,DBAGE-bodb02,DBBOF-bodb02,DBTP-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_SiteDB_SyncTransId_Upd]
 	@TableName		VARCHAR(200)
 	,@transInfoJson VARBINARY(MAX)	= NULL OUTPUT
@@ -12,6 +12,7 @@ AS
 	
 	Revisions:
 		- 20240607@Kathy: sync data [Redmine:#206272]
+		- 20250401@Hughie: Extend data type of currency from tinyint to smallint [Redmine:#222173]
 
 	Param's Explanation:  
 		
@@ -32,7 +33,7 @@ BEGIN
 		,transdate	 DATETIME 
 		,comstatus NVARCHAR(40),checktime	DATETIME	
 		,actualrate	FLOAT,recommend	INT	,mrecommend	INT	,srecommend	INT, stake MONEY,actual_stake MONEY	
-		,currency	TINYINT	
+		,currency	SMALLINT	
 		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate FLOAT, MainMatchId INT
 	)
 	

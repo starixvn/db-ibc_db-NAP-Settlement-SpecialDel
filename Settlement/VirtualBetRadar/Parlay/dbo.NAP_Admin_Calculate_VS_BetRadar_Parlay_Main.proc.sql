@@ -23,6 +23,7 @@ AS
 		- 20230405@Louisa: Support resettle Parlay tickets and support double comm if it's possible [Redmine:#186276]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20240521@Louisa: Enhancement - get match via linked server due to rep latency [Redmine:#205375]
+		- 20250401@Hughie: Extend data type of currency from tinyint to smallint [Redmine:#222173]
 
 	Param's Explanation:
 	
@@ -97,7 +98,7 @@ BEGIN
 		, [modds] 			[SMALLMONEY]
 		, [winlostdate] 	[SMALLDATETIME] 
 		, [isChanged]		[BIT]
-		, [currency]		[TINYINT]
+		, [currency]		[SMALLINT]
 		, [transdate]		[DATETIME]
 	)
 	
@@ -119,7 +120,7 @@ BEGIN
 		, [StatusID] 		[TINYINT]
 		, [modds] 			[SMALLMONEY]
 		, [winlostdate] 	[SMALLDATETIME]
-		, [currency]		[TINYINT]
+		, [currency]		[SMALLINT]
 		, [transdate]		[DATETIME]
 	)
 	
