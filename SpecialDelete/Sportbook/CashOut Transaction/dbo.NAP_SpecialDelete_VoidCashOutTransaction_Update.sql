@@ -42,6 +42,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240725@Max: [TVS] Return betid to call remoting ref [Redmine: #205983]
 		- 20241125@Lani: [TVS] Update the value of 'EmailGroup' returned, change serverAlias [Redmine: #213451]
+		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 
 	Explanation's Param:
 
@@ -142,7 +143,7 @@ BEGIN
 		custid INT,
 		username NVARCHAR(30),
 		username2 NVARCHAR(50),
-		currency TINYINT,
+		currency SMALLINT,
 		[site] VARCHAR(10)		
 	)
 	

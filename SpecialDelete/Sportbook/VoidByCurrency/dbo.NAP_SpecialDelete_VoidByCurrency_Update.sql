@@ -76,6 +76,7 @@ AS
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
+		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 
 	Param's Explanation:
 */
@@ -247,7 +248,7 @@ BEGIN
 			BetId				BIGINT DEFAULT (0),
 			BetTeam				NVARCHAR(10),
 			BetType				SMALLINT,
-			Currency			TINYINT,
+			Currency			SMALLINT,
 			CurrencyCode		NVARCHAR(50),
 			Creator				INT,			
 			Hdp1				SMALLMONEY,

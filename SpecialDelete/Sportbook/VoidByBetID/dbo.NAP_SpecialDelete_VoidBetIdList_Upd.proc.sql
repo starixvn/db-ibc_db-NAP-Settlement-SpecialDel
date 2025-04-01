@@ -119,6 +119,7 @@ AS
 	  - 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 	  - 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
 	  - 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
+	  - 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 
 	 Param's Explanation:   
 */
@@ -235,7 +236,7 @@ BEGIN
 		,liveindicator	BIT
 		,winlost		MONEY
 		,playercomm		MONEY
-		,currency		TINYINT
+		,currency		SMALLINT
 		,transdesc		NVARCHAR(1000)
 		,custid			INT
 		,creator		INT

@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetId_UUS]
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetId_UUS]
 (
 	@TransIds			VARCHAR(MAX)
 	,@ErrCode			INT = 0 OUTPUT
@@ -25,6 +25,7 @@ AS
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241220@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
+		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -74,7 +75,7 @@ BEGIN
 		,liveindicator	BIT
 		,winlost		MONEY
 		,playercomm		MONEY
-		,currency		TINYINT
+		,currency		SMALLINT
 		,transdesc		NVARCHAR(1000)
 		,custid			INT
 		,creator		INT

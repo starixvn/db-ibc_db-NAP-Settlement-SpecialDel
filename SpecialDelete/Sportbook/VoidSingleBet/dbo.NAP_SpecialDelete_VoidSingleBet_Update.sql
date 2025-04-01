@@ -143,6 +143,7 @@ AS
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' columns, serverAlias [Redmine: #213451]
 		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
+		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -405,7 +406,7 @@ BEGIN
 		IsFinish			BIT
 	)
 
-	CREATE TABLE #CTE_CustInfo(custid INT, username VARCHAR(30), username2 VARCHAR(50), site VARCHAR(10), currency TINYINT)
+	CREATE TABLE #CTE_CustInfo(custid INT, username VARCHAR(30), username2 VARCHAR(50), site VARCHAR(10), currency SMALLINT)
 	
 	DECLARE @CountTransId	INT
 
