@@ -983,6 +983,63 @@ BEGIN
 
 				CLOSE CustomerCursor;
 				DEALLOCATE CustomerCursor;
+
+				IF EXISTS (SELECT TOP 1 1 FROM @tmp_Dup)
+				BEGIN
+					DECLARE CustomerCursor CURSOR FOR
+					SELECT  t.CustId, Credit
+						, t.tot_win - s.sum_winlost AS tot_win
+						, tot_lose
+					FROM @tmp_custinfo t
+						CROSS APPLY (
+							SELECT SUM(AdjustedAmount) AS sum_winlost
+							FROM #SelectedTrans s 
+							WHERE s.CustId = t.CustId
+						)s
+
+					OPEN CustomerCursor;
+
+					FETCH NEXT FROM CustomerCursor INTO @CustId, @Credit, @tot_win, @tot_lose;
+
+					WHILE @@FETCH_STATUS = 0
+					BEGIN
+						SET @RunningTotal = 0;
+
+						DECLARE TransactionCursor CURSOR FOR
+						SELECT group_number, SUM(winlost) as amount
+						FROM @tmp_Dup
+						WHERE CustId = @CustId
+						GROUP BY group_number
+						ORDER BY SUM(winlost) desc;
+
+						OPEN TransactionCursor;
+
+						FETCH NEXT FROM TransactionCursor INTO @TransId, @Amount;
+
+						WHILE @@FETCH_STATUS = 0
+						BEGIN
+							IF @RunningTotal + @Amount <= ABS(@Credit - (ABS(@tot_lose) - @tot_win))
+							BEGIN
+								SET @RunningTotal = @RunningTotal + @Amount;
+								INSERT INTO #SelectedTrans (TransId, CustId, AdjustedAmount)
+								SELECT TransId, @CustId, @Amount
+								FROM @tmp_Dup
+								WHERE custId = @CustId
+									AND group_number = @TransId
+							END
+
+							FETCH NEXT FROM TransactionCursor INTO @TransId, @Amount;
+						END
+
+						CLOSE TransactionCursor;
+						DEALLOCATE TransactionCursor;
+
+						FETCH NEXT FROM CustomerCursor INTO @CustId, @Credit, @tot_win, @tot_lose;
+					END
+
+					CLOSE CustomerCursor;
+					DEALLOCATE CustomerCursor;
+				END
 			END
 		END
 		ELSE
