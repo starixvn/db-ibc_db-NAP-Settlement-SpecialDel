@@ -27,6 +27,19 @@ BEGIN
 		, @transInfo				VARBINARY(MAX) 
 		, @TransInfoMaxPO		VARCHAR(MAX)
 		, @isITAdmin					  BIT = 0
+
+	DECLARE @StartTime			DATETIME
+			,@EndTime			DATETIME
+			,@LogActionId		INT
+			,@LogData			NVARCHAR(MAX)
+			,@SB_Error			BIT
+
+	SET @StartTime = GETDATE()
+	SET @LogActionId = 90519
+	SET @SB_Error = 0
+
+	SET @LogData = CASE WHEN @MatchId IS NULL THEN '' ELSE ',@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+					+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
 		
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -202,6 +215,20 @@ BEGIN
 		SELECT @ErrorCode = @StepNumber
 			,@ErrorMsg = ERROR_MESSAGE()	
 	END CATCH
+
+	-- Write Log
+	SET @EndTime = GETDATE()
+	SET @LogData = CAST((SELECT	@LogActionId AS '@LogActionId'
+							,@UserId AS '@UserId'							
+							,@IP AS '@IP'
+							,@MatchId AS '@MatchId'
+							,'Recover VSRacing - Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
+								+ @LogData
+							AS '@LogData'
+					FOR XML PATH ('r'), ROOT ('root'), TYPE
+	) AS NVARCHAR(MAX))
+
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 
 
 END
