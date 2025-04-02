@@ -9,6 +9,7 @@ AS
 		- 20241002@Kathy: direct payout for early soccer [Redmine:#211079]
 		- 20241205@Aries: Enhance Direct Payout for Soccer's Early Result [Redmine:#214832]
 		- 20250226@Aries: Support to apply Direct Payout for All Early Result of Soccer (Phase 2) [Redmine:#218482]
+		- 20250402@Hughie: Direct Payout- Soccer- Early PEN- Enhancement [Redmine:#222688]
 
 	Param's Explanation:
  
@@ -74,7 +75,9 @@ BEGIN
 			WHERE	sp.SportType = 1
 					AND sp.ResourceID =  rd.ResourceId
 		) ssp
-	WHERE	m.eventstatus = 'completed'  
+	WHERE	m.eventstatus = 'completed'
+			AND m.betstatus NOT LIKE 'REFUND%'
+			AND m.betstatus NOT LIKE 'ABANDONED%'
 			AND m.sporttype = 1
 			AND rd.ResultStatusID = 3 -- confirmed
 			AND ISNULL(rd.ResultSetting,0) & 1 = 0
@@ -85,6 +88,6 @@ BEGIN
 			AND ISNULL(m.SettlementStatus,0) & 87 = 0
 			AND rd.LastModifyDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,1), @CurrTime)
 			AND rd.HomeValue NOT LIKE '%NT%' 
-			AND rd.AwayValue NOT LIKE '%NT%'
+			AND ISNULL(rd.AwayValue,'') NOT LIKE '%NT%'
 END
 GO
