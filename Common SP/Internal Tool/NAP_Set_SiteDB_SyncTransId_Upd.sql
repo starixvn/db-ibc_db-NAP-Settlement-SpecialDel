@@ -1,4 +1,4 @@
-/*<info serverAlias="DBACC-bodb02,DBAGE-bodb02,DBBOF-bodb02,DBTP-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="SBSETTLE-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_SiteDB_SyncTransId_Upd]
 	@TableName		VARCHAR(200)
 	,@transInfoJson VARBINARY(MAX)	= NULL OUTPUT

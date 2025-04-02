@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBACC-bodb02,DBAGE-bodb02,DBBOF-bodb02,DBADM-bodb02,DBTP-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01] 
 	@SiteDBGroupId SMALLINT
 	,@SessionId BIGINT = NULL
