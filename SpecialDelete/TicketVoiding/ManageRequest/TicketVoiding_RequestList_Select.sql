@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	 @RequestInfoJson	VARCHAR(MAX)	= NULL
 	,@MatchId			INT				= NULL
 	,@IsExcludeTest		BIT				= 1
-	,@Status			INT				= 0
+	,@StatusIds			VARCHAR(50)		= NULL -- Changed from INT to VARCHAR(50) with default NULL
 	,@ProductTypeIds	VARCHAR(MAX)	= NULL
 	,@IssueTypeId		VARCHAR(MAX)	= NULL
 	,@SubIssueType		VARCHAR(MAX)	= NULL
@@ -75,6 +75,7 @@ AS
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20241206@July: [TVS] Add new filter [Redmine: #214113]
 		- 20241218@July: Show manage request 'Completed' for case No insert Service & VoidingHistory status done [Redmine: #213398]
+		- 20250402@July: Archived Request Function [Redmine: #213398]
 
 	Param's explanation:	
 		@Status: 
@@ -83,6 +84,7 @@ AS
 			- 1: Running
 			- 2: Completed
 			- 3: Failed
+			- 4: Archived
 		
 */
 BEGIN
@@ -148,10 +150,11 @@ BEGIN
 		,RequestDetailId INT --Support WMO(12) issuetype
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
+	
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
 	DECLARE @tmpSubIssueType TABlE (SubIssueTypeId INT)
 	DECLARE @tmpSporttype TABlE (Sporttype SMALLINT)
-	
+	DECLARE @tmpStatusIds TABLE (StatusId INT);
 	DECLARE @MinEventDate_tmp TABLE (RequestID INT, Eventdate DATETIME)
 
 	INSERT INTO @tmpIssueType (IssueTypeId)
@@ -161,6 +164,13 @@ BEGIN
 	INSERT INTO @tmpSubIssueType (SubIssueTypeId)
 	SELECT value AS SubIssueTypeId
 	FROM STRING_SPLIT(@SubIssueType, ',') 
+
+	IF @StatusIds IS NOT NULL
+	BEGIN
+		INSERT INTO @tmpStatusIds (StatusId)
+		SELECT CAST(value AS INT)
+		FROM STRING_SPLIT(@StatusIds, ',');
+	END
 
 	SET @ProductTypeIds = ',' + @ProductTypeIds + ','
 	SELECT  @IsBasketball = CASE WHEN CHARINDEX(',1,',@ProductTypeIds) > 0 THEN 1 ELSE 0 END
@@ -761,17 +771,17 @@ BEGIN
 			)vs
 	WHERE 1 = CASE 
 				--All
-				WHEN @Status = -1 THEN 1
-				--New
-				WHEN @Status = 0 AND vh.statusID IS NULL AND s.statusID IS NULL THEN 1 
-				--Completed
-				WHEN @Status = 2 AND vh.statusID = 2 AND (s.statusID = 2 OR s.statusID IS NULL) THEN 1 
-				--Failed
-				WHEN @Status = 3 AND (vh.statusID = 3 OR s.statusID = 3) THEN 1 
-				--Running
-				WHEN @Status = 1 AND (vh.statusID = 1 AND s.statusID IS NULL) THEN 1 
-				WHEN @Status = 1 AND (s.statusID = 1 AND vh.statusID IS NULL) THEN 1 
-				WHEN @Status = 1 AND (vh.statusID = 1 AND s.statusID = 1) THEN 1
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = -1) THEN 1
+				-- New
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 0) AND vh.statusID IS NULL AND s.statusID IS NULL THEN 1
+				-- Completed
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 2) AND vh.statusID = 2 AND (s.statusID = 2 OR s.statusID IS NULL) THEN 1
+				-- Failed
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 3) AND (vh.statusID = 3 OR s.statusID = 3) THEN 1
+				-- Running
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 1) AND (vh.statusID = 1 AND s.statusID IS NULL) THEN 1
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 1) AND (s.statusID = 1 AND vh.statusID IS NULL) THEN 1
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 1) AND (vh.statusID = 1 AND s.statusID = 1) THEN 1
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
