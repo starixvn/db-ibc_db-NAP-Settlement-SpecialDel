@@ -28,6 +28,8 @@ AS
 		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
 		- 20250121@Lani: [TVS] Return MinAcceptType column for Danger Accept/Red Card/Wrong Score issue type - [Redmine: #216153]
 		- 20250318@Lani: [TVS] Copy request info - Support more issue type [Redmine: #219039]
+		- 20250318@Lani: [TVS] Copy request info - Support Wrong HDP - Home/Away Virtual Head Reverse sub types [Redmine: #222346]
+
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
 					         Reduced Overs, Not Participate, Abandoned
@@ -48,6 +50,7 @@ BEGIN
 	DECLARE @tmpRequestInfo TABLE (
 		 RequestId			INT
 		,MatchId			INT
+		,Sporttype			SMALLINT
 		,LeagueId			INT
 		,HomeId				INT
 		,AwayId				INT
@@ -112,7 +115,8 @@ BEGIN
 	INSERT INTO @tmpRequestInfo
 	(
 		 RequestId 
-		,MatchId 
+		,MatchId
+		,Sporttype
 		,LeagueId
 		,HomeId
 		,AwayId
@@ -137,6 +141,7 @@ BEGIN
 	SELECT TOP(1) 
 		 rd.RequestId
 		,rd.MatchId
+		,CASE WHEN r.IssueTypeId IN (4,5) AND rd.SubIssueTypeId NOT IN (8,9) THEN rd.Sporttype ELSE NULL END AS Sporttype
 		,rd.LeagueId
 		,rd.HomeId
 		,rd.AwayId
@@ -332,6 +337,7 @@ BEGIN
 				,@RequestExtraInfo  VARCHAR(MAX)
 				,@ActualMarket		VARCHAR(50)
 				,@WrongMarket		VARCHAR(50)
+				,@HdpValue			VARCHAR(50)
 
 		SELECT @RequestExtraInfo = RequestExtraInfo FROM @tmpRequestInfo
 
@@ -347,7 +353,10 @@ BEGIN
 								   END,
 				  @ActualMarket = CASE WHEN (CHARINDEX('HomeFavorite=',@RequestExtraInfo) > 0) OR (CHARINDEX('AwayFavorite=',@RequestExtraInfo) > 0) THEN CAST(@RequestExtraInfo AS XML).value('(/r/@ActualMarket)[1]', 'VARCHAR(50)')
 									   ELSE NULL
-								  END
+								  END,
+				  @HdpValue = CASE WHEN CHARINDEX('HdpValue=',@RequestExtraInfo) > 0 THEN CAST(@RequestExtraInfo AS XML).value('(/r/@HdpValue)[1]', 'VARCHAR(50)')
+								   ELSE NULL
+							  END
 		END
 		ELSE
 		BEGIN
@@ -379,7 +388,8 @@ BEGIN
 	/*****************Return table **************************/
 	-- 1. Table infor request
 	SELECT RequestId 
-		  ,MatchId 
+		  ,MatchId
+		  ,Sporttype
 		  ,LeagueId 
 		  ,HomeId 
 		  ,AwayId 
@@ -414,6 +424,7 @@ BEGIN
 		  ,@FavoriteValue AS FavoriteValue
 		  ,@ActualMarket AS ActualMarket
 		  ,@WrongMarket AS WrongMarket
+		  ,@HdpValue AS HdpValue
 		  ,@FromOddsNotVoidHomeOver AS FromOddsNotVoidHomeOver
 		  ,@ToOddsNotVoidHomeOver AS ToOddsNotVoidHomeOver
 		  ,@FromOddsNotVoidAwayUnder AS FromOddsNotVoidAwayUnder
