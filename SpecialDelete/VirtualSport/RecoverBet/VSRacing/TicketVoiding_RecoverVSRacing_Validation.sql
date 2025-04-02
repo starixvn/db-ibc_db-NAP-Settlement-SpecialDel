@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_RecoverVSRacing_Validation]
 (
 	@TransIds	VARCHAR(MAX)
-	,@Resources	VARCHAR(MAX)
 	,@ErrorCode 	INT = 0 OUTPUT
 	,@ErrorMsg	NVARCHAR(200) = '' OUTPUT
 )
@@ -75,10 +74,9 @@ BEGIN
 		,b.comstatus
 		,b.oddstype
 		,CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-		,rs.pfID AS ProfileID
 		,b.SiteDBGroupID
 		,b.oddsid
-		,z.creator AS CreatorBackup
+		,z.creator
 		,b.statuswinlost
 		,b.playercomm
 		,b.acomm
@@ -105,12 +103,6 @@ BEGIN
 						ON rs.EventID = o.EventID
 				WHERE o.Orid = z.oddsid
 		)m
-		CROSS APPLY (
-			SELECT DISTINCT p.pfID,p.Bettype
-			FROM STRING_SPLIT(@Resources,',') AS rs
-				INNER JOIN SettlementSpecialBettypeProfile p WITH(NOLOCK) ON rs.value = p.ResourceID AND p.sporttype = m.sporttype
-			WHERE p.BetType = b.bettype
-		)rs
 		LEFT JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON mt.TransId = r.transid
 	WHERE m.sporttype IN (198,177,125,126,127)
 		AND m.eventdate > @Movebetdate
