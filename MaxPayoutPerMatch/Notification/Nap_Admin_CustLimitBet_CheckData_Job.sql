@@ -461,7 +461,7 @@ BEGIN
 
 	----------------------------------------------------------------------------------------------------------------------------------------------------
 
-	CREATE TABLE #TempReject (transid BIGINT, checktime DATETIME, matchid int, custid INT, sporttype int, currency tinyint)
+	CREATE TABLE #TempReject (transid BIGINT, checktime DATETIME, matchid int, custid INT, sporttype int, currency smallint)
 
 	INSERT INTO #TempReject (transid, checktime, matchid, custid, sporttype, currency)
 	SELECT b.transid, b.checktime, b.matchid, b.custid, m.sporttype, b.currency
