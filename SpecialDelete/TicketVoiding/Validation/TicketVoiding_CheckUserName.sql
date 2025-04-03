@@ -797,6 +797,10 @@ BEGIN
 		FROM #tmpTransInfo t
 		GROUP BY t.custid, t.credit, t.AdjustVoidLimit
 
+		DELETE c
+		FROM @tmp_custinfo c
+		WHERE (c.credit + c.tot_win - c.tot_lose) <= 0
+
 		--2.1. Get list cust has current losing <= givencredit/adjust
 		;WITH cte AS (
 			SELECT t.custid
