@@ -792,7 +792,7 @@ BEGIN
 		INSERT INTO @tmp_custinfo (CustId, tot_lose, tot_win, credit)
 		SELECT t.custid
 			,ABS(SUM(CASE WHEN statusid = 113 THEN winlost ELSE 0 END)) AS tot_lose
-			,ABS(SUM(CASE WHEN statusid = 112 THEN winlost ELSE 0 END)) AS tot_lose
+			,ABS(SUM(CASE WHEN statusid = 112 THEN winlost ELSE 0 END)) AS tot_win
 			,ISNULL(t.AdjustVoidLimit, t.credit) AS credit
 		FROM #tmpTransInfo t
 		GROUP BY t.custid, t.credit, t.AdjustVoidLimit
