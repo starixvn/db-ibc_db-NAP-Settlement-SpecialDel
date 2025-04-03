@@ -29,6 +29,7 @@ AS
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241126@Lani: [TVS] Get site from srecommend, change serverAlias [Redmine: #213451]
 		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
+		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -141,7 +142,7 @@ BEGIN
 		matchid				INT,
 		[Action]			VARCHAR(100),
 		TicketType			TINYINT, -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181, 4 : VS3(Leap Gaming), 5: VS4(Edge Gaming), 6: VS5, 7: VS6
-		currency			TINYINT,
+		currency			SMALLINT,
 		actualPO			MONEY,
 		IsApplyMaxPO		BIT
 	)

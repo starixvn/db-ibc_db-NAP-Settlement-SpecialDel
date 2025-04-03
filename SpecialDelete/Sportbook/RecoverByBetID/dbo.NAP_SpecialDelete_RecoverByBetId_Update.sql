@@ -25,7 +25,8 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230921@Max: [TVS] Recover Virtual Sports Bet and Recover By Bet ID - Update more info when calling SP from Settlement site [Redmine: #194269]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
-		
+		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+
 	Param's Explanation:	
 */
 
@@ -87,7 +88,7 @@ BEGIN
 		srecommend		INT,
 		IsNeutral		BIT,
 		CurrencyName	NVARCHAR(50),
-		Currency		TINYINT,
+		Currency		SMALLINT,
 		BetFrom			NVARCHAR(4),
 		creator			INT,
 		matchid			INT,
@@ -113,7 +114,7 @@ BEGIN
 		awayid			INT,
 		IsNeutral		BIT,
 		sporttype		SMALLINT,
-		Currency		TINYINT,
+		Currency		SMALLINT,
 		transdate		DATETIME,
 		modds			SMALLMONEY,
 		eventdate		DATETIME,
@@ -133,7 +134,7 @@ BEGIN
 		betid			BIGINT,
 		transdesc		NVARCHAR(1000),
 		CurrencyName	NVARCHAR(50),
-		Currency		TINYINT,
+		Currency		SMALLINT,
 		modds			SMALLMONEY,
 		transdate		DATETIME
 	);

@@ -19,7 +19,7 @@ AS
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230921@Max: [TVS] Recover Virtual Sports Bet and Recover By Bet ID - Update more info when calling SP from Settlement site [Redmine: #194269]
-
+		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 	Param's Explanation:
 		@TransIds: Maxbet 1000 tickets
 		
@@ -39,7 +39,7 @@ BEGIN
 
 	DECLARE @tmpTransIDResettle TABLE (TransId BIGINT)	
 
-	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, custid INT, currency TINYINT, actualPO MONEY, winlost MONEY,IsApplyMaxPO BIT
+	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, custid INT, currency SMALLINT, actualPO MONEY, winlost MONEY,IsApplyMaxPO BIT
 		,transdate DATETIME, bettype SMALLINT)
 
 	CREATE TABLE #BalanceBefore (custid INT, balance MONEY, winlost MONEY, winlostdate SMALLDATETIME, gametypeid SMALLINT)

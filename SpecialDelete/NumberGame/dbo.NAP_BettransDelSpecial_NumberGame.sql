@@ -49,7 +49,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20241125@Lani: [TVS] Change join type, serverAlias [Redmine: #213451]
 		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
-
+		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 
 	Param's Explanation: 
 		- @Opition: 
@@ -255,7 +255,7 @@ BEGIN
 		,winlost MONEY
 		,comm MONEY
 		,STATUS NVARCHAR(20)
-		,currency TINYINT
+		,currency SMALLINT
 		,CurrencyName NVARCHAR(50)
 		,IsLiveIndicator BIT
 		,livehomescore SMALLINT
