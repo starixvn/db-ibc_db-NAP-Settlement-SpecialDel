@@ -79,7 +79,6 @@ AS
 
 	Param's explanation:	
 		@Status: 
-			--1: All
 			- 0: New
 			- 1: Running
 			- 2: Completed
@@ -775,8 +774,6 @@ BEGIN
 						AND t.Sporttype IN (177,198)
 			)vs
 	WHERE 1 = CASE 
-				--All
-				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = -1) THEN 1
 				-- New
 				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 0) AND vh.statusID IS NULL AND s.statusID IS NULL THEN 1
 				-- Completed
