@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Dot_Intg_SummaryRefNo_Retrieve_Void14_tmp] 
 	@custId [int],
 	@betTypeId [int],
@@ -10,7 +10,7 @@ CREATE PROCEDURE [dbo].[Dot_Intg_SummaryRefNo_Retrieve_Void14_tmp]
 	@mrecommend [int],
 	@srecommend [int],
 	@betFrom [nvarchar](4),
-	@currency [tinyint],
+	@currency [smallint],
 	@currencyName [varchar](50),
 	@ip [varchar](15),
 	@transdesc [nvarchar](1000) = null,
@@ -30,6 +30,7 @@ DB: DBTXN/bodb02
 Revisions:
 	--20200107@Helen: Support to void ticket in bettransRnG14 for Roulette - clone from Dot_Intg_SummaryRefNo_Retrieve - [148359]
 	- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+	- 20250403@Lani: [TVS] Extend datatype from TINYINT to SMALLINT [Redmine: #222191]
 */
 	select @refNo = 0
 
