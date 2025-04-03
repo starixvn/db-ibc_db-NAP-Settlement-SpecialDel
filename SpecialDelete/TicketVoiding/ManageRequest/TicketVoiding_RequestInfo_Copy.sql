@@ -141,7 +141,7 @@ BEGIN
 	SELECT TOP(1) 
 		 rd.RequestId
 		,rd.MatchId
-		,CASE WHEN r.IssueTypeId IN (4,5) AND rd.SubIssueTypeId NOT IN (8,9) THEN rd.Sporttype ELSE NULL END AS Sporttype
+		,rd.Sporttype
 		,rd.LeagueId
 		,rd.HomeId
 		,rd.AwayId
