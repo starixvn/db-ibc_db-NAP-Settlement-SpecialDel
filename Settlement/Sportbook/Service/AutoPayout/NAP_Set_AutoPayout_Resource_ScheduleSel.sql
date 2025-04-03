@@ -76,8 +76,8 @@ BEGIN
 					AND sp.ResourceID =  rd.ResourceId
 		) ssp
 	WHERE	m.eventstatus = 'completed'
-			AND m.betstatus NOT LIKE '%REFUND%'
-			AND m.betstatus NOT LIKE '%ABANDONED%'
+			AND ISNULL(m.betstatus,'') NOT LIKE '%REFUND%'
+			AND ISNULL(m.betstatus,'') NOT LIKE '%ABANDONED%'
 			AND m.sporttype = 1
 			AND rd.ResultStatusID = 3 -- confirmed
 			AND ISNULL(rd.ResultSetting,0) & 1 = 0
