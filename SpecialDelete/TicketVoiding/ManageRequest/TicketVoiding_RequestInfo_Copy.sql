@@ -152,7 +152,7 @@ BEGIN
 		,CASE WHEN r.IssueTypeId IN (2,4,5,6,7,12) THEN r.MistakenBy ELSE NULL END AS MistakenBy --Wrong Market Offered, Wrong HDP/1stHDP, WrongOU, Wrong Odds
 		,r.IssueTypeId
 		,i.IssueTypeName
-		,CASE WHEN r.IssueTypeId IN (2) THEN s.SubIssueTypeId ELSE NULL END AS SubIssueTypeId
+		,CASE WHEN r.IssueTypeId IN (2,4,5) THEN s.SubIssueTypeId ELSE NULL END AS SubIssueTypeId
 		,s.SubIssueTypeName
 		,(SELECT	o.OperatorId AS '@OperatorId', o.OperatorTypeId AS '@TypeId'
 				FROM	dbo.TicketVoiding_OperatorInfo o WITH(NOLOCK)
