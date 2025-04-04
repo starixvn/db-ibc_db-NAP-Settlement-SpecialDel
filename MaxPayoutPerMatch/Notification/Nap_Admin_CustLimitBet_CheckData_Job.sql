@@ -29,6 +29,7 @@ AS
 		- 20241203@Max: Improve performance of Max Payout per Match [Redmine: #214294]
 		- 20250305@Max: Replace action reject by another actions for rule check duplicate [Redmine: #218599]
 		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
+		- 20250403@Max: Enhance detection function when the system has duplicated code in the queue [Redmine: #222735]
 
 	Param's explanation:		
 		
@@ -445,16 +446,24 @@ BEGIN
 	END
 
 	-------------------------check duplicate data in queue table for void/recover/settle action --------------------------------------------------------------------
+	DECLARE @tmp_duplicate AS TABLE (MatchId INT, EventTypeID TINYINT, Transids VARCHAR(MAX), CustId INT, MinTime DATETIME, MaxTime DATETIME)
 
-	--SELECT TOP 1 COUNT(1), q.ActionID, q.CustID, q.Matchid, q.EventTypeID, min(q.CreatedDate) MinDate , max (CreatedDate) MaxDate, q.Transids
+	INSERT INTO @tmp_duplicate (MatchId, EventTypeID, Transids, CustId, MinTime, MaxTime)
+	SELECT MatchId, EventTypeID, Transids, CustId, MIN(CreatedDate), MAX(CreatedDate)
+	FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
+	WHERE q.CreatedDate BETWEEN @StartTime AND @EndTime
+		AND q.ActionID IN (1,3,4,5,6)
+	GROUP BY MatchId, EventTypeID, Transids, CustId
+	HAVING COUNT(1) > 1 AND COUNT(DISTINCT ActionID) = 1
 
-	IF EXISTS (SELECT TOP 1 1
-				FROM dbo.CustLimitBetQueue Q with (nolock)
-				WHERE q.ActionID IN (1,3,4,5,6)
-					AND q.CreatedDate BETWEEN @StartTime AND @EndTime
-				GROUP BY q.ActionID, q.CustID, q.Matchid, q.Transids, q.EventTypeID
-				HAVING count(1) > 1
-				)
+	IF @@ROWCOUNT > 0
+	BEGIN
+		DELETE t
+		FROM @tmp_duplicate T
+		WHERE ABS(DATEDIFF(SECOND, T.MinDate, T.MaxDate)) > 30
+	END 
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tmp_duplicate)
 	BEGIN
 		SELECT TOP 1 @ErrMsg_Duplicate = @ErrMsg_Duplicate +  '4. Duplicate data in Queue table. ' + @CRLF
 	END
