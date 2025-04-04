@@ -460,7 +460,7 @@ BEGIN
 	BEGIN
 		DELETE t
 		FROM @tmp_duplicate T
-		WHERE ABS(DATEDIFF(SECOND, T.MinDate, T.MaxDate)) > 30
+		WHERE ABS(DATEDIFF(SECOND, T.MinTime, T.MaxTime)) > 30
 	END 
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tmp_duplicate)
