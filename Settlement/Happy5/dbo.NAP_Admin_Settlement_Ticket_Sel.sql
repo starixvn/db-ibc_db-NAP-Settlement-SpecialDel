@@ -22,7 +22,7 @@ AS
 		- 20240520@Aries: Created  [Redmine:#202389]
 		- 20240930@Aries: Fix the issue duplicated settlement DBTrans and SiteDBs for HP5  [Redmine:#211434]
 		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
-		- 20240312@Jane: Integration VS7 - Kiron [Redmine:#219147]
+		- 20250404@Jane: Integration VS7 - Kiron [Redmine:#219147]
 
 	Param's Explanation:
 		
@@ -69,7 +69,7 @@ BEGIN
 		WHERE b.matchid = @MatchId 
 			AND b.custid = @MinCustId
 			AND b.TransId BETWEEN  @MinCustId_MinTransID AND @MinCustId_MaxTransID
-			AND b.statusID NOT IN (101,102)
+			AND b.statusID NOT IN (101)
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
 	END
@@ -103,7 +103,7 @@ BEGIN
 		WHERE b.matchid = @MatchId 
 			AND b.custid = @MinCustId
 			AND b.TransId BETWEEN  @MinCustId_MinTransID AND @MinCustId_MaxTransID
-			AND b.statusID NOT IN (101,102)
+			AND b.statusID NOT IN (101)
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
 		UNION ALL
@@ -134,7 +134,7 @@ BEGIN
 			CROSS APPLY(SELECT TOP 1 tbt.pfID FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 		WHERE b.matchid = @MatchId 
 			AND b.custid > @MinCustId AND b.custid < @MaxCustId
-			AND b.statusID NOT IN (101,102)
+			AND b.statusID NOT IN (101)
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 		UNION ALL
@@ -166,7 +166,7 @@ BEGIN
 		WHERE b.matchid = @MatchId 
 			AND b.custid = @MaxCustId
 			AND b.TransId BETWEEN  @MaxCustId_MinTransID AND @MaxCustId_MaxTransID
-			AND b.statusID NOT IN (101,102)
+			AND b.statusID NOT IN (101)
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	END
 	
@@ -199,7 +199,7 @@ BEGIN
 		WHERE b.matchid = @MatchId 
 			AND b.custid = @MinCustId
 			AND b.TransId BETWEEN  @MinCustId_MinTransID AND @MinCustId_MaxTransID
-			AND	b.statusID NOT IN (103, 101, 102)
+			AND	b.statusID NOT IN (103, 101)
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
 	END
@@ -233,7 +233,7 @@ BEGIN
 		WHERE b.matchid = @MatchId 
 			AND b.custid = @MinCustId
 			AND b.TransId BETWEEN  @MinCustId_MinTransID AND @MinCustId_MaxTransID
-			AND	b.statusID NOT IN (103, 101, 102)
+			AND	b.statusID NOT IN (103, 101)
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
 		UNION ALL
@@ -264,7 +264,7 @@ BEGIN
 			CROSS APPLY(SELECT TOP 1 tbt.pfID FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 		WHERE b.matchid = @MatchId 
 			AND b.custid > @MinCustId AND b.custid < @MaxCustId
-			AND	b.statusID NOT IN (103, 101, 102)
+			AND	b.statusID NOT IN (103, 101)
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 		UNION ALL
@@ -296,7 +296,7 @@ BEGIN
 		WHERE b.matchid = @MatchId 
 			AND b.custid = @MaxCustId
 			AND b.TransId BETWEEN  @MaxCustId_MinTransID AND @MaxCustId_MaxTransID
-			AND	b.statusID NOT IN (103, 101, 102)
+			AND	b.statusID NOT IN (103, 101)
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	END
 	

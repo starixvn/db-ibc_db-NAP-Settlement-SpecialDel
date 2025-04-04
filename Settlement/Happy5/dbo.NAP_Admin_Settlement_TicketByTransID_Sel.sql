@@ -10,7 +10,7 @@ AS
 
 	Revisions:
 		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
-		- 20240312@Jane: Integration VS7 - Kiron [Redmine:#219147]
+		- 20250312@Jane: Integration VS7 - Kiron [Redmine:#219147]
 
 	Param's Explanation:
 		

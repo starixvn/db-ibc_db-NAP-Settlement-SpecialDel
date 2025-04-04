@@ -16,7 +16,7 @@ AS
 		- 20240704@Aries: VS5 - Virtually Sports [Redmine:#207309]
 		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
 		- 20241023@Louisa: Modify code for VS6 and Change Service Alias from DBTXN to DBSIG,DBCTG  [Redmine:#210733]
-		- 20240312@Jane: Integration VS7 - Kiron [Redmine:#219147]
+		- 20250312@Jane: Integration VS7 - Kiron [Redmine:#219147]
 		
 	Param explanation:  
 		- @MatchId: Get list ticket running, won, lose, draw
