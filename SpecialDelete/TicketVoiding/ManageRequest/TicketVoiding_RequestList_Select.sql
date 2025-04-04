@@ -156,7 +156,7 @@ BEGIN
 	DECLARE @tmpSubIssueType TABlE (SubIssueTypeId INT)
 	DECLARE @tmpSporttype TABlE (Sporttype SMALLINT)
 	DECLARE @tmpStatusIds TABLE (StatusId INT);
-	DECLARE @MinEventDate_tmp TABLE (RequestID INT, Eventdate DATETIME)
+	DECLARE @tmpMinEventDate TABLE (RequestID INT, Eventdate DATETIME)
 
 	INSERT INTO @tmpIssueType (IssueTypeId)
 	SELECT DISTINCT value AS IssueTypeId
@@ -199,30 +199,46 @@ BEGIN
 								WHEN @RequestInfoJson IS NOT NULL THEN 3 -- Fromdate, Todate
 							END
 	-----------------------------GET eventdate of match---------------------------------------------
-	IF @FilteredBy = 1
+	IF @FilteredBy IN (1, 2)
 	BEGIN
-		IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-					WHERE matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) AND RequestId = @RequestId
+		DECLARE TABLE @tmpRequestDetail (RequestId INT, MatchId INT)
+		
+		INSERT INTO @tmpRequestDetail (RequestId, MatchId)
+		SELECT DISTINCT rd.RequestId, rd.MatchId
+		FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1
+					   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+					   ELSE 0 END
+
+		IF EXISTS ( SELECT TOP 1 1 FROM tmpRequestDetail WITH(NOLOCK)
+					WHERE MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+				)
 		)
 		BEGIN
-			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-			SELECT  s.RequestId,MIN(b.winlostdate)
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+			DECLARE TABLE @tmpRequestDetailTicket_Single (RequestId INT, MatchId INT, TransId BIGINT)
+			
+			INSERT INTO @tmpRequestDetailTicket_Single (RequestId, MatchId, TransId)
+			SELECT DISTINCT s.RequestId, s.MatchId, s.TransId
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
+			WHERE s.RequestId IN (SELECT RequestId FROM @tmpRequestDetail) 
+				AND s.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+
+			INSERT INTO @tmpMinEventDate (RequestID, Eventdate)
+			SELECT  s.RequestId, MIN(b.winlostdate)
+			FROM @tmpRequestDetailTicket_Single s WITH(NOLOCK) 
 				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid
-			WHERE s.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) AND s.RequestId = @RequestId
 			GROUP BY s.RequestId
 
-			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+			INSERT INTO @tmpMinEventDate (RequestID, Eventdate)
 			SELECT  s.RequestId,MIN(b.winlostdate)
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+			FROM @tmpRequestDetailTicket_Single s WITH(NOLOCK) 
 				INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid
-			WHERE s.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) AND s.RequestId = @RequestId
 			GROUP BY s.RequestId
 		END
-
-		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		
+		INSERT INTO @tmpMinEventDate (RequestID, Eventdate)
 		SELECT  rd.RequestId, MIN(o.eventdate)
-		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		FROM @tmpRequestDetail rd WITH(NOLOCK)
 		CROSS APPLY(
 					SELECT o.orid, o.eventdate
 					FROM	dbo.outright o WITH(NOLOCK)
@@ -232,12 +248,11 @@ BEGIN
 					FROM	dbo.outright14 o14 WITH(NOLOCK)
 					WHERE rd.MatchId = o14.orid
 					)o 
-		WHERE rd.RequestId = @RequestId
 		GROUP BY rd.RequestId			   
 		
-		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		INSERT INTO @tmpMinEventDate (RequestID, Eventdate)
 		SELECT rd.RequestId, MIN(m.eventdate)
-		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		FROM @tmpRequestDetail rd WITH(NOLOCK)
 		CROSS APPLY (
 					SELECT m.matchid, m.eventdate
 					FROM	dbo.match m WITH(NOLOCK)
@@ -247,12 +262,11 @@ BEGIN
 					FROM	dbo.match14 m14 WITH(NOLOCK)
 					WHERE rd.MatchId = m14.matchid
 					) m
-		WHERE rd.RequestId = @RequestId
 		GROUP BY rd.RequestId
 
-		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		INSERT INTO @tmpMinEventDate (RequestID, Eventdate)
 		SELECT rd.RequestId, MIN(m.eventdate)
-		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		FROM @tmpRequestDetail rd WITH(NOLOCK)
 		CROSS APPLY (
 					SELECT m.Match3rdId, m.eventdate
 					FROM	dbo.Match3rd m WITH(NOLOCK)
@@ -262,12 +276,11 @@ BEGIN
 					FROM	dbo.Match3rd14 m14 WITH(NOLOCK)
 					WHERE rd.MatchId = m14.Match3rdId
 					) m
-		WHERE rd.RequestId = @RequestId
 		GROUP BY rd.RequestId
 
-		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		INSERT INTO @tmpMinEventDate (RequestID, Eventdate)
 		SELECT rd.RequestId, MIN(m.eventdate)
-		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		FROM @tmpRequestDetail rd WITH(NOLOCK)
 		CROSS APPLY (
 					SELECT m.EventID, o.eventdate
 					FROM	dbo.VSRaceInfo m WITH(NOLOCK)
@@ -279,93 +292,7 @@ BEGIN
 						INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) ON o.EventID = m14.EventID
 					WHERE rd.MatchId = m14.EventID
 					) m
-		WHERE rd.RequestId = @RequestId
 		GROUP BY rd.RequestId
-	END
-	ELSE
-	IF @FilteredBy = 2
-	BEGIN
-		IF @MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-		BEGIN
-			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-			SELECT  s.RequestId,MIN(b.winlostdate)
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid
-			WHERE s.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-				AND s.MatchId = @MatchId
-			GROUP BY s.RequestId
-					
-			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-			SELECT  s.RequestId,MIN(b.winlostdate)
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-				INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid
-			WHERE s.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-				AND s.MatchId = @MatchId
-			GROUP BY s.RequestId
-		END
-
-		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-		SELECT  rd.RequestId, MIN(o.eventdate)
-		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-		CROSS APPLY(
-					SELECT o.orid, o.eventdate
-					FROM	dbo.outright o WITH(NOLOCK)
-					WHERE rd.MatchId = o.orid
-					UNION ALL
-					SELECT	o14.orid, o14.eventdate
-					FROM	dbo.outright14 o14 WITH(NOLOCK)
-					WHERE rd.MatchId = o14.orid
-					)o 
-		WHERE rd.MatchId = @MatchId
-		GROUP BY rd.RequestId
-		
-		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-		SELECT rd.RequestId, MIN(m.eventdate)
-		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-		CROSS APPLY (
-					SELECT m.matchid, m.eventdate
-					FROM	dbo.match m WITH(NOLOCK)
-					WHERE rd.MatchId = m.matchid
-					UNION
-					SELECT	m14.MatchId, m14.eventdate
-					FROM	dbo.match14 m14 WITH(NOLOCK)
-					WHERE rd.MatchId = m14.matchid
-					) m
-		WHERE rd.MatchId = @MatchId 
-		GROUP BY rd.RequestId
-
-		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-		SELECT rd.RequestId, MIN(m.eventdate)
-		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-		CROSS APPLY (
-					SELECT m.Match3rdId, m.eventdate
-					FROM	dbo.Match3rd m WITH(NOLOCK)
-					WHERE rd.MatchId = m.Match3rdId
-					UNION
-					SELECT	m14.Match3rdId, m14.eventdate
-					FROM	dbo.Match3rd14 m14 WITH(NOLOCK)
-					WHERE rd.MatchId = m14.Match3rdId
-					) m
-		WHERE rd.MatchId = @MatchId 
-		GROUP BY rd.RequestId
-
-		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-		SELECT rd.RequestId, MIN(m.eventdate)
-		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-		CROSS APPLY (
-					SELECT m.EventID, o.eventdate
-					FROM	dbo.VSRaceInfo m WITH(NOLOCK)
-						INNER JOIN dbo.VSOutright o WITH (NOLOCK) ON o.EventID = m.EventID
-					WHERE rd.MatchId = m.EventID
-					UNION ALL
-					SELECT	m14.EventID, o.eventdate
-					FROM	dbo.VSRaceInfo14 m14 WITH(NOLOCK)
-						INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) ON o.EventID = m14.EventID
-					WHERE rd.MatchId = m14.EventID
-					) m
-		WHERE rd.MatchId = @MatchId
-		GROUP BY rd.RequestId
-		
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
@@ -420,7 +347,7 @@ BEGIN
 				ON r.RequestId = rd.RequestId
 			INNER JOIN (
 						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
-						FROM @MinEventDate_tmp m
+						FROM @tmpMinEventDate m
 						GROUP BY RequestID
 						)m
 				ON r.RequestId = m.RequestID
@@ -481,7 +408,7 @@ BEGIN
 				ON r.RequestId = rd.RequestId
 			INNER JOIN (
 						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
-						FROM @MinEventDate_tmp m
+						FROM @tmpMinEventDate m
 						GROUP BY RequestID
 						)m
 				ON r.RequestId = m.RequestID

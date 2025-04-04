@@ -175,37 +175,23 @@ BEGIN
 							  WHEN @RequestInfoJson IS NOT NULL THEN 3 -- Fromdate, Todate
 						  END
 	-----------------------------GET eventdate of match---------------------------------------------
-	IF @FilteredBy = 1
+	IF @FilteredBy IN (1,2)
 	BEGIN
 		INSERT INTO #tmpRequest (RequestID, Eventdate)
 		SELECT  s.RequestId, MIN(s.Winlostdate)
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
 		WHERE s.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
-			AND s.RequestId = @RequestId
+			AND 1 = CASE WHEN @FilterBy = 1 AND s.RequestId = @RequestId THEN 1
+						 WHEN @FilterBy = 2 AND s.MatchId = @MatchId THEN 1
+						 ELSE 0 END
 		GROUP BY s.RequestId
 		
 		INSERT INTO #tmpRequest (RequestID, Eventdate)
 		SELECT  rd.RequestId, MIN(rd.eventdate)
 		FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-		WHERE rd.RequestId = @RequestId
-		GROUP BY rd.RequestId
-	END
-	ELSE IF @FilteredBy = 2
-	BEGIN
-		IF @MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-		BEGIN
-			INSERT INTO #tmpRequest (RequestID, Eventdate)
-			SELECT  s.RequestId, MIN(s.Winlostdate)
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
-			WHERE s.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
-				AND s.MatchId = @MatchId
-			GROUP BY s.RequestId
-		END
-		
-		INSERT INTO #tmpRequest (RequestID, Eventdate)
-		SELECT rd.RequestId, MIN(rd.eventdate)
-		FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-		WHERE rd.MatchId = @MatchId
+		WHERE 1 = CASE WHEN @FilterBy = 1 AND s.RequestId = @RequestId THEN 1
+					   WHEN @FilterBy = 2 AND s.MatchId = @MatchId THEN 1
+					   ELSE 0 END
 		GROUP BY rd.RequestId
 	END
 	ELSE IF @FilteredBy = 3
