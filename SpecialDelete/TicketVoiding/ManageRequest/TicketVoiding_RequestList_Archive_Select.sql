@@ -60,7 +60,7 @@ AS
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20241206@July: [TVS] Add new filter [Redmine: #214113]
 		- 20241218@July: Show manage request 'Completed' for case No insert Service & VoidingHistory status done [Redmine: #213398]
-		- 20250402@July: Archived Request Function [Redmine: #213398]
+		- 20250402@July: Manage Request - Add new function and status "Stored" for request [Redmine: #213398]
 
 	Param's explanation:	
 		@Status: 
@@ -68,7 +68,7 @@ AS
 			- 1: Running
 			- 2: Completed
 			- 3: Failed
-			- 4: Archived
+			- 4: Stored
 */
 BEGIN
 	SET NOCOUNT ON
@@ -124,7 +124,7 @@ BEGIN
 		,MessageId		INT
 		,Message        NVARCHAR(MAX)
 		,RequestDetailId	INT
-		,IsArchived		BIT DEFAULT (0) --Status archive page manage request
+		,IsStored		BIT DEFAULT (0) --Status function store manage request
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 	
@@ -181,16 +181,16 @@ BEGIN
 		SELECT  s.RequestId, MIN(s.Winlostdate)
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) 
 		WHERE s.MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
-			AND 1 = CASE WHEN @FilterBy = 1 AND s.RequestId = @RequestId THEN 1
-						 WHEN @FilterBy = 2 AND s.MatchId = @MatchId THEN 1
+			AND 1 = CASE WHEN @FilteredBy = 1 AND s.RequestId = @RequestId THEN 1
+						 WHEN @FilteredBy = 2 AND s.MatchId = @MatchId THEN 1
 						 ELSE 0 END
 		GROUP BY s.RequestId
 		
 		INSERT INTO #tmpRequest (RequestID, Eventdate)
 		SELECT  rd.RequestId, MIN(rd.eventdate)
 		FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-		WHERE 1 = CASE WHEN @FilterBy = 1 AND s.RequestId = @RequestId THEN 1
-					   WHEN @FilterBy = 2 AND s.MatchId = @MatchId THEN 1
+		WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1
+					   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
 					   ELSE 0 END
 		GROUP BY rd.RequestId
 	END
@@ -211,7 +211,7 @@ BEGIN
 	----------------------------- End of EventDate Processing ------------------------------
 	IF @FilteredBy = 1
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark, RequestDetailId, IsArchived)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark, RequestDetailId, IsStored)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -240,7 +240,7 @@ BEGIN
 				,rd.ProductIds
 				,r.Provider, r.Source, r.Remark
 				,CASE WHEN r.IssueTypeId = 12 THEN rd.Id ELSE NULL END AS RequestDetailId 
-				,ISNULL(IsArchived,0) AS IsArchived
+				,ISNULL(IsStored,0) AS IsStored
 		FROM dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -276,7 +276,7 @@ BEGIN
 				        WHEN @IsMainParlay = 1 AND s1.MatchId IS NOT NULL THEN 0
 						ELSE 1 END
 		
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark, RequestDetailId, IsArchived)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark, RequestDetailId, IsStored)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -305,7 +305,7 @@ BEGIN
 				,rd.ProductIds
 				,r.Provider, r.Source, r.Remark
 				,CASE WHEN r.IssueTypeId = 12 THEN rd.Id ELSE NULL END AS RequestDetailId 
-				,ISNULL(IsArchived,0) AS IsArchived
+				,ISNULL(IsStored,0) AS IsStored
 		FROM	dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -345,7 +345,7 @@ BEGIN
 				        WHEN @IsMainParlay = 1 AND s1.MatchId IS NOT NULL THEN 0
 						ELSE 1 END
 		
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark, RequestDetailId, IsArchived)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores, FilterBy, ProductIds, Provider, Source, Remark, RequestDetailId, IsStored)
 		SELECT	DISTINCT r.RequestId
 				,rd.SubIssueTypeId
 				,r.ActionId
@@ -374,7 +374,7 @@ BEGIN
 				,rd.ProductIds
 				,r.Provider, r.Source, r.Remark
 				,CASE WHEN r.IssueTypeId = 12 THEN rd.Id ELSE NULL END AS RequestDetailId 
-				,ISNULL(IsArchived,0) AS IsArchived
+				,ISNULL(IsStored,0) AS IsStored
 		FROM #tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
@@ -535,7 +535,7 @@ BEGIN
 			,vs.VendorMatchId
 			,vs.Distance AS RaceId
 			,t.RequestDetailId --Support WMO(12) issuetype
-			,t.IsArchived
+			,t.IsStored
 	FROM	#tmpResult t
 		LEFT JOIN #CTE_CustInfo c ON t.UserId = c.CustId
 		LEFT JOIN #CTE_CustInfo v ON t.LastVoidedBy = v.CustId
@@ -593,7 +593,7 @@ BEGIN
 					  WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 1) AND (s.statusID = 1 AND vh.statusID IS NULL) THEN 1
 					  WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 1) AND (vh.statusID = 1 AND s.statusID = 1) THEN 1
 					  -- Archived
-					  WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 4) AND (t.IsArchived = 1) THEN 1
+					  WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 4) AND (t.IsStored = 1) THEN 1
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END

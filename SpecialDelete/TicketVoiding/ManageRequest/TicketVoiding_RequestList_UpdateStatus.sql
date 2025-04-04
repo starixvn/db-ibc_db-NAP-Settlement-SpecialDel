@@ -2,11 +2,11 @@
 CREATE PROCEDURE [dbo].[TicketVoiding_RequestList_UpdateStatus]
 (
 	 @RequestId			INT
-	,@IsArchived		BIT	= 0
+	,@IsStored			BIT	= 0
 )
 AS
 /*	Created by: 20250403@July
-	Task: Archived Request Function
+	Task: Manage Request - Add new function and status "Stored" for request
 	DB: DBCTG/bodb02
 	
 	Revisions: 
@@ -16,6 +16,6 @@ BEGIN
 	SET NOCOUNT ON;
 
 	UPDATE dbo.TicketVoiding_Request WITH (ROWLOCK,UPDLOCK)
-	SET IsArchived = @IsArchived
+	SET IsStored = @IsStored
 	WHERE RequestId = @RequestId
 END
