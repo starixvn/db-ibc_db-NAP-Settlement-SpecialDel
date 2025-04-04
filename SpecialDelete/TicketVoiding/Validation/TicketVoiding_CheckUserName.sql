@@ -994,7 +994,7 @@ BEGIN
 						, t.tot_win - s.sum_winlost AS tot_win
 						, tot_lose
 					FROM @tmp_custinfo t
-						CROSS APPLY (
+						OUTER APPLY (
 							SELECT SUM(AdjustedAmount) AS sum_winlost
 							FROM #SelectedTrans s 
 							WHERE s.CustId = t.CustId
