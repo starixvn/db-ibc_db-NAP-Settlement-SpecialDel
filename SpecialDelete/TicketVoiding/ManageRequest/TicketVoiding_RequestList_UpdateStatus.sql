@@ -10,7 +10,7 @@ AS
 	DB: DBCTG/bodb02
 	
 	Revisions: 
-		- 20250403@July: Create new SP [Redmine:#213398]
+		- 20250403@July: Create new SP [Redmine:#220451]
 */
 BEGIN
 	SET NOCOUNT ON;

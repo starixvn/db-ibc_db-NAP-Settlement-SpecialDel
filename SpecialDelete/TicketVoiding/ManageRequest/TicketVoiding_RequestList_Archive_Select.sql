@@ -60,7 +60,7 @@ AS
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20241206@July: [TVS] Add new filter [Redmine: #214113]
 		- 20241218@July: Show manage request 'Completed' for case No insert Service & VoidingHistory status done [Redmine: #213398]
-		- 20250402@July: Manage Request - Add new function and status "Stored" for request [Redmine: #213398]
+		- 20250402@July: Manage Request - Add new function and status "Stored" for request [Redmine: #220451]
 
 	Param's explanation:	
 		@Status: 
@@ -145,7 +145,8 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpStatusIds (StatusId)
 		SELECT CAST(value AS INT)
-		FROM STRING_SPLIT(@StatusIds, ',');
+		FROM STRING_SPLIT(@StatusIds, ',')
+		WHERE value <> ''
 	END
 
 	SET @ProductTypeIds = ',' + @ProductTypeIds + ','
@@ -582,18 +583,22 @@ BEGIN
 						AND t.Sporttype IN (177,198)
 			)vs
 		WHERE 1 = CASE 
-					  -- New
-					  WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 0) AND vh.statusID IS NULL AND s.statusID IS NULL THEN 1
-					  -- Completed
-					  WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 2) AND vh.statusID = 2 AND (s.statusID = 2 OR s.statusID IS NULL) THEN 1
-					  -- Failed
-					  WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 3) AND (vh.statusID = 3 OR s.statusID = 3) THEN 1
-					  -- Running
-					  WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 1) AND (vh.statusID = 1 AND s.statusID IS NULL) THEN 1
-					  WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 1) AND (s.statusID = 1 AND vh.statusID IS NULL) THEN 1
-					  WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 1) AND (vh.statusID = 1 AND s.statusID = 1) THEN 1
-					  -- Archived
-					  WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 4) AND (t.IsStored = 1) THEN 1
+				-- New
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 0) AND ISNULL(t.IsStored,0) = 0 AND vh.statusID IS NULL AND s.statusID IS NULL THEN 1
+				-- Completed
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 2) AND ISNULL(t.IsStored,0) = 0 AND vh.statusID = 2 AND (s.statusID = 2 OR s.statusID IS NULL) THEN 1
+				-- Failed
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 3) AND ISNULL(t.IsStored,0) = 0 AND (vh.statusID = 3 OR s.statusID = 3) THEN 1
+				-- Running
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 1) 
+						AND ISNULL(t.IsStored,0) = 0
+						AND (
+								(vh.statusID = 1 AND s.statusID IS NULL) 
+							OR  (s.statusID = 1 AND vh.statusID IS NULL)
+							OR  (vh.statusID = 1 AND s.statusID = 1)
+							) THEN 1
+				-- Archived
+				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 4) AND (t.IsStored = 1) THEN 1
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
