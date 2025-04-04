@@ -991,7 +991,7 @@ BEGIN
 				BEGIN
 					DECLARE CustomerCursor CURSOR FOR
 					SELECT  t.CustId, Credit
-						, t.tot_win - s.sum_winlost AS tot_win
+						, t.tot_win - ISNULL(s.sum_winlost,0) AS tot_win
 						, tot_lose
 					FROM @tmp_custinfo t
 						OUTER APPLY (
