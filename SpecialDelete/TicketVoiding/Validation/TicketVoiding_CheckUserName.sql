@@ -962,6 +962,7 @@ BEGIN
 				)s
 
 			IF EXISTS (SELECT TOP 1 1 FROM @tmp_Dup d WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.CustId = d.CustId))
+				OR EXISTS (SELECT TOP 1 1 FROM @tmp_remaining d WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.CustId = d.CustId))
 			BEGIN
 				DECLARE CustomerCursor CURSOR FOR
 				SELECT  t.CustId, Credit
