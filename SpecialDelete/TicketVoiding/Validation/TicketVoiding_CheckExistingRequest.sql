@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckExistingRequest]
 (	
 	 @TransInfoJson VARBINARY(MAX) = NULL
 	,@RequestId	INT = 0
+	,@Mode		BIT = 0 
 )
 AS
 /*	
@@ -12,9 +13,10 @@ AS
 	
 	Revisions: 
 		- 20250311@Max: Init SP [#Redmine: #217979]
+		- 20250408@July: Enhance out of memory - Mode Loginfo [#Redmine: #217771]
 
 	Param's explanation:
-		
+		@Mode		BIT = 1 --Loginfo, 0 --Others
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -26,33 +28,54 @@ BEGIN
 	   matchid			INT
 	  ,transid			BIGINT      
 	  ,statusID			TINYINT
+	  ,SubTransid		BIGINT
 	)
 
 	INSERT INTO @tmpTrans( 
-		   matchid, transid, statusID
+		   matchid, transid, statusID, SubTransid
 		)
-	SELECT mid ,t ,sid 
+	SELECT mid, t, sid, s_t 
 	FROM  OPENJSON(@Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT, sid TINYINT)
+				WITH( mid INT, t BIGINT, sid TINYINT, s_t BIGINT)
 
-	SELECT DISTINCT t.transid
-	FROM @tmpTrans t
-		CROSS APPLY (
-				SELECT rs.RequestId
-				FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK) 
-				WHERE rs.MatchId = t.matchid AND rs.TransId = t.transid
-			) rs
-		CROSS APPLY (
-			SELECT TOP 1 1 AS IsValid
-			FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
-			WHERE r.RequestId = rs.RequestId
-				AND r.RequestId <> @RequestId
-				AND r.ActionId NOT IN (2) 
-				AND r.IssueTypeId NOT IN (22)
-				AND 1 = CASE WHEN r.IssueTypeId = 11 AND t.StatusId NOT IN (111,112,113) THEN 1
-					WHEN r.IssueTypeId <> 11 THEN 1
-					ELSE 0 END 
-		)r
+	IF @Mode = 0 
+	BEGIN
+		SELECT DISTINCT t.transid
+		FROM @tmpTrans t
+			CROSS APPLY (
+					SELECT rs.RequestId
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK) 
+					WHERE rs.MatchId = t.matchid AND rs.TransId = t.transid
+				) rs
+			CROSS APPLY (
+				SELECT TOP 1 1 AS IsValid
+				FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
+				WHERE r.RequestId = rs.RequestId
+					AND r.RequestId <> @RequestId
+					AND r.ActionId NOT IN (2) 
+					AND r.IssueTypeId NOT IN (22)
+					AND 1 = CASE WHEN r.IssueTypeId = 11 AND t.StatusId NOT IN (111,112,113) THEN 1
+						WHEN r.IssueTypeId <> 11 THEN 1
+						ELSE 0 END 
+			)r
+	END
+	ELSE --Mode: Loginfo
+	BEGIN
+		SELECT DISTINCT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid
+		FROM @tmpTrans t
+			CROSS APPLY (
+						SELECT rs.TransId, rs.TransId AS MainTransId, RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
+						UNION ALL
+						SELECT  rp.TransId, rp.MainTransId , RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
+						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
+				)tmp
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
+		WHERE r.RequestId <> @RequestId
+			AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
+	END
 
 END
 GO

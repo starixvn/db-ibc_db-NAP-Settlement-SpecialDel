@@ -40,7 +40,6 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @SiteDBGroupID	SMALLINT
-			,@tmpMatchId INT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -92,9 +91,11 @@ BEGIN
 		winlostdate			  DATETIME,
 		IsDeposit			  BIT DEFAULT(0),
 		srecommend			  INT,
-		GroupName			  VARCHAR(50)
+		GroupName			  VARCHAR(50),
+		ID 					  INT IDENTITY (1,1) PRIMARY KEY
+
 	)
-	CREATE TABLE #TransidInRequest (TransId BIGINT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
 	
 	CREATE TABLE #tmpBettype (
 		 Id            INT
@@ -139,7 +140,6 @@ BEGIN
 				   WHEN m.sporttype IN (50,8)
 						AND (m.ChildMatchType = 200 AND m.ParentID = @MatchId) THEN 1
 				   ELSE 0 END
-	
 
 	--get single ticket
 	INSERT INTO #TVSTicketBets(
@@ -365,7 +365,7 @@ BEGIN
 					,b.winlost - b.actual_stake AS WinLost
 					,bm.liveindicator AS Subliveindicator
 					,b.actual_stake AS ActualStake
-					,@tmpMatchId AS Matchid
+					,m.MatchId_tmp AS Matchid
 					,b.srecommend
 					,CASE WHEN ((@IssueTypeId = 4 AND bm.bettype = 1) OR (@IssueTypeId = 5 AND bm.bettype = 7)) 
 							THEN CASE WHEN xHDPHome.HomeFavorite IS NOT NULL THEN 'HDP'
@@ -379,7 +379,7 @@ BEGIN
 					,bm.statusID AS SubStatusId
 					,b.ExtraInfo
 					,b.winlostdate
-			FROM @tmpMatchId m
+			FROM @tmpMatch m
 				INNER JOIN dbo.bettransm AS bm WITH(NOLOCK) ON m.MatchId = bm.matchid
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno
 				OUTER APPLY(
@@ -427,36 +427,50 @@ BEGIN
 				AND bm.SiteDBGroupID = @SiteDBGroupID
 	END  
 	
-	--Update Main MatchID for child match cricket/baseball
-	IF EXISTS(SELECT TOP 1 1 FROM @tmpMatch WHERE Sporttype IN (50,8))
-	BEGIN
-		UPDATE d
-		SET d.matchid = m.ParentID
-		FROM #TVSTicketBets d
-			INNER JOIN @tmpMatch m ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
-	END
+	DECLARE @TransInfoJson_Request			 VARBINARY(MAX)
+	DECLARE @StartRow INT 
+			, @StopRow INT 
+			, @MaxRow INT  -- Keep the total row of your data
+			, @Threshold INT  -- the number of each batch
 
-	IF @ActionId NOT IN (2)
-	BEGIN
-		INSERT INTO #TransidInRequest (TransId)
-		SELECT DISTINCT tmp.transid
-		FROM #TVSTicketBets t
-			CROSS APPLY (
-						SELECT rs.TransId, rs.RequestId
-						FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
-						UNION ALL
-						SELECT rp.MainTransId AS TransId, rp.RequestId
-						FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
-				)tmp
-			INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-		WHERE r.RequestId <> @RequestId
-			AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
+	SET @MaxRow = (SELECT MAX(ID) FROM #TVSTicketBets)
+	SET @Threshold = 20000
 
+	IF @Threshold >= @MaxRow
+		SET @Threshold = @MaxRow
+
+	-- SET for first batch
+	SELECT @StartRow = 1, @StopRow = @Threshold
+	IF @ActionId <> 2
+	BEGIN
+		WHILE (@MaxRow IS NOT NULL)
+		BEGIN
+		
+				SET @TransInfoJson_Request = COMPRESS((SELECT matchid AS 'mid'
+						,transid AS 't'
+						,SubTransid AS 's_t'
+				FROM #TVSTicketBets R
+				WHERE ID BETWEEN @StartRow AND @StopRow
+					FOR JSON PATH))
+
+				INSERT INTO #TransidInRequest
+				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest
+					@TransInfoJson = @TransInfoJson_Request
+					,@RequestId = @RequestId
+					,@Mode = 1
+
+				IF @StopRow = @MaxRow BREAK
+
+				SET @StartRow = @StopRow + 1
+				SET @StopRow = @StopRow + @Threshold
+				IF @StopRow >= @MaxRow
+					SET @StopRow = @MaxRow
+
+		END
+
+		--Remove Transid exists in other request
 		DELETE FROM #TVSTicketBets 
-		WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
-
+		WHERE EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = SubTransid)
 	END
 
 	--Return all bettype tickets
@@ -563,6 +577,7 @@ BEGIN
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
 	DROP TABLE #tmpBettype
-
+	DROP TABLE #CTE_CustInfo
+	
 	SET NOCOUNT OFF
 END
