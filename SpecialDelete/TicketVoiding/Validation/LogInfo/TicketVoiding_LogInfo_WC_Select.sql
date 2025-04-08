@@ -89,7 +89,8 @@ BEGIN
 			IsCancelCashOut		  BIT,
 			CheckTimeCashOut	  DATETIME,
 			betid				  BIGINT,
-			SiteDBGroupID		  SMALLINT
+			SiteDBGroupID		  SMALLINT,
+		    ID					  INT IDENTITY (1,1) PRIMARY KEY
 	)
 
 	CREATE TABLE #logInfo (
@@ -923,6 +924,61 @@ BEGIN
 						     WHEN d.FilterBy = 2 AND ISNULL(b.Subchecktime, b.Subtransdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
 						     WHEN d.FilterBy = 4 AND ((b.Subchecktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.Subtransdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime)) THEN 1
 							ELSE 0 END 
+	END
+
+	/*Get Transid in Request of range Transid*/
+	DECLARE @TransInfoJson_Request		VARBINARY(MAX)
+	DECLARE @StartRow INT 
+			, @StopRow INT 
+			, @MaxRow INT  -- Keep the total row of your data
+			, @Threshold INT  -- the number of each batch
+
+	SET @MaxRow = (SELECT MAX(ID) FROM #TVSTicketBets)
+	SET @Threshold = 20000
+
+	IF @Threshold >= @MaxRow
+		SET @Threshold = @MaxRow
+
+	-- SET for first batch
+	SELECT @StartRow = 1, @StopRow = @Threshold
+	IF @ActionId <> 2
+	BEGIN
+		WHILE (@MaxRow IS NOT NULL)
+		BEGIN
+		
+				SET @TransInfoJson_Request = COMPRESS((SELECT matchid AS 'mid'
+						,transid AS 't'
+						,SubTransid AS 's_t'
+				FROM #TVSTicketBets R
+				WHERE ID BETWEEN @StartRow AND @StopRow
+					FOR JSON PATH))
+
+				INSERT INTO #TransidInRequest
+				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest
+					@TransInfoJson = @TransInfoJson_Request
+					,@RequestId = @RequestId
+					,@Mode = 1
+
+				IF @StopRow = @MaxRow BREAK
+
+				SET @StartRow = @StopRow + 1
+				SET @StopRow = @StopRow + @Threshold
+				IF @StopRow >= @MaxRow
+					SET @StopRow = @MaxRow
+
+		END
+		
+		IF @@ROWCOUNT <> 0
+		BEGIN
+			UPDATE v SET v.IsExistedInOtherRequest = 1
+			FROM @Validation v
+			WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.MatchId = v.MatchId)
+		END
+
+		--Remove Transid exists in other request
+		DELETE FROM #TVSTicketBets 
+		WHERE EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = SubTransid)
+		
 	END
 
 	/*Get Transid in Request of range Transid*/

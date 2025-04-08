@@ -125,6 +125,7 @@ BEGIN
 	  ,RefCode BIGINT
 	  ,FilterTransdesc NVARCHAR(1000)
 	  ,FilterBettype	SMALLINT
+	  ,ID INT IDENTITY (1,1) PRIMARY KEY
 	)
 
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
@@ -486,31 +487,54 @@ BEGIN
 	WHERE t.Bettype IS NULL
 
 	/*Get Transid in Request of range Transid*/
-	IF @ActionId NOT IN (2)
-	BEGIN
-		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
-		SELECT tmp.transid, r.RequestId, tmp.MainTransId, @MatchId
-		FROM #TVSTicketBets t
-			CROSS APPLY (
-						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
-						FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-						WHERE rs.TransId = t.transid AND rs.MatchId = @MatchId
-						UNION ALL
-						SELECT rp.TransId, rp.MainTransId, rp.RequestId
-						FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-						WHERE rp.TransId = t.SubTransid AND rp.MatchId = @MatchId
-				)tmp
-			INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-		WHERE r.RequestId <> @RequestId 
-			AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
+	DECLARE @TransInfoJson_Request		VARBINARY(MAX)
+	DECLARE @StartRow INT 
+			, @StopRow INT 
+			, @MaxRow INT  -- Keep the total row of your data
+			, @Threshold INT  -- the number of each batch
 
+	SET @MaxRow = (SELECT MAX(ID) FROM #TVSTicketBets)
+	SET @Threshold = 20000
+
+	IF @Threshold >= @MaxRow
+		SET @Threshold = @MaxRow
+
+	-- SET for first batch
+	SELECT @StartRow = 1, @StopRow = @Threshold
+	IF @ActionId <> 2
+	BEGIN
+		WHILE (@MaxRow IS NOT NULL)
+		BEGIN
+		
+				SET @TransInfoJson_Request = COMPRESS((SELECT matchid AS 'mid'
+						,transid AS 't'
+						,SubTransid AS 's_t'
+				FROM #TVSTicketBets R
+				WHERE ID BETWEEN @StartRow AND @StopRow
+					FOR JSON PATH))
+
+				INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
+				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest
+					@TransInfoJson = @TransInfoJson_Request
+					,@RequestId = @RequestId
+					,@Mode = 1
+
+				IF @StopRow = @MaxRow BREAK
+
+				SET @StartRow = @StopRow + 1
+				SET @StopRow = @StopRow + @Threshold
+				IF @StopRow >= @MaxRow
+					SET @StopRow = @MaxRow
+
+		END
+		
 		IF @@ROWCOUNT <> 0
 		BEGIN
 			UPDATE v SET v.IsExistedInOtherRequest = 1
 			FROM @Validation v
-				INNER JOIN #TransidInRequest t ON t.MatchId = v.MatchId
+			WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.MatchId = v.MatchId)
 		END
-		
+
 		--Remove Transid exists in other request
 		DELETE FROM #TVSTicketBets 
 		WHERE EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = SubTransid)

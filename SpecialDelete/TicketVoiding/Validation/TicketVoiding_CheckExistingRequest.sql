@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckExistingRequest]
 	 @TransInfoJson VARBINARY(MAX) = NULL
 	,@RequestId	INT = 0
 	,@Mode		BIT = 0 
+	,@IssueTypeId INT = 0
 )
 AS
 /*	
@@ -17,6 +18,7 @@ AS
 
 	Param's explanation:
 		@Mode		BIT = 1 --Loginfo, 0 --Others
+		@IssueTypeId <> 0 --Special for Advancemode & Wrong score issuetypes
 */
 BEGIN
 	SET NOCOUNT ON;
