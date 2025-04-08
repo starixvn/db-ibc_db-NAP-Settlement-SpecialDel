@@ -949,15 +949,17 @@ BEGIN
 				SET @TransInfoJson_Request = COMPRESS((SELECT matchid AS 'mid'
 						,transid AS 't'
 						,SubTransid AS 's_t'
+						,ScoreId AS 'score'
 				FROM #TVSTicketBets R
 				WHERE ID BETWEEN @StartRow AND @StopRow
 					FOR JSON PATH))
 
-				INSERT INTO #TransidInRequest
+				INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId, ScoreId, CreatedBy)
 				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest
 					@TransInfoJson = @TransInfoJson_Request
 					,@RequestId = @RequestId
 					,@Mode = 1
+					,@IssueTypeId = @IssueTypeId
 
 				IF @StopRow = @MaxRow BREAK
 
@@ -968,38 +970,6 @@ BEGIN
 
 		END
 		
-		IF @@ROWCOUNT <> 0
-		BEGIN
-			UPDATE v SET v.IsExistedInOtherRequest = 1
-			FROM @Validation v
-			WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.MatchId = v.MatchId)
-		END
-
-		--Remove Transid exists in other request
-		DELETE FROM #TVSTicketBets 
-		WHERE EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = SubTransid)
-		
-	END
-
-	/*Get Transid in Request of range Transid*/
-	IF @ActionId NOT IN (2)
-	BEGIN
-		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId, ScoreId, CreatedBy)
-		SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid, t.ScoreId, r.UserId
-		FROM #TVSTicketBets t
-			CROSS APPLY (
-						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
-						FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
-						UNION ALL
-						SELECT rp.TransId, rp.MainTransId, rp.RequestId
-						FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
-				)tmp
-			INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-		WHERE r.RequestId <> @RequestId 
-			AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
-
 		IF @@ROWCOUNT <> 0
 		BEGIN
 			UPDATE v SET v.IsExistedInOtherRequest = 1

@@ -31,14 +31,15 @@ BEGIN
 	  ,transid			BIGINT      
 	  ,statusID			TINYINT
 	  ,SubTransid		BIGINT
+	  ,ScoreId			INT
 	)
 
 	INSERT INTO @tmpTrans( 
-		   matchid, transid, statusID, SubTransid
+		   matchid, transid, statusID, SubTransid, ScoreId
 		)
-	SELECT mid, t, sid, s_t 
+	SELECT mid, t, sid, s_t, score
 	FROM  OPENJSON(@Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT, sid TINYINT, s_t BIGINT)
+				WITH( mid INT, t BIGINT, sid TINYINT, s_t BIGINT, score INT)
 
 	IF @Mode = 0 
 	BEGIN
@@ -64,6 +65,8 @@ BEGIN
 	ELSE --Mode: Loginfo
 	BEGIN
 		SELECT DISTINCT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid
+			,CASE WHEN @IssueTypeId = 3 THEN t.ScoreId ELSE NULL END AS ScoreId
+			,CASE WHEN @IssueTypeId = 3 THEN r.UserId ELSE NULL END AS CreatedBy
 		FROM @tmpTrans t
 			CROSS APPLY (
 						SELECT rs.TransId, rs.TransId AS MainTransId, RequestId
