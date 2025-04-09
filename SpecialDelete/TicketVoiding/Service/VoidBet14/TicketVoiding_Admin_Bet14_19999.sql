@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Admin_Bet14_19999]
 (
 	@AffectedList VARCHAR(MAX)
@@ -17,6 +17,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
 		
 	Param's Explanation:  
 	
@@ -87,7 +88,7 @@ BEGIN
 	DECLARE @transInfo	VARBINARY(MAX) 
 	DECLARE @tmpTransInfo AS TABLE (custid INT, winlost MONEY, playercomm MONEY, comm MONEY, acomm MONEY, scomm MONEY
 							, stake MONEY, actual_stake MONEY, awinlost MONEY, mwinlost MONEY, swinlost MONEY
-							, statusID TINYINT, bettype SMALLINT, creator INT, transdate DATETIME, currency TINYINT
+							, statusID TINYINT, bettype SMALLINT, creator INT, transdate DATETIME, currency SMALLINT
 							, recommend INT, mrecommend INT, srecommend INT, winlostdate SMALLDATETIME, actualrate FLOAT
 							, Username NVARCHAR(100), CurrencyName NVARCHAR(100), checktime DATETIME, refno BIGINT
 						)

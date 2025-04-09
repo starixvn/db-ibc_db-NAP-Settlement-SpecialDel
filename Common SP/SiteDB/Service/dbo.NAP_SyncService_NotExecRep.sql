@@ -11,6 +11,7 @@ AS
 	Revisions:
 		- 20220920@Max: Scale Out BetTrans [Redmine:#175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
 		
 	Param's Explanation:  
 		   
@@ -30,7 +31,7 @@ BEGIN
 		,custid INT, bettype SMALLINT , CreatedDate DATETIME		
 		,transdate	 DATETIME,checktime	DATETIME	
 		,actualrate	FLOAT,recommend	INT	,mrecommend	INT	,srecommend	INT
-		,stake MONEY,actual_stake MONEY,currency	TINYINT	
+		,stake MONEY,actual_stake MONEY,currency	SMALLINT	
 		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100)
 		,RequestId INT, StepNo TINYINT, [Action] VARCHAR(100), AffectedList VARCHAR(MAX), ExecuteType TINYINT
 	)
@@ -56,7 +57,7 @@ BEGIN
 					,cr INT 
 					,td DATETIME 
 					,cust INT 
-					,cur TINYINT 
+					,cur SMALLINT 
 					,rc INT 
 					,mrc INT 
 					,src INT 

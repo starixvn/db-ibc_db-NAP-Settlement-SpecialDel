@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update] 		
 	 @matchid		INT				= 0
 	,@strRefnos		VARCHAR(MAX)	= NULL
@@ -20,6 +20,7 @@ AS
 		- 20240220@July: Create new SP - Support re-cal sub & main parlay  [Redmine: #200087]
 		- 20240315@July: Fix null winlostdate follow settle [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
 
 	Param's Explanation:				
 		- @strRefnos : Refno Maintransids.
@@ -104,7 +105,7 @@ BEGIN
 		,modds 			SMALLMONEY
 		,winlostdate 	SMALLDATETIME 
 		,isChanged		BIT
-		,currency		TINYINT
+		,currency		SMALLINT
 		,transdate		DATETIME
 		,actualPO		MONEY
 	)
@@ -127,7 +128,7 @@ BEGIN
 		, StatusID 		TINYINT
 		, modds 		SMALLMONEY
 		, winlostdate 	SMALLDATETIME
-		, currency		TINYINT
+		, currency		SMALLINT
 		, transdate		DATETIME
 	)
 
