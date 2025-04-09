@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_PreCalculate_s161_Pregame
 	@MatchId INT
 	,@BetType SMALLINT
@@ -26,6 +26,7 @@ AS
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20240201@Aries: Enhance diff balance for Number Game [Redmine:#200328]
+		- 20250328@Hughie: Extend data type of currency from tinyint to smallint [Redmine:#222173]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -52,7 +53,7 @@ BEGIN
 	DECLARE @subtable_CAL_Deadball TABLE(transid BIGINT, modds MONEY, OddsType SMALLINT, winlost MONEY, actualPO MONEY, IsApplyMaxPO BIT)
 
 	CREATE TABLE #TempData_CAL_Deadball(transid BIGINT, modds MONEY, betteam NVARCHAR(10), hdp1 SMALLMONEY, bettype SMALLINT, OddsType TINYINT
-		,custid INT, currency TINYINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
+		,custid INT, currency SMALLINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
 		,transdate DATETIME, isFinish BIT,actual_stake MONEY, stake MONEY, odds SMALLMONEY
 	)
 

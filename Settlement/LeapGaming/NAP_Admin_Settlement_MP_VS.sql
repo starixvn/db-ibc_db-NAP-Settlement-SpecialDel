@@ -20,6 +20,7 @@ AS
 		- 20240315@Louisa: Fix null winlostdate [Redmine: #199700]
 		- 20240521@Louisa: Enhancement - get match via linked server due to replication latency [Redmine:#205375]
 		- 20240704@Aries: VS5 - Virtually Sports [Redmine:#207309]
+		- 20250328@Hughie: Extend data type of currency from tinyint to smallint [Redmine:#222173]
 
 	Param's Explanation:
  
@@ -91,7 +92,7 @@ BEGIN
 		,modds 			SMALLMONEY
 		,winlostdate 	SMALLDATETIME 
 		,isChanged		BIT
-		,currency		TINYINT
+		,currency		SMALLINT
 		,transdate		DATETIME
 		,actualPO		MONEY
 	)
@@ -117,7 +118,7 @@ BEGIN
 		, StatusID 		TINYINT
 		, modds 		SMALLMONEY
 		, winlostdate 	SMALLDATETIME
-		, currency		TINYINT
+		, currency		SMALLINT
 		, transdate		DATETIME
 	)
 

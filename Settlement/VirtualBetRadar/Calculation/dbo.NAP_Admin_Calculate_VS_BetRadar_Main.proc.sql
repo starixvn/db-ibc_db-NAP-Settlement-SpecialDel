@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02, DBSID-bodb02, DBSIC-bodb02" executers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main]	
 	@matchid 		INT				= 0
 	,@SportType		INT				= 0
@@ -34,6 +34,7 @@ AS
 		- 20221109@Louisa: log more info [Redmine:#178694]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20231016@Aries: Auto Send Announcement When Refund VS [Redmine:#195333]
+		- 20250401@Hughie: Extend data type of currency from tinyint to smallint [Redmine:#222173]
 
 	Param's Explanation:
 		- ? @Mode:
@@ -120,7 +121,7 @@ BEGIN
 		, [scomm] 			[MONEY]
 		, [StatusID] 		[TINYINT]
 		, [modds] 			[SMALLMONEY]
-		, [currency]		[TINYINT]
+		, [currency]		[SMALLINT]
 		, [transdate]		[DATETIME]
 		, [IsApplyMaxPO]	[BIT]
 		, [sporttype]		[SMALLINT]

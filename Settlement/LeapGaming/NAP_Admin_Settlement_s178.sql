@@ -19,7 +19,8 @@ AS
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20231002@Louisa: Integrate new sporttype 179, new bettype for sporttype 178 [Redmine:#194655]
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
-	
+		- 20250328@Louisa: extend data type of currency from tinyint to smallint [Redmine:#222173]
+			
 	Param's Explanation:
 		@Action - CAL
 				- REFUND
@@ -62,7 +63,7 @@ BEGIN
 										  )
 
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT
-		,custid INT, currency TINYINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
+		,custid INT, currency SMALLINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
 		,transdate DATETIME, bettype SMALLINT,OddsType SMALLINT
 	)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT) 

@@ -11,11 +11,12 @@ AS
 	Revisions:
 		- 20230830@Kathy: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20250110@Hughie: Adjust Company Max Payout for for DDD, IND, IDD, IDR [Redmine:#216692]
+		- 20250328@Louisa: extend data type of currency from tinyint to smallint [Redmine:#222173]
 		
 */
 RETURN (
 	SELECT	CAST(SiteDBGroupId AS SMALLINT) AS SiteDBGroupId
-			,CAST(ExchangeId AS TINYINT) AS ExchangeId
+			,CAST(ExchangeId AS SMALLINT) AS ExchangeId
 			,CAST(MaxWinLimit AS MONEY) AS MaxWinLimit
 	FROM (VALUES (3,2,200000),
 		(3,3,50000),

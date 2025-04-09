@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_PreCalculate_1] 
 	@matchid int,
 	@bettype smallint,
@@ -21,6 +21,7 @@ AS
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230908@Louisa: Apply Company Max Payout for Non-sports [Redmine:#193259]
+		- 20250328@Hughie: Extend data type of currency from tinyint to smallint [Redmine:#222173]
 
 */
 BEGIN
@@ -51,7 +52,7 @@ BEGIN
 			WinLost MONEY, aWinLost MONEY, mWinLost MONEY, sWinLost MONEY, 
 			PlayerComm MONEY, comm MONEY, acomm MONEY, scomm MONEY,
 			StatusID TINYINT, bettype SMALLINT,
-			custid INT, currency TINYINT, transdate DATETIME, actualPO MONEY, IsApplyMaxPO BIT)
+			custid INT, currency SMALLINT, transdate DATETIME, actualPO MONEY, IsApplyMaxPO BIT)
 
 	INSERT INTO #TempData(transid, actual_stake, stake, odds, comstatus, modds,
 			betteam, hdp1, hdp2, livehomescore, liveawayscore,
