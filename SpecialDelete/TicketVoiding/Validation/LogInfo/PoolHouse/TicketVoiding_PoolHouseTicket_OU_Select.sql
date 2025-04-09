@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_OU_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_OU_Select]
 (	
 	@MatchId              INT
 	,@RequestId			  INT
@@ -342,7 +342,6 @@ BEGIN
 				AND bm.liveindicator = @LiveIndicator
 				AND bm.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
 				AND bm.SiteDBGroupID = @SiteDBGroupID
-		END 
 	END
 
 	DECLARE @TransInfoJson_Request			 VARBINARY(MAX)
@@ -371,7 +370,7 @@ BEGIN
 				WHERE ID BETWEEN @StartRow AND @StopRow
 					FOR JSON PATH))
 
-				INSERT INTO #TransidInRequest
+				INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
 				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest
 					@TransInfoJson = @TransInfoJson_Request
 					,@RequestId = @RequestId
@@ -484,8 +483,8 @@ BEGIN
 		   ,m.sporttype
 	FROM #TVSTicketBets s
 		INNER JOIN dbo.match m WITH(NOLOCK) ON s.matchid = m.matchid
-		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
-		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK) ON s.custid = ci.custid
+		INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON s.creator = cr.custid
+		INNER JOIN #CTE_CustInfo ci WITH(NOLOCK) ON s.custid = ci.custid
 	ORDER BY CASE WHEN s.GroupName IN ('1X2', '1H 1X2') AND s.transid = s.SubTransid THEN 1
 				  WHEN s.GroupName = 'AIO' AND s.transid = s.SubTransid THEN 2
 				  WHEN s.IsMixParlay = 1 AND s.GroupName <> 'Others' THEN 3

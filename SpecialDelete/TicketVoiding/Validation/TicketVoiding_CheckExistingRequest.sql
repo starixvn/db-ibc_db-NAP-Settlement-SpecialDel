@@ -65,6 +65,8 @@ BEGIN
 	END
 	ELSE --Mode: Loginfo
 	BEGIN
+		CREATE TABLE #tmpTransRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, ScoreId INT, CreatedBy INT, Id INT)
+		INSERT INTO #tmpTransRequest (TransId, RequestId, MainTransId, MatchId, ScoreId, CreatedBy, Id)
 		SELECT DISTINCT tmp.transid
 			, r.RequestId
 			, tmp.MainTransId
@@ -85,6 +87,24 @@ BEGIN
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
 		WHERE r.RequestId <> @RequestId
 			AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
+
+		IF @IssueTypeId = 3
+		BEGIN
+			SELECT TransId, RequestId, MainTransId, MatchId, ScoreId, CreatedBy
+			FROM #tmpTransRequest WITH (NOLOCK)
+		END
+		ELSE IF @IssueTypeId IN (12,24)	
+		BEGIN
+			SELECT TransId, RequestId, MainTransId, MatchId, CreatedBy, Id
+			FROM #tmpTransRequest  WITH (NOLOCK)
+		END
+		ELSE
+		BEGIN
+			SELECT TransId, RequestId, MainTransId, MatchId
+			FROM #tmpTransRequest  WITH (NOLOCK)
+		END
+
+		DROP TABLE #tmpTransRequest
 	END
 
 END
