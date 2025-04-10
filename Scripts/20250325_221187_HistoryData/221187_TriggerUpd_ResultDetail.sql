@@ -4,6 +4,9 @@
 	Created by: 20250324@Aries
 	Task: Enhance data history when updating events and results  [Redmine:#221187]
 	DB: DBTP/bodb02
+
+	Revisions:
+        - 20250409@Aries: Fix an issue which can't not show Trader's score on the Provide Log of Esports [Redmine:#223486]
 */
 
 USE bodb02
@@ -31,6 +34,10 @@ AS
 		,NewOtherInfo
 		,OldResultSetting 
 		,NewResultSetting 
+		,OldResultStatusID 
+		,NewResultStatusID 
+		,OldSettlementStatusID
+		,NewSettlementStatusID 		
 	)
 	SELECT 'ResultDetail'
 			, i.MatchId
@@ -48,6 +55,10 @@ AS
 			, i.OtherInfo AS NewOtherInfo
 			, d.ResultSetting  AS OldResultSetting 
 			, i.ResultSetting  AS NewResultSetting 
+			, d.ResultStatusID   AS OldResultStatusID 
+			, i.ResultStatusID   AS NewResultStatusID 
+			, d.SettlementStatusID  AS OldSettlementStatusID
+			, i.SettlementStatusID  AS NewSettlementStatusID
 	FROM INSERTED i
 		INNER JOIN  DELETED d ON i.MatchId = d.MatchId
 			AND i.ResourceId = d.ResourceId
@@ -77,6 +88,10 @@ AS
 		,NewOtherInfo
 		,OldResultSetting 
 		,NewResultSetting 
+		,OldResultStatusID 
+		,NewResultStatusID 
+		,OldSettlementStatusID
+		,NewSettlementStatusID 	
 	)
 	SELECT 'ResultDetailOS'
 			, i.MatchId
@@ -94,6 +109,10 @@ AS
 			, i.OtherInfo AS NewOtherInfo
 			, d.ResultSetting  AS OldResultSetting 
 			, i.ResultSetting  AS NewResultSetting 
+			, d.ResultStatusID   AS OldResultStatusID 
+			, i.ResultStatusID   AS NewResultStatusID 
+			, d.SettlementStatusID  AS OldSettlementStatusID
+			, i.SettlementStatusID  AS NewSettlementStatusID
 	FROM INSERTED i
 		INNER JOIN  DELETED d ON i.MatchId = d.MatchId
 			AND i.ResourceId = d.ResourceId
@@ -123,6 +142,10 @@ AS
 		,NewOtherInfo
 		,OldResultSetting 
 		,NewResultSetting 
+		,OldResultStatusID 
+		,NewResultStatusID 
+		,OldSettlementStatusID
+		,NewSettlementStatusID 	
 	)
 	SELECT 'ResultDetailES'
 			, i.MatchId
@@ -140,6 +163,10 @@ AS
 			, i.OtherInfo AS NewOtherInfo
 			, d.ResultSetting  AS OldResultSetting 
 			, i.ResultSetting  AS NewResultSetting 
+			, d.ResultStatusID   AS OldResultStatusID 
+			, i.ResultStatusID   AS NewResultStatusID 
+			, d.SettlementStatusID  AS OldSettlementStatusID
+			, i.SettlementStatusID  AS NewSettlementStatusID
 	FROM INSERTED i
 		INNER JOIN  DELETED d ON i.MatchId = d.MatchId
 			AND i.ResourceId = d.ResourceId
