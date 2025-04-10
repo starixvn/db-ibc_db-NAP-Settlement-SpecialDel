@@ -574,7 +574,7 @@ BEGIN
 			AND b.matchid = 29
 			AND b.bettype = 29
 			AND ((sub.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
-			AND sub.SiteDBGroupID = @SiteDBGroupID
+			AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
 
 	--Delete ticket having subissuetype exclude bettype

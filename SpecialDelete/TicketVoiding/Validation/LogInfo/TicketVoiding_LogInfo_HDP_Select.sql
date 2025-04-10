@@ -678,6 +678,7 @@ BEGIN
 						WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 						ELSE 0 END
 				AND sub.betfrom <> 'P'
+				AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
 				AND sub.liveindicator = d.LiveIndicator
 				AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 				AND 1 = CASE WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' THEN 1

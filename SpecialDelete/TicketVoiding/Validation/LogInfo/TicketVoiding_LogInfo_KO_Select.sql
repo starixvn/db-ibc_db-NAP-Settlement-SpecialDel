@@ -489,7 +489,8 @@ BEGIN
 				AND b.liveindicator = 0 AND sub.liveindicator = 0
 				AND sub.betfrom <> 'P'
 				AND b.statusID NOT IN (101, 102, 103)
-				AND sub.SiteDBGroupID = @SiteDBGroupID
+				AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
+
 
 	END 
 

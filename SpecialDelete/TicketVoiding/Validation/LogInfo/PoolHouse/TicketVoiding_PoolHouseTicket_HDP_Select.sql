@@ -424,7 +424,7 @@ BEGIN
 				AND bm.betfrom <> 'P'
 				AND bm.liveindicator = @LiveIndicator
 				AND bm.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
-				AND bm.SiteDBGroupID = @SiteDBGroupID
+				AND b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = @SiteDBGroupID
 	END  
 	
 	DECLARE @TransInfoJson_Request			 VARBINARY(MAX)

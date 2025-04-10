@@ -405,7 +405,8 @@ BEGIN
 				AND bm.betfrom <> 'P'
 				AND bm.liveindicator = @LiveIndicator
 				AND bm.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
-				AND bm.SiteDBGroupID = @SiteDBGroupID
+				AND b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = @SiteDBGroupID
+
 	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMixParlay = 1)

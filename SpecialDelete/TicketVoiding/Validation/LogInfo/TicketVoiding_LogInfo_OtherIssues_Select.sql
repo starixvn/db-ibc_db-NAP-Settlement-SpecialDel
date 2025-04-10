@@ -506,7 +506,7 @@ BEGIN
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 	WHERE b.betfrom <> 'P'  
-		AND B.SiteDBGroupID = @SiteDBGroupID
+		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime OR (d.FilterFromTransTime IS NULL AND d.FilterToTransTime IS NULL))
 		AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
@@ -673,7 +673,7 @@ BEGIN
 				AND sub.betfrom <> 'P'
 				AND (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 						OR (d.FilterFromTransTime IS NULL AND d.FilterToTransTime IS NULL))
-			    AND sub.SiteDBGroupID = @SiteDBGroupID
+			    AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
 
 	END  
 

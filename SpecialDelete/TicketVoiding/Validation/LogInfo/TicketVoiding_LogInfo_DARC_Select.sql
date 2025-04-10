@@ -599,7 +599,8 @@ BEGIN
 						WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
 						WHEN d.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 				END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
-			AND sub.SiteDBGroupID = @SiteDBGroupID
+			AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
+
 	END
 
 	-----Delete ticket check subissuetype exclude bettypes (single & parlay).

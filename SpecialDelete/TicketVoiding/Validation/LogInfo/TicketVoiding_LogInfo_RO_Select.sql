@@ -521,7 +521,7 @@ BEGIN
 			AND b.matchid = 29 AND b.bettype = 29
 			AND b.liveindicator = 0
 			AND b.statusID NOT IN (102, 103)
-			AND sub.SiteDBGroupID = @SiteDBGroupID
+			AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
 	END
 	
 	--Remove invalid data

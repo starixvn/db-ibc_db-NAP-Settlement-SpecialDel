@@ -469,6 +469,7 @@ BEGIN
 		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = 5 AND b.bettype = f.BetType
 	WHERE b.betfrom <> 'P'  
 		AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND b.liveindicator = d.LiveIndicator
 		AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
@@ -651,6 +652,7 @@ BEGIN
 						WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 						ELSE 0 END
 				AND sub.betfrom <> 'P'
+				AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
 				AND sub.liveindicator = d.LiveIndicator
 				AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 				AND 1 = CASE WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' THEN 1

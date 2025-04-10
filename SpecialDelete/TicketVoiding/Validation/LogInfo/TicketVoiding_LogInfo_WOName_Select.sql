@@ -534,7 +534,7 @@ BEGIN
 				   ELSE 0 END
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29 AND b.bettype = 29
-			AND sub.SiteDBGroupID = @SiteDBGroupID
+			AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
 	
 	---UPDATE column show loginfo details

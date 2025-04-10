@@ -688,10 +688,10 @@ BEGIN
 					   ELSE 0 END
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29 AND b.bettype = 29
+			AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
 			AND (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 					OR (d.FilterFromTransTime IS NULL AND d.FilterToTransTime IS NULL)
 				)
-			AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
 
 	--Remove invalid data

@@ -733,7 +733,7 @@ BEGIN
 			AND b.matchid = 29 AND b.bettype = 29
 			AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 			AND sub.liveindicator = d.LiveIndicator
-			AND sub.SiteDBGroupID = @SiteDBGroupID
+			AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
 
 	--Remove invalid data
