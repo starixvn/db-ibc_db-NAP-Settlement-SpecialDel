@@ -62,6 +62,7 @@ AS
 		- 20241218@July: Show manage request 'Completed' for case No insert Service & VoidingHistory status done [Redmine: #213398]
 		- 20250402@July: Manage Request - Add new function and status "Stored" for request [Redmine: #220451]
 		- 20250422@July: Manage Request - Show requestid for case retry [Redmine: #224848]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's explanation:	
 		@Status: 
@@ -585,7 +586,7 @@ BEGIN
 					SELECT	m.VendorMatchId, m.Distance
 					FROM	dbo.VSRaceInfo_bk m WITH(NOLOCK)
 					WHERE	m.EventID = t.MatchId
-						AND t.Sporttype IN (177,198)
+						AND t.Sporttype IN (177,198,125,126,127)
 			)vs
 		WHERE 1 = CASE 
 				-- New
