@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_AutoRefund_ResourceTrigger_Sel]
 	,@ChildMatchType	TINYINT
 	,@Action			VARCHAR(50)
 	,@ResourceIds		VARCHAR(MAX)
+    ,@IsTest            BIT = 0
 AS
 /*	Creator: 20241223@Aries
 	Task: Support Auto Refund for Soccer's Early Results
@@ -47,6 +48,8 @@ BEGIN
                  ,targetIsCrrResource           VARCHAR(MAX)    '$.targetIsCrrResource'
                  ,targetResource                VARCHAR(MAX)    '$.targetResource'
                  ,targetResourceChildMatchType  VARCHAR(MAX)    '$.targetResourceChildMatchType'
+
+                 ,isTest                        BIT             '$.isTest'
             ) AS t
     WHERE ar.Sporttype = @SportType
         AND 1 = CASE WHEN @ChildMatchType = 0 AND t.matchType = 1 THEN 1
@@ -55,5 +58,6 @@ BEGIN
                 END
         AND @Action = t.[Action]  
         AND ar.ResourceId IN (SELECT r.ResourceId FROM @Resource AS r)
+        AND ISNULL(t.isTest,0) = @IsTest
 END
 GO

@@ -1,6 +1,7 @@
 ﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_AutoRefund_ResourceConditions_Sel] 
-	@ResourceInfo	VARCHAR(MAX)
+	 @ResourceInfo	VARCHAR(MAX)
+    ,@IsTest        BIT = 0
 AS
 /*	Creator: 20241223@Aries
 	Task: Support Auto Refund for Soccer's Early Results
@@ -52,8 +53,9 @@ BEGIN
             ) AS t
         OUTER APPLY OPENJSON(t.Conditions)
             WITH (   
-                      id                            VARCHAR(MAX)    '$.id'
+                      id                            VARCHAR(MAX)    '$.gID'
                      ,name                          VARCHAR(MAX)    '$.name'
+                     ,isTest                        BIT             '$.isTest'
                      ,conditions                    NVARCHAR(MAX)   AS JSON  
             ) AS tt
        OUTER APPLY OPENJSON(tt.Conditions)
@@ -72,6 +74,7 @@ BEGIN
             AND t.matchType = r.matchType
             AND t.childMatchType = r.childMatchType
             AND tt.id = IIF(r.RuleID IS NULL OR r.RuleID  = 0,tt.id, r.RuleID)
+            AND ISNULL(tt.isTest,0) = @IsTest
     )
 END
 GO
