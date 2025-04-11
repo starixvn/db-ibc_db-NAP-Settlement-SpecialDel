@@ -236,8 +236,11 @@ BEGIN
 	IF EXISTS (
 			SELECT TOP (1) 1 
 			FROM dbo.bettransm AS bm WITH (NOLOCK) 
-			INNER JOIN @tmpMatch m ON bm.matchid = m.MatchId
-			WHERE bm.statusID NOT IN (101, 102, 103) AND bm.betfrom <> 'P'
+				INNER JOIN @tmpMatch m ON bm.matchid = m.MatchId
+			WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				  		   WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+				   		   ELSE 0 END 
+				AND bm.betfrom <> 'P'
 			)
 	BEGIN			
 		INSERT INTO #TVSTicketBets(
@@ -324,8 +327,8 @@ BEGIN
 				,b.ExtraInfo
 				,b.winlostdate
 		FROM  @tmpMatch m
-			INNER JOIN dbo.bettransm AS bm WITH(NOLOCK) ON m.MatchId = bm.matchid
-			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno
+			INNER LOOP JOIN dbo.bettransm AS bm WITH(NOLOCK) ON m.MatchId = bm.matchid
+			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno
 			OUTER APPLY(
 				SELECT DISTINCT 
 						CASE WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 6 AND f.BetType = 5 THEN '1X2' 

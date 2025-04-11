@@ -111,7 +111,7 @@ BEGIN
 	CREATE TABLE #logInfoVoidPage (RequestId INT, MatchId INT, CashOutCount INT, InstantlySettleCount INT, SettleCount INT, CancelCashOutCount INT)
 
 	CREATE TABLE #FilterInfo (
-		 MatchId				INT
+		 MatchId				INT --parent matchid
 		,FilterFromTransTime	DATETIME
 		,FilterToTransTime		DATETIME
 		,FilterBy				TINYINT
@@ -123,7 +123,7 @@ BEGIN
 		,FilterVoidToTime		DATETIME
 		,isFinish				BIT
 		,Sporttype				SMALLINT
-		,MatchId_tmp			INT
+		,MatchId_tmp			INT --child matchid
 	)
 
 	CREATE TABLE #tmpTransInfo(
@@ -298,10 +298,10 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))
 	BEGIN
 		INSERT INTO #FilterInfo (MatchID, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId, AATime, PATime, SATime, Sporttype, MatchId_tmp)
-		SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime
+		SELECT d.MatchId, d.FilterFromTransTime, d.FilterToTransTime
 			  , d.FilterBy, d.SubIssueTypeId, d.AATime, d.PATime, d.SATime
 			  , m.Sporttype
-			  , d.MatchId
+			  , m.MatchId AS MatchId_tmp
 		FROM #FilterInfo d
 		INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
 		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
@@ -373,7 +373,7 @@ BEGIN
 			,CheckTimeCashOut
 			,AcceptModeCashOut
 		)
-	SELECT DISTINCT d.MatchId_tmp
+	SELECT DISTINCT d.MatchId
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -437,7 +437,7 @@ BEGIN
 		,c.CheckTime AS CheckTimeCashOut
 		,c.AcceptMode AS AcceptModeCashOut
 	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
+		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		INNER JOIN @bettype_tmp bt ON b.bettype = bt.bettype
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
@@ -447,7 +447,9 @@ BEGIN
 					WHEN d.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
 			END AS VoidTime
 		)act
-	WHERE b.statusID NOT IN (101, 102, 103)
+	WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+				   ELSE 0 END
 		AND b.betfrom <> 'P'
 		AND 1 = CASE WHEN act.VoidTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
 					 ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
@@ -459,8 +461,10 @@ BEGIN
 	IF EXISTS (
 					SELECT TOP(1) 1
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
-						INNER JOIN #FilterInfo d oN d.MatchId = bm.matchid
-					WHERE bm.statusID NOT IN (101, 102, 103)
+						INNER JOIN #FilterInfo d oN d.MatchId_tmp = bm.matchid
+					WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+				   				   ELSE 0 END
 						AND bm.betfrom <> 'P'
 					)
 	BEGIN		
@@ -527,7 +531,7 @@ BEGIN
 				,modds 
 				,SiteDBGroupID
 			)
-		SELECT DISTINCT d.MatchId_tmp
+		SELECT DISTINCT d.MatchId
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
@@ -589,15 +593,17 @@ BEGIN
 			,b.modds
 			,sub.SiteDBGroupID
 		FROM #FilterInfo d
-			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
+			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			INNER JOIN @bettype_tmp bt ON sub.bettype = bt.bettype
-		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
+		WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				  	   WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
+				   	   ELSE 0 END
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29 AND b.bettype = 29
 			AND CASE WHEN d.FilterBy = 1 THEN sub.transdate
-						WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
-						WHEN d.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
+					 WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
+					 WHEN d.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 				END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 			AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
 
@@ -671,14 +677,12 @@ BEGIN
 			FROM (
 				SELECT b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, b.LiveBetAcceptTime, b.SecAcceptTime, b.statusID
 				FROM #tmpTransInfo b WITH(NOLOCK)
-				WHERE b.matchid = @MatchId 
-					AND b.betfrom <> 'P'
+				WHERE b.IsMixParlay = 0
 					AND ISNULL(b.betdaqid,-1) NOT IN (1)
 				UNION ALL
 				SELECT NULL AS transid, bm.Subtransid, bm.Subbettype AS bettype, bm.Subtransdate AS transdate, bm.Subchecktime AS checktime, bm.SubLiveBetAcceptTime AS LiveBetAcceptTime, bm.SubSecAcceptTime AS SecAcceptTime, bm.SubstatusID AS statusID
 				FROM #tmpTransInfo bm 
-				WHERE bm.matchid = @MatchId AND bm.IsMixParlay = 1
-					AND bm.Subbetfrom <> 'P'
+				WHERE bm.IsMixParlay = 1
 			)b
 			CROSS APPLY (
 					SELECT CASE WHEN b.checktime IS NULL THEN 1 --Auto Accept
@@ -693,9 +697,6 @@ BEGIN
 						   END AS FromDate
 			)act
 			WHERE act.FromDate BETWEEN @VoidFromTime_tmp AND @FilterToTransTime
-				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-							 ELSE 0 END
 		
 			/*	Get tickets that need to be canceled cash out (with allowance setting). Check AA/PA/SA for cancel cash out tickets based on [cashoutselling.AcceptMode]
 				Auto Accept: AcceptMode = 1
@@ -711,12 +712,9 @@ BEGIN
 																THEN b.CheckTimeCashOut ELSE NULL END)
 				  ,@CancelCOToTime = MAX(b.CheckTimeCashOut)
 			FROM #tmpTransInfo b 
-			WHERE b.matchid = @MatchId AND b.IsMixParlay = 0
+			WHERE b.IsMixParlay = 0
 				AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
 				AND b.CheckTimeCashOut BETWEEN @VoidFromTime_tmp AND @FilterToTransTime
-				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-							 ELSE 0 END
 
 			IF @VoidFromTime IS NULL
 			BEGIN
@@ -797,10 +795,7 @@ BEGIN
 					WHEN d.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
 			END AS VoidTime
 		)act
-	WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-					WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-					ELSE 0 END
-		AND b.betfrom <> 'P' AND b.IsMixParlay = 0 
+	WHERE b.IsMixParlay = 0 
 		AND 1 = CASE WHEN act.VoidTime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
 					 ELSE CASE WHEN b.betdaqid = -2 AND b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime AND b.AcceptModeCashOut IS NOT NULL THEN 1
 							   ELSE 0 END
@@ -865,14 +860,10 @@ BEGIN
 				,b.liveindicator
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON b.matchid = d.MatchId AND b.IsMixParlay = 1 
-		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
-					   ELSE 0 END
-				AND b.Subbetfrom <> 'P' 
-				AND CASE WHEN d.FilterBy = 1 THEN b.Subtransdate
-						 WHEN d.FilterBy = 2 AND b.Subchecktime IS NOT NULL THEN b.Subchecktime
-						 WHEN d.FilterBy = 2 AND b.Subchecktime IS NULL THEN b.Subtransdate
-					END BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime
+		WHERE CASE WHEN d.FilterBy = 1 THEN b.Subtransdate
+				   WHEN d.FilterBy = 2 AND b.Subchecktime IS NOT NULL THEN b.Subchecktime
+				   WHEN d.FilterBy = 2 AND b.Subchecktime IS NULL THEN b.Subtransdate
+				END BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime
 	END 
 
 	IF @IssueTypeId = 10 --Red Card issue type 

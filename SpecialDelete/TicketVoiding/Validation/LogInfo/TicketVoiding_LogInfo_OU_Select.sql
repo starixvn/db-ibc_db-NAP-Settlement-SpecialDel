@@ -76,7 +76,7 @@ BEGIN
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
 	CREATE TABLE #FilterInfo (
-		 MatchId				INT
+		 MatchId				INT --parent matchid
 		,FilterFromTransTime	DATETIME
 		,FilterToTransTime		DATETIME
 		,SubIssueTypeId			SMALLINT
@@ -90,7 +90,7 @@ BEGIN
 		,FilterBetIdX			NVARCHAR(50)
 		,FilterBetIdY			NVARCHAR(50)
 		,Sporttype				SMALLINT
-		,MatchId_tmp			INT
+		,MatchId_tmp			INT  --child matchid
 	)
 	CREATE TABLE #logInfoVoidPage (
 		RequestId						INT
@@ -312,7 +312,7 @@ BEGIN
 			,Sporttype
 			,MatchId_tmp
 			) 
-	SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
+	SELECT d.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
 			,d.WrongMarket
 			,d.SubIssueTypeId
 			,d.PoolHouseCheckedBetTypes
@@ -324,7 +324,7 @@ BEGIN
 			,d.FilterBetIdX
 			,d.FilterBetIdY
 			,m.Sporttype
-			,d.MatchId
+			,m.MatchId AS MatchId_tmp
 	FROM #FilterInfo d
 		INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
 	WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
@@ -392,7 +392,7 @@ BEGIN
 			,SubIssueTypeId
 			,GroupName
 		)
-	SELECT DISTINCT d.MatchId_tmp AS matchid
+	SELECT DISTINCT d.MatchId
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -456,7 +456,7 @@ BEGIN
 				WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 THEN 'PH' --AIO
 		END AS GroupName
 	FROM dbo.bettrans b WITH(NOLOCK)
-		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
+		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		CROSS APPLY (
 			SELECT DISTINCT value AS WrongMarket
 			FROM STRING_SPLIT(d.WrongMarket, '&')
@@ -479,8 +479,10 @@ BEGIN
 	IF EXISTS (
 				SELECT TOP(1) 1
 				FROM dbo.bettransm AS bm WITH (NOLOCK)
-					INNER JOIN #FilterInfo d ON bm.matchid = d.MatchId
-				WHERE bm.statusID NOT IN (101, 102, 103)
+					INNER JOIN #FilterInfo d ON bm.matchid = d.MatchId_tmp
+				WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+				   				   ELSE 0 END
 					AND bm.betfrom <> 'P' 
 			 )
 	BEGIN		
@@ -546,7 +548,7 @@ BEGIN
 				,SubIssueTypeId
 				,GroupName
 			)
-		SELECT DISTINCT d.MatchId_tmp AS matchid
+		SELECT DISTINCT d.MatchId
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
@@ -607,7 +609,7 @@ BEGIN
 			,d.SubIssueTypeId
 			,CASE WHEN d.sporttype = 1 THEN 'PH' ELSE 'OU' END AS GroupName
 		FROM #FilterInfo d
-			 INNER JOIN dbo.bettransm sub ON d.MatchId = sub.matchid
+			 INNER LOOP JOIN dbo.bettransm sub ON d.MatchId_tmp = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			 CROSS APPLY (
 			 	SELECT DISTINCT value AS WrongMarket

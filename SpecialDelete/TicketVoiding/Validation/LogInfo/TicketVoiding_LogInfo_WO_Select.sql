@@ -71,7 +71,7 @@ BEGIN
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
 	CREATE TABLE #FilterInfo (
-		 MatchId				INT
+		 MatchId				INT --parent matchid
 		,FilterFromTransTime	DATETIME
 		,FilterToTransTime		DATETIME
 		,SubIssueTypeId			SMALLINT
@@ -91,7 +91,7 @@ BEGIN
 		,FromOddsNotVoidAwayUnder SMALLMONEY
 		,ToOddsNotVoidAwayUnder	SMALLMONEY
 		,Sporttype				SMALLINT
-		,MatchId_tmp			INT
+		,MatchId_tmp			INT --child matchid
 		
 	)
 	CREATE TABLE #logInfoVoidPage (
@@ -337,7 +337,7 @@ BEGIN
 				,Sporttype
 				,MatchId_tmp
 			)
-		SELECT m.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
+		SELECT d.MatchId, d.FilterFromTransTime, d.FilterToTransTime 
 				,d.SubIssueTypeId
 				,d.PoolHouseCheckedBetTypes
 				,d.IsLinkGroup1X2
@@ -355,7 +355,7 @@ BEGIN
 				,d.FromOddsNotVoidAwayUnder
 				,d.ToOddsNotVoidAwayUnder	
 				,m.Sporttype
-				,d.MatchId
+				,m.MatchId AS MatchId_tmp
 		FROM #FilterInfo d
 			INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
 		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
@@ -424,7 +424,7 @@ BEGIN
 			,SubIssueTypeId
 			,GroupName
 		)
-	SELECT DISTINCT d.MatchId_tmp
+	SELECT DISTINCT d.MatchId
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -488,7 +488,7 @@ BEGIN
 				  WHEN f.BetType IS NOT NULL AND f.GroupMatch <> 0 THEN 'PH' --AIO
 			END AS GroupName
 	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
+		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType AND f.SubIssueTypeId = d.SubIssueTypeId
 	WHERE b.betfrom <> 'P' 
 		AND b.SiteDBGroupID = @SiteDBGroupID  
@@ -531,8 +531,10 @@ BEGIN
 	IF EXISTS (
 					SELECT TOP(1) 1
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
-						INNER JOIN #FilterInfo d ON bm.matchid = d.MatchId
-					WHERE bm.statusID NOT IN (101, 102, 103)
+						INNER JOIN #FilterInfo d ON bm.matchid = d.MatchId_tmp
+					WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+				   				   ELSE 0 END
 						AND bm.betfrom <> 'P'
 					)
 	BEGIN	
@@ -598,7 +600,7 @@ BEGIN
 				,SubIssueTypeId
 				,GroupName
 			)
-		SELECT d.MatchId_tmp
+		SELECT d.MatchId
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
@@ -659,7 +661,7 @@ BEGIN
 			,d.SubIssueTypeId
 			,CASE WHEN d.sporttype = 1 THEN 'PH' ELSE 'WO' END AS GroupName
 		FROM #FilterInfo d
-			 INNER JOIN dbo.bettransm sub ON d.MatchId = sub.matchid
+			 INNER JOIN dbo.bettransm sub ON d.MatchId_tmp = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			 LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND sub.bettype = f.BetType AND f.SubIssueTypeId = d.SubIssueTypeId
 		WHERE 1 = CASE WHEN @ActionId <> 2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund

@@ -329,7 +329,9 @@ BEGIN
 					SELECT TOP(1) 1
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
 						INNER JOIN @tmpMatchId d oN d.MatchId = bm.matchid
-					WHERE bm.statusID NOT IN (101, 102, 103)
+					WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+				   				   ELSE 0 END
 						AND bm.betfrom <> 'P'
 					)
 	BEGIN		
@@ -472,7 +474,7 @@ BEGIN
 			AND b.matchid = 29 AND b.bettype = 29
 			AND b.liveindicator = 0
 			AND b.statusID NOT IN (102, 103)
-						AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
+			AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
 
 	END
 	

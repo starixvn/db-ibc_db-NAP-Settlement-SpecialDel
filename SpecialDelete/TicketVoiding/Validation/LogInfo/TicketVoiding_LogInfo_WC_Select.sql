@@ -239,33 +239,62 @@ BEGIN
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 	
 	BEGIN -- Instant Settlement declaration
+		
+		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)	
+		
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
-		CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT)	
+		CREATE TABLE #CTE_match (matchid INT, sporttype SMALLINT)
+		CREATE TABLE #CTE_isCal (matchid INT, IsHTCal BIT, ResourceId VARCHAR(20))
 
-		--> Get status of match
-		;WITH cte_match AS
-		(
-			SELECT DISTINCT t.matchid
-			FROM #FilterInfo t
-				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
-		)
-		,cte_isCalHT AS
-		(
+		INSERT INTO #CTE_match (matchid, sporttype)
+		SELECT DISTINCT t.matchid, m.sporttype
+		FROM #FilterInfo t
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
+			
+		IF EXISTS (SELECT TOP 1 1 FROM #CTE_match WHERE sporttype = 1) --Soccer	 
+		BEGIN 
+			INSERT INTO #CTE_isCal (matchid, IsHTCal)
 			SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
-			FROM cte_match m
+			FROM #CTE_match m
 				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
-		)
-		--> Build bettype list supported for instant settlement based on settlement status of match
-		INSERT INTO #InstantSettlementBettypes (matchid, bettype)
-		SELECT c.matchid,  f.bettype
-		FROM cte_isCalHT c
-			CROSS APPLY (
-					SELECT bettype
-					FROM dbo.f_TVS_GetInstantBettypes() 
-					WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
-								   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
-							       ELSE 0 END
-			)f	 	
+			WHERE m.sporttype = 1
+
+			--> Build bettype list supported for instant settlement based on settlement status of match
+			INSERT INTO #InstantSettlementBettypes (matchid, bettype)
+			SELECT c.matchid,  f.bettype
+			FROM #CTE_isCal c
+				CROSS APPLY (
+						SELECT bettype
+						FROM dbo.f_TVS_GetInstantBettypes() 
+						WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
+									   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
+									ELSE 0 END
+				)f	 	
+		END
+		IF EXISTS (SELECT TOP 1 1 FROM #CTE_match WHERE sporttype = 2) --Basketball
+		BEGIN
+			INSERT INTO #CTE_isCal (matchid, ResourceId)
+			SELECT m.matchid, rd.ResourceId
+			FROM #CTE_match m
+				LEFT JOIN DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
+					ON rd.matchid = m.matchid
+					AND ResultStatusID IN (2,5) AND (ResourceId LIKE 'Q[1-4]' OR ResourceId IN ('01','OT')) 
+			WHERE m.sporttype = 2
+
+			INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
+			SELECT DISTINCT c.matchid, f.bettype, f.betid
+			FROM #CTE_isCal c
+				CROSS APPLY (
+						SELECT bettype, betid
+						FROM dbo.f_TVS_GetInstantBettypes()
+						WHERE InstantType IS NULL
+						AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
+									 WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal) THEN 1
+									 ELSE 0 END
+				)f	 	
+		END
+		DROP TABLE #CTE_match
+		DROP TABLE #CTE_isCal
 	END	
 
 	UPDATE d
@@ -277,9 +306,9 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))
 	BEGIN
 		INSERT INTO #FilterInfo (MatchId, LiveHomeScore, LiveAwayScore, FilterFromTransTime, FilterToTransTime, FilterBy, ScoreId, AATime, PATime, SATime, SubIssueTypeId, Sporttype, MatchId_tmp)
-		SELECT m.MatchId, d.LiveHomeScore, d.LiveAwayScore, FilterFromTransTime, FilterToTransTime, FilterBy, ScoreId, AATime, PATime, SATime, SubIssueTypeId
+		SELECT d.MatchId, d.LiveHomeScore, d.LiveAwayScore, FilterFromTransTime, FilterToTransTime, FilterBy, ScoreId, AATime, PATime, SATime, SubIssueTypeId
 			  , m.Sporttype
-			  , d.MatchId
+			  , m.MatchId AS MatchId_tmp
 		FROM #FilterInfo d
 		INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
 		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
@@ -351,7 +380,7 @@ BEGIN
 			,CheckTimeCashOut
 			,AcceptModeCashOut
 		)
-	SELECT DISTINCT d.MatchId_tmp AS matchid
+	SELECT DISTINCT d.MatchId
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -415,13 +444,13 @@ BEGIN
 		,c.CheckTime AS CheckTimeCashOut
 		,c.AcceptMode AS AcceptModeCashOut
 	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
+		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
-	WHERE b.statusID NOT IN (101, 102, 103)
-		AND b.bettype NOT IN (805, 806, 9, 29)			
-		AND b.bettype NOT BETWEEN 901 AND 920
+	WHERE  1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+					WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+					ELSE 0 END
 		AND b.betfrom <> 'P'
 		AND 1 = CASE WHEN b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
 					 WHEN b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 	
@@ -436,8 +465,10 @@ BEGIN
 	IF EXISTS (
 					SELECT TOP(1) 1
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
-						INNER JOIN #FilterInfo d oN d.MatchId = bm.matchid
-					WHERE bm.statusID NOT IN (101, 102, 103)
+						INNER JOIN #FilterInfo d oN d.MatchId_tmp = bm.matchid
+					WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+								   WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+								   ELSE 0 END
 						AND bm.betfrom <> 'P'
 					)
 	BEGIN		
@@ -504,7 +535,7 @@ BEGIN
 				,modds 
 				,SiteDBGroupID
 			)
-		SELECT DISTINCT d.MatchId_tmp AS matchid
+		SELECT DISTINCT d.MatchId
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
@@ -566,13 +597,14 @@ BEGIN
 			,b.modds
 			,sub.SiteDBGroupID
 		FROM #FilterInfo d
-			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
+			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			INNER JOIN @bettype_tmp bt ON bt.bettype = sub.bettype
-		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
+		WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+					   WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+					   ELSE 0 END
 			AND sub.betfrom <> 'P'
-			AND b.matchid = 29
-			AND b.bettype = 29
+			AND b.matchid = 29 AND b.bettype = 29
 			AND ((sub.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
 			AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
@@ -584,15 +616,6 @@ BEGIN
 	WHERE EXISTS (SELECT TOP 1 1
 				  FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() AS d
 				  WHERE d.BetType = b.Subbettype AND d.SubIssueTypeId = f.SubIssueTypeId AND d.IssueTypeId = @IssueTypeId)
-
-	--Delete ticket having subissuetype exclude bettype
-	DELETE b
-	FROM #tmpTransInfo AS b
-	INNER JOIN #FilterInfo AS f ON b.matchid = f.MatchId
-	WHERE EXISTS (SELECT TOP 1 1
-				  FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() AS d
-				  WHERE d.BetType = b.Subbettype AND d.SubIssueTypeId = f.SubIssueTypeId AND d.IssueTypeId = @IssueTypeId)
-
 
 	WHILE (1=1) 
 	BEGIN
@@ -653,14 +676,12 @@ BEGIN
 			FROM (
 				SELECT b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, b.LiveBetAcceptTime, b.SecAcceptTime, b.statusID
 				FROM #tmpTransInfo b 
-				WHERE b.matchid = @MatchId AND b.IsMixParlay = 0
-					AND b.betfrom <> 'P'
+				WHERE b.IsMixParlay = 0
 					AND ISNULL(b.betdaqid,-1) NOT IN (1)
 				UNION ALL
 				SELECT NULL AS transid, bm.Subtransid, bm.Subbettype AS bettype, bm.Subtransdate AS transdate, bm.Subchecktime AS checktime, bm.SubLiveBetAcceptTime AS LiveBetAcceptTime, bm.SubSecAcceptTime AS SecAcceptTime, bm.SubstatusID AS statusID
 				FROM #tmpTransInfo bm 
-				WHERE bm.matchid = @MatchId AND bm.IsMixParlay = 1
-					AND bm.Subbetfrom <> 'P'
+				WHERE bm.IsMixParlay = 1
 			)b
 			CROSS APPLY (
 					SELECT CASE WHEN b.checktime IS NULL THEN 1 --Auto Accept
@@ -672,11 +693,7 @@ BEGIN
 								WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
 						   END AS FromDate
 			)act
-			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			WHERE act.FromDate BETWEEN @VoidFromTime_tmp AND @FilterToTransTime
-				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-							 ELSE 0 END
 			
 			/*	Get tickets that need to be canceled cash out (with allowance setting). Check AA/PA/SA for cancel cash out tickets based on [cashoutselling.AcceptMode]
 				Auto Accept: AcceptMode = 1
@@ -692,12 +709,9 @@ BEGIN
 																THEN b.CheckTimeCashOut ELSE NULL END)
 				  ,@CancelCOToTime = MAX(b.CheckTimeCashOut)
 			FROM #tmpTransInfo b 
-			WHERE b.matchid = @MatchId AND b.IsMixParlay = 0
+			WHERE b.IsMixParlay = 0
 				AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
 				AND b.CheckTimeCashOut BETWEEN @VoidFromTime_tmp AND @FilterToTransTime
-				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-							 ELSE 0 END
 
 			IF @VoidFromTime IS NULL
 			BEGIN
@@ -770,10 +784,6 @@ BEGIN
 		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 	WHERE	b.IsMixParlay = 0 
-			AND 1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
-						WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-						ELSE 0 END
-			AND b.betfrom <> 'P'
 			AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 			AND 1 = CASE WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
 						 WHEN d.FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
@@ -826,10 +836,6 @@ BEGIN
 	FROM #tmpTransInfo b
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 	WHERE	b.IsMixParlay = 0 
-			AND 1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
-						WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-						ELSE 0 END
-			AND b.betfrom <> 'P'
 			AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
 			AND 1 = CASE WHEN d.FilterBy = 1
 							AND b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
@@ -913,11 +919,7 @@ BEGIN
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
 				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.Subbettype
-		WHERE 1= CASE WHEN @ActionId <> 2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1
-							WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
-							ELSE 0 END
-				AND b.Subbetfrom <> 'P'
-				AND b.liveindicator = 0
+		WHERE   b.liveindicator = 0
 				AND b.statusID NOT IN (102, 103)
 				AND 1 = CASE WHEN b.Sublivehomescore = 0 AND b.Subliveawayscore = 0 AND b.Subliveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 				AND 1 = CASE WHEN d.FilterBy = 1 AND b.Subtransdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1

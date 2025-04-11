@@ -54,8 +54,8 @@ BEGIN
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
 	CREATE TABLE #FilterInfo (
-		 MatchId				INT
-		,FilterFromTransTime	DATETIME
+		 MatchId				INT --parent matchid
+		,FilterFromTransTime	DATETIME 
 		,FilterToTransTime		DATETIME
 		,SubIssueTypeId			SMALLINT
 		,LiveIndicator			BIT DEFAULT(0)		
@@ -66,7 +66,7 @@ BEGIN
 		,CorrectOdds			MONEY --"1.75"
 		,AdvancedExtraInfo		VARCHAR(MAX)
 		,Sporttype				SMALLINT
-		,MatchId_tmp			INT
+		,MatchId_tmp			INT --child matchid
 	)
 	CREATE TABLE #logInfoVoidPage (
 		RequestId						INT
@@ -379,8 +379,8 @@ BEGIN
 	--Cricket/Baseball - Get child match
 	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))
 	BEGIN
-		INSERT INTO #FilterInfo ( MatchId, FilterFromTransTime, FilterToTransTime) 
-		SELECT d.MatchId, d.FilterFromTransTime, d.FilterToTransTime
+		INSERT INTO #FilterInfo ( MatchId, FilterFromTransTime, FilterToTransTime, MatchId_tmp) 
+		SELECT d.MatchId, d.FilterFromTransTime, d.FilterToTransTime, m.MatchId AS MatchId_tmp
 		FROM #FilterInfo d
 			INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
 		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200
@@ -467,7 +467,7 @@ BEGIN
 			,SubIssueTypeId
 			,FilterOdds
 		)
-	SELECT DISTINCT d.MatchId_tmp AS matchid
+	SELECT DISTINCT d.MatchId
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -545,7 +545,7 @@ BEGIN
 		,d.SubIssueTypeId
 		,b.odds
 	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
+		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
 		LEFT JOIN @tmpConsolidatedBettypes tb ON  tb.typeid = b.bettype
 	WHERE 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
@@ -560,8 +560,10 @@ BEGIN
 	IF EXISTS (
 					SELECT TOP(1) 1
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
-						INNER JOIN #FilterInfo d oN d.MatchId = bm.matchid
-					WHERE bm.statusID NOT IN (101, 102, 103)
+						INNER JOIN #FilterInfo d ON d.MatchId_tmp = bm.matchid
+					WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+				   				   ELSE 0 END
 						AND bm.betfrom <> 'P'
 					)
 	BEGIN		
@@ -645,7 +647,7 @@ BEGIN
 			    ,SubIssueTypeId
 				,FilterOdds
 			)
-		SELECT DISTINCT d.MatchId_tmp AS matchid
+		SELECT DISTINCT d.MatchId
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
@@ -723,7 +725,7 @@ BEGIN
 			,d.SubIssueTypeId
 			,b.odds
 		FROM #FilterInfo d
-			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
+			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = sub.bettype
 		WHERE  1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund

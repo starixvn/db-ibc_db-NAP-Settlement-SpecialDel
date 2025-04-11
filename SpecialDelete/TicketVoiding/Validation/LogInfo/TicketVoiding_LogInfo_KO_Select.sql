@@ -42,10 +42,10 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #FilterInfo (
-		 MatchId				INT
+		 MatchId				INT --parent matchid
 		,KickOffTime			DATETIME
 		,Sporttype				SMALLINT
-		,MatchId_tmp			INT
+		,MatchId_tmp			INT --child matchid
 	)
 	DECLARE @Validation AS TABLE (
 			 MatchId                 INT
@@ -221,7 +221,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))
 	BEGIN
 		INSERT INTO #FilterInfo (MatchId, KickOffTime, Sporttype, MatchId_tmp)
-		SELECT m.MatchId, d.KickOffTime, m.sporttype, d.MatchId
+		SELECT d.MatchId, d.KickOffTime, m.sporttype, m.MatchId AS MatchId_tmp
 		FROM #FilterInfo d
 			INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
 		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200 
@@ -286,7 +286,7 @@ BEGIN
 			,modds 
 			,SiteDBGroupID
 		)
-	SELECT  DISTINCT d.MatchId_tmp AS MatchId
+	SELECT  DISTINCT d.MatchId
 			,b.TransId
 			,b.transid AS SubTransID
 			,b.custid
@@ -344,7 +344,7 @@ BEGIN
 			,b.modds 
 			,b.SiteDBGroupID
 	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN #FilterInfo d ON b.matchid = d.MatchId
+		INNER JOIN #FilterInfo d ON b.matchid = d.MatchId_tmp
 	WHERE b.transdate >= d.KickOffTime
 			AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 						WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
@@ -357,8 +357,10 @@ BEGIN
 	IF EXISTS (
 				SELECT TOP(1) 1
 				FROM dbo.bettransm AS bm WITH (NOLOCK)
-					INNER JOIN #FilterInfo d ON bm.matchid = d.MatchId
-				WHERE bm.statusID NOT IN (101, 102, 103)
+					INNER JOIN #FilterInfo d ON bm.matchid = d.MatchId_tmp
+				WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+				   				   ELSE 0 END
 					AND bm.betfrom <> 'P' 
 			 )
 	BEGIN		
@@ -421,7 +423,7 @@ BEGIN
 					,modds 
 					,SiteDBGroupID
 				)
-		SELECT DISTINCT d.MatchId_tmp AS MatchId
+		SELECT DISTINCT d.MatchId
 				,b.TransId
 				,sub.transid AS SubTransID
 				,b.custid
@@ -479,7 +481,7 @@ BEGIN
 				,b.modds
 				,sub.SiteDBGroupID
 		FROM #FilterInfo d
-			 INNER JOIN dbo.bettransm sub ON d.MatchId = sub.matchid
+			 INNER JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 		WHERE	 sub.transdate >= d.KickOffTime  AND b.transdate >= d.KickOffTime
 				AND 1= CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
@@ -490,8 +492,6 @@ BEGIN
 				AND sub.betfrom <> 'P'
 				AND b.statusID NOT IN (101, 102, 103)
 				AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
-
-
 	END 
 
 	---UPDATE column show loginfo details
