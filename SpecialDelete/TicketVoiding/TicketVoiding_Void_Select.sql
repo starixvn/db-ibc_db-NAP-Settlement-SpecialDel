@@ -67,6 +67,7 @@ AS
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250121@Lani: [TVS] Return 'GroupBettypeId' column [Redmine: #217176]
 		- 20250219@July: [TVS] Apply new Void Request page for some issue types of TVS [Redmine: #191397]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's explanation:	
 		
@@ -1040,7 +1041,7 @@ BEGIN
 		WHERE d.bettype IN (10)
 	END
 	-- UPDATE eventtype = 3 [VS range  bettypes]
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)))
 	BEGIN
 		UPDATE d
 			SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
@@ -1052,13 +1053,13 @@ BEGIN
 				,eventstatus = ISNULL(o.eventstatus,'')
 				,SubLeagueId = r.leagueid
 				,SettlementStatus = 0
-				,VendorMatchId = CASE WHEN d.bettype IN (2770,2771) THEN r.VendorMatchId ELSE NULL END
+				,VendorMatchId = CASE WHEN d.bettype IN (2770,2771,15500,15501) THEN r.VendorMatchId ELSE NULL END
 		FROM #TVSTicketBets d
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON d.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771)
+		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
 
 	-- UPDATE VS5, VS6
