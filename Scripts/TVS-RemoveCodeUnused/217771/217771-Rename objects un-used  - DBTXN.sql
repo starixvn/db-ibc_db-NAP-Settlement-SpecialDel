@@ -32,6 +32,11 @@ OR  name LIKE 'TicketVoiding_TransInfo_KO_Select%'
 OR  name LIKE 'TicketVoiding_TransInfo_NP_Select%'
 OR  name LIKE 'TicketVoiding_TransInfo_RO_Select%'
 OR  name LIKE 'TicketVoiding_TransInfo_ACC_Select%'
+
+---TransInfo_Void
+OR  name LIKE 'TicketVoiding_TransInfo_Void_Select%'
+OR  name LIKE 'TicketVoiding_TransInfo_VoidARC_Select%'
+
 )
 
 WHILE (1=1)
