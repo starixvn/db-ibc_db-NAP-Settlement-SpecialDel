@@ -19,6 +19,7 @@ AS
 	Revision:
 		- 20241023@Louisa: Initial [Redmine:#210733]
 		- 20250328@Louisa: extend data type of currency from tinyint to smallint [Redmine:#222173]
+		- 20250408@Aries: Remove the redundant information from the alert when exceeded Max Payout of Virtual Sport [Redmine:#223116]
 
 	Param's explaination
 		@Action: Refund	   - @ActionId: 81056
@@ -60,6 +61,7 @@ BEGIN
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT
 		,custid INT, currency SMALLINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
 		,transdate DATETIME, bettype SMALLINT,OddsType SMALLINT
+		,statusID	TINYINT
 	)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT) 
 	
@@ -117,7 +119,7 @@ BEGIN
 	BEGIN TRY
 		IF @Action = 'CAL'
 		BEGIN
-			INSERT INTO #tmpTransID (TransID, modds, custid, currency, actualPO, transdate, bettype,OddsType)
+			INSERT INTO #tmpTransID (TransID, modds, custid, currency, actualPO, transdate, bettype,OddsType,statusID)
 			SELECT	transid
 				   ,m.modds
 				   ,b.custid					
@@ -136,6 +138,7 @@ BEGIN
 				   ,b.transdate
 				   ,b.bettype
 				   ,sr.OddsType
+				   ,b.statusID
 			FROM	dbo.bettrans b WITH (NOLOCK)
 			CROSS APPLY(
 							SELECT TOP 1 pfID, HomeValue, AwayValue, OddsType
@@ -182,6 +185,7 @@ BEGIN
 						INNER JOIN	@tmpMaxWinLimit m
 							ON t.CustId = m.CustId
 					WHERE	t.actualPO > m.MaxWinLimit
+						AND t.statusID != 102
 
 					SET @TotalTransMaxPO = @@ROWCOUNT
 				END

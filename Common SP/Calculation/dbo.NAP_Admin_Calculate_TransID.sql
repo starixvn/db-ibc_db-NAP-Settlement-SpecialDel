@@ -36,6 +36,7 @@ AS
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20241211@Louisa: add matchid for BalancePendingCreditGame [Redmine:#215066]
+		- 20250408@Aries: Remove the redundant information from the alert when exceeded Max Payout of Virtual Sport [Redmine:#223116]
 
 	Param's Explanation:  
 		   
@@ -327,7 +328,7 @@ BEGIN
 					WHEN @IsUpd_Void = 0 THEN ruben 
 					ELSE 1
 				END
-		,ExtraInfo = CASE WHEN isMaxPayout = 1 THEN  ISNULL(b.ExtraInfo,'') + '<l255 apo="'+ CAST(sr.actualPO AS VARCHAR(100)) +'" />'  ELSE b.ExtraInfo END
+		,ExtraInfo = CASE WHEN isMaxPayout = 1 AND  @IsUpd_Void = 1 THEN  ISNULL(b.ExtraInfo,'') + '<l255 apo="'+ CAST(sr.actualPO AS VARCHAR(100)) +'" />'  ELSE b.ExtraInfo END
 	OUTPUT	 inserted.transid
 			,deleted.custid, (inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 			,inserted.modds, inserted.odds, inserted.statuswinlost

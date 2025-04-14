@@ -20,7 +20,7 @@ AS
 		- 20231002@Louisa: Integrate new sporttype 179, new bettype for sporttype 178 [Redmine:#194655]
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
 		- 20250328@Louisa: extend data type of currency from tinyint to smallint [Redmine:#222173]
-			
+		- 20250408@Aries: Remove the redundant information from the alert when exceeded Max Payout of Virtual Sport [Redmine:#223116]
 	Param's Explanation:
 		@Action - CAL
 				- REFUND
@@ -65,6 +65,7 @@ BEGIN
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT
 		,custid INT, currency SMALLINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
 		,transdate DATETIME, bettype SMALLINT,OddsType SMALLINT
+		,statusID	TINYINT
 	)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT) 
 	
@@ -123,7 +124,7 @@ BEGIN
 	BEGIN TRY
 		IF @Action = 'CAL'
 		BEGIN
-			INSERT INTO #tmpTransID (TransID, modds, custid, currency, actualPO, transdate, bettype,OddsType)
+			INSERT INTO #tmpTransID (TransID, modds, custid, currency, actualPO, transdate, bettype,OddsType,statusID)
 			SELECT	transid
 				   ,m.modds
 				   ,b.custid					
@@ -142,6 +143,7 @@ BEGIN
 				   ,b.transdate
 				   ,b.bettype
 				   ,sr.OddsType
+				   ,b.statusID
 			FROM	dbo.bettrans b WITH (NOLOCK)
 			CROSS APPLY(
 							SELECT TOP 1 pfID, HomeValue, AwayValue, OddsType
@@ -164,7 +166,7 @@ BEGIN
 				AS(
 					SELECT DISTINCT custid, currency
 					FROM	#tmpTransID t
-					WHERE	modds >= 0.25
+					WHERE	modds >= 0.25						
 				)
 				INSERT INTO @tmpMaxWinLimit (CustId, MaxWinLimit)
 				SELECT	t.custid, fc.MaxWinLimit
@@ -188,6 +190,7 @@ BEGIN
 						INNER JOIN	@tmpMaxWinLimit m
 							ON t.CustId = m.CustId
 					WHERE	t.actualPO > m.MaxWinLimit
+						AND t.statusID != 102
 
 					SET @TotalTransMaxPO = @@ROWCOUNT
 				END
