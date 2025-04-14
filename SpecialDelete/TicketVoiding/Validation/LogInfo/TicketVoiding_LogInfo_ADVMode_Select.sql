@@ -519,7 +519,7 @@ BEGIN
 					WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   				   ELSE 0 END
-						AND bm.betfrom <> 'P'
+						AND bm.betfrom <> 'P' AND bm.SiteDBGroupID = @SiteDBGroupID
 					)
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
@@ -833,16 +833,16 @@ BEGIN
 	--Data Section
 	INSERT INTO #logInfo (MatchId, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, SettleCount, Id)
 	SELECT @MatchId AS MatchId
-		,MIN(b.transdate) AS VoidFromTime
-		,MAX(b.transdate) AS VoidToTime
+		,MIN(b.Subtransdate) AS VoidFromTime
+		,MAX(b.Subtransdate) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
 		,COUNT(CASE WHEN b.transid <> b.SubTransid THEN b.transid ELSE NULL END) AS MainParlayCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount
 		,b.Id
 	FROM #TVSTicketBets b
 	WHERE b.IsCancelCashOut <> 1 -- Not count ticket cancel CO
-	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)), b.Id
-	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)), b.Id
+	GROUP BY b.Id
+	ORDER BY b.Id
 
 	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsCancelCashOut = 1)
 	BEGIN

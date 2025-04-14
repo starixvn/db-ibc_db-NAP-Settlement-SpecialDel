@@ -359,9 +359,9 @@ BEGIN
 				FROM dbo.bettransm AS bm WITH (NOLOCK)
 					INNER JOIN #FilterInfo d ON bm.matchid = d.MatchId_tmp
 				WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
-				   				   ELSE 0 END
-					AND bm.betfrom <> 'P' 
+				  			   WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+				   			   ELSE 0 END
+					AND bm.betfrom <> 'P' AND bm.SiteDBGroupID = @SiteDBGroupID
 			 )
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
@@ -481,7 +481,7 @@ BEGIN
 				,b.modds
 				,sub.SiteDBGroupID
 		FROM #FilterInfo d
-			 INNER JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
+			 INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 		WHERE	 sub.transdate >= d.KickOffTime  AND b.transdate >= d.KickOffTime
 				AND 1= CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1

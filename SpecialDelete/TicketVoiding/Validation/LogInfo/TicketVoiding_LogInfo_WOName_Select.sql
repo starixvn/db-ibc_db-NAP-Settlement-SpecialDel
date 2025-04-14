@@ -406,7 +406,7 @@ BEGIN
 					WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   				   ELSE 0 END
-						AND bm.betfrom <> 'P' 
+						AND bm.betfrom <> 'P' AND bm.SiteDBGroupID = @SiteDBGroupID
 					)
 	BEGIN		
 		INSERT INTO #TVSTicketBets(

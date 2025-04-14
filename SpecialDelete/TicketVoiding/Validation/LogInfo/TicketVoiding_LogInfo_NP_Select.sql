@@ -332,7 +332,7 @@ BEGIN
 					WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   				   ELSE 0 END
-						AND bm.betfrom <> 'P'
+						AND bm.betfrom <> 'P' AND bm.SiteDBGroupID = @SiteDBGroupID
 					)
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
@@ -548,14 +548,14 @@ BEGIN
 	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, InstantlySettleCount, SettleCount, MainParlayCount)
 	SELECT b.matchid AS MatchId
 		,NULL AS LiveScores
-		,MIN(b.transdate) AS VoidFromTime
-		,MAX(b.transdate) AS VoidToTime
+		,MIN(b.Subtransdate) AS VoidFromTime
+		,MAX(b.Subtransdate) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND i.bettype IS NOT NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS InstantlySettleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND i.bettype IS NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount --Exclude InstantlySettleCount,CO
 		,COUNT(CASE WHEN b.transid <> b.SubTransid THEN b.transid ELSE NULL END) AS MainParlayCount
 	FROM #TVSTicketBets b
-		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
+		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.SubBettype AND i.matchid = b.matchid
 	GROUP BY b.matchid
 
 	CREATE TABLE #CTE_RequestDetail (RequestId INT, MatchId INT, Sporttype SMALLINT, TransIds VARCHAR(MAX), IssueDetail NVARCHAR(MAX), VoidFromTime DATETIME, VoidToTime DATETIME, SingleCount INT, MainParlayCount INT, ActionId TINYINT)

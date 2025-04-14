@@ -532,7 +532,7 @@ BEGIN
 			WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   				   ELSE 0 END
-				AND bm.betfrom <> 'P' 
+				AND bm.betfrom <> 'P' AND bm.SiteDBGroupID = @SiteDBGroupID
 			)
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
@@ -876,9 +876,9 @@ BEGIN
 	--Data Section
 	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, SettleCount, InstantlySettleCount, MainParlayCount, PoolHouseSingleCount, PoolHouseCashOutCount, PoolHouseSettleCount, PoolHouseInstantlySettleCount, PoolHouseMainParlayCount)
 	SELECT b.matchid AS MatchId
-		,CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
-		,MIN(b.transdate) AS VoidFromTime
-		,MAX(b.transdate) AS VoidToTime
+		,CAST(b.Sublivehomescore AS VARCHAR(2)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(2)) AS LiveScores
+		,MIN(b.Subtransdate) AS VoidFromTime
+		,MAX(b.Subtransdate) AS VoidToTime
 		,COUNT(CASE WHEN b.GroupName = 'HDP' AND b.transid = b.SubTransid  THEN b.transid ELSE NULL END) AS SingleCount
 		,COUNT(CASE WHEN b.GroupName = 'HDP' AND b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS CashOutCount
 		,COUNT(CASE WHEN b.GroupName = 'HDP' AND b.transid = b.SubTransid AND b.SettledType = 2 THEN b.transid ELSE NULL END) AS SettleCount
@@ -890,8 +890,8 @@ BEGIN
 		,COUNT(CASE WHEN b.GroupName = 'PH' AND b.transid = b.SubTransid AND b.SettledType = 1 THEN b.transid ELSE NULL END) AS PoolHouseInstantlySettleCount
 		,COUNT(CASE WHEN b.GroupName = 'PH' AND b.transid <> b.SubTransid AND b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS PoolHouseMainParlayCount
 	FROM #TVSTicketBets b
-	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)), b.matchid
-	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ASC
+	GROUP BY CAST(b.Sublivehomescore AS VARCHAR(2)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(2)), b.matchid
+	ORDER BY CAST(b.Sublivehomescore AS VARCHAR(2)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(2)) ASC
 
 	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
 		,v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE l.IsPoolHouseAffected END
