@@ -2,26 +2,9 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Select] 
 (
 	@IssueTypeId			INT
-	,@KickOffInfo			VARCHAR(MAX) = NULL
-	,@WrongScoreInfo		VARCHAR(MAX) = NULL
-	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
-	,@RedCardInfo			VARCHAR(MAX) = NULL
-	,@WrongHDPInfo			VARCHAR(MAX) = NULL
-	,@Wrong1stHDPInfo		VARCHAR(MAX) = NULL
-	,@WrongOUInfo			VARCHAR(MAX) = NULL
-	,@Wrong1stOUInfo		VARCHAR(MAX) = NULL
 	,@AbnormalBetTransIds	VARCHAR(MAX) = NULL
-	,@AbnormalAccounts		VARCHAR(MAX) = NULL
 	,@ArchivedTransIds		VARCHAR(MAX) = NULL
-	,@WrongOddsInfo			VARCHAR(MAX) = NULL
-	,@ReducedOverInfo		VARCHAR(MAX) = NULL
-	,@NotParticipateInfo	VARCHAR(MAX) = NULL
 	,@RecoverTicketInfo		VARCHAR(MAX) = NULL
-	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
-	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
-	,@WrongOddsSBInfo		VARCHAR(MAX) = NULL
-	,@WrongOfferedNameInfo	VARCHAR(MAX) = NULL
-	,@OtherIssuesInfo		VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -42,6 +25,8 @@ AS
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
+		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:	
 		
@@ -49,99 +34,11 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 
-	/*---DangerAccept---*/
-	IF @IssueTypeId = 1
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_DA_Select
-			@DangerAcceptedInfo = @DangerAcceptedInfo
-	END
-	/*-----------------*/
-
-	/*---WrongOdds---*/
-	IF @IssueTypeId = 2
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_WO_Select
-			@WrongOddsInfo = @WrongOddsInfo
-	END
-	/*-----------------*/
-
-	/*---WrongScore---*/
-	IF @IssueTypeId = 3
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_WC_Select
-			@WrongScoreInfo = @WrongScoreInfo
-	END
-	/*-----------------*/
-
-	/*---WrongHDP---*/
-	IF @IssueTypeId = 4
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_HDP_Select
-			@WrongHDPInfo = @WrongHDPInfo
-	END
-	/*-----------------*/
-
-	/*---Wrong1sHDP---*/
-	IF @IssueTypeId = 5
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_1sHDP_Select
-			@Wrong1stHDPInfo = @Wrong1stHDPInfo
-	END
-	/*-----------------*/
-
-	/*---WrongOU---*/
-	IF @IssueTypeId = 6
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_OU_Select
-			@WrongOUInfo = @WrongOUInfo
-	END
-	/*-----------------*/
-
-	/*---Wrong1sOU---*/
-	IF @IssueTypeId = 7
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_1sOU_Select
-			@Wrong1stOUInfo = @Wrong1stOUInfo
-	END
-	/*-----------------*/
-	 
-	/*---EKO / WrongKOTime---*/
-	IF @IssueTypeId IN (8,9)
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_KO_Select
-			@KickOffInfo = @KickOffInfo
-	END
-	/*-----------------*/
-
-	/*---RedCard---*/
-	IF @IssueTypeId = 10
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_RC_Select
-			@RedCardInfo = @RedCardInfo
-	END
-	/*-----------------*/
-
 	/*---AbnormalBet---*/
 	IF @IssueTypeId IN (11)
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_AB_Select
 			@AbnormalBetTransIds = @AbnormalBetTransIds
-	END
-	/*-----------------*/
-
-	/*---Wrong Market Offered---*/
-	IF @IssueTypeId IN (12)
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_ADVMode_Select
-			@AdvancedModeInfo = @WrongMarketOfferedInfo
-	END
-	/*-----------------*/
-
-	/*---AbnormalAccount---*/
-	IF @IssueTypeId = 13
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_ACC_Select
-			@AbnormalAccounts = @AbnormalAccounts
 	END
 	/*-----------------*/
 
@@ -153,22 +50,6 @@ BEGIN
 	END
 	/*-----------------*/
 
-	/*---Reduced Over / Abandoned---*/
-	IF @IssueTypeId IN (19,23)
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_RO_Select
-			@ReducedOverInfo = @ReducedOverInfo
-	END
-	/*-----------------*/
-
-	/*---Not Participate---*/
-	IF @IssueTypeId = 21
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_NP_Select
-			@NotParticipateInfo = @NotParticipateInfo
-	END
-	/*-----------------*/
-
 	/*---Recover Ticket---*/
 	IF @IssueTypeId = 22
 	BEGIN
@@ -176,39 +57,6 @@ BEGIN
 			@RecoverTicketInfo = @RecoverTicketInfo
 	END
 	/*-----------------*/
-
-	/*---Technical Error---*/
-	IF @IssueTypeId IN (24)
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_ADVMode_Select
-			@AdvancedModeInfo = @TechnicalErrorInfo
-	END
-	/*-----------------*/
-	
-	/*---WrongOdds (Sportbook)---*/
-	IF @IssueTypeId IN (25)
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_ADVMode_Select
-			@AdvancedModeInfo = @WrongOddsSBInfo
-	END
-	/*-----------------*/
-
-	/*---Wrong Offered Name---*/
-	IF @IssueTypeId IN (26)
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_WOName_Select
-			@WrongOfferedNameInfo = @WrongOfferedNameInfo
-	END
-	/*-----------------*/
-
-	/*---Other Issues---*/
-	IF @IssueTypeId IN (18)
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_ADVMode_Select
-			@AdvancedModeInfo = @OtherIssuesInfo
-	END
-	/*-----------------*/
 END
 
 GO
-
