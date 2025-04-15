@@ -1,8 +1,9 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_221] @matchid INT
 	, @result VARCHAR(MAX)
 	, @action VARCHAR(20)
 	, @IsReSettledTickets BIT = 1
+	, @BroadcastSessionId	VARCHAR(50)	= NULL
 AS
 /*
     Created: 20160428@Patrick
@@ -27,6 +28,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
 
     Param's Explanation:
 
@@ -115,6 +117,8 @@ BEGIN
 
 		,bef_winlost MONEY
 		,bef_statusid TINYINT
+		,bettype SMALLINT
+		,hdp1 SMALLMONEY
 	)
 
 	INSERT INTO @TmpData (bettype, Position, BetOption, OldAccumulatedScore, AccumulatedScore, AccumulatedHomeScore, AccumulatedAwayScore, IsSettleDetermined, HasInjuryTime)
@@ -413,6 +417,8 @@ BEGIN
 					
 					,deleted.winlost
 					,deleted.statusid
+					,deleted.bettype 
+					,deleted.hdp1
 				INTO @tmpTransInfo (
 					transId
 					,modds
@@ -420,6 +426,8 @@ BEGIN
 					,SettlementTime,WinLost,aWinLost
 					,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
 					,bef_winlost, bef_statusid
+					,bettype
+					,hdp1
 				)
 				FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 					INNER JOIN #tblTransIds t
@@ -460,6 +468,8 @@ BEGIN
 							,ruben AS 'r' 
 							,bef_winlost AS 'bef_w' 
 							,bef_statusid AS 'bef_sid' 
+							,bettype AS 'bt'
+							,hdp1 AS 'hdp1'
 				
 					FROM	@tmpTransInfo
 					FOR JSON AUTO
@@ -472,6 +482,7 @@ BEGIN
 					,@TransInfoJson = @TransInfoJson
 					,@SettlementAction = 'CAL'
 					,@TicketType = 's'
+					,@BroadcastSessionId = @BroadcastSessionId
 			END
 		END
 
@@ -518,7 +529,9 @@ BEGIN
 				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 	
 				,deleted.winlost
-				,deleted.statusid	
+				,deleted.statusid
+				,deleted.bettype	
+				,deleted.hdp1
 			INTO @tmpTransInfo (
 				transId
 				,Status
@@ -530,6 +543,8 @@ BEGIN
 				,statuswinlost
 				,FcUpdateTime
 				,bef_winlost, bef_statusid
+				,bettype
+				,hdp1
 			)
 			FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #tblTransIds t
@@ -558,7 +573,8 @@ BEGIN
 							,FcUpdateTime AS 'rut'
 							,bef_winlost AS 'bef_w' 
 							,bef_statusid AS 'bef_sid' 
-					
+							,bettype AS 'bt'
+							,hdp1 AS 'hdp1'
 					FROM	@tmpTransInfo
 					FOR JSON AUTO
 				)
@@ -571,6 +587,7 @@ BEGIN
 					,@TransInfoJson = @TransInfoJson
 					,@SettlementAction = 'REFUND'
 					,@TicketType = 's'
+					,@BroadcastSessionId = @BroadcastSessionId
 			END
 		END
 
@@ -606,7 +623,9 @@ BEGIN
 				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 	
 				,deleted.winlost
-				,deleted.statusid	
+				,deleted.statusid
+				,deleted.bettype
+				,deleted.hdp1	
 			INTO @tmpTransInfo (
 				transId
 				,Status
@@ -617,6 +636,8 @@ BEGIN
 				,statuswinlost
 				,FcUpdateTime
 				,bef_winlost, bef_statusid
+				,bettype
+				,hdp1
 			)
 			FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #tblTransIds t
@@ -644,7 +665,8 @@ BEGIN
 							,FcUpdateTime AS 'rut'
 							,bef_winlost AS 'bef_w' 
 							,bef_statusid AS 'bef_sid' 
-					
+							,bettype AS 'bt'
+							,hdp1 AS 'hdp1'
 					FROM	@tmpTransInfo
 					FOR JSON AUTO
 				)
@@ -657,7 +679,7 @@ BEGIN
 					,@TransInfoJson = @TransInfoJson
 					,@SettlementAction = 'UNDO'
 					,@TicketType = 's'
-					
+					,@BroadcastSessionId = @BroadcastSessionId
 			END
 		END
 		

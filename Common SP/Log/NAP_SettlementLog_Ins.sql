@@ -1,8 +1,9 @@
-/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_SettlementLog_Ins]
 	@MatchID				INT				=	NULL,
 	@SportType 				INT				=	NULL,
 	@Action					VARCHAR(20)		=	NULL,
+	@Mode					VARCHAR(20)		=	'',
 	@IsAuto					BIT				=	0,
 	@AdminID				INT				=	NULL,
 	@SelectedResources		VARCHAR(MAX)	=	NULL
@@ -14,6 +15,7 @@ AS
 	 
 	Revisions:
 		-	20230414@Aries: Created [Redmine:#185964]
+		-	20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
 		
 	Param's Explanation:
 		-   @IsAuto = 1 When action from NAP_Admin_Settlement_Auto_1s_Push
@@ -24,23 +26,27 @@ BEGIN
 				@ActionID			INT
 	DECLARE		@tmpResourcesWeb	TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OtherInfo VARCHAR(2000))
 
-	SELECT  @ActionID = CASE
-						  WHEN @Action = 'CAL' AND @IsAuto =0		THEN 100
-						  WHEN @Action = 'CAL' AND @IsAuto =1		THEN 148 
-						  WHEN @Action = 'CAL-FT'					THEN 101
-						  WHEN @Action = 'CAL-HT'					THEN 102
-						  WHEN @Action = 'CAL_EAR'					THEN 189
+	SELECT  @ActionID = CASE			  
+						  WHEN @Mode = '' AND @Action = 'CAL' AND @IsAuto =0		THEN 100
+						  WHEN @Mode = '' AND @Action = 'CAL' AND @IsAuto =1		THEN 148 
+						  WHEN @Mode = '' AND @Action = 'CAL-FT'					THEN 101
+						  WHEN @Mode = '' AND @Action = 'CAL-HT'					THEN 102
+						  WHEN @Mode = '' AND @Action = 'CAL_EAR'					THEN 189
 
-						  WHEN @Action = 'UNDO' AND @IsAuto =0		THEN 103
-						  WHEN @Action = 'UNDO'	AND @IsAuto =1		THEN 149 
-						  WHEN @Action = 'UNDO_EAR'					THEN 190
-						  WHEN @Action = 'UNDO-FT'					THEN 81040
+						  WHEN @Mode = '' AND @Action = 'UNDO' AND @IsAuto =0		THEN 103
+						  WHEN @Mode = '' AND @Action = 'UNDO'	AND @IsAuto =1		THEN 149 
+						  WHEN @Mode = '' AND @Action = 'UNDO_EAR'					THEN 190
+						  WHEN @Mode = '' AND @Action = 'UNDO-FT'					THEN 81040
 
-						  WHEN @Action = 'REFUND' AND @IsAuto =0	THEN 109
-						  WHEN @Action = 'REFUND' AND @IsAuto =1	THEN 150
-						  WHEN @Action = 'REFUND_EAR'				THEN 191
-						  WHEN @Action = 'REFUND-HT'				THEN 110
-						  WHEN @Action = 'REFUND-FT'				THEN 111
+						  WHEN @Mode = '' AND @Action = 'REFUND' AND @IsAuto =0		THEN 109
+						  WHEN @Mode = '' AND @Action = 'REFUND' AND @IsAuto =1		THEN 150
+						  WHEN @Mode = '' AND @Action = 'REFUND_EAR'				THEN 191
+						  WHEN @Mode = '' AND @Action = 'REFUND-HT'					THEN 110
+						  WHEN @Mode = '' AND @Action = 'REFUND-FT'					THEN 111
+						  
+						  WHEN @Mode = 'FM' AND @Action = 'CAL' 					THEN 165
+						  WHEN @Mode = 'FM' AND @Action = 'UNDO' 					THEN 166
+						  WHEN @Mode = 'FM' AND @Action = 'REFUND' 					THEN 167
 						  ELSE 0
 					   END
 

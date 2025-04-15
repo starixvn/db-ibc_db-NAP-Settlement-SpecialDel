@@ -11,6 +11,8 @@ AS
 	 
 	Revisions:
 		-	20230414@Aries: Created [Redmine:#185964]
+		-	20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
+		
 		
 	Param's Explanation:
 */
@@ -22,9 +24,9 @@ BEGIN
 	DECLARE		@tmpAction			TABLE([Action] VARCHAR(20), ActionID INT, PRIMARY KEY(ActionID))
 
 	INSERT INTO @tmpAction([Action],ActionID)
-	VALUES('CAL',100),('CAL',148),('CAL',101),('CAL',102),('CAL',189),
-	      ('UNDO',103),('UNDO',149),('UNDO',190),('UNDO',81040),
-		  ('REFUND',109),('REFUND',150),('REFUND',191),('REFUND',110),('REFUND',111)
+	VALUES('CAL',100),('CAL',148),('CAL',101),('CAL',102),('CAL',189),('CAL',165),
+	      ('UNDO',103),('UNDO',149),('UNDO',190),('UNDO',81040),('UNDO',166),
+		  ('REFUND',109),('REFUND',150),('REFUND',191),('REFUND',110),('REFUND',111),('REFUND',167)
 
 
 
@@ -53,9 +55,14 @@ BEGIN
 				AND rs.ResourceID = l.ResourceID	
 				AND 1 = CASE WHEN @Action LIKE 'CAL%' AND  a.[Action] IN ('REFUND','UNDO') THEN 1	 
 							 WHEN @Action LIKE 'CAL%' AND  a.[Action] IN ('CAL') AND (rs.HomeValue != l.HomeValue OR ISNULL(rs.AwayValue,'') != ISNULL(l.AwayValue,'') OR ISNULL(rs.OtherInfo,'') != ISNULL(l.OtherInfo,'')) THEN 1	 
+							 WHEN @Action LIKE 'REFUND%' AND  a.[Action] IN ('REFUND') AND l.ActionID IN (165,166,167) AND (rs.HomeValue != l.HomeValue OR ISNULL(rs.AwayValue,'') != ISNULL(l.AwayValue,'')) THEN 1
 							 WHEN @Action LIKE 'REFUND%' AND  a.[Action] IN ('CAL','UNDO') THEN 1	 
 							 ELSE 0
 						END 
+				AND 1 = CASE WHEN l.ActionID IN (165,166,167) AND rs.OtherInfo != l.OtherInfo THEN 0
+							 WHEN l.ActionID IN (165,166,167) AND rs.OtherInfo = l.OtherInfo AND @Action LIKE 'REFUND%' AND  a.[Action] IN ('REFUND') AND (rs.HomeValue != l.HomeValue OR ISNULL(rs.AwayValue,'') != ISNULL(l.AwayValue,'')) THEN 1
+							 ELSE 1
+						END
 			ORDER BY l.LogDate DESC) AS tbl	
 		
 END

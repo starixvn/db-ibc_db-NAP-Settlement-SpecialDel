@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] @MatchId I
 	,@BroadcastSessionId	VARCHAR(50) = NULL
 	,@ErrCode				INT			= 0		OUTPUT
 	,@ErrMsg				VARCHAR(MAX)= ''	OUTPUT
+	,@IsOrg				    BIT			= 1		OUTPUT
 AS
 /*
 	Created: 20160428@Patrick
@@ -38,6 +39,7 @@ AS
 			- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 			- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 			- 20230817@Kathy: Write log [Redmine:#192311]
+			- - 20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
 			
 	Param's Explanation:
 		- @Result: 
@@ -273,6 +275,8 @@ BEGIN
 				,N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode INT OUTPUT'
 				,@ErrMsg = @ErrMsg OUTPUT
 				,@ErrCode = @ErrCode OUTPUT
+
+			SELECT @IsOrg = 0
 		END TRY
 
 		BEGIN CATCH
