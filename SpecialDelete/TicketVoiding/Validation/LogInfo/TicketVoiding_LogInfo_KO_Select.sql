@@ -746,15 +746,6 @@ BEGIN
 			INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON s.TransId = mt.TransId
 		WHERE m.matchid = @MatchId
-		ORDER BY CASE
-				WHEN m.GroupName = 'Credit' THEN 1
-				WHEN m.GroupName = '8RM/BARM' THEN 2
-				WHEN m.GroupName = 'Deposit' THEN 3
-				WHEN m.GroupName = 'Betfair' THEN 4
-				WHEN m.GroupName = 'Credit (CO)' THEN 5
-				WHEN m.GroupName = 'Deposit (CO)' THEN 6
-				WHEN m.GroupName LIKE '%(Instant Settlement)' THEN 7
-			 END
 		FOR JSON PATH))
 
 		UPDATE v

@@ -678,15 +678,6 @@ BEGIN
 		   ,s.SiteDBGroupID
 	FROM CTE_OriginResult s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
-	ORDER BY CASE
-				WHEN s.OriginGroupName = 'CN88' THEN 1
-				WHEN s.OriginGroupName = 'Credit' THEN 2
-				WHEN s.OriginGroupName = '8RM/BARM' THEN 3
-				WHEN s.OriginGroupName = 'Deposit' THEN 4
-				WHEN s.OriginGroupName = 'Betfair' THEN 5 
-			 END
-		   , ISNULL(s.MainTransId, s.transid)
-		  
 	
 	DROP TABLE #TVSTicketBets
 END

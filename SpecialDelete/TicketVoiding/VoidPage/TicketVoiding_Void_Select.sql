@@ -1522,28 +1522,6 @@ BEGIN
 	FROM CTE_InstantSettlementSubgrouping s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
-	ORDER BY CASE
-				WHEN s.OriginGroupName = 'Credit' THEN 1
-				WHEN s.OriginGroupName = '8RM/BARM' THEN 2
-				WHEN s.OriginGroupName = 'Deposit' THEN 3
-				WHEN s.OriginGroupName = 'Betfair' THEN 4
-				WHEN s.OriginGroupName = 'Credit (CO)' THEN 5
-				WHEN s.OriginGroupName = 'Deposit (CO)' THEN 6
-				WHEN s.OriginGroupName = 'Credit (Cancel CO)' THEN 7
-				WHEN s.OriginGroupName = 'Deposit (Cancel CO)' THEN 8
-			 END
-			, CASE WHEN s.SubGroupName NOT LIKE '%(Instant Settlement)' THEN 1
-				ELSE 2
-			 END
-		   , ISNULL(s.MainTransId, s.transid)
-		   , CASE 
-				WHEN s.BonusID IS NOT NULL
-						THEN CASE 
-								WHEN s.MainTransId IS NULL THEN 1
-								ELSE 2 
-							 END
-				ELSE s.transid
-			 END			
 	
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #InstantSettlementBettypes
