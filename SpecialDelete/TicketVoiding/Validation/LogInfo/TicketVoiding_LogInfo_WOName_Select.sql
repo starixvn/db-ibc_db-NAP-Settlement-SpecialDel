@@ -642,7 +642,7 @@ BEGIN
 
 		END
 		
-		IF @@ROWCOUNT <> 0
+		IF EXISTS (SELECT TOP 1 1 FROM #TransidInRequest)
 		BEGIN
 			UPDATE v SET v.IsExistedInOtherRequest = 1
 			FROM @Validation v
