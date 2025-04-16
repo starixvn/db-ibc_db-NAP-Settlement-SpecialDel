@@ -545,7 +545,9 @@ BEGIN
 	
 		UPDATE b
 		SET GroupName = CASE WHEN gr.GroupName = 'Credit' AND b.betdaqid = -2 THEN 'Credit (CO)'
-			                 WHEN gr.GroupName = 'Deposit' AND b.betdaqid = -2 THEN 'Deposit (CO)'
+			                 WHEN gr.GroupName = 'Credit' AND b.IsMixParlay = 1 THEN 'Credit (Parlay)'
+							 WHEN gr.GroupName = 'Deposit' AND b.betdaqid = -2 THEN 'Deposit (CO)'
+							 WHEN gr.GroupName = 'Deposit' AND b.IsMixParlay = 1 THEN 'Deposit (Parlay)'
 							 WHEN b.SettledType IN (1,3) THEN gr.GroupName + ' (Instant Settlement)'
 							 ELSE gr.GroupName
 							 END
