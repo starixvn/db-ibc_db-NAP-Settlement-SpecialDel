@@ -1159,7 +1159,7 @@ BEGIN
 				,a.ActionType
 			FROM #CTE_RequestDetail rd WITH (NOLOCK)
 				CROSS APPLY (
-						SELECT CONVERT(XML, rd.TransIds)
+						SELECT CASE WHEN @SiteDBGroupID = 0 THEN CONVERT(XML, rd.TransIds) ELSE NULL END AS TransIds
 					)AS t1(xDATA)
 				CROSS APPLY (
 						SELECT t.c.value('@ScoreId','INT') AS ScoreId
@@ -1215,14 +1215,15 @@ BEGIN
 			END
 
 			SELECT rd.MatchId
-				,SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) AS LiveScores
-				,rd.VoidFromTime
-				,rd.VoidToTime
-				,rd.SingleCount
+				,CASE WHEN @SiteDBGroupID = 0 THEN CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) ELSE NULL END AS LiveScores
+				,CASE WHEN @SiteDBGroupID = 0 THEN rd.IssueDetail ELSE NULL END AS ActualScore
+			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
+			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.SingleCount ELSE NULL END AS SingleCount
+			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.MainParlayCount ELSE NULL END AS MainParlayCount
 				,tmp.CashOutCount AS CashOutCount
 				,tmp.InstantlySettleCount
 				,tmp.SettleCount
-				,rd.MainParlayCount
 				,a.HighLightMinTime
 				,a.HighlightAcceptType
 				,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
@@ -1232,7 +1233,7 @@ BEGIN
 				,a.ActionType
 			FROM #CTE_RequestDetail rd WITH (NOLOCK)
 				CROSS APPLY (
-						SELECT CONVERT(XML, rd.TransIds)
+						SELECT CASE WHEN @SiteDBGroupID = 0 THEN CONVERT(XML, rd.TransIds) ELSE NULL END AS TransIds
 					)AS t1(xDATA)
 				CROSS APPLY (
 						SELECT t.c.value('@ScoreId','INT') AS ScoreId
