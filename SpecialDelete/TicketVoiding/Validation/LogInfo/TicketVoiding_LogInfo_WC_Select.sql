@@ -1482,8 +1482,7 @@ BEGIN
 			,custid AS  'c'           
 			,bettype AS 'btype'
 			,betid AS 'bid'
-			,li.VoidFromTime AS 'vft'
-			,li.VoidToTime AS 'vtt'
+			,CAST (li.ScoreId AS VARCHAR(20)) AS 'ScoreId'
 			,IsMixParlay AS 'isP'
 			,SiteDBGroupID AS 'sitedb'
 			,IsCancelCashOut AS 'isCCO'
@@ -1585,19 +1584,12 @@ BEGIN
 			,custid AS  'c'           
 			,bettype AS 'btype'
 			,betid AS 'bid'
-			,li.VoidFromTime AS 'vft'
-			,li.VoidToTime AS 'vtt'
+			,CAST (li.ScoreId AS VARCHAR(20)) AS 'ScoreId'
 			,IsMixParlay AS 'isP'
 			,SiteDBGroupID AS 'sitedb'
 			,IsCancelCashOut AS 'isCCO'
 		FROM #TVSTicketBets t
-			CROSS APPLY (
-				SELECT MIN(VoidFromTime) AS VoidFromTime
-					,MAX(VoidToTime) AS VoidToTime
-				FROM #logInfo li 
-				WHERE li.MatchId = t.matchid
-				GROUP BY li.matchid
-			)li
+			INNER JOIN #logInfo li ON li.MatchId = t.matchid
 		FOR JSON PATH))
 		
 		SELECT @UnmarkTransIds AS UnmarkTransIds
