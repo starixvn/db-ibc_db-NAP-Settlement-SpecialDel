@@ -743,7 +743,7 @@ BEGIN
 			,m.SettlementStatus AS 'SettlementStatus'
 			,m.sporttype AS 'sporttype'
 			,m.GroupName AS 'GroupName'
-			,CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS 'IsMarked'
+			,CAST (CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS BIT) AS 'IsMarked'
 		FROM @tmpLogInfoTickets s
 			INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON s.TransId = mt.TransId
