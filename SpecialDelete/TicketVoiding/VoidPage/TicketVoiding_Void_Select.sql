@@ -301,11 +301,14 @@ BEGIN
 				,b.statusID
 		FROM #TmpTransid AS d
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
-			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
+			LEFT JOIN @tmpMatchId tm ON tm.matchid = b.matchid
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			   AND b.SiteDBGroupID = @SiteDBGroupID
 			   AND d.TicketType <> 2
+			   AND 1 = CASE WHEN ISNULL(@MatchId,0) = 0  THEN 1 
+							WHEN tm.matchid IS NOT NULL THEN 1 --Abnormal bet
+							ELSE 0 END 
 	
 		IF @IssueTypeId = 13
 		BEGIN
@@ -874,7 +877,7 @@ BEGIN
 						WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NULL THEN bm.bettype
 						ELSE NULL END AS GroupBettypeId
 		FROM	@tmp_MissingTransId AS d
-				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
+				INNER LOOP JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
 				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON bm.bettype = f.BetType AND f.IssueTypeId = @IssueTypeId
 				LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = bm.bettype
@@ -908,17 +911,6 @@ BEGIN
 		BEGIN CATCH
 		END CATCH 
 	END
-
-	--Update Main MatchID for child match cricket (Sporttype = 50)
-	UPDATE d
-	SET d.matchid = m.ParentID
-	FROM #TVSTicketBets d
-		INNER JOIN dbo.match m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
-	
-	--Remove Invalid data
-	DELETE t
-	FROM #TVSTicketBets t
-	WHERE @MatchId IS NOT NULL AND t.matchid <> @MatchId
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
