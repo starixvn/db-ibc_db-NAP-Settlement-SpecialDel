@@ -1141,6 +1141,7 @@ BEGIN
 			   ,s.GroupId
 			   ,CASE WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Credit (CO)'
 					 WHEN s.betdaqid = -2 AND s.IsCancelCashOut = 1 THEN 'Credit (Cancel CO)' 
+					 WHEN s.IsMixParlay = 1 THEN 'Credit (Parlay)' 
 					 ELSE 'Credit' 
 					END AS OriginGroupName
 			   ,s.WalletType		   
@@ -1305,6 +1306,7 @@ BEGIN
 			   ,s.GroupId
 			   ,CASE WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Deposit (CO)' 
 					 WHEN s.betdaqid = -2 AND s.IsCancelCashOut = 1 THEN 'Deposit (Cancel CO)' 
+					 WHEN s.IsMixParlay = 1 THEN 'Deposit (Parlay)' 
 					 ELSE 'Deposit' END AS OriginGroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
@@ -1490,6 +1492,7 @@ BEGIN
 		   ,s.betdaqid
 		   ,s.ExtraInfo
 		   ,s.IsCashOut
+		   ,f.GroupId
 		   ,s.SubGroupName AS GroupName
 		   ,s.WalletType		   
 		   ,s.MainTransId
@@ -1522,7 +1525,8 @@ BEGIN
 	FROM CTE_InstantSettlementSubgrouping s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
-	
+		LEFT JOIN dbo.f_TVS_GetGroupId() f ON s.SubGroupName = f.GroupName
+		
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #TmpTransid

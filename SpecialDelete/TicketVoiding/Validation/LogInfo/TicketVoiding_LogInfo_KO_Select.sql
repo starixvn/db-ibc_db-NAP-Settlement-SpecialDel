@@ -743,11 +743,13 @@ BEGIN
 			,m.matchcode AS 'matchcode'
 			,m.SettlementStatus AS 'SettlementStatus'
 			,m.sporttype AS 'sporttype'
+			,f.GroupId AS 'GroupId'
 			,m.GroupName AS 'GroupName'
 			,CAST (CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS BIT) AS 'IsMarked'
 		FROM @tmpLogInfoTickets s
 			INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON s.TransId = mt.TransId
+			LEFT JOIN dbo.f_TVS_GetGroupId() f ON m.GroupName = f.GroupName
 		WHERE m.matchid = @MatchId
 		FOR JSON PATH))
 

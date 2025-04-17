@@ -657,6 +657,7 @@ BEGIN
 		   ,s.IsCricket
 		   ,s.betdaqid
 		   ,s.ExtraInfo
+		   ,f.GroupId
 		   ,s.OriginGroupName AS GroupName
 		   ,s.WalletType		   
 		   ,s.MainTransId
@@ -678,6 +679,7 @@ BEGIN
 		   ,s.SiteDBGroupID
 	FROM CTE_OriginResult s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
+		LEFT JOIN dbo.f_TVS_GetGroupId() f ON s.OriginGroupName = f.GroupName
 	
 	DROP TABLE #TVSTicketBets
 END
