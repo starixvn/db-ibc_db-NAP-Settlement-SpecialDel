@@ -14,6 +14,7 @@ AS
 	Revisions:
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
+		  20250416@Hughie: Settle - Integrate - Result Amendment -Betbuilder [Redmine:#224372]
 
 	Param's Explanation:  
 		- @ResultType: 1 - Result Amendment, 2 - Others

@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Intg" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap,Dot_Intg" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder]
 	 @AdminId			INT				
 	,@MatchId			INT
@@ -27,6 +27,7 @@ AS
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20231101@Kathy: fix log [Redmine:#192311]
 		- 20230131@Kathy: Support update statuswinlost for voiding ticket [Redmine:#200440]
+		- 20250416@Hughie: Settle - Integrate - Result Amendment -Betbuilder [Redmine:#224372]
 
 	Param's Explanation:
 		@Action : CAL, UNDO, 
@@ -282,6 +283,7 @@ BEGIN
 			   ,@action				 = @ActionProcessing
 			   ,@strTransIds		 = @strDataByBatch
 			   ,@Is3rd				 = 1
+			   ,@BroadcastSessionId	 = @BroadcastSessionId
 			-------------------------------------------------------------
 			---		 CAPTURE value BALANCE after settlement		---
 			---------------------------VVVV------------------------------

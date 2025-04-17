@@ -12,7 +12,7 @@ AS
 	Revisions:
 		-	20230414@Aries: Created [Redmine:#185964]
 		-	20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
-		
+			20250416@Hughie: Settle - Integrate - Result Amendment -Betbuilder [Redmine:#224372]
 		
 	Param's Explanation:
 */
@@ -24,8 +24,8 @@ BEGIN
 	DECLARE		@tmpAction			TABLE([Action] VARCHAR(20), ActionID INT, PRIMARY KEY(ActionID))
 
 	INSERT INTO @tmpAction([Action],ActionID)
-	VALUES('CAL',100),('CAL',148),('CAL',101),('CAL',102),('CAL',189),('CAL',165),
-	      ('UNDO',103),('UNDO',149),('UNDO',190),('UNDO',81040),('UNDO',166),
+	VALUES('CAL',100),('CAL',148),('CAL',101),('CAL',102),('CAL',189),('CAL',165),('CAL',81009),('CAL',81012),
+	      ('UNDO',103),('UNDO',149),('UNDO',190),('UNDO',81040),('UNDO',166),('UNDO',81010),
 		  ('REFUND',109),('REFUND',150),('REFUND',191),('REFUND',110),('REFUND',111),('REFUND',167)
 
 

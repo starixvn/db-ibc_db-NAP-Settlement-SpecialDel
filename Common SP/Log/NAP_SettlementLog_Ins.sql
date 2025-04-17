@@ -16,6 +16,7 @@ AS
 	Revisions:
 		-	20230414@Aries: Created [Redmine:#185964]
 		-	20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
+			20250416@Hughie: Settle - Integrate - Result Amendment -Betbuilder [Redmine:#224372]
 		
 	Param's Explanation:
 		-   @IsAuto = 1 When action from NAP_Admin_Settlement_Auto_1s_Push
@@ -47,6 +48,9 @@ BEGIN
 						  WHEN @Mode = 'FM' AND @Action = 'CAL' 					THEN 165
 						  WHEN @Mode = 'FM' AND @Action = 'UNDO' 					THEN 166
 						  WHEN @Mode = 'FM' AND @Action = 'REFUND' 					THEN 167
+						  WHEN @Mode = 'BB' AND @Action IN ('CAL','CAL_MARKET')  AND @IsAuto = 0		THEN 81009
+						  WHEN @Mode = 'BB' AND @Action = 'UNDO' AND @IsAuto = 0						THEN 81010
+						  WHEN @Mode = 'BB' AND @Action = 'CAL'  AND @IsAuto = 1						THEN 81012
 						  ELSE 0
 					   END
 

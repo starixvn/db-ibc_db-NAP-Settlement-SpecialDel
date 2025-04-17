@@ -31,6 +31,7 @@ AS
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20241211@Louisa: add matchid for BalancePendingCreditGame [Redmine:#215066]
+		- 20250416@Hughie: Settle - Integrate - Result Amendment -Betbuilder [Redmine:#224372]
 
 	Param's Explanation:
 			@transIds = '<root>
@@ -198,6 +199,7 @@ BEGIN
 				,@SettlementAction = 'REFUND'
 				,@TicketType = 's'
 				,@EventTable = @EventTable
+				,@BroadcastSessionId = @BroadcastSessionId
 		END
 		ELSE
 		BEGIN

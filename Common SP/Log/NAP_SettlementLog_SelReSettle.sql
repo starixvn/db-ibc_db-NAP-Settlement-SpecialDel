@@ -11,6 +11,7 @@ AS
 	Revisions:
 		-	20230414@Aries: Created [Redmine:#185964]
 		-	20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
+			20250416@Hughie: Settle - Integrate - Result Amendment -Betbuilder [Redmine:#224372]
 		
 	Param's Explanation:
 */
@@ -30,7 +31,7 @@ BEGIN
 			,	LEAD(sl.LogDate,1) OVER(PARTITION BY sl.ResourceID ORDER BY sl.LogDate) AS Nex
 		FROM SettlementLog AS sl WITH (NOLOCK)
 		WHERE sl.MatchID = @MatchID
-			AND sl.ActionID NOT IN (165,166,167)
+			AND sl.ActionID NOT IN (165,166,167,81009,81010,81012)
 	) AS tbl 
 		LEFT JOIN LogAction AS la WITH (NOLOCK) ON tbl.ActionID = la.ActionID
 		LEFT JOIN bodb02.dbo.CustInfo AS c WITH(NOLOCK) ON c.custid = tbl.UserID

@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLog_3rdIns]
 	,@SettlementAction VARCHAR(20) = NULL
 	,@TicketType VARCHAR(1) = NULL
 	,@EventTable TINYINT = 1
+	,@BroadcastSessionId	VARCHAR(50)	= NULL
 AS
 /*
 	Created by: 20221011@Kathy
@@ -17,6 +18,7 @@ AS
 	Revisions:
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
+		- 20250416@Hughie: Settle - Integrate - Result Amendment -Betbuilder [Redmine:#224372]
 
 	Param's Explanation:  
 		   
@@ -24,8 +26,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, SettlementAction, TicketType, EventTable)
-	VALUES (@SystemName, @FunctionName, @TableName, @Action, @matchid, COMPRESS(@TransInfoJson), @SettlementAction, @TicketType, @EventTable)	
+	INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, SettlementAction, TicketType, EventTable, BroadcastSessionId)
+	VALUES (@SystemName, @FunctionName, @TableName, @Action, @matchid, COMPRESS(@TransInfoJson), @SettlementAction, @TicketType, @EventTable, @BroadcastSessionId)	
 
 END
 GO

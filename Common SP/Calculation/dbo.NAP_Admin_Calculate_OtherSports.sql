@@ -37,6 +37,7 @@ AS
 		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
         - 20240520@Aries: Transfer the logic business from the DB layer to the Application layer for Happy5 [Redmine:#202389]
         - 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine:#210875]
+		- 20250416@Hughie: Settle - Integrate - Result Amendment -Betbuilder [Redmine:#224372]
 
     Param's Explanation: 
         - @HasNoBalanceNegative: 0 - Fix exception case for Happy5. It hasn't negative balance logic, 1 - Others
@@ -111,6 +112,7 @@ BEGIN
 				,@IsCalculateBalance	=  @IsCalculateBalance
 				,@CWLBettype	= @CWLBettype
 				,@BalanceType	= @BalanceType
+				,@BroadcastSessionId = @BroadcastSessionId
         END
         ELSE IF @action LIKE 'REFUND%' AND @SettleByApp = 0
         BEGIN
@@ -122,6 +124,7 @@ BEGIN
 				,@IsCalculateBalance	=  @IsCalculateBalance
 				,@CWLBettype	= @CWLBettype
 				,@BalanceType	= @BalanceType
+				,@BroadcastSessionId = @BroadcastSessionId
         END       
         ELSE IF @action LIKE 'UNDO%' AND @SettleByApp = 0
         BEGIN
@@ -130,6 +133,7 @@ BEGIN
 				,@MatchId		= @matchid				   
 				,@EventTable	= @EventTable
 				,@Is3rd			= @Is3rd
+				,@BroadcastSessionId = @BroadcastSessionId
         END    
         ELSE IF @SettleByApp = 1
         BEGIN

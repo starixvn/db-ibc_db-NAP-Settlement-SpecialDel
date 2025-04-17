@@ -37,6 +37,7 @@ AS
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20241211@Louisa: add matchid for BalancePendingCreditGame [Redmine:#215066]
 		- 20250408@Aries: Remove the redundant information from the alert when exceeded Max Payout of Virtual Sport [Redmine:#223116]
+		- 20250416@Hughie: Settle - Integrate - Result Amendment -Betbuilder [Redmine:#224372]
 
 	Param's Explanation:  
 		   
@@ -400,6 +401,7 @@ BEGIN
 				,@SettlementAction = 'CAL'
 				,@TicketType = 's'
 				,@EventTable = @EventTable
+				,@BroadcastSessionId = @BroadcastSessionId
 		END
 		ELSE
 		BEGIN
