@@ -934,17 +934,17 @@ BEGIN
 
 		END
 		
-		IF EXISTS (SELECT TOP 1 1 FROM #TransidInRequest)
+		--Remove Transid exists in other request
+		DELETE FROM #TVSTicketBets 
+		WHERE EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = SubTransid)
+		
+		IF @@ROWCOUNT <> 0
 		BEGIN
 			UPDATE v SET v.IsExistedInOtherRequest = 1
 			FROM @Validation v
 			WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.MatchId = v.MatchId)
 		END
 
-		--Remove Transid exists in other request
-		DELETE FROM #TVSTicketBets 
-		WHERE EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = SubTransid)
-		
 	END
 
 	--Data Section
