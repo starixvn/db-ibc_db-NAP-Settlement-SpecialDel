@@ -79,7 +79,7 @@ BEGIN
 								,FcUpdateTime DATETIME2
 								,bef_winlost MONEY,bef_statusid TINYINT, bettype SMALLINT, winlostdate	SMALLDATETIME
 								,actual_stake MONEY
-								,betid BIGINT,refno BIGINT
+								,betid BIGINT,refno BIGINT, betcheck NVARCHAR(50)
 								)
 
 	DECLARE @handle INT
@@ -141,6 +141,7 @@ BEGIN
 				,deleted.bettype,deleted.betid,deleted.refno
 				,deleted.winlostdate
 				,deleted.actual_stake
+				,inserted.betcheck
 		INTO @tmpTransInfo (
 				 transId
 				,custid, Balance
@@ -154,6 +155,7 @@ BEGIN
 				,bettype,betid,refno
 				,winlostdate
 				,actual_stake
+				,betcheck
 		)
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
@@ -184,6 +186,7 @@ BEGIN
 						,bettype AS 'bt'
 						,betid AS 'bi' 
 						,refno AS 'rf'
+						,betcheck AS 'bc'
 					
 				FROM	@tmpTransInfo
 				FOR JSON AUTO )
