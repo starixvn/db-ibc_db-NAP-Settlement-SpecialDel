@@ -11,7 +11,7 @@ GO
 CREATE TABLE [dbo].[TicketVoiding_Notification](
 	[Id] [int] IDENTITY(1,1) NOT NULL,
 	[RequestId] [int] NULL,
-	[Content] [varchar](max) NULL,
+	[Content] [nvarchar](max) NULL,
 	[TargetUser] [nvarchar](max) NULL,
 	[Type] [varchar](50) NULL,
 	[CreatedDate] [datetime] NOT NULL,

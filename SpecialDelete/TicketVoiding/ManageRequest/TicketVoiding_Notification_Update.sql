@@ -2,7 +2,7 @@
 CREATE PROCEDURE [dbo].[TicketVoiding_Notification_Update](
       @Id				INT = NULL
     , @RequestId		INT = NULL
-    , @Content			VARCHAR(MAX) = NULL
+    , @Content			NVARCHAR(MAX) = NULL
     , @Type				VARCHAR(50) = 'N'
     , @Username		    VARCHAR(50) = NULL
     , @IsRead			BIT = 0
