@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSIC-bodb02,DBACC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBACC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SabaProgram_PendingBalance_Sel]
 	  @CustID		INT					
 	 ,@WalletId		TINYINT
@@ -10,7 +10,7 @@ AS
 	
 	Revisions:
 		- 20240919@Aries: Created [Redmine: #211046]
-		- 20250425@Aries: Update curreny code [Redmine: #000000]
+		- 20250425@Aries: Update curreny code [Redmine: #224807]
 
 	Param's Explanation:  					
 */
