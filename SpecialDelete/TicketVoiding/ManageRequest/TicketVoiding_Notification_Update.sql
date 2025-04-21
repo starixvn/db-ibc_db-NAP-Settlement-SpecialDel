@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_Notification_Update](
-      @Id				INT = NULL
+      @IdList			VARCHAR(MAX) = NULL --'1,2,3' for case 'Mark all as read'
     , @RequestId		INT = NULL
     , @Content			NVARCHAR(MAX) = NULL
     , @Type				VARCHAR(50) = 'N'
@@ -20,8 +20,9 @@ BEGIN
     SET NOCOUNT ON
     
     DECLARE @TargetUser NVARCHAR(MAX) = ''
-    
-    IF @Id IS NULL 
+    DECLARE @tmpIdList TABLE (Id INT, IsFinish BIT)
+  
+    IF @IdList IS NULL 
     BEGIN
         
         IF CHARINDEX('@@', @Content) > 0
@@ -49,7 +50,7 @@ BEGIN
             WHERE RequestId = @RequestId
             ORDER BY CreatedDate DESC
 
-			 IF NOT EXISTS (SELECT 1
+			 IF NOT EXISTS (SELECT TOP 1 1
 					FROM OPENJSON(@TargetUser)
 					WITH (
 						Username VARCHAR(50),
@@ -70,28 +71,44 @@ BEGIN
              , @TargetUser
              , @Type
 
-		SET @Id = SCOPE_IDENTITY()
+        INSERT INTO @tmpIdList (Id)
+		SELECT SCOPE_IDENTITY()
 	END
     ELSE 
     BEGIN
-        SELECT TOP(1) @TargetUser = TargetUser
-        FROM dbo.TicketVoiding_Notification WITH (NOLOCK)
-        WHERE Id = @Id
+        DECLARE @Id INT = 0
+        
+        INSERT INTO @tmpIdList (Id) 
+        SELECT CAST(value AS INT) FROM STRING_SPLIT(@IdList, ',') WHERE value <> ''
 
-		DECLARE @target NVARCHAR(100) = '{"Username":"' + @Username + '","IsRead":"';
+        WHILE (1=1) 
+        BEGIN
+            UPDATE TOP (1) t
+            SET @Id = Id, IsFinish = 1
+            FROM @tmpIdList t
+            WHERE isFinish IS NULL
 
-		DECLARE @pos INT = CHARINDEX(@target, @TargetUser);
+            IF @@ROWCOUNT = 0 BREAK
 
-		IF @pos > 0
-		BEGIN
-			DECLARE @valueStart INT = @pos + LEN(@target); 
-			
-			SET @TargetUser = STUFF(@TargetUser, @valueStart, 1, CAST (@IsRead AS VARCHAR(1))); 
+            SELECT TOP(1) @TargetUser = TargetUser
+            FROM dbo.TicketVoiding_Notification WITH (NOLOCK)
+            WHERE Id = @Id
 
-			UPDATE dbo.TicketVoiding_Notification WITH (UPDLOCK, ROWLOCK)
-			SET TargetUser = @TargetUser, ModifiedDate = GETDATE()
-			WHERE Id = @Id 
-		END
+            DECLARE @target NVARCHAR(100) = '{"Username":"' + @Username + '","IsRead":"';
+
+            DECLARE @pos INT = CHARINDEX(@target, @TargetUser);
+
+            IF @pos > 0
+            BEGIN
+                DECLARE @valueStart INT = @pos + LEN(@target); 
+                
+                SET @TargetUser = STUFF(@TargetUser, @valueStart, 1, CAST (@IsRead AS VARCHAR(1))); 
+
+                UPDATE dbo.TicketVoiding_Notification WITH (UPDLOCK, ROWLOCK)
+                SET TargetUser = @TargetUser, ModifiedDate = GETDATE()
+                WHERE Id = @Id 
+            END
+        END
 
     END
 
@@ -99,7 +116,8 @@ BEGIN
 	/* 	- Get notification id affect*/
 	SELECT Id, RequestId, Content, TargetUser, [Type], CreatedDate, ModifiedDate
 	FROM dbo.TicketVoiding_Notification WITH (NOLOCK)
-		WHERE Id = @Id
+	WHERE Id IN (SELECT Id FROM @tmpIdList)
+    ORDER BY CreatedDate DESC
 
 	/* 	- Get the list of users who have read the notification */
     SELECT DISTINCT a.UserName AS TargetUsername
