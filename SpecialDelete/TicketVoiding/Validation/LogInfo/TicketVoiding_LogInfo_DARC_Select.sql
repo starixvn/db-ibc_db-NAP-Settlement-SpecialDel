@@ -919,11 +919,12 @@ BEGIN
 				WHERE ID BETWEEN @StartRow AND @StopRow
 					FOR JSON PATH))
 
-				INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
+				INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId, CreatedBy)
 				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest
 					@TransInfoJson = @TransInfoJson_Request
 					,@RequestId = @RequestId
 					,@Mode = 1
+					,@IssueTypeId = @IssueTypeId
 
 				IF @StopRow = @MaxRow BREAK
 

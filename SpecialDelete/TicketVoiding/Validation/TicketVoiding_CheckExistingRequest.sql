@@ -121,6 +121,11 @@ BEGIN
 			SELECT TransId, RequestId, MainTransId, MatchId, CreatedBy, Id
 			FROM #tmpTransRequest WITH (NOLOCK);
 		END
+		ELSE IF @IssueTypeId IN (1,10)	
+		BEGIN
+			SELECT TransId, RequestId, MainTransId, MatchId, CreatedBy
+			FROM #tmpTransRequest WITH (NOLOCK);
+		END
 		ELSE
 		BEGIN
 			SELECT TransId, RequestId, MainTransId, MatchId
