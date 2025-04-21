@@ -6,7 +6,7 @@
 	
 	Revisions:
 		- 20240919@Aries: Created [Redmine: #211046]
-		- 20250415@Aries: Credit Reward - PROD - Give reward to member - Apr 2025 [Redmine: #224160]
+		- 20250415@Aries: Credit Reward - PROD - Give reward to member - Apr 2025 (Sid = 29) [Redmine: #224160]
 
 	Param's Explanation:  					
 */
