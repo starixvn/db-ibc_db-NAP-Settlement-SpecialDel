@@ -25,20 +25,25 @@ BEGIN
     IF @IdList IS NULL 
     BEGIN
         
-        IF CHARINDEX('@@', @Content) > 0
+        IF CHARINDEX('@marked', @Content) > 0 AND CHARINDEX('@total', @Content) > 0
         BEGIN
-            DECLARE @cnt INT = 0
+            DECLARE @cnt_marked INT = 0, @cnt_total INT = 0
             
             -- Check if the request is a single ticket or a parlay ticket
-            SELECT @cnt = COUNT(1)
-            FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+            SELECT @cnt_marked = COUNT(CASE WHEN m.TransId IS NOT NULL THEN 1 END)
+                  ,@cnt_total = COUNT(1)
+            FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+                LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
             WHERE RequestId = @RequestId
 
-            SELECT @cnt = @cnt + COUNT(1)
+            SELECT  @cnt_marked += COUNT(CASE WHEN m.TransId IS NOT NULL THEN 1 END)
+                    ,@cnt_total += COUNT(1)
             FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
+                LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
             WHERE RequestId = @RequestId
 
-            SET @Content = REPLACE(@Content, '@@', CAST (@cnt AS VARCHAR(10)))
+            SET @Content = REPLACE(@Content, '@marked', CAST (@cnt_marked AS VARCHAR(10)))
+            SET @Content = REPLACE(@Content, '@total', CAST (@cnt_total AS VARCHAR(10)))
 
         END
         
