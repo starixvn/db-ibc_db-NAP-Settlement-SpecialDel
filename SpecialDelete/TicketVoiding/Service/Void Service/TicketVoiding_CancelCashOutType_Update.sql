@@ -21,6 +21,7 @@ AS
 		- 20230221@July: Create new SP [Redmine: #176998]
 		- 20231215@Max: [TVS] Include negative balance member by cancel cash out action to email [Redmine: #196706]
 		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
+		- 20250117@July: Apply retry when cancelling cash out action [Redmine: #224848]
 
 	Explanation's Param:
 
@@ -36,7 +37,9 @@ BEGIN
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			,@session			NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 			,@CustIds			VARCHAR(MAX)
-	
+			,@limitsecond		INT	= 180
+			,@StartTime_Retry	DATETIME
+
 	DECLARE @avaiableProcess 	BIT
 		  , @Movebetdate		DATETIME
 		  , @FCUpdateTime		DATETIME2
@@ -148,17 +151,32 @@ BEGIN
 	SELECT DISTINCT matchid, 1 AS KeyID
 	FROM #tmpTransId
 		
-	EXEC dbo.NAP_Admin_CheckingProcess
-		  @isExistMatch		= 1
-		, @spName			= @spName
-		, @avaiableProcess 	= @avaiableProcess OUTPUT
-		, @ErrCode			= @ErrCode OUTPUT
-		, @ErrMsg			= @ErrMsg OUTPUT
+	SET @StartTime_Retry = GETDATE()
+	WHILE (1=1)
+	BEGIN
+		SELECT	@ErrCode = 0
+				,@ErrMsg = ''
 
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN		
-		RETURN
-	END	
+		IF DATEDIFF(SECOND, @StartTime_Retry, getdate()) > @limitsecond
+		BEGIN
+			SELECT	@ErrCode = 1000000
+					,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+
+			RETURN;
+		END
+
+		EXEC dbo.NAP_Admin_CheckingProcess
+			  @isExistMatch		= 1
+			, @spName			= @spName
+			, @avaiableProcess 	= @avaiableProcess OUTPUT
+			, @ErrCode			= @ErrCode OUTPUT
+			, @ErrMsg			= @ErrMsg OUTPUT
+
+		IF @avaiableProcess = 0 OR @ErrCode <> 0
+			CONTINUE
+		ELSE 
+			BREAK
+	END
 	
 	--> backup cash-out transaction ticket
 	INSERT INTO dbo.zzzbettrans (transid,custid,transdate,oddsid,hdp1,hdp2,odds,stake,status,
