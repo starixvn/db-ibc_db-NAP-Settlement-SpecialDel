@@ -29,11 +29,12 @@ AS
 		- 20250121@Lani: [TVS] Return MinAcceptType column for Danger Accept/Red Card/Wrong Score issue type - [Redmine: #216153]
 		- 20250318@Lani: [TVS] Copy request info - Support more issue type [Redmine: #219039]
 		- 20250318@Lani: [TVS] Copy request info - Support Wrong HDP - Home/Away Virtual Head Reverse sub types [Redmine: #222346]
+		- 20250421@Lani: [TVS] Copy request info - Update message templates of Wrong HDP, 1st HDP, OU, 1st OU, Odds [Redmine: #223867]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
 					         Reduced Overs, Not Participate, Abandoned
-							 Wrong Market Offered, Technical Error, WrongOU/1st, WrongHDP/1stHDP, WrongOdds
+							 Wrong Market Offered, Technical Error, WrongOU/1stOU, WrongHDP/1stHDP, WrongOdds
 
 	Noted: Case issue Wrong Score have scores -> get min voidtime of scores
 		
@@ -338,8 +339,10 @@ BEGIN
 				,@ActualMarket		VARCHAR(50)
 				,@WrongMarket		VARCHAR(50)
 				,@HdpValue			VARCHAR(50)
+				,@LiveScores		VARCHAR(50)	
+				,@Sporttype			SMALLINT
 
-		SELECT @RequestExtraInfo = RequestExtraInfo FROM @tmpRequestInfo
+		SELECT @RequestExtraInfo = RequestExtraInfo, @IssueDetail = IssueDetail, @Sporttype =  Sporttype FROM @tmpRequestInfo
 
 		IF (@IssueTypeId IN (4,5))
 		BEGIN
@@ -363,6 +366,9 @@ BEGIN
 			SELECT @WrongMarket = CAST(@RequestExtraInfo AS XML).value('(/r/@WrongMarket)[1]', 'VARCHAR(50)'),
 				   @ActualMarket = CAST(@RequestExtraInfo AS XML).value('(/r/@ActualMarket)[1]', 'VARCHAR(50)')
 		END
+
+		SELECT @LiveScores = CASE WHEN @Sporttype IN (1) THEN IIF(CHARINDEX('Live:',@IssueDetail) > 0,SUBSTRING(@IssueDetail, CHARINDEX('Live:',@IssueDetail) + LEN('Live:'), CHARINDEX(';Act:',@IssueDetail) - (CHARINDEX('Live:',@IssueDetail) + LEN('Live:'))), '')
+								  ELSE NULL END --only get livescores for soccer
 	END
 
 
@@ -375,14 +381,16 @@ BEGIN
 				,@CorrectOddsHomeOver	   VARCHAR(10)
 				,@CorrectOddsAwayUnder	   VARCHAR(10)
 
-		SELECT @RequestExtraInfo = RequestExtraInfo FROM @tmpRequestInfo
+		SELECT @RequestExtraInfo = RequestExtraInfo, @IssueDetail = IssueDetail, @Sporttype = Sporttype FROM @tmpRequestInfo
 
 		SELECT @FromOddsNotVoidHomeOver = CAST(@RequestExtraInfo AS XML).value('(/r/@FromOddsNotVoidHomeOver)[1]', 'VARCHAR(10)'),
 			   @ToOddsNotVoidHomeOver = CAST(@RequestExtraInfo AS XML).value('(/r/@ToOddsNotVoidHomeOver)[1]', 'VARCHAR(10)'),
 			   @FromOddsNotVoidAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@FromOddsNotVoidAwayUnder)[1]', 'VARCHAR(10)'),
 			   @ToOddsNotVoidAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@ToOddsNotVoidAwayUnder)[1]', 'VARCHAR(10)'),
 			   @CorrectOddsHomeOver =  CAST(@RequestExtraInfo AS XML).value('(/r/@CorrectOddsHomeOver)[1]', 'VARCHAR(10)'),
-			   @CorrectOddsAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@CorrectOddsAwayUnder)[1]', 'VARCHAR(10)')
+			   @CorrectOddsAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@CorrectOddsAwayUnder)[1]', 'VARCHAR(10)'),
+			   @LiveScores = CASE WHEN @Sporttype IN (1) THEN IIF(CHARINDEX('Live:',@IssueDetail) > 0,SUBSTRING(@IssueDetail, CHARINDEX('Live:',@IssueDetail) + LEN('Live:'), CHARINDEX(';Act:',@IssueDetail) - (CHARINDEX('Live:',@IssueDetail) + LEN('Live:'))), '')
+								  ELSE NULL END --only get livescores for soccer
 
 	END
 	/*****************Return table **************************/
@@ -431,6 +439,7 @@ BEGIN
 		  ,@ToOddsNotVoidAwayUnder AS ToOddsNotVoidAwayUnder
 		  ,@CorrectOddsHomeOver AS CorrectOddsHomeOver
 		  ,@CorrectOddsAwayUnder AS CorrectOddsAwayUnder
+		  ,@LiveScores AS LiveScores
 	FROM @tmpRequestInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.UserId
 
