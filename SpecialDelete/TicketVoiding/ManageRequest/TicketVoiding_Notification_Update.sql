@@ -20,6 +20,10 @@ BEGIN
     SET NOCOUNT ON
     
     DECLARE @TargetUser NVARCHAR(MAX) = ''
+          , @target NVARCHAR(100)
+          , @pos INT
+          , @valuestart INT
+
     DECLARE @tmpIdList TABLE (Id INT, IsFinish BIT)
   
     IF @IdList IS NULL 
@@ -38,11 +42,11 @@ BEGIN
 
             SELECT  @cnt_marked += COUNT(CASE WHEN m.TransId IS NOT NULL THEN 1 END)
                     ,@cnt_total += COUNT(1)
-            FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
+            FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
                 LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
             WHERE RequestId = @RequestId
 
-            SET @Content = REPLACE(@Content, '@marked', CAST (@cnt_marked AS VARCHAR(10)))
+            SET @Content = REPLACE(@Content, '@marked', CAST (@cnt_marked AS VARCHAR(10))) 
             SET @Content = REPLACE(@Content, '@total', CAST (@cnt_total AS VARCHAR(10)))
 
         END
@@ -60,10 +64,24 @@ BEGIN
 					WITH (
 						Username VARCHAR(50),
 				  		IsRead BIT) 
-					WHERE Username = @Username AND IsRead = @IsRead)
+					WHERE Username = @Username)
 			BEGIN
 				SET @TargetUser = REPLACE(@TargetUser, ']', ',{"Username":"'+ @Username +'","IsRead":"'+ CAST (@IsRead AS VARCHAR(1)) +'"}]')
 			END
+            ELSE
+            BEGIN       
+                SET @target = '{"Username":"' + @Username + '","IsRead":"';
+
+                SET @pos = CHARINDEX(@target, @TargetUser);
+
+                IF @pos > 0
+                BEGIN
+                    SET @valuestart = @pos + LEN(@target); 
+                
+                    SET @TargetUser = STUFF(@TargetUser, @valuestart, 1, CAST (@IsRead AS VARCHAR(1))); 
+
+                END
+            END
 		END
 		ELSE
 		BEGIN
@@ -99,15 +117,15 @@ BEGIN
             FROM dbo.TicketVoiding_Notification WITH (NOLOCK)
             WHERE Id = @Id
 
-            DECLARE @target NVARCHAR(100) = '{"Username":"' + @Username + '","IsRead":"';
+            SET @target = '{"Username":"' + @Username + '","IsRead":"';
 
-            DECLARE @pos INT = CHARINDEX(@target, @TargetUser);
+            SET @pos = CHARINDEX(@target, @TargetUser);
 
             IF @pos > 0
             BEGIN
-                DECLARE @valueStart INT = @pos + LEN(@target); 
+                SET @valuestart = @pos + LEN(@target); 
                 
-                SET @TargetUser = STUFF(@TargetUser, @valueStart, 1, CAST (@IsRead AS VARCHAR(1))); 
+                SET @TargetUser = STUFF(@TargetUser, @valuestart, 1, CAST (@IsRead AS VARCHAR(1))); 
 
                 UPDATE dbo.TicketVoiding_Notification WITH (UPDLOCK, ROWLOCK)
                 SET TargetUser = @TargetUser, ModifiedDate = GETDATE()
