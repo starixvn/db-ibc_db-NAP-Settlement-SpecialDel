@@ -47,6 +47,9 @@ BEGIN
 		  , @IssueTypeId		TINYINT
 		  , @LiveStatus		    VARCHAR(50)
 		  , @TotalCancelCashOutCount INT
+		  ,	@IssueDetail		NVARCHAR(MAX)
+		  , @RequestExtraInfo	VARCHAR(MAX)
+		  ,	@Sporttype			SMALLINT
 
 	DECLARE @tmpRequestInfo TABLE (
 		 RequestId			INT
@@ -189,12 +192,13 @@ BEGIN
 					WHERE ri.MatchId = m14.matchid
 		) m
 
+	SELECT @RequestExtraInfo = RequestExtraInfo, @IssueDetail = IssueDetail, @Sporttype = Sporttype FROM @tmpRequestInfo
+
 	IF @IssueTypeId IN (1,10,3) --DA,RC,WC
 	BEGIN
 		DECLARE @TvDetectionValue VARCHAR(10)
                ,@MinuteOffset VARCHAR(10)
                ,@SecondOffset VARCHAR(10)
-			   ,@IssueDetail NVARCHAR(MAX)
 			   ,@ServiceAcceptTime VARCHAR(11)
 			   ,@MinAllowanceTime SMALLINT
 			   ,@AcceptType SMALLINT
@@ -216,9 +220,6 @@ BEGIN
 											 WHEN @AcceptType = 2 THEN 'Second Accept'
 											 ELSE 'Pending Accept' END
 		FROM Cte
-
-		SELECT @IssueDetail = IssueDetail
-		FROM @tmpRequestInfo
 
 		SELECT @TvDetectionValue = IIF(CHARINDEX('TvDetectionValue:',@IssueDetail) > 0
 										, SUBSTRING(@IssueDetail, CHARINDEX('TvDetectionValue:',@IssueDetail) + LEN('TvDetectionValue:'), CHARINDEX(';ServiceAcceptTime:',@IssueDetail) - (CHARINDEX('TvDetectionValue:',@IssueDetail) + LEN('TvDetectionValue:')))
@@ -333,17 +334,13 @@ BEGIN
 	
 	IF @IssueTypeId IN (4,5,6,7) --Wrong HDP/1stHDP, WrongOU/1stOU
 	BEGIN
-		DECLARE @FilterFavoriteType VARCHAR(50)
+		DECLARE  @FilterFavoriteType VARCHAR(50)
 				,@FavoriteValue     VARCHAR(50)
-				,@RequestExtraInfo  VARCHAR(MAX)
 				,@ActualMarket		VARCHAR(50)
 				,@WrongMarket		VARCHAR(50)
 				,@HdpValue			VARCHAR(50)
 				,@LiveScores		VARCHAR(50)	
-				,@Sporttype			SMALLINT
-
-		SELECT @RequestExtraInfo = RequestExtraInfo, @IssueDetail = IssueDetail, @Sporttype =  Sporttype FROM @tmpRequestInfo
-
+				
 		IF (@IssueTypeId IN (4,5))
 		BEGIN
 			SELECT @FilterFavoriteType = CASE WHEN CHARINDEX('HomeFavorite=',@RequestExtraInfo) > 0 THEN 'h'
@@ -380,8 +377,6 @@ BEGIN
 				,@ToOddsNotVoidAwayUnder   VARCHAR(10)
 				,@CorrectOddsHomeOver	   VARCHAR(10)
 				,@CorrectOddsAwayUnder	   VARCHAR(10)
-
-		SELECT @RequestExtraInfo = RequestExtraInfo, @IssueDetail = IssueDetail, @Sporttype = Sporttype FROM @tmpRequestInfo
 
 		SELECT @FromOddsNotVoidHomeOver = CAST(@RequestExtraInfo AS XML).value('(/r/@FromOddsNotVoidHomeOver)[1]', 'VARCHAR(10)'),
 			   @ToOddsNotVoidHomeOver = CAST(@RequestExtraInfo AS XML).value('(/r/@ToOddsNotVoidHomeOver)[1]', 'VARCHAR(10)'),
