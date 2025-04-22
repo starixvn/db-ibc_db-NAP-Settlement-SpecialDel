@@ -76,6 +76,7 @@ AS
 		- 20241206@July: [TVS] Add new filter [Redmine: #214113]
 		- 20241218@July: Show manage request 'Completed' for case No insert Service & VoidingHistory status done [Redmine: #213398]
 		- 20250402@July: Manage Request - Add new function and status "Stored" for request [Redmine: #220451]
+		- 2025042@July: Manage Request - Show requestid for case retry [Redmine: #224848]
 
 	Param's explanation:	
 		@Status: 
@@ -712,9 +713,8 @@ BEGIN
 				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 1) 
 						AND ISNULL(t.IsStored,0) = 0
 						AND (
-								(vh.statusID = 1 AND s.statusID IS NULL) 
-							OR  (s.statusID = 1 AND vh.statusID IS NULL)
-							OR  (vh.statusID = 1 AND s.statusID = 1)
+								(vh.statusID = 1 AND ISNULL(s.statusID,0) <> 3) 
+							OR  (s.statusID = 1 AND ISNULL(vh.statusID,0) <> 3)
 							) THEN 1
 				-- Archived
 				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 4) AND (t.IsStored = 1) THEN 1
