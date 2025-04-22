@@ -557,13 +557,17 @@ BEGIN
 					SELECT TOP 1 vh.StatusId --1: Running | 2: Done | 3: Failed
 					FROM dbo.TicketVoiding_VoidingHistory_bk vh WITH(NOLOCK, INDEX = CIX_TicketVoiding_VoidingHistory_bk_RequestId, FORCESEEK)  
 					WHERE vh.RequestId = t.RequestID
-					ORDER BY CASE WHEN vh.StatusId = 3 THEN @n ELSE VoidingHistoryId END DESC
+					ORDER BY CASE WHEN vh.StatusId = 3 THEN @n
+								  WHEN vh.StatusId = 1 THEN @n - 1		
+								  ELSE VoidingHistoryId END DESC
 				)vh
 		OUTER APPLY ( 
 					SELECT TOP 1 s.StatusId --1: Running | 2: Done | 3: Failed
 					FROM bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK, INDEX = CIX_Ticketvoiding_VoidBetAutomation_Service_RequestID_VoidingHistoryId) 
 					WHERE s.RequestId = t.RequestID
-					ORDER BY CASE WHEN s.StatusId = 3 THEN @n ELSE VoidingHistoryId END DESC
+					ORDER BY CASE WHEN s.StatusId = 3 THEN @n
+								  WHEN s.StatusId = 1 THEN @n - 1		
+								  ELSE VoidingHistoryId END DESC
 				)s
 		OUTER APPLY (
 					SELECT matchcode, hthomescore, htawayscore, finalhomescore, finalawayscore, kickofftime, eventdate, ParentID
