@@ -30,6 +30,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241218@July: [TVS] Enhance the error message when voiding tickets are failed [Redmine: #213398]
+		- 20250422@July: Return more infor for case retry [Redmine: #224848]
 
 	Param's explanation:	
 		
@@ -137,6 +138,7 @@ BEGIN
 			WHERE	QueueId = @QueueId
 
 			SELECT q.QueueId, q.StatusId, q.ErrMsg AS [Message], q.UserId, c.username, @ErrMsgLockMatch AS ErrCode
+				, q.RequestId, q.MatchId, q.VoidingTypeId, q.VoidingHistoryId, q.NegativeBalanceUsers
 			FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON c.custid = q.UserId
 			WHERE q.QueueId = @QueueId
