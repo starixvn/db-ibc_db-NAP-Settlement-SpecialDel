@@ -31,7 +31,8 @@ AS
 		- 20270327@Aries: Support the Super Tiebreak match in Tennis  [Redmine: #202531]
 		- 20240605@Louisa:Notify if not yet refund [Redmine:#204909] 
 		- 20240910@Aries:Return IsTest [Redmine:#204909] 
-*/
+		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
+*/ 
 BEGIN
 	SET NOCOUNT ON
 
@@ -67,6 +68,7 @@ BEGIN
 		,ChildMatchType		TINYINT
 		,SessionTime FLOAT
 		,isTest BIT
+		,ChildLeagueType INT
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -90,6 +92,7 @@ BEGIN
 			,GoalRecord
 			,AutoSetting
 			,GameSession
+			,LeagueType
 			,OverTimeSession
 			,hthomescore	
 			,htawayscore
@@ -98,6 +101,7 @@ BEGIN
 			,ChildMatchType
 			,SessionTime
 			,isTest
+			,ChildLeagueType
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -117,6 +121,7 @@ BEGIN
 			,m.goalrecord
 			,ISNULL(m.AutoSetting, l.AutoSetting)	
 			,l.GameSession
+			,ls.LeagueType
 			,l.OverTimeSession
 			,m.hthomescore	
 			,m.htawayscore
@@ -125,9 +130,12 @@ BEGIN
 			,m.ChildMatchType
 			,l.SessionTime
 			,ISNULL(l.isTest,0)
+			,ls.ChildLeagueType
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
+			LEFT JOIN dbo.LeagueSetting ls WITH(NOLOCK)
+				ON l.leagueid = ls.Leagueid
 			CROSS APPLY ( SELECT TOP 1 value FROM STRING_SPLIT(@matchIds, ',') f WHERE CAST(f.value AS INT) = m.matchid  ) f
 
 	END
@@ -165,6 +173,7 @@ BEGIN
 		,ChildMatchType
 		,SessionTime
 		,isTest
+		,ChildLeagueType
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -197,6 +206,7 @@ BEGIN
 		,m.ChildMatchType
 		,l.SessionTime
 		,ISNULL(l.isTest,0)
+		,ls.ChildLeagueType
      FROM dbo.[match] m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -238,6 +248,7 @@ BEGIN
 		,ChildMatchType
 		,SessionTime
 		,isTest
+		,ChildLeagueType
 	FROM @tmpMatchInfo
 
 END
