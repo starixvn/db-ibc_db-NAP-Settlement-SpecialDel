@@ -19,6 +19,9 @@ BEGIN
 	-- Set the time to 14 days before the current date
 	SET @SettingTime = DATEADD(DAY, -14, GETDATE())
 
+	DECLARE @IdList TABLE (Id INT, RequestId INT,Content NVARCHAR(MAX), TargetUsername NVARCHAR(MAX), IsRead BIT, [Type] VARCHAR(50), CreatedDate DATETIME)
+
+	INSERT INTO @IdList (Id, RequestId, Content, TargetUsername, IsRead, [Type], CreatedDate)
 	SELECT Id, n.RequestId, Content, a.Username AS TargetUsername, a.IsRead, [Type], CreatedDate
 	FROM dbo.TicketVoiding_Notification n WITH (NOLOCK)
 		CROSS APPLY ( 
@@ -32,5 +35,16 @@ BEGIN
 	WHERE CreatedDate > @SettingTime
 		AND Username = @Username
 
+	SELECT Id, RequestId, Content, TargetUsername, IsRead, [Type], CreatedDate
+	FROM @IdList
+	WHERE Content NOT LIKE '%voided%' AND Content NOT LIKE '%recovered%'
+
+	UNION ALL
+
+	SELECT MIN(Id) AS Id, RequestId, Content, TargetUsername, IsRead, [Type], MIN(CreatedDate) AS CreatedDate
+	FROM @IdList
+	WHERE Content LIKE '%voided%' OR Content LIKE '%recovered%'
+	GROUP BY RequestId, Content, TargetUsername, IsRead, [Type]
+	
 END
 GO
