@@ -1247,7 +1247,7 @@ BEGIN
 		
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
-	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
+	      ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 
 	-- 5. Count detail group by bettype
 	SELECT bt.Id
