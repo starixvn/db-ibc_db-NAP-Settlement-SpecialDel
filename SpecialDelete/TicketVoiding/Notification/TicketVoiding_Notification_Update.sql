@@ -23,33 +23,12 @@ BEGIN
           , @target NVARCHAR(100)
           , @pos INT
           , @valuestart INT
+          , @Id INT = 0
 
-    DECLARE @tmpIdList TABLE (Id INT, IsFinish BIT)
+    DECLARE @tmpIdList TABLE (Id INT, TargetUser NVARCHAR(MAX), IsFinish BIT)
   
-    IF @IdList IS NULL 
+    IF ISNULL(@IdList, '') = ''
     BEGIN
-        
-        IF CHARINDEX('@marked', @Content) > 0 AND CHARINDEX('@total', @Content) > 0
-        BEGIN
-            DECLARE @cnt_marked INT = 0, @cnt_total INT = 0
-            
-            -- Check if the request is a single ticket or a parlay ticket
-            SELECT @cnt_marked = COUNT(CASE WHEN m.TransId IS NOT NULL THEN 1 END)
-                  ,@cnt_total = COUNT(1)
-            FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-                LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
-            WHERE RequestId = @RequestId
-
-            SELECT  @cnt_marked += COUNT(CASE WHEN m.TransId IS NOT NULL THEN 1 END)
-                    ,@cnt_total += COUNT(1)
-            FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
-                LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
-            WHERE RequestId = @RequestId
-
-            SET @Content = REPLACE(@Content, '@marked', CAST (@cnt_marked AS VARCHAR(10))) 
-            SET @Content = REPLACE(@Content, '@total', CAST (@cnt_total AS VARCHAR(10)))
-
-        END
         
         IF EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_Notification WITH (NOLOCK) WHERE RequestId = @RequestId)
         BEGIN
@@ -88,34 +67,60 @@ BEGIN
 			SET @TargetUser = '[{"Username":"'+ @Username +'","IsRead":"'+ CAST (@IsRead AS VARCHAR(1)) +'"}]'
 		END
 
-        INSERT INTO dbo.TicketVoiding_Notification (RequestId, Content, TargetUser, [Type])
+        INSERT INTO dbo.TicketVoiding_Notification (RequestId, TargetUser, [Type])
         SELECT @RequestId
-             , @Content
              , @TargetUser
              , @Type
 
-        INSERT INTO @tmpIdList (Id)
-		SELECT SCOPE_IDENTITY()
+        SET @Id = SCOPE_IDENTITY()
+        
+        INSERT INTO @tmpIdList (Id) SELECT @Id
+
+         IF CHARINDEX('@marked', @Content) > 0 AND CHARINDEX('@total', @Content) > 0
+        BEGIN
+            DECLARE @cnt_marked INT = 0, @cnt_total INT = 0
+            
+            WAITFOR DELAY '00:00:03' -- Delay 3 second to data marked sync with central DB
+
+            SELECT @cnt_marked = SUM(CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END)
+                  ,@cnt_total = COUNT(1)
+            FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+                LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
+            WHERE RequestId = @RequestId
+
+            SELECT  @cnt_marked += SUM(CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END)
+                   ,@cnt_total += COUNT(1)
+            FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
+                LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
+            WHERE RequestId = @RequestId
+
+            SET @Content = REPLACE(@Content, '@marked', CAST (@cnt_marked AS VARCHAR(10))) 
+            SET @Content = REPLACE(@Content, '@total', CAST (@cnt_total AS VARCHAR(10)))
+            
+        END
+        UPDATE dbo.TicketVoiding_Notification WITH (UPDLOCK, ROWLOCK)
+        SET Content = @Content
+        WHERE Id = @Id
 	END
     ELSE 
     BEGIN
-        DECLARE @Id INT = 0
         
         INSERT INTO @tmpIdList (Id) 
         SELECT CAST(value AS INT) FROM STRING_SPLIT(@IdList, ',') WHERE value <> ''
 
+        UPDATE t
+        SET TargetUser = n.TargetUser
+        FROM @tmpIdList t
+            INNER JOIN dbo.TicketVoiding_Notification n WITH (NOLOCK) ON t.Id = n.Id
+
         WHILE (1=1) 
         BEGIN
             UPDATE TOP (1) t
-            SET @Id = Id, IsFinish = 1
+            SET @Id = Id, @TargetUser = TargetUser, IsFinish = 1
             FROM @tmpIdList t
             WHERE isFinish IS NULL
 
             IF @@ROWCOUNT = 0 BREAK
-
-            SELECT TOP(1) @TargetUser = TargetUser
-            FROM dbo.TicketVoiding_Notification WITH (NOLOCK)
-            WHERE Id = @Id
 
             SET @target = '{"Username":"' + @Username + '","IsRead":"';
 
