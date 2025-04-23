@@ -102,7 +102,7 @@ GO
 			AND 1 =  CASE WHEN m.ParentID IS NOT NULL AND ISNULL(m.ChildMatchType,'')  IN( 100, 200) THEN 0 ---exclude hedge match, child match Cricket
 					  ELSE 1 END
 			AND m.matchcode not like '%hedge%'  
-			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID = 113 THEN 0 --exclude PinGoal
+			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID IN (113,252) THEN 0 --exclude PinGoal
 						WHEN m.sporttype = 2 AND lg.GroupID = 122 AND m.eventdate >= '2022-02-17' THEN 0 --exclude PinGoal
 						WHEN m.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --exclude PinGoal, RedCat
 						ELSE 1 END
@@ -134,7 +134,7 @@ GO
 			AND 1 =  CASE WHEN m.ParentID IS NOT NULL AND ISNULL(m.ChildMatchType,'')  IN( 100, 200) THEN 0 ---exclude hedge match, child match Cricket
 					  ELSE 1 END
 			AND m.matchcode not like '%hedge%' 
-			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID = 113 THEN 0 --exclude PinGoal
+			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID IN (113,252) THEN 0 --exclude PinGoal
 						WHEN m.sporttype = 2 AND lg.GroupID = 122 AND m.eventdate >= '2022-02-17' THEN 0 --exclude PinGoal
 						WHEN m.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --exclude PinGoal, RedCat
 						ELSE 1 END
@@ -166,7 +166,7 @@ GO
 			AND 1 =  CASE WHEN m.ParentID IS NOT NULL AND ISNULL(m.ChildMatchType,'')  IN( 100, 200) THEN 0 ---exclude hedge match, child match Cricket
 					  ELSE 1 END
 			AND m.matchcode not like '%hedge%' 
-			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID = 113 THEN 0 --exclude PinGoal
+			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID IN ( 113,252) THEN 0 --exclude PinGoal
 						 WHEN m.sporttype = 2 AND lg.GroupID = 122 AND m.eventdate >= '2022-02-17' THEN 0 --exclude PinGoal
 						 WHEN m.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --exclude PinGoal, RedCat
 						ELSE 1 END
@@ -490,7 +490,7 @@ GO
 	SELECT m.eventdate,   m.sportName 
 		,case
 			when m.LeagueGroupID = 42 THEN 'Virtual'
-			when m.LeagueGroupID IN (74, 108, 113) and m.sporttype = 1 then 'Virtual'
+			when m.LeagueGroupID IN (74, 108, 113, 252) and m.sporttype = 1 then 'Virtual'
 			when m.LeagueGroupID in (122) and m.sporttype = 2 then 'Virtual'
 			when m.LeagueGroupID in (151) and m.sporttype = 43 then 'Virtual'
 			else 'Real'
@@ -507,7 +507,7 @@ GO
 	GROUP BY m.eventdate,   m.sportName ,  m.LeagueGroupName 
 		,case
 			when m.LeagueGroupID = 42 THEN 'Virtual'
-			when m.LeagueGroupID IN (74, 108, 113) and m.sporttype = 1 then 'Virtual'
+			when m.LeagueGroupID IN (74, 108, 113, 252) and m.sporttype = 1 then 'Virtual'
 			when m.LeagueGroupID in (122) and m.sporttype = 2 then 'Virtual'
 			when m.LeagueGroupID in (151) and m.sporttype = 43 then 'Virtual'
 			else 'Real'

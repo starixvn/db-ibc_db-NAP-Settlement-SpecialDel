@@ -334,7 +334,7 @@ BEGIN
 				AND ISNULL(m.IsDeleted,0) = 0
 				AND m.sporttype = @sporttype
 				AND l.isTest = CASE WHEN @IsIncludeTest = 1 THEN l.isTest ELSE 0 END
-				AND l.LeagueGroupID <> 113 --if not query by matchcode, exclude Pingoal
+				AND l.LeagueGroupID NOT IN (113, 252) --if not query by matchcode, exclude Pingoal
 				AND 1 = CASE WHEN @MatchType = 0 THEN 1 --all type or FM
 								WHEN @MatchType IN (1, 3) AND l.LeagueGroupID NOT IN (42,74,108) THEN 1 --normal match or FM
 								WHEN @MatchType = 2 AND l.LeagueGroupID IN (42,74,108) THEN 1 --Virtual

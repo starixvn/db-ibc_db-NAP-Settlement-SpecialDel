@@ -337,7 +337,7 @@ BEGIN
 		AND 1 = CASE
 					WHEN @UncalMultiOnly = 1 
 						THEN CASE
-								WHEN m.sporttype = 1 AND l.LeagueGroupID = 113 THEN 0 --PinGoal
+								WHEN m.sporttype = 1 AND l.LeagueGroupID IN (113, 252) THEN 0 --PinGoal
 								WHEN (ISNULL(mr.calculate,0) = 1 OR ISNULL(mr.calrefund,0) = 1) -- match completed (cal/refund)
 									AND ISNULL(mr.multiple,0) = 0 AND ISNULL(mr.refund,0) = 0 THEN 1 -- not cal/refund parlay yet
 								ELSE 0

@@ -153,7 +153,7 @@ BEGIN
   		WHERE sr.ResourceID = '01' 
 			AND 1 = CASE 
 						WHEN @sportType IN ( 2, 58) THEN 1
-						WHEN @sportType = 1 AND @LeagueGroupID = 113 THEN 1---PinGoal
+						WHEN @sportType = 1 AND @LeagueGroupID IN (113, 252) THEN 1---PinGoal
 						ELSE 0
 					END
 
@@ -274,8 +274,8 @@ BEGIN
 
 	IF @Action LIKE 'CAL%' 
 	BEGIN
-		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL) -- soccer main
-			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal soccer pingoal manually
+		IF (@SportType = 1 AND @LeagueGroupID NOT IN (113, 252) AND @SelectedResources IS NULL) -- soccer main
+			OR (@SportType = 1 AND @LeagueGroupID IN (113, 252) AND @SelectedResources IS NULL) -- cal soccer pingoal manually
 			OR @ResultTable = 0
 		BEGIN
 			SELECT	@eventstatus = CASE 
@@ -380,8 +380,8 @@ BEGIN
 	END
 	ELSE IF @Action LIKE 'UNDO%'
 	BEGIN
-		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL)
-			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal pingoal manually
+		IF (@SportType = 1 AND @LeagueGroupID NOT IN (113, 252) AND @SelectedResources IS NULL)
+			OR (@SportType = 1 AND @LeagueGroupID IN (113, 252) AND @SelectedResources IS NULL) -- cal pingoal manually
 			OR @ResultTable = 0
 		BEGIN
 			SELECT @undoCommand =	CASE WHEN @Action = 'UNDO' THEN 'NAP_Admin_Settlement_1-UNDO'
@@ -558,7 +558,7 @@ BEGIN
 				,@ResourceResult = @ResourceResult
 				,@Action        = @Action
 		END
-		ELSE IF @SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NOT NULL -- early settlement 
+		ELSE IF @SportType = 1 AND @LeagueGroupID NOT IN (113, 252) AND @SelectedResources IS NOT NULL -- early settlement 
 		BEGIN
 			SELECT @refundCommand = 'NAP_Admin_Settlement_Auto_1s-REFUND'
 

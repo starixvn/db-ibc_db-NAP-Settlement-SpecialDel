@@ -353,7 +353,7 @@ BEGIN
 	BEGIN
 		--Auto payout soccer
 		--NAP_Admin_Settlement_1_AutoPayout_Push.
-		IF @SportType = 1 AND @Action LIKE 'CAL%' AND ISNULL(@LeagueGroupId,0) <> 113 AND  ISNULL(@Mode,'') != 'EAR'
+		IF @SportType = 1 AND @Action LIKE 'CAL%' AND ISNULL(@LeagueGroupId,0) NOT IN (113,252) AND  ISNULL(@Mode,'') != 'EAR'
 		BEGIN
 			IF EXISTS (SELECT TOP 1 1
 						FROM dbo.ResultDetail with(NOLOCK)

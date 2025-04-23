@@ -53,7 +53,7 @@ BEGIN
 	FROM	dbo.League WITH(NOLOCK)
 	WHERE	leagueid = @LeagueId
 	
-	IF @LeagueGroupId = 113 -- skip check refund flag for PinGoal
+	IF @LeagueGroupId IN (113, 252) -- skip check refund flag for PinGoal
 	RETURN
 
 	IF @EventStatusReason > 0 AND @EventStatus = 'running' AND @IsEarly = 0 AND @IsAutoRefund = 0 -- exclude Refund Fast market, Refund early, Auto Refund	

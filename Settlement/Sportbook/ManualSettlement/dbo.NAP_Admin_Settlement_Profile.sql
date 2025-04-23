@@ -410,7 +410,7 @@ BEGIN
 				ON s.RefResourceId = t.ResourceID
 		WHERE	s.SportType = @sportType
 				AND s.RefResourceId IS NOT NULL
-				AND 1 = CASE WHEN @LeagueGroupID = 113 AND @sportType = 1 THEN 0
+				AND 1 = CASE WHEN @LeagueGroupID IN (113, 252) AND @sportType = 1 THEN 0
 						ELSE 1 END
 		
 		IF @DummyResourceIds <> ''

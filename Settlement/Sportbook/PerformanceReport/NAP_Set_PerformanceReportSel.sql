@@ -191,7 +191,7 @@ BEGIN
 				AND 1 = CASE WHEN lg.GroupID = 42 THEN 0 --Virtual
 						 WHEN sp.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --pingoal
 						 WHEN sp.sporttype = 2 AND lg.GroupID = 122 THEN 0 --pingoal
-						 WHEN sp.sporttype = 1 AND lg.GroupID IN (74, 108, 113 ) THEN 0  --Virtual Sport Bacarrat,Virtual Futsal, pingoal
+						 WHEN sp.sporttype = 1 AND lg.GroupID IN (74, 108, 113, 252 ) THEN 0  --Virtual Sport Bacarrat,Virtual Futsal, pingoal
 					ELSE 1
 					END
 				AND l.isTest = 0

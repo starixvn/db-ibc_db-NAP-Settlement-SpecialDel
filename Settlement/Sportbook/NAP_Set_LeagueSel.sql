@@ -78,7 +78,7 @@ begin
 	where m.eventdate between @FromDate and @ToDate
 		and m.sporttype = @sporttype
 		and ISNULL(m.IsDeleted,0) = 0
-		and l.LeagueGroupID not in (112, 113) --exclude Pingoal soccer, Pingoal basketball
+		and l.LeagueGroupID not in (112, 113, 252) --exclude Pingoal soccer, Pingoal basketball
 	order by leaguename
 end
 
