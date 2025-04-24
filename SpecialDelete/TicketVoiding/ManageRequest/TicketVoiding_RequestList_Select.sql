@@ -76,6 +76,7 @@ AS
 		- 20241206@July: [TVS] Add new filter [Redmine: #214113]
 		- 20241218@July: Show manage request 'Completed' for case No insert Service & VoidingHistory status done [Redmine: #213398]
 		- 20250402@July: Manage Request - Add new function and status "Stored" for request [Redmine: #220451]
+		- 20250422@July: Manage Request - Show requestid for case retry [Redmine: #224848]
 
 	Param's explanation:	
 		@Status: 
@@ -666,13 +667,17 @@ BEGIN
 					SELECT TOP 1 vh.StatusId --1: Running | 2: Done | 3: Failed
 					FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) 
 					WHERE vh.RequestId = t.RequestID
-					ORDER BY CASE WHEN vh.StatusId = 3 THEN @n ELSE VoidingHistoryId END DESC
+					ORDER BY CASE WHEN vh.StatusId = 3 THEN @n
+								  WHEN vh.StatusId = 1 THEN @n - 1		
+								  ELSE VoidingHistoryId END DESC
 				)vh
 		OUTER APPLY ( 
 					SELECT TOP 1 s.StatusId --1: Running | 2: Done | 3: Failed
 					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 					WHERE s.RequestId = t.RequestID 
-					ORDER BY CASE WHEN s.StatusId = 3 THEN @n ELSE VoidingHistoryId END DESC
+					ORDER BY CASE WHEN s.StatusId = 3 THEN @n 
+								  WHEN s.StatusId = 1 THEN @n - 1		
+								  ELSE VoidingHistoryId END DESC
 				)s
 		OUTER APPLY (
 					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.kickofftime, m.eventdate, m.ParentID
@@ -712,9 +717,8 @@ BEGIN
 				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 1) 
 						AND ISNULL(t.IsStored,0) = 0
 						AND (
-								(vh.statusID = 1 AND s.statusID IS NULL) 
-							OR  (s.statusID = 1 AND vh.statusID IS NULL)
-							OR  (vh.statusID = 1 AND s.statusID = 1)
+								(vh.statusID = 1 AND ISNULL(s.statusID,0) <> 3) 
+							OR  (s.statusID = 1 AND ISNULL(vh.statusID,0) <> 3)
 							) THEN 1
 				-- Archived
 				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 4) AND (t.IsStored = 1) THEN 1
