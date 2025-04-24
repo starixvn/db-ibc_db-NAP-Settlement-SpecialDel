@@ -9,6 +9,6 @@ USE bodb02
 GO
  
 UPDATE SettlementSpecialBettypeProfile WITH(ROWLOCK,UPDLOCK)
-SET APSetting = JSON_MODIFY(ISNULL(APSetting,'{}'), '$.refResourceIds', '01,02,03,04,05')
+SET APSetting = JSON_MODIFY(ISNULL(APSetting,'{}'), '$.refResourceIds', '01,02,03,04,05,00')
 WHERE SportType = 5
 	AND bettype = 153  
