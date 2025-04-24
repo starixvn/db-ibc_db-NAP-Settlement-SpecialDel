@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTP-bodb02" executers="wsv_cts" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02" executers="wsv_cts" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_CTS_ProblemCustomerSelect]
 (
 	@Datetime				DATETIME = NULL
@@ -9,7 +9,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_CTS_ProblemCustomerSelect]
 AS
 /*	Created by: 20220606@July
 	Task: TVS - Send problem customer in Abnormal Bet request to CTS  [Redmine:#172634]
-	DB: DBTP/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220606@July: Create new SP [Redmine:#172634]
@@ -18,6 +18,7 @@ AS
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240327@Max: [CTS] - [TVS] - Missing Void Info - Not auto-mark PA [Redmine: #201993]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20240701@July: Change alias server - [Redmine: #218202]
 
 	Param's explanation:
 		
