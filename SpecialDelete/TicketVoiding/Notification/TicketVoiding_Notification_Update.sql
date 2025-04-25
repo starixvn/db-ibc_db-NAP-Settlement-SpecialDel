@@ -26,46 +26,36 @@ BEGIN
           , @Id INT = 0
 
     DECLARE @tmpIdList TABLE (Id INT, TargetUser NVARCHAR(MAX), IsFinish BIT)
-  
+    DECLARE @tmpTargetUser TABLE (Username NVARCHAR(50), IsRead NVARCHAR(1))
+
     IF ISNULL(@IdList, '') = ''
     BEGIN
         
         IF EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_Notification WITH (NOLOCK) WHERE RequestId = @RequestId)
         BEGIN
-            
             SELECT TOP(1) @TargetUser = TargetUser
             FROM dbo.TicketVoiding_Notification WITH (NOLOCK)
             WHERE RequestId = @RequestId
             ORDER BY CreatedDate DESC
 
-			 IF NOT EXISTS (SELECT TOP 1 1
-					FROM OPENJSON(@TargetUser)
-					WITH (
-						Username VARCHAR(50),
-				  		IsRead BIT) 
-					WHERE Username = @Username)
-			BEGIN
-				SET @TargetUser = REPLACE(@TargetUser, ']', ',{"Username":"'+ @Username +'","IsRead":"'+ CAST (@IsRead AS VARCHAR(1)) +'"}]')
-			END
-            ELSE
-            BEGIN       
-                SET @target = '{"Username":"' + @Username + '","IsRead":"';
-
-                SET @pos = CHARINDEX(@target, @TargetUser);
-
-                IF @pos > 0
-                BEGIN
-                    SET @valuestart = @pos + LEN(@target); 
-                
-                    SET @TargetUser = STUFF(@TargetUser, @valuestart, 1, CAST (@IsRead AS VARCHAR(1))); 
-
-                END
-            END
+			INSERT INTO @tmpTargetUser (Username, IsRead)
+            SELECT Username, CAST (@IsRead AS VARCHAR(1)) --'0'
+            FROM OPENJSON(@TargetUser)
+            WITH (
+                Username NVARCHAR(50)
+            )
 		END
-		ELSE
+        
+		IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpTargetUser WHERE Username = @Username)
 		BEGIN
-			SET @TargetUser = '[{"Username":"'+ @Username +'","IsRead":"'+ CAST (@IsRead AS VARCHAR(1)) +'"}]'
+			INSERT INTO @tmpTargetUser (Username, IsRead)
+            SELECT @Username, CAST (@IsRead AS VARCHAR(1)) --'0'
 		END
+            
+        SET @TargetUser = CONVERT(NVARCHAR(MAX),
+								(SELECT Username, IsRead
+								FROM @tmpTargetUser
+								FOR JSON PATH),1)
 
         INSERT INTO dbo.TicketVoiding_Notification (RequestId, TargetUser, [Type])
         SELECT @RequestId
@@ -98,10 +88,12 @@ BEGIN
             SET @Content = REPLACE(@Content, '@total', CAST (@cnt_total AS VARCHAR(10)))
             
         END
+        
         UPDATE dbo.TicketVoiding_Notification WITH (UPDLOCK, ROWLOCK)
         SET Content = @Content
         WHERE Id = @Id
-	END
+	
+    END
     ELSE 
     BEGIN
         
@@ -115,6 +107,8 @@ BEGIN
 
         WHILE (1=1) 
         BEGIN
+            DELETE FROM @tmpTargetUser
+
             UPDATE TOP (1) t
             SET @Id = Id, @TargetUser = TargetUser, IsFinish = 1
             FROM @tmpIdList t
@@ -122,20 +116,29 @@ BEGIN
 
             IF @@ROWCOUNT = 0 BREAK
 
-            SET @target = '{"Username":"' + @Username + '","IsRead":"';
+            INSERT INTO @tmpTargetUser (Username, IsRead)
+            SELECT Username, IsRead
+            FROM OPENJSON(@TargetUser)
+            WITH (
+                Username NVARCHAR(50),
+                IsRead NVARCHAR(1)
+            );
 
-            SET @pos = CHARINDEX(@target, @TargetUser);
-
-            IF @pos > 0
-            BEGIN
-                SET @valuestart = @pos + LEN(@target); 
-                
-                SET @TargetUser = STUFF(@TargetUser, @valuestart, 1, CAST (@IsRead AS VARCHAR(1))); 
-
-                UPDATE dbo.TicketVoiding_Notification WITH (UPDLOCK, ROWLOCK)
-                SET TargetUser = @TargetUser, ModifiedDate = GETDATE()
-                WHERE Id = @Id 
+            IF EXISTS (SELECT TOP 1 1 FROM @tmpTargetUser WHERE Username = @Username)
+		    BEGIN
+                UPDATE @tmpTargetUser
+                SET IsRead = CAST (@IsRead AS VARCHAR(1)) --'1'
+                WHERE Username = @Username 
             END
+
+            SET @TargetUser = CONVERT(NVARCHAR(MAX),
+								(SELECT Username, IsRead
+								FROM @tmpTargetUser
+								FOR JSON PATH),1)
+
+            UPDATE dbo.TicketVoiding_Notification WITH (UPDLOCK, ROWLOCK)
+            SET TargetUser = @TargetUser, ModifiedDate = GETDATE()
+            WHERE Id = @Id 
         END
 
     END
