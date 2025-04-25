@@ -82,13 +82,13 @@ BEGIN
             
             WAITFOR DELAY '00:00:03' -- Delay 3 second to data marked sync with central DB
 
-            SELECT @cnt_marked = SUM(CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END)
+            SELECT @cnt_marked = ISNULL(SUM(CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END),0)
                   ,@cnt_total = COUNT(1)
             FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
                 LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
             WHERE RequestId = @RequestId
 
-            SELECT  @cnt_marked += SUM(CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END)
+            SELECT  @cnt_marked += ISNULL(SUM(CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END),0)
                    ,@cnt_total += COUNT(1)
             FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
                 LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
