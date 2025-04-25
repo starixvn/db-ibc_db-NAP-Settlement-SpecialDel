@@ -8,7 +8,7 @@ ALTER PROCEDURE dbo.SiteDB_PendingCommand_Ins
     ,@SiteDBGroupID TINYINT
     ,@AdminID		INT				= 0
     ,@IP			NVARCHAR(15)	= ''
-    ,@IsAPI			BIT				= 0
+    ,@SystemName	VARCHAR(50)		= ''
     ,@StatusID		TINYINT
 AS
 /*	
@@ -36,7 +36,7 @@ BEGIN
 		Action,
 		IP,
 		AdminID,
-		IsAPI,
+		SystemName,
 		SiteDBGroupID,
 		StatusID
 	)
@@ -48,7 +48,7 @@ BEGIN
 		@Action,            
 		@IP,                
 		@AdminID,           
-		@IsAPI,             
+		@SystemName,             
 		@SiteDBGroupID,     
 		@StatusID         
 	);

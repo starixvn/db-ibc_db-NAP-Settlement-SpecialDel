@@ -21,6 +21,7 @@ BEGIN
 		,sporttype	
 		,SPName
 		,Parameter
+		,SystemName
 	FROM SiteDB_PendingCommand WITH(NOLOCK)
 	WHERE SiteDBGroupID = @SiteDBGroupID 
 		AND StatusID = 0
