@@ -16,6 +16,7 @@ AS
 		- 20240704@Aries: VS5 - Virtually Sports [Redmine:#207309]
 		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
 		- 20241023@Louisa: Modify code for VS6 and Change Service Alias from DBTXN to DBSIG,DBCTG  [Redmine:#210733]
+		- 20250312@Jane: Integration VS7 - Kiron [Redmine:#219147]
 		
 	Param explanation:  
 		- @MatchId: Get list ticket running, won, lose, draw
@@ -36,8 +37,7 @@ BEGIN
 	CREATE TABLE #CustInfo(custid INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),username NVARCHAR(100))
 	CREATE TABLE #tmpRefno(refno BIGINT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON), statusID tinyint)
 
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
+	SET @IsCentral = [dbo].[f_CheckServerCentral]()
 
 	SELECT @parlayBettype  = CASE WHEN @Sporttype = 188 THEN 10449
 								  WHEN @Sporttype IN (190,191,192,194,195,196,197,193) THEN 2799
@@ -51,7 +51,7 @@ BEGIN
 		BEGIN
 			INSERT INTO #tmpRefno (refno,statusID)
 			SELECT bm.refno, bm.statusID
-			FROM dbo.bettransm AS bm WITH(ROWLOCK)
+			FROM dbo.bettransm AS bm WITH(NOLOCK)
 			WHERE matchid = @matchid
 				AND bm.statusID IN (0,111,112,113)
 				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
@@ -77,7 +77,7 @@ BEGIN
 	ELSE IF @Sporttype IN (180,186) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
 	BEGIN
 		SELECT b.transid,b.statusID
-		FROM dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK)
+		FROM dbo.bettrans AS b  WITH (NOLOCK)
 		WHERE b.matchid = @matchid
 			AND b.bettype IN (1201, 1203, 1204, 1205, 1206, 1224, 1220, 1235, 1236)
 			AND b.StatusID IN (0,111,112,113)
@@ -87,7 +87,7 @@ BEGIN
 	ELSE IF @Sporttype IN (177,198) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
 	BEGIN
 		SELECT b.transid,b.statusID
-		FROM dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK)
+		FROM dbo.bettrans AS b  WITH (NOLOCK)
 		WHERE b.matchid = @matchid
 			AND b.bettype IN (2770,2771)
 			AND b.StatusID IN (0,111,112,113)
@@ -104,7 +104,7 @@ BEGIN
 
 		INSERT INTO #tmpRefno (refno,statusID)
 		SELECT bm.refno, bm.statusID
-		FROM dbo.bettransm AS bm WITH(ROWLOCK)
+		FROM dbo.bettransm AS bm WITH(NOLOCK)
 		WHERE matchid = @matchid
 			AND EXISTS (SELECT 1 FROM @tmpBettype AS f WHERE f.bettype = bm.bettype)
 			AND bm.statusID IN (0,111,112,113)
@@ -129,6 +129,17 @@ BEGIN
 
 		RETURN
 	END
+	-- VS7
+	ELSE IF @Sporttype IN (125,126,127) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
+	BEGIN
+		SELECT b.transid,b.statusID
+		FROM dbo.bettrans AS b  WITH (NOLOCK)
+		WHERE b.matchid = @matchid
+			AND b.bettype IN (15500,15501)
+			AND b.StatusID IN (0,111,112,113)
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		RETURN
+	END
 	ELSE IF ISNULL(@ResourceIds,'') <> ''
 	BEGIN
 		INSERT INTO @tmp_ResourceId ( ResourceId )
@@ -150,7 +161,7 @@ BEGIN
 			AND ISNULL(sp.RefResourceID,'') <> ''
 
 		SELECT b.transid,b.statusID
-		FROM dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK)
+		FROM dbo.bettrans AS b  WITH (NOLOCK)
 			INNER JOIN @tmpBettype bt 
 				ON b.bettype = bt.bettype AND (bt.betid = 0 OR bt.betid = b.betid)
 		WHERE b.matchid = @matchid
@@ -169,7 +180,7 @@ BEGIN
 	FROM #tmpTransId AS t 
 		INNER JOIN  dbo.bettrans AS b WITH(NOLOCK) ON t.transid = b.transid
 		OUTER APPLY(SELECT TOP 1 bm.statusID
-					FROM dbo.bettransm AS bm 
+					FROM dbo.bettransm AS bm WITH(NOLOCK)
 					WHERE bm.refno = b.refno
 						AND bm.statusID = 103
 						AND b.matchid = @parlayBettype

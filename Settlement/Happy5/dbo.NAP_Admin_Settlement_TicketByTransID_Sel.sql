@@ -10,6 +10,7 @@ AS
 
 	Revisions:
 		- 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing  [Redmine:#210875]
+		- 20250312@Jane: Integration VS7 - Kiron [Redmine:#219147]
 
 	Param's Explanation:
 		
@@ -20,8 +21,7 @@ BEGIN
 	DECLARE @IsCentral			BIT
 	DECLARE @tblTransID			TABLE(TransID BIGINT)
 
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
+	SET @IsCentral = [dbo].[f_CheckServerCentral]()
 
 	INSERT INTO @tblTransID(TransID)
 	SELECT value AS TransID

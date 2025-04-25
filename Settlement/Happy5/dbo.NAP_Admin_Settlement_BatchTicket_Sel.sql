@@ -18,6 +18,7 @@ AS
 	Revisions:
 		- 20240520@Aries: Created  [Redmine:#202389]
 		- 20240930@Aries: Fix the issue duplicated settlement DBTrans and SiteDBs for HP5  [Redmine:#211434]
+		- 20250404@Jane: Integration VS7 - Kiron [Redmine:#219147]
 
 	Param's Explanation:
 		
@@ -59,7 +60,7 @@ BEGIN
 							WHERE b.matchid = @MatchId 
 								AND b.custid = @LastCustId
 								AND b.TransId > @LastTransID
-								AND b.statusID NOT IN (101,102)
+								AND b.statusID NOT IN (101)
 								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 							ORDER BY b.matchid ASC, b.custid ASC
 					) AS t1
@@ -117,7 +118,7 @@ BEGIN
 								CROSS APPLY(SELECT TOP 1 tbt.Bettype FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 							WHERE b.matchid = @MatchId 
 								AND b.custid > @LastCustId
-								AND b.statusID NOT IN (101,102)
+								AND b.statusID NOT IN (101)
 								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 							ORDER BY b.matchid ASC, b.custid ASC
 					) AS t1
@@ -174,7 +175,7 @@ BEGIN
 							WHERE b.matchid = @MatchId 
 								AND b.custid = @LastCustId
 								AND b.TransId > @LastTransID
-								AND	b.statusID NOT IN (103, 101, 102)
+								AND	b.statusID NOT IN (103, 101)
 								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 							ORDER BY b.matchid ASC, b.custid ASC
 					) AS t1
@@ -233,7 +234,7 @@ BEGIN
 								CROSS APPLY(SELECT TOP 1 tbt.Bettype FROM @tmpBettype AS tbt WHERE b.BetType = tbt.BetType) AS bt
 							WHERE b.matchid = @MatchId 
 								AND b.custid > @LastCustId
-								AND	b.statusID NOT IN (103, 101, 102)
+								AND	b.statusID NOT IN (103, 101)
 								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 							ORDER BY b.matchid ASC, b.custid ASC
 					) AS t1
