@@ -18,6 +18,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+		 - 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) - Writelog [Redmine: #219045]
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -32,6 +33,21 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+
+	DECLARE @StartTime			DATETIME
+			,@EndTime			DATETIME
+			,@LogActionId		INT
+			,@LogData			NVARCHAR(MAX)
+			,@SB_Error			BIT
+
+	SET @StartTime = GETDATE()
+	SET @LogActionId = 90519
+	SET @SB_Error = 0
+
+	SET @LogData = CASE WHEN @MatchId IS NULL THEN '' ELSE ',@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+					+ CASE WHEN @TicketType IS NULL THEN '' ELSE '@TicketType = ''' + CONVERT(NVARCHAR(50), @TicketType) + '''' END
+					+ CASE WHEN @Type IS NULL THEN '' ELSE ',@Type = ''' + CONVERT(NVARCHAR(50), @Type) + '''' END
+					+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
 	
 	-- Write useraction log 
 	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
@@ -84,7 +100,22 @@ BEGIN
 		BEGIN     
             INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
             VALUES (@ID, @spName, NULL, @UserId, @MatchId, GETDATE(),@SubmittedDate)
-		END      
+		END  
+		
+		-- Write Log
+		SET @EndTime = GETDATE()
+		SET @LogData = CAST((SELECT	@LogActionId AS '@LogActionId'
+								,@UserId AS '@UserId'							
+								,@IP AS '@IP'
+								,@MatchId AS '@MatchId'
+								,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
+									+ @LogData
+								AS '@LogData'
+						FOR XML PATH ('r'), ROOT ('root'), TYPE
+		) AS NVARCHAR(MAX))
+
+		EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+
 	END TRY
 	BEGIN CATCH
 	END CATCH

@@ -1,8 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_RecoverVS2_Validation]
+ALTER PROCEDURE [dbo].[TicketVoiding_RecoverVSRacing_Validation]
 (
 	@TransIds	VARCHAR(MAX)
-	,@Resources	VARCHAR(MAX)
 	,@ErrorCode 	INT = 0 OUTPUT
 	,@ErrorMsg	NVARCHAR(200) = '' OUTPUT
 )
@@ -13,7 +12,8 @@ AS
 	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02	    
 
 	Revisions:  		
-		- 20250220@Max: [TVS] Recover ticket of Virtual Sports 2 [Redmine: #212323]			
+		- 20250220@Max: [TVS] Recover ticket of Virtual Sports 2 [Redmine: #212323]		
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -74,10 +74,9 @@ BEGIN
 		,b.comstatus
 		,b.oddstype
 		,CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-		,rs.pfID AS ProfileID
 		,b.SiteDBGroupID
 		,b.oddsid
-		,z.creator AS CreatorBackup
+		,z.creator
 		,b.statuswinlost
 		,b.playercomm
 		,b.acomm
@@ -104,14 +103,8 @@ BEGIN
 						ON rs.EventID = o.EventID
 				WHERE o.Orid = z.oddsid
 		)m
-		CROSS APPLY (
-			SELECT DISTINCT p.pfID,p.Bettype
-			FROM STRING_SPLIT(@Resources,',') AS rs
-				INNER JOIN SettlementSpecialBettypeProfile p WITH(NOLOCK) ON rs.value = p.ResourceID AND p.sporttype = m.sporttype
-			WHERE p.BetType = b.bettype
-		)rs
 		LEFT JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON mt.TransId = r.transid
-	WHERE m.sporttype IN (198,177)
+	WHERE m.sporttype IN (198,177,125,126,127)
 		AND m.eventdate > @Movebetdate
 		AND b.statusID = 102
 		AND b.SiteDBGroupID = @SiteDBGroupID

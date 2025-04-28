@@ -25,6 +25,7 @@ AS
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241220@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 
 	 Param's Explanation:  
@@ -252,7 +253,7 @@ BEGIN
 		WHERE bettype IN (10)
 	END
 	-- -- UPDATE eventtype = 3 [VS range bettypes]
-	IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771)))
+	IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)))
 	BEGIN
 		UPDATE b
 		SET homeid 		= o.RacerID
@@ -268,7 +269,7 @@ BEGIN
 			ON b.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE b.bettype IN (1231,1232,1233,1237,1238)
+		WHERE b.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
@@ -327,7 +328,7 @@ BEGIN
 	END
 	
 	SELECT @IsExistParlayVSBetradar		= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
-			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 OR sporttype IN (177) THEN 1 ELSE 0 END)
+			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 OR sporttype IN (177,125,126,127) THEN 1 ELSE 0 END)
 			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
@@ -420,6 +421,7 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
+			OR b.bettype BETWEEN 15500 AND 15501 --VS7
 	END
 	--capture balance before
 	INSERT INTO @BeforeUpd (
@@ -527,6 +529,7 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
+			OR b.bettype BETWEEN 15500 AND 15501 --VS7
 	END
 	--capture balance after
 	INSERT INTO @AfterUpd (

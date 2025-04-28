@@ -24,6 +24,7 @@ AS
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20250220@Max: [TVS] Recover ticket of Virtual Sports 2 [Redmine: #212323]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		
 	Param's explanation:	
 		
@@ -385,7 +386,7 @@ BEGIN
         
 		END
 	END
-	ELSE IF @Mode = 'RECOVER-VS2'
+	ELSE IF @Mode = 'RECOVER-VS'
 	BEGIN
 		DECLARE @StartTime DATETIME
 			,@FcUpdateTime DATETIME
@@ -567,7 +568,7 @@ BEGIN
 			))
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-			SELECT 'TVS', 'Recover-VS2', 'bettrans', 'U', @matchid, @transInfoJson, 's', 1
+			SELECT 'TVS', 'Recover-VS', 'bettrans', 'U', @matchid, @transInfoJson, 's', 1
 		END
 		
 		IF (@IsCentral = 1 OR @IsSiteDB = 1)

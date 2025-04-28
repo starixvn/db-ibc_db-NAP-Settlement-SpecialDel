@@ -79,6 +79,7 @@ AS;
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -193,7 +194,7 @@ BEGIN
 					   WHEN @AbnormalBetType = 0 AND pt.ProductID = 1 
 							AND pt.bettype < 19001
 							AND pt.bettype NOT IN (SELECT Bettype FROM f_TVS_SpeciallyBettypes()) -- Parlay Tickets, outright, Bet Builder
-							AND pt.bettype NOT IN (1231, 1232, 1233, 1237, 1238, 2770, 2771) -- virtual sport
+							AND pt.bettype NOT IN (1231, 1232, 1233, 1237, 1238, 2770, 2771, 15500, 15501) -- virtual sport
 					   THEN 1 --Only Sportsbook
 					   WHEN @AbnormalBetType = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
 					   ELSE 0 END
@@ -221,7 +222,7 @@ BEGIN
 						WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
 						WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
 						WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
-						WHEN @IsNonSport = 1 AND ProductID IN (3,5,27,77) THEN 1
+						WHEN @IsNonSport = 1 AND ProductID IN (3,5,27,77,106) THEN 1
 					ELSE 0 END
 			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
 			AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
@@ -424,7 +425,7 @@ BEGIN
 		WHERE d.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (2))
 	END
 	-- UPDATE eventtype = 3 [VS range  bettypes]
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
@@ -434,13 +435,13 @@ BEGIN
 			,sporttype 	= r.sporttype
 			,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
 			,eventdate  = o.eventdate
-			,VendorMatchId = CASE WHEN d.bettype IN (2770,2771) THEN r.VendorMatchId ELSE NULL END
+			,VendorMatchId = CASE WHEN d.bettype IN (2770,2771,15500,15501) THEN r.VendorMatchId ELSE NULL END
 		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON d.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771)
+		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN

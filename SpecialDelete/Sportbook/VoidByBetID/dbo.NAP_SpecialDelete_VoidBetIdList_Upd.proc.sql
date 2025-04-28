@@ -119,6 +119,7 @@ AS
 	  - 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 	  - 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
 	  - 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
+	  - 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 	  - 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 
 	 Param's Explanation:   
@@ -458,7 +459,7 @@ BEGIN
 	END
 	
 	-- -- UPDATE eventtype = 3 [VS range bettypes]
-	IF(EXISTS (SELECT 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771)))
+	IF(EXISTS (SELECT 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)))
 	BEGIN
 		UPDATE b
 		SET homeid 		= o.RacerID
@@ -469,13 +470,13 @@ BEGIN
 			,IsNeutral  = 0
 			,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
 			,sporttype 	= r.sporttype
-			,VendorMatchId = CASE WHEN b.bettype IN (2770,2771) THEN r.VendorMatchId ELSE NULL END
+			,VendorMatchId = CASE WHEN b.bettype IN (2770,2771,15500,15501) THEN r.VendorMatchId ELSE NULL END
 		FROM	#SpecialDeleteBets b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE b.bettype IN (1231,1232,1233,1237,1238,2770,2771)
+		WHERE b.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
@@ -576,7 +577,7 @@ BEGIN
 			,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
 			,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
 			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
-			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 OR sporttype IN (177) THEN 1 ELSE 0 END)
+			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 OR sporttype IN (177,125,126,127) THEN 1 ELSE 0 END)
 			,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
 			,@IsExistVS4				= MAX (CASE WHEN sporttype = 188 THEN 1 ELSE 0 END)
 			,@IsExistParlayVS			= MAX (CASE WHEN fs.SpecialBettypes IS NOT NULL THEN 1 ELSE 0 END)
@@ -609,13 +610,13 @@ BEGIN
 		, CASE 
 			WHEN Bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes()) 
 					AND f.GroupId IS NULL
-					AND Bettype NOT IN (1231,1232,1233,2770,2771)
+					AND Bettype NOT IN (1231,1232,1233,2770,2771,15500,15501)
 					AND Bettype NOT BETWEEN 7901 AND 7999
 					AND sporttype NOT IN (147,134)
 				THEN 1 --SB,NG,LC
 			WHEN Bettype = 10 THEN 2	-- Outright
 			WHEN f.GroupId = 1 THEN 6 -- FM
-			WHEN Bettype IN (1231,1232,1233,2770,2771) THEN 4 -- VS Racing
+			WHEN Bettype IN (1231,1232,1233,2770,2771,15500,15501) THEN 4 -- VS Racing
 			WHEN Bettype = 38 THEN 5 -- Bet Builder
 			WHEN f.GroupId = 2 THEN 7 -- FM 228
 			WHEN (Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147,134)) THEN 8 --Bitcoin, VS5
@@ -825,6 +826,7 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
+			OR b.bettype BETWEEN 15500 AND 15501 --VS7
 			) AND b.SiteDBGroupID = @SiteDBGroupID
 			AND b.statusID NOT IN (101,102,103)
 	END
@@ -1047,6 +1049,7 @@ BEGIN
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
 			OR b.bettype BETWEEN 13000 AND 13011 --VS6
+			OR b.bettype BETWEEN 15500 AND 15501 --VS7
 			) AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 	--capture balance after

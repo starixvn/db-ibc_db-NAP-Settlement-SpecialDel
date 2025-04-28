@@ -20,6 +20,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 	
 	Param's explanation:	
 		
@@ -75,7 +76,7 @@ BEGIN
 	--Remove unsupport sporttype/bettype
 	DELETE t
 	FROM #CustLimitBet_tmp t
-	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188,147,177,198,134) AND @sporttype NOT BETWEEN 190 AND 197)
+	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188,147,177,198,134,125,126,127) AND @sporttype NOT BETWEEN 190 AND 197)
 		OR (t.bettype IN(SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1)) OR (t.bettype BETWEEN 801 AND 806))
 	
 	IF EXISTS (SELECT TOP (1) 1 FROM #CustLimitBet_tmp WHERE bettype = 10)
@@ -124,7 +125,7 @@ BEGIN
 								FOR XML PATH('r'), ROOT('root')
 							)
 			INSERT INTO dbo.CustLimitBetQueue (MatchId, EventTypeID, Transids, ActionID, Statusid, CreatedDate)
-			SELECT @MatchId, CASE WHEN @sporttype NOT IN (177,198) THEN 1 ELSE 6 END AS EventTypeID, @TransIds, 1, 0, @CreatedDate
+			SELECT @MatchId, CASE WHEN @sporttype NOT IN (177,198,125,126,127) THEN 1 ELSE 6 END AS EventTypeID, @TransIds, 1, 0, @CreatedDate
 		END
 	END
 

@@ -24,6 +24,7 @@ AS
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241129@July: Hint - Error 'maximum recursion 100 has been exhausted'  [Redmine: #211913]
+		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 
 	Param's explanation:
 */
@@ -61,7 +62,7 @@ BEGIN
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
-	WHERE pt.ProductID IN (1, 3, 5, 27, 77, 83, 88, 71) -- SB, NG, VS, VS2, VS3, VS4, VS5, VS6
+	WHERE pt.ProductID IN (1, 3, 5, 27, 77, 83, 88, 71, 106) -- SB, NG, VS, VS2, VS3, VS4, VS5, VS6, VS7
 		AND pt.BetType NOT IN (10)
 		AND pt.SubProduct NOT IN ('MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
