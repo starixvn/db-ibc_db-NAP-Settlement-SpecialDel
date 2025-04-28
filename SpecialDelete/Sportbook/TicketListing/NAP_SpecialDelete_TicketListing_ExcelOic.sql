@@ -69,14 +69,15 @@ AS
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
+		- 20250428@Max: TVS- Search matchid got error on ticket listing [Redmine: #225671]
 
 	Param's Explanation:
 	- @Type: sports type
 		0: Sportsbook
 		1: Number Game
 		2: Virtual sports
-		8: Bet Builder
-		9: Bitcoin
+		3: Bet Builder
+		4: Bitcoin
 
 	- @LicenseeName:
 		ALL, IBC, 12bet, ...	
@@ -392,7 +393,7 @@ BEGIN
 							AND	   CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END
 				AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				
-			IF (@IsReSettled = 1 AND @Type IN (0,8))
+			IF (@IsReSettled = 1 AND @Type IN (0,3))
 			BEGIN
 				DELETE b
 				FROM #SpecialDeleteBets b
