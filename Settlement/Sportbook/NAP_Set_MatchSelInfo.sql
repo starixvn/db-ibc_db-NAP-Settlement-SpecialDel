@@ -32,6 +32,7 @@ AS
 		- 20240605@Louisa:Notify if not yet refund [Redmine:#204909] 
 		- 20240910@Aries:Return IsTest [Redmine:#204909] 
 		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
+		- 20250429@Louisa: Enhance sql plan [Redmine:#225892]
 */ 
 BEGIN
 	SET NOCOUNT ON
@@ -136,7 +137,7 @@ BEGIN
 				ON m.leagueid = l.leagueid
 			LEFT JOIN dbo.LeagueSetting ls WITH(NOLOCK)
 				ON l.leagueid = ls.Leagueid
-			CROSS APPLY ( SELECT TOP 1 value FROM STRING_SPLIT(@matchIds, ',') f WHERE CAST(f.value AS INT) = m.matchid  ) f
+		WHERE EXISTS ( SELECT TOP 1 value FROM STRING_SPLIT(@matchIds, ',') f WHERE CAST(f.value AS INT) = m.matchid  )
 
 	END
 
