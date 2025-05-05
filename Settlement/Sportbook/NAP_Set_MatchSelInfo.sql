@@ -33,6 +33,7 @@ AS
 		- 20240910@Aries:Return IsTest [Redmine:#204909] 
 		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
 		- 20250429@Louisa: Enhance sql plan [Redmine:#225892]
+		- 20250505@Aries: Missing column in the response [Redmine:#225981]
 */ 
 BEGIN
 	SET NOCOUNT ON
@@ -79,12 +80,16 @@ BEGIN
 			,matchcode
 			,eventdate
 			,kickofftime
+			,playtime
 			,homeid
 			,awayid
 			,leagueId
+			,BestOfMap
 			,betstatus
+			,isHalftimeCal
 			,sporttype
 			,eventstatus
+			,ConfirmFT
 			,SettlementStatus
 			,EventStatusReason
 			,LeagueGroupId
@@ -108,12 +113,16 @@ BEGIN
 			,m.matchcode
 			,m.eventdate
 			,m.kickofftime
+			,datediff(minute, kickofftime, CURRENT_TIMESTAMP) playtime
 			,m.homeid
 			,m.awayid
 			,m.leagueId
+			,mr.BestOfMap
 			,m.betstatus
+			,mr.IsHTCal AS isHalftimeCal
 			,m.sporttype
 			,m.eventstatus
+			,mr.ConfirmFT
 			,m.SettlementStatus
 			,m.EventStatusReason
 			,l.LeagueGroupID
@@ -133,6 +142,7 @@ BEGIN
 			,ISNULL(l.isTest,0)
 			,ls.ChildLeagueType
 		 FROM dbo.[match] m WITH (NOLOCK)
+		 	INNER JOIN dbo.[match_remark] mr WITH (NOLOCK) ON mr.matchid = m.matchid
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
 			LEFT JOIN dbo.LeagueSetting ls WITH(NOLOCK)
