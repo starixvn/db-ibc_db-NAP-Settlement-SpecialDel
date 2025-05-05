@@ -20,9 +20,6 @@ BEGIN
     SET NOCOUNT ON
     
     DECLARE @TargetUser NVARCHAR(MAX) = ''
-          , @target NVARCHAR(100)
-          , @pos INT
-          , @valuestart INT
           , @Id INT = 0
           , @UserId INT
 
@@ -82,6 +79,7 @@ BEGIN
         
         INSERT INTO @tmpIdList (Id) SELECT @Id
 
+        
         IF CHARINDEX('@marked', @Content) > 0 AND CHARINDEX('@total', @Content) > 0
         BEGIN
             DECLARE @cnt_marked INT = 0, @cnt_total INT = 0
