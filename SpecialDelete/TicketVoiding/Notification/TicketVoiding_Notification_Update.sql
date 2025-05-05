@@ -24,6 +24,7 @@ BEGIN
           , @pos INT
           , @valuestart INT
           , @Id INT = 0
+          , @UserId INT
 
     DECLARE @tmpIdList TABLE (Id INT, TargetUser NVARCHAR(MAX), IsFinish BIT)
     DECLARE @tmpTargetUser TABLE (Username NVARCHAR(50), IsRead NVARCHAR(1))
@@ -31,6 +32,7 @@ BEGIN
     IF ISNULL(@IdList, '') = ''
     BEGIN
         
+       
         IF EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_Notification WITH (NOLOCK) WHERE RequestId = @RequestId)
         BEGIN
             SELECT TOP(1) @TargetUser = TargetUser
@@ -38,20 +40,34 @@ BEGIN
             WHERE RequestId = @RequestId
             ORDER BY CreatedDate DESC
 
-			INSERT INTO @tmpTargetUser (Username, IsRead)
+            INSERT INTO @tmpTargetUser (Username, IsRead)
             SELECT Username, CAST (@IsRead AS VARCHAR(1)) --'0'
             FROM OPENJSON(@TargetUser)
             WITH (
                 Username NVARCHAR(50)
             )
+
+            IF EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WITH (NOLOCK) WHERE RequestId = @RequestId) --Have void/recover get username from history
+            BEGIN
+                
+                SELECT TOP(1) @UserId = UserId
+                FROM dbo.TicketVoiding_VoidingHistory WITH (NOLOCK)
+                WHERE RequestId = @RequestId
+                ORDER BY CreatedDate DESC
+
+                INSERT INTO @tmpTargetUser (Username, IsRead)
+                SELECT Username, CAST (@IsRead AS VARCHAR(1)) --'0'
+                FROM CustDB.dbo.Customer WITH (NOLOCK)
+                WHERE custid = @UserId
+            END
 		END
         
-		IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpTargetUser WHERE Username = @Username)
+        IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpTargetUser WHERE Username = @Username)
 		BEGIN
 			INSERT INTO @tmpTargetUser (Username, IsRead)
             SELECT @Username, CAST (@IsRead AS VARCHAR(1)) --'0'
 		END
-            
+
         SET @TargetUser = CONVERT(NVARCHAR(MAX),
 								(SELECT Username, IsRead
 								FROM @tmpTargetUser
@@ -66,7 +82,7 @@ BEGIN
         
         INSERT INTO @tmpIdList (Id) SELECT @Id
 
-         IF CHARINDEX('@marked', @Content) > 0 AND CHARINDEX('@total', @Content) > 0
+        IF CHARINDEX('@marked', @Content) > 0 AND CHARINDEX('@total', @Content) > 0
         BEGIN
             DECLARE @cnt_marked INT = 0, @cnt_total INT = 0
             
