@@ -29,7 +29,6 @@ BEGIN
     IF ISNULL(@IdList, '') = ''
     BEGIN
         
-       
         IF EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_Notification WITH (NOLOCK) WHERE RequestId = @RequestId)
         BEGIN
             SELECT TOP(1) @TargetUser = TargetUser
@@ -56,6 +55,7 @@ BEGIN
                 SELECT Username, CAST (@IsRead AS VARCHAR(1)) --'0'
                 FROM CustDB.dbo.Customer WITH (NOLOCK)
                 WHERE custid = @UserId
+                    AND Username NOT IN (SELECT Username FROM @tmpTargetUser)
             END
 		END
         
@@ -80,26 +80,39 @@ BEGIN
         INSERT INTO @tmpIdList (Id) SELECT @Id
 
         
-        IF CHARINDEX('@marked', @Content) > 0 AND CHARINDEX('@total', @Content) > 0
+        IF CHARINDEX('@total', @Content) > 0
         BEGIN
-            DECLARE @cnt_marked INT = 0, @cnt_total INT = 0
+            DECLARE @cnt_total INT = 0
+
+            SELECT @cnt_total = COUNT(1)
+            FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+            WHERE RequestId = @RequestId
+
+            SELECT @cnt_total += COUNT(1)
+            FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
+            WHERE RequestId = @RequestId
+
+            SET @Content = REPLACE(@Content, '@total', CAST (@cnt_total AS VARCHAR(10))) 
+            
+        END
+
+        IF CHARINDEX('@marked', @Content) > 0
+        BEGIN
+            DECLARE @cnt_marked INT = 0
             
             WAITFOR DELAY '00:00:03' -- Delay 3 second to data marked sync with central DB
 
-            SELECT @cnt_marked = ISNULL(SUM(CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END),0)
-                  ,@cnt_total = COUNT(1)
+            SELECT @cnt_marked = COUNT(1)
             FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-                LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
+                INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
             WHERE RequestId = @RequestId
 
-            SELECT  @cnt_marked += ISNULL(SUM(CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END),0)
-                   ,@cnt_total += COUNT(1)
+            SELECT  @cnt_marked += COUNT(1)
             FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
-                LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
+                INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
             WHERE RequestId = @RequestId
 
             SET @Content = REPLACE(@Content, '@marked', CAST (@cnt_marked AS VARCHAR(10))) 
-            SET @Content = REPLACE(@Content, '@total', CAST (@cnt_total AS VARCHAR(10)))
             
         END
         
