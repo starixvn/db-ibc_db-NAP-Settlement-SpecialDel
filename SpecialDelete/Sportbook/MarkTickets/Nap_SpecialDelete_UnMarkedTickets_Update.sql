@@ -91,6 +91,7 @@ BEGIN
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #Match(matchid INT, HomeId INT, AwayId INT, SportType TINYINT, IsNeutral BIT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT);
+	DECLARE @tmpMarkTicketList AS TABLE (TransId BIGINT)
 
 	CREATE TABLE #Tickets
 				(TransId   BIGINT,
@@ -113,6 +114,7 @@ BEGIN
 			,IsParlay
 			,SubTransId
 	)
+		OUTPUT  inserted.TransId INTO @tmpMarkTicketList (TransId)
 	SELECT t.TransId,
 			b.MatchId
 			,b.BetType
@@ -122,14 +124,14 @@ BEGIN
 			,NULL
 	FROM #transIds t
 	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-	LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON t.TransId = m.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
-	WHERE m.TransId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID
+	WHERE b.SiteDBGroupID = @SiteDBGroupID
 	AND b.statusID IN (0,1)
 	AND 1 = CASE WHEN @IssueTypeId IS NULL AND b.bettype <> 29 THEN 1 --Function special delete
 			        WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1 --IssueType: Abnormal account 
 					WHEN @IssueTypeId IS NOT NULL AND @IssueTypeId <> 13 AND b.bettype NOT IN (38) THEN 1 --Other IssueType 
 					ELSE 0 END
 
+	
 	-- get only parlay tickets from @input transid
 	INSERT INTO #ParlayTransIds (TransId)
 	SELECT tmp.TransId
@@ -148,6 +150,7 @@ BEGIN
 			,IsParlay
 			,SubTransId
 		)
+		OUTPUT  inserted.TransId INTO @tmpMarkTicketList (TransId)
 		SELECT b.TransId
 			,bm.matchid
 			,bm.bettype
@@ -158,10 +161,14 @@ BEGIN
 		FROM #ParlayTransIds t
 			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
-			LEFT JOIN dbo.MarkedTransaction AS m WITH (NOLOCK) ON b.TransId = m.TransId AND m.MatchId = bm.matchid
-		WHERE m.TransId IS NULL AND bm.statusID IN (0,1)
+		WHERE bm.statusID IN (0,1)
 			AND bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
 	END
+	
+	/*Case have marked done ignore*/
+	DELETE b
+	FROM #Tickets b 
+		INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON b.TransId = m.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #Tickets)
 	BEGIN
@@ -390,7 +397,7 @@ BEGIN
 
 	--2. Return table transId for TVS ( for case error request ex:lock match)
 	SELECT DISTINCT transId
-	FROM #transIds
+	FROM @tmpMarkTicketList
 
 	-- Write Log
 	SET @xmlLog = CAST((
