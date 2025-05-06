@@ -19,6 +19,7 @@ AS
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240319@Max: [TVS] SP tuning for EC2024 [Redmine: #200840]
+		- 20250505@July: [TVS] Case Resettled miss update IsProcessed [Redmine: #219112]
 
 	Param's explanation:
 */
@@ -75,7 +76,7 @@ BEGIN
 		INSERT INTO @tmp_Id(Id)
 		SELECT t.Id
 		FROM #tmpInputTransId_Single s
-			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single t WITH (NOLOCK) ON s.RequestId = t.RequestId and s.TransId = t.TransId
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single t WITH (NOLOCK) ON s.TransId = t.TransId
 
 		WHILE(1=1)
 		BEGIN
