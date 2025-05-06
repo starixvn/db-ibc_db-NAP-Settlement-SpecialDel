@@ -21,6 +21,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:
 		+ @IssueTypeId : 8 - Early Kick Off, 9 - Wrong Kick Off Time
@@ -36,10 +37,6 @@ BEGIN
 			,@KickOffInfoXML	 XML = NULL	
 			,@topBatch			 INT = 4500
 					
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
-
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
 			,MatchID				INT
@@ -86,9 +83,15 @@ BEGIN
 		  ,SiteDBGroupID
 		)
 	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
-	) tbl
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+			SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
+			WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
+			)
+		) tbl
+	WHERE f.value <> ''
 
 	IF @IsEditRequest = 1
 	BEGIN

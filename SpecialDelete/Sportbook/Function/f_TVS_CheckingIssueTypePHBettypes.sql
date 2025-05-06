@@ -1,11 +1,11 @@
-/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="1"></info>*/
 CREATE FUNCTION [dbo].[f_TVS_CheckingIssueTypePHBettypes] ()
 RETURNS TABLE
 AS
 /*
     Created: 20220523@July
     Task: Checking IssueTypeId get AIO bettypes affect void tickets
-	 DB: DBCTG/bodb02
+	 DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
     Revisions:
 		- 20220523@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
 		- 20230403@July: TVS - Wrong OU affects to OU bet types [Redmine: #172975]
@@ -13,6 +13,7 @@ AS
 		- 20231005@July: [TVS] Update affected Pool House's bet types when bet types FT/HT 1X2 affected by offering wrong market [Redmine: #192202]
 		- 20231130@July: [TVS] Add new bet type to Pool House affected list [Redmine: #197123]
 		- 20240119@July: [TVS] Update Pool House bet type affected list [Redmine: #199496]
+		- 20250307@July: Add alias server [Redmine: #217771]
 
     Parameters Explanation:    
 		IssueTypeId: 4 - Wrong HDP

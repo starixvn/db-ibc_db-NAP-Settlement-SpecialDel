@@ -22,6 +22,7 @@ AS
 		- 20240618@July: [TVS] Support void wrong odds of Home/Away or Over/Under at the same time [Redmine: #205558]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240912@July: [TVS] Support Sportsbook for Wrong HDP, 1st HDP, OU, 1st OU, & Wrong Odds issue types [Redmine: #210152]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:
 		+ @IssueTypeId : 2
@@ -36,10 +37,6 @@ BEGIN
 			,@LogDataContent	 NVARCHAR(MAX)
 
 	DECLARE	@WrongOddsInfoXML	 XML = NULL	
-
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
@@ -61,7 +58,6 @@ BEGIN
       ,Subtransid BIGINT
 	  ,custid	INT	
       ,bettype SMALLINT
-      ,Subbettype SMALLINT
 	  ,betid BIGINT
       ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
@@ -72,15 +68,20 @@ BEGIN
 		  ,Subtransid
 		  ,custid		
 		  ,bettype
-		  ,Subbettype
 		  ,betid
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT mid ,t ,s_t ,c ,btype ,s_btype ,bid ,isP ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,s_btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
-	) tbl
+	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+			SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
+			WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
+			)
+		) tbl
+	WHERE f.value <> ''
 
 	SET @WrongOddsInfoXML = CONVERT(XML, @WrongOddsInfo)
 	INSERT INTO #tblGetLogInfo( 

@@ -27,6 +27,7 @@ AS
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
 		- 20250305@Lani: [TVS] Edit log data content and TypeAccept column[Redmine: #216151]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:
 */
@@ -44,10 +45,6 @@ BEGIN
 			,@FilterBy				TINYINT = NULL
 			,@actualscore			VARCHAR(100)
 
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
-
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
 			,MatchID				INT
@@ -63,6 +60,7 @@ BEGIN
 			,IssueDetail			NVARCHAR(MAX)
 			,TypeAccept				VARCHAR(2000)
 			,SubIssueTypeId			SMALLINT
+			,ScoreId				VARCHAR(20)	
 			)
 	
 	CREATE TABLE #tmpTransInfo(
@@ -72,8 +70,7 @@ BEGIN
 			,custid			INT	
 			,bettype		SMALLINT
 			,betid			BIGINT
-			,VoidFromTime	DATETIME
-			,VoidToTime     DATETIME
+			,ScoreId		VARCHAR(20)
 			,IsMixParlay	BIT
 			,SiteDBGroupID  SMALLINT
 			,IsCancelCashOut BIT
@@ -85,16 +82,21 @@ BEGIN
 		  ,custid	
 		  ,bettype
 		  ,betid
-		  ,VoidFromTime	
-		  ,VoidToTime  
+		  ,ScoreId	
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		  ,IsCancelCashOut
 		)
-	SELECT mid ,t ,s_t ,c ,btype ,bid , vft, vtt ,isP ,sitedb ,isCCO
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT, vft DATETIME , vtt DATETIME ,isP BIT ,sitedb SMALLINT, isCCO BIT
-	) tbl
+	SELECT mid ,t ,s_t ,c ,btype ,bid , ScoreId ,isP ,sitedb ,isCCO
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+			SELECT mid ,t ,s_t ,c ,btype ,bid , ScoreId ,isP ,sitedb ,isCCO
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
+			WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT, ScoreId VARCHAR(20) ,isP BIT ,sitedb SMALLINT, isCCO BIT
+			)
+		) tbl
+	WHERE f.value <> ''
 
 	SET @WrongScoreInfoXML = CONVERT(xml, @WrongScoreInfo)
 	INSERT INTO #tblGetLogInfo( 
@@ -112,6 +114,7 @@ BEGIN
 			,IssueDetail 
 			,SubIssueTypeId
 			,TypeAccept
+			,ScoreId
 		)
 	SELECT @RequestId AS RequestId
 			,t.c.value('@MatchId','INT') AS MatchID
@@ -142,6 +145,7 @@ BEGIN
 			+ '" MinTransId="' + t.c.value('@MinTransId','VARCHAR(50)') 
 			+ '" ActionType="' + t.c.value('@ActionType','VARCHAR(100)')
 			+ '" />' AS TypeAccept
+			,t.c.value('@ScoreId','VARCHAR(20)') AS ScoreId
 	FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 
@@ -157,7 +161,7 @@ BEGIN
 				AND rd.MatchId = t.MatchID
 		WHERE rd.RequestId = @RequestId AND t.RequestID IS NULL
 
-		UPDATE	r
+		UPDATE	rd
 		SET	  FilterFromTransTime = l.FilterFromTransTime
 			, FilterToTransTime = l.FilterToTransTime
 			, SingleCount = l.SingleCount
@@ -170,10 +174,9 @@ BEGIN
 			, SubIssueTypeId = l.SubIssueTypeId
 			, TransIds = l.TypeAccept
 			, FilterBy = l.FilterBy
-		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId AND r.LiveHomeScore = l.LiveHomeScore AND r.LiveAwayScore = l.LiveAwayScore
-														AND r.FilterFromTransTime = l.FilterFromTransTime
-														AND r.FilterToTransTime = l.FilterToTransTime
+		FROM dbo.TicketVoiding_RequestDetail rd WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tblGetLogInfo l ON l.RequestID = rd.RequestId AND l.MatchID = rd.MatchId 
+														AND l.ScoreId = CAST(rd.TransIds AS XML).value('(/r/@ScoreId)[1]', 'VARCHAR(20)')
 
 	END
 
@@ -218,9 +221,7 @@ BEGIN
 	FROM #tblGetLogInfo l
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
 		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID 
-														AND rd.LiveHomeScore = l.LiveHomeScore AND rd.LiveAwayScore = l.LiveAwayScore
-														AND rd.FilterFromTransTime = l.FilterFromTransTime
-														AND rd.FilterToTransTime = l.FilterToTransTime
+														AND l.ScoreId = CAST(rd.TransIds AS XML).value('(/r/@ScoreId)[1]', 'VARCHAR(20)')
 	WHERE rd.RequestId IS NULL
 
 	IF @IsEditRequest = 1
@@ -245,7 +246,8 @@ BEGIN
 		, t.SiteDBGroupID
 		, t.IsCancelCashOut
 	FROM #tmpTransInfo t
-		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidToTime = t.VoidToTime
+		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId 
+																  AND t.ScoreId = CAST(rd.TransIds AS XML).value('(/r/@ScoreId)[1]', 'VARCHAR(20)')
 	WHERE rd.RequestId = @RequestId  AND t.IsMixParlay = 0
 
 	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
@@ -258,7 +260,8 @@ BEGIN
 		, t.TransId
 		, t.SiteDBGroupID
 	FROM #tmpTransInfo t
-		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidToTime = t.VoidToTime
+		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId 
+																 AND t.ScoreId = CAST(rd.TransIds AS XML).value('(/r/@ScoreId)[1]', 'VARCHAR(20)')
 	WHERE rd.RequestId = @RequestId AND t.IsMixParlay = 1
 
 	-- Get content of log data 

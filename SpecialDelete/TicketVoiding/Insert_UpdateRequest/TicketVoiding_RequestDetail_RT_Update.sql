@@ -20,6 +20,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:	
 		
@@ -39,10 +40,6 @@ BEGIN
 			,@ProductIds			VARCHAR(50) = NULL
 			,@FilterBy				TINYINT = NULL -- (NULL: sing & mix parlay, 3: subparlay)
 			,@SubIssueTypeId		TINYINT = NULL
-
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #tmpMatch (MatchId INT, IsOutright BIT, IsMoved14 BIT)
 	CREATE TABLE #tmpTransInfo(
@@ -68,9 +65,16 @@ BEGIN
 		  ,SiteDBGroupID
 		)
 	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,isM ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,isM BIT,sitedb SMALLINT
-	) tbl
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+			SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,isM ,sitedb
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
+			WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,isM BIT ,sitedb SMALLINT
+			)
+		) tbl
+	WHERE f.value <> ''
+
 
 	SET @RecoverTicketInfoXML = CONVERT(XML, @RecoverTicketInfo)
 	SELECT @TransIds = t.c.value('@TransIds','NVARCHAR(MAX)') 

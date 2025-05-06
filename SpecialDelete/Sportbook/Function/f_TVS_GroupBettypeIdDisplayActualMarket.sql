@@ -1,10 +1,10 @@
-/*<info serverAlias="DBCTG-bodb02" executers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" isFunction="1"></info>*/
 CREATE FUNCTION f_TVS_GroupBettypeIdDisplayActualMarket()
 RETURNS TABLE
 /*
     Created: 20250122@Lani
     Task: [TVS] Wrong Odds (Sportsbook) - Update parameter Actual Market [Redmine: #215870]
-	DB: DBCTG-bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
     Revisions:
 		- 20240718@Lani: Create a new function for configure all HDP bettype [Redmine: #207545]

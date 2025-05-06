@@ -19,6 +19,7 @@ AS
 		- 20220727@Max: Create new SP [Redmine:#197051]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20241025@July: [TVS] Add new Advanced Mode for TVS - [Redmine: #212394]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -35,10 +36,6 @@ BEGIN
 
 	DECLARE	 @TechnicalErrorXML		  XML = NULL
 			,@topBatch			  INT = 4500
-
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
@@ -81,9 +78,15 @@ BEGIN
 		  ,IsCancelCashOut
 		)
 	SELECT m_mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb ,isCCO
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( m_mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isCCO BIT
-	) tbl
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+			SELECT m_mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb ,isCCO
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
+			WITH( m_mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isCCO BIT
+			)
+		) tbl
+	WHERE f.value <> ''
 
 	SET @TechnicalErrorXML = CONVERT(XML, @TechnicalErrorInfo)
 	INSERT INTO #tblGetLogInfo( 

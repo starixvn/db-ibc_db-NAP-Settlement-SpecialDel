@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 (	
 	 @RequestId			  INT = 0
@@ -18,7 +18,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@WrongOddsInfo		  VARCHAR(MAX) = NULL
 	,@ReducedOverInfo	  VARCHAR(MAX) = NULL
 	,@NotParticipateInfo  VARCHAR(MAX) = NULL
-	,@TransInfoJson		  VARCHAR(MAX) = NULL
 	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
 	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
 	,@WrongOddsSBInfo		  VARCHAR(MAX) = NULL
@@ -29,7 +28,7 @@ AS
 /*	
 	Created by: 20200701@Max
 	Task: [TVS] Danger Accept Bets Issue Type [Redmine: #111573]
-	DB: DBCTG/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20200701@Max: Create new SP [Redmine: #135947]
@@ -80,6 +79,7 @@ AS
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 		- 20250106@Lani: [TVS] Change sp called of issue type 'Wrong 1st HDP & OU'  [Redmine: #215545]
+		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 
 	Param's explanation:
 		
@@ -118,7 +118,6 @@ BEGIN
 					+ CASE WHEN @WrongOddsSBInfo IS NULL THEN '' ELSE ',@WrongOddsSBInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOddsSBInfo) + '''' END
 					+ CASE WHEN @WrongOfferedNameInfo IS NULL THEN '' ELSE ',@WrongOfferedNameInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOfferedNameInfo) + '''' END
 					+ CASE WHEN @OtherIssuesInfo IS NULL THEN '' ELSE ',@OtherIssuesInfo = ''' + CONVERT(NVARCHAR(MAX), @OtherIssuesInfo) + '''' END
-					+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserID, NULL, GETDATE(),@SubmittedDate)
@@ -135,7 +134,6 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@DARCInfo			   = @DangerAcceptedInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
 
 	IF @IssueTypeId = 2 --WrongOdds
@@ -146,7 +144,6 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongOddsInfo		   = @WrongOddsInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 3 --Wrong score
 	BEGIN
@@ -156,7 +153,6 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongScoreInfo	   = @WrongScoreInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 4 --Wrong HDP
 	BEGIN
@@ -165,7 +161,6 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@WrongHDPInfo		   = @WrongHDPInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 5 --Wrong 1st HDP
 	BEGIN
@@ -174,7 +169,6 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@Wrong1stHDPInfo	   = @Wrong1stHDPInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 6 --Wrong OU
 	BEGIN
@@ -183,7 +177,6 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@WrongOUInfo		   = @WrongOUInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 7 --Wrong 1st OU
 	BEGIN
@@ -192,7 +185,6 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@Wrong1stOUInfo	   = @Wrong1stOUInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId IN (8,9) --EKO,WKO
 	BEGIN
@@ -201,7 +193,6 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@KickOffInfo		   = @KickOffInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 10 --Red card
 	BEGIN
@@ -211,7 +202,6 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@DARCInfo			   = @RedCardInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 12 --Wrong Market Offered
 	BEGIN
@@ -220,8 +210,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
-			,@AdvancedModeInfo		   = @WrongMarketOfferedInfo
-			,@TransInfoJson		   = @TransInfoJson
+			,@AdvancedModeInfo	   = @WrongMarketOfferedInfo
 	END
 	ELSE IF @IssueTypeId IN (19,23) --ReducedOver, Abandoned
 	BEGIN
@@ -231,17 +220,15 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@ReducedOverInfo	   = @ReducedOverInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
-	ELSE IF @IssueTypeId = 21 --Not Participate (Use same SP with Reduced Over)
+	ELSE IF @IssueTypeId = 21 --Not Participate
 	BEGIN
-		EXEC dbo.TicketVoiding_LogInfo_RO_Select
+		EXEC dbo.TicketVoiding_LogInfo_NP_Select
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
-			,@ReducedOverInfo	   = @NotParticipateInfo
-			,@TransInfoJson		   = @TransInfoJson
+			,@NotParticipateInfo   = @NotParticipateInfo
 	END
 	ELSE IF @IssueTypeId = 24 --Technical Error
 	BEGIN
@@ -251,17 +238,15 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@AdvancedModeInfo		   = @TechnicalErrorInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
-	ELSE IF @IssueTypeId = 25 --wrong odds SB
+	ELSE IF @IssueTypeId = 25 --Wrong Odds SB
 	BEGIN
 		EXEC dbo.TicketVoiding_LogInfo_WOSB_Select
 			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
-			,@WrongOddsSBInfo		   = @WrongOddsSBInfo
-			,@TransInfoJson		   = @TransInfoJson
+			,@WrongOddsSBInfo	   = @WrongOddsSBInfo
 	END
 	ELSE IF @IssueTypeId = 26 --Wrong Offered Name
 	BEGIN
@@ -271,7 +256,6 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongOfferedNameInfo = @WrongOfferedNameInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 18 --Other Issues
 	BEGIN
@@ -281,7 +265,6 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@OtherIssuesInfo	   = @OtherIssuesInfo
-			,@TransInfoJson		   = @TransInfoJson
 	END
 	-- Write useraction log	
 	BEGIN TRY

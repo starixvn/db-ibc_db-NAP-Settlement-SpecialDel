@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_TVS_CheckingSubIssueTypeIdExcludeBettypes] ()
 RETURNS TABLE
 --WITH SCHEMABINDING
@@ -7,7 +7,7 @@ AS
 /*
     Created: 20211014@July
     Task: Checking SubIssueTypeId get exclude bettypes
-	 DB: DBCTG/bodb02
+	 DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
     Revisions:
 		- 20211014@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211207@Kathy: Remove 'with schemabinding' [Redmine:#164819 ]
@@ -15,6 +15,7 @@ AS
 		- 20220318@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 		- 20230112@July: Wrong Score - No need to exclude Home/Away bet types [Redmine: #182805]
 		- 20250228@Lani: TVS - Wrong Score - Add new sub type and related event function [Redmine: #216151]
+		- 20250311@July: Add alias server [Redmine: #217771]
 
     Parameters Explanation:    
 		IssueTypeId = 1 Danger Accepted
