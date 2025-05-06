@@ -38,6 +38,7 @@ AS
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240912@Max: [TVS] Display mark ticket result when Add/Edit request and remove AB Bet sub type [Redmine: #210388]
+		- 20250505@July: Display show mark ticket for case error request [Redmine: #219112]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -47,7 +48,6 @@ BEGIN
 			, @SubmittedDate DATETIME = GETDATE()
 			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			, @Session NVARCHAR(50) = CONVERT(NVARCHAR(50),NEWID())
-			, @strResult VARCHAR (MAX) = ''
 
 	SET @ID =  NEWID()
 	BEGIN TRY
@@ -332,11 +332,6 @@ BEGIN
 
 			SET @TransIds_SB = ''
 
-			SET @strResult = @strResult + ',' + STUFF((
-									SELECT ',' + CAST(t.TransId AS NVARCHAR(100))
-									FROM @MarkedTransactionDeleted AS t
-									FOR XML PATH('')
-									), 1, 1, '') 
 		END
 
 		IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
@@ -393,10 +388,9 @@ BEGIN
 	SELECT @ErrCode AS ErrorCode
 		 , @ErrMsg AS ErrorMsg
 
-	--2. Return table transId for TVS
-	SELECT DISTINCT value AS TransId
-	FROM string_split (@strResult, ',')
-	WHERE value <> ''
+	--2. Return table transId for TVS ( for case error request ex:lock match)
+	SELECT DISTINCT transId
+	FROM #transIds
 
 	-- Write Log
 	SET @xmlLog = CAST((
