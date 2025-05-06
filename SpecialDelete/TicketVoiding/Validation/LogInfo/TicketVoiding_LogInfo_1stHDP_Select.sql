@@ -1192,17 +1192,13 @@ BEGIN
 
 	END
 	
-	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(mt.TransId AS VARCHAR(50)) 
-											FROM @tmpUnmarkTransId mt
-											WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction m WITH (NOLOCK) WHERE mt.TransId = m.TransId)
-											FOR XML PATH('')), 1,1,'')
-											,'')
+	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM @tmpMarkTransId
+											FOR XML PATH('')), 1,1,''),'')
 
-	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(mt.TransId AS VARCHAR(50)) 
-										FROM @tmpMarkTransId mt
-										WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction m WITH (NOLOCK) WHERE mt.TransId = m.TransId)
-										FOR XML PATH('')), 1,1,'')
-										,'')
+	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM @tmpUnmarkTransId
+											FOR XML PATH('')), 1,1,''),'')
 	
 	/*****************Return table **************************/
 	-- 1. Validate table
