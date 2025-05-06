@@ -1,5 +1,5 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update 
+ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update
 (	
 	@TransIds        VARCHAR(MAX)  = NULL,
     @UserId          INT           = 0,
@@ -248,6 +248,12 @@ BEGIN
 				IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 				BEGIN	
 					SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+					
+					--2. Return table transId for TVS ( for case error request ex:lock match)
+					SELECT DISTINCT tmp.transId
+					FROM @tmpMarkTicketList tmp
+						INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON tmp.TransId = m.TransId
+
 					RETURN;		
 				END
 			END
@@ -267,12 +273,18 @@ BEGIN
 				BEGIN
 					SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 
+					--2. Return table transId for TVS ( for case error request ex:lock match)
+					SELECT DISTINCT tmp.transId
+					FROM @tmpMarkTicketList tmp
+						INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON tmp.TransId = m.TransId
+
 					-- releasing single process
 					EXEC dbo.NAP_Admin_CheckingProcess
 						@isExistMatch	= @IsExistSingle,
 						@IsExistFM		= @IsExistFM,
 						@IsExistFM2		= @IsExistFM2,
 						@IsReleased		= 1;
+					
 					RETURN;		
 				END
 
@@ -294,6 +306,12 @@ BEGIN
 			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
 			BEGIN
 				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+				
+				--2. Return table transId for TVS ( for case error request ex:lock match)
+				SELECT DISTINCT tmp.transId
+				FROM @tmpMarkTicketList tmp
+					INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON tmp.TransId = m.TransId
+				
 				RETURN;
 			END;
 		END
@@ -396,8 +414,10 @@ BEGIN
 		 , @ErrMsg AS ErrorMsg
 
 	--2. Return table transId for TVS ( for case error request ex:lock match)
-	SELECT DISTINCT transId
-	FROM @tmpMarkTicketList
+	SELECT DISTINCT tmp.transId
+	FROM @tmpMarkTicketList tmp
+		INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON tmp.TransId = m.TransId
+				
 
 	-- Write Log
 	SET @xmlLog = CAST((
