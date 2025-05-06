@@ -7,7 +7,7 @@
  
 USE bodb02
 GO
-CREATE NONCLUSTERED INDEX [IX_AutoRefundResult_TypeIdStatusId] ON [dbo].[AutoRefundResult] 
+CREATE NONCLUSTERED INDEX [IX_AutoRefundResult_StatusIdModifiedDate] ON [dbo].[AutoRefundResult] 
 (
-	  [TypeID],[StatusId]
+	  [StatusId],[ModifiedDate]
 )ON [DATA]

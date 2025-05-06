@@ -51,6 +51,6 @@ BEGIN
 			AND ar.StatusId = 0	
 			AND COALESCE(ms.[Enable],ss.[Enable],0) = 1		
 			AND ISNULL(m.SettlementStatus,0) & 87 = 0
-			AND ar.CreateDate <= DATEADD(SECOND, - COALESCE(ms.WaitingTime,ss.WaitingTime,1), @CurrTime)
+			AND ar.ModifiedDate <= DATEADD(SECOND, - COALESCE(ms.WaitingTime,ss.WaitingTime,1), @CurrTime)
 END
 GO
