@@ -225,7 +225,9 @@ BEGIN
 				, DELETED.IsCancelCashOut
 		INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID, IsCancelCO)
 		FROM #tmpTransInfo d
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid AND d.VoidFromTime = rd.VoidFromTime AND d.VoidToTime = rd.VoidToTime
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid 
+			AND d.VoidFromTime BETWEEN rd.VoidFromTime AND rd.VoidToTime
+			AND d.VoidToTime BETWEEN rd.VoidFromTime AND rd.VoidToTime
 		WHERE d.IsMixParlay = 0
 
 		IF @@ROWCOUNT < @topBatch BREAK
@@ -257,7 +259,9 @@ BEGIN
 			, DELETED.SiteDBGroupID
 		INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
 		FROM #tmpTransInfo d
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid AND d.VoidFromTime = rd.VoidFromTime AND d.VoidToTime = rd.VoidToTime
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid 
+				AND d.VoidFromTime BETWEEN rd.VoidFromTime AND rd.VoidToTime
+				AND d.VoidToTime BETWEEN rd.VoidFromTime AND rd.VoidToTime
 		WHERE d.IsMixParlay = 1
 
 		IF @@ROWCOUNT < @topBatch BREAK
