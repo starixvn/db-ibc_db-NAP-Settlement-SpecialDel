@@ -26,6 +26,8 @@ AS
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20250303@Lani: Add new decimal bettype of Basketball [Redmine:#217848]
+		- 20250507@Lani: [TVS] Adjust function f_Set_OddsTypeBettypes to prevent duplicate bet type error [Redmine: #226451]
+
     Parameters Explanation:    
 		- oddsType
 			+ 1: Decimal Odds
@@ -241,11 +243,6 @@ RETURN (
 		
 	UNION ALL SELECT 9088, 1
 
-	-- basketball
-	UNION ALL SELECT 601, 1
-	UNION ALL SELECT 602, 1
-	UNION ALL SELECT 608, 1
-	UNION ALL SELECT 614, 1
 	-- Basketball
 	UNION ALL SELECT 618, 1
 	UNION ALL SELECT 619, 1
