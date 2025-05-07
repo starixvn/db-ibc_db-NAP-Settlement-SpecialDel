@@ -107,6 +107,7 @@ BEGIN
 	WHERE s.RequestId = @RequestId 
 		AND ISNULL(IsCancelCO,0) = 0 
 		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
+		AND s.SiteDBGroupID = @SiteDBGroupID 
 
 	IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid AS d INNER JOIN dbo.bettrans14 AS b WITH (NOLOCK) ON b.transid = d.transid)
 	BEGIN 
