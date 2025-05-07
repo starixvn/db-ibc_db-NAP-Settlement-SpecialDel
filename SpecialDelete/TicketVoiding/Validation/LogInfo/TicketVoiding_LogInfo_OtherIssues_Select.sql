@@ -874,13 +874,13 @@ BEGIN
 	INSERT INTO #CTE_Ticket_Single (RequestId, MatchId, TransId, Bettype, IsCancelCO, RequestDetailId)
 	SELECT RequestId, MatchId, TransId, Bettype, IsCancelCO, RequestDetailId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
-	WHERE RequestId = @RequestId
+	WHERE RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID 
 	SET @cnt_s = @@ROWCOUNT
 
 	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId, RequestDetailId)
 	SELECT RequestId, MatchId, TransId, RequestDetailId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
-	WHERE RequestId = @RequestId
+	WHERE RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID 
 	SET @cnt_p = @@ROWCOUNT
 
 	IF @IsShowLogOnly = 0
