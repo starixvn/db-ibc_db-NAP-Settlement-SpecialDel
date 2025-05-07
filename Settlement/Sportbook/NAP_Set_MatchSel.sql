@@ -78,6 +78,7 @@ AS
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20231121@Aries: Deleted matches are still showed on settlement site [Redmine: #197070]
 		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
+		- 20250507@Aries: Sportsbook - Enhance UI on theCalculation Page, Multi - Sports page and change the Over Status filter on the Calculation Pop-up [Redmine:#225098]
 
  Param explanation: 
 	@LeagueIDs  : '0' :all  
@@ -847,9 +848,22 @@ BEGIN
 		,m.IsExistMarkedTicket
 		,m.EventStatusReason
 		,m.OfferLive
+	    ,ssRefund.EnabledAutoRefund  
+		,mRefund.EnabledAutoRefundMatch 
 	FROM	#matchList m
-		LEFT JOIN #tempmatch t 
-			ON	t.matchid = m.matchid				
+		LEFT JOIN #tempmatch t  ON	t.matchid = m.matchid
+		OUTER APPLY (
+			SELECT TOP 1 s1.[Enable] AS EnabledAutoRefund
+			FROM	DBPRO.bodb02.dbo.SettlementSetting s1 WITH (NOLOCK)
+			WHERE	s1.LeagueId = m.leagueid
+					AND s1.AutoType = 7
+		)ssRefund
+		OUTER APPLY (
+			SELECT TOP 1 m1.[Enable] AS EnabledAutoRefundMatch
+			FROM	DBPRO.bodb02.dbo.AutoPayoutSetting AS m1 WITH (NOLOCK)
+			WHERE	m.matchid = m1.matchid
+					AND m1.AutoType = 7
+		) mRefund					
 
 	SET @EndTime = GETDATE()
 	

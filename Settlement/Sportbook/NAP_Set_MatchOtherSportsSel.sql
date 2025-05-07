@@ -72,6 +72,7 @@ AS
 			- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 			- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 			- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
+			- 20250507@Aries: Sportsbook - Enhance UI on theCalculation Page, Multi - Sports page and change the Over Status filter on the Calculation Pop-up [Redmine:#225098]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -153,6 +154,7 @@ BEGIN
 		,ResultTable					TINYINT
 		,ExternalResultTable			TINYINT	
 		,AP_RetryTime					INT
+		,GameType 						TINYINT
 	)
 
 	BEGIN TRY
@@ -255,6 +257,7 @@ BEGIN
 			,ResultTable
 			,ExternalResultTable
 			,AP_RetryTime
+			,GameType
 		)
 		SELECT	 m.matchid
 				,m.ParentID
@@ -288,6 +291,7 @@ BEGIN
 				,s.ResultTable
 				,s.ExternalResultTable
 				,s.AP_RetryTime
+				,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -346,6 +350,7 @@ BEGIN
 			,ResultTable
 			,ExternalResultTable
 			,AP_RetryTime
+			,GameType
 		)
 		SELECT	 m.matchid
 				,m.ParentID
@@ -379,6 +384,7 @@ BEGIN
 				,s.ResultTable
 				,s.ExternalResultTable
 				,s.AP_RetryTime
+				,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes s
 				ON m.sporttype = s.Sporttype
@@ -634,6 +640,8 @@ BEGIN
 			,ISNULL(s2.WaitingTime, AP_RetryTime) AS AutoMainWaitingTime
 			,ISNULL(s2.EAR_WaitingTime, AP_RetryTime) AS AutoEarlyWaitingTime
 			,ISNULL(s4.WaitingTime, 0) AS RefundWaitingTime
+			,pr.HasProviderHT
+			,pr.HasProviderFT
 	FROM	#tmpMatchIds m
 		OUTER APPLY (
 			SELECT TOP 1 ss.WaitingTime
@@ -653,6 +661,40 @@ BEGIN
 			WHERE	s3.LeagueId = m.leagueid
 					AND AutoType = 7			
 		)s4
+		OUTER APPLY (
+			SELECT TOP 1 HasProviderHT,HasProviderFT
+			FROM (
+				SELECT MAX(IIF(p.ResourceId = '01',1,0)) AS HasProviderHT,MAX(IIF(p.ResourceId = '00',1,0)) HasProviderFT
+				FROM ProviderExternalResultDetail AS p  WITH(NOLOCK)
+					INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK) ON p.SourceId  = pgm.SourceId AND pgm.Sporttype = m.sporttype AND pgm.isActive = 1
+				WHERE p.matchID = m.matchID
+					AND p.ResourceId in ('00','01')
+					AND p.SourceID < 1001 
+					AND p.SourceID NOT IN (97,98,99,100)
+					AND ISNULL(p.IsLive,0) = 0
+				GROUP BY p.matchID
+				UNION ALL 
+				SELECT MAX(IIF(p.ResourceId = '01',1,0)) AS HasProviderHT,MAX(IIF(p.ResourceId = '00',1,0)) HasProviderFT
+				FROM ProviderExternalResultDetailOS AS p  WITH(NOLOCK)
+					INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK) ON p.SourceId  = pgm.SourceId AND pgm.Sporttype = m.sporttype AND pgm.isActive = 1
+				WHERE p.matchID = m.matchID
+					AND p.ResourceId in ('00','01')
+					AND p.SourceID < 1001 
+					AND p.SourceID NOT IN (97,98,99,100)
+					AND ISNULL(p.IsLive,0) = 0
+				GROUP BY p.matchID
+				UNION ALL 
+				SELECT MAX(IIF(p.ResourceId = '01',1,0)) AS HasProviderHT,MAX(IIF(p.ResourceId = '00',1,0)) HasProviderFT
+				FROM ProviderExternalResultDetailES AS p  WITH(NOLOCK)
+					INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK) ON p.SourceId  = pgm.SourceId AND pgm.Sporttype = m.sporttype AND pgm.isActive = 1 AND pgm.GameType = m.GameType
+				WHERE p.matchID = m.matchID
+					AND p.ResourceId in ('00','01')
+					AND p.SourceID < 1001 
+					AND p.SourceID NOT IN (97,98,99,100)
+					AND ISNULL(p.IsLive,0) = 0
+				GROUP BY p.matchID
+			) AS tbl
+ 		) AS pr
 
 	SELECT matchid, ResourceID, OverStatus
 	FROM @tmpMatchOverStatus 
