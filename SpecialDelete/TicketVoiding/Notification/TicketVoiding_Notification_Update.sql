@@ -109,7 +109,7 @@ BEGIN
 
             SELECT  @cnt_marked += COUNT(1)
             FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
-                INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
+                INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.MainTransId = m.TransId
             WHERE RequestId = @RequestId
 
             SET @Content = REPLACE(@Content, '@marked', CAST (@cnt_marked AS VARCHAR(10))) 
