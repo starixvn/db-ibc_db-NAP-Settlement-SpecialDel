@@ -1012,7 +1012,12 @@ BEGIN
 	FROM #TVSTicketBets
 	WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		AND ( sporttype IS NULL OR bettype = 500) /*charge comm*/
-			
+		
+	--Remove Invalid data
+	DELETE t
+	FROM #TVSTicketBets t
+	WHERE ISNULL(@MatchId,0) <> 0 AND t.matchid <> @MatchId
+
 	-- update username/creatorname column
 	UPDATE al
 		SET username = ci.username
