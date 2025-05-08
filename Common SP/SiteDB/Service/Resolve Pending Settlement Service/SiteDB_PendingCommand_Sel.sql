@@ -25,7 +25,7 @@ BEGIN
 	FROM SiteDB_PendingCommand WITH(NOLOCK)
 	WHERE SiteDBGroupID = @SiteDBGroupID 
 		AND StatusID = 0
-	ORDER BY pID DESC
+	ORDER BY pID ASC
 END
  
   
