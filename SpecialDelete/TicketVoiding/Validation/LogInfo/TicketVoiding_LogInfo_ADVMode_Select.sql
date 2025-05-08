@@ -1038,21 +1038,24 @@ BEGIN
 		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpUnmarkTransId
 
 		-- 5. Count detail group by bettype
-		SELECT DENSE_RANK() OVER (ORDER BY rd.Id ASC) AS Id
-		    ,bt.bettypeid
-			,bt.betid
-			,bt.TicketsCount
-			,t.typenamee AS originalBetTypeName
-			,bt.PlayerName
-		FROM #CTE_RequestDetail rd WITH (NOLOCK)
-			CROSS APPLY (
-				SELECT bettypeid AS bettypeid, betid AS betid , TicketsCount AS TicketsCount, PlayerName AS PlayerName
-				FROM OPENJSON(NULLIF(rd.TransIds,'')) 
-				WITH( BetTypeId SMALLINT, BetId NVARCHAR(50),  TicketsCount INT, PlayerName NVARCHAR(MAX))
-			)bt
-			INNER JOIN dbo.bettype t WITH (NOLOCK) ON t.typeid = bt.bettypeid
-		WHERE rd.RequestId = @RequestId
-		ORDER BY DENSE_RANK() OVER (ORDER BY rd.Id ASC), t.typenamee
+		IF @SiteDBGroupID = 0 
+		BEGIN
+			SELECT DENSE_RANK() OVER (ORDER BY rd.Id ASC) AS Id
+				,bt.bettypeid
+				,bt.betid
+				,bt.TicketsCount
+				,t.typenamee AS originalBetTypeName
+				,bt.PlayerName
+			FROM #CTE_RequestDetail rd WITH (NOLOCK)
+				CROSS APPLY (
+					SELECT bettypeid AS bettypeid, betid AS betid , TicketsCount AS TicketsCount, PlayerName AS PlayerName
+					FROM OPENJSON(NULLIF(rd.TransIds,'')) 
+					WITH( BetTypeId SMALLINT, BetId NVARCHAR(50),  TicketsCount INT, PlayerName NVARCHAR(MAX))
+				)bt
+				INNER JOIN dbo.bettype t WITH (NOLOCK) ON t.typeid = bt.bettypeid
+			WHERE rd.RequestId = @RequestId
+			ORDER BY DENSE_RANK() OVER (ORDER BY rd.Id ASC), t.typenamee
+		END
 
 		RETURN;
 	END
