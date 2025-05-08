@@ -55,6 +55,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @tmpUpdatedMatches TABLE (matchid INT)
+	DECLARE @tmpMissingMatches TABLE (matchid INT)
 
 	IF @Action = 'Delete'
 	BEGIN
@@ -120,26 +121,60 @@ BEGIN
 				AND AutoType = @AutoType
 	END
 
+	INSERT INTO @tmpMissingMatches (matchid)
+		SELECT m.matchid
+				FROM match AS m WITH(NOLOCK)
+					LEFT JOIN dbo.AutoPayoutSetting ms WITH (NOLOCK) ON ms.matchid = m.matchid
+				WHERE m.leagueId = @LeagueId
+					AND ms.MatchId IS NULL
+					AND m.eventstatus = 'running'
+
 	IF @IsApplyAll = 1 AND @AutoType = 7
 	BEGIN
-		INSERT INTO @tmpUpdatedMatches(MatchId)
-		SELECT ms.MatchId
-		FROM dbo.AutoPayoutSetting AS ms WITH(NOLOCK)  
-			INNER JOIN match AS m WITH(NOLOCK)  ON ms.matchid = m.matchid
-		WHERE m.leagueID = @LeagueId
-			AND ms.AutoType = 7
-			AND ISNULL(ms.[Enable],0) != @Enable
-			AND m.eventstatus =  'running'
+		IF EXISTS (SELECT 1 FROM @tmpMissingMatches)
+		BEGIN
+			INSERT INTO dbo.AutoPayoutSetting (MatchId, AutoType, CreatedDate, RepUpdateTime)
+			SELECT m.matchid, @AutoType, SYSDATETIME(), SYSDATETIME()
+			FROM @tmpMissingMatches m
 
-		UPDATE ms
-		SET ms.[Enable] = @Enable
-		FROM dbo.AutoPayoutSetting  AS ms WITH(UPDLOCK, ROWLOCK)
-		WHERE ms.matchid IN (SELECT um.matchid FROM @tmpUpdatedMatches as um)
+		------------------------------------------------------------------------------------------
 
-		SELECT @UpdatedMatchIDs =  CAST(matchID AS VARCHAR) + ',' + @UpdatedMatchIDs
-		FROM @tmpUpdatedMatches
+			INSERT INTO @tmpUpdatedMatches(MatchId)
+			SELECT ms.MatchId
+			FROM dbo.AutoPayoutSetting AS ms WITH(NOLOCK)  
+				INNER JOIN match AS m WITH(NOLOCK)  ON ms.matchid = m.matchid
+			WHERE m.leagueID = @LeagueId
+				AND ms.AutoType = 7
+				AND ISNULL(ms.[Enable],0) != @Enable
+				AND m.eventstatus =  'running'
+
+			UPDATE ms
+			SET ms.[Enable] = @Enable
+			FROM dbo.AutoPayoutSetting  AS ms WITH(UPDLOCK, ROWLOCK)
+			WHERE ms.matchid IN (SELECT um.matchid FROM @tmpUpdatedMatches as um)
+
+			SELECT @UpdatedMatchIDs =  CAST(matchID AS VARCHAR) + ',' + @UpdatedMatchIDs
+			FROM @tmpUpdatedMatches
+		END
+	ELSE
+		BEGIN
+			INSERT INTO @tmpUpdatedMatches(MatchId)
+			SELECT ms.MatchId
+			FROM dbo.AutoPayoutSetting AS ms WITH(NOLOCK)
+				INNER JOIN match AS m WITH(NOLOCK)  ON ms.matchid = m.matchid
+			WHERE m.leagueID = @LeagueId
+				AND ms.AutoType = 7
+				AND ISNULL(ms.[Enable],0) != @Enable
+				AND m.eventstatus =  'running'
+
+			UPDATE ms
+			SET ms.[Enable] = @Enable
+			FROM dbo.AutoPayoutSetting  AS ms WITH(UPDLOCK, ROWLOCK)
+			WHERE ms.matchid IN (SELECT um.matchid FROM @tmpUpdatedMatches as um)
+
+			SELECT @UpdatedMatchIDs =  CAST(matchID AS VARCHAR) + ',' + @UpdatedMatchIDs
+			FROM @tmpUpdatedMatches
+		END
 	END
-
-
 END
 GO
