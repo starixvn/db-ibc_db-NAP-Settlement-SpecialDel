@@ -76,6 +76,8 @@ AS
 			- 20250528@Aries: Fix an issue due to showing "Provider Ready" at the HT and FT columns after settlement [Redmine:#228964]
 			- 20250610@Aries: Enhance the the "Provider Ready" functions for minor sports on the Settlement Site [Redmine:#230143]
 			
+			- 20250507@Aries: Enhance the performance for the Multi-sport Page [Redmine:#223959]
+
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -119,7 +121,7 @@ BEGIN
 	DECLARE @tmpHoldStatus  TABLE (HoldStatus TINYINT)
 	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, ResourceID VARCHAR(20), OverStatus INT DEFAULT(0) )
 	DECLARE @tmpMainResult TABLE ( ResourceID VARCHAR(20) )
-	DECLARE @tmpAllParentChildMatch TABLE(MatchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON), ParentId INT, eventstatus NVARCHAR(50))
+	DECLARE @tmpAllParentChildMatch TABLE(MatchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),sporttype SMALLINT, ParentId INT, eventstatus NVARCHAR(50))
 
 	CREATE TABLE #ConfirmedResources ( MatchId INT, ResourceId VARCHAR(20), ResultStatusID TINYINT, OverStatus TINYINT )
 
@@ -463,8 +465,8 @@ BEGIN
 
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatchIds WHERE Sporttype IN (50, 8) AND ISNULL(childmatchtype,0) <> 200 )
 	BEGIN
-		INSERT INTO @tmpAllParentChildMatch (MatchId, ParentId, eventstatus)
-		SELECT	DISTINCT m.matchid, m.ParentId,  t.eventstatus
+		INSERT INTO @tmpAllParentChildMatch (MatchId, ParentId,sporttype, eventstatus)
+		SELECT	DISTINCT m.matchid, m.ParentId, t.sporttype, t.eventstatus
 		FROM	#tmpMatchIds AS t
 			CROSS APPLY (
 				SELECT	m.matchid, m.ParentId
@@ -477,8 +479,8 @@ BEGIN
 
 	IF @IsOver = 1 AND ISNULL(@MatchCode,'') = ''
 	BEGIN
-		INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
-		SELECT m.MatchId, 3
+		INSERT INTO @tmpMatchOverStatus (matchid,OverStatus)
+		SELECT m.MatchId,3
 		FROM #tmpMatchIds m
 		WHERE 	ISNULL(m.IsCalculated,0) = 0 
 				AND ISNULL(m.IsCalRefund,0) = 0
@@ -535,8 +537,8 @@ BEGIN
 			FROM #tmpMatchIds m
 				CROSS APPLY (	SELECT r.ResourceID FROM  ( VALUES('00'),('01')) r(ResourceID)
 								WHERE (	
-										r.ResourceID = '00' AND m.ConfirmHT > 0)
-										OR (r.ResourceID = '01' AND m.ConfirmFT > 0
+										r.ResourceID = '01' AND m.ConfirmHT > 0)
+										OR (r.ResourceID = '00' AND m.ConfirmFT > 0
 									   ) 
 							) r
 			WHERE 1 = CASE WHEN m.eventstatus <> 'Completed'
@@ -558,7 +560,7 @@ BEGIN
 	END
 
 	--ESports: special behavior for filter Over #204370
-	IF  ISNULL(@MatchCode,'') = ''  AND (@OverStatus = '0' OR ((@IsOverEarly = 1 OR @IsMainOver = 1)  AND EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE sporttype = 43) ))
+	IF  ISNULL(@MatchCode,'') = ''  AND ((@IsOverEarly = 1 OR @IsMainOver = 1)  AND EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE sporttype = 43))
 	BEGIN
 		DECLARE @MatchInvalid TABLE(MatchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON))
 
@@ -570,7 +572,7 @@ BEGIN
 			INNER JOIN dbo.ResultDetailES AS r WITH(NOLOCK) ON m.matchid = r.MatchId
 			LEFT JOIN @tmpMainResult mr ON r.ResourceId = mr.ResourceID
 		WHERE m.sporttype = 43
-			AND 1 =  CASE WHEN ( @IsOverEarly = 1 OR @OverStatus = '0' ) AND  mr.ResourceID IS NULL THEN 1 
+			AND 1 =  CASE WHEN @IsOverEarly = 1 AND  mr.ResourceID IS NULL THEN 1 
 						  WHEN @IsMainOver = 1 AND m.eventstatus <> 'Completed' THEN 1
 						  ELSE 0
 						  END
@@ -712,7 +714,7 @@ BEGIN
 	SELECT matchid, ResourceID, OverStatus
 	FROM @tmpMatchOverStatus 
 
-	SELECT MatchId, ParentId, eventstatus
+	SELECT MatchId, ParentId, SportType, eventstatus
 	FROM @tmpAllParentChildMatch
 
 	DROP TABLE #ConfirmedResources
