@@ -25,6 +25,7 @@ AS
 		- 20241007@July: TVS - Wrong Odds - Wrongly converting odds to search ticket [Redmine: #211890]
 		- 20241211@July: TVS - Wrong Odds - Display tickets in the allowance odds ranges AND Add column GroupName [Redmine: #214196]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 
 	Param's explanation:
 		+ @WrongOddsInfo:

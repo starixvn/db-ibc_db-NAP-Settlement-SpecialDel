@@ -30,6 +30,7 @@ AS
 		- 20241216@Lani: [TVS] Add 'GroupName' columns returned [Redmine: #213960]
 		- 20250102@Lani: [TVS] Add new filter (FilterBetTypeId, FilterBetIdX, FilterBetIdY) [Redmine: #215545]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 
 	Param's explanation:
 		+ @WrongHDPInfo:

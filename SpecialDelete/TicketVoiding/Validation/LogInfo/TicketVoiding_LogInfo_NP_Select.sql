@@ -15,6 +15,7 @@ AS
       
     Revisions:      
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 
 	Param's explanation:	
 		- @NotParticipateInfo: 

@@ -17,6 +17,7 @@ AS
 		- 20240916@Max: Create new SP [Redmine:#186029]
 		- 20241216@Lani: Add 'GroupName' column returned [Redmine: #213960]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		
 	Param's explanation:
 		

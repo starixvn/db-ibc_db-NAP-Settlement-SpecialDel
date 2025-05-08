@@ -17,6 +17,7 @@ AS
 		- 20240925@July: Create new SP [Redmine:#179934]
 		- 20241126@Lani: Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 
 	Param's explanation:	
 		- @WrongOfferedNameInfo: <root><r MatchId="" @CurrencyIds="" LicenseeNames="" /></root>

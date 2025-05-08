@@ -21,6 +21,7 @@ AS
 		- 20241025@July: [TVS] Add new Advanced Mode for TVS - [Redmine: #212394]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250507@July: Wrong Market Offered show wrong log info [Redmine: #226513]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>

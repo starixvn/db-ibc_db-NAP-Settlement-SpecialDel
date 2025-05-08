@@ -31,6 +31,7 @@ AS
 		- 20240819@July: Add more info for users to add requests with correct issue type [Redmine: #208659]
 		- 20240102@July: [TVS] Display a note for Min TransId of cash out ticket [Redmine: #185495]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
