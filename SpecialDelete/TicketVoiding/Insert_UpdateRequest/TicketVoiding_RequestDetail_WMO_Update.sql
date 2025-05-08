@@ -21,6 +21,7 @@ AS
 		- 20241025@July: [TVS] Add new Advanced Mode for TVS - [Redmine: #212394]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250507@July: Wrong Market Offered show wrong log info [Redmine: #226513]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -225,7 +226,9 @@ BEGIN
 				, DELETED.IsCancelCashOut
 		INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID, IsCancelCO)
 		FROM #tmpTransInfo d
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid AND d.VoidFromTime = rd.VoidFromTime AND d.VoidToTime = rd.VoidToTime
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid 
+			AND d.VoidFromTime BETWEEN rd.VoidFromTime AND rd.VoidToTime
+			AND d.VoidToTime BETWEEN rd.VoidFromTime AND rd.VoidToTime
 		WHERE d.IsMixParlay = 0
 
 		IF @@ROWCOUNT < @topBatch BREAK
@@ -257,7 +260,9 @@ BEGIN
 			, DELETED.SiteDBGroupID
 		INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
 		FROM #tmpTransInfo d
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid AND d.VoidFromTime = rd.VoidFromTime AND d.VoidToTime = rd.VoidToTime
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid 
+				AND d.VoidFromTime BETWEEN rd.VoidFromTime AND rd.VoidToTime
+				AND d.VoidToTime BETWEEN rd.VoidFromTime AND rd.VoidToTime
 		WHERE d.IsMixParlay = 1
 
 		IF @@ROWCOUNT < @topBatch BREAK

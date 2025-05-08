@@ -17,6 +17,7 @@ AS
 		- 20240916@Max: Create new SP [Redmine:#186029]
 		- 20241216@Lani: Add 'GroupName' column returned [Redmine: #213960]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		
 	Param's explanation:
 		
@@ -1070,13 +1071,13 @@ BEGIN
 	INSERT INTO #CTE_Ticket_Single (RequestId, MatchId, TransId, Bettype, IsCancelCO, RequestDetailId)
 	SELECT RequestId, MatchId, TransId, Bettype, IsCancelCO, RequestDetailId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
-	WHERE RequestId = @RequestId
+	WHERE RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID 
 	SET @cnt_s = @@ROWCOUNT
 
 	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId, RequestDetailId)
 	SELECT RequestId, MatchId, TransId, RequestDetailId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
-	WHERE RequestId = @RequestId
+	WHERE RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID 
 	SET @cnt_p = @@ROWCOUNT
 
 

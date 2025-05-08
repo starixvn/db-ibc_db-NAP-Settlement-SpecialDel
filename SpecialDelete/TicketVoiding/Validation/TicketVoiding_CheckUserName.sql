@@ -45,6 +45,7 @@ AS
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' [Redmine: #213451]
 		- 20241224@July: [TVS] Abnormal Account - Enhance Auto Void (Instant with Policy) [Redmine: #214444]
 		- 20250311@Max: [TVS] Enhance the Auto Void flow (Instant with Policy) of Abnormal Account  [#Redmine: #217979]
+		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 
 	Param's Explanation:
 */
@@ -746,7 +747,7 @@ BEGIN
 			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #tmpTransInfo tp WHERE rdt.TransId = tp.transid)
-												AND rdt.RequestId = @RequestId
+												AND rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
 												AND rdt.bettype NOT IN (9,29,10)
 											FOR XML PATH('')), 1,1,'')
 											,'')
@@ -773,7 +774,7 @@ BEGIN
 		BEGIN
 			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CONVERT(VARCHAR(50), rdt.transid)
 											FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE rdt.RequestId = @RequestId
+											WHERE rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
 												AND rdt.bettype NOT IN (9,29,10)
 											FOR XML PATH('')), 1, 1, '')
 										,'')

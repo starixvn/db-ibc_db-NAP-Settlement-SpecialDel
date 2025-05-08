@@ -25,6 +25,7 @@ AS
 		- 20241007@July: TVS - Wrong Odds - Wrongly converting odds to search ticket [Redmine: #211890]
 		- 20241211@July: TVS - Wrong Odds - Display tickets in the allowance odds ranges AND Add column GroupName [Redmine: #214196]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 
 	Param's explanation:
 		+ @WrongOddsInfo:
@@ -1010,13 +1011,13 @@ BEGIN
 	INSERT INTO #CTE_Ticket_Single (RequestId, MatchId, TransId, Bettype, SubIssueTypeId)
 	SELECT RequestId, MatchId, TransId, Bettype, SubIssueTypeId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
-	WHERE RequestId = @RequestId
+	WHERE RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID 
 	SET @cnt_s = @@ROWCOUNT
 
 	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId)
 	SELECT RequestId, MatchId, TransId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
-	WHERE RequestId = @RequestId
+	WHERE RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID 
 	SET @cnt_p = @@ROWCOUNT
 
 	IF @IsShowLogOnly = 0
