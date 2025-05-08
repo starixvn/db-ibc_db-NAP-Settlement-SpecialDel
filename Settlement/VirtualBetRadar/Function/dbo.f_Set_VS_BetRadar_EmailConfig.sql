@@ -25,6 +25,7 @@ AS
 		- 20231002@Louisa: Add email csd.one1@enpine.com for Deposite, Remove: csoneonone@enpine.com [Redmine: #194949]
 		- 20231016@Aries: SIT env: remove mail  [Redmine:#195333]
 		- 20240710@Kathy: Change instance name [Redmine:#207768]
+		- 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
 
 	Columns Explanation:    
     
@@ -165,6 +166,13 @@ RETURN (
 			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
 			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
 			, 'DBTRANS'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'lena.huynh@starixsoft.com;it@starixsoft.com;dbaadmin@starixsoft.com'
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
+			, 'DBTRANS\INST2'
 			, 'PROD'
 
 		UNION ALL 
@@ -309,6 +317,12 @@ RETURN (
 		SELECT 'ERROR'
 			, 'lena.huynh@starixsoft.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixsoft.com;dbaadmin@starixsoft.com;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'DBTRANS'
+			, 'PROD'
+
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'lena.huynh@starixsoft.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixsoft.com;dbaadmin@starixsoft.com;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'DBTRANS\INST2'
 			, 'PROD'
 
 		UNION ALL 

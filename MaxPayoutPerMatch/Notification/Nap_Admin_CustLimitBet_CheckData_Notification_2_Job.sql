@@ -11,7 +11,7 @@ AS
     DB: DBSIG-bodb02
     Revisions:
 		- 20240610@Helen: Support check data for Max Payout Per Match setting - New Rule - New Job
-
+		- 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
 	Param's explanation:		
 		
 */
@@ -23,7 +23,7 @@ BEGIN
 			,@Body			NVARCHAR(MAX)	= ''
 			,@Recipients	VARCHAR(MAX)	= ''	
 	
-	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%'
+	IF @@SERVERNAME IN ('DBTRANS', 'DBTRANS\INST2') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%'
 	BEGIN
 		SET @Recipients = 'dbaadmin@starixsoft.com;member_core@onelab.tw;steve.liao@onelab.tw;infinity_product@onelab.tw;infinity_service@onelab.tw'
 	END
@@ -54,7 +54,7 @@ BEGIN
 				,@profile_name =DEFAULT;
 
 		-- send letstalk
-		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
+		IF @@SERVERNAME IN ('DBTRANS', 'DBTRANS\INST2') OR @@SERVERNAME LIKE 'DBGRP%' 
 		BEGIN
 		EXECUTE  DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
 				  , @JobId = NULL
