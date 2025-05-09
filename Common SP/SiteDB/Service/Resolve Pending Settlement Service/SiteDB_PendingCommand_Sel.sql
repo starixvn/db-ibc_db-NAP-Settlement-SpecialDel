@@ -22,6 +22,8 @@ BEGIN
 		,SPName
 		,Parameter
 		,SystemName
+		,AdminID
+		,Action
 	FROM SiteDB_PendingCommand WITH(NOLOCK)
 	WHERE SiteDBGroupID = @SiteDBGroupID 
 		AND StatusID = 0
