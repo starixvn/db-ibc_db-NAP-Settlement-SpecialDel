@@ -124,12 +124,13 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpUpdatedMatches(MatchId, IsMissing)
 		SELECT m.MatchId
-				,MAX(CASE WHEN ms.MatchId IS NULL THEN 1 ELSE 0 END) AS IsMissing
+				,CASE WHEN ms.MatchId IS NULL THEN 1 ELSE 0 END AS IsMissing
 		FROM match AS m WITH(NOLOCK)
 			LEFT JOIN dbo.AutoPayoutSetting AS ms WITH(NOLOCK) ON ms.matchid = m.matchid
 		WHERE m.leagueID = @LeagueId
 			AND m.eventstatus = 'running'
-		GROUP BY m.matchid
+			AND ms.AutoType = 7
+
 		IF EXISTS (SELECT 1 FROM @tmpUpdatedMatches WHERE IsMissing = 1)
 		BEGIN
 			INSERT INTO dbo.AutoPayoutSetting (MatchId, AutoType, CreatedDate, RepUpdateTime)
@@ -137,16 +138,16 @@ BEGIN
 			FROM @tmpUpdatedMatches m
 			WHERE IsMissing = 1
 		END
-	END
-	UPDATE ms
+
+		UPDATE ms
 		SET ms.[Enable] = @Enable
 		FROM dbo.AutoPayoutSetting AS ms WITH(UPDLOCK, ROWLOCK)
 		WHERE ms.matchid IN (SELECT um.matchid FROM @tmpUpdatedMatches as um)
 		AND ms.AutoType = 7
 		AND ISNULL(ms.[Enable],0) <> @Enable
  
-	SELECT @UpdatedMatchIDs =  CAST(matchID AS VARCHAR) + ',' + @UpdatedMatchIDs
-	FROM @tmpUpdatedMatches
-	
+		SELECT @UpdatedMatchIDs =  CAST(matchID AS VARCHAR) + ',' + @UpdatedMatchIDs
+		FROM @tmpUpdatedMatches
+	END
 END
 GO
