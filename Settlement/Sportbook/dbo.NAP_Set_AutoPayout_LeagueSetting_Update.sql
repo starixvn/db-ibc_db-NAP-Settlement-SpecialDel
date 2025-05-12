@@ -127,10 +127,9 @@ BEGIN
 		SELECT m.MatchId
 				,CASE WHEN ms.MatchId IS NULL THEN 1 ELSE 0 END AS IsMissing
 		FROM match AS m WITH(NOLOCK)
-			LEFT JOIN dbo.AutoPayoutSetting AS ms WITH(NOLOCK) ON ms.matchid = m.matchid
+			LEFT JOIN dbo.AutoPayoutSetting AS ms WITH(NOLOCK) ON ms.matchid = m.matchid AND ms.AutoType = 7
 		WHERE m.leagueID = @LeagueId
 			AND m.eventstatus = 'running'
-			AND ms.AutoType = 7
 
 		IF EXISTS (SELECT 1 FROM @tmpUpdatedMatches WHERE IsMissing = 1)
 		BEGIN
