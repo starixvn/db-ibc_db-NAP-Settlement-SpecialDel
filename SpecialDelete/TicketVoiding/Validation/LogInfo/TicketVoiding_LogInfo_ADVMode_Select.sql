@@ -1060,9 +1060,7 @@ BEGIN
 
 		RETURN;
 	END
-
 	
-
 	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
 	FROM @Validation v
 	OUTER APPLY( 
@@ -1131,52 +1129,6 @@ BEGIN
 	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM @tmpUnmarkTransId
 											FOR XML PATH('')), 1,1,''),'')
-
-	--For case no ticket valid
-	SELECT @SingleCount = ISNULL(SUM(SingleCount),0)
-		,@MainParlayCount = ISNULL(SUM(MainParlayCount),0)
-	FROM #logInfo
-
-	IF @SingleCount = 0 AND @MainParlayCount = 0
-	BEGIN
-		-- 1. Validate table
-		SELECT Id
-			 , MatchId
-			 , 1 AS IsInValidTotalTickets
-			 , IsExistedInOtherRequest
-		FROM @Validation
-
-		-- 2. TransId in request table
-		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
-		BEGIN
-			SELECT r.Id, RequestId,
-				STUFF((
-				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId AND Id = r.Id)
-				ORDER BY TransId
-				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-				,1,2,'') AS TransIds
-				,MatchId
-				,c.username AS CreatedBy
-			FROM #TransidInRequest r
-				INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
-			GROUP BY r.Id, r.RequestId, r.MatchId, c.username
-		END
-		ELSE
-		BEGIN
-			SELECT Id, RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
-			FROM #TransidInRequest 
-		END
-			
-		-- 3. Loginfo table (No need -> return table)
-		SELECT MatchId FROM #logInfo WHERE Matchid IS NULL
-
-		-- 4. Unmark/Transinfo table (For case edit request unmark ticket each sitedb)
-		SELECT @MarkTransIds AS MarkTransIds, @UnmarkTransIds AS UnmarkTransIds, @TransInfoJson AS TransInfoJson
-
-		RETURN;
-	END
 
 	/*****************Return table **************************/
 	-- 1. Validate table

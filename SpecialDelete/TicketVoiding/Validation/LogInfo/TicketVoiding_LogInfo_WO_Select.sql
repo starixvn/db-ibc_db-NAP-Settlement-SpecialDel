@@ -1234,6 +1234,16 @@ BEGIN
 
 		RETURN;
 	END
+	
+	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
+	FROM @Validation v
+	OUTER APPLY( 
+			SELECT ISNULL(SUM(SingleCount),0)+ ISNULL(SUM(PoolHouseSingleCount),0) AS SingleCount
+				,ISNULL(SUM(MainParlayCount),0) + ISNULL(SUM(PoolHouseMainParlayCount),0) AS MainParlayCount
+			FROM #logInfo
+			WHERE MatchId = v.MatchId
+			GROUP BY MatchId
+		)l
 
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
@@ -1292,49 +1302,6 @@ BEGIN
 	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM @tmpUnmarkTransId
 											FOR XML PATH('')), 1,1,''),'')
-
-	--For case no ticket valid
-	SELECT @SingleCount = ISNULL(SUM(SingleCount),0) + ISNULL(SUM(PoolHouseSingleCount),0)
-		  ,@MainParlayCount = ISNULL(SUM(MainParlayCount),0) + ISNULL(SUM(PoolHouseMainParlayCount),0)
-	FROM #logInfo
-	IF @SingleCount = 0 AND @MainParlayCount = 0
-	BEGIN
-		-- 1. Validate table
-		SELECT MatchId
-			, 1 AS IsInValidTotalTickets
-			, IsExistedInOtherRequest
-			, IsPoolHouseAffected
-		FROM @Validation
-
-		-- 2. TransId in request table
-		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
-		BEGIN
-			SELECT RequestId,
-				STUFF((
-				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-				ORDER BY TransId
-				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-				,1,2,'') AS TransIds
-				,MatchId
-			FROM #TransidInRequest r
-			GROUP BY r.RequestId, r.MatchId
-		END
-		ELSE
-		BEGIN
-			SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
-			FROM #TransidInRequest 
-		END
-			
-		-- 3. Loginfo table (No need -> return table)
-		SELECT MatchId FROM #logInfo WHERE Matchid IS NULL
-
-		-- 4. Unmark/Transinfo table (For case edit request unmark ticket each sitedb)
-		SELECT @MarkTransIds AS MarkTransIds, @UnmarkTransIds AS UnmarkTransIds, @TransInfoJson AS TransInfoJson
-
-		RETURN;
-	END
 
 	/*****************Return table **************************/
 	-- 1. Validate table
