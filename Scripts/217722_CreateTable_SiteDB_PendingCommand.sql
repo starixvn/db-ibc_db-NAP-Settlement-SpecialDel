@@ -16,7 +16,7 @@ CREATE TABLE SiteDB_PendingCommand (
 	SPName			VARCHAR(100)	NOT NULL,
 	Parameter		VARCHAR (MAX)	NOT NULL,
     Action			VARCHAR(20)		NULL,   ---NAP_Admin_Settlement_s161_Manual does not have action
-    IP				VARCHAR(15)	NOT NULL,
+    IP				VARCHAR(15)		NULL,
     AdminID			INT				NOT NULL,
     SystemName		VARCHAR(50)		NULL,
     SiteDBGroupID	SMALLINT		NOT NULL,
