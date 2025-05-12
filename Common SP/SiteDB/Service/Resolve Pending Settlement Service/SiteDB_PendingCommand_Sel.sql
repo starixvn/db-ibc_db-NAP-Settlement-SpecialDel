@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.SiteDB_PendingCommand_Sel
-    @SiteDBGroupID TINYINT
+    @SiteDBGroupID SMALLINT
 	,@batch SMALLINT
 AS
 /*	

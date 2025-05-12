@@ -19,7 +19,7 @@ CREATE TABLE SiteDB_PendingCommand (
     IP				NVARCHAR(15)	NOT NULL,
     AdminID			INT				NOT NULL,
     SystemName		VARCHAR(50)		NULL,
-    SiteDBGroupID	TINYINT			NOT NULL,
+    SiteDBGroupID	SMALLINT		NOT NULL,
     StatusID		TINYINT			NOT NULL,
 	CreateDate		DATETIME		NOT NULL,
 	RepUpdateTime	DATETIME2		NOT NULL

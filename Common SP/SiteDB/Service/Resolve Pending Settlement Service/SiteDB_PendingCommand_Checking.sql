@@ -1,7 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE  SiteDB_PendingCommand_Checking
 	@matchid		INT
-	,@SiteDBGroupID TINYINT
+	,@SiteDBGroupID SMALLINT
 	,@ErrCode		INT				= 0  OUTPUT
 	,@ErrMsg		NVARCHAR(200)	= '' OUTPUT
 AS

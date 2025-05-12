@@ -5,7 +5,7 @@ ALTER PROCEDURE dbo.SiteDB_PendingCommand_Ins
 	,@Action		VARCHAR(10)		= NULL
     ,@SPName		VARCHAR(100)
 	,@Parameter		VARCHAR(MAX) 
-    ,@SiteDBGroupID TINYINT
+    ,@SiteDBGroupID SMALLINT
     ,@AdminID		INT				= 0
     ,@IP			NVARCHAR(15)	= ''
     ,@SystemName	VARCHAR(50)		= ''
