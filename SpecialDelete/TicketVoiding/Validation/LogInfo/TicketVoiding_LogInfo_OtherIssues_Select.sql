@@ -862,7 +862,7 @@ BEGIN
 	GROUP BY b.matchid
 
 	CREATE TABLE #CTE_RequestDetail (RequestId INT, MatchId INT, Sporttype SMALLINT, TransIds VARCHAR(MAX), IssueDetail NVARCHAR(MAX), VoidFromTime DATETIME, VoidToTime DATETIME, SingleCount INT, MainParlayCount INT, ActionId TINYINT, Id INT)
-	CREATE TABLE #CTE_Ticket_Single (RequestId INT, MatchId INT, TransId BIGINT, Bettype SMALLINT, IsCancelCO BIT, RequestDetailId INT)
+	CREATE TABLE #CTE_Ticket_Single (RequestId INT, MatchId INT, TransId BIGINT, Bettype SMALLINT, RequestDetailId INT)
 	CREATE TABLE #CTE_Ticket_SubParlay (RequestId INT, MatchId INT, TransId BIGINT, RequestDetailId INT)
 
 	DECLARE @cnt_s INT , @cnt_p INT	
@@ -873,8 +873,8 @@ BEGIN
 		INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 	WHERE rd.RequestId = @RequestId
 
-	INSERT INTO #CTE_Ticket_Single (RequestId, MatchId, TransId, Bettype, IsCancelCO, RequestDetailId)
-	SELECT RequestId, MatchId, TransId, Bettype, IsCancelCO, RequestDetailId
+	INSERT INTO #CTE_Ticket_Single (RequestId, MatchId, TransId, Bettype, RequestDetailId)
+	SELECT RequestId, MatchId, TransId, Bettype, RequestDetailId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
 	WHERE RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID 
 	SET @cnt_s = @@ROWCOUNT

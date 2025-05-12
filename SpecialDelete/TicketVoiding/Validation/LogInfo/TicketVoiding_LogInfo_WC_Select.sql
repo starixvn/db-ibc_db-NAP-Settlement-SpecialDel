@@ -1195,7 +1195,7 @@ BEGIN
 				FROM #CTE_Ticket_Single s WITH (NOLOCK)
 					INNER JOIN #tmpTransInfo b ON b.transid = s.TransId AND b.IsMixParlay = 0
 					INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
-				WHERE f.GroupName <> '2H'
+				WHERE f.GroupName <> '2H' AND ISNULL(s.IsCancelCO,0) = 0 --Exclude cancel CO
 			END
 
 			IF @cnt_p > 0
