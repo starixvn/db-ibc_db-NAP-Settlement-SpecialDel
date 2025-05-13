@@ -1508,12 +1508,11 @@ BEGIN
 			,custid AS  'c'           
 			,bettype AS 'btype'
 			,betid AS 'bid'
-			,CAST (li.ScoreId AS VARCHAR(20)) AS 'ScoreId'
+			,CAST (t.ScoreId AS VARCHAR(20)) AS 'ScoreId'
 			,IsMixParlay AS 'isP'
 			,SiteDBGroupID AS 'sitedb'
 			,IsCancelCashOut AS 'isCCO'
 		FROM #TVSTicketBets t
-			INNER JOIN #logInfo li ON li.MatchId = t.matchid
 		FOR JSON PATH))
 		
 		SELECT @UnmarkTransIds AS UnmarkTransIds
