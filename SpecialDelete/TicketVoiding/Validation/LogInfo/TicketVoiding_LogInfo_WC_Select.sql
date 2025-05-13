@@ -1144,7 +1144,7 @@ BEGIN
 
 			-- 3.Loginfo table
 			SELECT rd.MatchId
-				,CASE WHEN @SiteDBGroupID = 0 THEN CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) ELSE NULL END AS LiveScores
+				,CASE WHEN @SiteDBGroupID = 0 THEN SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) ELSE NULL END AS LiveScores
 				,CASE WHEN @SiteDBGroupID = 0 THEN rd.IssueDetail ELSE NULL END AS ActualScore
 			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
@@ -1161,7 +1161,7 @@ BEGIN
 				,a.ActionType
 			FROM #CTE_RequestDetail rd WITH (NOLOCK)
 				CROSS APPLY (
-						SELECT CASE WHEN @SiteDBGroupID = 0 THEN CONVERT(XML, rd.TransIds) ELSE NULL END AS TransIds
+						SELECT CONVERT(XML, rd.TransIds)
 					)AS t1(xDATA)
 				CROSS APPLY (
 						SELECT t.c.value('@ScoreId','INT') AS ScoreId
@@ -1217,7 +1217,7 @@ BEGIN
 			END
 
 			SELECT rd.MatchId
-				,CASE WHEN @SiteDBGroupID = 0 THEN CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) ELSE NULL END AS LiveScores
+				,CASE WHEN @SiteDBGroupID = 0 THEN SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) ELSE NULL END AS LiveScores
 				,CASE WHEN @SiteDBGroupID = 0 THEN rd.IssueDetail ELSE NULL END AS ActualScore
 			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
@@ -1235,7 +1235,7 @@ BEGIN
 				,a.ActionType
 			FROM #CTE_RequestDetail rd WITH (NOLOCK)
 				CROSS APPLY (
-						SELECT CASE WHEN @SiteDBGroupID = 0 THEN CONVERT(XML, rd.TransIds) ELSE NULL END AS TransIds
+						SELECT CONVERT(XML, rd.TransIds)
 					)AS t1(xDATA)
 				CROSS APPLY (
 						SELECT t.c.value('@ScoreId','INT') AS ScoreId
