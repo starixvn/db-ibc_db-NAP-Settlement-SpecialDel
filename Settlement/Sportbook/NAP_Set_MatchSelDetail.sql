@@ -12,6 +12,7 @@ AS
 		- 20250225@Hughie: Apply SOP for Soccer [Redmine:#216004]
 		- 20250317@Aries: Add new validate rule FT that must not be Draw for Ice Hockey [Redmine:#213682]
 		- 20250328@Hughie: Enhance the Regular Time Match of Ice Hockey [Redmine:#221769]
+		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 
 */
 
@@ -94,6 +95,7 @@ BEGIN
 		,mr.OfferLive
 		,m.ChildMatchType
 		,ls.LeagueType
+		,m.ParentID
      FROM dbo.match m WITH (NOLOCK)
         LEFT OUTER JOIN dbo.match_remark mr WITH (NOLOCK) 
 			ON	m.matchid = mr.matchid
@@ -119,6 +121,8 @@ BEGIN
 			,m.homeid
 			,m.awayid
 			,m.betstatus
+			,m.ChildMatchType
+			,m.ParentID
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.ParentID = @matchid
 			AND m.sporttype = 1 

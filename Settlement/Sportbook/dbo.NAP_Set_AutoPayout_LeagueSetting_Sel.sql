@@ -11,6 +11,7 @@ AS
 	Revisions:
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
+		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -41,6 +42,7 @@ BEGIN
 			,ISNULL(ss.EAR_SecondaryProvider,'')						AS EAR_SecondaryProvider
 			,ISNULL(ss.EAR_TotalSecondaryProvider,0)					AS EAR_TotalSecondaryProvider
 			,ISNULL(ss.EAR_InactiveProvider,'')							AS EAR_InactiveProvider
+			,ss.[Enable]												AS [Enable]
 	FROM SettlementResultTableSetting AS sr  WITH(NOLOCK)  
 		OUTER APPLY(
 			SELECT  s.WaitingTime AS Main_WaitingTime
@@ -59,6 +61,7 @@ BEGIN
 				   ,s.EAR_SecondaryProvider
 				   ,s.EAR_TotalSecondaryProvider
 				   ,s.EAR_InactiveProvider
+				   ,s.[Enable]
 			FROM dbo.SettlementSetting AS s WITH(NOLOCK)  
 			WHERE s.LeagueId = @LeagueId
 			AND s.AutoType = @AutoType

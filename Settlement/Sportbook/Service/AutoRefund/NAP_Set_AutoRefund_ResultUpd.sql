@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0" isNested="1"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE NAP_Set_AutoRefund_ResultUpd
   @MatchId		INT			  = 0
 , @SourceId		TINYINT		  = 105
@@ -62,9 +62,8 @@ BEGIN
 		UPDATE dbo.AutoRefundResult  WITH(ROWLOCK,UPDLOCK) --- Update any data to fail in case Auto Service had broken 
 		SET StatusId = @StatusId
 			, ModifiedDate = GETDATE()
-		WHERE SourceId = 105
-			AND StatusId = 1
-			AND DATEDIFF (MINUTE, ModifiedDate, GETDATE()	) >= 20
+		WHERE StatusId IN (0,1) 
+			AND ModifiedDate <= DATEADD(MINUTE, -20, GETDATE())
 	END
 
 	ELSE

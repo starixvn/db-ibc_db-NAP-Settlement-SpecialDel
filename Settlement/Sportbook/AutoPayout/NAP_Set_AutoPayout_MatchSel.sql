@@ -69,6 +69,7 @@ AS
 	- 20231025@Aries: Cannot insert duplicate key in object 'dbo.#matchList' [Redmine:#196002]
 	- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 	- 20241205@Louisa: fix issue convert matchcode [Redmine:#214853]
+	- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 
  Param explanation:  
 	@MatchCode: match code
@@ -885,10 +886,17 @@ BEGIN
 		, ISNULL(ss.WaitingTime, 120) AS InstantWaitingTime
 		, m.IsExistRunningTicket
 		, m.IsExistMarkedTicket
-		, ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
-		, ISNULL(ssRefund.WaitingTime, 0) AS RefundWaitingTime
 		, m.EventStatusReason
 		, m.ChildMatchType
+
+		, ssRefund.EnabledAutoRefund  
+		, ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
+		, ISNULL(ssRefund.WaitingTime, 0) AS RefundWaitingTime
+
+		, mRefund.EnabledAutoRefundMatch 
+		, mDirect.WaitingTime AS DirectWaitingTimeMatch
+		, mRefund.WaitingTime AS RefundWaitingTimeMatch
+		
 	FROM #matchList m
 		LEFT JOIN #tempmatch t ON t.matchid = m.matchid
 		LEFT JOIN #InstMatchInfo im ON m.matchid = im.matchid
@@ -905,11 +913,23 @@ BEGIN
 					AND AutoType = 5
 		)ssDirect
 		OUTER APPLY (
-			SELECT TOP 1 s1.WaitingTime
+			SELECT TOP 1 s1.WaitingTime,s1.[Enable] AS EnabledAutoRefund
 			FROM	DBPRO.bodb02.dbo.SettlementSetting s1 WITH (NOLOCK)
 			WHERE	s1.LeagueId = m.leagueid
 					AND AutoType = 7
 		)ssRefund
+		OUTER APPLY (
+			SELECT TOP 1 m1.WaitingTime, m1.[Enable] AS EnabledAutoRefundMatch
+			FROM	DBPRO.bodb02.dbo.AutoPayoutSetting AS m1 WITH (NOLOCK)
+			WHERE	m.matchid = m1.matchid
+					AND AutoType = 7
+		) mRefund
+		OUTER APPLY (
+			SELECT TOP 1 m1.WaitingTime 
+			FROM	DBPRO.bodb02.dbo.AutoPayoutSetting AS m1 WITH (NOLOCK)
+			WHERE	m.matchid = m1.matchid
+					AND AutoType = 5
+		) mDirect
 	WHERE 1 = CASE WHEN @IsHTOverOnly = 1 OR @IsOverOnly = 1 THEN CASE WHEN m.BetCount > 0 THEN 1 ELSE 0 END
 				ELSE 1 END
 	ORDER BY CASE 

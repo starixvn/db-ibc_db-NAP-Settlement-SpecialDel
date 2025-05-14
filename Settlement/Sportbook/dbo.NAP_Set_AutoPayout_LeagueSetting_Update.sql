@@ -21,6 +21,11 @@ ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_LeagueSetting_Update]
 	,@EAR_TotalSecondaryProvider	TINYINT			= NULL
 	,@Action						VARCHAR(20)		= 'Update'
 	,@EAR_InactiveProvider			VARCHAR(500)	= NULL
+
+	,@Enable						BIT				= NULL
+	,@IsApplyAll 					BIT				= 0
+
+	,@UpdatedMatchIDs				VARCHAR(MAX)=''		OUTPUT
 AS
 /*	Creator: 20231211@Aries
 	Task: Auto Payout for Tennis sport using Sofascore provider
@@ -30,6 +35,8 @@ AS
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
 		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
+		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+		- 20250512@Hughie: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -48,6 +55,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+	DECLARE @tmpUpdatedMatches TABLE (matchid INT, IsMissing BIT)
 
 	IF @Action = 'Delete'
 	BEGIN
@@ -69,7 +77,9 @@ BEGIN
 
 										  ,EAR_HasTrader,EAR_NumberProvider,EAR_WaitingTime
 										  ,EAR_PrimaryProvider,EAR_TotalPrimaryProvider,EAR_SecondaryProvider,EAR_TotalSecondaryProvider
-										  ,EAR_InactiveProvider)
+										  ,EAR_InactiveProvider
+										  
+										  ,[Enable])
 		SELECT @LeagueId, @AutoType
 
 		      ,@Main_HasTrader,@Main_NumberProvider,@Main_WaitingTime
@@ -79,6 +89,8 @@ BEGIN
 			  ,@EAR_HasTrader,@EAR_NumberProvider,@EAR_WaitingTime
 			  ,@EAR_PrimaryProvider,@EAR_TotalPrimaryProvider,@EAR_SecondaryProvider,@EAR_TotalSecondaryProvider
 			  ,@EAR_InactiveProvider
+
+			  ,@Enable
 	END
 	ELSE
 	BEGIN
@@ -103,8 +115,39 @@ BEGIN
 				,EAR_SecondaryProvider			= ISNULL(@EAR_SecondaryProvider,EAR_SecondaryProvider)
 				,EAR_TotalSecondaryProvider		= ISNULL(@EAR_TotalSecondaryProvider,EAR_TotalSecondaryProvider)
 				,EAR_InactiveProvider			= ISNULL(@EAR_InactiveProvider,EAR_InactiveProvider)
+
+				,[Enable]						= ISNULL(@Enable,[Enable])
 		WHERE	LeagueId = @LeagueId
 				AND AutoType = @AutoType
+	END
+
+	IF @IsApplyAll = 1 AND @AutoType = 7
+	BEGIN
+		INSERT INTO @tmpUpdatedMatches(MatchId, IsMissing)
+		SELECT m.MatchId
+				,CASE WHEN ms.MatchId IS NULL THEN 1 ELSE 0 END AS IsMissing
+		FROM match AS m WITH(NOLOCK)
+			LEFT JOIN dbo.AutoPayoutSetting AS ms WITH(NOLOCK) ON ms.matchid = m.matchid AND ms.AutoType = 7
+		WHERE m.leagueID = @LeagueId
+			AND m.eventstatus = 'running'
+
+		IF EXISTS (SELECT 1 FROM @tmpUpdatedMatches WHERE IsMissing = 1)
+		BEGIN
+			INSERT INTO dbo.AutoPayoutSetting (MatchId, AutoType, CreatedDate, RepUpdateTime)
+			SELECT m.matchid, @AutoType, SYSDATETIME(), SYSDATETIME()
+			FROM @tmpUpdatedMatches m
+			WHERE IsMissing = 1
+		END
+
+		UPDATE ms
+		SET ms.[Enable] = @Enable
+		FROM dbo.AutoPayoutSetting AS ms WITH(UPDLOCK, ROWLOCK)
+		WHERE ms.matchid IN (SELECT um.matchid FROM @tmpUpdatedMatches as um)
+		AND ms.AutoType = 7
+		AND ISNULL(ms.[Enable],0) <> @Enable
+ 
+		SELECT @UpdatedMatchIDs =  CAST(matchID AS VARCHAR) + ',' + @UpdatedMatchIDs
+		FROM @tmpUpdatedMatches
 	END
 END
 GO

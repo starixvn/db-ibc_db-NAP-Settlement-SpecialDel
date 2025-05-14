@@ -29,6 +29,7 @@ AS
 		- 20240619@Aries: Direct Payout for SABA ELITE FRIENDLY Virtual PES 23 - PENALTY SHOOTOUTS [Redmine:#206740]
 		- 20240731@Aries: Apply Direct Payout for SABA CLUB FRIENDLY and SABA ENGLISH PREMIER LEAGUE - Virtual FC 24 - 16 Mins Play [Redmine:#208347]
 		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
+		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 
 	Param's Explanation:
  
@@ -52,7 +53,7 @@ BEGIN
 			,@checktime = DATEADD(HOUR, 3, GETDATE())
 
 	DECLARE @tmpMatchAuto TABLE(
-									MatchId INT, HtHomescore INT, FinalHomescore INT, HtAwayscore INT, FinalAwayscore INT, TypeId TINYINT, 
+									MatchId INT,ParentID INT,HtHomescore INT, FinalHomescore INT, HtAwayscore INT, FinalAwayscore INT, TypeId TINYINT, 
 									IsHalfTimeConfirmed INT, IsFullTimeConfirmed INT, BetStatus NVARCHAR(50), GoalRecord VARCHAR(50), 
 									IsHalfTimeCalculated BIT, leagueid INT, LeagueGroupID SMALLINT, ChildMatchType TINYINT, SettlementStatus TINYINT, 
 									AutoSetting TINYINT, ChildLeagueType INT, MainType TINYINT, SubType SMALLINT,
@@ -68,7 +69,7 @@ BEGIN
 	IF ISNULL(@IsWaiting,0) = 1
 	BEGIN
 		--not return data if in deployment progress
-		SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
+		SELECT MatchId,ParentID, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, leagueid, LeagueGroupID, ChildMatchType, SettlementStatus
 			, AutoSetting, ChildLeagueType, MainType, SubType
 			, AutoType
@@ -84,17 +85,18 @@ BEGIN
 	
 
 	INSERT INTO @tmpMatchAuto (
-								MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
+								MatchId,ParentID, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 								, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, leagueid, LeagueGroupID, ChildMatchType, SettlementStatus
 								, AutoSetting, ChildLeagueType, MainType, SubType
 								, AutoType
 							)
-	SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
+	SELECT MatchId, ParentID,HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
 		, AutoSetting, ChildLeagueType, MainType, SubType
 		, AutoType
 	FROM (
 			SELECT m.matchid AS MatchId
+			    , m.ParentID 
 				, m.hthomescore
 				, m.finalhomescore
 				, m.htawayscore
@@ -188,7 +190,7 @@ BEGIN
 	DECLARE @currTime DATETIME = GETDATE()
 
 	-- Return data 
-	SELECT t.MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
+	SELECT t.MatchId,t.ParentID, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
 			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
 			, AutoSetting, ChildLeagueType, MainType, SubType
 			, AutoType

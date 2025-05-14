@@ -11,6 +11,7 @@ AS
 	
 	Revisions:
 		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
+		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -38,6 +39,7 @@ BEGIN
 			,COALESCE(ms.EAR_SecondaryProvider,ss.EAR_SecondaryProvider,'')						AS EAR_SecondaryProvider
 			,COALESCE(ms.EAR_TotalSecondaryProvider,ss.EAR_TotalSecondaryProvider,0)			AS EAR_TotalSecondaryProvider
 			,COALESCE(ms.EAR_InactiveProvider,ss.EAR_InactiveProvider,'')						AS EAR_InactiveProvider
+			,COALESCE(ms.[Enable],ss.[Enable],NULL)												AS [Enable]
 	FROM SettlementResultTableSetting AS sr  WITH(NOLOCK)  
 		OUTER APPLY(
 			SELECT  s.WaitingTime AS Main_WaitingTime
@@ -56,6 +58,7 @@ BEGIN
 				   ,s.EAR_SecondaryProvider
 				   ,s.EAR_TotalSecondaryProvider
 				   ,s.EAR_InactiveProvider
+				   ,s.[Enable]
 			FROM dbo.SettlementSetting AS s WITH(NOLOCK)  
 			WHERE s.LeagueId = @LeagueId
 			AND s.AutoType = @AutoType
@@ -77,6 +80,7 @@ BEGIN
 				   ,m.EAR_SecondaryProvider
 				   ,m.EAR_TotalSecondaryProvider
 				   ,m.EAR_InactiveProvider
+				   ,m.[Enable]
 			FROM dbo.AutoPayoutSetting AS m WITH(NOLOCK)  
 			WHERE m.MatchId = @MatchId
 			AND m.AutoType = @AutoType

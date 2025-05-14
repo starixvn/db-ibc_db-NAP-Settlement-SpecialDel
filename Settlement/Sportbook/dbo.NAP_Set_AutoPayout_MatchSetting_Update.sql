@@ -20,6 +20,8 @@ ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_MatchSetting_Update]
 	,@EAR_SecondaryProvider			VARCHAR(500)	= NULL
 	,@EAR_TotalSecondaryProvider	TINYINT			= NULL
 	,@EAR_InactiveProvider			VARCHAR(500)	= NULL
+
+	,@Enable						BIT				= NULL
 AS
 /*	Creator: 20231211@Aries
 	Task: Enhance AutoPayout2 to support Direct Payout 
@@ -27,6 +29,7 @@ AS
 	
 	Revisions:
 		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
+		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -48,6 +51,8 @@ BEGIN
 										  ,EAR_HasTrader,EAR_NumberProvider,EAR_WaitingTime
 										  ,EAR_PrimaryProvider,EAR_TotalPrimaryProvider,EAR_SecondaryProvider,EAR_TotalSecondaryProvider
 										  ,EAR_InactiveProvider
+
+										  ,[Enable]
 										  
 										  ,RepUpdateTime)
 		SELECT @MatchId, @AutoType
@@ -59,6 +64,8 @@ BEGIN
 			  ,@EAR_HasTrader,@EAR_NumberProvider,@EAR_WaitingTime
 			  ,@EAR_PrimaryProvider,@EAR_TotalPrimaryProvider,@EAR_SecondaryProvider,@EAR_TotalSecondaryProvider
 			  ,@EAR_InactiveProvider
+
+			  ,@Enable
 
 			  ,SYSDATETIME()
 	END
@@ -85,6 +92,8 @@ BEGIN
 				,EAR_SecondaryProvider			= ISNULL(@EAR_SecondaryProvider,EAR_SecondaryProvider)
 				,EAR_TotalSecondaryProvider		= ISNULL(@EAR_TotalSecondaryProvider,EAR_TotalSecondaryProvider)
 				,EAR_InactiveProvider			= ISNULL(@EAR_InactiveProvider,EAR_InactiveProvider)
+
+				,[Enable]						= @Enable
 
 				,RepUpdateTime					= SYSDATETIME()
 		WHERE	MatchId = @MatchId
