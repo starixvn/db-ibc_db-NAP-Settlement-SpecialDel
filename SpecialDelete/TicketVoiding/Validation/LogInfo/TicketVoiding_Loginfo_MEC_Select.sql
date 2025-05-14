@@ -191,7 +191,7 @@ BEGIN
 		 , f.Bettype AS typeid
     FROM [dbo].[f_SD_GroupDisplayBettype] () f
 
-	SET @MECInfoXML = CONVERT(XML, @OtherIssuesInfo)
+	SET @MECInfoXML = CONVERT(XML, @MatchEarlyCompletedInfo)
 	INSERT INTO #FilterInfo (Id, MatchId, AdvancedExtraInfo, SubIssueTypeId)
 	SELECT  CASE WHEN t.c.value('@Id','INT') IS NULL THEN 1 ELSE t.c.value('@Id','INT') END AS Id --Default = 1 with case old request
 	        ,t.c.value('@MatchId','INT') AS MatchID
