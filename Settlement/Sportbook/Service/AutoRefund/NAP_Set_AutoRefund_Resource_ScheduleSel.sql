@@ -52,6 +52,6 @@ BEGIN
 			AND COALESCE(ms.[Enable],ss.[Enable],0) = 1		
 			AND ISNULL(m.SettlementStatus,0) & 87 = 0
 			AND ISNULL(rd.ResultSetting,0) & 1 <> 1
-			AND ar.ModifiedDate <= DATEADD(SECOND, - COALESCE(ms.WaitingTime,ss.WaitingTime,1), @CurrTime)
+			AND ar.ModifiedDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,30), @CurrTime)
 END
 GO
