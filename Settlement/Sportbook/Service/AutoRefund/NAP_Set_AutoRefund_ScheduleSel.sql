@@ -18,6 +18,7 @@ AS
 		- 20240614@Aries: Add fantasy leagueId [Redmine:#206489]
 		- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
+		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 */
 BEGIN
 	
@@ -121,7 +122,13 @@ BEGIN
 			WHERE ssr.LeagueId = m.LeagueId
 				AND ssr.AutoType = 7
 		) AS ssr
-	WHERE  m.CreateDate <= DATEADD(SECOND, - ISNULL(ssr.WaitingTime,0), @CurrTime)
+		OUTER APPLY(
+			SELECT TOP 1 a.WaitingTime
+			FROM dbo.AutoPayoutSetting AS a WITH (NOLOCK)
+			WHERE a.MatchId = m.MatchId
+				AND a.AutoType = 7
+		) AS ms
+	WHERE  m.CreateDate <= DATEADD(SECOND, - COALESCE(ms.WaitingTime,ssr.WaitingTime,0), @CurrTime)
 
 END
 GO
