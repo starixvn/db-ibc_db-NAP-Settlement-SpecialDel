@@ -230,7 +230,7 @@ BEGIN
 	UPDATE d
 	SET d.Sporttype = m.sporttype, MatchId_tmp = d.MatchId
 	FROM #FilterInfo d
-		INNER JOIN dbo.match m ON d.MatchId = m.MatchId
+		INNER JOIN dbo.match m WITH (NOLOCK) ON d.MatchId = m.MatchId
 
 	--Cricket/Baseball - Get child match
 	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))

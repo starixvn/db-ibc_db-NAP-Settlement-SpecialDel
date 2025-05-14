@@ -90,7 +90,7 @@ BEGIN
 	UPDATE d
 	SET d.Sporttype = m.sporttype, MatchId_tmp = d.MatchId
 	FROM #FilterInfo d
-		INNER JOIN dbo.match m ON d.MatchId = m.MatchId
+		INNER JOIN dbo.match m WITH (NOLOCK) ON d.MatchId = m.MatchId
 
     -- Handle child matches for Cricket/Baseball
     IF EXISTS (SELECT 1 FROM #FilterInfo WHERE Sporttype IN (50, 8))
@@ -109,7 +109,7 @@ BEGIN
             m.MatchId,
 			f.ScoreId
         FROM #FilterInfo f
-        INNER JOIN dbo.match m ON f.MatchId = m.ParentID
+			INNER JOIN dbo.match m WITH (NOLOCK) ON f.MatchId = m.ParentID
         WHERE m.Sporttype IN (50, 8) AND m.ChildMatchType = 200;
     END
 
@@ -341,7 +341,7 @@ BEGIN
 																				  )
 													 THEN act.FromDate ELSE NULL END
 												)
-					  ,@VoidToTime = MAX(act.FromDate)
+					 -- ,@VoidToTime = MAX(act.FromDate)
 				FROM (
 					SELECT b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, b.LiveBetAcceptTime, b.SecAcceptTime
 					FROM #tmpTransInfo b
@@ -394,12 +394,12 @@ BEGIN
 					BEGIN
 						IF @VoidFromTime > @CancelCOFromTime SET @VoidFromTime = @CancelCOFromTime --From Time: compare the time and get the smallest one
 
-						IF @VoidToTime < @CancelCOToTime SET @VoidToTime = @CancelCOToTime --To Time: compare the time and get the largest one
+						--IF @VoidToTime < @CancelCOToTime SET @VoidToTime = @CancelCOToTime --To Time: compare the time and get the largest one
 					END
 				END
 
 				UPDATE #FilterInfo
-				SET VoidFromTime = @VoidFromTime, VoidToTime = @VoidToTime
+				SET VoidFromTime = @VoidFromTime, VoidToTime = @FilterToTransTime
 				WHERE MatchId = @MatchId
 			END 
 		END
@@ -592,7 +592,7 @@ BEGIN
 																				  )
 													 THEN act.FromDate ELSE NULL END
 												)
-					  ,@VoidToTime = MAX(act.FromDate)
+					 -- ,@VoidToTime = MAX(act.FromDate)
 				FROM (
 					SELECT b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, b.LiveBetAcceptTime, b.SecAcceptTime
 					FROM #tmpTransInfo b 
@@ -643,12 +643,12 @@ BEGIN
 					BEGIN
 						IF @VoidFromTime > @CancelCOFromTime SET @VoidFromTime = @CancelCOFromTime --From Time: compare the time and get the smallest one
 
-						IF @VoidToTime < @CancelCOToTime SET @VoidToTime = @CancelCOToTime --To Time: compare the time and get the largest one
+						--IF @VoidToTime < @CancelCOToTime SET @VoidToTime = @CancelCOToTime --To Time: compare the time and get the largest one
 					END
 				END
 
 				UPDATE #FilterInfo
-				SET VoidFromTime = @VoidFromTime, VoidToTime = @VoidToTime
+				SET VoidFromTime = @VoidFromTime, VoidToTime = @FilterToTransTime
 				WHERE MatchId = @MatchId
 			END 
 		END
