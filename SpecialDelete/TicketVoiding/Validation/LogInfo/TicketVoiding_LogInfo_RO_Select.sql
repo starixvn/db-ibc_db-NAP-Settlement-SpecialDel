@@ -18,6 +18,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
+		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
 
 	Param's explanation:	
 		- @ReducedOverInfo: 
@@ -675,47 +676,6 @@ BEGIN
 		FROM #CTE_RequestDetail rd WITH (NOLOCK)
 			LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId
 			
-		-- 4. Unmark/Transinfo table (No need -> return table)
-		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpUnmarkTransId
-
-		RETURN;
-	END
-
-	--For case no ticket valid
-	SELECT @SingleCount = ISNULL(SUM(SingleCount),0)
-		  ,@MainParlayCount = ISNULL(SUM(MainParlayCount),0)
-	FROM #logInfo
-	IF @SingleCount = 0 AND @MainParlayCount = 0
-	BEGIN
-		-- 1. Validate table
-		SELECT MatchId
-			,1 AS IsInValidTotalTickets
-			,IsExistedInOtherRequest
-		FROM @Validation
-		
-		-- 2. TransId in request table
-		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
-		BEGIN
-			SELECT RequestId, 
-				STUFF((
-				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId) 
-				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-				,1,2,'') AS TransIds
-				,MatchId
-			FROM #TransidInRequest r
-			GROUP BY r.RequestId, r.MatchId
-		END
-		ELSE
-		BEGIN 
-			SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
-			FROM #TransidInRequest
-		END
-		
-		-- 3. Loginfo table (No need -> return table)
-		SELECT MatchId FROM #logInfo WHERE Matchid IS NULL
-
 		-- 4. Unmark/Transinfo table (No need -> return table)
 		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpUnmarkTransId
 

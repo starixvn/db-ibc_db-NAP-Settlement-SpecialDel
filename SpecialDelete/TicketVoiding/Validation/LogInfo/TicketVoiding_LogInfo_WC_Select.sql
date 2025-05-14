@@ -34,6 +34,7 @@ AS
 		- 20250403@Lani: [TVS] Get ticket of related event [Redmine: #216151]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
+		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -1143,7 +1144,7 @@ BEGIN
 
 			-- 3.Loginfo table
 			SELECT rd.MatchId
-				,CASE WHEN @SiteDBGroupID = 0 THEN CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) ELSE NULL END AS LiveScores
+				,CASE WHEN @SiteDBGroupID = 0 THEN SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) ELSE NULL END AS LiveScores
 				,CASE WHEN @SiteDBGroupID = 0 THEN rd.IssueDetail ELSE NULL END AS ActualScore
 			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
@@ -1160,7 +1161,7 @@ BEGIN
 				,a.ActionType
 			FROM #CTE_RequestDetail rd WITH (NOLOCK)
 				CROSS APPLY (
-						SELECT CASE WHEN @SiteDBGroupID = 0 THEN CONVERT(XML, rd.TransIds) ELSE NULL END AS TransIds
+						SELECT CONVERT(XML, rd.TransIds)
 					)AS t1(xDATA)
 				CROSS APPLY (
 						SELECT t.c.value('@ScoreId','INT') AS ScoreId
@@ -1194,7 +1195,7 @@ BEGIN
 				FROM #CTE_Ticket_Single s WITH (NOLOCK)
 					INNER JOIN #tmpTransInfo b ON b.transid = s.TransId AND b.IsMixParlay = 0
 					INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
-				WHERE f.GroupName <> '2H'
+				WHERE f.GroupName <> '2H' AND ISNULL(s.IsCancelCO,0) = 0 --Exclude cancel CO
 			END
 
 			IF @cnt_p > 0
@@ -1216,7 +1217,7 @@ BEGIN
 			END
 
 			SELECT rd.MatchId
-				,CASE WHEN @SiteDBGroupID = 0 THEN CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) ELSE NULL END AS LiveScores
+				,CASE WHEN @SiteDBGroupID = 0 THEN SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) ELSE NULL END AS LiveScores
 				,CASE WHEN @SiteDBGroupID = 0 THEN rd.IssueDetail ELSE NULL END AS ActualScore
 			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 			    ,CASE WHEN @SiteDBGroupID = 0 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
@@ -1234,7 +1235,7 @@ BEGIN
 				,a.ActionType
 			FROM #CTE_RequestDetail rd WITH (NOLOCK)
 				CROSS APPLY (
-						SELECT CASE WHEN @SiteDBGroupID = 0 THEN CONVERT(XML, rd.TransIds) ELSE NULL END AS TransIds
+						SELECT CONVERT(XML, rd.TransIds)
 					)AS t1(xDATA)
 				CROSS APPLY (
 						SELECT t.c.value('@ScoreId','INT') AS ScoreId
@@ -1261,81 +1262,7 @@ BEGIN
 		RETURN;
 	END
 
-	--For case no ticket valid
-	SELECT @SingleCount = ISNULL(SUM(SingleCount),0)
-		  ,@MainParlayCount = ISNULL(SUM(MainParlayCount),0)
-	FROM #logInfo
-	IF @SingleCount = 0 AND @MainParlayCount = 0
-	BEGIN
-		IF @FilterBy = 2
-		BEGIN
-			-- 1. Validate table
-			SELECT MatchId
-				,1 AS IsInValidTotalTickets
-				,IsExistedInOtherRequest
-			FROM @Validation
-
-			-- 2. TransId in request table
-			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
-			BEGIN
-				SELECT RequestId, MatchId, c.username AS CreatedBy
-					,STUFF((
-					SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-					FROM #TransidInRequest
-					WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-					ORDER BY TransId
-					FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-					,1,2,'') AS TransIds
-				FROM #TransidInRequest r
-					INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
-				GROUP BY r.RequestId, r.MatchId, c.username
-			END
-			ELSE
-			BEGIN 
-				SELECT r.RequestId, r.MatchId, CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
-				FROM #TransidInRequest r
-			END
-		END
-		ELSE 
-		BEGIN 
-			-- 1. Validate table
-			SELECT LiveScores
-				,1 AS IsInValidTotalTickets
-				,IsExistedInOtherRequest
-				,ScoreId
-				,MatchId
-			FROM @Validation
-		
-			-- 2. TransId in request table
-			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
-			BEGIN
-				SELECT MatchId, RequestId, r.ScoreId, c.username AS CreatedBy,
-					STUFF((
-					SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-					FROM #TransidInRequest
-					WHERE (RequestId = r.RequestId AND ScoreId = r.ScoreId) 
-					FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-					,1,2,'') AS TransIds
-				FROM #TransidInRequest r
-					INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
-				GROUP BY MatchId, r.RequestId, r.ScoreId, c.username
-			END
-			ELSE
-			BEGIN 
-				SELECT MatchId, RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
-				FROM #TransidInRequest
-			END
-
-		END
-		
-		-- 3. Loginfo table (No need -> return table)
-		SELECT MatchId, ScoreId FROM #logInfo WHERE Matchid IS NULL
-
-		-- 4. Unmark/Transinfo table (No need -> return table)
-		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpUnmarkTransId
-		
-		RETURN;
-	END
+	
 
 	IF @FilterBy <> 2
 	BEGIN
@@ -1581,12 +1508,11 @@ BEGIN
 			,custid AS  'c'           
 			,bettype AS 'btype'
 			,betid AS 'bid'
-			,CAST (li.ScoreId AS VARCHAR(20)) AS 'ScoreId'
+			,CAST (t.ScoreId AS VARCHAR(20)) AS 'ScoreId'
 			,IsMixParlay AS 'isP'
 			,SiteDBGroupID AS 'sitedb'
 			,IsCancelCashOut AS 'isCCO'
 		FROM #TVSTicketBets t
-			INNER JOIN #logInfo li ON li.MatchId = t.matchid
 		FOR JSON PATH))
 		
 		SELECT @UnmarkTransIds AS UnmarkTransIds
