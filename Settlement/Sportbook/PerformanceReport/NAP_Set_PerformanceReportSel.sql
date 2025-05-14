@@ -21,6 +21,7 @@ AS
 		- 20240905@Kathy: get info from all sitedbgroupid [Redmine:#210398]
 		- 20241001@Kathy: Remove groupid 73
 		- 20241008@Kathy: exclude child match of table tennis [Redmine:#211924]
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
 	Param's explaination:
 		@UserGroup: 0-send to internal

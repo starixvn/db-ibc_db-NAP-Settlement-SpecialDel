@@ -15,6 +15,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 		- 20221012@Louisa: Enhancement [Redmine:#178551]
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
 	Param's Explanation:
 		

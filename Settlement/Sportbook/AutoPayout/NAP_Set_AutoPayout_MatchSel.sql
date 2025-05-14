@@ -70,6 +70,7 @@ AS
 	- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 	- 20241205@Louisa: fix issue convert matchcode [Redmine:#214853]
 	- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+	- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
  Param explanation:  
 	@MatchCode: match code

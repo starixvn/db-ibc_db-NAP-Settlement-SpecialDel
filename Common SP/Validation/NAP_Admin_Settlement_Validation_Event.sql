@@ -35,6 +35,7 @@ AS
 		- 20241028@Aries: Direct payout for early soccer [Redmine:#211079]
 		- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
 		- 20250211@Hughie: Apply SOP for Soccer [Redmine:#216004]
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT

@@ -77,6 +77,7 @@ AS
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20231121@Aries: Deleted matches are still showed on settlement site [Redmine: #197070]
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
  Param explanation: 
 	@LeagueIDs  : '0' :all  

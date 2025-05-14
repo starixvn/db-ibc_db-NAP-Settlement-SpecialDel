@@ -23,6 +23,7 @@ AS
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20240108@Aries: Refund-SDT only when the match is 'Suspend' (from Admin-site) for Soccer [Redmine:#208512]
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 		
 	Parameters Explanation:    
 		@Action: CAL, CAL-HT, CAL-FT, REFUND, REFUND-HT, REFUND-FT

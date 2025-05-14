@@ -97,6 +97,7 @@ AS
 		- 20241111@Aries: Support Auto Payout 2 for Volleyball [Redmine:#213198]
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 		- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>

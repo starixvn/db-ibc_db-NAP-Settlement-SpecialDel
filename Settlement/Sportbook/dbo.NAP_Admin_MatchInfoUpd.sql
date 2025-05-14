@@ -42,6 +42,7 @@ AS
 		- 20240905@Aries: Enhance the settlement by Selection for Betbuilder  [Redmine:#208782]
 		- 20241028@Aries: Direct payout for early soccer [Redmine:#211079]
 		- 20250205@Louisa: Apply SOP for Soccer [Redmine:#216004] 
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR, 'CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT'
