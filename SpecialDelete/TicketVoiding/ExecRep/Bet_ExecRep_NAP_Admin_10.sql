@@ -16,6 +16,7 @@ AS
 		- 20230706@Kathy: Add new column winlostdate [Redmine:#190978]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20250514@July: Add new column bef_statusid, bef_winlost [Redmine: #226941]
 
     Param's explanation:
        
@@ -186,7 +187,7 @@ BEGIN
 		INSERT INTO dbo.BalanceTrigger (custid, transid, bettype, actual_stake, winlost, playercomm, ActionDate, 
 			ActionID, [Action],
 			BalanceChanged,
-			MatchId, StatusId, SettlementType, swinlost, mwinlost, awinlost, scomm, acomm, comm, modds, winlostdate)
+			MatchId, StatusId, SettlementType, swinlost, mwinlost, awinlost, scomm, acomm, comm, modds, winlostdate, bef_statusid, bef_winlost)
 		SELECT
 			-- if inserted.custid = 0, this should be VOID + Hidden
 			-- if deleted.custid = 0, this may be Bet Recover
@@ -299,6 +300,8 @@ BEGIN
 			,isnull(i.comm,0) as comm
 			,i.modds
 			,i.winlostdate
+			,d.statusID AS bef_statusid
+			,isnull(d.winlost,0) AS bef_winlost
 		FROM #AfterTransId14 i 
 				INNER JOIN #BeforeTransId14 d ON i.transid = d.transid
 		WHERE d.custid <> d.recommend 
