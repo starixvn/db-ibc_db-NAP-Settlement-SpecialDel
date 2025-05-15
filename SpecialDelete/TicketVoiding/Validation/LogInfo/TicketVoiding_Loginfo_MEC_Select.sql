@@ -149,6 +149,14 @@ BEGIN
 	  ,FilterPlayerAndOdds NVARCHAR(1000)	
 	  ,FilterBetOption		NVARCHAR(250)
 	  ,FilterOddsSpread MONEY
+	  --For bettype count
+	  ,GroupDisplay		  INT
+	  ,GroupBettype		  SMALLINT
+	  ,GroupTransdesc     NVARCHAR(1000)
+	  ,GroupBetteam		  NVARCHAR(10)
+	  ,Groupbetid		  NVARCHAR(50)
+	  ,GroupOddsId		  INT
+	  ,GroupId			  INT
 	  ,ID INT IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -423,6 +431,13 @@ BEGIN
 			,FilterHdp
 			,FilterBetOption
 			,FilterOddsSpread
+			,GroupDisplay		 
+			,GroupBettype		    
+			,GroupBetteam	
+			,GroupTransdesc	
+			,Groupbetid		 
+			,GroupOddsId		
+			,GroupId			  
 		)
 	 SELECT DISTINCT d.MatchId
 		,b.TransId
@@ -494,8 +509,16 @@ BEGIN
 		,b.hdp1 + b.hdp2 AS FilterHdp
 		,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
 		,b.oddsspread AS FilterOddsSpread
+		,ISNULL(tb.parentid, b.bettype) AS GroupDisplay
+		,b.bettype AS GroupBettype
+		,b.betteam AS GroupBetteam
+		,b.transdesc AS GroupTransdesc
+		,CONVERT(NVARCHAR(50), b.betid) AS Groupbetid
+		,b.oddsid AS GroupOddsId
+		,d.Id AS GroupId
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
+		LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.bettype
 	WHERE b.betfrom <> 'P'  
 		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
@@ -585,6 +608,14 @@ BEGIN
 				,FilterHdp
 				,FilterBetOption
 				,FilterOddsSpread
+				--For bettype count
+				,GroupDisplay
+			    ,GroupBettype
+			    ,GroupBetteam
+			    ,GroupTransdesc
+			    ,Groupbetid
+			    ,GroupOddsId
+			    ,GroupId
 		)
 		SELECT DISTINCT d.MatchId
 			,b.TransId
@@ -656,9 +687,17 @@ BEGIN
 			,sub.hdp1 + sub.hdp2 AS FilterHdp
 			,CAST(CAST(sub.hdp2 AS INT) AS VARCHAR(50)) + '-' + sub.betteam AS FilterBetOption
 			,sub.oddsspread AS FilterOddsSpread
+			,ISNULL(tb.parentid, sub.bettype) AS GroupDisplay
+			,sub.bettype AS GroupBettype
+			,sub.betteam AS GroupBetteam
+			,sub.Transdesc AS GroupTransdesc
+			,sub.betcheck AS Groupbetid
+			,b.OddsId AS GroupOddsId
+			,d.Id AS GroupId
 		FROM #FilterInfo d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
+			LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = sub.bettype
 		WHERE 1 = CASE WHEN @ActionId <> 2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 						WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 						ELSE 0 END
@@ -1037,6 +1076,26 @@ BEGIN
 		-- 4. Unmark/Transinfo table (No need -> return table)
 		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpUnmarkTransId
 
+		-- 5. Count detail group by bettype
+		IF @SiteDBGroupID = 0 
+		BEGIN
+			SELECT DENSE_RANK() OVER (ORDER BY rd.Id ASC) AS Id
+				,bt.bettypeid
+				,bt.betid
+				,bt.TicketsCount
+				,t.typenamee AS originalBetTypeName
+				,bt.PlayerName
+			FROM #CTE_RequestDetail rd WITH (NOLOCK)
+				CROSS APPLY (
+					SELECT bettypeid AS bettypeid, betid AS betid , TicketsCount AS TicketsCount, PlayerName AS PlayerName
+					FROM OPENJSON(NULLIF(rd.TransIds,'')) 
+					WITH( BetTypeId SMALLINT, BetId NVARCHAR(50),  TicketsCount INT, PlayerName NVARCHAR(MAX))
+				)bt
+				INNER JOIN dbo.bettype t WITH (NOLOCK) ON t.typeid = bt.bettypeid
+			WHERE rd.RequestId = @RequestId
+			ORDER BY DENSE_RANK() OVER (ORDER BY rd.Id ASC), t.typenamee
+		END
+
 		RETURN;
 	END
 
@@ -1168,6 +1227,66 @@ BEGIN
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
+
+		-- 5. Count detail group by bettype
+	SELECT bt.Id
+	    ,bt.bettypeid
+		,bt.originalBetTypeName
+		,bt.bettypecount AS TicketsCount
+		,bt.betid
+		,bt.PlayerName
+		,bt.PlayerAndOdds 
+	FROM (
+		SELECT b.GroupId AS Id
+			,b.GroupDisplay AS bettypeid
+			,CASE WHEN ISNULL(b.Groupbetid,'') = '' OR b.GroupDisplay = 501 THEN '0' ELSE b.Groupbetid END AS betid
+			,COUNT(b.transid) AS bettypecount
+			,bt.typenamee AS originalBetTypeName
+			,NULL AS PlayerName
+			,NULL AS PlayerAndOdds
+		FROM #TVSTicketBets b
+			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
+		WHERE b.GroupBettype NOT IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc())
+		GROUP BY b.GroupId, b.GroupDisplay, bt.typenamee, CASE WHEN ISNULL(b.Groupbetid,'') = '' OR b.GroupDisplay = 501 THEN '0' ELSE b.Groupbetid END 
+	
+		UNION ALL
+		SELECT b.GroupId AS Id
+			,b.GroupDisplay AS bettypeid
+			,'0' AS betid
+			,COUNT(b.transid) AS bettypecount
+			,bt.typenamee AS originalBetTypeName
+			,NULL AS PlayerName
+			,b.GroupBetteam +'$'+ CONVERT(NVARCHAR(1000),b.GroupOddsId) AS PlayerAndOdds
+		FROM #TVSTicketBets b
+			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
+		WHERE b.GroupBettype IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc() WHERE TypeId = 1)
+		GROUP BY b.GroupId, b.GroupDisplay, bt.typenamee, b.GroupBetteam +'$'+ CONVERT(NVARCHAR(1000),b.GroupOddsId)
+
+		UNION ALL
+		SELECT t1.Id
+		    ,t1.bettypeid
+			,'0' AS betid
+			,t1.bettypecount
+			,t1.originalBetTypeName
+			,t.teamname AS PlayerName
+			,NULL AS PlayerAndOdds
+		FROM
+		(
+			SELECT b.GroupId AS Id
+			    ,b.GroupDisplay AS bettypeid
+				,COUNT(b.transid) AS bettypecount
+				,bt.typenamee AS originalBetTypeName
+				,CONVERT(BIGINT, b.GroupTransdesc) AS PlayerId
+			FROM #TVSTicketBets b
+				INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
+			WHERE b.GroupBettype IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc() WHERE TypeId = 0)
+			GROUP BY b.GroupId, b.GroupDisplay, bt.typenamee,CONVERT(BIGINT, b.GroupTransdesc) 
+		)t1
+		LEFT JOIN dbo.Team t WITH (NOLOCK) ON t.teamid = t1.PlayerId
+		)bt
+		ORDER BY bt.Id
+				,bt.originalBetTypeName
+				,bt.bettypeid 
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
