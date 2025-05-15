@@ -141,14 +141,14 @@ BEGIN
 			,CASE WHEN t.c.value('@AATime', 'VARCHAR(100)') = '' THEN NULL ELSE t.c.value('@AATime', 'TINYINT') END 
 			,CASE WHEN t.c.value('@PATime', 'VARCHAR(100)') = '' THEN NULL ELSE t.c.value('@PATime', 'TINYINT') END 
 			,CASE WHEN t.c.value('@SATime', 'VARCHAR(100)') = '' THEN NULL ELSE t.c.value('@SATime', 'TINYINT') END 
-			,t.c.value('./@VoidFromTime', 'DATETIME') AS FilterVoidFromTime 
-			,t.c.value('./@VoidToTime', 'DATETIME') AS FilterVoidToTime
+			,CASE WHEN t.c.value('./@VoidFromTime', 'DATETIME')  = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('./@VoidFromTime', 'DATETIME') END AS FilterVoidFromTime 
+			,CASE WHEN t.c.value('./@VoidToTime', 'DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('./@VoidToTime', 'DATETIME') END AS FilterVoidToTime
 	FROM @DARCInfoInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@DARCInfoInfoXML = NULL))
 
 		--Init Validation
-	INSERT INTO @Validation (MatchId)
-	SELECT MatchId
+	INSERT INTO @Validation (MatchId, IsInValidTotalTickets)
+	SELECT MatchId, CASE WHEN FilterVoidFromTime IS NULL AND FilterVoidToTime IS NULL THEN 1 ELSE 0 END AS IsInValidTotalTickets
 	FROM #FilterInfo
 
 	INSERT INTO @bettype_tmp (bettype)

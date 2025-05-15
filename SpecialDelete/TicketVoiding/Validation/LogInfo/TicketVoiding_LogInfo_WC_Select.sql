@@ -150,14 +150,15 @@ BEGIN
 			,CASE WHEN T.C.value('@PATime', 'VARCHAR(100)') = '' THEN NULL ELSE T.C.value('@PATime', 'TINYINT') END 
 			,CASE WHEN T.C.value('@SATime', 'VARCHAR(100)') = '' THEN NULL ELSE T.C.value('@SATime', 'TINYINT') END 
 			,T.C.value('./@SubIssueTypeId', 'INT')
-			,T.C.value('./@VoidFromTime', 'DATETIME') AS FilterVoidFromTime 
-			,T.C.value('./@VoidToTime', 'DATETIME') AS FilterVoidToTime
+			,CASE WHEN T.C.value('./@VoidFromTime', 'DATETIME')  = '1900-01-01 00:00:00.000' THEN NULL ELSE T.C.value('./@VoidFromTime', 'DATETIME') END AS FilterVoidFromTime 
+			,CASE WHEN T.C.value('./@VoidToTime', 'DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE T.C.value('./@VoidToTime', 'DATETIME') END AS FilterVoidToTime
 	FROM @WrongScoreInfoXML.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL ))
 
 	--Init Validation
-	INSERT INTO @Validation (MatchId, ScoreId, LiveScores)
+	INSERT INTO @Validation (MatchId, ScoreId, LiveScores, IsInValidTotalTickets)
 	SELECT DISTINCT MatchId, ScoreId, CAST(livehomescore AS VARCHAR(10)) + '-' + CAST(liveawayscore AS VARCHAR(10)) AS LiveScores
+	      ,CASE WHEN FilterVoidFromTime IS NULL AND FilterVoidToTime IS NULL THEN 1 ELSE 0 END AS IsInValidTotalTickets
 	FROM #FilterInfo
 
 	INSERT INTO @bettype_tmp (bettype)

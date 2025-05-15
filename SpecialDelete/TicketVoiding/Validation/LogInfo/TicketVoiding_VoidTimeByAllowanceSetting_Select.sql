@@ -399,7 +399,7 @@ BEGIN
 				END
 
 				UPDATE #FilterInfo
-				SET VoidFromTime = @VoidFromTime, VoidToTime = @FilterToTransTime
+				SET VoidFromTime = @VoidFromTime, VoidToTime = CASE WHEN @VoidFromTime IS NOT NULL THEN @FilterToTransTime ELSE NULL END
 				WHERE MatchId = @MatchId
 			END 
 		END
@@ -648,7 +648,7 @@ BEGIN
 				END
 
 				UPDATE #FilterInfo
-				SET VoidFromTime = @VoidFromTime, VoidToTime = @FilterToTransTime
+				SET VoidFromTime = @VoidFromTime, VoidToTime = CASE WHEN @VoidFromTime IS NOT NULL THEN @FilterToTransTime ELSE NULL END
 				WHERE MatchId = @MatchId
 			END 
 		END
