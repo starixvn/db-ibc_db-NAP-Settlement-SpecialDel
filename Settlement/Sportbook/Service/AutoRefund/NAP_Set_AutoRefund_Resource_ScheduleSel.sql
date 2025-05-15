@@ -7,6 +7,7 @@ AS
 	
 	Revisions:
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+		- 20250515@Hughie: Enhance Auto Refund for Soccer's Early Results [Redmine:#227400]
 
 	Param's Explanation:
  
@@ -52,6 +53,6 @@ BEGIN
 			AND COALESCE(ms.[Enable],ss.[Enable],0) = 1		
 			AND ISNULL(m.SettlementStatus,0) & 87 = 0
 			AND ISNULL(rd.ResultSetting,0) & 1 <> 1
-			AND ar.ModifiedDate <= DATEADD(SECOND, - COALESCE(ms.WaitingTime,ss.WaitingTime,1), @CurrTime)
+			AND ar.ModifiedDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,30), @CurrTime)
 END
 GO
