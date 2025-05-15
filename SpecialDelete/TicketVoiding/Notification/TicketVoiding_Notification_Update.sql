@@ -107,10 +107,18 @@ BEGIN
                 INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.TransId = m.TransId
             WHERE RequestId = @RequestId
 
-            SELECT  @cnt_marked += COUNT(1)
-            FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
-                INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON s.MainTransId = m.TransId
-            WHERE RequestId = @RequestId
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK) WHERE RequestId = @RequestId)
+			BEGIN
+				SELECT  @cnt_marked += COUNT(1)
+				FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
+					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON s.TransId = bm.TransId
+					CROSS APPLY (
+						 SELECT TOP 1 m.TransId 
+						 FROM dbo.MarkedTransaction m WITH (NOLOCK) 
+						 WHERE  s.MainTransId = m.TransId AND bm.matchid = m.MatchId -- Case main parlay for 2 match sub
+					 )m
+				WHERE RequestId = @RequestId
+			END
 
             SET @Content = REPLACE(@Content, '@marked', CAST (@cnt_marked AS VARCHAR(10))) 
             
