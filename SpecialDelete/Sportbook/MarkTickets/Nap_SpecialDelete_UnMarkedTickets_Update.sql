@@ -1,5 +1,5 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update 
+ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update
 (	
 	@TransIds        VARCHAR(MAX)  = NULL,
     @UserId          INT           = 0,
@@ -38,6 +38,7 @@ AS
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240912@Max: [TVS] Display mark ticket result when Add/Edit request and remove AB Bet sub type [Redmine: #210388]
+		- 20250505@July: Display show mark ticket for case error request [Redmine: #219112]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -47,7 +48,6 @@ BEGIN
 			, @SubmittedDate DATETIME = GETDATE()
 			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			, @Session NVARCHAR(50) = CONVERT(NVARCHAR(50),NEWID())
-			, @strResult VARCHAR (MAX) = ''
 
 	SET @ID =  NEWID()
 	BEGIN TRY
@@ -91,6 +91,7 @@ BEGIN
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #Match(matchid INT, HomeId INT, AwayId INT, SportType TINYINT, IsNeutral BIT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT);
+	DECLARE @tmpMarkTicketList AS TABLE (TransId BIGINT)
 
 	CREATE TABLE #Tickets
 				(TransId   BIGINT,
@@ -113,6 +114,7 @@ BEGIN
 			,IsParlay
 			,SubTransId
 	)
+		OUTPUT  inserted.TransId INTO @tmpMarkTicketList (TransId)
 	SELECT t.TransId,
 			b.MatchId
 			,b.BetType
@@ -122,14 +124,14 @@ BEGIN
 			,NULL
 	FROM #transIds t
 	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-	LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON t.TransId = m.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
-	WHERE m.TransId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID
+	WHERE b.SiteDBGroupID = @SiteDBGroupID
 	AND b.statusID IN (0,1)
 	AND 1 = CASE WHEN @IssueTypeId IS NULL AND b.bettype <> 29 THEN 1 --Function special delete
 			        WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1 --IssueType: Abnormal account 
 					WHEN @IssueTypeId IS NOT NULL AND @IssueTypeId <> 13 AND b.bettype NOT IN (38) THEN 1 --Other IssueType 
 					ELSE 0 END
 
+	
 	-- get only parlay tickets from @input transid
 	INSERT INTO #ParlayTransIds (TransId)
 	SELECT tmp.TransId
@@ -148,6 +150,7 @@ BEGIN
 			,IsParlay
 			,SubTransId
 		)
+		OUTPUT  inserted.TransId INTO @tmpMarkTicketList (TransId)
 		SELECT b.TransId
 			,bm.matchid
 			,bm.bettype
@@ -158,10 +161,14 @@ BEGIN
 		FROM #ParlayTransIds t
 			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
-			LEFT JOIN dbo.MarkedTransaction AS m WITH (NOLOCK) ON b.TransId = m.TransId AND m.MatchId = bm.matchid
-		WHERE m.TransId IS NULL AND bm.statusID IN (0,1)
+		WHERE bm.statusID IN (0,1)
 			AND bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
 	END
+	
+	/*Case have marked done ignore*/
+	DELETE b
+	FROM #Tickets b 
+		INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON b.TransId = m.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #Tickets)
 	BEGIN
@@ -241,6 +248,12 @@ BEGIN
 				IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 				BEGIN	
 					SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+					
+					--2. Return table transId for TVS ( for case error request ex:lock match)
+					SELECT DISTINCT tmp.transId
+					FROM @tmpMarkTicketList tmp
+						INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON tmp.TransId = m.TransId
+
 					RETURN;		
 				END
 			END
@@ -260,12 +273,18 @@ BEGIN
 				BEGIN
 					SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 
+					--2. Return table transId for TVS ( for case error request ex:lock match)
+					SELECT DISTINCT tmp.transId
+					FROM @tmpMarkTicketList tmp
+						INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON tmp.TransId = m.TransId
+
 					-- releasing single process
 					EXEC dbo.NAP_Admin_CheckingProcess
 						@isExistMatch	= @IsExistSingle,
 						@IsExistFM		= @IsExistFM,
 						@IsExistFM2		= @IsExistFM2,
 						@IsReleased		= 1;
+					
 					RETURN;		
 				END
 
@@ -287,6 +306,12 @@ BEGIN
 			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
 			BEGIN
 				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+				
+				--2. Return table transId for TVS ( for case error request ex:lock match)
+				SELECT DISTINCT tmp.transId
+				FROM @tmpMarkTicketList tmp
+					INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON tmp.TransId = m.TransId
+				
 				RETURN;
 			END;
 		END
@@ -332,11 +357,6 @@ BEGIN
 
 			SET @TransIds_SB = ''
 
-			SET @strResult = @strResult + ',' + STUFF((
-									SELECT ',' + CAST(t.TransId AS NVARCHAR(100))
-									FROM @MarkedTransactionDeleted AS t
-									FOR XML PATH('')
-									), 1, 1, '') 
 		END
 
 		IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
@@ -393,10 +413,11 @@ BEGIN
 	SELECT @ErrCode AS ErrorCode
 		 , @ErrMsg AS ErrorMsg
 
-	--2. Return table transId for TVS
-	SELECT DISTINCT value AS TransId
-	FROM string_split (@strResult, ',')
-	WHERE value <> ''
+	--2. Return table transId for TVS ( for case error request ex:lock match)
+	SELECT DISTINCT tmp.transId
+	FROM @tmpMarkTicketList tmp
+		INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON tmp.TransId = m.TransId
+				
 
 	-- Write Log
 	SET @xmlLog = CAST((

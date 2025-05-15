@@ -1,22 +1,21 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_Delete]
 AS
 /*	
 	Created: 20221003@Max
     Task: [TVS] Enhance archive process of TVS data regarding the Scale Out DB project - [Redmine: #178234]
-    DB: DBTXN/bodb02
+    DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
     Revisions:
 		- 20221003@Max: Create SP - [Redmine: #178234]
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230316@Max: Change time archive data TicketVoiding_AutoVoidQueue [Redmine: #00000]
-	
+		- 20250415@July: [TVS] Notification [Redmine:#219112] 
+
 	Param's explanation:	
-		
+		- Note table: TicketVoiding_Notification - Only support data within 14 days	
 */
 BEGIN
 	SET NOCOUNT ON
-
-	CREATE TABLE #requestid_tmp (RequestId INT)
 
 	DECLARE @Archive_Date DATETIME
 	SELECT @Archive_Date = DATEADD(MONTH, -2, GETDATE())
@@ -60,8 +59,20 @@ BEGIN
 		END	
 	END
 	
+	IF OBJECT_ID('TicketVoiding_Notification','U') IS NOT NULL
+	BEGIN
+		SET @Archive_Date = DATEADD(DAY, -14, GETDATE())
+		
+		WHILE (1=1)
+		BEGIN
+			DELETE TOP(2000) n
+			FROM dbo.TicketVoiding_Notification n WITH (ROWLOCK)
+			WHERE n.CreatedDate <= @Archive_Date
+			
+			IF @@ROWCOUNT = 0 BREAK
+		END	
+	END
 
-	DROP TABLE #requestid_tmp 	
 END
 GO
 	
