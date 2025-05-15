@@ -41,13 +41,13 @@ PRIMARY KEY CLUSTERED
 )
 GO
 
-CREATE NONCLUSTERED INDEX CIX_SiteDB_PendingCommand_matchid ON [dbo].[SiteDB_PendingCommand]
+CREATE NONCLUSTERED INDEX IX_SiteDB_PendingCommand_matchid ON [dbo].[SiteDB_PendingCommand]
 (
 	matchid
 )
 GO
 
-CREATE NONCLUSTERED INDEX CIX_SiteDB_PendingCommand_CreateDate ON [dbo].[SiteDB_PendingCommand]
+CREATE NONCLUSTERED INDEX IX_SiteDB_PendingCommand_CreateDate ON [dbo].[SiteDB_PendingCommand]
 (
 	CreateDate
 )
