@@ -400,7 +400,6 @@ BEGIN
 					,@IssueTypeId	 = @IssueTypeId	
 					,@UserId		 = @UserId		
 					,@IP			 = @IP			
-					,@ActionId		 = @ActionId
 					,@MatchEarlyCompletedInfo = @MatchEarlyCompletedInfo
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest

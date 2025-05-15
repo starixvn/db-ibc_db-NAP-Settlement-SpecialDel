@@ -27,6 +27,7 @@ AS;
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 
 	Param's explanation:	
 		
@@ -81,8 +82,8 @@ BEGIN
 	;WITH CTE_Single AS(
 			SELECT	vh.RequestId, vh.MatchId, vh.RequestDetailId
 					,SUM( CASE 
-							WHEN vh.IssueTypeId NOT IN (1,10,3,12,24,25,18) AND f.bettype IS NULL THEN 1
-							WHEN vh.IssueTypeId IN (1,10,3,12,24,25,18) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+							WHEN vh.IssueTypeId NOT IN (1,10,3,12,24,25,18,27) AND f.bettype IS NULL THEN 1
+							WHEN vh.IssueTypeId IN (1,10,3,12,24,25,18,27) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 						ELSE 0 END
 					) AS TotalSingleProcessed
 					,SUM(CASE WHEN f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
