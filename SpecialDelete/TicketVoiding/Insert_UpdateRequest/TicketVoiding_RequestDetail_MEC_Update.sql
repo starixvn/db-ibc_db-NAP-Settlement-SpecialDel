@@ -44,6 +44,7 @@ BEGIN
 			,SubIssueTypeId			SMALLINT
 			,AdvancedExtraInfo		VARCHAR(MAX)
 			,IssueDetail			NVARCHAR(MAX)
+			,BettypeCount			VARCHAR(MAX)
 			)
 
 	CREATE TABLE #tmpTransInfo(
@@ -84,7 +85,8 @@ BEGIN
 			,SingleCount			
 			,MainParlayCount		
 			,VoidFromTime			
-			,VoidToTime				
+			,VoidToTime
+			,BettypeCount				
 			,SubIssueTypeId
 			,AdvancedExtraInfo
 			,IssueDetail
@@ -95,6 +97,7 @@ BEGIN
 			,t.c.value('@MainParlayCount','INT') AS MainParlayCount
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+			,REPLACE(t.c.value('@BetTypeCount','VARCHAR(MAX)'), '&quot;','''') AS BetTypeCount
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			,REPLACE(t.c.value('@AdvancedExtraInfo','VARCHAR(MAX)'), '&quot;','''') AS AdvancedExtraInfo
 			,REPLACE(t.c.value('@AllBetTypesSelectionJson','NVARCHAR(MAX)'), '&quot;','''') AS IssueDetail
@@ -116,6 +119,7 @@ BEGIN
 			, SubIssueTypeId = l.SubIssueTypeId
 			, AdvancedExtraInfo = l.AdvancedExtraInfo
 			, IssueDetail = l.IssueDetail
+			, TransIds = l.BettypeCount
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
 	END
@@ -135,6 +139,7 @@ BEGIN
 		, AdvancedExtraInfo
 		, Sporttype
 		, IssueDetail
+		, TransIds
 		)
 	SELECT @RequestId
 		, l.MatchID
@@ -150,6 +155,7 @@ BEGIN
 		, l.AdvancedExtraInfo
 		, m.sporttype
 		, l.IssueDetail
+		, l.BettypeCount
 	FROM #tblGetLogInfo l
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
 		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID
