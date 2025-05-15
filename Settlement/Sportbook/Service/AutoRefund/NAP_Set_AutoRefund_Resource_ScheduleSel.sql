@@ -7,6 +7,7 @@ AS
 	
 	Revisions:
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+		- 20250515@Hughie: Enhance Auto Refund for Soccer's Early Results [Redmine:#227400]
 
 	Param's Explanation:
  
