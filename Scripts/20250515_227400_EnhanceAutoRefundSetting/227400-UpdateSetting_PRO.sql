@@ -12,7 +12,7 @@ DECLARE @DuplicateResources TABLE (ResourceID VARCHAR(10))
 
 INSERT INTO @DuplicateResources
 SELECT ResourceID 
-FROM AutoRefundSetting
+FROM AutoRefundSetting WITH (NOLOCK)
 WHERE ResourceID IN ('376', '386', '387', '390', '391', '393')
 AND Sporttype = 1
 AND (
@@ -28,8 +28,8 @@ BEGIN
     )
 
     INSERT INTO @UpdateTable (ResourceID, OriginalJSON)
-    SELECT ResourceID, Conditions
-    FROM AutoRefundSetting
+    SELECT ResourceID, Conditions 
+    FROM AutoRefundSetting WITH (NOLOCK)
     WHERE ResourceID IN (SELECT ResourceID FROM @DuplicateResources)
     AND Sporttype = 1
 
@@ -42,11 +42,11 @@ BEGIN
             '"sourceResource":"38105"'
         )
 
-    UPDATE ars
+    UPDATE ars WITH (ROWLOCK, UPDLOCK)
     SET ars.Conditions = ut.UpdatedJSON,
         ars.RepUpdateTime = [dbo].[f_GetDateTime2]()
     FROM AutoRefundSetting ars
-    JOIN @UpdateTable ut ON ars.ResourceID = ut.ResourceID
+    INNER JOIN @UpdateTable ut ON ars.ResourceID = ut.ResourceID
     WHERE ars.Sporttype = 1
     
     SELECT 'Updated ResourceIDs: ' + 
