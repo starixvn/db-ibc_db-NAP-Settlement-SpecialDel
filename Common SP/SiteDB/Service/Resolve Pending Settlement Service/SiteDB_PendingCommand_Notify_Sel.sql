@@ -18,7 +18,7 @@ BEGIN
 
 	SELECT pID
 		,matchid
-		,sporttype
+		,ProductType
 		,SiteDBGroupID
 	FROM SiteDB_PendingCommand c WITH(NOLOCK)
 	WHERE c.CreateDate < @ToTime

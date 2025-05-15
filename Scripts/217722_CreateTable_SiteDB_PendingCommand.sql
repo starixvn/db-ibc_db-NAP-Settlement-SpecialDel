@@ -8,11 +8,12 @@
 USE bodb02
 GO
 
----drop table  SiteDB_PendingCommand
+DROP TABLE  IF EXISTS SiteDB_PendingCommand
+
 CREATE TABLE SiteDB_PendingCommand (
     pID				INT IDENTITY(1,1),
     MatchId			INT				NOT NULL,
-    Sporttype		INT				NOT NULL,
+    ProductType		VARCHAR(50)		NOT NULL,
 	SPName			VARCHAR(100)	NOT NULL,
 	Parameter		VARCHAR (MAX)	NOT NULL,
     Action			VARCHAR(20)		NULL,   ---NAP_Admin_Settlement_s161_Manual does not have action

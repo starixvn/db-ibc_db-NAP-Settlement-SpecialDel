@@ -18,7 +18,7 @@ BEGIN
    SELECT TOP (@batch)
 		pID
 		,matchid		
-		,sporttype	
+		,ProductType	
 		,SPName
 		,Parameter
 		,SystemName

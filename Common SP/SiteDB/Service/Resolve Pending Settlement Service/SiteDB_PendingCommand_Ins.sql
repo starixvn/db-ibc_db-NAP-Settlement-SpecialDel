@@ -1,7 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.SiteDB_PendingCommand_Ins
     @matchid		INT  
-    ,@sporttype		INT  
+    ,@ProductType	VARCHAR(50)  
 	,@Action		VARCHAR(10)		= NULL
     ,@SPName		VARCHAR(100)
 	,@Parameter		VARCHAR(MAX) 
@@ -30,7 +30,7 @@ BEGIN
  
 	INSERT INTO SiteDB_PendingCommand (
 		matchid,
-		sporttype,
+		ProductType,
 		SPName,
 		Parameter, 
 		Action,
@@ -42,7 +42,7 @@ BEGIN
 	)
 	VALUES (
 		@matchid,           
-		@sporttype, 
+		@ProductType, 
 		@SPName,
 		@Parameter,         
 		@Action,            
