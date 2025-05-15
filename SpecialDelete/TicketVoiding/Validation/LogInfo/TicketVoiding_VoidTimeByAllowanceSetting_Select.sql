@@ -386,7 +386,7 @@ BEGIN
 
 				IF @VoidFromTime IS NULL
 				BEGIN
-					SELECT @VoidFromTime = NULL ,@VoidToTime = NULL
+					SELECT @VoidFromTime = @CancelCOFromTime
 				END
 				ELSE --Must ticket Void -> have cancel cash out.
 				BEGIN
@@ -635,7 +635,7 @@ BEGIN
 
 				IF @VoidFromTime IS NULL
 				BEGIN
-					SELECT @VoidFromTime = NULL ,@VoidToTime = NULL
+					SELECT @VoidFromTime = @CancelCOFromTime
 				END
 				ELSE --Must ticket Void -> have cancel cash out.
 				BEGIN
@@ -661,4 +661,5 @@ BEGIN
 	DROP TABLE #FilterInfo
 END
 GO
+
 

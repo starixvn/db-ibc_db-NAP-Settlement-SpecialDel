@@ -854,12 +854,11 @@ BEGIN
 	END
 	ELSE IF @FilterBy = 2
 	BEGIN 
-		UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 AND ISNULL(l.CancelCashOutCount,0) = 0 THEN 1 ELSE 0 END
+		UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
 		FROM @Validation v
 		OUTER APPLY( 
 				SELECT SUM(SingleCount) AS SingleCount
 					,SUM(MainParlayCount) AS MainParlayCount
-					,SUM(CancelCashOutCount) AS CancelCashOutCount
 				FROM #logInfo
 				WHERE MatchId = v.MatchId
 				GROUP BY MatchId

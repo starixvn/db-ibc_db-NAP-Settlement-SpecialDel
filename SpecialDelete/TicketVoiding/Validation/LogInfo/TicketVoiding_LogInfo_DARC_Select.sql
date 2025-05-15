@@ -396,8 +396,8 @@ BEGIN
 				,d.FilterBy
 				,0 AS IsCancelCashOut
 				,NULL AS CheckTimeCashOut
-				,act.VoidTime
 				,b.liveindicator
+				,act.VoidTime
 				,b.betid
 				,b.SiteDBGroupID
 		FROM #FilterInfo d
@@ -721,12 +721,11 @@ BEGIN
 		RETURN;
 	END
 
-	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 AND ISNULL(l.CancelCashOutCount,0) = 0 THEN 1 ELSE 0 END
+	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
 	FROM @Validation v
 	OUTER APPLY( 
 			SELECT SUM(SingleCount) AS SingleCount
 				,SUM(MainParlayCount) AS MainParlayCount
-				,SUM(CancelCashOutCount) AS CancelCashOutCount
 			FROM #logInfo
 			WHERE MatchId = v.MatchId
 			GROUP BY MatchId
