@@ -69,6 +69,7 @@ AS
 		- 20250219@July: [TVS] Apply new Void Request page for some issue types of TVS [Redmine: #191397]
 		- 20250321@Lani: [TVS] Enhance out of memory issue [Redmine: #217771]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
+		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 	Param's explanation:	
 		
 */
@@ -324,7 +325,7 @@ BEGIN
 		END
 		
 	END
-	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7, 2, 19, 21, 23, 12, 24, 25, 18) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU, WrongOdds, ReducedOver, Not Participate, Abandoned
+	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7, 2, 19, 21, 23, 12, 24, 25, 18, 27) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU, WrongOdds, ReducedOver, Not Participate, Abandoned
 	BEGIN
 		INSERT INTO #TVSTicketBets(
 				GroupID			
