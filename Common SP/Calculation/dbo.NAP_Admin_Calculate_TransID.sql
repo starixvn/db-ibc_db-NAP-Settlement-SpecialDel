@@ -341,7 +341,7 @@ BEGIN
 			,deleted.bettype,deleted.betid,deleted.refno
 			,deleted.winlostdate
 			,deleted.actual_stake
-			,inserted.betcheck
+			,deleted.betcheck
 	INTO @tmpTransInfo (
 			transId
 			,custid, Balance

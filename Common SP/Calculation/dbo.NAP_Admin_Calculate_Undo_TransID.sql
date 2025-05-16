@@ -132,7 +132,7 @@ BEGIN
 				,inserted.Status,inserted.StatusID,inserted.ruben
 				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 				,deleted.winlost,deleted.statusid	
-				,deleted.bettype,deleted.betid,deleted.refno, inserted.betcheck
+				,deleted.bettype,deleted.betid,deleted.refno, deleted.betcheck
 		INTO @tmpTransInfo (transId
 							,custid, Balance
 							,odds, statuswinlost
