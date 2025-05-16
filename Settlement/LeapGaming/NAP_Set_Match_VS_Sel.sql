@@ -16,7 +16,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT @MatchID AS MatchID,m.eventstatus, s.SportType,kickofftime,l.leagueId,l.LeagueGroupID,m.homeid, m.awayid, m.hthomescore, m.htawayscore  
+	SELECT @MatchID AS MatchID,m.eventstatus, s.SportType,kickofftime,l.leagueId,l.LeagueGroupID,m.homeid, m.awayid, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
 	FROM dbo.match m WITH(NOLOCK)
 		INNER JOIN dbo.sports s WITH(NOLOCK) ON m.sporttype = s.sporttype
 		LEFT JOIN dbo.league AS l  WITH(NOLOCK) ON  l.leagueId = m.leagueId 
