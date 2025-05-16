@@ -39,6 +39,7 @@ AS
 		- 20230920@Kathy: Remove check ticket at central before moving [Redmine:#194268]
 		- 20252802@Aries.Nguyen: Enhance the logic code to decrease the amount of calling SPs into NAP_Set_ServerInfo [RedmineID: #218790]
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+		- 20250516@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
 	Param's Explanation:
 		This SP is called after pass [NAP_Admin_Settlement_Validation_Event]
@@ -98,7 +99,7 @@ BEGIN
 		AND ISNULL(@matchid,0) > 0
 
 	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
-			,@IsAutoRefund	=  CASE WHEN @Action = 'REFUND' AND @IsAuto = 1 AND @AutoType = 0 THEN 1
+			,@IsAutoRefund	=  CASE WHEN @Action = 'REFUND' AND @IsAuto = 1 AND @AutoType = 0 AND @Mode <> 'pingoal' THEN 1
 									ELSE 0 END
 	
 	SELECT @IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
