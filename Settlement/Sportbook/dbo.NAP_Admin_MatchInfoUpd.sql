@@ -154,7 +154,7 @@ BEGIN
   		WHERE sr.ResourceID = '01' 
 			AND 1 = CASE 
 						WHEN @sportType IN ( 2, 58) THEN 1
-						WHEN @sportType = 1 AND @LeagueGroupID IN (113, 252) THEN 1---PinGoal
+						WHEN @sportType = 1 AND @LeagueGroupID = 113 THEN 1---PinGoal
 						ELSE 0
 					END
 
