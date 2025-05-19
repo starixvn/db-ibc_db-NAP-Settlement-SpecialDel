@@ -57,14 +57,29 @@ BEGIN
 		SET @IsInsertTrigger = 1
 	END
 
-	DECLARE @tbl_transIDs AS TABLE(transid BIGINT)
+	CREATE TABLE #tmpTransId (
+		transid				BIGINT
+		,sporttype			SMALLINT
+		,IsCashOut			BIT
+		,zzzwinlost			MONEY
+		--,modds              SMALLMONEY
+		--,Stake				MONEY
+		,status				NVARCHAR(10)
+		,creator			INT	
+	)
 
-	SET @XML = N'<root><r>' + REPLACE(@transIds, ',', '</r><r>') + '</r></root>'
-	
-	INSERT INTO @tbl_transIDs (transid)
-	SELECT r.value('.','BIGINT')
-	FROM @xml.nodes('//root/r') AS RECORDS(r)
-	OPTION (OPTIMIZE FOR (@xml = NULL))
+	SET @xml = CONVERT(XML, @transIds)
+	INSERT INTO #tmpTransId (TransId, sporttype, IsCashOut, zzzwinlost/*, modds, Stake*/, status, creator)
+	SELECT DISTINCT t.c.value('@transid','BIGINT') AS TransId
+				   ,t.c.value('@sporttype','SMALLINT') AS sporttype
+				   ,t.c.value('@IsCashOut','BIT') AS IsCashOut
+				   ,t.c.value('@zzzwinlost','MONEY') AS zzzwinlost
+				  -- ,t.c.value('@modds','SMALLMONEY') AS modds
+				   --,t.c.value('@Stake','MONEY') AS Stake
+				   ,t.c.value('@status','NVARCHAR(10)') AS status
+				   ,t.c.value('@creator','INT') AS creator
+	FROM @xml.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@xml = NULL ))
 	
 	DECLARE @tempTrans TABLE (TransID BIGINT, isDecimalOdd BIT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT)
 	DECLARE  @commWinRate		SMALLMONEY
@@ -101,8 +116,8 @@ BEGIN
 			ELSE 0 
 		END AS isDecimalOdd
 	, srecommend, b14.bettype
-	FROM @tbl_transIDs t
-		INNER LOOP JOIN dbo.bettrans14 b14	WITH (NOLOCK) ON b14.transid = t.transid AND ISNULL(b14.betdaqid, 0) <> -2
+	FROM #tmpTransId t
+		INNER LOOP JOIN dbo.bettrans14 b14	WITH (NOLOCK) ON b14.transid = t.transid
 		LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b14.bettype
 		 
 	-- update if bettype belongs to the CN88 site or not
@@ -137,175 +152,268 @@ BEGIN
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId
 	END
 
-	UPDATE  b
-		SET 
-		   @commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
-								WHEN '0' THEN 1
-								WHEN '1' THEN 0
-								ELSE 1 END
-		   ,@commLostRate = CASE comstatus
-								WHEN '0' THEN 1
-								WHEN '1' THEN 2
-								ELSE 1 END
-		   ,@commHalfWLRate = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN 1
-								ELSE 0.5
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE IsCashOut = 0)
+	BEGIN
+		UPDATE  b
+			SET 
+			   @commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
+									WHEN '0' THEN 1
+									WHEN '1' THEN 0
+									ELSE 1 END
+			   ,@commLostRate = CASE comstatus
+									WHEN '0' THEN 1
+									WHEN '1' THEN 2
+									ELSE 1 END
+			   ,@commHalfWLRate = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN 1
+									ELSE 0.5
+								END
+			   ,@odds = CASE WHEN b.bettype IN (468,469) THEN b.odds
+								 ELSE (CASE WHEN b.odds < 0 THEN 1 
+	   										WHEN sr.isDecimalOdd = 1 THEN CASE 
+																			WHEN b.statuswinlost = 2 AND b.bettype IN (9538,9539,9540) AND b.betteam LIKE '%l' THEN 1
+																			ELSE b.odds - 1 ----/*DECIMAL ONLY*/
+																			END
+											ELSE b.odds 
+										END)
+						END
+				----------------------------------------------------------------------------------------------------------------
+				,@winlost = CASE 
+								WHEN b.bettype IN (468,469) THEN CASE 
+																	WHEN statuswinlost IN (2,4) THEN actual_stake + stake * @odds
+																	WHEN statuswinlost IN (0,6) THEN actual_stake 
+																  END	
+								ELSE
+								CASE
+									WHEN statuswinlost = 2 THEN actual_stake + stake * @odds
+									WHEN statuswinlost = 1 THEN actual_stake + stake * @odds * 0.5
+									WHEN statuswinlost IN (0,6) THEN actual_stake
+									WHEN statuswinlost = 3 THEN actual_stake * 0.5
+									WHEN statuswinlost = 4 THEN 0
+								END 
+							END		
+				-- check if bettype belongs to major comm group (CommBettypeGroupId = 1) and calc comm with new formula
+				,@stake = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN ABS(@winlost - actual_stake)
+								ELSE stake 
+						  END
+				-- check winlost or status change to update SettlementTime
+				,@statusId = CASE
+								WHEN statuswinlost IN (1,2) THEN 112 --WON
+								WHEN statuswinlost = 0 THEN 111 --DRAW
+								WHEN statuswinlost IN (3,4) THEN 113 --LOSE
+								WHEN statuswinlost = 6 THEN 103
 							END
-		   ,@odds = CASE WHEN b.bettype IN (468,469) THEN b.odds
-							 ELSE (CASE WHEN b.odds < 0 THEN 1 
-	   									WHEN sr.isDecimalOdd = 1 THEN CASE 
-																		WHEN b.statuswinlost = 2 AND b.bettype IN (9538,9539,9540) AND b.betteam LIKE '%l' THEN 1
-																		ELSE b.odds - 1 ----/*DECIMAL ONLY*/
-																		END
-										ELSE b.odds 
-									END)
-					END
-			----------------------------------------------------------------------------------------------------------------
-			,@winlost = CASE 
+				,SettlementTime = @settlementTime
+				,WinLost = @winlost
+				,aWinLost = CASE 
+								WHEN b.bettype IN (468,469) THEN CASE 
+																	WHEN statuswinlost IN (2,4) THEN stake * @odds * -apositiontaking
+																	WHEN statuswinlost IN (0,6) THEN 0 
+																  END	
+								ELSE 
+								CASE
+									WHEN statuswinlost = 2 THEN stake * -apositiontaking * @odds
+									WHEN statuswinlost = 1 THEN stake * @odds * -apositiontaking * 0.5
+									WHEN statuswinlost IN (0,6)	THEN 0
+									WHEN statuswinlost = 3 THEN actual_stake * apositiontaking * 0.5
+									WHEN statuswinlost = 4 THEN actual_stake * apositiontaking
+								END
+							END
+								
+				,mWinLost = CASE 
+								WHEN b.bettype IN (468,469) THEN CASE 
+																	WHEN statuswinlost IN (2,4) THEN stake * @odds * -mpositiontaking
+																	WHEN statuswinlost IN (0,6) THEN 0 
+																  END	
+								ELSE
+								CASE
+									WHEN statuswinlost = 2 THEN stake * -mpositiontaking *  @odds
+									WHEN statuswinlost = 1 THEN stake * @odds * -mpositiontaking * 0.5
+									WHEN statuswinlost IN (0,6)	THEN 0
+									WHEN statuswinlost = 3 THEN actual_stake * mpositiontaking * 0.5
+									WHEN statuswinlost = 4 THEN actual_stake * mpositiontaking
+								END
+							END
+						
+				,sWinLost = CASE 
+								WHEN b.bettype IN (468,469) THEN CASE 
+																	WHEN statuswinlost IN (2,4) THEN stake * @odds * -spositiontaking
+																	WHEN statuswinlost IN (0,6) THEN 0 
+																  END	
+								ELSE
+								CASE
+									WHEN statuswinlost = 2 THEN stake * -spositiontaking * @odds
+									WHEN statuswinlost = 1 THEN stake * @odds * -spositiontaking * 0.5
+									WHEN statuswinlost IN (0,6)	THEN 0
+									WHEN statuswinlost = 3 THEN actual_stake * spositiontaking * 0.5
+									WHEN statuswinlost = 4 THEN actual_stake * spositiontaking
+								END
+							END
+
+				,PlayerComm = CASE 
+								WHEN b.bettype IN (468,469) THEN CASE 
+																	WHEN statuswinlost = 2 THEN @commWinRate * playerdiscount * @stake
+																	WHEN statuswinlost = 4 THEN @commLostRate * playerdiscount * @stake
+																	WHEN statuswinlost IN (0,6) THEN 0 
+																  END	
+								ELSE
+								CASE
+									WHEN statuswinlost = 2 THEN @commWinRate * playerdiscount * @stake
+									WHEN statuswinlost = 1 THEN @commWinRate * playerdiscount * @stake * @commHalfWLRate
+									WHEN statuswinlost IN (0,6)	THEN 0
+									WHEN statuswinlost = 3 THEN @commLostRate * playerdiscount * @stake * @commHalfWLRate
+									WHEN statuswinlost = 4 THEN @commLostRate * playerdiscount * @stake
+								END
+							END
+				,Comm = CASE 
 							WHEN b.bettype IN (468,469) THEN CASE 
-																WHEN statuswinlost IN (2,4) THEN actual_stake + stake * @odds
-																WHEN statuswinlost IN (0,6) THEN actual_stake 
+																WHEN statuswinlost = 2 THEN @commWinRate * discount * @stake * (1 - apositiontaking)
+																WHEN statuswinlost = 4 THEN @commLostRate * discount * @stake * (1 - apositiontaking)
+																WHEN statuswinlost IN (0,6) THEN 0 
 															  END	
 							ELSE
 							CASE
-								WHEN statuswinlost = 2 THEN actual_stake + stake * @odds
-								WHEN statuswinlost = 1 THEN actual_stake + stake * @odds * 0.5
-								WHEN statuswinlost IN (0,6) THEN actual_stake
-								WHEN statuswinlost = 3 THEN actual_stake * 0.5
-								WHEN statuswinlost = 4 THEN 0
-							END 
-						END		
-			-- check if bettype belongs to major comm group (CommBettypeGroupId = 1) and calc comm with new formula
-			,@stake = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN ABS(@winlost - actual_stake)
-							ELSE stake 
-					  END
-			-- check winlost or status change to update SettlementTime
-			,@statusId = CASE
-							WHEN statuswinlost IN (1,2) THEN 112 --WON
-							WHEN statuswinlost = 0 THEN 111 --DRAW
-							WHEN statuswinlost IN (3,4) THEN 113 --LOSE
-							WHEN statuswinlost = 6 THEN 103
-						END
-			,SettlementTime = @settlementTime
-			,WinLost = @winlost
-			,aWinLost = CASE 
+								WHEN statuswinlost = 2 THEN @commWinRate * discount * @stake * (1-apositiontaking)
+								WHEN statuswinlost = 1 THEN @commWinRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
+								WHEN statuswinlost IN (0,6)	THEN 0
+								WHEN statuswinlost = 3 THEN @commLostRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
+								WHEN statuswinlost = 4 THEN @commLostRate * discount * @stake * (1-apositiontaking)
+							END
+						END	
+				,aComm = CASE 
 							WHEN b.bettype IN (468,469) THEN CASE 
-																WHEN statuswinlost IN (2,4) THEN stake * @odds * -apositiontaking
+																WHEN statuswinlost = 2 THEN @commWinRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
+																WHEN statuswinlost = 4 THEN @commLostRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
 																WHEN statuswinlost IN (0,6) THEN 0 
 															  END	
 							ELSE 
 							CASE
-								WHEN statuswinlost = 2 THEN stake * -apositiontaking * @odds
-								WHEN statuswinlost = 1 THEN stake * @odds * -apositiontaking * 0.5
+								WHEN statuswinlost = 2 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
+								WHEN statuswinlost = 1 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
 								WHEN statuswinlost IN (0,6)	THEN 0
-								WHEN statuswinlost = 3 THEN actual_stake * apositiontaking * 0.5
-								WHEN statuswinlost = 4 THEN actual_stake * apositiontaking
+								WHEN statuswinlost = 3 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
+								WHEN statuswinlost = 4 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
 							END
-						END
-								
-			,mWinLost = CASE 
+						END		
+				,sComm = CASE 
 							WHEN b.bettype IN (468,469) THEN CASE 
-																WHEN statuswinlost IN (2,4) THEN stake * @odds * -mpositiontaking
+																WHEN statuswinlost = 2 THEN @commWinRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+																WHEN statuswinlost = 4 THEN @commLostRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
 																WHEN statuswinlost IN (0,6) THEN 0 
 															  END	
-							ELSE
+							ELSE 
 							CASE
-								WHEN statuswinlost = 2 THEN stake * -mpositiontaking *  @odds
-								WHEN statuswinlost = 1 THEN stake * @odds * -mpositiontaking * 0.5
+								WHEN statuswinlost = 2 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+								WHEN statuswinlost = 1 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
 								WHEN statuswinlost IN (0,6)	THEN 0
-								WHEN statuswinlost = 3 THEN actual_stake * mpositiontaking * 0.5
-								WHEN statuswinlost = 4 THEN actual_stake * mpositiontaking
+								WHEN statuswinlost = 3 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
+								WHEN statuswinlost = 4 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
 							END
+						END	
+				,Status = CASE
+							WHEN @statusId = 112  THEN 'WON'
+							WHEN @statusId = 111 THEN 'DRAW'
+							WHEN @statusId = 113 THEN 'LOSE'
+							WHEN @statusId = 103 THEN 'Refund'
 						END
-						
-			,sWinLost = CASE 
-							WHEN b.bettype IN (468,469) THEN CASE 
-																WHEN statuswinlost IN (2,4) THEN stake * @odds * -spositiontaking
-																WHEN statuswinlost IN (0,6) THEN 0 
-															  END	
-							ELSE
-							CASE
-								WHEN statuswinlost = 2 THEN stake * -spositiontaking * @odds
-								WHEN statuswinlost = 1 THEN stake * @odds * -spositiontaking * 0.5
-								WHEN statuswinlost IN (0,6)	THEN 0
-								WHEN statuswinlost = 3 THEN actual_stake * spositiontaking * 0.5
-								WHEN statuswinlost = 4 THEN actual_stake * spositiontaking
-							END
-						END
+				,StatusID = @statusId
+				,ruben= 1
+				,ExtraInfo = REPLACE(REPLACE(ExtraInfo, '<p1 ab="1"/>',''),'ab="1"','')
+				,creator = b.custID
+		FROM @tempTrans sr
+			INNER JOIN dbo.bettrans14 b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
+	END
+	
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE IsCashOut = 1)
+	BEGIN
+		--> re-calculate stake, re-settle for main cash-out + update cash-out bet ticket			
+			;WITH CTE_main_cashoutticket AS
+			(
+				SELECT transid
+					 , 1 AS TicketType	 
+					-- , modds
+					-- , Stake	
+					 , zzzwinlost AS winlost
+					 , status
+					 , CASE WHEN status = 'WON' THEN '112' 
+							WHEN status = 'LOSE' THEN '113' 
+							WHEN status = 'DRAW' THEN '111' 
+						END AS StatusId
+					 , creator
+					 , SportType
+				FROM #tmpTransId
+			)
+			UPDATE	b
+			SET status = TCal.status
+			  , statusID = TCal.StatusId
+			 --, stake = TRef.stake
+			  , winlost = TCal.winlost
+			  , awinlost = TCal.awinlost
+			  , mWinLost = TCal.mWinLost
+			  , swinlost = TCal.swinlost
+			  , playercomm = TCal.playercomm
+			  , comm = TCal.comm
+			  , acomm = TCal.acomm
+			  , scomm = TCal.scomm
+			  , ruben = b.ruben
+			  , creator = t.creator
+			  , ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',b.ExtraInfo,t.SportType, b.bettype)
+			FROM dbo.bettrans14 b WITH(ROWLOCK, UPDLOCK)
+				INNER JOIN CTE_main_cashoutticket AS t
+						ON b.transid = t.transId	    			
+				OUTER APPLY (
+								SELECT --b.stake,
+									   CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 0 ELSE 1 END AS CommWinRate
+									 , CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 2 ELSE 1 END AS CommLostRate
+							) AS TRef		
+				OUTER APPLY (SELECT CASE WHEN b.statuswinlost = 6 THEN 103 ELSE t.StatusId END AS StatusId
+								 , CASE WHEN b.statuswinlost = 6 THEN 'Refund' ELSE t.status END AS status
+								 , CASE WHEN b.statuswinlost = 6 THEN b.actual_stake ELSE t.winlost END AS winlost
+								 , CASE
+									
+										WHEN b.statuswinlost = 6 THEN 0
+										WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.apositiontaking
+										WHEN t.StatusId = 111 THEN 0
+										ELSE ABS(t.winlost - b.actual_stake) * b.apositiontaking
+									END AS awinlost
+								, CASE
+										WHEN b.statuswinlost = 6 THEN 0
+										WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.mpositiontaking
+										WHEN t.StatusId = 111 THEN 0
+										ELSE ABS(t.winlost - b.actual_stake) * b.mpositiontaking
+									END AS mWinLost
+								, CASE
+										WHEN b.statuswinlost = 6 THEN 0
+										WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.spositiontaking
+										WHEN t.StatusId = 111 THEN 0
+										ELSE ABS(t.winlost - b.actual_stake) * b.spositiontaking
+									END AS swinlost
+								  , CASE
+										WHEN b.statuswinlost = 6 THEN 0
+										WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.playerdiscount
+										WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.playerdiscount
+										ELSE TRef.CommLostRate * b.stake * b.playerdiscount
+									END AS playercomm
+								, CASE
+										WHEN b.statuswinlost = 6 THEN 0
+										WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
+										WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
+										ELSE TRef.CommLostRate * b.stake * b.discount * (1-apositiontaking)
+									END AS comm
+								,CASE
+										WHEN b.statuswinlost = 6 THEN 0
+										WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
+										WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
+										ELSE TRef.CommLostRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
+									END AS acomm
+								,CASE
+										WHEN b.statuswinlost = 6 THEN 0
+										WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
+										WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
+										ELSE TRef.CommLostRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
+									END AS scomm
+							) AS TCal	
+	END
 
-			,PlayerComm = CASE 
-							WHEN b.bettype IN (468,469) THEN CASE 
-																WHEN statuswinlost = 2 THEN @commWinRate * playerdiscount * @stake
-																WHEN statuswinlost = 4 THEN @commLostRate * playerdiscount * @stake
-																WHEN statuswinlost IN (0,6) THEN 0 
-															  END	
-							ELSE
-							CASE
-								WHEN statuswinlost = 2 THEN @commWinRate * playerdiscount * @stake
-								WHEN statuswinlost = 1 THEN @commWinRate * playerdiscount * @stake * @commHalfWLRate
-								WHEN statuswinlost IN (0,6)	THEN 0
-								WHEN statuswinlost = 3 THEN @commLostRate * playerdiscount * @stake * @commHalfWLRate
-								WHEN statuswinlost = 4 THEN @commLostRate * playerdiscount * @stake
-							END
-						END
-			,Comm = CASE 
-						WHEN b.bettype IN (468,469) THEN CASE 
-															WHEN statuswinlost = 2 THEN @commWinRate * discount * @stake * (1 - apositiontaking)
-															WHEN statuswinlost = 4 THEN @commLostRate * discount * @stake * (1 - apositiontaking)
-															WHEN statuswinlost IN (0,6) THEN 0 
-														  END	
-						ELSE
-						CASE
-							WHEN statuswinlost = 2 THEN @commWinRate * discount * @stake * (1-apositiontaking)
-							WHEN statuswinlost = 1 THEN @commWinRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
-							WHEN statuswinlost IN (0,6)	THEN 0
-							WHEN statuswinlost = 3 THEN @commLostRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
-							WHEN statuswinlost = 4 THEN @commLostRate * discount * @stake * (1-apositiontaking)
-						END
-					END	
-			,aComm = CASE 
-						WHEN b.bettype IN (468,469) THEN CASE 
-															WHEN statuswinlost = 2 THEN @commWinRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
-															WHEN statuswinlost = 4 THEN @commLostRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
-															WHEN statuswinlost IN (0,6) THEN 0 
-														  END	
-						ELSE 
-						CASE
-							WHEN statuswinlost = 2 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
-							WHEN statuswinlost = 1 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
-							WHEN statuswinlost IN (0,6)	THEN 0
-							WHEN statuswinlost = 3 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
-							WHEN statuswinlost = 4 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
-						END
-					END		
-			,sComm = CASE 
-						WHEN b.bettype IN (468,469) THEN CASE 
-															WHEN statuswinlost = 2 THEN @commWinRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
-															WHEN statuswinlost = 4 THEN @commLostRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
-															WHEN statuswinlost IN (0,6) THEN 0 
-														  END	
-						ELSE 
-						CASE
-							WHEN statuswinlost = 2 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
-							WHEN statuswinlost = 1 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
-							WHEN statuswinlost IN (0,6)	THEN 0
-							WHEN statuswinlost = 3 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
-							WHEN statuswinlost = 4 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
-						END
-					END	
-			,Status = CASE
-						WHEN @statusId = 112  THEN 'WON'
-						WHEN @statusId = 111 THEN 'DRAW'
-						WHEN @statusId = 113 THEN 'LOSE'
-						WHEN @statusId = 103 THEN 'Refund'
-					END
-			,StatusID = @statusId
-			,ruben= 1
-			,ExtraInfo = REPLACE(REPLACE(ExtraInfo, '<p1 ab="1"/>',''),'ab="1"','')
-			,creator = b.custID
-	FROM @tempTrans sr
-		INNER JOIN dbo.bettrans14 b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
-	
-	
 	IF @IsInsertTrigger = 1 OR @IsSiteDB = 1
 	BEGIN
 		--capture after for balance trigger
@@ -343,7 +451,7 @@ BEGIN
 				, b.statusID AS 'sid'
 				, b.status AS 's'
 				, b.ExtraInfo AS 'ex'
-				, b.SettlementTime AS 'st'
+				, b.SettlementTime AS 'st' --CO not update get old data
 		FROM	#AfterTransId14 b
 		WHERE b.bettype NOT IN (10)
 		FOR JSON PATH))
