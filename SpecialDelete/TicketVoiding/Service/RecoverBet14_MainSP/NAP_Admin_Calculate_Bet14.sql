@@ -1,4 +1,4 @@
-/*<info serverAlias=DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bet14] (
 	@transIds VARCHAR(MAX)
 	,@MatchId	INT = 0
@@ -7,7 +7,7 @@ AS
 /*
 	Created by: 20190715@Helen
 	Task: Settlement  
-	DB: DBTRANS/BODB02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]

@@ -20,7 +20,7 @@ AS
 	Created by: Kathy
 	Date 20190823
 	Task: recover single ticket [Redmine:#115376]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20190823@Kathy: recover single ticket [Redmine:#115376]
@@ -43,10 +43,8 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
-			,@avaiableProcess	BIT
 			,@AffectedList		VARCHAR(MAX)
 			,@SiteDBGroupID     SMALLINT = 0
-			,@TransInfo			VARBINARY(MAX)
 			,@CustIds			VARCHAR(MAX)
 			,@IsSiteDB			BIT
 			,@TransidList		VARCHAR(MAX) = ''
@@ -57,69 +55,16 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	
 	CREATE TABLE #tblTransInfo (
-		grouptransid	BIGINT
-		,transid		BIGINT PRIMARY KEY
-		,custid			INT
-		,username		VARCHAR(30)
-		,username2		VARCHAR(50)
-		,transdate		DATETIME
-		,odds			SMALLMONEY
-		,oddsspread 	MONEY
-		,oddstype		TINYINT
-		,bettype		SMALLINT
-		,winlost		MONEY
-		,betteam		NVARCHAR(10)
-		,betcheck		NVARCHAR(50)
-		,hdp1			SMALLMONEY
-		,hdp2			SMALLMONEY
-		,betfrom		NVARCHAR(4)
+		 transid		BIGINT PRIMARY KEY
 		,stake			MONEY
 		,matchid		INT
-		,IsLiveIndicator	BIT
-		,livehomescore	SMALLINT
-		,liveawayscore	SMALLINT
 		,creator		INT
-		,creatorName	VARCHAR(30)
-		,currencyName	NVARCHAR(50)
 		,status			VARCHAR(20)
-		,leagueid		INT
 		,SportType		TINYINT
-		,homeid			INT
-		,awayid			INT
-		,betid			BIGINT
-		,transdesc		NVARCHAR(1000)
-		,refno			BIGINT	
-		,betdaqid		BIGINT
-		,recommend		INT
-		,mrecommend		INT
-		,srecommend		INT
-		,SecAcceptFlag	BIT
-		,site			VARCHAR(10)
-		,ExtraInfo		VARCHAR(1000)
-		,IsCashOut		BIT DEFAULT 0
-		,zzzBetcheck	NVARCHAR(50)
-		,WalletType		TINYINT
-		,RefCode		BIGINT
-		,BonusID		INT		
-		,MainTransId	BIGINT
-		,winlostdate	DATETIME
-		,ParentID		INT
-		,ChildMatchType TINYINT
 		,zzzwinlost		MONEY
 		,modds			SMALLMONEY
-		,ActualStake	MONEY
 	)
 	
-	DECLARE @tmpTransInfo TABLE(
-			  matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost TINYINT, stake MONEY
-			, statusID TINYINT, creator INT, actual_stake MONEY, odds SMALLMONEY, oddsspread MONEY, transdesc NVARCHAR(2000), ExtraInfo VARCHAR(1000), FcUpdateTime DATETIME2
-			, aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
-			, PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-			, transdate DATETIME, comstatus NVARCHAR(40)
-			, bettype SMALLINT
-			)
-	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
-
 	/*Modify the way to get move bet date*/
 	DECLARE @BeingMovebetDate SMALLDATETIME 
 		   ,@currentdate SMALLDATETIME = GETDATE()
@@ -159,7 +104,6 @@ BEGIN
 		,sComm			MONEY
 		,stake			MONEY
 		,actual_stake	MONEY
-
 		,balance		MONEY
 	)
 
@@ -177,10 +121,10 @@ BEGIN
 		,IsAbnormalBet	BIT DEFAULT(0)
 		,KeyId			TINYINT DEFAULT(1)
 		,Invalid		TINYINT DEFAULT(0)
-		,sporttype			SMALLINT
-		,eventdate			DATETIME
-		,oddsid				INT
-		,winlostdate		SMALLDATETIME
+		,sporttype		SMALLINT
+		,eventdate		DATETIME
+		,oddsid			INT
+		,winlostdate	SMALLDATETIME
 		,IsCashOut      BIT DEFAULT(0)
 	)
 
@@ -474,10 +418,10 @@ BEGIN
 
 			SELECT @TransidList = (SELECT DISTINCT TransId AS '@transid'
 										          ,sporttype  AS '@sporttype'
-											      ,IsCashOut  AS '@IsCashOut'
+											      ,1  AS '@IsCashOut'
 												  ,zzzwinlost AS '@zzzwinlost'
-												  ,modds AS '@modds'
-												  ,Stake AS '@Stake'
+												  --,modds AS '@modds'
+												 -- ,Stake AS '@Stake'
 												  ,status AS '@status'
 												  ,creator AS '@creator'
 								FROM	#tblTransInfo
