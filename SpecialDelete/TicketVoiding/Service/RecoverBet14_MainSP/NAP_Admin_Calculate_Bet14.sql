@@ -18,8 +18,6 @@ AS
 		
 	Param's Explanation:  
 		   
-		@transIds = '104730774034,104729373985'
-					
 */
 BEGIN
 	
@@ -57,7 +55,7 @@ BEGIN
 		SET @IsInsertTrigger = 1
 	END
 
-	CREATE TABLE #tmpTransId (
+	DECLARE @tbl_transIDs AS TABLE (
 		transid				BIGINT
 		,sporttype			SMALLINT
 		,IsCashOut			BIT
@@ -69,7 +67,7 @@ BEGIN
 	)
 
 	SET @xml = CONVERT(XML, @transIds)
-	INSERT INTO #tmpTransId (TransId, sporttype, IsCashOut, zzzwinlost/*, modds, Stake*/, status, creator)
+	INSERT INTO @tbl_transIDs (TransId, sporttype, IsCashOut, zzzwinlost/*, modds, Stake*/, status, creator)
 	SELECT DISTINCT t.c.value('@transid','BIGINT') AS TransId
 				   ,t.c.value('@sporttype','SMALLINT') AS sporttype
 				   ,t.c.value('@IsCashOut','BIT') AS IsCashOut
@@ -116,7 +114,7 @@ BEGIN
 			ELSE 0 
 		END AS isDecimalOdd
 	, srecommend, b14.bettype
-	FROM #tmpTransId t
+	FROM @tbl_transIDs t
 		INNER LOOP JOIN dbo.bettrans14 b14	WITH (NOLOCK) ON b14.transid = t.transid
 		LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b14.bettype
 		 
@@ -152,7 +150,7 @@ BEGIN
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE IsCashOut = 0)
+	IF EXISTS (SELECT TOP 1 1 FROM @tbl_transIDs WHERE IsCashOut = 0)
 	BEGIN
 		UPDATE  b
 			SET 
@@ -323,7 +321,7 @@ BEGIN
 			INNER JOIN dbo.bettrans14 b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 	END
 	
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE IsCashOut = 1)
+	IF EXISTS (SELECT TOP 1 1 FROM @tbl_transIDs WHERE IsCashOut = 1)
 	BEGIN
 		--> re-calculate stake, re-settle for main cash-out + update cash-out bet ticket			
 			;WITH CTE_main_cashoutticket AS
@@ -340,7 +338,7 @@ BEGIN
 						END AS StatusId
 					 , creator
 					 , SportType
-				FROM #tmpTransId
+				FROM @tbl_transIDs
 			)
 			UPDATE	b
 			SET status = TCal.status

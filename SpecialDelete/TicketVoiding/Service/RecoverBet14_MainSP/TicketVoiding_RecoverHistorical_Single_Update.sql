@@ -463,7 +463,6 @@ BEGIN
 			,SUM(b14.scomm)
 			,SUM(b14.stake)
 			,SUM(b14.actual_stake)
-
 			,SUM(b14.winlost - b14.actual_stake + b14.playercomm)
 	FROM	dbo.bettrans14 b14 WITH(NOLOCK)
 		INNER JOIN #tmpTransId t
