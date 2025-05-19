@@ -165,13 +165,23 @@ BEGIN
 		END
 			
   		IF @existsFinalRound = 1
-  		BEGIN
-	  		SELECT  @HalfTimeHome	= COALESCE (@HalfTimeHome, 0)
-					,@HalfTimeAway   = COALESCE (@HalfTimeAway, 0)
-					,@FullTimeHome   = COALESCE (@FullTimeHome, 0)
-					,@FullTimeAway   = COALESCE (@FullTimeAway, 0)
+			IF @sportType = 1 AND @LeagueGroupID = 252
+			BEGIN
+				SELECT	@HalfTimeHome	= COALESCE (@HalfTimeHome, r.HomeValue)
+						,@HalfTimeAway   = COALESCE (@HalfTimeAway, r.AwayValue)
+						,@FullTimeHome   = COALESCE (@FullTimeHome, 0)
+						,@FullTimeAway   = COALESCE (@FullTimeAway, 0)
+				FROM dbo.ResultDetail r WITH (NOLOCK)
+				WHERE r.ResourceId = '01'
+			END
+			ELSE
+  			BEGIN
+	  			SELECT  @HalfTimeHome	= COALESCE (@HalfTimeHome, 0)
+						,@HalfTimeAway   = COALESCE (@HalfTimeAway, 0)
+						,@FullTimeHome   = COALESCE (@FullTimeHome, 0)
+						,@FullTimeAway   = COALESCE (@FullTimeAway, 0)
+			END
 		END
-	END
 
 	IF @Mode = 'FM'
 	BEGIN				
