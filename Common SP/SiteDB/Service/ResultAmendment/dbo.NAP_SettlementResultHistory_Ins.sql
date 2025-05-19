@@ -24,7 +24,7 @@ AS
 						"WrongResult": "<root><r Id=\"96801004\" Home=\"20\" Away=\"\" RefBettypeID =\"9680\" G=\"1\" OtherInfo=\"16776\" Action=\"CAL\" LogDate=\"2023-11-24 03:25:22.243\" /></root>",
 						"ActualResult": "<root><r Id=\"96801004\" Home=\"20\" Away=\"\" RefBettypeID =\"9680\" G=\"1\" OtherInfo=\"16776\"/></root>",
 						"ActionType": 1,
-						"ExtraInfo": "<root type =\"FM\"><r  Id=\"96801004\" ReCalc=\"2023-11-24 03:25:22.243\" Calc=\"2023-11-24 03:10:22.243\"/></root>"
+						"ExtraInfo": "<root type =\"BB\"><r  Id=\"96801004\" ReCalc=\"2023-11-24 03:25:22.243\" Calc=\"2023-11-24 03:10:22.243\"/></root>"
 					}]
 
 					ExtraInfo.root.type: FM - Fast Markets, BB - Bet Builder, Null or Empty - Other types
