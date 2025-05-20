@@ -1,5 +1,5 @@
 /*<info serverAlias="DBSIC-bodb02" executers="wsv_alp" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE CustWinLimitBet_Reset (
+ALTER PROCEDURE Acc_CustWinLimitBet_Reset (
 	@ListCustId	VARCHAR(MAX) = ''
 	,@ErrCode		INT		= 0		OUTPUT
 	,@ErrMsg		VARCHAR(MAX) = '' OUTPUT
