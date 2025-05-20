@@ -284,7 +284,7 @@ BEGIN
 			,b.betid
 			,b.SiteDBGroupID
 			,b.liveindicator
-			,b.matchid
+			,d.matchid
 			,b.statusID
 			,b.statusID AS SubstatusID
 			,d.ScoreId
@@ -351,7 +351,7 @@ BEGIN
 			,b.betid
 			,b.SiteDBGroupID
 			,b.liveindicator
-			,b.matchid
+			,d.matchid
 			,b.statusID
 			,b.statusID AS SubstatusID
 			,d.ScoreId
@@ -435,7 +435,7 @@ BEGIN
 				,accepttype
 				,IsCancelCashOut
 			)
-		SELECT b.transid 
+		SELECT DISTINCT b.transid 
 				,sub.TransID
 				,b.refno
 				,sub.custid				
@@ -450,7 +450,7 @@ BEGIN
 				,sub.liveawayscore AS Subliveawayscore
 				,1 AS IsMixParlay
 				,sub.liveindicator
-				,b.matchid
+				,d.matchid
 				,b.statusID
 				,sub.statusID AS SubStatusId
 				,d.ScoreId

@@ -265,7 +265,7 @@ BEGIN
 			,liveindicator
 			,VoidTime
 		)
-	SELECT   b.transid
+	SELECT  DISTINCT b.transid
 			,b.transid AS SubTransID
 			,b.refno
 			,b.custid
@@ -280,7 +280,7 @@ BEGIN
 			,b.betdaqid
 			,b.betid
 			,b.SiteDBGroupID
-			,b.matchid
+			,d.matchid
 			,b.statusID
 			,b.statusID AS SubstatusID
 			,b.checktime
@@ -367,7 +367,7 @@ BEGIN
 				,betid
 				,SiteDBGroupID
 			)
-		SELECT   b.transid AS TransId
+		SELECT DISTINCT b.transid AS TransId
 				,sub.TransId AS SubTransID
 				,b.refno
 				,sub.custid AS Subcustid				
@@ -381,7 +381,7 @@ BEGIN
 				,sub.liveawayscore AS Subliveawayscore
 				,b.betdaqid
 				,1 AS IsMixParlay
-				,b.matchid
+				,d.matchid
 				,b.statusID
 				,sub.statusID AS SubstatusID
 				,sub.checktime AS Subchecktime
