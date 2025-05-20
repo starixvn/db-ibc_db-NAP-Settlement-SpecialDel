@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_InstantCalculate_3]
 	@matchid 		INT
     ,@action		VARCHAR(10)
@@ -26,6 +26,7 @@ AS
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
+		- 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
 
     Param's Explanation:
         
@@ -111,7 +112,7 @@ BEGIN
 					LEFT JOIN dbo.f_Set_GetGroupBettypes() AS f
 						ON tmp.bettype = f.BetType
 
-		IF @@SERVERNAME IN ('DBTRANS','DB230','DB206','TESTDBTRANS','SITDBTRANS', 'DBBAL', 'SITDBAWS', 'SITDBBAL')
+		IF @@SERVERNAME IN ('DBTRANS','DB230','DB206','TESTDBTRANS','SITDBTRANS', 'DBBAL', 'SITDBAWS', 'SITDBBAL', 'DBTRANS\INST2')
 			OR @IsSiteDB = 1
 		BEGIN
 			SET @settlementTime = GETDATE();

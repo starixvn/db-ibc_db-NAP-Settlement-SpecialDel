@@ -17,6 +17,7 @@ AS
 		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 		- 20240710@Kathy: Change instance name [Redmine:#207768]
 		- 20250305@Max: Replace action reject by another actions for rule check duplicate [Redmine: #218599]
+		- 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
 
 	Param's explanation:		
 		
@@ -44,7 +45,7 @@ BEGIN
 
 	IF @ErrorMessage <> ''
 	BEGIN
-		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITE%'
+		IF @@SERVERNAME IN ('DBTRANS', 'DBTRANS\INST2') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITE%'
 		BEGIN
 			SET @Recipients = 'dbaadmin@starixsoft.com;martin.chen@onelab.tw;member_core@onelab.tw;steve.liao@onelab.tw'
 		END
@@ -79,7 +80,7 @@ BEGIN
 	END
 	IF @ErrMsg_Duplicate <> ''
 	BEGIN
-		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITE%'
+		IF @@SERVERNAME IN ('DBTRANS', 'DBTRANS\INST2') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITE%'
 		BEGIN
 			SET @Recipients = 'dbaadmin@starixsoft.com'
 		END

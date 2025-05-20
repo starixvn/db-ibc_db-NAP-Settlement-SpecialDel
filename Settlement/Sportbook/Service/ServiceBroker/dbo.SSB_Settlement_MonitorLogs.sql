@@ -9,6 +9,7 @@ as
 		- 2022011@Louisa: hardcode job name for DBTrans and SiteDB [Redmine:#182771]
 		- 20230113@Kathy: extend errorMessage [Redmine:#182763]
 		- 20240710@Kathy: Change instance name [Redmine:#207768]
+		- 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
 */
 begin
 	set nocount on
@@ -20,7 +21,7 @@ begin
 	select @__fromDate = dateadd(minute, -@MonitorDurationWithInMin, sysdatetime())
 	select @__serverName =  @@SERVERNAME
 
-	if @__serverName = 'DBTRANS' OR @__serverName LIKE 'DBGRP%' OR @__serverName LIKE 'DBSITEC%'  OR @__serverName LIKE 'SITDBSITEC%'  
+	if @__serverName IN ('DBTRANS', 'DBTRANS\INST2') OR @__serverName LIKE 'DBGRP%' OR @__serverName LIKE 'DBSITEC%'  OR @__serverName LIKE 'SITDBSITEC%'  
 	begin
 		set @__JobName = 'vndba:Check slowly running or failed processes'
 	end

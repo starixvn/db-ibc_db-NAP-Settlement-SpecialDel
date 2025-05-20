@@ -16,6 +16,7 @@ AS
 		- 20230704@Louisa: Update email from csd.one1@enpine.com to csd.one1@enpine.com [Redmine:#189854]
 		- 20231026@Louisa: Update email domain from starixvn to starixsoft [Redmine:#195197]
 		- 20240710@Kathy: Change instance name [Redmine:#207768]
+		- 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
 		
 	Columns Explanation:    
     
@@ -119,6 +120,16 @@ RETURN (
 			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
 			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
 			, 'DBTRANS'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'NOTIFY'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			, 'it@starixsoft.com;'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'DBTRANS\INST2'
 			, 'PROD'
 
 		UNION ALL 
@@ -240,6 +251,13 @@ RETURN (
 			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
 			, 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'DBTRANS'
+			, 'PROD'
+		UNION ALL 
+		SELECT 'ERROR'
+			--,'qa@starixsoft.com'
+			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com'
+			, 'DBTRANS\INST2'
 			, 'PROD'
 
 		UNION ALL 

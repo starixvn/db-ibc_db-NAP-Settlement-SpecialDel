@@ -26,6 +26,7 @@ AS
         - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [Redmine:#180225]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+        - 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
 */
 BEGIN
     SET NOCOUNT ON
@@ -129,7 +130,8 @@ BEGIN
     SELECT 'DB042', 'DB042', 1, 8, 4, 'PROD',0, 4, 4
     UNION ALL
     SELECT 'DBTRANS', 'DBTXN', 0, 8, 4, 'PROD',1, 4, 4
-
+    UNION ALL
+    SELECT 'DBTRANS\INST2', 'DBTXN', 0, 8, 4, 'PROD',1, 4, 4
     UNION ALL
     SELECT 'DBBAL', 'DBBAL', 1, 8, 4, 'DBBAL',0, 4, 4
 

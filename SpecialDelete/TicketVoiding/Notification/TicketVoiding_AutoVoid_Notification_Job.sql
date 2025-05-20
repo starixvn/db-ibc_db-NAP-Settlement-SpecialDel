@@ -17,6 +17,7 @@ AS
 		- 20230303@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230703@Max: [TVS] Enhance notification time [Redmine: #190711]
 		- 20240710@Kathy: Change instance name [Redmine:#207768]
+		- 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
 
 	Param's explanation:	
 		
@@ -73,7 +74,7 @@ BEGIN
 	IF @MatchidList_Waiting_30minutes <> ''
 	BEGIN
 		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%' 
+		IF @@SERVERNAME IN ('DBTRANS', 'DBTRANS\INST2') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%' 
 		BEGIN
 			-- send letstalk
 			SET @msg = 'Matchid waiting in queue over 30 minutes: 
@@ -134,7 +135,7 @@ BEGIN
 	IF @QueueList_Waiting_30minutes <> ''
 	BEGIN
 		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%'  OR @@SERVERNAME LIKE 'DBSITEC%' 
+		IF @@SERVERNAME IN ('DBTRANS', 'DBTRANS\INST2') OR @@SERVERNAME LIKE 'DBGRP%'  OR @@SERVERNAME LIKE 'DBSITEC%' 
 		BEGIN
 			-- send letstalk
 			SET @msg = 'Queue waiting in queue over 30 minutes: 
@@ -195,7 +196,7 @@ BEGIN
 	IF @MatchIdList_Failed <> ''
 	BEGIN
 		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%'  
+		IF @@SERVERNAME IN ('DBTRANS', 'DBTRANS\INST2') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%'  
 		BEGIN
 			-- send letstalk
 			SET @msg = 'Ticket Voiding System: Void Bets Automation Failed !

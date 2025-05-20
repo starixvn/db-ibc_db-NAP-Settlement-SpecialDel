@@ -14,6 +14,7 @@ AS
 		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 		- 20240710@Kathy: Change instance name [Redmine:#207768]
+		- 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
 	
 	Param's explanation:		
 		
@@ -89,7 +90,7 @@ BEGIN
 	--For local Testing, input email need to test
 	--SET @Recipients = 'max.tran@starixvn.com;susan.le@starixvn.com'
 
-	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%' OR @@SERVERNAME LIKE 'SITDBSITEC%'
+	IF @@SERVERNAME IN ('DBTRANS', 'DBTRANS\INST2') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'DBSITEC%' OR @@SERVERNAME LIKE 'SITDBSITEC%'
 	BEGIN
 		SET @Recipients = 'dbaadmin@starixsoft.com'
 	END
