@@ -169,10 +169,9 @@ BEGIN
 			BEGIN
 				SELECT	@HalfTimeHome	= COALESCE (@HalfTimeHome, r.HomeValue)
 						,@HalfTimeAway   = COALESCE (@HalfTimeAway, r.AwayValue)
-						,@FullTimeHome   = COALESCE (@FullTimeHome, 0)
-						,@FullTimeAway   = COALESCE (@FullTimeAway, 0)
 				FROM dbo.ResultDetail r WITH (NOLOCK)
-				WHERE r.ResourceId = '01'
+				WHERE r.MatchID = @MatchId
+					AND r.ResourceId = '01'
 			END
 			ELSE
   			BEGIN
