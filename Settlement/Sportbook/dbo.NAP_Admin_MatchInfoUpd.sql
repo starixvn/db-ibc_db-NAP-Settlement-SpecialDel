@@ -165,6 +165,7 @@ BEGIN
 		END
 			
   		IF @existsFinalRound = 1
+		BEGIN
 			IF @sportType = 1 AND @LeagueGroupID = 252
 			BEGIN
 				SELECT	@HalfTimeHome	= COALESCE (@HalfTimeHome, r.HomeValue)
@@ -181,6 +182,7 @@ BEGIN
 						,@FullTimeAway   = COALESCE (@FullTimeAway, 0)
 			END
 		END
+	END
 
 	IF @Mode = 'FM'
 	BEGIN				
