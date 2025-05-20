@@ -21,6 +21,7 @@ AS
 		- 20220809@Max: DBA - PROD - Enhance Parlay Calculation for Max Payout [Redmine: #177611]   
 		- 20230712@Max: Scale out credit [Redmine: #181595]
 		- 20230907@July: Remove job un-used [Redmine: #193701]
+		- 20250416@Louisa:  Potential Winning Limit/Threshold [Redmine:#226060]
 
 */
 BEGIN
@@ -98,6 +99,10 @@ BEGIN
 	--14.2.Retry Max Payout
 	UNION ALL
 	SELECT 'bodb02 : Task Retry Max Payout Credit'	, '00:01:00', 0
+
+	--Accum Potential Winning Limit
+	UNION ALL
+	SELECT 'bodb02: Task_BalanceTrigger_WinLimit'	, '00:01:00', 0
 
 
 	SELECT @WaitingTime = WaitingTime
