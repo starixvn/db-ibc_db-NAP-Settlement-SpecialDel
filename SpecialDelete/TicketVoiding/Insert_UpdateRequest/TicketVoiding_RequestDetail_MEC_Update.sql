@@ -231,6 +231,7 @@ BEGIN
 	SET @LogDataContent = ''
 	
 	SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20))
+							+ ', SubIssueTypeId: ' + CAST(l.SubIssueTypeId AS VARCHAR(20))
 							+ ', SingleCount: ' + CAST(l.SingleCount AS VARCHAR(20))
 							+ ', MainParlayCount: ' + CAST(l.MainParlayCount AS VARCHAR(20))
 							+ ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
