@@ -30,8 +30,6 @@ BEGIN
 			,[t].[AdjWinLoss] = [tvp].[AdjWinLoss]
 			,[t].[ActionType] = [tvp].[ActionType]
 			,[t].[RepUpdateTime] = CASE WHEN [tvp].[RepUpdateTime] > ISNULL([t].[RepUpdateTime],'') THEN [tvp].[RepUpdateTime] ELSE [t].[RepUpdateTime] END
-	WHEN MATCHED THEN 
-		DELETE	
     WHEN NOT MATCHED THEN
         INSERT ([ID]
 				,[CustID]
