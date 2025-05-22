@@ -28,7 +28,7 @@ BEGIN
         SELECT TOP (@count) [RepUpdateTime]
 		FROM(
 			SELECT [RepUpdateTime]
-			FROM [dbo].[CustWinLimitBet] WITH (NOLOCK, INDEX = IX_CustWinLimitBet_RepUpdateTime)
+			FROM [dbo].[CustWinLimitBet] WITH (NOLOCK, INDEX = IDX_CustWinLimitBet_RepUpdateTime)
 			WHERE [RepUpdateTime] > @start AND [RepUpdateTime] < @__time_upperbound			
 		) t
 		ORDER BY [RepUpdateTime]
@@ -49,7 +49,7 @@ BEGIN
 			,[RepUpdateTime]
 			,ISNULL([isDeleted],0) AS [IsDeleted]
 			,SYSDATETIME() AS [_FetchedTime]
-        FROM [dbo].[CustWinLimitBet]  WITH (NOLOCK, INDEX = IX_CustWinLimitBet_RepUpdateTime)
+        FROM [dbo].[CustWinLimitBet]  WITH (NOLOCK, INDEX = IDX_CustWinLimitBet_RepUpdateTime)
         WHERE [RepUpdateTime] > @__time_start AND [RepUpdateTime] <= @__time_end
 		ORDER BY [RepUpdateTime]
     END
