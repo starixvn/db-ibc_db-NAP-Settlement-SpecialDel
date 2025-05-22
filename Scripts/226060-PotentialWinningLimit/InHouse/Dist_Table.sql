@@ -72,7 +72,7 @@ IF NOT EXISTS (SELECT * FROM sys.OBJECTS WHERE NAME = 'CustWinLimitBet_History')
 BEGIN
 	CREATE TABLE [dbo].[CustWinLimitBet_History]
 	(
-		[ID] [BIGINT] NOT NULL
+		[ID] [BIGINT] IDENTITY NOT NULL
 		,[CustID] [INT] NOT NULL
 		,[Sporttype] [SMALLINT] NULL
 		,[Bettype] [INT] NULL
