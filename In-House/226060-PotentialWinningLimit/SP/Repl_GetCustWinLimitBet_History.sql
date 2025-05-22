@@ -5,12 +5,12 @@ ALTER PROCEDURE [dbo].[Repl_GetCustWinLimitBet_History]
     @back_fix INT = 0
 AS
 /*
-	Created: 20250509@Louisa	
+	Created: 20250521@Louisa	
 	Task: In-House
 	DB: DBSIC-bodb02
 	
 	Revisions:
-		- 20250509@Louisa: potential win limit [RedmineID: #226060]
+		- 20250521@Louisa: Scale out DBCUST [RedmineID: #226060]
 
 	Example:
 */

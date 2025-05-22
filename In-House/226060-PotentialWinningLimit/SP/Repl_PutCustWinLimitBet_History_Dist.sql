@@ -1,14 +1,14 @@
-/*<info serverAlias="IRS_DBTP-bodb02,IRS_DBBAH-bodb02" executers="repl_ap" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="IRS_DBTP-bodb02,DBCustRepl-ReplCustDB" executers="repl_ap" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE [dbo].[Repl_PutCustWinLimitBet_History_Dist]
     @tvp_param TVP_ReplCustWinLimitBet_History READONLY
 AS
 /*
-	Created: 20250509@Louisa	
+	Created: 20250521@Louisa	
 	Task: In-House
-	DB: IRS_DBTP-bodb02
+	DB: IRS_DBTP-bodb02,DBCustRepl-ReplCustDB
 	
 	Revisions:
-		- 20250509@Louisa: Potential Win Limit [RedmineID: #226060]
+		- 20250521@Louisa: Scale out DBCUST [RedmineID: #226060]
 
 	Example:			
 */

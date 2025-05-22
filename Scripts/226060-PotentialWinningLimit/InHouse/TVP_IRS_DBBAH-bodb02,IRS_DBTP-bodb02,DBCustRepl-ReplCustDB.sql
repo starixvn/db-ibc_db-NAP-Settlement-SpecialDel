@@ -1,11 +1,11 @@
-/*<info serverAlias="IRS_DBTP-bodb02,IRS_DBBAH-bodb02" executers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="IRS_DBBAH-bodb02,IRS_DBTP-bodb02,DBCustRepl-ReplCustDB" executers="" isFunction="0" isNested="0"></info>*/
 /*
-	Created: 20250509@Louisa	
+	Created: 20250521@Louisa	
 	Task: In-House
-	DB: IRS_DBTP-bodb02
+	DB: IRS_DBBAH-bodb02,IRS_DBTP-bodb02,DBCustRepl-ReplCustDB
 	
 	Revisions:
-		- 20250509@Louisa: Created [RedmineID: #226060]
+		- 20250521@Louisa: Created [RedmineID: #226060]
 
 	Example:			
 */
@@ -29,7 +29,7 @@ CREATE TYPE [dbo].[TVP_ReplCustWinLimitBet_History] AS TABLE (
 	,[CustID] [INT] NOT NULL
 	,[Sporttype] [SMALLINT] NULL
 	,[Bettype] [INT] NULL
-	,[Transid] [BIGINT] NOT NULL
+	,[Transid] [BIGINT] NULL
 	,[AdjToWin] [MONEY] NULL
 	,[AdjWinLoss] [MONEY] NULL
 	,[ActionType] [TINYINT] NOT NULL

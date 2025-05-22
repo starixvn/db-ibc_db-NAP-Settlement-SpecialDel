@@ -1,14 +1,17 @@
 /*<info serverAlias="DBSIC-bodb02" executers="" isFunction="0" isNested="0"></info>*/
 /*
-	Created: 20250509@Louisa	
+	Created: 20250521@Louisa	
 	Task: In-House
 	DB: 
 	
 	Revisions:
-		- 20250509@Louisa: Created [RedmineID: #226060]
+		- 20250521@Louisa: Created [RedmineID: #226060]
 
 	Example:			
-*/
+*/ 
+USE bodb02
+GO
+
 IF NOT EXISTS (SELECT * FROM sys.OBJECTS WHERE NAME = 'CustWinLimitBet_Del_InHouse')
 BEGIN
 	CREATE TABLE [dbo].[CustWinLimitBet_Del_InHouse]
@@ -16,11 +19,11 @@ BEGIN
 		[CustID] [INT] NOT NULL
 		,[Sporttype] [SMALLINT] NOT NULL
 		,[Bettype] [INT] NOT NULL
-		) ON [DATA]
+		)  
 
 	ALTER TABLE [dbo].[CustWinLimitBet_Del_InHouse] ADD [RepUpdateTime] DATETIME2(7) CONSTRAINT [DF_CustWinLimitBet_Del_InHouse_RepUpdateTime] DEFAULT (SYSDATETIME())
 
-	CREATE CLUSTERED INDEX [CIX_CustWinLimitBet_Del_InHouse_RepUpdateTime] ON [dbo].[CustWinLimitBet_Del_InHouse]([RepUpdateTime] ASC) ON [DATA]
+	CREATE CLUSTERED INDEX [CIX_CustWinLimitBet_Del_InHouse_RepUpdateTime] ON [dbo].[CustWinLimitBet_Del_InHouse]([RepUpdateTime] ASC) 
 END
 ELSE 
 BEGIN
@@ -33,11 +36,11 @@ BEGIN
 	CREATE TABLE [dbo].[CustWinLimitBet_History_Del_InHouse]
 	(
 		[ID] [BIGINT] NOT NULL
-		) ON [DATA]
+		) 
 
 	ALTER TABLE [dbo].[CustWinLimitBet_History_Del_InHouse] ADD [RepUpdateTime] DATETIME2(7) CONSTRAINT [DF_CustWinLimitBet_History_Del_InHouse_RepUpdateTime] DEFAULT (SYSDATETIME())
 
-	CREATE CLUSTERED INDEX [CIX_CustWinLimitBet_History_Del_InHouse_RepUpdateTime] ON [dbo].[CustWinLimitBet_History_Del_InHouse]([RepUpdateTime] ASC) ON [DATA]
+	CREATE CLUSTERED INDEX [CIX_CustWinLimitBet_History_Del_InHouse_RepUpdateTime] ON [dbo].[CustWinLimitBet_History_Del_InHouse]([RepUpdateTime] ASC) 
 END
 ELSE 
 BEGIN

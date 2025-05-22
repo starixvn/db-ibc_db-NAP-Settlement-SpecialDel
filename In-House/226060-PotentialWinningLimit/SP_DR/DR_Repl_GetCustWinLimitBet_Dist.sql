@@ -5,12 +5,12 @@ ALTER PROCEDURE [dbo].[DR_Repl_GetCustWinLimitBet_Dist]
     @back_fix INT = 0
 AS
 /*
-	Created: 20250509@Louisa	
+	Created: 20250521@Louisa	
 	Task: In-House
 	DB: DBKLC1-bodb02
 	
 	Revisions:
-		- 20250509@Louisa: Created [RedmineID: #226060]
+		- 20250521@Louisa: Created [RedmineID: #226060]
 
 	Example:			
 */

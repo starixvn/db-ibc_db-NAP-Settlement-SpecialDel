@@ -1,14 +1,17 @@
 /*<info serverAlias="DBSIC-bodb02" executers="" isFunction="0" isNested="0"></info>*/
 /*
-	Created: 20250509@Louisa	
+	Created: 20250521@Louisa	
 	Task: In-House
 	DB: DBSIC-bodb02
 	
 	Revisions:
-		- 20250509@Louisa: Created [RedmineID: #226060]
+		- 20250521@Louisa: Created [RedmineID: #226060]
 
 	Example:			
 */
+USE bodb02
+GO
+
 CREATE TYPE [dbo].[TVP_ReplCustWinLimitBet] AS TABLE (
 	[CustID] [INT] NOT NULL
 	,[Sporttype] [SMALLINT] NOT NULL
@@ -29,7 +32,7 @@ CREATE TYPE [dbo].[TVP_ReplCustWinLimitBet_History] AS TABLE (
 	,[CustID] [INT] NOT NULL
 	,[Sporttype] [SMALLINT] NULL
 	,[Bettype] [INT] NULL
-	,[Transid] [BIGINT] NOT NULL
+	,[Transid] [BIGINT] NULL
 	,[AdjToWin] [MONEY] NULL
 	,[AdjWinLoss] [MONEY] NULL
 	,[ActionType] [TINYINT] NOT NULL
