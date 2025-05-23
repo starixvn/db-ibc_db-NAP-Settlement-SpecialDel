@@ -201,7 +201,7 @@ BEGIN
 	SELECT @ExistingReqTransIds = ISNULL(STUFF((
 		SELECT ',' + CAST(t.transid AS VARCHAR(50))
 		FROM #inputTransid t
-		INNER JOIN dbo.DBCTG.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+		INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 			ON t.transid = rds.TransId
 		FOR XML PATH('')), 1, 1, ''), '')
 
