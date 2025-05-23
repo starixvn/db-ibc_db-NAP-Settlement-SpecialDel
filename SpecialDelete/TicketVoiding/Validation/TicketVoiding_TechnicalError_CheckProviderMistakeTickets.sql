@@ -110,9 +110,6 @@ BEGIN
 	INSERT INTO #inputTransid (transid)
 	SELECT DISTINCT transid
 	FROM #tmpInputTransid_RemarkId
-
-    -- Merge AB/ADVMode logic here
-    CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY);
 	
     -- AB Mode: Query bettrans and bettrans14, insert into #tmpTransInfo
     INSERT INTO #tmpTransInfo (
@@ -128,7 +125,7 @@ BEGIN
         b.creator, b.WalletType, b.RefCode, b.stake, b.oddstype, b.winlost,
         b.CurrencyName, b.betdaqid, b.ExtraInfo, b.actual_stake, b.winlostdate, b.modds, b.statuswinlost, 0, 0, b.SiteDBGroupID,
         b.username
-    FROM #transIdTemp t
+    FROM #inputTransid t
     INNER JOIN dbo.bettrans b ON b.TransId = t.transid
     WHERE b.statusID NOT IN (101, 102, 103)
       AND b.bettype NOT IN (805, 806)
