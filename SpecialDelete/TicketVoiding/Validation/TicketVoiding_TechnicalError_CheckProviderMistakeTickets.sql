@@ -120,14 +120,14 @@ BEGIN
         betfrom, bettype, betteam, betcheck, Status, transdate, betid, Transdesc, statusID,
         creator, WalletType, RefCode, stake, oddstype, winlost,
         CurrencyName, betdaqid, ExtraInfo, actual_stake, winlostdate, modds, statuswinlost, IsMoved14, IsMixParlay, SiteDBGroupID,
-        username, homeid, awayid, leagueid, isNeutral, matchcode, showtime, sporttype, eventstatus
+        username
     )
     SELECT
         b.matchid, b.TransId, b.refno, b.custid, b.hdp1, b.hdp2, b.odds, b.oddsspread,
         b.betfrom, b.bettype, b.betteam, b.betcheck, b.Status, b.transdate, b.betid, b.Transdesc, b.statusID,
         b.creator, b.WalletType, b.RefCode, b.stake, b.oddstype, b.winlost,
         b.CurrencyName, b.betdaqid, b.ExtraInfo, b.actual_stake, b.winlostdate, b.modds, b.statuswinlost, 0, 0, b.SiteDBGroupID,
-        b.username, b.homeid, b.awayid, b.leagueid, b.isNeutral, b.matchcode, b.showtime, b.sporttype, b.eventstatus
+        b.username
     FROM #transIdTemp t
     INNER JOIN dbo.bettrans b ON b.TransId = t.transid
     WHERE b.statusID NOT IN (101, 102, 103)
