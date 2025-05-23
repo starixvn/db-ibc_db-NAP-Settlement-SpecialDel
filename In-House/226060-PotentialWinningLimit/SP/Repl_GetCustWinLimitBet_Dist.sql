@@ -1,4 +1,4 @@
-/*<info serverAlias="IRS_DBTP-bodb02,DBCustRepl-ReplCustDB" executers="repl_ap" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="IRS_DBTP-bodb02,DBCustRepl-ReplDB" executers="repl_ap" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE [dbo].[Repl_GetCustWinLimitBet_Dist]
     @start DATETIME2,
     @count INT,
