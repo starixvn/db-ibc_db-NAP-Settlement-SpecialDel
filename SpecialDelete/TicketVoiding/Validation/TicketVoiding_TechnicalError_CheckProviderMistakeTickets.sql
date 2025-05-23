@@ -20,7 +20,11 @@ BEGIN
 			,@ExistingReqTransIds	VARCHAR(MAX) = ''
 			,@UnsupportedTransids	VARCHAR(MAX) = ''
 			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
+            ,@SiteDBGroupID         SMALLINT
 
+
+             SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+			 
 	CREATE TABLE #tmpInputTransid_RemarkId (
 		 Transid		BIGINT
 		,RemarkId		INT	  /*  1: Invalid
@@ -129,7 +133,8 @@ BEGIN
     WHERE b.statusID NOT IN (101, 102, 103)
       AND b.bettype NOT IN (805, 806)
       AND b.bettype NOT BETWEEN 901 AND 920
-      AND b.betfrom <> 'P';
+      AND b.betfrom <> 'P'
+      AND b.SiteDBGroupID = @SiteDBGroupID;
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
 	BEGIN
