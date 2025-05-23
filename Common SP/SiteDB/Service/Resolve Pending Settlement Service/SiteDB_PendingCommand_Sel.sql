@@ -10,6 +10,7 @@ AS
 	
 	Revisions:
 		- 20250416@Louisa: Enhance settlement flow when sitedb have down time [Redmine:#217722]
+		- 20250523@Louisa: Enhance settlement flow when sitedb have down time - Phase 2 [Redmine:#227313]
 AS
 
 */
@@ -24,9 +25,13 @@ BEGIN
 		,SystemName
 		,AdminID
 		,Action
-	FROM SiteDB_PendingCommand WITH(NOLOCK)
+	FROM SiteDB_PendingCommand c WITH(NOLOCK)
 	WHERE SiteDBGroupID = @SiteDBGroupID 
 		AND StatusID = 0
+		AND NOT EXISTS (SELECT TOP 1 1 
+						FROM dbo.TicketVoiding_PendingMarkTickets mk WITH(NOLOCK) 
+						WHERE mk.MatchId = c.MatchId AND mk.StatusId = 1
+						)
 	ORDER BY pID ASC
 END
  
