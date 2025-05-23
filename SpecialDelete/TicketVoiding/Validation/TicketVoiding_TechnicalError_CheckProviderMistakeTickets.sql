@@ -1,8 +1,7 @@
-/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TechnicalError_CheckProviderMistakeTickets]
 (
 	 @TransIds					VARCHAR(MAX) = NULL
-	,@TransInfoJson				VARCHAR(MAX) = NULL
 )
 AS
 /*  
@@ -108,32 +107,29 @@ BEGIN
 	SELECT DISTINCT transid
 	FROM #tmpInputTransid_RemarkId
 
-	-- Parse transaction info from JSON
-	INSERT INTO #tmpTransInfo( 
-		   matchid, transid, refno, custid, hdp1, hdp2, odds, oddsspread 
-		 , betfrom, bettype, betteam, betcheck, Status, transdate, betid, Transdesc, statusID
-		 , creator, WalletType, RefCode, stake, oddstype, winlost
-		 , CurrencyName, betdaqid, ExtraInfo, actual_stake, winlostdate, modds, statuswinlost, IsMoved14, IsMixParlay, SiteDBGroupID
-		)
-	SELECT mid, t, ref, c, hdp1, hdp2, o, os
-		 , bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid 
-		 , cr, wt, refc, stake, ost, w
-		 , curr, bdaq, ex, acstake, wld, m, statuswl, isM, isP, sitedb
-	FROM STRING_SPLIT(@TransInfoJson, ',') f
-		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
-		CROSS APPLY (
-			SELECT mid, t, ref, c, hdp1, hdp2, o, os
-				 , bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid 
-				 , cr, wt, refc, stake, ost, w
-				 , curr, bdaq, ex, acstake, wld, m, statuswl, isM, isP, sitedb
-				FROM OPENJSON(t.Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, o SMALLMONEY, os MONEY
-					, bfr NVARCHAR(4), btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME,bid BIGINT ,tdes NVARCHAR(1000), sid TINYINT 
-					, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, w MONEY
-					, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), acstake MONEY, wld SMALLDATETIME, m SMALLMONEY ,statuswl TINYINT ,isM BIT ,isP BIT ,sitedb SMALLINT
-				)
-		) tbl
-	WHERE f.value <> ''
+    -- Merge AB/ADVMode logic here
+    CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY);
+	
+    -- AB Mode: Query bettrans and bettrans14, insert into #tmpTransInfo
+    INSERT INTO #tmpTransInfo (
+        matchid, transid, refno, custid, hdp1, hdp2, odds, oddsspread,
+        betfrom, bettype, betteam, betcheck, Status, transdate, betid, Transdesc, statusID,
+        creator, WalletType, RefCode, stake, oddstype, winlost,
+        CurrencyName, betdaqid, ExtraInfo, actual_stake, winlostdate, modds, statuswinlost, IsMoved14, IsMixParlay, SiteDBGroupID,
+        username, homeid, awayid, leagueid, isNeutral, matchcode, showtime, sporttype, eventstatus
+    )
+    SELECT
+        b.matchid, b.TransId, b.refno, b.custid, b.hdp1, b.hdp2, b.odds, b.oddsspread,
+        b.betfrom, b.bettype, b.betteam, b.betcheck, b.Status, b.transdate, b.betid, b.Transdesc, b.statusID,
+        b.creator, b.WalletType, b.RefCode, b.stake, b.oddstype, b.winlost,
+        b.CurrencyName, b.betdaqid, b.ExtraInfo, b.actual_stake, b.winlostdate, b.modds, b.statuswinlost, 0, 0, b.SiteDBGroupID,
+        b.username, b.homeid, b.awayid, b.leagueid, b.isNeutral, b.matchcode, b.showtime, b.sporttype, b.eventstatus
+    FROM #transIdTemp t
+    INNER JOIN dbo.bettrans b ON b.TransId = t.transid
+    WHERE b.statusID NOT IN (101, 102, 103)
+      AND b.bettype NOT IN (805, 806)
+      AND b.bettype NOT BETWEEN 901 AND 920
+      AND b.betfrom <> 'P';
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
 	BEGIN
@@ -156,20 +152,6 @@ BEGIN
 		,eventstatus = ISNULL(m.eventstatus,'')
 	FROM #tmpTransInfo d
 		INNER JOIN dbo.match m WITH (NOLOCK) 
-		ON	d.matchid = m.matchid
-	WHERE d.bettype NOT IN (9, 29)
-
-	UPDATE d
-	SET matchcode 	= m.matchcode
-		,homeid 	= m.homeid
-		,awayid 	= m.awayid
-		,leagueid 	= m.leagueid
-		,sporttype 	= m.sporttype
-		,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
-		,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
-		,eventstatus = ISNULL(m.eventstatus,'')
-	FROM #tmpTransInfo d
-		INNER JOIN dbo.match14 m WITH (NOLOCK) 
 		ON	d.matchid = m.matchid
 	WHERE d.bettype NOT IN (9, 29)
 
@@ -217,7 +199,7 @@ BEGIN
 	SELECT @ExistingReqTransIds = ISNULL(STUFF((
 		SELECT ',' + CAST(t.transid AS VARCHAR(50))
 		FROM #inputTransid t
-		INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+		INNER JOIN dbo.DBCTG.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 			ON t.transid = rds.TransId
 		FOR XML PATH('')), 1, 1, ''), '')
 
@@ -259,5 +241,6 @@ BEGIN
 	DROP TABLE #UnsupportedTransids
 	DROP TABLE #tmpTransInfo
 	DROP TABLE #tmpInputTransid_RemarkId
+    DROP TABLE #transIdTemp
 
 END 
