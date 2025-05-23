@@ -1,4 +1,4 @@
-/*<info serverAlias="IRS_DBTP-bodb02,DBCustRepl-ReplDB" executers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="IRS_DBTP-bodb02,DBRepl-ReplDB" executers="" isFunction="0" isNested="0"></info>*/
 /*
 	Created: 20250521@Louisa	
 	Task: In-House

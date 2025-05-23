@@ -1,4 +1,4 @@
-/*<info serverAlias="IRS_DBTP-bodb02,DBCustRepl-ReplDB" executers="repl_ap" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="IRS_DBTP-bodb02,DBRepl-ReplDB" executers="repl_ap" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE [dbo].[Repl_PutCustWinLimitBet_History_Dist]
     @tvp_param TVP_ReplCustWinLimitBet_History READONLY
 AS
