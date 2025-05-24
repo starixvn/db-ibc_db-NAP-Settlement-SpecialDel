@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Select] 
 (
 	@IssueTypeId			INT
-	,@SubIssueTypeId		INT = 0
 	,@KickOffInfo			VARCHAR(MAX) = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
@@ -179,13 +178,7 @@ BEGIN
 	/*-----------------*/
 
 	/*---Technical Error---*/
-	IF @IssueTypeId IN (24) AND @SubIssueTypeId IN (149)
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_AB_Select
-			@AbnormalBetTransIds = @TechnicalErrorInfo
-	END
-	
-	IF @IssueTypeId IN (24) AND @SubIssueTypeId NOT IN (149)
+	IF @IssueTypeId IN (24)
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_ADVMode_Select
 			@AdvancedModeInfo = @TechnicalErrorInfo

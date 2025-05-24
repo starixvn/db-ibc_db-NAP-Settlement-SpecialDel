@@ -16,22 +16,17 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	DECLARE @InvalidTransIds			VARCHAR(MAX) = ''
+	DECLARE @ValidTransIds 			VARCHAR(MAX) = ''
+			,@InvalidTransIds		VARCHAR(MAX) = ''
 			,@ExistingReqTransIds	VARCHAR(MAX) = ''
 			,@UnsupportedTransids	VARCHAR(MAX) = ''
 			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
+			,@MatchId_Output		INT
             ,@SiteDBGroupID         SMALLINT
 
 
              SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 			 
-	CREATE TABLE #tmpInputTransid_RemarkId (
-		 Transid		BIGINT
-		,RemarkId		INT	  /*  1: Invalid
-								, 5: Unsupported
-								, 6: ExistingReq
-							  */
-	)
 	CREATE TABLE #inputTransid (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
 		transid			BIGINT PRIMARY KEY
@@ -89,6 +84,7 @@ BEGIN
 	  ,showtime         NVARCHAR(50)
       ,sporttype        SMALLINT
 	  ,eventstatus		NVARCHAR(50)
+	  ,MatchIdForInsert	INT
 	)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -102,14 +98,11 @@ BEGIN
 			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
 	-- Parse input transaction IDs
-	INSERT INTO #tmpInputTransid_RemarkId (transid)
-	SELECT value
+	INSERT INTO #inputTransid (transid)
+	SELECT DISTINCT value
 	FROM STRING_SPLIT(@TransIds, ',')
 	WHERE value <> ''
 
-	INSERT INTO #inputTransid (transid)
-	SELECT DISTINCT transid
-	FROM #tmpInputTransid_RemarkId
 	
     -- AB Mode: Query bettrans and bettrans14, insert into #tmpTransInfo
     INSERT INTO #tmpTransInfo (
@@ -126,7 +119,7 @@ BEGIN
         b.CurrencyName, b.betdaqid, b.ExtraInfo, b.actual_stake, b.winlostdate, b.modds, b.statuswinlost, 0, 0, b.SiteDBGroupID,
         b.username
     FROM #inputTransid t
-    INNER JOIN dbo.bettrans b ON b.TransId = t.transid
+    INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
     WHERE b.statusID NOT IN (101, 102, 103)
       AND b.bettype NOT IN (805, 806)
       AND b.bettype NOT BETWEEN 901 AND 920
@@ -152,9 +145,12 @@ BEGIN
 		,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
 		,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
 		,eventstatus = ISNULL(m.eventstatus,'')
+		,d.MatchIdForInsert = CASE 
+								WHEN m.parentId IS NOT NULL AND m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.parentId 
+								ELSE m.MatchId 
+								END
 	FROM #tmpTransInfo d
-		INNER JOIN dbo.match m WITH (NOLOCK) 
-		ON	d.matchid = m.matchid
+		INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid
 	WHERE d.bettype NOT IN (9, 29)
 
 	-- Get valid transactions
@@ -188,37 +184,46 @@ BEGIN
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
 	WHERE bt.bettype IS NULL
 
-	SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+	SELECT @UnsupportedTransids = ISNULL(STUFF((
+									SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #UnsupportedTransids t
 									FOR XML PATH('')), 1, 1, ''), '')
 	
-	UPDATE t
-	SET t.RemarkId = 5
-	FROM #tmpInputTransid_RemarkId t
-		INNER JOIN #UnsupportedTransids u ON t.Transid = u.transid
+	DELETE v
+	FROM #validTransId v
+	WHERE EXISTS (SELECT 1 FROM #UnsupportedTransids u WHERE u.transid = v.transid)
 
 	-- Get existing request transactions (remove join to TicketVoiding_Request, select all TransIds from TicketVoiding_RequestDetailTicket_Single)
-	SELECT @ExistingReqTransIds = ISNULL(STUFF((
-		SELECT ',' + CAST(t.transid AS VARCHAR(50))
-		FROM #inputTransid t
-		INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
-			ON t.transid = rds.TransId
-		FOR XML PATH('')), 1, 1, ''), '')
+	INSERT INTO #TransidInRequest (TransId)
+	SELECT t.transid
+	FROM #validTransId t
+	INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)ON t.transid = rds.TransId
+	INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK) ON rds.RequestId = r.RequestId
+	WHERE r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22) -- Exclude TakeNote action and IssueType Recover
 
-	UPDATE t
-	SET t.RemarkId = 6
-	FROM #tmpInputTransid_RemarkId t
-		INNER JOIN #TransidInRequest v ON t.Transid = v.transid
+	SELECT @ExistingReqTransIds = ISNULL(STUFF((
+									SELECT ',' + CAST(t.transid AS VARCHAR(50))
+									FROM #TransidInRequest t
+									FOR XML PATH('')), 1, 1, ''), '')
+
+	DELETE v
+	FROM #validTransId v
+	WHERE EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.transid = v.transid)
 
 	-- Get invalid transactions
-	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-        FROM #tmpInputTransid_RemarkId t
-        WHERE t.RemarkId NOT IN (6,5)
-            AND NOT EXISTS (SELECT 1 FROM #validTransId v WHERE v.transid = t.transid)
+	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(i.transid AS VARCHAR(50))
+        FROM #inputTransid i
+        WHERE NOT EXISTS (SELECT 1 FROM #UnsupportedTransids u WHERE u.transid = i.transid)
+            AND NOT EXISTS (SELECT 1 FROM #TransidInRequest ti WHERE ti.transid = i.transid)
+			AND NOT EXISTS (SELECT 1 FROM #validTransId v WHERE v.transid = i.transid)
         FOR XML PATH('')), 1, 1, ''), '')
 
+	SELECT @ValidTransIds = ISNULL(STUFF((
+									SELECT ',' + CAST(t.transid AS VARCHAR(50))
+									FROM #validTransId t
+									FOR XML PATH('')), 1, 1, ''), '')
 	-- Prepare output
-	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
+	SET @TransInfoJson_Output = COMPRESS((SELECT b.MatchIdForInsert AS 'm_mid'
 		,t.transid AS 't'
 		,b.custid AS  'c'           
 		,b.bettype AS 'btype'
@@ -229,12 +234,21 @@ BEGIN
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
 
+	SELECT TOP 1
+	@MatchId_Output = MatchIdForInsert
+	FROM #tmpTransInfo
+
 	-- Return results
-	SELECT @InvalidTransIds AS InvalidTransIds
+	--1. Validation table
+	SELECT @ValidTransIds AS ValidTransIds
+		  ,@InvalidTransIds AS InvalidTransIds
 		  ,@ExistingReqTransIds AS ExistingReqTransIds
 		  ,@UnsupportedTransids AS UnsupportedTransids
+		  ,@MatchId_Output AS MatchId
 
-	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
+	--2. TransInfo table
+	SELECT @ValidTransIds AS MarkTransIds
+		,CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
 	-- Clean up
 	DROP TABLE #inputTransid
@@ -242,7 +256,4 @@ BEGIN
 	DROP TABLE #TransidInRequest
 	DROP TABLE #UnsupportedTransids
 	DROP TABLE #tmpTransInfo
-	DROP TABLE #tmpInputTransid_RemarkId
-    DROP TABLE #transIdTemp
-
 END 
