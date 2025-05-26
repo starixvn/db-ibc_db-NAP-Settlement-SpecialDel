@@ -16,6 +16,7 @@ AS
 	
 	Revisions: 
 		- 20250513@July: Create new SP [Redmine: #227029]
+		- 20250526@July: Fix issue: DA/RC/WS - Detect wrong start void time  [Redmine: #228555]
 
 	Param's explanation:
 		
@@ -106,7 +107,7 @@ BEGIN
             f.PATime,
             f.SATime,
             m.Sporttype,
-            m.MatchId,
+            m.MatchId AS MatchId_tmp,
 			f.ScoreId
         FROM #FilterInfo f
 			INNER JOIN dbo.match m WITH (NOLOCK) ON f.MatchId = m.ParentID
@@ -345,12 +346,12 @@ BEGIN
 				FROM (
 					SELECT b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, b.LiveBetAcceptTime, b.SecAcceptTime
 					FROM #tmpTransInfo b
-					WHERE b.IsMixParlay = 0
+					WHERE b.IsMixParlay = 0 AND b.matchid = @MatchId
 						AND ISNULL(b.betdaqid,-1) NOT IN (1)
 					UNION ALL
 					SELECT NULL AS transid, bm.Subtransid, bm.Subbettype AS bettype, bm.Subtransdate AS transdate, bm.Subchecktime AS checktime, bm.SubLiveBetAcceptTime AS LiveBetAcceptTime, bm.SubSecAcceptTime AS SecAcceptTime
 					FROM #tmpTransInfo bm 
-					WHERE bm.IsMixParlay = 1
+					WHERE bm.IsMixParlay = 1 AND bm.matchid = @MatchId
 				)b
 				CROSS APPLY (
 						SELECT CASE WHEN b.checktime IS NULL THEN 1 --Auto Accept
@@ -380,7 +381,7 @@ BEGIN
 																	THEN b.CheckTimeCashOut ELSE NULL END)
 					  ,@CancelCOToTime = MAX(b.CheckTimeCashOut)
 				FROM #tmpTransInfo b 
-				WHERE b.IsMixParlay = 0
+				WHERE b.IsMixParlay = 0 AND b.matchid = @MatchId
 					AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
 					AND b.CheckTimeCashOut BETWEEN @VoidFromTime_tmp AND @FilterToTransTime
 
@@ -596,12 +597,12 @@ BEGIN
 				FROM (
 					SELECT b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, b.LiveBetAcceptTime, b.SecAcceptTime
 					FROM #tmpTransInfo b 
-					WHERE b.IsMixParlay = 0
+					WHERE b.IsMixParlay = 0 AND b.matchid = @MatchId
 						AND ISNULL(b.betdaqid,-1) NOT IN (1)
 					UNION ALL
 					SELECT NULL AS transid, bm.Subtransid, bm.Subbettype AS bettype, bm.Subtransdate AS transdate, bm.Subchecktime AS checktime, bm.SubLiveBetAcceptTime AS LiveBetAcceptTime, bm.SubSecAcceptTime AS SecAcceptTime
 					FROM #tmpTransInfo bm 
-					WHERE bm.IsMixParlay = 1
+					WHERE bm.IsMixParlay = 1 AND bm.matchid = @MatchId
 				)b
 				CROSS APPLY (
 						SELECT CASE WHEN b.checktime IS NULL THEN 1 --Auto Accept
@@ -629,7 +630,7 @@ BEGIN
 																	THEN b.CheckTimeCashOut ELSE NULL END)
 					  ,@CancelCOToTime = MAX(b.CheckTimeCashOut)
 				FROM #tmpTransInfo b 
-				WHERE b.IsMixParlay = 0
+				WHERE b.IsMixParlay = 0 AND b.matchid = @MatchId
 					AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
 					AND b.CheckTimeCashOut BETWEEN @VoidFromTime_tmp AND @FilterToTransTime
 
