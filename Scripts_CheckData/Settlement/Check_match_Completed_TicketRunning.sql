@@ -36,13 +36,13 @@
 	from bodb02.dbo.match m with(nolock)
 	inner join bodb02.dbo.league l with(nolock) on m.leagueid = l.leagueid
 	cross apply (select top 1 transid from bodb02.dbo.bettrans b with(nolock) where b.matchid = m.matchid and b.statusid = 0) b
-	where l.LeagueGroupID in (113,151 ,122) 
+	where l.LeagueGroupID in (113,151 ,122, 252) 
 		AND m.sporttype IN ( 1,2,43)  	  
 		and l.isTest = 0
 		--and m.kickofftime between '2023-09-27 02:29:04' and '2023-09-27 02:40:04'
 		and m.eventstatus = 'completed'
 		and m.eventdate =  '2023-09-27'
-		AND 1 = CASE WHEN m.sporttype = 1 AND l.LeagueGroupID = 113 THEN 1
+		AND 1 = CASE WHEN m.sporttype = 1 AND l.LeagueGroupID IN (113, 252) THEN 1
                      WHEN m.sporttype = 2 AND l.LeagueGroupID = 122 THEN 1
                      WHEN m.sporttype = 43 AND l.LeagueGroupID = 151 THEN 1
                  ELSE 0 

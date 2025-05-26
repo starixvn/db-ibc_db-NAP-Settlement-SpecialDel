@@ -21,6 +21,7 @@ AS
 		- 20240905@Kathy: get info from all sitedbgroupid [Redmine:#210398]
 		- 20241001@Kathy: Remove groupid 73
 		- 20241008@Kathy: exclude child match of table tennis [Redmine:#211924]
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
 	Param's explaination:
 		@UserGroup: 0-send to internal
@@ -191,7 +192,7 @@ BEGIN
 				AND 1 = CASE WHEN lg.GroupID = 42 THEN 0 --Virtual
 						 WHEN sp.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --pingoal
 						 WHEN sp.sporttype = 2 AND lg.GroupID = 122 THEN 0 --pingoal
-						 WHEN sp.sporttype = 1 AND lg.GroupID IN (74, 108, 113 ) THEN 0  --Virtual Sport Bacarrat,Virtual Futsal, pingoal
+						 WHEN sp.sporttype = 1 AND lg.GroupID IN (74, 108, 113, 252 ) THEN 0  --Virtual Sport Bacarrat,Virtual Futsal, pingoal
 					ELSE 1
 					END
 				AND l.isTest = 0

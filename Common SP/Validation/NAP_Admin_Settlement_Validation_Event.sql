@@ -35,6 +35,7 @@ AS
 		- 20241028@Aries: Direct payout for early soccer [Redmine:#211079]
 		- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
 		- 20250211@Hughie: Apply SOP for Soccer [Redmine:#216004]
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
@@ -353,7 +354,7 @@ BEGIN
 	BEGIN
 		--Auto payout soccer
 		--NAP_Admin_Settlement_1_AutoPayout_Push.
-		IF @SportType = 1 AND @Action LIKE 'CAL%' AND ISNULL(@LeagueGroupId,0) <> 113 AND  ISNULL(@Mode,'') != 'EAR'
+		IF @SportType = 1 AND @Action LIKE 'CAL%' AND ISNULL(@LeagueGroupId,0) NOT IN (113,252) AND  ISNULL(@Mode,'') != 'EAR'
 		BEGIN
 			IF EXISTS (SELECT TOP 1 1
 						FROM dbo.ResultDetail with(NOLOCK)

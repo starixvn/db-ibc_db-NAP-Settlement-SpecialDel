@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap,Dot_Admin" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] @MatchId INT
 	,@Action				VARCHAR(20)
 	,@Results				VARCHAR(MAX)

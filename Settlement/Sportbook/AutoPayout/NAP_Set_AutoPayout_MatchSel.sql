@@ -70,6 +70,7 @@ AS
 	- 20240621@Aries: Enhance Auto Refund to add waiting time [Redmine:#206153]
 	- 20241205@Louisa: fix issue convert matchcode [Redmine:#214853]
 	- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+	- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
  Param explanation:  
 	@MatchCode: match code
@@ -337,7 +338,7 @@ BEGIN
 		AND 1 = CASE
 					WHEN @UncalMultiOnly = 1 
 						THEN CASE
-								WHEN m.sporttype = 1 AND l.LeagueGroupID = 113 THEN 0 --PinGoal
+								WHEN m.sporttype = 1 AND l.LeagueGroupID IN (113, 252) THEN 0 --PinGoal
 								WHEN (ISNULL(mr.calculate,0) = 1 OR ISNULL(mr.calrefund,0) = 1) -- match completed (cal/refund)
 									AND ISNULL(mr.multiple,0) = 0 AND ISNULL(mr.refund,0) = 0 THEN 1 -- not cal/refund parlay yet
 								ELSE 0

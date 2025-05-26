@@ -42,6 +42,7 @@ AS
 		- 20240905@Aries: Enhance the settlement by Selection for Betbuilder  [Redmine:#208782]
 		- 20241028@Aries: Direct payout for early soccer [Redmine:#211079]
 		- 20250205@Louisa: Apply SOP for Soccer [Redmine:#216004] 
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR, 'CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT'
@@ -153,7 +154,7 @@ BEGIN
   		WHERE sr.ResourceID = '01' 
 			AND 1 = CASE 
 						WHEN @sportType IN ( 2, 58) THEN 1
-						WHEN @sportType = 1 AND @LeagueGroupID = 113 THEN 1---PinGoal
+						WHEN @sportType = 1 AND @LeagueGroupID IN (113,252) THEN 1---PinGoal
 						ELSE 0
 					END
 
@@ -164,11 +165,22 @@ BEGIN
 		END
 			
   		IF @existsFinalRound = 1
-  		BEGIN
-	  		SELECT  @HalfTimeHome	= COALESCE (@HalfTimeHome, 0)
-					,@HalfTimeAway   = COALESCE (@HalfTimeAway, 0)
-					,@FullTimeHome   = COALESCE (@FullTimeHome, 0)
-					,@FullTimeAway   = COALESCE (@FullTimeAway, 0)
+		BEGIN
+			IF @sportType = 1 AND @LeagueGroupID = 252
+			BEGIN
+				SELECT	@HalfTimeHome	= COALESCE (@HalfTimeHome, r.HomeValue)
+						,@HalfTimeAway   = COALESCE (@HalfTimeAway, r.AwayValue)
+				FROM dbo.ResultDetail r WITH (NOLOCK)
+				WHERE r.MatchID = @MatchId
+					AND r.ResourceId = '01'
+			END
+			ELSE
+  			BEGIN
+	  			SELECT  @HalfTimeHome	= COALESCE (@HalfTimeHome, 0)
+						,@HalfTimeAway   = COALESCE (@HalfTimeAway, 0)
+						,@FullTimeHome   = COALESCE (@FullTimeHome, 0)
+						,@FullTimeAway   = COALESCE (@FullTimeAway, 0)
+			END
 		END
 	END
 
@@ -274,8 +286,8 @@ BEGIN
 
 	IF @Action LIKE 'CAL%' 
 	BEGIN
-		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL) -- soccer main
-			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal soccer pingoal manually
+		IF (@SportType = 1 AND @LeagueGroupID NOT IN (113, 252) AND @SelectedResources IS NULL) -- soccer main
+			OR (@SportType = 1 AND @LeagueGroupID IN (113, 252) AND @SelectedResources IS NULL) -- cal soccer pingoal manually
 			OR @ResultTable = 0
 		BEGIN
 			SELECT	@eventstatus = CASE 
@@ -380,8 +392,8 @@ BEGIN
 	END
 	ELSE IF @Action LIKE 'UNDO%'
 	BEGIN
-		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL)
-			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal pingoal manually
+		IF (@SportType = 1 AND @LeagueGroupID NOT IN (113, 252) AND @SelectedResources IS NULL)
+			OR (@SportType = 1 AND @LeagueGroupID IN (113, 252) AND @SelectedResources IS NULL) -- cal pingoal manually
 			OR @ResultTable = 0
 		BEGIN
 			SELECT @undoCommand =	CASE WHEN @Action = 'UNDO' THEN 'NAP_Admin_Settlement_1-UNDO'
@@ -558,7 +570,7 @@ BEGIN
 				,@ResourceResult = @ResourceResult
 				,@Action        = @Action
 		END
-		ELSE IF @SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NOT NULL -- early settlement 
+		ELSE IF @SportType = 1 AND @LeagueGroupID NOT IN (113, 252) AND @SelectedResources IS NOT NULL -- early settlement 
 		BEGIN
 			SELECT @refundCommand = 'NAP_Admin_Settlement_Auto_1s-REFUND'
 

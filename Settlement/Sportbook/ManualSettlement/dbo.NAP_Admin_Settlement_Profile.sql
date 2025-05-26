@@ -97,6 +97,7 @@ AS
 		- 20241111@Aries: Support Auto Payout 2 for Volleyball [Redmine:#213198]
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 		- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -410,7 +411,7 @@ BEGIN
 				ON s.RefResourceId = t.ResourceID
 		WHERE	s.SportType = @sportType
 				AND s.RefResourceId IS NOT NULL
-				AND 1 = CASE WHEN @LeagueGroupID = 113 AND @sportType = 1 THEN 0
+				AND 1 = CASE WHEN @LeagueGroupID IN (113, 252) AND @sportType = 1 THEN 0
 						ELSE 1 END
 		
 		IF @DummyResourceIds <> ''

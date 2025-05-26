@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROC [NAP_Set_LeagueSel]
 	@FromDate datetime,
 	@ToDate datetime,
@@ -15,6 +15,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 		- 20221012@Louisa: Enhancement [Redmine:#178551]
+		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 
 	Param's Explanation:
 		
@@ -78,7 +79,7 @@ begin
 	where m.eventdate between @FromDate and @ToDate
 		and m.sporttype = @sporttype
 		and ISNULL(m.IsDeleted,0) = 0
-		and l.LeagueGroupID not in (112, 113) --exclude Pingoal soccer, Pingoal basketball
+		and l.LeagueGroupID not in (112, 113, 252) --exclude Pingoal soccer, Pingoal basketball
 	order by leaguename
 end
 
