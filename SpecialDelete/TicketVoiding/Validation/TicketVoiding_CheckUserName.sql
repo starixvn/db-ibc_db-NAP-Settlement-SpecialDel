@@ -46,6 +46,7 @@ AS
 		- 20241224@July: [TVS] Abnormal Account - Enhance Auto Void (Instant with Policy) [Redmine: #214444]
 		- 20250311@Max: [TVS] Enhance the Auto Void flow (Instant with Policy) of Abnormal Account  [#Redmine: #217979]
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
+		- 20250513@Lani: [TVS] Integrate - Pingoal Soccer Marble [Redmine: #227161]
 
 	Param's Explanation:
 */
@@ -435,7 +436,7 @@ BEGIN
 				FROM dbo.match m WITH (NOLOCK)
 					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				WHERE m.matchid = b.matchid
-					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151,252)
 			)ml
 		LEFT JOIN CustDB.dbo.Dep_CustSuper dc WITH(NOLOCK) ON dc.custid = b.srecommend
 	WHERE b.statusID NOT IN (101, 102, 103)
@@ -554,7 +555,7 @@ BEGIN
 					FROM dbo.match14 m WITH (NOLOCK)
 						INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 					WHERE m.matchid = b.matchid
-						AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
+						AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151,252)
 				)ml
 			LEFT JOIN CustDB.dbo.Dep_CustSuper dc WITH(NOLOCK) ON dc.custid = b.srecommend
 		WHERE b.statusID NOT IN (101, 102, 103)
