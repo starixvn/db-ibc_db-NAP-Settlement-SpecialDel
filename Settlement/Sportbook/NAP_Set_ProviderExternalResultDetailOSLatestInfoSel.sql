@@ -17,6 +17,7 @@ AS
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
+		- 20252705@Aries: SOP- Soccer- Phase 3.2- Outside Score for Calculate Popup [Redmine:#226229]
 
 	Param's Explanation:
 		
@@ -36,14 +37,33 @@ BEGIN
 	SELECT @ExternalResultTable  = s.ExternalResultTable
 	FROM dbo.SettlementResultTableSetting s WITH(NOLOCK)
 	WHERE s.Sporttype = @SportType
-	
-	IF @SportType = 8
-		SELECT @ExternalResultTable =2
 				
 	DECLARE @tmpLatestResult AS TABLE ( SourceId SMALLINT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50)	)
 	DECLARE @tmpProviderExternalResult AS TABLE (SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
 	DECLARE @tmpSourceId AS TABLE ( SourceId SMALLINT,SourceName VARCHAR(50), Remark NVARCHAR(1000) , OrderNo INT )
 
+	IF @SportType = 1
+	BEGIN		
+		;WITH  cteLatest
+		AS(
+			SELECT	ROW_NUMBER() OVER (PARTITION BY r.MatchId, r.SourceId, r.TypeId ORDER BY r.CreatedDate DESC) AS rn
+					,r.SourceId
+					,r.TypeId
+					,r.HomeValue
+					,r.AwayValue
+			FROM bodb02.dbo.ProviderResultDetail r WITH(NOLOCK)
+			WHERE MatchID = @MatchId
+				AND r.TypeId IN (1,2)
+		)
+		INSERT INTO @tmpLatestResult (SourceId, ResourceId, HomeValue, AwayValue)
+		SELECT l.SourceId
+			  ,IIF(l.TypeId = 1, '01', '00') AS ResourceId
+			  ,l.HomeValue
+			  ,l.AwayValue
+		FROM cteLatest l
+		WHERE	rn = 1
+	END
+	
 	IF @ExternalResultTable = 1
 	BEGIN
 		;WITH cteLatest (rn, SourceId, ResourceId, HomeValue, AwayValue) AS
