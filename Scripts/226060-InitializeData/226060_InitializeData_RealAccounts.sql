@@ -62,7 +62,7 @@ BEGIN
 
 		OUTPUT deleted.CustID,deleted.Sporttype, deleted.Bettype,inserted.AccumToWin - deleted.AccumToWin, inserted.AccumWinLoss - deleted.AccumWinLoss, 100 AS ActionType, dbo.f_GetDateTime2()
 		INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
-		FROM CustWinLimitBet c WITH (NOLOCK)
+		FROM CustWinLimitBet c WITH (ROWLOCK,UPDLOCK)
 			INNER JOIN #tmp_batch R ON c.custid = r.custid
 			CROSS APPLY (SELECT SUM(ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake) AS ToWin
 						FROM bettrans b WITH (NOLOCK)
