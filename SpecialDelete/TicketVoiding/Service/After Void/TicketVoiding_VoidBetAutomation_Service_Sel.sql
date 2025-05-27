@@ -16,6 +16,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20250527@Hyman: [TVS] Add column IsSentToMTS [Redmine: #227379]
 	
 	Param's explanation:	
 	
@@ -41,6 +42,7 @@ BEGIN
 			, tvs.IsDeletedMessage
 			, tvs.IsDeletedVoidedTransaction
 			, tvs.IsDeletedzzzBettrans
+			, tvs.IsSentToMTS
 	FROM dbo.Ticketvoiding_VoidBetAutomation_Service tvs WITH(NOLOCK) 
 	WHERE tvs.RequestID = @RequestId AND tvs.VoidingHistoryId = @VoidingHistoryID
 END

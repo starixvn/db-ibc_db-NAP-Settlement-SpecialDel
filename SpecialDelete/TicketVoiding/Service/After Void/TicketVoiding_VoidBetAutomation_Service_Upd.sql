@@ -17,7 +17,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Service_Upd]
 	@MessageIdSpecial				INT = NULL,
 	@IsDeletedMessage				BIT = NULL,
 	@IsDeletedVoidedTransaction		BIT	= NULL,
-	@IsDeletedzzzBettrans			BIT = NULL
+	@IsDeletedzzzBettrans			BIT = NULL,
+	@IsSentToMTS					BIT = NULL
 )
 AS
 /*	Created by: 20200212@Max
@@ -31,6 +32,7 @@ AS
 		- 20230103@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20250527@Hyman: [TVS] Add column IsSentToMTS [Redmine: #227379]
 		
 	Param's explanation:
 	- @UpdateType:
@@ -67,6 +69,7 @@ BEGIN
 			,IsDeletedMessage = ISNULL(@IsDeletedMessage, IsDeletedMessage)
 			,IsDeletedVoidedTransaction = ISNULL(@IsDeletedVoidedTransaction, IsDeletedVoidedTransaction)
 			,IsDeletedzzzBettrans = ISNULL(@IsDeletedzzzBettrans, IsDeletedzzzBettrans)
+			,IsSentToMTS = ISNULL(@IsSentToMTS, IsSentToMTS)
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 6
@@ -86,6 +89,7 @@ BEGIN
 			,IsDeletedMessage = @IsDeletedMessage
 			,IsDeletedVoidedTransaction = @IsDeletedVoidedTransaction
 			,IsDeletedzzzBettrans = @IsDeletedzzzBettrans
+			,IsSentToMTS = @IsSentToMTS
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 7

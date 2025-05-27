@@ -35,7 +35,7 @@ AS
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 		- 20250109@Max: [TVS] Update for voiding bettype Net Possion 501 [Redmine: #216611]
 		- 20241218@July: [TVS] Enhance the error message when voiding tickets are failed [Redmine: #213398]
-
+		- 20250527@Hyman: [TVS] Return ticket status [Redmine: #227379]
 	Param's explanation:
 		
 */
@@ -249,13 +249,13 @@ BEGIN
 			LEFT JOIN dbo.CashOutSelling c WITH (NOLOCK) ON c.TransID = t.TransId 
 		WHERE t.TicketType IN (1,3,4) AND b.statusID NOT IN (101,102,103)
 		
-		INSERT INTO #SingleTickets (TransId, RequestId, MatchId, IssueTypeId, TicketType, transdate, winlostdate, SiteDBGroupID)
-		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, TicketType, t.transdate, t.winlostdate, t.SiteDBGroupID
+		INSERT INTO #SingleTickets (TransId, RequestId, MatchId, IssueTypeId, TicketType, transdate, winlostdate, statusId, SiteDBGroupID)
+		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, TicketType, t.transdate, t.winlostdate, t.statusID, t.SiteDBGroupID
 		FROM #tmpTransIds t
 		WHERE t.TicketType IN (1,4)
 
-		INSERT INTO #ParlayTickets (TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, SiteDBGroupID)
-		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, bm.transdate, bm.winlostdate, bm.SiteDBGroupID
+		INSERT INTO #ParlayTickets (TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, SiteDBGroupID)
+		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, bm.transdate, bm.winlostdate, bm.statusID, bm.SiteDBGroupID
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 		WHERE t.TicketType = 2
