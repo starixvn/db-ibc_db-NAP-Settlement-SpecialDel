@@ -48,8 +48,14 @@ BEGIN
 		INSERT INTO @tmpRelatedEventInfo (matchid, eventdate, homeid, awayid, matchcode, leagueid, MatchType, IsNeutral, sporttype)
         SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype
 		FROM dbo.match m WITH (NOLOCK)
-		WHERE 1 = CASE WHEN m.sporttype NOT IN (50,8) AND m.ParentID = @MatchId THEN 1
-					   WHEN m.sporttype IN (50,8) AND m.ParentID = @MatchId AND m.ChildMatchType <> 200 THEN 1
+		WHERE 1 = CASE WHEN m.sporttype NOT IN (50,8) 
+							AND ((m.ParentID = @MatchId)
+								OR (m.matchid = @MatchId AND m.ParentID IS NOT NULL)) 
+					   THEN 1
+					   WHEN m.sporttype IN (50,8) AND m.ChildMatchType <> 200
+							 AND ((m.ParentID = @MatchId)
+								OR (m.matchid = @MatchId AND m.ParentID IS NOT NULL))
+					   THEN 1
 				       ELSE 0 END
 
 		-- Get all fantasy match
@@ -91,6 +97,7 @@ BEGIN
 		-- Return result
 		SELECT matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, m.MatchType, m.IsNeutral, m.sporttype
 		FROM @tmpRelatedEventInfo m
+		WHERE matchid <> @MatchId
 		UNION ALL
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype
 		FROM #LinkedMatch_tmp lm
