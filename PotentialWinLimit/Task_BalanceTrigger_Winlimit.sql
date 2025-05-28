@@ -161,6 +161,7 @@ BEGIN
 		SET AccumToWin =  CASE WHEN AccumToWin + t.adjToWin_total < 0 THEN 0 ELSE AccumToWin + t.adjToWin_total END
 			,AccumWinLoss = AccumWinLoss + t.adjWinLoss_total
 			, @Error_NegativeToWinList = @Error_NegativeToWinList + CASE WHEN AccumToWin + t.adjToWin_total < 0 THEN ',' + CONVERT(VARCHAR(20), c.custid) ELSE '' END
+			, RepUpdateTime = [dbo].[f_GetDateTime2]()
 	FROM CustWinLimitBet C WITH (ROWLOCK, UPDLOCK)
 		CROSS APPLY (SELECT SUM (b.adjToWin) AS adjToWin_total, SUM(b.adjWinLoss) AS adjWinLoss_total
 					FROM #winlimit_balancetrigger b
