@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Intg" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap,Dot_Intg" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder_Push]
 	 @AdminId			INT				= 148		-- calculated by system (default)
 	,@MatchId			INT
