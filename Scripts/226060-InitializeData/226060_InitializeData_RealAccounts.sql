@@ -63,7 +63,7 @@ BEGIN
 		OUTPUT deleted.CustID,deleted.Sporttype, deleted.Bettype,inserted.AccumToWin - deleted.AccumToWin, inserted.AccumWinLoss - deleted.AccumWinLoss, 100 AS ActionType, dbo.f_GetDateTime2()
 		INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
 		FROM CustWinLimitBet c WITH (ROWLOCK,UPDLOCK)
-			INNER JOIN #tmp_batch R ON c.custid = r.custid
+			INNER JOIN #tmp_batch r ON c.custid = r.custid
 			CROSS APPLY (SELECT SUM(ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake) AS ToWin
 						FROM bettrans b WITH (NOLOCK)
 							CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
@@ -71,6 +71,7 @@ BEGIN
 										AND m.SportType < 99
 								) AS chk
 						WHERE b.custid = r.CustID AND b.statusID IN (0,1) AND b.bettype NOT IN (29,38)
+							AND b.TransId <= @maxTransid
 						GROUP BY b.custid
 						) AS t
 		--for debug if need
@@ -88,6 +89,7 @@ BEGIN
 										AND m.SportType < 99
 								) AS chk
 						WHERE b.custid = r.CustID AND b.statusID IN (0,1) AND b.bettype NOT IN (29,38)
+							AND b.TransId <= @maxTransid
 						GROUP BY b.custid) AS t
 		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM CustWinLimitBet bt WITH (NOLOCK) WHERE bt.CustID = r.custid)
 		--for debug if need

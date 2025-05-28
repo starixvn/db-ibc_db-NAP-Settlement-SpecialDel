@@ -71,6 +71,7 @@ BEGIN
 										AND m.SportType < 99
 								) AS chk
 						WHERE b.custid = r.CustID AND b.statusID IN (0,1) AND b.bettype NOT IN (29,38)
+							AND b.TransId <= @maxTransid
 						GROUP BY b.custid
 						) AS t
 		--for debug if need
@@ -88,6 +89,7 @@ BEGIN
 										AND m.SportType < 99
 								) AS chk
 						WHERE b.custid = r.CustID AND b.statusID IN (0,1) AND b.bettype NOT IN (29,38)
+							AND b.TransId <= @maxTransid
 						GROUP BY b.custid) AS t
 		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM CustWinLimitBet bt WITH (NOLOCK) WHERE bt.CustID = r.custid)
 		--for debug if need
