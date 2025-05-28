@@ -51,7 +51,11 @@ BEGIN
 	UPDATE lm
 		SET AccumToWin = lm.AccumToWin + c.diff_ToWin
 			, AccumWinLoss = lm.AccumWinLoss + c.diff_WinLoss
+		OUTPUT deleted.CustID,deleted.Sporttype, deleted.Bettype,inserted.AccumToWin - deleted.AccumToWin, inserted.AccumWinLoss - deleted.AccumWinLoss, 100 AS ActionType, dbo.f_GetDateTime2()
+		INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
+	
 	FROM CustWinLimitBet lm WITH (ROWLOCK, UPDLOCK) 
 		INNER JOIN #Diff_Data c ON c.CustID = lm.custid
+
 END
 */
