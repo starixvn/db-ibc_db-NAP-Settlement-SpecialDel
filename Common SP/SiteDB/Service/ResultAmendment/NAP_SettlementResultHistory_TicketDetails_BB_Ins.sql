@@ -53,9 +53,6 @@ BEGIN
 		AND t.bef_sid != 0
 		AND t.sid != 0
 
-		select top 100 * from SettlementResultHistory AS h WITH(NOLOCK) 
-		select top 100 * from SettlementResultHistory_ticketdetails AS h WITH(NOLOCK) 
-
 	;WITH CTE_MarketID AS (
 		SELECT  CAST(h.[ActualResult] AS XML)  AS ActualResult
 			   ,SeqNo
