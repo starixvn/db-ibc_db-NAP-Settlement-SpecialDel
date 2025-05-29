@@ -155,13 +155,13 @@ BEGIN
 						FROM CustWinLimitBet_History c WITH (NOLOCK) 
 						WHERE c.CustID = b.CustID AND b.transid = c.Transid  AND b.actionDate > b.LatestResetDate AND c.ActionType IN (4,7,0)
 							 AND c.RepUpdateTime > b.LatestResetDate
-						ORDER BY c.RepUpdateTime DESC
+						ORDER BY c.RepUpdateTime ASC
 							 ) AS t1
 			OUTER APPLY (SELECT TOP (1) CASE WHEN c.ActionType IN (4,7,0) THEN 1 ELSE 0 END AS IsAdjustWinLoss 
 						FROM CustWinLimitBet_History c WITH (NOLOCK) 
 						WHERE c.CustID = b.CustID AND b.transid = c.Transid  AND b.actionDate > b.LatestResetDate  
 							 AND c.RepUpdateTime < b.LatestResetDate
-						ORDER BY c.RepUpdateTime ASC
+						ORDER BY c.RepUpdateTime DESC
 							 ) AS t2
 		WHERE b.StatusId > 1 AND b.bef_statusid > 1 
 	END
