@@ -73,7 +73,7 @@ AS
 			- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 			- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
 			- 20250507@Aries: Sportsbook - Enhance UI on theCalculation Page, Multi - Sports page and change the Over Status filter on the Calculation Pop-up [Redmine:#225098]
-
+			- 20250528@Aries: Fix an issue due to showing "Provider Ready" at the HT and FT columns after settlement [Redmine:#228964]
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -677,11 +677,14 @@ BEGIN
 				SELECT MAX(IIF(p.ResourceId = '01',1,0)) AS HasProviderHT,MAX(IIF(p.ResourceId = '00',1,0)) HasProviderFT
 				FROM ProviderExternalResultDetailOS AS p  WITH(NOLOCK)
 					INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK) ON p.SourceId  = pgm.SourceId AND pgm.Sporttype = m.sporttype AND pgm.isActive = 1
-				WHERE p.matchID = m.matchID
-					AND p.ResourceId in ('00','01')
+				WHERE p.matchID = m.matchID				 
 					AND p.SourceID < 1001 
 					AND p.SourceID NOT IN (97,98,99,100)
 					AND ISNULL(p.IsLive,0) = 0
+					AND 1 = CASE WHEN m.sporttype != 5 AND p.ResourceId = '01' THEN 1
+							     WHEN p.ResourceId = '00' THEN 1
+								 ELSE 0
+								 END
 				GROUP BY p.matchID
 				UNION ALL 
 				SELECT MAX(IIF(p.ResourceId = '01',1,0)) AS HasProviderHT,MAX(IIF(p.ResourceId = '00',1,0)) HasProviderFT
