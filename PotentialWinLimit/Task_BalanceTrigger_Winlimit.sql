@@ -25,6 +25,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+	SET XACT_ABORT ON
 
 	DECLARE @maxValue BIGINT
 			,@LastRow	BIGINT
@@ -42,11 +43,13 @@ BEGIN
 	SET @maxValue = (SELECT MAX(RowID) FROM [bodb02].[dbo].[BalanceTrigger] WITH(NOLOCK))
 	WAITFOR DELAY '00:00:00.500'
 	
-	INSERT INTO #winlimit_balancetrigger (rowID, CustID, transid, bef_statusid, StatusId, bef_winlost, winlost, Running_ToWin, isMissingHistory, LatestResetDate, actionDate
+	INSERT INTO #winlimit_balancetrigger (rowID, CustID, transid, bef_statusid, StatusId, bef_winlost, winlost, Running_ToWin
+						, isMissingHistory, LatestResetDate, actionDate
 						, adjToWin, adjWinLoss,ActionType,actual_stake
 						, sporttype	, bettype
 						)
-	SELECT TOP(@Batch) rowID,custid, transid, bef_statusid, StatusId, bef_winlost, winlost, t1.running_ToWin, CASE WHEN t1.running_ToWin IS NULL THEN 1 ELSE 0 END AS isMissingHistory, t2.LatestResetDate, b.ActionDate
+	SELECT TOP(@Batch) rowID,custid, transid, bef_statusid, StatusId, bef_winlost, winlost, t1.running_ToWin
+						, CASE WHEN t1.running_ToWin IS NULL THEN 1 ELSE 0 END AS isMissingHistory,  t2.LatestResetDate, b.ActionDate 
 						-- capture adj ToWin/WinLoss for normal case from running to settle/void/reject
 						, AdjToWin = CASE WHEN Running_ToWin IS NOT NULL AND StatusId > 1 AND b.bef_statusid IN (0,1) THEN -Running_ToWin ELSE NULL END
 						, adjwinloss = CASE WHEN StatusId > 1 AND b.bef_statusid IN (0,1) THEN winlost - actual_stake ELSE NULL END
@@ -66,7 +69,7 @@ BEGIN
 					WHERE m.bettype = b.bettype 
 						AND m.SportType < 99
 						) AS bt
-		OUTER APPLY (SELECT TOP 1 AdjToWin AS running_ToWin, Sporttype, bettype -- get ToWin of running and also check missing to insert history
+		OUTER APPLY (SELECT TOP 1 AdjToWin AS running_ToWin, Sporttype, bettype-- get ToWin of running and also check missing to insert history
 					FROM CustWinLimitBet_History c WITH (NOLOCK) 
 					WHERE c.CustID = b.CustID AND c.ActionType = 0 AND b.transid = c.Transid -- insert bet row
 					) AS t1
@@ -114,15 +117,14 @@ BEGIN
 	BEGIN
 		UPDATE b
 			SET AdjToWin = b.Running_ToWin
-			, adjwinloss = CASE WHEN actionDate >= LatestResetDate AND t.IsExistRunning IS NULL THEN 0 ELSE -(bef_winlost - actual_stake) END
+			, adjwinloss = CASE WHEN actionDate >= LatestResetDate AND t.IsAdjustWinLoss IS NULL THEN 0 ELSE -(bef_winlost - actual_stake) END
 			, ActionType = CASE WHEN bef_statusid = 102 THEN 7 ELSE 4 END -- 4: settle to running, 7: VOID to running
 		FROM #winlimit_balancetrigger b
 			-- CHECK exist running between reset action and current settle status
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistRunning 
+			OUTER APPLY (SELECT TOP 1 1 AS IsAdjustWinLoss 
 						FROM CustWinLimitBet_History c WITH (NOLOCK) 
 						WHERE c.CustID = b.CustID AND c.ActionType IN (4,7,0) AND b.transid = c.Transid
 							 AND c.RepUpdateTime BETWEEN b.LatestResetDate and b.actionDate
-						 
 							 ) AS t
 		WHERE b.StatusId = 0
 	END
@@ -137,23 +139,30 @@ BEGIN
 	--CASE 3: settle/void to settle/void
 	-- complex case 3.1: running (placebet) --> settle --> reset --> resettle:no adjust winloss/towin --> running --> settle --> settle: adjust winloss
 	-- complex case 3.2: reset - running (placebet) --> settle --> resettle: adjust winloss/towin --> running --> settle --> settle: adjust winloss
+	-- complex case 3.3: running (placebet) --->reset --> settle --> resettle: adjust winloss
 	IF EXISTS (SELECT TOP (1) 1 FROM #winlimit_balancetrigger WHERE StatusId > 1 AND bef_statusid > 1)
 	BEGIN
 		UPDATE b
 			SET AdjToWin = 0
-			, adjwinloss = CASE WHEN actionDate >= LatestResetDate AND t.IsExistRunning IS NULL THEN 0 ELSE winlost - bef_winlost END
+			, adjwinloss = CASE WHEN LatestResetDate IS NULL OR t1.IsAdjustWinLoss = 1 OR t2.IsAdjustWinLoss = 1 THEN winlost - bef_winlost ELSE 0 END
 			, ActionType = CASE WHEN StatusId = 102 THEN 6 -- Settle to VOID
 								WHEN bef_StatusId = 102 THEN 8
 								ELSE 5 -- 5: Result Amendment (settle to settle)
 							END 
 		FROM #winlimit_balancetrigger b
-			-- CHECK exist running between reset action and current settle status
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistRunning 
+			-- CHECK exist running before reset action and after reset action
+			OUTER APPLY (SELECT TOP (1) 1 AS IsAdjustWinLoss
 						FROM CustWinLimitBet_History c WITH (NOLOCK) 
-						WHERE c.CustID = b.CustID AND c.ActionType IN (4,7,0) AND b.transid = c.Transid
-							 AND c.RepUpdateTime BETWEEN b.LatestResetDate and b.actionDate
-							 ) AS t
-
+						WHERE c.CustID = b.CustID AND b.transid = c.Transid  AND b.actionDate > b.LatestResetDate AND c.ActionType IN (4,7,0)
+							 AND c.RepUpdateTime > b.LatestResetDate
+						ORDER BY c.RepUpdateTime DESC
+							 ) AS t1
+			OUTER APPLY (SELECT TOP (1) CASE WHEN c.ActionType IN (4,7,0) THEN 1 ELSE 0 END AS IsAdjustWinLoss 
+						FROM CustWinLimitBet_History c WITH (NOLOCK) 
+						WHERE c.CustID = b.CustID AND b.transid = c.Transid  AND b.actionDate > b.LatestResetDate  
+							 AND c.RepUpdateTime < b.LatestResetDate
+						ORDER BY c.RepUpdateTime ASC
+							 ) AS t2
 		WHERE b.StatusId > 1 AND b.bef_statusid > 1 
 	END
 	
