@@ -36,6 +36,7 @@ BEGIN
 		INTO @tmpOldAccumnWinLoss ( CustID, OldAccumnWinLoss)
 		FROM CustWinLimitBet b WITH(ROWLOCK,UPDLOCK)
 		INNER JOIN @tmpCustIds c ON b.CustID = c.CustID
+		WHERE b.AccumWinLoss > 0
 
 		INSERT INTO CustWinLimitBet_History (CustID, Transid, AdjToWin, AdjWinLoss, SportType, Bettype, ActionType, RepUpdateTime)
 		SELECT tmp.CustId, NULL, 0, -tmp.OldAccumnWinLoss, NULL, NULL, 100, [dbo].[f_GetDateTime2]() 
