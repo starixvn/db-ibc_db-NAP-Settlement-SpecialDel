@@ -170,6 +170,7 @@ AS
         - 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20250108@Louisa: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
+        - 20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
 
     Param's Explanation:
         @action             @mode
@@ -458,6 +459,7 @@ BEGIN
                 , @result = @xmlData
                 , @action = @Mode -- CAL, REFUND, UNDO
 				, @IsReSettledTickets = @IsReSettledTickets
+                , @BroadcastSessionId = @BroadcastSessionId
         END
 
         IF @action = 'REFUND'

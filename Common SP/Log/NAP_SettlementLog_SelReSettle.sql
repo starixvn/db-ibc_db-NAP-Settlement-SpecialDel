@@ -1,4 +1,4 @@
-/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_SettlementLog_SelReSettle]
 	@MatchID			INT				=	NULL,
 	@SportType 			INT				=	1
@@ -10,6 +10,7 @@ AS
 	 
 	Revisions:
 		-	20230414@Aries: Created [Redmine:#185964]
+		-	20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
 		
 	Param's Explanation:
 */
@@ -28,7 +29,8 @@ BEGIN
 			,	LAG(sl.LogDate,1) OVER(PARTITION BY sl.ResourceID ORDER BY sl.LogDate) AS Pre
 			,	LEAD(sl.LogDate,1) OVER(PARTITION BY sl.ResourceID ORDER BY sl.LogDate) AS Nex
 		FROM SettlementLog AS sl WITH (NOLOCK)
-		WHERE MatchID = @MatchID
+		WHERE sl.MatchID = @MatchID
+			AND sl.ActionID NOT IN (165,166,167)
 	) AS tbl 
 		LEFT JOIN LogAction AS la WITH (NOLOCK) ON tbl.ActionID = la.ActionID
 		LEFT JOIN bodb02.dbo.CustInfo AS c WITH(NOLOCK) ON c.custid = tbl.UserID

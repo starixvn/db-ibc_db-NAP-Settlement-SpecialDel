@@ -39,6 +39,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230817@Kathy: Write log [Redmine:#192311]
+		- 20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
 
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -470,6 +471,7 @@ BEGIN
 				,@mode = @Action
 				,@XmlData = @Results
 				,@IsReSettledTickets = @IsReSettledTickets
+				,@BroadcastSessionId = @BroadcastSessionId
 	END TRY
 	BEGIN CATCH
 		-- Capture Balance incase of failure
