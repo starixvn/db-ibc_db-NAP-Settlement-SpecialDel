@@ -24,7 +24,7 @@ CREATE TABLE #tmp_batch (custid INT)
 INSERT INTO #Result (custid)
 SELECT DISTINCT custid
 FROM bettrans b WITH (NOLOCK)
-WHERE b.statusID IN (0,1) AND currency = 20 AND transid <= @maxTransid
+WHERE currency = 20 AND transid <= @maxTransid
 	
 ------ info for deployer
 DECLARE @StartRow INT 
@@ -92,6 +92,14 @@ BEGIN
 							AND b.TransId <= @maxTransid
 						GROUP BY b.custid) AS t
 		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM CustWinLimitBet bt WITH (NOLOCK) WHERE bt.CustID = r.custid)
+
+		-- insert action reset for customer that all tickets already settled
+		INSERT INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
+		SELECT c.custid, 0, 0, 0, 0, 100, dbo.f_GetDateTime2()
+		FROM #tmp_batch c 
+			OUTER APPLY (SELECT TOP (1) 1 isRunning FROM bettrans b WITH (NOLOCK) WHERE b.custid = c.CustID AND b.statusID IN (0,1)) AS t
+		WHERE t.isRunning IS NULL
+
 		--for debug if need
 		--SELECT @@ROWCOUNT as 'Insert'
 
