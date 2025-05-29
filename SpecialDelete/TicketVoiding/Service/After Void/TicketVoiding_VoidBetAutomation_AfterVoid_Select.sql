@@ -11,6 +11,7 @@ AS
 		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+		- 20250527@Hyman: [TVS] Add column IsSentToMTS [Redmine: #227379]
 
 	Param's explanation:	
 */
@@ -46,6 +47,7 @@ BEGIN
 		,IsDeletedzzzBettrans BIT
 		,TransIds VARCHAR(MAX)
 		,RequestDetailId INT
+		,IsSentToMTS BIT
 	)
 	DECLARE @tmpVoidingHistory_Service AS TABLE
 	(
@@ -67,7 +69,7 @@ BEGIN
 	INSERT INTO @tmpResultAfterVoid (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
 							, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
 							, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, SiteDBGroupID, MessageIdSpecial, IsDeletedMessage, IsDeletedVoidedTransaction, IsDeletedzzzBettrans
-							, TransIds
+							, TransIds, IsSentToMTS
 	)
 	SELECT TOP 1 
 			vb.RequestID
@@ -91,6 +93,7 @@ BEGIN
 		, vb.IsDeletedVoidedTransaction
 		, vb.IsDeletedzzzBettrans
 		, vh.TransIds
+		, vb.IsSentToMTS
 	FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
 	WHERE vb.statusID = 1
@@ -189,6 +192,7 @@ BEGIN
 		, IsDeletedVoidedTransaction
 		, IsDeletedzzzBettrans
 		, RequestDetailId
+		, IsSentToMTS
 	FROM @tmpResultAfterVoid
 
 	--Table #2: Get statusid lastest request & current status request
