@@ -41,11 +41,6 @@ SELECT  lm.CustID, lm.AccumToWin, lm.AccumWinLoss, r.ToWin AS bettrans_AccumToWi
 	, r.ToWin - lm.AccumToWin AS diff_ToWin, r.WinLoss - lm.AccumWinLoss AS diff_WinLoss
 from #CustList t with (nolock)
 	INNER JOIN CustWinLimitBet lm WITH (NOLOCK) ON t.CustID = lm.custid  
-	OUTER APPLY (SELECT MAX(c.RepUpdateTime) AS LatestResetDate
-				FROM CustWinLimitBet_History c WITH (NOLOCK) 
-				WHERE c.CustID = lm.CustID AND c.ActionType = 100 -- latest reset
-				GROUP BY c.CustID
-				) AS t2
 	CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
 						, SUM (CASE WHEN b.statusID NOT IN (0,1,101,102,103,111) AND (t2.LatestResetDate IS NULL OR settlementtime > t2.LatestResetDate) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
 				 FROM dbo.bettrans b with (nolock)
