@@ -101,7 +101,7 @@ BEGIN
 		INSERT INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
 		SELECT c.custid, 0, 0, 0, 0, 100, dbo.f_GetDateTime2()
 		FROM #tmp_batch c 
-			CROSS APPLY (SELECT MIN(statusid)
+			CROSS APPLY (SELECT MIN(statusid) AS IsValid
 					FROM bettrans b WITH (NOLOCK) 
 						CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
 										WHERE m.bettype = b.bettype 
