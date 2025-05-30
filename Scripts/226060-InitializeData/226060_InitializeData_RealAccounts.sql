@@ -24,7 +24,11 @@ CREATE TABLE #tmp_batch (custid INT)
 INSERT INTO #Result (custid)
 SELECT DISTINCT custid
 FROM bettrans b WITH (NOLOCK)
-WHERE currency <> 20 AND transid <= @maxTransid
+	CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
+										WHERE m.bettype = b.bettype 
+										AND m.SportType < 99
+								) AS chk
+WHERE b.currency <> 20 AND transid <= @maxTransid AND b.bettype NOT IN (29,38)
 	
 ------ info for deployer
 DECLARE @StartRow INT 
@@ -99,8 +103,16 @@ BEGIN
 		INSERT INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
 		SELECT c.custid, 0, 0, 0, 0, 100, dbo.f_GetDateTime2()
 		FROM #tmp_batch c 
-			OUTER APPLY (SELECT TOP (1) 1 isRunning FROM bettrans b WITH (NOLOCK) WHERE b.custid = c.CustID AND b.statusID IN (0,1)) AS t
-		WHERE t.isRunning IS NULL
+			CROSS APPLY (SELECT MIN(statusid)
+					FROM bettrans b WITH (NOLOCK) 
+						CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
+										WHERE m.bettype = b.bettype 
+										AND m.SportType < 99
+								) AS chk
+					WHERE b.custid = c.CustID AND b.bettype NOT IN (29,38)
+					GROUP BY b.custid
+					HAVING MIN(statusid) > 1
+					) AS t
 
 		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT

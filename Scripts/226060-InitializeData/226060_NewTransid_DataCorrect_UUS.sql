@@ -46,7 +46,7 @@ WHERE (lm.AccumToWin <> r.ToWin OR lm.AccumWinLoss <> r.WinLoss)
 -- CHECK DATA FIRST before FIX
 SELECT * FROM #Diff_Data
 /*
-IF EXISTS (SELECT TOP (1) 1 FROM #checkData)
+IF EXISTS (SELECT TOP (1) 1 FROM #Diff_Data)
 BEGIN
 	UPDATE lm
 		SET AccumToWin = lm.AccumToWin + c.diff_ToWin
