@@ -19,7 +19,11 @@ CREATE TABLE #Diff_Data (custid INT, AccumToWin MONEY, AccumWinLoss MONEY, bettr
 INSERT INTO #CustList (custid)
 SELECT DISTINCT custid
 FROM bettrans b WITH (NOLOCK)
-WHERE (transid > @maxTransid OR b.SettlementTime > @starTime_Initialize ) AND b.currency = 20
+	CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
+										WHERE m.bettype = b.bettype 
+										AND m.SportType < 99
+								) AS chk
+WHERE (transid > @maxTransid OR b.SettlementTime > @starTime_Initialize ) AND b.currency = 20 AND b.bettype NOT IN (29,38)
 
 INSERT INTO #Diff_Data (custid, AccumToWin, AccumWinLoss, bettrans_AccumToWin, bettrans_AccumWinloss, diff_ToWin, diff_WinLoss)
 SELECT  lm.CustID, lm.AccumToWin, lm.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss as bettrans_AccumWinloss
