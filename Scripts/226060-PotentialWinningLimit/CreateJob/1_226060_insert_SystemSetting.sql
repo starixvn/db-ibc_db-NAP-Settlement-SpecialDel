@@ -14,8 +14,9 @@
 USE bodb02
 GO
 
-DECLARE @MaxValue VARCHAR(20)
-SELECT @MaxValue = (SELECT  CAST(MAX(rowid) AS VARCHAR(20))  from balancetrigger WITH(NOLOCK) )
+DECLARE @MaxValue VARCHAR(20) = XXXX  ----Please input
+
+---SELECT @MaxValue = (SELECT  CAST(MAX(rowid) AS VARCHAR(20))  from balancetrigger WITH(NOLOCK) )
 
 INSERT INTO dbo.SystemSettings ( VName, VValue )
 VALUES ('CustWinLimitBet', @MaxValue )
