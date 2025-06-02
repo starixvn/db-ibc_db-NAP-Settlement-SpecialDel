@@ -15,6 +15,9 @@ AS
 		- 20250416@Louisa:  Potential Winning Limit/Threshold [Redmine:#226060]
 */
 BEGIN
+	SET NOCOUNT ON
+	SET XACT_ABORT ON
+
 	DECLARE @tmpCustIds TABLE ( CustID INT )
 	DECLARE @tmpOldAccumnWinLoss TABLE ( CustID INT PRIMARY KEY, OldAccumnWinLoss MONEY )
 
@@ -32,15 +35,11 @@ BEGIN
 		UPDATE b	
 		SET AccumWinLoss = 0
 			,RepUpdateTime = [dbo].[f_GetDateTime2]() 
-		OUTPUT deleted.CustID, deleted.AccumWinLoss
-		INTO @tmpOldAccumnWinLoss ( CustID, OldAccumnWinLoss)
+		OUTPUT deleted.CustID, NULL, 0, deleted.AccumWinLoss, NULL, NULL, 100, [dbo].[f_GetDateTime2]() 
+		INTO CustWinLimitBet_History (CustID, Transid, AdjToWin, AdjWinLoss, SportType, Bettype, ActionType, RepUpdateTime)
 		FROM CustWinLimitBet b WITH(ROWLOCK,UPDLOCK)
 		INNER JOIN @tmpCustIds c ON b.CustID = c.CustID
 		WHERE b.AccumWinLoss > 0
-
-		INSERT INTO CustWinLimitBet_History (CustID, Transid, AdjToWin, AdjWinLoss, SportType, Bettype, ActionType, RepUpdateTime)
-		SELECT tmp.CustId, NULL, 0, -tmp.OldAccumnWinLoss, NULL, NULL, 100, [dbo].[f_GetDateTime2]() 
-		FROM @tmpOldAccumnWinLoss tmp
 
 	END TRY
 	BEGIN CATCH
