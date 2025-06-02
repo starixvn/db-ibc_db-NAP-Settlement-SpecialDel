@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckDuplicateTickets]
 	,@FilterBy					TINYINT	= NULL
 	,@SubIssueTypeId			TINYINT	= NULL
 	,@TransInfoJson				VARCHAR(MAX) = NULL
+	,@OnlineServerId			VARCHAR(10) = NULL --'0,1,2,3' 
 )
 AS
 /*  
@@ -25,6 +26,7 @@ AS
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241129@July: Hint - Error 'maximum recursion 100 has been exhausted'  [Redmine: #211913]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
+		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services [Redmine: #224490]
 
 	Param's explanation:
 */
@@ -58,7 +60,8 @@ BEGIN
 	DECLARE @tmpMatchId AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), VendorMatchId VARCHAR(50), RaceId VARCHAR(10), IsFinish BIT)
 	DECLARE @tmp_Result AS TABLE (MatchId INT, Sporttype INT, TransInfoJson VARCHAR(MAX), MarkTransIds VARCHAR(MAX), UnmarkTransIds VARCHAR(MAX), SiteDBAffected VARCHAR(20))
 	DECLARE @tmp_transid AS TABLE (TransId BIGINT)
-
+	DECLARE @tmp_OnlineServerId AS TABLE (ServerId SMALLINT)
+	
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
@@ -147,6 +150,19 @@ BEGIN
 				)
 		) tbl
 	WHERE f.value <> ''
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmp_OnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+
+		DELETE b
+		FROM #tmpTransInfo b
+		WHERE b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId)
+
+	END
 
 	INSERT INTO #inputTransid (transid)
 	SELECT DISTINCT value
