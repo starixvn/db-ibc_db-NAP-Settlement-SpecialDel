@@ -19,7 +19,6 @@ BEGIN
 	SET XACT_ABORT ON
 
 	DECLARE @tmpCustIds TABLE ( CustID INT )
-	DECLARE @tmpOldAccumnWinLoss TABLE ( CustID INT PRIMARY KEY, OldAccumnWinLoss MONEY )
 
 	IF ISNULL(@ListCustID,'') = ''
 	BEGIN
@@ -35,7 +34,7 @@ BEGIN
 		UPDATE b	
 		SET AccumWinLoss = 0
 			,RepUpdateTime = [dbo].[f_GetDateTime2]() 
-		OUTPUT deleted.CustID, NULL, 0, deleted.AccumWinLoss, NULL, NULL, 100, [dbo].[f_GetDateTime2]() 
+		OUTPUT deleted.CustID, NULL, 0, -deleted.AccumWinLoss, NULL, NULL, 100, [dbo].[f_GetDateTime2]() 
 		INTO CustWinLimitBet_History (CustID, Transid, AdjToWin, AdjWinLoss, SportType, Bettype, ActionType, RepUpdateTime)
 		FROM CustWinLimitBet b WITH(ROWLOCK,UPDLOCK)
 		INNER JOIN @tmpCustIds c ON b.CustID = c.CustID
