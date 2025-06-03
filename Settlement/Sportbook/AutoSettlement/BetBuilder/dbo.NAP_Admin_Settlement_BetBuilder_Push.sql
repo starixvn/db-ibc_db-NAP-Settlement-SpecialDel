@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder_Push]
 	,@BroadcastSessionId VARCHAR(50)	= NULL
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
+	,@IsOrg				BIT				= 1		OUTPUT
 
 AS
 /*	Creator: Vicky
@@ -22,6 +23,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903] 
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230817@Kathy: Write log [Redmine:#192311]
+		- 20250416@Hughie: Settle - Integrate - Result Amendment -Betbuilder [Redmine:#224372]
 		
 	Param's Explanation:
 		@Action : CAL, UNDO
@@ -82,6 +84,8 @@ BEGIN
 				,N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT'
 				,@ErrMsg	= @ErrMsg OUTPUT
 				,@ErrCode	= @ErrCode OUTPUT
+
+			SELECT @IsOrg = 0
 		END TRY
 
 		BEGIN CATCH
