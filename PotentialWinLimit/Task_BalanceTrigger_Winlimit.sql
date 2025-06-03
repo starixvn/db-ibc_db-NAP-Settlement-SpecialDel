@@ -184,7 +184,7 @@ BEGIN
 	WHERE VName = 'CustWinLimitBet'
 
 	INSERT INTO CustWinLimitBet_History ([CustID], [Sporttype], [Bettype], [Transid], [AdjToWin], [AdjWinLoss], [ActionType], [RepUpdateTime]) 
-	SELECT [CustID], sporttype, bettype, [Transid], [AdjToWin], [AdjWinLoss], [ActionType],[dbo].[f_GetDateTime2]()
+	SELECT [CustID], sporttype, bettype, [Transid], [AdjToWin], [AdjWinLoss], ISNULL([ActionType],254),[dbo].[f_GetDateTime2]()
 	FROM #winlimit_balancetrigger
 	ORDER BY rowID ASC
 
