@@ -80,6 +80,7 @@ BEGIN
 	WHERE RowID <= @maxValue AND RowID > @LastRow AND b.bettype NOT IN (29,38) -- exclude parlay
 		AND ((bef_statusid <> StatusId AND bef_statusid <> 1)	OR winlost <> bef_winlost)
 		AND (bef_winlost IS NOT NULL AND bef_statusid IS NOT NULL) ---ignore action insert bet in balancetrigger
+		AND 1= CASE WHEN bef_statusid = 0 AND statusid = 1 THEN 0 ELSE 1 END
 	ORDER BY RowID ASC
 	
 	IF @@ROWCOUNT < @Batch 
