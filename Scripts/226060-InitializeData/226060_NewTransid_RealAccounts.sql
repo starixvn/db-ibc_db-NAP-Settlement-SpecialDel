@@ -58,7 +58,7 @@ from #CustList t
 				 GROUP BY b.custid
 				 ) AS r
 WHERE (lm.AccumToWin <> r.ToWin OR lm.AccumWinLoss <> r.WinLoss)
--- CHECK DATA FIRST before FIX
+
 IF EXISTS (SELECT TOP (1) 1 FROM #Diff_Data)
 BEGIN
 	UPDATE lm
