@@ -17,6 +17,7 @@ AS
 		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 		- 20250120@Aries: Enhance the Validate Order for Auto Payout2 [Redmine:#209415]
 		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
+		- 20250604@Aries: Enhance the performance on the DBPRO for the Settlement flow [Redmine:#229607]
 
 
 */
@@ -555,7 +556,7 @@ BEGIN
 						ELSE 0
 			END AS ResourceStatus
 		) AS s	
-		OUTER APPLY (SELECT  TOP 1 
+		CROSS APPLY (SELECT  TOP 1 
 							 JSON_VALUE(ss.APSetting,'$."relatedCalResources"') AS relatedCalResources
 							,JSON_VALUE(ss.APSetting,'$."relatedSettResources"') AS relatedSettResources
 				     FROM SettlementSpecialBettypeProfile AS ss WITH(NOLOCK)
