@@ -1,7 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Settlement_MarketIDSel]
 	 @MatchId					INT		
-	 ,@SelectionType			VARCHAR(MAX) = ''
+	 ,@SelectionTypes			VARCHAR(MAX) = ''
 AS
 /*	
 	Created by: 20250604@Hughie
@@ -17,8 +17,7 @@ BEGIN
 	DECLARE @tmp table (SelectionType INT) 
 
 	INSERT INTO @tmp (SelectionType)
-	SELECT CAST(value AS INT) FROM  STRING_SPLIT(@SelectionType, ',')
-
+	SELECT CAST(value AS INT) FROM  STRING_SPLIT(@SelectionTypes, ',')
 
 	IF EXISTS (SELECT 1 FROM @tmp )
 	BEGIN
@@ -28,8 +27,4 @@ BEGIN
 		INNER JOIN @tmp C ON A.SelectionType = C.SelectionType
 		WHERE A.MatchId = @MatchId
 	END
-
 END
-
-
-
