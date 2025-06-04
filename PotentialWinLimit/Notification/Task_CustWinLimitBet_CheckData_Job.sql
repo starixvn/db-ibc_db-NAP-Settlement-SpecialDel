@@ -39,39 +39,48 @@ BEGIN
 	, diff_WinLoss MONEY
 	, issueType SMALLINT
 	)
+	CREATE TABLE #CustIdTransidList_tmp (transid BIGINT, custid INT)
+	CREATE TABLE #CustIdList_tmp (custid INT PRIMARY KEY)
 
 	DECLARE @LastTransId BIGINT
 	      , @LastRepUpdateTime DATETIME2(7)
+		  , @MaxTransId BIGINT
+		  , @MaxRepUpdateTime DATETIME2(7)
 
 	SELECT @LastTransId = CAST(VValue AS BIGINT)
 	FROM dbo.systemsettings WITH (NOLOCK) WHERE VName = 'CustWinLimitBet_LastTransId'
 
 	SELECT @LastRepUpdateTime = CAST(VValue AS DATETIME2(7))
 	FROM dbo.systemsettings WITH (NOLOCK) WHERE VName = 'CustWinLimitBet_LastRepUpdateTime'
+	
+	SET @MaxRepUpdateTime = SYSDATETIME() 
 
 	----------------------------------------------------------1 Check for missing data in CustWinLimitBet_History ---------------------------------------------------------
 	BEGIN
+		
+		SELECT @MaxTransId = MAX(TransId) FROM dbo.bettrans WITH (NOLOCK)
+		
 		INSERT INTO #Result_tmp (Transid, Currency, issueType)
-		SELECT TOP (@batch) b.transid, b.currency, CASE WHEN c.Transid IS NULL THEN 1 ELSE 0 END AS issueType
+		SELECT TOP (@batch) b.transid, b.currency, CASE WHEN c.Transid IS NULL THEN 1 ELSE 2 END AS issueType
 		FROM dbo.bettrans b  WITH (NOLOCK)
 			CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
 									WHERE m.bettype = b.bettype
 									AND m.SportType < 99
 									) AS chk
-			LEFT JOIN dbo.CustWinLimitBet_History c WITH (NOLOCK) ON b.TransId = c.Transid AND c.ActionType = 0
-		WHERE  b.Transid >= @lastTransid 
+			LEFT JOIN dbo.CustWinLimitBet_History c WITH (NOLOCK) ON b.TransId = c.Transid AND b.custid = c.custid AND c.ActionType = 0
+		WHERE  b.Transid > @lastTransid AND b.Transid <= @MaxTransId
 		   AND b.bettype NOT IN (29,38) 
 		   AND (c.Transid IS NULL
 				OR (ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake <> c.AdjToWin)
 				)
-		
-		SET @LastTransId = (SELECT MAX(transid) FROM #Result_tmp)
-		
-		--Update value config
-		UPDATE c SET c.VValue = @LastTransId
-		FROM dbo.systemsettings c WITH (ROWLOCK, UPDLOCK)
-		WHERE c.VName = 'CustWinLimitBet_LastTransId'
 
+		INSERT INTO #Result_tmp (Transid, Currency, issueType)
+		SELECT TOP (@batch) b.transid, b.currency, 3 AS issueType
+		FROM dbo.bettrans b  WITH (NOLOCK)
+			INNER JOIN dbo.CustWinLimitBet_History c WITH (NOLOCK) ON b.TransId = c.Transid AND b.custid = c.custid AND c.ActionType = 0
+		WHERE  b.Transid > @lastTransid AND b.Transid <= @MaxTransId
+		   AND (b.bettype IN (29,38) OR c.Sporttype >=99)
+		
 		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp WHERE issueType = 1)
 		BEGIN
 			--retry one more time for sure
@@ -81,7 +90,7 @@ BEGIN
 			FROM(
 				SELECT DISTINCT b.transId
 				FROM #Result_tmp b 
-				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustWinLimitBet_History h WITH (NOLOCK) WHERE b.TransId = h.Transid AND h.ActionType = 0)
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustWinLimitBet_History h WITH (NOLOCK) WHERE b.TransId = h.Transid AND b.custid = h.custid AND h.ActionType = 0)
 					AND b.Currency <> 20 AND b.issueType = 1
 			) AS tmp
 
@@ -89,7 +98,7 @@ BEGIN
 			FROM(
 				SELECT DISTINCT b.transId
 				FROM #Result_tmp b 
-				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustWinLimitBet_History h WITH (NOLOCK) WHERE b.TransId = h.Transid AND h.ActionType = 0)
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustWinLimitBet_History h WITH (NOLOCK) WHERE b.TransId = h.Transid AND b.custid = h.custid  AND h.ActionType = 0)
 					AND b.Currency = 20 AND b.issueType = 1
 			) AS tmp
 
@@ -97,67 +106,98 @@ BEGIN
 
 		IF ISNULL(@transIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '1. CustWinLimitBet_History table is missing data for real currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '1.1. CustWinLimitBet_History table is missing data for real currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 		END
 
 		IF ISNULL(@UUStransIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '1. CustWinLimitBet_History table is missing data for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '1.1. CustWinLimitBet_History table is missing data for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 		END
 
-		SET @transIds = ''
-		SET @UUStransIds = '' 
-
-		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp WHERE issueType = 0)
+		
+		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp WHERE issueType = 2)
 		BEGIN
+			SET @transIds = ''
+			SET @UUStransIds = '' 
+
 			SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 			FROM(
 				SELECT DISTINCT b.transId
 				FROM #Result_tmp b 
-				WHERE b.Currency <> 20 AND b.issueType = 0
+				WHERE b.Currency <> 20 AND b.issueType = 2
 			) AS tmp
 
 			SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 			FROM(
 				SELECT DISTINCT b.transId
 				FROM #Result_tmp b 
-				WHERE b.Currency = 20 AND b.issueType = 0
+				WHERE b.Currency = 20 AND b.issueType = 2
 			) AS tmp
 			
 			IF ISNULL(@transIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1. CustWinLimitBet_History table is different with table bettrans related to ToWin data for real currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.2. CustWinLimitBet_History table is different with table bettrans related to ToWin data for real currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 			END
 
 			IF ISNULL(@UUStransIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1. CustWinLimitBet_History table is different with table bettrans related to ToWin data for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.2. CustWinLimitBet_History table is different with table bettrans related to ToWin data for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 			END
 
 		END
+
+		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp WHERE issueType = 3)
+		BEGIN
+			SET @transIds = ''
+			SET @UUStransIds = '' 
+			
+			SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+			FROM(
+				SELECT DISTINCT b.transId
+				FROM #Result_tmp b 
+				WHERE b.Currency <> 20 AND b.issueType = 3
+			) AS tmp
+
+			SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+			FROM(
+				SELECT DISTINCT b.transId
+				FROM #Result_tmp b 
+				WHERE b.Currency = 20 AND b.issueType = 3
+			) AS tmp
+			
+			IF ISNULL(@transIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for real currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+			END
+
+			IF ISNULL(@UUStransIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+			END
+
+		END
+
+		--Update value config
+		UPDATE c SET c.VValue = @MaxTransId
+		FROM dbo.systemsettings c WITH (ROWLOCK, UPDLOCK)
+		WHERE c.VName = 'CustWinLimitBet_LastTransId'
+
 	END
 	
-	DECLARE @tmp_MaxRepUpdateTime TABLE (RuleId INT, RepUpdateTime DATETIME2(7))
 	-----------------------------------------------------2 Check special cases based on predefined conditions.--------------------------------------------------------------------
 	BEGIN
 		SET @transIds = ''
-		SET @UUStransIds = ''
+		SET @UUStransIds = '' 
 		TRUNCATE TABLE #Result_tmp
 		
-		CREATE TABLE #transidList (transid BIGINT, custid INT, RepUpdateTime DATETIME2(7))
-
-		INSERT INTO #transidList (transid, custid, RepUpdateTime)
-		SELECT DISTINCT transid, custid, RepUpdateTime
+		INSERT INTO #CustIdTransidList_tmp (transid, custid)
+		SELECT DISTINCT transid, custid
 		FROM dbo.CustWinLimitBet_History WITH (NOLOCK) 
-		WHERE RepUpdateTime > @LastRepUpdateTime
-		
-		INSERT INTO @tmp_MaxRepUpdateTime (RuleId, RepUpdateTime) 
-		SELECT 2, MAX(RepUpdateTime)
-		FROM #transidList
+		WHERE RepUpdateTime > @LastRepUpdateTime AND RepUpdateTime <= @MaxRepUpdateTime
 
 		INSERT INTO #Result_tmp (Transid, Currency)
 		SELECT TOP (@batch) l.transid, v.Currency
-		FROM #transidList l
+		FROM #CustIdTransidList_tmp l
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON l.custid = v.custid
 			CROSS APPLY (SELECT Max(RepUpdateTime) as LatestResetDate
 						 FROM dbo.CustWinLimitBet_History h WITH (NOLOCK)
@@ -174,9 +214,7 @@ BEGIN
 						 FROM dbo.CustWinLimitBet_History h WITH (NOLOCK)
 						 WHERE h.transid = l.transid and repupdatetime > rep.LatestResetDate AND h.actiontype in (4,7)
 						) AS t
-		ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
-		              WHEN v.Currency IN (20) THEN 2
-					  ELSE 0 END ASC 
+		WHERE v.currency NOT IN (20)
 
 		IF @@ROWCOUNT > 0
 		BEGIN
@@ -184,49 +222,30 @@ BEGIN
 			FROM(
 				SELECT DISTINCT b.transId
 				FROM #Result_tmp b 
-				WHERE b.Currency <> 20
-			) AS tmp
-
-			SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
-			FROM(
-				SELECT DISTINCT b.transId
-				FROM #Result_tmp b 
-				WHERE b.Currency = 20
 			) AS tmp
 		END
 
 		IF ISNULL(@transIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '2. CustWinLimitBet_History table is checking special cases based on predefined conditions for real currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '2. After a reset, the ticket status may change continuously, which could lead to incorrect data if the SQL job processes all commands in a single batch. This rule applies only to real accounts. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 		END
-
-		IF ISNULL(@UUStransIds,'') <> ''
-		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '2. CustWinLimitBet_History table is checking special cases based on predefined conditions for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
-		END
-
 	END
 	
 	-----------------------------------------------------3 Check CustWinLimitBet.AccumToWin against Bettrans running tickets --------------------------------------------------------------------
-	CREATE TABLE #CustList (custid INT PRIMARY KEY, RepUpdateTime DATETIME2(7))
-	
 	BEGIN
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
 		TRUNCATE TABLE #Result_tmp
 
-		INSERT INTO #CustList (custid, RepUpdateTime)
-		SELECT DISTINCT custid, RepUpdateTime
+		INSERT INTO #CustIdList_tmp (custid)
+		SELECT DISTINCT custid
 		FROM dbo.CustWinLimitBet_History WITH (NOLOCK)
-		WHERE RepUpdateTime > @LastRepUpdateTime AND actiontype in (0,4,7)
-
-		INSERT INTO @tmp_MaxRepUpdateTime (RuleId, RepUpdateTime) 
-		SELECT 3, MAX(RepUpdateTime)
-		FROM #CustList
+		WHERE RepUpdateTime > @LastRepUpdateTime AND RepUpdateTime <= @MaxRepUpdateTime
+			AND ActionType in (0,4,7)
 
 		INSERT INTO #Result_tmp (CustId, Currency)
 		SELECT TOP (@batch) t.CustId, v.Currency
-		FROM #CustList t
+		FROM #CustIdList_tmp t
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON t.custid = v.custid
 			INNER JOIN dbo.CustWinLimitBet c WITH (NOLOCK) ON t.custid = c.custid
 			CROSS APPLY (SELECT	 SUM(ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake) AS ToWin
@@ -266,23 +285,16 @@ BEGIN
 		END
 	END
 	
-	SET @LastRepUpdateTime = (SELECT MIN(RepUpdateTime) FROM @tmp_MaxRepUpdateTime)
-		
-	--Update value config
-	UPDATE c SET c.VValue =  CONVERT(VARCHAR(50), @LastRepUpdateTime, 21)
-	FROM dbo.systemsettings c WITH (ROWLOCK, UPDLOCK)
-	WHERE c.VName = 'CustWinLimitBet_LastRepUpdateTime'
-
-	-----------------------------------------------------For members with isDaily = Yes -----------------------------------------------------
+	-----------------------------------------------------4 For members with isDaily = Yes -----------------------------------------------------
 	/*Schedule a daily job (at 4:00 AM server time) to compare CustWinLimitBet.AccumWinLoss against the sum of settled tickets in Bettrans since the latest reset.*/
 
 	DECLARE @CurrentTime TIME = CONVERT(TIME, GETDATE());
 	DECLARE @Today		DATETIME 
 		   ,@Nextday    DATETIME
 
-	CREATE TABLE #reset (CustID INT, LatestResetDate DATETIME)
+	CREATE TABLE #reset (CustID INT, LatestResetDate DATETIME2(7))
 
-	IF @CurrentTime >= '03:59:00' AND @CurrentTime < '04:20:00' --Maximum call 2 times
+	IF @CurrentTime >= '03:59:00' AND @CurrentTime < '04:20:00' --Maximum call 2 times because job interval 10 minute
 	BEGIN
 		SET @Today = CAST(GETDATE() AS DATE)
 		SET @Nextday = DATEADD(DAY, 1, @Today)
@@ -299,7 +311,7 @@ BEGIN
 		GROUP BY c.CustID
 
 		INSERT INTO #Result_tmp (custid, Currency, AccumToWin, AccumWinLoss, bettrans_AccumToWin, bettrans_AccumWinloss, diff_ToWin, diff_WinLoss)
-		SELECT TOP (@batch) c.CustID, v.Currency, c.AccumToWin, c.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss as bettrans_AccumWinloss
+		SELECT TOP (@batch) c.CustID, v.Currency, c.AccumToWin, c.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss AS bettrans_AccumWinloss
 			, r.ToWin - c.AccumToWin AS diff_ToWin, r.WinLoss - c.AccumWinLoss AS diff_WinLoss
 		FROM #reset t WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON t.custid = v.custid
@@ -346,8 +358,93 @@ BEGIN
 		END
 	END
 
+	-----------------------------------------------------5 Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency -----------------------------------------------------
+	BEGIN
+		SET @CustIds = ''
+		SET @UUSCustIds = ''
+		
+		TRUNCATE TABLE #Result_tmp
+		TRUNCATE TABLE #reset
+		TRUNCATE TABLE #CustIdTransidList_tmp
+
+		INSERT INTO #CustIdTransidList_tmp (transid, custid)
+		SELECT DISTINCT transid, custid
+		FROM dbo.CustWinLimitBet_History WITH (NOLOCK)
+		WHERE RepUpdateTime > @LastRepUpdateTime AND RepUpdateTime <= @MaxRepUpdateTime
+
+		INSERT INTO #reset (CustID, LatestResetDate)
+		SELECT c.CustID, MAX(c.RepUpdateTime) as LatestResetDate
+		FROM dbo.CustWinLimitBet_History c WITH (NOLOCK)
+			INNER JOIN #CustIdTransidList_tmp t ON c.CustID = t.custid
+		WHERE c.ActionType = 100 -- latest reset
+		GROUP BY c.CustID
+		
+		--- remove ticket placing bet before reset due to very difficult to check then IGNORE
+		DELETE t
+		FROM #CustIdTransidList_tmp t
+			INNER JOIN dbo.CustWinLimitBet_History c WITH (NOLOCK) ON t.TransId = c.Transid AND t.custid = c.custid AND c.ActionType = 0 
+			LEFT JOIN #reset r ON r.CustID = t.custid
+		WHERE r.CustID IS NULL OR c.RepUpdateTime < r.LatestResetDate
+		
+		; WITH cte AS
+		(
+			SELECT DISTINCT custid FROM #CustIdTransidList_tmp
+		)
+		INSERT INTO #Result_tmp (custid, Currency, AccumToWin, AccumWinLoss, bettrans_AccumToWin, bettrans_AccumWinloss, diff_ToWin, diff_WinLoss)
+		SELECT TOP (@batch) cl.CustID, v.currency, lm.AccumToWin, lm.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss AS bettrans_AccumWinloss
+					, r.ToWin - lm.AccumToWin AS diff_ToWin, r.WinLoss - lm.AccumWinLoss AS diff_WinLoss
+		FROM cte  cl
+			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON cl.custid = v.custid
+			CROSS APPLY (SELECT SUM(AdjToWin) AS AccumToWin, SUM(AdjWinloss) AS AccumWinLoss
+						FROM dbo.CustWinLimitBet_History h WITH (NOLOCK)
+							INNER JOIN #CustIdTransidList_tmp r ON h.Transid = r.transid AND h.CustID = r.custid
+						WHERE cl.CustID = h.custid
+						GROUP BY h.CustID
+						) AS lm
+			CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
+							   , SUM (CASE WHEN b.statusID NOT IN (0,1) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
+							FROM dbo.bettrans b WITH (NOLOCK)
+								INNER JOIN #CustIdTransidList_tmp r ON b.Transid = r.transid AND b.CustID = r.custid
+							WHERE b.custid = cl.CustID
+								AND b.bettype NOT IN (29, 38)
+								AND b.statusID NOT IN (101,102,103,111)
+							GROUP BY b.custid
+							) AS r
+		WHERE (lm.AccumToWin <> r.ToWin OR lm.AccumWinLoss <> r.WinLoss)
+		ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
+		              WHEN v.Currency IN (20) THEN 2
+					  ELSE 0 END ASC 
+
+		IF @@ROWCOUNT > 0
+		BEGIN
+			SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+			FROM #Result_tmp
+			WHERE Currency <> 20
+
+			SELECT @UUSCustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+			FROM #Result_tmp
+			WHERE Currency = 20
+		END
+
+		IF ISNULL(@CustIds,'') <> ''
+		BEGIN
+			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for real currency. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
+		END
+
+		IF ISNULL(@UUSCustIds,'') <> ''
+		BEGIN
+			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
+		END
+	END
+		
+	--Update value config
+	UPDATE c SET c.VValue =  CONVERT(VARCHAR(50), @MaxRepUpdateTime, 21)
+	FROM dbo.systemsettings c WITH (ROWLOCK, UPDLOCK)
+	WHERE c.VName = 'CustWinLimitBet_LastRepUpdateTime'
+
 	DROP TABLE #Result_tmp
-	DROP TABLE #CustList
+	DROP TABLE #CustIdList_tmp
 	DROP TABLE #reset
-	DROP TABLE #transidList
+	DROP TABLE #CustIdTransidList_tmp
 END
+
