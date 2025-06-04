@@ -40,7 +40,7 @@ FROM #CustList b
 INSERT INTO #Diff_Data (custid, AccumToWin, AccumWinLoss, bettrans_AccumToWin, bettrans_AccumWinloss, diff_ToWin, diff_WinLoss)
 SELECT  lm.CustID, lm.AccumToWin, lm.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss as bettrans_AccumWinloss
 	, r.ToWin - lm.AccumToWin AS diff_ToWin, r.WinLoss - lm.AccumWinLoss AS diff_WinLoss
-from #CustList t with (nolock)
+from #CustList t 
 	INNER JOIN CustWinLimitBet lm WITH (NOLOCK) ON t.CustID = lm.custid  
 	CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
 						, SUM (CASE WHEN b.statusID NOT IN (0,1,101,102,103,111) AND (t2.LatestResetDate IS NULL OR settlementtime > t2.LatestResetDate) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
@@ -59,12 +59,9 @@ from #CustList t with (nolock)
 				 ) AS r
 WHERE (lm.AccumToWin <> r.ToWin OR lm.AccumWinLoss <> r.WinLoss)
 -- CHECK DATA FIRST before FIX
-SELECT * FROM #Diff_Data
-/*
 IF EXISTS (SELECT TOP (1) 1 FROM #Diff_Data)
 BEGIN
 	UPDATE lm
-		
 		SET AccumToWin = lm.AccumToWin + c.diff_ToWin
 			, AccumWinLoss = lm.AccumWinLoss + c.diff_WinLoss
 		OUTPUT deleted.CustID,deleted.Sporttype, deleted.Bettype,inserted.AccumToWin - deleted.AccumToWin, inserted.AccumWinLoss - deleted.AccumWinLoss, 100 AS ActionType, dbo.f_GetDateTime2()
@@ -74,7 +71,9 @@ BEGIN
 		INNER JOIN #Diff_Data c ON c.CustID = lm.custid
 
 END
-*/
+
+SELECT * FROM #Diff_Data
+
 DROP TABLE #CustList
 DROP TABLE #Diff_Data
 DROP TABLE #reset
