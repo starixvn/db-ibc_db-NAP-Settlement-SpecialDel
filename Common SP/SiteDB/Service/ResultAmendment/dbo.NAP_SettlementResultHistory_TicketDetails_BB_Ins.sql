@@ -1,10 +1,9 @@
 ﻿/*<info serverAlias="DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_SettlementResultHistory_TicketDetails_BB_Ins]
-	 @MatchId					INT		
-	,@sportType					INT	
+	 @MatchId					INT	
+	,@sportType					INT
 	,@SessionId				    VARCHAR(50)		
-	,@ErrorSessionIds			VARCHAR(MAX)	= NULL	
-	,@SelectedMarket			VARCHAR(MAX)	= NULL
+	,@ErrorSessionIds			VARCHAR(MAX)	= NULL
 AS
 /*	
 	Created by: 20250418@Hughie
@@ -17,55 +16,41 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 	
-	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON)
-	,bettype SMALLINT
-	--,hdp1 SMALLMONEY
-	,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT, betcheck NVARCHAR(50))
+	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),bettype SMALLINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT, betcheck NVARCHAR(50))
 
-	DECLARE @Resource TABLE(ResourceID VARCHAR(20),MarketId VARCHAR(50), SeqNo INT,SelectionType INT, PRIMARY KEY(ResourceID,MarketID))
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT
-	,bettype SMALLINT
-	--,hdp1 SMALLMONEY
-	,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT,betcheck NVARCHAR(50))
+	DECLARE @Resource TABLE(MarketId VARCHAR(50), SeqNo INT,SelectionType INT, PRIMARY KEY(SelectionType,MarketId))
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,bettype SMALLINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT,betcheck NVARCHAR(50))
 
 	DECLARE  @batchNo			INT 			= 2000
 			,@batchCount		INT 			= 0
-			--,@xmlMarket			XML
 
-	INSERT INTO #tblTrans(TransId
-	,bettype
-	--,hdp1
-	,winlost,bef_winlost,statusid,bef_statusid,betcheck)
+	INSERT INTO #tblTrans(TransId,bettype,winlost,bef_winlost,statusid,bef_statusid,betcheck)
 	SELECT t.t AS TransId
 		  ,t.bt AS bettype
-		  --,t.hdp1
 		  ,t.w AS winlost
 		  ,t.bef_w AS bef_winlost
 		  ,t.[sid] AS statusid
 		  ,t.bef_sid AS bef_statusid
 		  ,t.bc AS betcheck
 	FROM SiteDB_SettlementService_CalculationLog_3rd AS l WITH(NOLOCK)
-	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT
-		--,hdp1 SMALLMONEY
-		,bc NVARCHAR(50)) AS t
+	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bc NVARCHAR(50)) AS t
 	WHERE l.BroadcastSessionId  = @SessionId
 		AND t.bef_w != t.w
 		AND t.bef_sid != 0
 		AND t.sid != 0
 
-	;WITH CTE_MarketID AS (
+	;WITH CTE_MarketId AS (
 		SELECT  CAST(h.[ActualResult] AS XML)  AS ActualResult
 			   ,SeqNo
 		FROM SettlementResultHistory AS h WITH(NOLOCK) 
 		WHERE matchid =	@matchid
 			AND SessionId = @SessionID
 	)
-	INSERT INTO @Resource(MarketID,SeqNo,SelectionType)
-	SELECT	--rNode.value('(@Id)[1]', 'VARCHAR(50)') AS ResourceID,
-			rNode.value('(@MarketID)[1]', 'VARCHAR(50)') AS MarketID,
+	INSERT INTO @Resource(MarketId,SeqNo,SelectionType)
+	SELECT	rNode.value('(@MarketId)[1]', 'VARCHAR(50)') AS MarketId,
 			SeqNo,
-			rNode.value('(@SelectionType)[1]', 'INT') AS SelectionType
-	FROM CTE_MarketID
+			rNode.value('(@Id)[1]', 'INT') AS SelectionType
+	FROM CTE_MarketId
 		CROSS APPLY ActualResult.nodes('/root/r') AS x(rNode)
 
 	/* #4: Insert ticket*/
@@ -74,14 +59,8 @@ BEGIN
 		DELETE @tmpTransIDBatch
 		
 		DELETE TOP(@batchNo) t
-		OUTPUT deleted.transid
-		,deleted.bettype
-		--,deleted.hdp1
-		,deleted.winlost,deleted.bef_winlost,deleted.statusid,deleted.bef_statusid,deleted.betcheck
-		INTO @tmpTransIDBatch(TransID
-		,bettype
-		--,hdp1
-		,winlost,bef_winlost,statusid,bef_statusid,betcheck)
+		OUTPUT deleted.transid,deleted.bettype,deleted.winlost,deleted.bef_winlost,deleted.statusid,deleted.bef_statusid,deleted.betcheck
+		INTO @tmpTransIDBatch(TransID,bettype,winlost,bef_winlost,statusid,bef_statusid,betcheck)
 		FROM #tblTrans AS t 
 
 		SELECT @batchCount 	= @@ROWCOUNT
@@ -102,9 +81,8 @@ BEGIN
 											 	  ELSE 'None'
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),bef_winlost,2),'0')
-						--,'" Id="',ISNULL(r.ResourceID,'')
-						,'" Marketid="',ISNULL(r.marketID,'')
-						,'" SelectionType="',CONVERT(VARCHAR(50),r.SelectionType,2) 
+						,'" MarketId="',ISNULL(r.marketId,'')
+						,'" Id="',CONVERT(VARCHAR(50),r.SelectionType,2) 
 						,'" /></root>') AS ExtraInfo_Before
 			   ,CONCAT('<root><r status="',  CASE WHEN statusid = 1	 THEN 'WAITING' 
 											 	  WHEN statusid = 0	 THEN 'RUNNING' 
@@ -117,16 +95,14 @@ BEGIN
 											 	  ELSE 'None'
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),winlost,2),'0')
-						--,'" Id="',ISNULL(r.ResourceID,'')
-						,'" Marketid="',ISNULL(r.marketID,'')
-						,'" SelectionType="',CONVERT(VARCHAR(50),r.SelectionType,2) 
+						,'" MarketId="',ISNULL(r.marketId,'')
+						,'" Id="',CONVERT(VARCHAR(50),r.SelectionType,2) 
 						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
 			CROSS APPLY (
                 SELECT TOP 1 mre.SeqNo, mre.MarketId, mre.SelectionType
                 FROM  @Resource AS mre
                 WHERE mre.MarketId = t.betcheck
-					--AND mre.ResourceID = t.bettype
 			) AS r	
 		WHERE NOT EXISTS (SELECT TOP 1 1 
 						    FROM SettlementResultHistory_TicketDetails AS h WITH(NOLOCK)  
