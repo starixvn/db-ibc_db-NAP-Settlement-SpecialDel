@@ -19,18 +19,21 @@ BEGIN
 	SET @batchNo = 5000
 	SET @FromDate = DATEADD(DAY, -@Date,GETDATE() )
 
-	WHILE(1=1)
-	BEGIN
-		DELETE	TOP (@batchNo)
-		FROM	dbo.CustWinLimitBet_History WITH(ROWLOCK, UPDLOCK)
-		WHERE	RepUpdateTime  < @FromDate
-
-		IF @@ROWCOUNT < @batchNo
-			BREAK
-	END
 
 	IF @@SERVERNAME LIKE '%DBSITEC3%' OR @@SERVERNAME = 'TESTSITEDB2'
 	BEGIN
+		WHILE(1=1)
+		BEGIN
+			DELETE	TOP (@batchNo)
+			FROM	dbo.CustWinLimitBet_History WITH(ROWLOCK, UPDLOCK)		
+			OUTPUT deleted.ID, [dbo].[f_GetDateTime2]()
+			INTO CustWinLimitBet_History_Del_InHouse (ID,RepUpdateTime)
+			WHERE	RepUpdateTime  < @FromDate
+
+			IF @@ROWCOUNT < @batchNo
+				BREAK
+		END
+		
 		WHILE(1=1)
 		BEGIN
 			DELETE	TOP (@batchNo)
@@ -41,6 +44,18 @@ BEGIN
 				BREAK
 		END
 
+	END
+	ELSE
+	BEGIN
+		WHILE(1=1)
+		BEGIN
+			DELETE	TOP (@batchNo)
+			FROM	dbo.CustWinLimitBet_History WITH(ROWLOCK, UPDLOCK)
+			WHERE	RepUpdateTime  < @FromDate
+
+			IF @@ROWCOUNT < @batchNo
+				BREAK
+		END
 	END
 
 
