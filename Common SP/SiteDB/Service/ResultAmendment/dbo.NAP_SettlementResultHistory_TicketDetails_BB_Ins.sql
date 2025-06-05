@@ -81,7 +81,7 @@ BEGIN
 											 	  ELSE 'None'
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),bef_winlost,2),'0')
-						,'" MarketId="',ISNULL(r.marketId,'')
+						,'" MarketId="',ISNULL(r.MarketId,'')
 						,'" Id="',CONVERT(VARCHAR(50),r.SelectionType,2) 
 						,'" /></root>') AS ExtraInfo_Before
 			   ,CONCAT('<root><r status="',  CASE WHEN statusid = 1	 THEN 'WAITING' 
@@ -95,11 +95,11 @@ BEGIN
 											 	  ELSE 'None'
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),winlost,2),'0')
-						,'" MarketId="',ISNULL(r.marketId,'')
+						,'" MarketId="',ISNULL(r.MarketId,'')
 						,'" Id="',CONVERT(VARCHAR(50),r.SelectionType,2) 
 						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
-			CROSS APPLY (
+			OUTER APPLY (
                 SELECT TOP 1 mre.SeqNo, mre.MarketId, mre.SelectionType
                 FROM  @Resource AS mre
                 WHERE mre.MarketId = t.betcheck
