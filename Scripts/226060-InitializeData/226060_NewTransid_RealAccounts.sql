@@ -14,7 +14,7 @@ SET @starTime_Initialize = XXX
 
 CREATE TABLE #CustList(custid INT PRIMARY KEY )
 
-CREATE TABLE #Diff_Data (custid INT, AccumToWin MONEY, AccumWinLoss MONEY, bettrans_AccumToWin MONEY, bettrans_AccumWinloss MONEY
+CREATE TABLE #Diff_Data (ID INT IDENTITY (1,1) PRIMARY KEY, custid INT, AccumToWin MONEY, AccumWinLoss MONEY, bettrans_AccumToWin MONEY, bettrans_AccumWinloss MONEY
 						, diff_ToWin MONEY, diff_WinLoss MONEY)
 
 CREATE TABLE #reset (CUSTID INT, LatestResetDate DATETIME)
@@ -59,16 +59,55 @@ from #CustList t
 				 ) AS r
 WHERE (lm.AccumToWin <> r.ToWin OR lm.AccumWinLoss <> r.WinLoss)
 
+------ info for deployer
+DECLARE @StartRow INT 
+		, @StopRow INT 
+		, @MaxRow INT  -- Keep the total row of your data
+		, @Threshold INT  -- the number of each batch
+
+DECLARE @debug_message VARCHAR(500)
+
 IF EXISTS (SELECT TOP (1) 1 FROM #Diff_Data)
 BEGIN
-	UPDATE lm
-		SET AccumToWin = lm.AccumToWin + c.diff_ToWin
-			, AccumWinLoss = lm.AccumWinLoss + c.diff_WinLoss
-		OUTPUT deleted.CustID,deleted.Sporttype, deleted.Bettype,inserted.AccumToWin - deleted.AccumToWin, inserted.AccumWinLoss - deleted.AccumWinLoss, 100 AS ActionType, dbo.f_GetDateTime2()
-		INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
 	
-	FROM CustWinLimitBet lm WITH (ROWLOCK, UPDLOCK) 
-		INNER JOIN #Diff_Data c ON c.CustID = lm.custid
+	SET @MaxRow = (SELECT MAX(ID) FROM #Diff_Data)
+	SET @Threshold = 1000
+
+	IF @Threshold >= @MaxRow
+		SET @Threshold = @MaxRow
+
+	-- SET for first batch
+	SELECT @StartRow = 1, @StopRow = @Threshold
+
+	WHILE (@MaxRow IS NOT NULL)
+	BEGIN
+			PRINT @StartRow
+			PRINT @StopRow
+			
+			-- YOUR CODE TO PROCESS DATA FROM @StartRow & @StopRow
+			UPDATE lm
+				SET AccumToWin = lm.AccumToWin + c.diff_ToWin
+					, AccumWinLoss = lm.AccumWinLoss + c.diff_WinLoss
+				OUTPUT deleted.CustID,deleted.Sporttype, deleted.Bettype,inserted.AccumToWin - deleted.AccumToWin, inserted.AccumWinLoss - deleted.AccumWinLoss, 100 AS ActionType, dbo.f_GetDateTime2()
+				INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
+	
+			FROM CustWinLimitBet lm WITH (ROWLOCK, UPDLOCK) 
+				INNER JOIN #Diff_Data c ON c.CustID = lm.custid
+			WHERE c.ID BETWEEN @StartRow AND @StopRow
+
+			SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+			RAISERROR (@debug_message, 0, 1) WITH NOWAIT
+		
+			IF @StopRow = @MaxRow BREAK
+
+			WAITFOR DELAY '00:00:00.100' --optional
+
+			SET @StartRow = @StopRow + 1
+			SET @StopRow = @StopRow + @Threshold
+			IF @StopRow >= @MaxRow
+				SET @StopRow = @MaxRow
+
+	END
 
 END
 
