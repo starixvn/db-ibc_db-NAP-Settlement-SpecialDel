@@ -18,6 +18,7 @@ AS
 		- 20250120@Aries: Enhance the Validate Order for Auto Payout2 [Redmine:#209415]
 		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
 		- 20250604@Aries: Enhance the performance on the DBPRO for the Settlement flow [Redmine:#229607]
+		- 20250605@Aries: Settlement - The Table Tennis could not auto payout [Redmine:#229681]
 
 
 */
@@ -556,14 +557,15 @@ BEGIN
 						ELSE 0
 			END AS ResourceStatus
 		) AS s	
-		CROSS APPLY (SELECT  TOP 1 
-							 JSON_VALUE(ss.APSetting,'$."relatedCalResources"') AS relatedCalResources
+		OUTER APPLY (SELECT  TOP 1 pfID
+							,JSON_VALUE(ss.APSetting,'$."relatedCalResources"') AS relatedCalResources
 							,JSON_VALUE(ss.APSetting,'$."relatedSettResources"') AS relatedSettResources
 				     FROM SettlementSpecialBettypeProfile AS ss WITH(NOLOCK)
 					 WHERE ss.ResourceID = cte.ResourceID
 						AND ss.SportType = m.SportType
 		) AS ssp
 	WHERE s.ResourceStatus != 0
+		AND (ssp.pfID IS NOT NULL OR cte.ResourceType = 1)
 
 	SELECT matchId,ResourceId,HomeValue, AwayValue
 	FROM #MatchResourceConfirmDate
