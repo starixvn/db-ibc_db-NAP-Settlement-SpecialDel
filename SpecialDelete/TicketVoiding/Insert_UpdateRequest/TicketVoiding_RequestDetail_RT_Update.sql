@@ -21,6 +21,7 @@ AS
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250604@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 
 	Param's explanation:	
 		
@@ -40,6 +41,7 @@ BEGIN
 			,@ProductIds			VARCHAR(50) = NULL
 			,@FilterBy				TINYINT = NULL -- (NULL: sing & mix parlay, 3: subparlay)
 			,@SubIssueTypeId		TINYINT = NULL
+			,@MatchId				INT = NULL
 
 	CREATE TABLE #tmpMatch (MatchId INT, IsOutright BIT, IsMoved14 BIT)
 	CREATE TABLE #tmpTransInfo(
@@ -79,7 +81,8 @@ BEGIN
 	SET @RecoverTicketInfoXML = CONVERT(XML, @RecoverTicketInfo)
 	SELECT @TransIds = t.c.value('@TransIds','NVARCHAR(MAX)') 
 		  ,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
-		  ,@FilterBy = CASE WHEN t.c.value('@FilterBy','TINYINT') = 0 THEN NULL ELSE t.c.value('@FilterBy','TINYINT') END
+		  ,@FilterBy = CASE WHEN t.c.value('@FilterBy','TINYINT') = 0 THEN NULL ELSE t.c.value('@FilterBy','TINYINT') END -- NULL: single and main parlay, 1: subparlay
+		  ,@MatchId = CASE WHEN t.c.value('@MatchId','INT') = 0 THEN NULL ELSE t.c.value('@MatchId','INT') END 
 		  ,@SubIssueTypeId = t.c.value('@SubIssueTypeId','TINYINT')
 	FROM @RecoverTicketInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@RecoverTicketInfoXML = NULL))
@@ -181,11 +184,21 @@ BEGIN
 			, FilterBy = @FilterBy
 	WHERE	RequestId = @RequestId
 
-	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, Bettype, BetId, CustId, SiteDBGroupID)
-	SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, b.transid, b.matchid , rd.Id AS RequestDetailId, b.bettype, b.betid, b.custid, b.SiteDBGroupID
-	FROM #tmpTransInfo b
-		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
-			ON b.matchid = rd.MatchId AND rd.RequestId = @RequestId
+	IF @FilterBy IS NULL --single & main parlay
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, Bettype, BetId, CustId, SiteDBGroupID)
+		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, b.transid, b.matchid , rd.Id AS RequestDetailId, b.bettype, b.betid, b.custid, b.SiteDBGroupID
+		FROM #tmpTransInfo b
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+				ON b.matchid = rd.MatchId AND rd.RequestId = @RequestId
+	END
+	ELSE --sub parlay
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID) 
+		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, b.Subtransid, b.matchid, rd.Id AS RequestDetailId, b.transid, b.SiteDBGroupID
+		FROM #tmpTransInfo AS b
+		INNER JOIN dbo.TicketVoiding_RequestDetail AS rd WITH (NOLOCK) ON b.matchid = rd.MatchId AND rd.RequestId = @RequestId
+	END
 
 	-- Get content of log data 
 	SET @LogDataContent = ''

@@ -175,7 +175,7 @@ BEGIN
 				  ,refno
 				  ,Subtransid
 				)
-		SELECT	@MatchId
+		SELECT	bm.matchid
 				,b.transid
 				,b.custid
 				,bm.bettype
