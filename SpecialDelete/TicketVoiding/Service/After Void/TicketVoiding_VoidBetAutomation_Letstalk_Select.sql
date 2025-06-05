@@ -1,5 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Letstalk_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Letstalk_Select](
+	@OnlineServerId			VARCHAR(10) = NULL --'0,1,2,3'
+)
 AS
 /*	Created by: 20230117@July
 	Task: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
@@ -9,7 +11,8 @@ AS
 		- 20230117@July: Create new SP - get requests will run Letstalk [Redmine: #180625]
 		- 20240925@Max: Exclude recover issuetype [Redmine: #186029]
 		- 20250108@July: Filter range date send Letstalk [Redmine: #213398]
-	
+		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services [Redmine: #224490]
+
 	Param's explanation:	
 		Note table: TicketVoiding_Letstalk - Only support data within 2 months
 */
@@ -40,6 +43,15 @@ BEGIN
 			,SiteDBGroupID		SMALLINT
 			,IsAutoVoid			BIT
 	)
+	DECLARE @tmp_OnlineServerId AS TABLE (ServerId SMALLINT)
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmp_OnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	INSERT INTO @tmpInfoGetLetstalk (RequestID, VoidingHistoryId, MatchID, BroadcastSessionId, SiteDBGroupID, IsAutoVoid)
 	SELECT DISTINCT 
@@ -60,7 +72,8 @@ BEGIN
 					 WHEN lt.BroadcastSessionId IS NOT NULL AND lt.StatusId = 1 THEN 1
 					 ELSE 0 END
 		AND vb.createdDate > @SettingTime
-		
+		AND vh.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId)
+
 	UPDATE t1
 	SET cnt = t2.cnt_BroadcastSessionId
 	FROM @tmpInfoGetLetstalk t1
@@ -97,6 +110,7 @@ BEGIN
 			CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
 							FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 							WHERE t.RequestID = vh.RequestID AND t.BroadcastSessionId = vh.BroadcastSessionId
+								AND vh.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId)
 							GROUP BY BroadcastSessionId
 					)a
 		WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId AND t.RequestID = @min_RequestId
