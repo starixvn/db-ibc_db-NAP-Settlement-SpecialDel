@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoRecover_Validation]
 (
 	 @SingleTicketsJSON			NVARCHAR(MAX) = NULL
@@ -15,6 +15,7 @@ AS
 		- 20231227@Max: Create new SP [Redmine: #196020]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250506@July: Change to remove step update isprocess call 2 times [Redmine: #219112]
+		- 20250605@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 
 	Param's explanation:
 		
@@ -104,6 +105,18 @@ BEGIN
 			,CASE WHEN b.statuswinlost IS NOT NULL THEN 4 ELSE 3 END AS ValidationType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE t.TicketType = 2
+		UNION ALL
+		SELECT t.TransId
+			  ,t.RequestId
+			  ,t.MatchId
+			  ,t.IssueTypeId
+			  ,bm.transdate
+			  ,bm.winlostdate
+			  ,bm.statusID
+			  ,CASE WHEN bm.statuswinlost IS NOT NULL THEN 4 ELSE 3 END AS ValidationType
+		FROM #tmpInputTransId t
+			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 		WHERE t.TicketType = 2
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpInputTransId t
