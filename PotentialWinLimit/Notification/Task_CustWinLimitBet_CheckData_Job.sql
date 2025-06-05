@@ -41,6 +41,8 @@ BEGIN
 	)
 	CREATE TABLE #CustIdTransidList_tmp (transid BIGINT, custid INT)
 	CREATE TABLE #CustIdList_tmp (custid INT PRIMARY KEY)
+	CREATE TABLE #reset (CustID INT, LatestResetDate DATETIME2(7))
+	DECLARE @tmp_RetryRule TABLE (custid INT, Currency SMALLINT)
 
 	DECLARE @LastTransId BIGINT
 	      , @LastRepUpdateTime DATETIME2(7)
@@ -84,7 +86,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp WHERE issueType = 1)
 		BEGIN
 			--retry one more time for sure
-			WAITFOR DELAY '00:00:02.000'
+			WAITFOR DELAY '00:00:05.000'
 
 			SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 			FROM(
@@ -236,15 +238,16 @@ BEGIN
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
 		TRUNCATE TABLE #Result_tmp
-
+		DELETE FROM @tmp_RetryRule
+		
 		INSERT INTO #CustIdList_tmp (custid)
 		SELECT DISTINCT custid
 		FROM dbo.CustWinLimitBet_History WITH (NOLOCK)
 		WHERE RepUpdateTime > @LastRepUpdateTime AND RepUpdateTime <= @MaxRepUpdateTime
 			AND ActionType in (0,4,7)
 
-		INSERT INTO #Result_tmp (CustId, Currency)
-		SELECT TOP (@batch) t.CustId, v.Currency
+		INSERT INTO #Result_tmp (CustId, Currency, AccumToWin, bettrans_AccumToWin, diff_ToWin)
+		SELECT t.CustId, v.Currency, c.AccumToWin, r.ToWin, r.ToWin - c.AccumToWin AS diff_ToWin
 		FROM #CustIdList_tmp t
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON t.custid = v.custid
 			INNER JOIN dbo.CustWinLimitBet c WITH (NOLOCK) ON t.custid = c.custid
@@ -259,18 +262,37 @@ BEGIN
 						 GROUP BY b.custid
 						 ) AS r
 		WHERE c.AccumToWin <> r.ToWin
-		ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
-		              WHEN v.Currency IN (20) THEN 2
-					  ELSE 0 END ASC 
-
+		
 		IF @@ROWCOUNT > 0
 		BEGIN
+			--retry one more time for sure
+			WAITFOR DELAY '00:00:05.000'
+			
+			INSERT INTO @tmp_RetryRule (custid, Currency)
+			SELECT TOP (@batch) t.custid, t.Currency
+			FROM #Result_tmp t 
+				INNER JOIN dbo.CustWinLimitBet c WITH (NOLOCK) ON t.custid = c.custid
+				CROSS APPLY (SELECT	 SUM(ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake) AS ToWin
+								FROM dbo.bettrans b  WITH (NOLOCK)
+								CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
+											WHERE m.bettype = b.bettype
+											AND m.SportType < 99
+											) AS chk
+								WHERE b.custid = t.CustID AND b.bettype NOT IN (29, 38)
+									AND b.statusID IN (0,1) 
+								GROUP BY b.custid
+								) AS r
+			WHERE t.diff_ToWin = (r.ToWin - c.AccumToWin)
+			ORDER BY CASE WHEN t.Currency NOT IN (20) THEN 1
+						  WHEN t.Currency IN (20) THEN 2
+						  ELSE 0 END ASC 
+			
 			SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
-			FROM #Result_tmp
+			FROM @tmp_RetryRule
 			WHERE Currency <> 20
 
 			SELECT @UUSCustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
-			FROM #Result_tmp
+			FROM @tmp_RetryRule
 			WHERE Currency = 20
 		END
 
@@ -292,7 +314,6 @@ BEGIN
 	DECLARE @Today		DATETIME 
 		   ,@Nextday    DATETIME
 
-	CREATE TABLE #reset (CustID INT, LatestResetDate DATETIME2(7))
 
 	IF @CurrentTime >= '03:59:00' AND @CurrentTime < '04:20:00' --Maximum call 2 times because job interval 10 minute
 	BEGIN
@@ -302,7 +323,8 @@ BEGIN
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
 		TRUNCATE TABLE #Result_tmp
-		
+		DELETE FROM @tmp_RetryRule
+
 		INSERT INTO #reset (CustID, LatestResetDate)
 		SELECT c.CustID, MAX(RepUpdateTime) as LatestResetDate
 		FROM dbo.CustWinLimitBet_History c WITH (NOLOCK)
@@ -311,7 +333,7 @@ BEGIN
 		GROUP BY c.CustID
 
 		INSERT INTO #Result_tmp (custid, Currency, AccumToWin, AccumWinLoss, bettrans_AccumToWin, bettrans_AccumWinloss, diff_ToWin, diff_WinLoss)
-		SELECT TOP (@batch) c.CustID, v.Currency, c.AccumToWin, c.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss AS bettrans_AccumWinloss
+		SELECT c.CustID, v.Currency, c.AccumToWin, c.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss AS bettrans_AccumWinloss
 			, r.ToWin - c.AccumToWin AS diff_ToWin, r.WinLoss - c.AccumWinLoss AS diff_WinLoss
 		FROM #reset t WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON t.custid = v.custid
@@ -332,18 +354,43 @@ BEGIN
 						 GROUP BY b.custid
 						 ) AS r
 		WHERE (c.AccumToWin <> r.ToWin OR c.AccumWinLoss <> r.WinLoss)
-		ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
-		              WHEN v.Currency IN (20) THEN 2
-					  ELSE 0 END ASC 
 
 		IF @@ROWCOUNT > 0
 		BEGIN
+			--retry one more time for sure
+			WAITFOR DELAY '00:00:05.000'
+			
+			INSERT INTO @tmp_RetryRule (custid, Currency)
+			SELECT TOP (@batch) t.custid, t.Currency
+			FROM #Result_tmp t 
+				INNER JOIN dbo.CustWinLimitBet c WITH (NOLOCK) ON t.CustID = c.custid
+				CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
+									, SUM (CASE WHEN b.statusID NOT IN (0,1) AND (t2.LatestResetDate IS NULL OR settlementtime > t2.LatestResetDate) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
+								FROM dbo.bettrans b WITH (NOLOCK)
+								CROSS APPLY (SELECT TOP (1) 1 AS isValid 
+												FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
+												WHERE m.bettype = b.bettype AND m.SportType < 99
+											) AS chk
+								OUTER APPLY (SELECT LatestResetDate
+											FROM #reset c
+											WHERE c.CustID = b.CustID
+											) AS t2
+								WHERE b.custid = c.CustID AND b.bettype NOT IN (29, 38)
+									AND b.statusID NOT IN (101,102,103,111)
+								GROUP BY b.custid
+								) AS r
+			WHERE (t.diff_ToWin = (r.ToWin - c.AccumToWin)) 
+				OR (t.diff_WinLoss = (r.WinLoss - c.AccumWinLoss))
+			ORDER BY CASE WHEN t.Currency NOT IN (20) THEN 1
+						  WHEN t.Currency IN (20) THEN 2
+						  ELSE 0 END ASC 
+			
 			SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
-			FROM #Result_tmp
+			FROM @tmp_RetryRule
 			WHERE Currency <> 20
 
 			SELECT @UUSCustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
-			FROM #Result_tmp
+			FROM @tmp_RetryRule
 			WHERE Currency = 20
 		END
 
