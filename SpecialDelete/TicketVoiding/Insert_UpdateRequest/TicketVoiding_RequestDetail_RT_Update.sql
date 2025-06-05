@@ -97,14 +97,23 @@ BEGIN
 	BEGIN
 		SET @OldTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
 								  FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
-								  WHERE RequestId = @RequestId
+								  WHERE RequestId = @RequestId AND @FilterBy IS NULL
+								  FOR XML PATH ('')),1,1,'')
+
+		SET @OldTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
+								  FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
+								  WHERE RequestId = @RequestId AND @FilterBy IS NOT NULL
 								  FOR XML PATH ('')),1,1,'')
 		
 		DELETE FROM dbo.TicketVoiding_RequestDetail
 		WHERE RequestId = @RequestId
 
 		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_Single 
-		WHERE RequestId = @RequestId
+		WHERE RequestId = @RequestId AND @FilterBy IS NULL
+
+		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay
+		WHERE RequestId = @RequestId AND @FilterBy IS NOT NULL
+
 	END
 
 	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))) --parlay
@@ -119,7 +128,7 @@ BEGIN
 		WHERE matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 		
-	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE IsOutright = 0 AND IsMoved14 = 0) --match
+	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE IsOutright = 0 AND IsMoved14 = 0) --match & subparlay
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, Sporttype)
 		SELECT @RequestId
