@@ -8,12 +8,6 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Upd]
 	,@Reason			NVARCHAR(500) = ''
 	,@ReasonSC			NVARCHAR(500) = ''
 	,@AbnormalBetType   TINYINT		= NULL --NULL: Uncheck AbnormalBet UI, 0: single, 1: main parlay
-	,@FilterUserName	VARCHAR(30) = NULL -- input username
-	,@Products			VARCHAR(50)	= NULL
-	,@StatusIds			VARCHAR(50) = NULL
-	,@FromDate			DATETIME	= NULL	
-	,@ToDate			DATETIME	= NULL
-
 AS 
 	/* Created by: Jamie  
 	 Task:  VOID BY BET ID (Running & Settled tickets)  
@@ -121,6 +115,7 @@ AS
 	  - 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
 	  - 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 	  - 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+	  - 20250606@Lani: [TVS] Remove unused code [Redmine: #225845]
 
 	 Param's Explanation:   
 */
@@ -145,11 +140,6 @@ BEGIN
 					+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
 					+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
 					+ ',@AbnormalBetType = ' + CASE WHEN @AbnormalBetType IS NULL THEN 'NULL' ELSE CONVERT(NVARCHAR(50), @AbnormalBetType) END
-					+ CASE WHEN @FilterUserName IS NULL THEN '' ELSE '@FilterUserName = ''' + CONVERT(NVARCHAR(50), @FilterUserName) + '''' END
-					+ CASE WHEN @Products IS NULL THEN '' ELSE '@Products = ''' + CONVERT(NVARCHAR(50), @Products) + '''' END
-					+ CASE WHEN @StatusIds IS NULL THEN '' ELSE '@StatusIds = ''' + CONVERT(NVARCHAR(50), @StatusIds) + '''' END
-					+ CASE WHEN @FromDate IS NULL THEN '' ELSE '@FromDate = ''' + CONVERT(NVARCHAR(50), @FromDate) + ''''  END
-					+ CASE WHEN @ToDate IS NULL THEN '' ELSE '@ToDate = ''' + CONVERT(NVARCHAR(50), @ToDate) + ''''  END
 
 	-- Write useraction log 
 	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
@@ -538,15 +528,9 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate WHERE eventdate <= @Movebetdate)
 	BEGIN
-		IF @FilterUserName IS NULL -- By Bet ID
-		BEGIN
-			SELECT @ErrCode= 102, @ErrMsg = 'Could not void some tickets due to Movebet process. Please try Search again.'
-		END
-		ELSE -- By Username
-		BEGIN
-			SELECT @ErrCode = 102, @ErrMsg = 'Could not void some tickets due to Movebet process. Please try a new Date range and Search again.'
-		END
-
+		
+		SELECT @ErrCode= 102, @ErrMsg = 'Could not void some tickets due to Movebet process. Please try Search again.'
+		
 		SELECT @ErrCode AS ErrorCode
 		      ,@ErrMsg AS ErrorMsg
 		      ,@SiteDBGroupID AS SiteDBGroupID
