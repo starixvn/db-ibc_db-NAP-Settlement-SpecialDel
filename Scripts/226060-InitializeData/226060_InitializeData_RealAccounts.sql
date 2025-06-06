@@ -19,7 +19,7 @@ CREATE TABLE #Result(
 	custid INT
 )
 
-CREATE TABLE #tmp_batch (custid INT)
+CREATE TABLE #tmp_batch (custid INT PRIMARY KEY)
 
 INSERT INTO #Result (custid)
 SELECT DISTINCT custid
