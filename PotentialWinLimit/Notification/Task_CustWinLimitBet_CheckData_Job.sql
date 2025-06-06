@@ -41,7 +41,7 @@ BEGIN
 	)
 	CREATE TABLE #CustIdTransidList_tmp (transid BIGINT, custid INT)
 	CREATE TABLE #CustIdList_tmp (custid INT PRIMARY KEY)
-	CREATE TABLE #reset (CustID INT, LatestResetDate DATETIME2(7))
+	CREATE TABLE #reset (CustID INT PRIMARY KEY, LatestResetDate DATETIME2(7))
 	DECLARE @tmp_RetryRule TABLE (custid INT, Currency SMALLINT)
 
 	DECLARE @LastTransId BIGINT
@@ -314,7 +314,6 @@ BEGIN
 	DECLARE @Today		DATETIME 
 		   ,@Nextday    DATETIME
 
-
 	IF @CurrentTime >= '03:59:00' AND @CurrentTime < '04:20:00' --Maximum call 2 times because job interval 10 minute
 	BEGIN
 		SET @Today = CAST(GETDATE() AS DATE)
@@ -426,7 +425,12 @@ BEGIN
 		WHERE c.ActionType = 100 -- latest reset
 		GROUP BY c.CustID
 		
-		--- remove ticket placing bet before reset due to very difficult to check then IGNORE
+		--- Remove custid does not perform any reset action.
+		DELETE t
+		FROM #CustIdTransidList_tmp t
+		WHERE t.custid NOT IN (SELECT custid FROM #reset)
+		
+		--- Remove ticket placing bet before reset due to very difficult to check then IGNORE
 		DELETE t
 		FROM #CustIdTransidList_tmp t
 			INNER JOIN dbo.CustWinLimitBet_History c WITH (NOLOCK) ON t.TransId = c.Transid AND t.custid = c.custid AND c.ActionType = 0 
