@@ -38,7 +38,7 @@ DECLARE @StartRow INT
 
 DECLARE @debug_message VARCHAR(500)
 SET @MaxRow = (SELECT MAX(ID) FROM #Result)
-SET @Threshold = 1000
+SET @Threshold = 300
 
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
