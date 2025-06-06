@@ -103,16 +103,11 @@ BEGIN
 		INSERT INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
 		SELECT c.custid, 0, 0, 0, 0, 100, dbo.f_GetDateTime2()
 		FROM #tmp_batch c 
-			CROSS APPLY (SELECT MIN(statusid) AS IsValid
-					FROM bettrans b WITH (NOLOCK) 
-						CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
-										WHERE m.bettype = b.bettype 
-										AND m.SportType < 99
-								) AS chk
-					WHERE b.custid = c.CustID AND b.bettype NOT IN (29,38)
-					GROUP BY b.custid
-					HAVING MIN(statusid) > 1
-					) AS t
+			OUTER APPLY (SELECT TOP 1 1  AS IsValid
+                         FROM CustWinLimitBet_History b WITH (NOLOCK)
+						 WHERE b.custid = c.custid and b.actiontype = 100
+						 ) AS t
+		WHERE t.IsValid IS NULL
 
 		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
