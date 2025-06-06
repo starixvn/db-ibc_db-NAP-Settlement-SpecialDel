@@ -34,6 +34,7 @@ AS
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
+		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services - [Redmine: #224490]
 
 	Param's explanation:
 		
@@ -72,6 +73,7 @@ BEGIN
 					AND vh.RequestId = s.requestId
 					AND (rd.MatchId = s.matchID OR s.matchID = 0)
 	WHERE	rd.RequestId = @RequestId 
+		AND vh.StatusId IN (2,3)
 		AND 1 = CASE WHEN @IssueTypeId = 11 AND @MatchId = 0 THEN 1
 					 WHEN rd.MatchId = @MatchId THEN 1
 				ELSE 0 END
