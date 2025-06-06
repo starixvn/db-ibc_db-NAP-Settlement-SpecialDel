@@ -78,14 +78,6 @@ AS;
 		- 20250606@Lani: [TVS] Remove unused code [Redmine: #225845]
 
 	Param's Explanation:
-		+ @CustID NOT NULL: Search by CustID
-		+ @TransIds NOT NULL: Search by TransID
-		+ @Products : 1 - Sportbook
-					2 - Parlay
-					3 - Bet Builder
-					4 - Outright
-					5 - Saba
-					6 - NonSport
 
 	*/
 BEGIN
