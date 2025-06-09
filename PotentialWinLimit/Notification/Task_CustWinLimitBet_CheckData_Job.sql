@@ -57,7 +57,7 @@ BEGIN
 	
 	SET @MaxRepUpdateTime = SYSDATETIME() 
 
-	----------------------------------------------------------1 Check for missing data in CustWinLimitBet_History ---------------------------------------------------------
+	-----------------------------------------------------1 Check for missing data in CustWinLimitBet_History ---------------------------------------------------------
 	BEGIN
 		
 		SELECT @MaxTransId = MAX(TransId) FROM dbo.bettrans WITH (NOLOCK)
@@ -430,12 +430,12 @@ BEGIN
 		FROM #CustIdTransidList_tmp t
 		WHERE t.custid NOT IN (SELECT custid FROM #reset)
 		
-		--- Remove ticket placing bet before reset due to very difficult to check then IGNORE
+		--- Remove ticket placing bet before reset due to very difficult to check OR not exists table xxx_history then IGNORE
 		DELETE t
 		FROM #CustIdTransidList_tmp t
-			INNER JOIN dbo.CustWinLimitBet_History c WITH (NOLOCK) ON t.TransId = c.Transid AND t.custid = c.custid AND c.ActionType = 0 
-			LEFT JOIN #reset r ON r.CustID = t.custid
-		WHERE r.CustID IS NULL OR c.RepUpdateTime < r.LatestResetDate
+			LEFT JOIN dbo.CustWinLimitBet_History c WITH (NOLOCK) ON t.TransId = c.Transid AND t.custid = c.custid AND c.ActionType = 0 
+			INNER JOIN #reset r ON r.CustID = t.custid
+		WHERE c.Transid IS NULL OR c.RepUpdateTime < r.LatestResetDate
 		
 		; WITH cte AS
 		(
