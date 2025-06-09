@@ -55,6 +55,7 @@ AS
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250314@Lani: [TVS] Remove @wrongscore variable [Redmine: #216151]
+		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 
 	Param's explanation:	
 	
@@ -245,7 +246,7 @@ BEGIN
 				,@OrgTransIds AS OrgTransIds
 				,rd.ProductIds -- Apply for issuetype Recover Ticket (22)
 				,rd.AdvancedExtraInfo
-				,CASE WHEN @IssueTypeId IN (12,24,25,18) THEN rd.IssueDetail ELSE NULL END AS AllBetTypesSelectionJson -- Apply for issuetype WMO(12), TE(24),Wrong Odds(SB)(25), Other Issues(18)
+				,CASE WHEN @IssueTypeId IN (12,24,25,18,27) THEN rd.IssueDetail ELSE NULL END AS AllBetTypesSelectionJson -- Apply for issuetype WMO(12), TE(24),Wrong Odds(SB)(25), Other Issues(18)
 				,CASE WHEN @IssueTypeId IN (3) THEN 
 								  IIF(CHARINDEX('TvDetectionValue:',rd.IssueDetail) > 0
 								  , SUBSTRING(rd.IssueDetail, CHARINDEX('Act:',rd.IssueDetail) + LEN('Act:'), CHARINDEX(';TvDetectionValue:',rd.IssueDetail) - (CHARINDEX('Act:',rd.IssueDetail) + LEN('Act:')))

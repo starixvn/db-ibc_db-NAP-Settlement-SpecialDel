@@ -31,6 +31,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@AbnormalBetInfo		VARCHAR(MAX) = NULL
 	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
 	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
+	,@MatchEarlyCompletedInfo 	VARCHAR(MAX) = NULL
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
 	,@WrongOddsSBInfo		VARCHAR(MAX)  = NULL
 	,@WrongOfferedNameInfo  NVARCHAR(MAX) = NULL
@@ -80,6 +81,7 @@ AS
 		- 20240925@July: [TVS] New Issue Type "Wrong Offered Name" [Redmine: #187408]
 		- 20241022@July: [TVS] New Issue Type "Other Issues" [Redmine: #211913]
 		- 20250108@Lani: [TVS] Separate SP of updating request detail for wrong HDP/OU and 1st HDP/OU issue types [Redmine: #215545]
+		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 
 
 	Param's explanation:	
@@ -342,6 +344,17 @@ BEGIN
 				,@IP			 = @IP			
 				,@ActionId		 = @ActionId
 				,@WrongOfferedNameInfo = @WrongOfferedNameInfo
+				,@TransInfoJson	 = @TransInfoJson			
+				,@IsEditRequest	 = @IsEditRequest
+	END
+	ELSE IF @IssueTypeId IN (27) --Match Early Completed
+	BEGIN
+		EXEC dbo.TicketVoiding_RequestDetail_MEC_Update
+				 @RequestId		 = @RequestId		
+				,@IssueTypeId	 = @IssueTypeId	
+				,@UserId		 = @UserId		
+				,@IP			 = @IP			
+				,@MatchEarlyCompletedInfo = @MatchEarlyCompletedInfo
 				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END

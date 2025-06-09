@@ -30,11 +30,13 @@ AS
 		- 20250318@Lani: [TVS] Copy request info - Support more issue type [Redmine: #219039]
 		- 20250318@Lani: [TVS] Copy request info - Support Wrong HDP - Home/Away Virtual Head Reverse sub types [Redmine: #222346]
 		- 20250421@Lani: [TVS] Copy request info - Update message templates of Wrong HDP, 1st HDP, OU, 1st OU, Odds [Redmine: #223867]
+		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
+		
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
 					         Reduced Overs, Not Participate, Abandoned
-							 Wrong Market Offered, Technical Error, WrongOU/1stOU, WrongHDP/1stHDP, WrongOdds
+							 Wrong Market Offered, Technical Error, WrongOU/1stOU, WrongHDP/1stHDP, WrongOdds, Match Early Completed
 
 	Noted: Case issue Wrong Score have scores -> get min voidtime of scores
 		
@@ -235,7 +237,7 @@ BEGIN
 								 , '')
 	END
 	
-	IF @IssueTypeId IN (19,21,23,12,24,25,2,4,5,6,7) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB, Wrong HDP/1stHDP, WrongOU/1stOU, Wrong Odds
+	IF @IssueTypeId IN (19,21,23,12,24,25,2,4,5,6,7,27) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB, Wrong HDP/1stHDP, WrongOU/1stOU, Wrong Odds
 	BEGIN
 		INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, BetId, Betteam, OddsId)
 		SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid

@@ -1,28 +1,29 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 (	
-	 @RequestId			  INT = 0
-	,@UserID			  INT
-	,@IssueTypeId		  INT = 1
-	,@ActionId			  INT = 5
-	,@IsShowLogOnly		  BIT = 0
-	,@SubIssueTypeId	  INT = NULL
-	,@KickOffInfo		  VARCHAR(MAX) = NULL
-	,@WrongScoreInfo	  VARCHAR(MAX) = NULL
-	,@DangerAcceptedInfo  VARCHAR(MAX) = NULL
-	,@RedCardInfo		  VARCHAR(MAX) = NULL
-	,@WrongHDPInfo		  VARCHAR(MAX) = NULL
-	,@Wrong1stHDPInfo	  VARCHAR(MAX) = NULL
-	,@WrongOUInfo		  VARCHAR(MAX) = NULL
-	,@Wrong1stOUInfo	  VARCHAR(MAX) = NULL	
-	,@WrongOddsInfo		  VARCHAR(MAX) = NULL
-	,@ReducedOverInfo	  VARCHAR(MAX) = NULL
-	,@NotParticipateInfo  VARCHAR(MAX) = NULL
+	 @RequestId			  		INT = 0
+	,@UserID			  		INT
+	,@IssueTypeId		  		INT = 1
+	,@ActionId			  		INT = 5
+	,@IsShowLogOnly		  		BIT = 0
+	,@SubIssueTypeId	  		INT = NULL
+	,@KickOffInfo		  		VARCHAR(MAX) = NULL
+	,@WrongScoreInfo	  		VARCHAR(MAX) = NULL
+	,@DangerAcceptedInfo  		VARCHAR(MAX) = NULL
+	,@RedCardInfo		  		VARCHAR(MAX) = NULL
+	,@WrongHDPInfo		  		VARCHAR(MAX) = NULL
+	,@Wrong1stHDPInfo	  		VARCHAR(MAX) = NULL
+	,@WrongOUInfo		  		VARCHAR(MAX) = NULL
+	,@Wrong1stOUInfo	  		VARCHAR(MAX) = NULL	
+	,@WrongOddsInfo		  		VARCHAR(MAX) = NULL
+	,@ReducedOverInfo	  		VARCHAR(MAX) = NULL
+	,@NotParticipateInfo  		VARCHAR(MAX) = NULL
 	,@WrongMarketOfferedInfo	VARCHAR(MAX) = NULL
-	,@TechnicalErrorInfo	VARCHAR(MAX) = NULL
-	,@WrongOddsSBInfo		  VARCHAR(MAX) = NULL
-	,@WrongOfferedNameInfo  VARCHAR(MAX) = NULL
-	,@OtherIssuesInfo  VARCHAR(MAX) = NULL
+	,@TechnicalErrorInfo		VARCHAR(MAX) = NULL
+	,@WrongOddsSBInfo		  	VARCHAR(MAX) = NULL
+	,@WrongOfferedNameInfo  	VARCHAR(MAX) = NULL
+	,@OtherIssuesInfo  			VARCHAR(MAX) = NULL
+	,@MatchEarlyCompletedInfo   VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -80,6 +81,7 @@ AS
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 		- 20250106@Lani: [TVS] Change sp called of issue type 'Wrong 1st HDP & OU'  [Redmine: #215545]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20250514@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 
 	Param's explanation:
 		
@@ -118,6 +120,7 @@ BEGIN
 					+ CASE WHEN @WrongOddsSBInfo IS NULL THEN '' ELSE ',@WrongOddsSBInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOddsSBInfo) + '''' END
 					+ CASE WHEN @WrongOfferedNameInfo IS NULL THEN '' ELSE ',@WrongOfferedNameInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOfferedNameInfo) + '''' END
 					+ CASE WHEN @OtherIssuesInfo IS NULL THEN '' ELSE ',@OtherIssuesInfo = ''' + CONVERT(NVARCHAR(MAX), @OtherIssuesInfo) + '''' END
+					+ CASE WHEN @MatchEarlyCompletedInfo IS NULL THEN '' ELSE ',@MatchEarlyCompletedInfo = ''' + CONVERT(NVARCHAR(MAX), @MatchEarlyCompletedInfo) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserID, NULL, GETDATE(),@SubmittedDate)
@@ -266,6 +269,16 @@ BEGIN
 			,@IssueTypeId		   = @IssueTypeId
 			,@OtherIssuesInfo	   = @OtherIssuesInfo
 	END
+	ELSE IF @IssueTypeId = 27 --Match Early Completed
+    BEGIN
+        EXEC dbo.TicketVoiding_LogInfo_MEC_Select
+             @RequestId               = @RequestId
+            ,@ActionId                = @ActionId
+            ,@IsShowLogOnly           = @IsShowLogOnly
+            ,@IssueTypeId             = @IssueTypeId
+            ,@MatchEarlyCompletedInfo = @MatchEarlyCompletedInfo
+    END
+	
 	-- Write useraction log	
 	BEGIN TRY
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
