@@ -36,7 +36,7 @@ BEGIN
 			WHERE r.ProviderExternalId > CAST(@LastValue AS INT)
 				AND r.CreateDate < @Date
 				AND r.SourceId < 1001 AND SourceID NOT IN (98, 99) ---exclude INST score, confirm refund SDT
-			ORDER BY cte.ProviderExternalId
+			ORDER BY r.ProviderExternalId
 		)
 		SELECT @JsonInfo = COMPRESS(( SELECT 
 										cte.ProviderExternalId AS 'id'				
