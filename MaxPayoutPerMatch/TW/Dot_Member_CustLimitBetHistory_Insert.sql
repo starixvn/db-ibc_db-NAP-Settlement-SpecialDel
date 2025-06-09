@@ -26,6 +26,7 @@ AS
 		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
 		- 20241031@Max: VS6 (Betby) - Company Max Payout & Max Payout Per Match [Redmine: #212547]
 		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]
+		- 20250609@July: Enhance MaxPayout Per Match for Virtual Sport [Redmine: #229870]
 	
 	Param's explanation:	
 		
@@ -45,8 +46,10 @@ BEGIN
 	END
 	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) 
 		OR (@sporttype IN (43,44) AND @sitetype <> 3) 
-		OR (@sporttype IN (164,178,179,180,186,188,147,177,134,125,126,127)) 
-		OR (@sporttype BETWEEN 190 AND 198)
+		OR (@sporttype IN (164
+			--,178,179,180,186,188,147,177,134,125,126,127 --VS Product
+		)) 
+		--OR (@sporttype BETWEEN 190 AND 198)
 	BEGIN
 		SET @payout = 0
 	END
