@@ -31,6 +31,7 @@ AS
 		- 20250318@Lani: [TVS] Copy request info - Support Wrong HDP - Home/Away Virtual Head Reverse sub types [Redmine: #222346]
 		- 20250421@Lani: [TVS] Copy request info - Update message templates of Wrong HDP, 1st HDP, OU, 1st OU, Odds [Redmine: #223867]
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
+		- 20250609@Lani: [TVS] Not return requestextrainfo for MEC issuetype [Redmine: #226438]
 		
 
 	Param's explanation:
@@ -401,7 +402,7 @@ BEGIN
 		  ,@GlobalShowTime AS GlobalShowTime
 		  ,@IsNeutral AS IsNeutral
 		  ,FilterBy 
-		  ,RequestExtraInfo
+		  ,CASE WHEN IssueTypeId IN (27) THEN NULL ELSE RequestExtraInfo END AS RequestExtraInfo
 		  ,ISNULL(Provider,'') AS Provider
 		  ,MistakenBy
 		  ,IssueTypeId
