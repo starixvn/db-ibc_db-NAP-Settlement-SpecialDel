@@ -20,4 +20,4 @@ INSERT INTO systemsettings (VName, VValue) VALUES ('CustWinLimitBet_LastTransId'
 															   
 INSERT INTO systemsettings (VName, VValue) VALUES ('CustWinLimitBet_LastRepUpdateTime ', CONVERT(VARCHAR(50), @LastRepUpdateTime, 21) )
 															   
-SELECT * FROM systemsettings WITH (NOLOCK) where vname like '%CustWinLimitBet%'
+SELECT * FROM systemsettings WITH (NOLOCK) WHERE vname LIKE '%CustWinLimitBet%'
