@@ -82,7 +82,7 @@ BEGIN
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),bef_winlost,2),'0')
 						,'" MarketId="',ISNULL(r.MarketId,'')
-						,'" Id="',CONVERT(VARCHAR(50),r.SelectionType,2) 
+						,'" Id="',ISNULL(r1.SelectionType,r.SelectionType)  
 						,'" /></root>') AS ExtraInfo_Before
 			   ,CONCAT('<root><r status="',  CASE WHEN statusid = 1	 THEN 'WAITING' 
 											 	  WHEN statusid = 0	 THEN 'RUNNING' 
@@ -96,14 +96,22 @@ BEGIN
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),winlost,2),'0')
 						,'" MarketId="',ISNULL(r.MarketId,'')
-						,'" Id="',CONVERT(VARCHAR(50),r.SelectionType,2) 
+						,'" Id="',ISNULL(r1.SelectionType,r.SelectionType)
 						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
 			OUTER APPLY (
-                SELECT TOP 1 mre.SeqNo, mre.MarketId, mre.SelectionType
+                SELECT TOP 1 mre.SeqNo, mre.MarketId, CONVERT(VARCHAR(50),mre.SelectionType,2) AS SelectionType
                 FROM  @Resource AS mre
                 WHERE mre.MarketId = t.betcheck
 			) AS r	
+			OUTER APPLY(
+				SELECT mre.MarketId
+                	  ,STRING_AGG(CONVERT(VARCHAR(50),mre.SelectionType,2),',') AS SelectionType
+                	  ,MAX(mre.SeqNo) AS SeqNo
+                FROM  @Resource AS mre
+                WHERE mre.MarketId = t.betcheck
+                GROUP BY mre.MarketId
+			) AS r1
 		WHERE NOT EXISTS (SELECT TOP 1 1 
 						    FROM SettlementResultHistory_TicketDetails AS h WITH(NOLOCK)  
 						    WHERE h.transId = t.transId
