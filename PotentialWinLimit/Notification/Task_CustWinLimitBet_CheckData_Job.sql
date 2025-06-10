@@ -106,12 +106,12 @@ BEGIN
 
 		IF ISNULL(@transIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '1.1. CustWinLimitBet_History table is missing data for real currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '1.1. CustWinLimitBet_History table is missing data for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 		END
 
 		IF ISNULL(@UUStransIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '1.1. CustWinLimitBet_History table is missing data for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '1.1. CustWinLimitBet_History table is missing data for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 		END
 
 		
@@ -136,12 +136,12 @@ BEGIN
 			
 			IF ISNULL(@transIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.2. CustWinLimitBet_History table is different with table bettrans related to ToWin data for real currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.2. CustWinLimitBet_History table is different with table bettrans related to ToWin data for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 			END
 
 			IF ISNULL(@UUStransIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.2. CustWinLimitBet_History table is different with table bettrans related to ToWin data for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.2. CustWinLimitBet_History table is different with table bettrans related to ToWin data for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 			END
 
 		END
@@ -167,12 +167,12 @@ BEGIN
 			
 			IF ISNULL(@transIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for real currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 			END
 
 			IF ISNULL(@UUStransIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 			END
 
 		END
@@ -227,7 +227,7 @@ BEGIN
 
 		IF ISNULL(@transIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '2. After a reset, the ticket status may change continuously, which could lead to incorrect data if the SQL job processes all commands in a single batch. This rule applies only to real accounts. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '2. After a reset, the ticket status may change continuously, which could lead to incorrect data if the SQL job processes all commands in a single batch. This rule applies only to real accounts. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + 'RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 		END
 	END
 	
@@ -296,12 +296,12 @@ BEGIN
 
 		IF ISNULL(@CustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '3. Check CustWinLimitBet.AccumToWin against Bettrans running tickets for real currency. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '3. Check CustWinLimitBet.AccumToWin against Bettrans running tickets for real currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + 'RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
 		END
 
 		IF ISNULL(@UUSCustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '3. Check CustWinLimitBet.AccumToWin against Bettrans running tickets for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '3. Check CustWinLimitBet.AccumToWin against Bettrans running tickets for UUS currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + 'RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
 		END
 	END
 	
@@ -392,12 +392,12 @@ BEGIN
 
 		IF ISNULL(@CustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '4. For members with isDaily = Yes. Check CustWinLimitBet.AccumToWin & AccumWinLoss against Bettrans running/ settle tickets for real currency. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @CustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '4. For members with isDaily = Yes. Check CustWinLimitBet.AccumToWin & AccumWinLoss against Bettrans running/ settle tickets for real currency. RepUpdateTime >= '+ CAST (@Today AS VARCHAR) + 'RepUpdateTime < '  + CAST (@Nextday AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @CustIds + @CRLF
 		END
 
 		IF ISNULL(@UUSCustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '4. For members with isDaily = Yes. Check CustWinLimitBet.AccumToWin & AccumWinLoss against Bettrans running/ settle tickets for UUS currency. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '4. For members with isDaily = Yes. Check CustWinLimitBet.AccumToWin & AccumWinLoss against Bettrans running/ settle tickets for UUS currency. RepUpdateTime >= '+ CAST (@Today AS VARCHAR) + 'RepUpdateTime < '  + CAST (@Nextday AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
 		END
 	END
 
@@ -482,12 +482,12 @@ BEGIN
 
 		IF ISNULL(@CustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for real currency. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for real currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + 'RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
 		END
 
 		IF ISNULL(@UUSCustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + 'RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
 		END
 	END
 		
