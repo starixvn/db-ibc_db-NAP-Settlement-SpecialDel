@@ -29,7 +29,7 @@ BEGIN
 	CREATE TABLE #Result_tmp (
 		  Transid BIGINT
 		, custid INT
-		, Currency SMALLINT
+		, Currency TINYINT
 		, AccumToWin MONEY
 		, AccumWinLoss MONEY
 		, bettrans_AccumToWin MONEY
@@ -41,7 +41,7 @@ BEGIN
 	CREATE TABLE #CustIdTransidList_tmp (transid BIGINT, custid INT)
 	CREATE TABLE #CustIdList_tmp (custid INT PRIMARY KEY)
 	CREATE TABLE #reset (CustID INT PRIMARY KEY, LatestResetDate DATETIME2(7))
-	DECLARE @tmp_RetryRule TABLE (custid INT, Currency SMALLINT)
+	DECLARE @tmp_RetryRule TABLE (custid INT, Currency TINYINT)
 
 	DECLARE @LastTransId BIGINT
 	      , @LastRepUpdateTime DATETIME2(7)
@@ -329,11 +329,10 @@ BEGIN
 			AND c.RepUpdateTime >= @Today and c.RepUpdateTime < @Nextday
 		GROUP BY c.CustID
 
-		INSERT INTO #Result_tmp (custid, Currency, AccumToWin, AccumWinLoss, bettrans_AccumToWin, bettrans_AccumWinloss, diff_ToWin, diff_WinLoss)
-		SELECT c.CustID, v.Currency, c.AccumToWin, c.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss AS bettrans_AccumWinloss
+		INSERT INTO #Result_tmp (custid, AccumToWin, AccumWinLoss, bettrans_AccumToWin, bettrans_AccumWinloss, diff_ToWin, diff_WinLoss)
+		SELECT c.CustID, c.AccumToWin, c.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss AS bettrans_AccumWinloss
 			, r.ToWin - c.AccumToWin AS diff_ToWin, r.WinLoss - c.AccumWinLoss AS diff_WinLoss
 		FROM #reset t WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON t.custid = v.custid
 			INNER JOIN dbo.CustWinLimitBet c WITH (NOLOCK) ON t.CustID = c.custid
 			CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
 							   , SUM (CASE WHEN b.statusID NOT IN (0,1) AND (t2.LatestResetDate IS NULL OR settlementtime > t2.LatestResetDate) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
@@ -358,8 +357,9 @@ BEGIN
 			WAITFOR DELAY '00:00:05.000'
 			
 			INSERT INTO @tmp_RetryRule (custid, Currency)
-			SELECT TOP (@batch) t.custid, t.Currency
+			SELECT TOP (@batch) t.custid, v.Currency
 			FROM #Result_tmp t 
+				INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON t.custid = v.custid
 				INNER JOIN dbo.CustWinLimitBet c WITH (NOLOCK) ON t.CustID = c.custid
 				CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
 									, SUM (CASE WHEN b.statusID NOT IN (0,1) AND (t2.LatestResetDate IS NULL OR settlementtime > t2.LatestResetDate) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
@@ -376,10 +376,9 @@ BEGIN
 									AND b.statusID NOT IN (101,102,103,111)
 								GROUP BY b.custid
 								) AS r
-			WHERE (t.diff_ToWin = (r.ToWin - c.AccumToWin)) 
-				OR (t.diff_WinLoss = (r.WinLoss - c.AccumWinLoss))
-			ORDER BY CASE WHEN t.Currency NOT IN (20) THEN 1
-						  WHEN t.Currency IN (20) THEN 2
+			WHERE (t.diff_ToWin = (r.ToWin - c.AccumToWin)) OR (t.diff_WinLoss = (r.WinLoss - c.AccumWinLoss))
+			ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
+						  WHEN v.Currency IN (20) THEN 2
 						  ELSE 0 END ASC 
 			
 			SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
