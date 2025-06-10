@@ -3,7 +3,10 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckRecoverTicket]
 (
 	@RequestId					INT = 0
 	,@IsVoidAllArchivedTickets	BIT = 0
-	,@RecoverTicketInfo			VARCHAR(MAX) = NULL
+	,@TransIds					VARCHAR(MAX)
+	,@ProductIds				VARCHAR(50)
+	,@MatchId					INT = NULL
+	,@FilterBy					TINYINT = NULL
 )
 AS
 /*	
@@ -17,7 +20,8 @@ AS
 		- 20250602@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 		
 	Param's explanation:	
-		
+		@FilterBy:	NULL - Single OR Main Parlay
+					1 - Sub Parlay
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -25,15 +29,11 @@ BEGIN
 	DECLARE @InvalidTransIds				VARCHAR(MAX) = ''
 		   ,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
 		   ,@ExistingReqTransIds			VARCHAR(MAX) = ''
-		   ,@TransInfoJson_Output			VARBINARY(MAX) = NULL
+		   ,@TransInfoJson					VARBINARY(MAX) = NULL
 		   ,@UnmarkTransIds					VARCHAR(MAX) =''
 		   ,@GetDateRange					DATETIME
 		   ,@SiteDBGroupId					SMALLINT
-		   ,@RecoverTicketInfoXML			XML			 = NULL
-		   ,@TransIds						VARCHAR(MAX) = NULL
-		   ,@ProductIds						VARCHAR(50)	 = NULL
-		   ,@FilterBy						TINYINT		 = NULL --(NULL: single & main parlay, 1: subparlay)
-		   ,@MatchId						INT			 = NULL --(NULL: single & main parlay)
+
 
 	SET @GetDateRange = DATEADD(DAY, -7, CAST(GETDATE() AS DATE))
 	SELECT @SiteDBGroupId = dbo.f_Get_SiteDBGroupID()
@@ -46,14 +46,6 @@ BEGIN
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
 	
-	--Get user input info
-	SET @RecoverTicketInfoXML = CONVERT(XML, @RecoverTicketInfo)
-	SELECT @TransIds = t.c.value('@TransIds','NVARCHAR(MAX)')
-		  ,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
-		  ,@FilterBy = CASE WHEN t.c.value('@FilterBy','TINYINT') = 0 THEN NULL ELSE t.c.value('@FilterBy','TINYINT') END
-		  ,@MatchId = CASE WHEN t.c.value('@MatchId','INT') = 0 THEN NULL ELSE t.c.value('@MatchId','INT') END
-	FROM @RecoverTicketInfoXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@RecoverTicketInfoXML = NULL))
 
 	--Insert ProductId list into tmp table
 	INSERT INTO @ProductId_tmp (ProductId)
@@ -155,7 +147,7 @@ BEGIN
 		SELECT matchid
 		FROM dbo.match WITH (NOLOCK)
 		WHERE  1 = CASE WHEN sporttype NOT IN (50,8) AND matchid = @MatchId THEN 1
-						WHEN sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+						WHEN sporttype IN (50,8) AND ((matchid = @MatchId) OR (ParentID = @MatchId AND ChildMatchType = 200)) THEN 1
 						ELSE 0 END
 
 		INSERT INTO #validTransId( 
@@ -175,7 +167,7 @@ BEGIN
 				  ,refno
 				  ,Subtransid
 				)
-		SELECT	bm.matchid
+		SELECT	@MatchId
 				,b.transid
 				,b.custid
 				,bm.bettype
@@ -203,9 +195,9 @@ BEGIN
 	END
 	
 	--get ticket in bettrans14
-	IF EXISTS (SELECT TOP (1) 1 FROM #transIdTemp AS t 
-								INNER JOIN dbo.bettrans14 AS b14 WITH (NOLOCK) ON b14.transid = t.transid
-								WHERE b14.SiteDBGroupID = @SiteDBGroupId AND @FilterBy IS NULL)
+	IF @FilterBy IS NULL AND EXISTS (SELECT TOP (1) 1 FROM #transIdTemp AS t 
+														INNER JOIN dbo.bettrans14 AS b14 WITH (NOLOCK) ON b14.transid = t.transid
+														WHERE b14.SiteDBGroupID = @SiteDBGroupId)
 	BEGIN 
 		INSERT INTO #validTransId( 
 		   matchid
@@ -249,7 +241,7 @@ BEGIN
 			AND z.SiteDBGroupID = @SiteDBGroupId
 			AND b14.SiteDBGroupID = z.SiteDBGroupID
 			AND ISNULL(z.comstatus,'') <> 'CO'
-			AND 1 = CASE WHEN b14.bettype NOT IN (SELECT b14.bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) AND b14.statuswinlost IS NULL THEN 0 ELSE 1 END -- not support recover single tickets that don't have statuswinlost in range 14
+			AND 1 = CASE WHEN b14.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) AND b14.statuswinlost IS NULL THEN 0 ELSE 1 END -- not support recover single tickets that don't have statuswinlost in range 14
 
 		--exclude main parlay with refno not exist in BetParlayResults and all combine not completed
 		DELETE t
@@ -285,7 +277,7 @@ BEGIN
 		SET @InvalidTransIds = @TransIds
 		SELECT @InvalidTransIds AS InvalidTransIds
 			  ,@UnmarkTransIds AS UnmarkTransIds
-			  ,@TransInfoJson_Output AS TransInfoJson
+			  ,@TransInfoJson AS TransInfoJson
 		
 		RETURN;
 	END
@@ -304,28 +296,33 @@ BEGIN
 										WHERE NOT EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE transid = t.transid)
 										FOR XML PATH('')), 1, 1, ''), '')
 	
-	INSERT INTO #TransidInRequest (TransId)
-	SELECT DISTINCT rs.TransId
-	FROM  DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK) 
-		INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK) ON rs.RequestId = r.RequestId
-		CROSS APPLY (
-					SELECT TOP 1 t.transid
-					FROM #transIdTemp t
-					WHERE rs.TransId = t.transid
-			)t
-	WHERE r.RequestId <> @RequestId AND r.IssueTypeId IN (22) -- Recover Ticket
-	UNION 
-	SELECT DISTINCT rsp.MainTransId
-	FROM DBCTG.bodb02.dbo.TicketVoiding_Request AS r WITH (NOLOCK)
-		INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS rsp WITH (NOLOCK) ON r.RequestId = rsp.RequestId
-		CROSS APPLY (
-			SELECT TOP 1 t.transid
-			FROM #transIdTemp AS t
-			WHERE t.transid = rsp.MainTransId
-		) AS t
-	WHERE r.RequestId <> @RequestId AND r.IssueTypeId IN (22) AND rsp.MatchId = @MatchId AND @FilterBy IS NOT NULL 
+	IF @FilterBy IS NULL
+	BEGIN 
+		INSERT INTO #TransidInRequest (TransId)
+		SELECT DISTINCT rs.TransId
+		FROM  DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK) 
+			INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK) ON rs.RequestId = r.RequestId
+			CROSS APPLY (
+						SELECT TOP 1 t.transid
+						FROM #transIdTemp t
+						WHERE rs.TransId = t.transid
+				)t
+		WHERE r.RequestId <> @RequestId AND r.IssueTypeId IN (22) -- Recover Ticket
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #TransidInRequest (TransId)
+		SELECT DISTINCT rsp.MainTransId
+		FROM DBCTG.bodb02.dbo.TicketVoiding_Request AS r WITH (NOLOCK)
+			INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS rsp WITH (NOLOCK) ON r.RequestId = rsp.RequestId
+			CROSS APPLY (
+				SELECT TOP 1 t.transid
+				FROM #transIdTemp AS t
+				WHERE t.transid = rsp.MainTransId
+			) AS t
+		WHERE r.RequestId <> @RequestId AND r.IssueTypeId IN (22) AND rsp.MatchId = @MatchId
+	END
 	
-
 	SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 										FROM #transIdTemp t 
 											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
@@ -353,7 +350,7 @@ BEGIN
 
 	/*****************Return table **************************/
 	-- 1. Return validation/Transinfo table
-	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
+	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
 		,t.Subtransid  AS 's_t'
 		,t.custid AS  'c' 
@@ -369,7 +366,7 @@ BEGIN
 		 , @UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
 		 , @ExistingReqTransIds AS ExistingReqTransIds
 		 , @UnmarkTransIds AS UnmarkTransIds
-		 , CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
+		 , CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId
