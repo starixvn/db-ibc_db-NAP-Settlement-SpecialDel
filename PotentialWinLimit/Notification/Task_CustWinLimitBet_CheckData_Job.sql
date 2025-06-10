@@ -39,7 +39,9 @@ BEGIN
 		, issueType SMALLINT
 	)
 	CREATE TABLE #CustIdTransidList_tmp (transid BIGINT, custid INT)
-	CREATE TABLE #CustIdList_tmp (custid INT PRIMARY KEY)
+	CREATE TABLE #CustIdList_tmp (ID INT IDENTITY (1,1) PRIMARY KEY, custid INT)
+	CREATE TABLE #tmp_batch (custid INT PRIMARY KEY)
+
 	CREATE TABLE #reset (CustID INT PRIMARY KEY, LatestResetDate DATETIME2(7))
 	DECLARE @tmp_RetryRule TABLE (custid INT, Currency TINYINT)
 
@@ -232,6 +234,13 @@ BEGIN
 	END
 	
 	-----------------------------------------------------3 Check CustWinLimitBet.AccumToWin against Bettrans running tickets --------------------------------------------------------------------
+	DECLARE @StartRow INT 
+			, @StopRow INT 
+			, @MaxRow INT  -- Keep the total row of your data
+			, @Threshold INT  -- the number of each batch
+
+	DECLARE @debug_message VARCHAR(500)
+	
 	BEGIN
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
@@ -244,31 +253,64 @@ BEGIN
 		WHERE RepUpdateTime > @LastRepUpdateTime AND RepUpdateTime <= @MaxRepUpdateTime
 			AND ActionType in (0,4,7)
 
-		INSERT INTO #Result_tmp (CustId, Currency, AccumToWin, bettrans_AccumToWin, diff_ToWin)
-		SELECT t.CustId, v.Currency, c.AccumToWin, r.ToWin, r.ToWin - c.AccumToWin AS diff_ToWin
-		FROM #CustIdList_tmp t
-			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON t.custid = v.custid
-			INNER JOIN dbo.CustWinLimitBet c WITH (NOLOCK) ON t.custid = c.custid
-			CROSS APPLY (SELECT	 SUM(ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake) AS ToWin
-						 FROM dbo.bettrans b  WITH (NOLOCK)
-							CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
-										WHERE m.bettype = b.bettype
-										AND m.SportType < 99
-										) AS chk
-						 WHERE b.custid = t.CustID AND b.bettype NOT IN (29, 38)
-								AND b.statusID IN (0,1) 
-						 GROUP BY b.custid
-						 ) AS r
-		WHERE c.AccumToWin <> r.ToWin
+		SET @MaxRow = (SELECT MAX(ID) FROM #CustIdList_tmp)
+		SET @Threshold = 300
+
+		IF @Threshold >= @MaxRow
+			SET @Threshold = @MaxRow
+
+		-- SET for first batch
+		SELECT @StartRow = 1, @StopRow = @Threshold
+
+		WHILE (@MaxRow IS NOT NULL)
+		BEGIN
+			
+			TRUNCATE TABLE #tmp_batch
+
+			INSERT INTO #tmp_batch (custid)
+			SELECT custid
+			FROM #CustIdList_tmp
+			WHERE ID BETWEEN @StartRow AND @StopRow
+
+			INSERT INTO #Result_tmp (CustId, AccumToWin, bettrans_AccumToWin, diff_ToWin)
+			SELECT t.CustId, c.AccumToWin, r.ToWin, r.ToWin - c.AccumToWin AS diff_ToWin
+			FROM #tmp_batch t
+				INNER JOIN dbo.CustWinLimitBet c WITH (NOLOCK) ON t.custid = c.custid
+				CROSS APPLY (SELECT	 SUM(ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake) AS ToWin
+							 FROM dbo.bettrans b  WITH (NOLOCK)
+								CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
+											WHERE m.bettype = b.bettype
+											AND m.SportType < 99
+											) AS chk
+							 WHERE b.custid = t.CustID AND b.bettype NOT IN (29, 38)
+									AND b.statusID IN (0,1) 
+							 GROUP BY b.custid
+							 ) AS r
+			WHERE c.AccumToWin <> r.ToWin
+
+			SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+			RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 		
-		IF @@ROWCOUNT > 0
+			IF @StopRow = @MaxRow BREAK
+
+			WAITFOR DELAY '00:00:00.100' --optional
+
+			SET @StartRow = @StopRow + 1
+			SET @StopRow = @StopRow + @Threshold
+			IF @StopRow >= @MaxRow
+				SET @StopRow = @MaxRow
+		END
+
+		
+		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp)
 		BEGIN
 			--retry one more time for sure
 			WAITFOR DELAY '00:00:05.000'
 			
 			INSERT INTO @tmp_RetryRule (custid, Currency)
-			SELECT TOP (@batch) t.custid, t.Currency
+			SELECT TOP (@batch) t.custid, v.Currency
 			FROM #Result_tmp t 
+				INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON t.custid = v.custid
 				INNER JOIN dbo.CustWinLimitBet c WITH (NOLOCK) ON t.custid = c.custid
 				CROSS APPLY (SELECT	 SUM(ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake) AS ToWin
 								FROM dbo.bettrans b  WITH (NOLOCK)
@@ -281,8 +323,8 @@ BEGIN
 								GROUP BY b.custid
 								) AS r
 			WHERE t.diff_ToWin = (r.ToWin - c.AccumToWin)
-			ORDER BY CASE WHEN t.Currency NOT IN (20) THEN 1
-						  WHEN t.Currency IN (20) THEN 2
+			ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
+						  WHEN v.Currency IN (20) THEN 2
 						  ELSE 0 END ASC 
 			
 			SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
