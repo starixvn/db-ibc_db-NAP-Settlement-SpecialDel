@@ -10,7 +10,6 @@ AS
 		- 20250602@July: Create new SP - [Redmine: #226514]
 
 	Param's explanation:		
-		Note: Only sitedb3
 */
 BEGIN
 
@@ -59,7 +58,6 @@ BEGIN
 
 	-----------------------------------------------------1 Check for missing data in CustWinLimitBet_History ---------------------------------------------------------
 	BEGIN
-		
 		SELECT @MaxTransId = MAX(TransId) FROM dbo.bettrans WITH (NOLOCK)
 		
 		INSERT INTO #Result_tmp (Transid, Currency, issueType)
