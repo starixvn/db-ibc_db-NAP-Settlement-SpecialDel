@@ -27,16 +27,16 @@ BEGIN
 	SET @CRLF = CHAR(13)+CHAR(10)
 
 	CREATE TABLE #Result_tmp (
-	  Transid BIGINT
-	, custid INT
-	, Currency SMALLINT
-	, AccumToWin MONEY
-	, AccumWinLoss MONEY
-	, bettrans_AccumToWin MONEY
-	, bettrans_AccumWinloss MONEY
-	, diff_ToWin MONEY
-	, diff_WinLoss MONEY
-	, issueType SMALLINT
+		  Transid BIGINT
+		, custid INT
+		, Currency SMALLINT
+		, AccumToWin MONEY
+		, AccumWinLoss MONEY
+		, bettrans_AccumToWin MONEY
+		, bettrans_AccumWinloss MONEY
+		, diff_ToWin MONEY
+		, diff_WinLoss MONEY
+		, issueType SMALLINT
 	)
 	CREATE TABLE #CustIdTransidList_tmp (transid BIGINT, custid INT)
 	CREATE TABLE #CustIdList_tmp (custid INT PRIMARY KEY)

@@ -11,7 +11,7 @@ USE bodb02
 GO
 
 DECLARE @LastTransId BIGINT
-      , @LastRepUpdateTime DATETIME
+      , @LastRepUpdateTime DATETIME2(7)
 
 SELECT @LastTransId = MAX(TransId) FROM dbo.bettrans WITH (NOLOCK)
 SELECT @LastRepUpdateTime = MAX(RepUpdateTime) FROM dbo.CustWinLimitBet_History WITH (NOLOCK)
@@ -20,4 +20,4 @@ INSERT INTO systemsettings (VName, VValue) VALUES ('CustWinLimitBet_LastTransId'
 															   
 INSERT INTO systemsettings (VName, VValue) VALUES ('CustWinLimitBet_LastRepUpdateTime ', CONVERT(VARCHAR(50), @LastRepUpdateTime, 21) )
 															   
-SELECT * FROM systemsettings where vname like '%CustWinLimitBet%'
+SELECT * FROM systemsettings WITH (NOLOCK) where vname like '%CustWinLimitBet%'
