@@ -27,7 +27,8 @@ BEGIN
 	SET @CRLF = CHAR(13)+CHAR(10)
 
 	CREATE TABLE #Result_tmp (
-		  Transid BIGINT
+		  ID INT IDENTITY (1,1) PRIMARY KEY
+		, Transid BIGINT
 		, custid INT
 		, Currency TINYINT
 		, AccumToWin MONEY
@@ -40,7 +41,7 @@ BEGIN
 	)
 	CREATE TABLE #CustIdTransidList_tmp (transid BIGINT, custid INT)
 	CREATE TABLE #CustIdList_tmp (ID INT IDENTITY (1,1) PRIMARY KEY, custid INT)
-	CREATE TABLE #tmp_batch (custid INT PRIMARY KEY)
+	CREATE TABLE #tmp_batch (custid INT PRIMARY KEY, diff_ToWin MONEY)
 
 	CREATE TABLE #reset (CustID INT PRIMARY KEY, LatestResetDate DATETIME2(7))
 	DECLARE @tmp_RetryRule TABLE (custid INT, Currency TINYINT)
@@ -108,12 +109,12 @@ BEGIN
 
 		IF ISNULL(@transIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '1.1. CustWinLimitBet_History table is missing data for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '1.1. CustWinLimitBet_History table is missing data for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 		END
 
 		IF ISNULL(@UUStransIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '1.1. CustWinLimitBet_History table is missing data for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '1.1. CustWinLimitBet_History table is missing data for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 		END
 
 		
@@ -138,12 +139,12 @@ BEGIN
 			
 			IF ISNULL(@transIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.2. CustWinLimitBet_History table is different with table bettrans related to ToWin data for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.2. CustWinLimitBet_History table is different with table bettrans related to ToWin data for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 			END
 
 			IF ISNULL(@UUStransIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.2. CustWinLimitBet_History table is different with table bettrans related to ToWin data for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.2. CustWinLimitBet_History table is different with table bettrans related to ToWin data for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 			END
 
 		END
@@ -169,12 +170,12 @@ BEGIN
 			
 			IF ISNULL(@transIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 			END
 
 			IF ISNULL(@UUStransIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + 'Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 			END
 
 		END
@@ -229,7 +230,7 @@ BEGIN
 
 		IF ISNULL(@transIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '2. After a reset, the ticket status may change continuously, which could lead to incorrect data if the SQL job processes all commands in a single batch. This rule applies only to real accounts. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + 'RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '2. After a reset, the ticket status may change continuously, which could lead to incorrect data if the SQL job processes all commands in a single batch. This rule applies only to real accounts. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 		END
 	END
 	
@@ -239,8 +240,6 @@ BEGIN
 			, @MaxRow INT  -- Keep the total row of your data
 			, @Threshold INT  -- the number of each batch
 
-	DECLARE @debug_message VARCHAR(500)
-	
 	BEGIN
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
@@ -288,9 +287,6 @@ BEGIN
 							 ) AS r
 			WHERE c.AccumToWin <> r.ToWin
 
-			SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
-			RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-		
 			IF @StopRow = @MaxRow BREAK
 
 			WAITFOR DELAY '00:00:00.100' --optional
@@ -307,43 +303,83 @@ BEGIN
 			--retry one more time for sure
 			WAITFOR DELAY '00:00:05.000'
 			
-			INSERT INTO @tmp_RetryRule (custid, Currency)
-			SELECT TOP (@batch) t.custid, v.Currency
-			FROM #Result_tmp t 
-				INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON t.custid = v.custid
-				INNER JOIN dbo.CustWinLimitBet c WITH (NOLOCK) ON t.custid = c.custid
-				CROSS APPLY (SELECT	 SUM(ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake) AS ToWin
-								FROM dbo.bettrans b  WITH (NOLOCK)
-								CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
-											WHERE m.bettype = b.bettype
-											AND m.SportType < 99
-											) AS chk
-								WHERE b.custid = t.CustID AND b.bettype NOT IN (29, 38)
-									AND b.statusID IN (0,1) 
-								GROUP BY b.custid
-								) AS r
-			WHERE t.diff_ToWin = (r.ToWin - c.AccumToWin)
-			ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
-						  WHEN v.Currency IN (20) THEN 2
-						  ELSE 0 END ASC 
-			
-			SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
-			FROM @tmp_RetryRule
-			WHERE Currency <> 20
 
-			SELECT @UUSCustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
-			FROM @tmp_RetryRule
-			WHERE Currency = 20
+			SET @MaxRow = (SELECT MAX(ID) FROM #Result_tmp)
+			SET @Threshold = 300
+
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+
+			-- SET for first batch
+			SELECT @StartRow = 1, @StopRow = @Threshold
+
+			WHILE (@MaxRow IS NOT NULL)
+			BEGIN
+			
+				TRUNCATE TABLE #tmp_batch
+
+				INSERT INTO #tmp_batch (custid, diff_ToWin)
+				SELECT custid, diff_ToWin
+				FROM #Result_tmp
+				WHERE ID BETWEEN @StartRow AND @StopRow
+
+				INSERT INTO @tmp_RetryRule (custid)
+				SELECT t.custid
+				FROM #tmp_batch t 
+					INNER JOIN dbo.CustWinLimitBet c WITH (NOLOCK) ON t.custid = c.custid
+					CROSS APPLY (SELECT	 SUM(ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake) AS ToWin
+									FROM dbo.bettrans b  WITH (NOLOCK)
+									CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
+												WHERE m.bettype = b.bettype
+												AND m.SportType < 99
+												) AS chk
+									WHERE b.custid = t.CustID AND b.bettype NOT IN (29, 38)
+										AND b.statusID IN (0,1) 
+									GROUP BY b.custid
+									) AS r
+				WHERE t.diff_ToWin = (r.ToWin - c.AccumToWin)
+				
+				IF @StopRow = @MaxRow BREAK
+
+				WAITFOR DELAY '00:00:00.100' --optional
+
+				SET @StartRow = @StopRow + 1
+				SET @StopRow = @StopRow + @Threshold
+				IF @StopRow >= @MaxRow
+					SET @StopRow = @MaxRow
+			END
+			
+			IF EXISTS (SELECT TOP 1 1 FROM @tmp_RetryRule)
+			BEGIN
+				UPDATE t
+				SET t.Currency = v.currency
+				FROM @tmp_RetryRule t
+					INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON t.custid = v.custid
+
+				SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+				FROM (
+					SELECT TOP (@batch) custid
+					FROM @tmp_RetryRule
+					WHERE Currency <> 20
+					)t
+
+				SELECT @UUSCustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+				FROM (
+					SELECT TOP (@batch) custid
+					FROM @tmp_RetryRule
+					WHERE Currency <> 20
+					)t
+			END
 		END
 
 		IF ISNULL(@CustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '3. Check CustWinLimitBet.AccumToWin against Bettrans running tickets for real currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + 'RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '3. Check CustWinLimitBet.AccumToWin against Bettrans running tickets for real currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
 		END
 
 		IF ISNULL(@UUSCustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '3. Check CustWinLimitBet.AccumToWin against Bettrans running tickets for UUS currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + 'RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '3. Check CustWinLimitBet.AccumToWin against Bettrans running tickets for UUS currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
 		END
 	END
 	
@@ -434,12 +470,12 @@ BEGIN
 
 		IF ISNULL(@CustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '4. For members with isDaily = Yes. Check CustWinLimitBet.AccumToWin & AccumWinLoss against Bettrans running/ settle tickets for real currency. RepUpdateTime >= '+ CAST (@Today AS VARCHAR) + 'RepUpdateTime < '  + CAST (@Nextday AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @CustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '4. For members with isDaily = Yes. Check CustWinLimitBet.AccumToWin & AccumWinLoss against Bettrans running/ settle tickets for real currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @CustIds + @CRLF
 		END
 
 		IF ISNULL(@UUSCustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '4. For members with isDaily = Yes. Check CustWinLimitBet.AccumToWin & AccumWinLoss against Bettrans running/ settle tickets for UUS currency. RepUpdateTime >= '+ CAST (@Today AS VARCHAR) + 'RepUpdateTime < '  + CAST (@Nextday AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '4. For members with isDaily = Yes. Check CustWinLimitBet.AccumToWin & AccumWinLoss against Bettrans running/ settle tickets for UUS currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
 		END
 	END
 
@@ -524,12 +560,12 @@ BEGIN
 
 		IF ISNULL(@CustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for real currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + 'RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for real currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
 		END
 
 		IF ISNULL(@UUSCustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + 'RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
 		END
 	END
 		
