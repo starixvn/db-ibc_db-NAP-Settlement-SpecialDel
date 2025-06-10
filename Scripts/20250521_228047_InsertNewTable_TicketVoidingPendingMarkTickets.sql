@@ -1,7 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" isFunction="0"></info>*/
 /*
 	Created: 20250523@Lani
-	Task: [TVS] Enhance TVS in case 1 or many siteDBs down - Add/Save request - [Redmine: #228047]
+	Task: [TVS] Enhance TVS in case 1 or many siteDBs down - Add/Save request [Redmine: #228047]
 	DB: DBCTG/bodb02
 */
 USE bodb02;
@@ -29,3 +29,5 @@ CREATE TABLE [dbo].[TicketVoiding_PendingMarkTickets](
 	) ON [DATA]
 ) ON [DATA];
 GO
+
+
