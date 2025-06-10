@@ -434,6 +434,12 @@ BEGIN
 			INNER JOIN #reset r ON r.CustID = t.custid
 		WHERE c.Transid IS NULL OR c.RepUpdateTime < r.LatestResetDate
 		
+		--- Remove ticket in bettrans14
+		DELETE t
+		FROM #CustIdTransidList_tmp t
+			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.TransId 
+		WHERE b.TransId IS NULL
+
 		; WITH cte AS
 		(
 			SELECT DISTINCT custid FROM #CustIdTransidList_tmp
