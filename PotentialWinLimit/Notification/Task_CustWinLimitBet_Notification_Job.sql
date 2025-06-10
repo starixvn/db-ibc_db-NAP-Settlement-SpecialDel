@@ -9,7 +9,6 @@ AS
 		- 20250602@July: Create new SP - [Redmine: #226514]
 
 	Param's explanation:		
-		Note: Only sitedb3
 */
 BEGIN
 	SET NOCOUNT ON
@@ -25,7 +24,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixsoft.com;qa@starixsoft.com;gary.vu@starixsoft.com;july.nguyen@starixsoft.com'
+		SET @Recipients = 'dba_local@starixsoft.com;qa@starixsoft.com;gary.vu@starixsoft.com'
 	END
 	
 	EXEC  [dbo].[Task_CustWinLimitBet_CheckData_Job] @ErrorMessage = @ErrorMessage OUTPUT
