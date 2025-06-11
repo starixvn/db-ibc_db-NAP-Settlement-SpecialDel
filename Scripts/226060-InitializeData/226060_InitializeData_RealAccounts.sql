@@ -63,13 +63,13 @@ BEGIN
 		WHERE ID BETWEEN @StartRow AND @StopRow
 
 		UPDATE c
-			SET AccumToWin = t.ToWin, AccumWinLoss = 0, RepUpdateTime = dbo.f_GetDateTime2()
+			SET AccumToWin = ISNULL(t.ToWin,0), AccumWinLoss = 0, RepUpdateTime = dbo.f_GetDateTime2()
 
 		OUTPUT deleted.CustID,deleted.Sporttype, deleted.Bettype,inserted.AccumToWin - deleted.AccumToWin, inserted.AccumWinLoss - deleted.AccumWinLoss, 100 AS ActionType, dbo.f_GetDateTime2()
 		INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
 		FROM CustWinLimitBet c WITH (ROWLOCK,UPDLOCK)
 			INNER JOIN #tmp_batch r ON c.custid = r.custid
-			CROSS APPLY (SELECT SUM(ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake) AS ToWin
+			OUTER APPLY (SELECT SUM(ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake) AS ToWin
 						FROM bettrans b WITH (NOLOCK)
 							CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
 										WHERE m.bettype = b.bettype 
@@ -81,7 +81,6 @@ BEGIN
 						) AS t
 		--for debug if need
 		--SELECT @@ROWCOUNT AS 'Update'
-
 		INSERT INTO  CustWinLimitBet (CustID,Sporttype, Bettype, AccumToWin, AccumWinLoss, CreatedDate,RepUpdateTime)
 			OUTPUT inserted.CustID, inserted.Sporttype, inserted.Bettype, inserted.AccumToWin, inserted.AccumWinLoss,100, dbo.f_GetDateTime2() 
 			INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime) 
@@ -99,16 +98,6 @@ BEGIN
 		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM CustWinLimitBet bt WITH (NOLOCK) WHERE bt.CustID = r.custid)
 		--for debug if need
 		--SELECT @@ROWCOUNT as 'Insert'
-
-		-- insert action reset for customer that all tickets already settled
-		INSERT INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
-		SELECT c.custid, 0, 0, 0, 0, 100, dbo.f_GetDateTime2()
-		FROM #tmp_batch c 
-			OUTER APPLY (SELECT TOP 1 1  AS IsValid
-                         FROM CustWinLimitBet_History b WITH (NOLOCK)
-						 WHERE b.custid = c.custid and b.actiontype = 100
-						 ) AS t
-		WHERE t.IsValid IS NULL
 
 		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
