@@ -3,7 +3,7 @@
 /*
     Created: 20250611@Louisa
 	Task: script move ticket to 14 [Redmine: #230022]
-	DB:DBBAH/bodb02
+	DB:DBCTG/bodb02
 
 	Revision:
 		- 20250611@Louisa: script move ticket to 14 [Redmine: #230022]
