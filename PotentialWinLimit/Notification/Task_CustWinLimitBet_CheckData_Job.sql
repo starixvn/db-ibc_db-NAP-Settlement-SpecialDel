@@ -290,8 +290,6 @@ BEGIN
 
 			IF @StopRow = @MaxRow BREAK
 
-			WAITFOR DELAY '00:00:00.100' --optional
-
 			SET @StartRow = @StopRow + 1
 			SET @StopRow = @StopRow + @Threshold
 			IF @StopRow >= @MaxRow
@@ -339,8 +337,6 @@ BEGIN
 				WHERE t.diff_ToWin = (r.ToWin - c.AccumToWin)
 				
 				IF @StopRow = @MaxRow BREAK
-
-				WAITFOR DELAY '00:00:00.100' --optional
 
 				SET @StartRow = @StopRow + 1
 				SET @StopRow = @StopRow + @Threshold
@@ -448,8 +444,6 @@ BEGIN
 
 			IF @StopRow = @MaxRow BREAK
 
-			WAITFOR DELAY '00:00:00.100' --optional
-
 			SET @StartRow = @StopRow + 1
 			SET @StopRow = @StopRow + @Threshold
 			IF @StopRow >= @MaxRow
@@ -503,8 +497,6 @@ BEGIN
 				WHERE (t.diff_ToWin = (r.ToWin - c.AccumToWin)) OR (t.diff_WinLoss = (r.WinLoss - c.AccumWinLoss))
 			
 				IF @StopRow = @MaxRow BREAK
-
-				WAITFOR DELAY '00:00:00.100' --optional
 
 				SET @StartRow = @StopRow + 1
 				SET @StopRow = @StopRow + @Threshold
