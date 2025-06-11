@@ -1,3 +1,13 @@
+/*<info serverAlias="DBSIC-msdb" executers="" viewers="" isFunction="0" isNested="0"></info>*/
+/*
+	Created: 20250602@July
+	Task: [Synergy] - Integration - Potential Winning Limit/Threshold - [Redmine: #226514]
+	DB: DBSIC-msdb
+
+	Note: Only sitedb3
+*/
+
+
 USE [msdb]
 GO
 

@@ -455,7 +455,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp)
 		BEGIN
 			--retry one more time for sure
-			WAITFOR DELAY '00:00:05.000'
+			WAITFOR DELAY '00:00:03.000'
 			
 			SET @MaxRow = (SELECT MAX(ID) FROM #Result_tmp)
 			SET @Threshold = 300
