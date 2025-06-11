@@ -82,7 +82,7 @@ BEGIN
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),bef_winlost,2),'0')
 						,'" MarketId="',ISNULL(r.MarketId,'')
-						,'" Id="',ISNULL(r1.SelectionType,r.SelectionType)  
+						,'" SelectionType="',ISNULL(r1.SelectionType,r.SelectionType)  
 						,'" /></root>') AS ExtraInfo_Before
 			   ,CONCAT('<root><r status="',  CASE WHEN statusid = 1	 THEN 'WAITING' 
 											 	  WHEN statusid = 0	 THEN 'RUNNING' 
@@ -96,7 +96,7 @@ BEGIN
 											 END
 						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),winlost,2),'0')
 						,'" MarketId="',ISNULL(r.MarketId,'')
-						,'" Id="',ISNULL(r1.SelectionType,r.SelectionType)
+						,'" SelectionType="',ISNULL(r1.SelectionType,r.SelectionType)
 						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
 			OUTER APPLY (
