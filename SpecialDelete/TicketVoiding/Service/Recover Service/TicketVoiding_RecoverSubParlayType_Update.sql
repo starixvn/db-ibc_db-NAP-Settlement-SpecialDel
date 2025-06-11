@@ -92,22 +92,6 @@ BEGIN
 	DECLARE @tmpTransInfo TABLE (
 			MatchId			INT
 			,TransId		BIGINT
-			,Status			NVARCHAR(10)
-			,StatusId		TINYINT
-			,Ruben			TINYINT
-			,Modds			SMALLMONEY
-			,Winlost		MONEY
-			,aWinLost		MONEY
-			,mWinlost		MONEY
-			,sWinlost		MONEY
-			,PlayerComm		MONEY
-			,Comm			MONEY
-			,aComm			MONEY
-			,sComm			MONEY
-			,Statuswinlost	TINYINT
-			,Creator		INT
-			,ExtraInfo		VARCHAR(1000)
-			,FcUpdateTime	DATETIME2
 			,TransDate		DATETIME
 			,Comstatus		NVARCHAR(40)
 	)
@@ -239,6 +223,7 @@ BEGIN
 		   ,bm.winlostdate
 		   ,b.ruben
 		   ,b.BetSiteID
+		   ,bm.betteam
 		   ,b.oddsspread
 		   ,b.srecommend
 		FROM @tblTransIds AS t
