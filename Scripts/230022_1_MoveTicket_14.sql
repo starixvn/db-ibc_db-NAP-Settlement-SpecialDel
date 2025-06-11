@@ -33,6 +33,6 @@ SELECT	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status, winl
 	,	oddstype, statusID, currency2, balance, SecAcceptFlag, transid2, ExtraInfo, WalletType, BonusID
 	,	RefCode, SettlementTime, epositiontaking, ReasonID, sort, SiteDBGroupId, DeviceType
 FROM	dbo.bettrans WITH (NOLOCK)
-WHERE	transid = 139965201695899699
+WHERE	transid IN( 139965201695899699,139965218875768834)
 
 
