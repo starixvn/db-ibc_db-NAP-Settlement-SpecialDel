@@ -22,14 +22,15 @@ CREATE TABLE #Result(
 CREATE TABLE #tmp_batch (custid INT)
 
 INSERT INTO #Result (custid)
-SELECT DISTINCT custid
+SELECT DISTINCT b.custid
 FROM bettrans b WITH (NOLOCK)
+	INNER JOIN CUSTDB.dbo.vw_Customer c with (nolock) on b.custid = c.custid
 CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
 										WHERE m.bettype = b.bettype 
 										AND m.SportType < 99
 								) AS chk
 WHERE b.currency = 20 AND transid <= @maxTransid AND b.bettype NOT IN (29,38)
-	
+	AND c.site NOT IN ('Special','Hedging')
 ------ info for deployer
 DECLARE @StartRow INT 
 		, @StopRow INT 
@@ -101,16 +102,11 @@ BEGIN
 		INSERT INTO CustWinLimitBet_History (custid, Sporttype, Bettype, AdjToWin, AdjWinLoss, ActionType,RepUpdateTime)
 		SELECT c.custid, 0, 0, 0, 0, 100, dbo.f_GetDateTime2()
 		FROM #tmp_batch c 
-			CROSS APPLY (SELECT MIN(statusid) AS IsValid
-					FROM bettrans b WITH (NOLOCK) 
-						CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
-										WHERE m.bettype = b.bettype 
-										AND m.SportType < 99
-								) AS chk
-					WHERE b.custid = c.CustID AND b.bettype NOT IN (29,38)
-					GROUP BY b.custid
-					HAVING MIN(statusid) > 1
-					) AS t
+			OUTER APPLY (SELECT TOP 1 1  AS IsValid
+                         FROM CustWinLimitBet_History b WITH (NOLOCK)
+						 WHERE b.custid = c.custid and b.actiontype = 100
+						 ) AS t
+		WHERE t.IsValid IS NULL
 
 		--for debug if need
 		--SELECT @@ROWCOUNT as 'Insert'

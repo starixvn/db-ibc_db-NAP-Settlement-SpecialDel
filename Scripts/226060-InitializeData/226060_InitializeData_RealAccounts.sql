@@ -22,14 +22,15 @@ CREATE TABLE #Result(
 CREATE TABLE #tmp_batch (custid INT PRIMARY KEY)
 
 INSERT INTO #Result (custid)
-SELECT DISTINCT custid
+SELECT DISTINCT b.custid
 FROM bettrans b WITH (NOLOCK)
+	INNER JOIN CUSTDB.dbo.vw_Customer c with (nolock) on b.custid = c.custid
 	CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
 										WHERE m.bettype = b.bettype 
 										AND m.SportType < 99
 								) AS chk
-WHERE b.currency <> 20 AND transid <= @maxTransid AND b.bettype NOT IN (29,38)
-	
+WHERE transid <= @maxTransid AND b.bettype NOT IN (29,38)
+	AND c.site NOT IN ('Special','Hedging')
 ------ info for deployer
 DECLARE @StartRow INT 
 		, @StopRow INT 

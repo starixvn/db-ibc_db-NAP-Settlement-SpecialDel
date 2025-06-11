@@ -20,13 +20,15 @@ CREATE TABLE #Diff_Data (ID INT IDENTITY (1,1) PRIMARY KEY, custid INT, AccumToW
 CREATE TABLE #reset (CUSTID INT, LatestResetDate DATETIME)
 
 INSERT INTO #CustList (custid)
-SELECT DISTINCT custid
+SELECT DISTINCT b.custid
 FROM bettrans b WITH (NOLOCK)
+	INNER JOIN CUSTDB.dbo.vw_Customer c with (nolock) on b.custid = c.custid
 	CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
 										WHERE m.bettype = b.bettype 
 										AND m.SportType < 99
 								) AS chk
-WHERE (transid > @maxTransid OR b.SettlementTime > @starTime_Initialize ) AND b.currency <> 20 AND b.bettype NOT IN (29,38)
+WHERE (transid > @maxTransid OR b.SettlementTime > @starTime_Initialize ) AND b.bettype NOT IN (29,38)
+	AND c.site NOT IN ('Special','Hedging')
 
 INSERT INTO #reset (CUSTID, LatestResetDate)
 SELECT b.custid, t.LatestResetDate
