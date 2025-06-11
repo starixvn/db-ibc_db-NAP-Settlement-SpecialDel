@@ -38,7 +38,6 @@ BEGIN
 		INTO CustWinLimitBet_History (CustID, Transid, AdjToWin, AdjWinLoss, SportType, Bettype, ActionType, RepUpdateTime)
 		FROM CustWinLimitBet b WITH(ROWLOCK,UPDLOCK)
 		INNER JOIN @tmpCustIds c ON b.CustID = c.CustID
-		WHERE b.AccumWinLoss <> 0
 
 	END TRY
 	BEGIN CATCH
