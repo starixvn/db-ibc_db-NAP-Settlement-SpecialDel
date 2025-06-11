@@ -19,13 +19,15 @@ CREATE TABLE #Diff_Data (custid INT, AccumToWin MONEY, AccumWinLoss MONEY, bettr
 CREATE TABLE #reset (CUSTID INT, LatestResetDate DATETIME)
 
 INSERT INTO #CustList (custid)
-SELECT DISTINCT custid
+SELECT DISTINCT b.custid
 FROM bettrans b WITH (NOLOCK)
+	INNER JOIN CUSTDB.dbo.vw_Customer c with (nolock) on b.custid = c.custid
 	CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
 										WHERE m.bettype = b.bettype 
 										AND m.SportType < 99
 								) AS chk
 WHERE (transid > @maxTransid OR b.SettlementTime > @starTime_Initialize ) AND b.currency = 20 AND b.bettype NOT IN (29,38)
+	AND c.site NOT IN ('Special','Hedging')
 
 INSERT INTO #reset (CUSTID, LatestResetDate)
 SELECT b.custid, t.LatestResetDate
@@ -57,9 +59,7 @@ from #CustList t with (nolock)
 				 GROUP BY b.custid
 				 ) AS r
 WHERE (lm.AccumToWin <> r.ToWin OR lm.AccumWinLoss <> r.WinLoss)
--- CHECK DATA FIRST before FIX
-SELECT * FROM #Diff_Data
-/*
+
 IF EXISTS (SELECT TOP (1) 1 FROM #Diff_Data)
 BEGIN
 	UPDATE lm
@@ -72,7 +72,8 @@ BEGIN
 		INNER JOIN #Diff_Data c ON c.CustID = lm.custid
 
 END
-*/
+SELECT * FROM #Diff_Data
+
 DROP TABLE #CustList
 DROP TABLE #Diff_Data
 DROP TABLE #reset
