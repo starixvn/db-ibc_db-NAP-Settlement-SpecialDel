@@ -35,8 +35,8 @@ BEGIN
 		BEGIN
 			SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetail_BK WITH(ROWLOCK) )
 
-			INSERT INTO ProviderExternalResultDetail_BK ( ProviderExternalId,Match3rdId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive)
-			SELECT ProviderExternalId,Match3rdId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive
+			INSERT INTO ProviderExternalResultDetail_BK ( ProviderExternalId,MatchId3rd, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive)
+			SELECT ProviderExternalId,MatchId3rd, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive
 			FROM @ArchiveData
 			WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
 		END
@@ -45,8 +45,8 @@ BEGIN
 		BEGIN
 			SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetailES_BK WITH(ROWLOCK) )
 
-			INSERT INTO ProviderExternalResultDetailES_BK ( ProviderExternalId,Match3rdId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive)
-			SELECT ProviderExternalId,Match3rdId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive
+			INSERT INTO ProviderExternalResultDetailES_BK ( ProviderExternalId,MatchId3rd, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive)
+			SELECT ProviderExternalId,MatchId3rd, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive
 			FROM @ArchiveData
 			WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
 		END
@@ -55,8 +55,8 @@ BEGIN
 		BEGIN
 			SELECT @MaxCurrentValue = ( SELECT MAX(ProviderExternalId) FROM ProviderExternalResultDetailOS_BK WITH(ROWLOCK) )
 
-			INSERT INTO ProviderExternalResultDetailOS_BK ( ProviderExternalId,Match3rdId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive)
-			SELECT ProviderExternalId,Match3rdId, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive
+			INSERT INTO ProviderExternalResultDetailOS_BK ( ProviderExternalId,MatchId3rd, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive)
+			SELECT ProviderExternalId,MatchId3rd, MatchId,SourceId,ResourceId,HomeValue,AwayValue,CreateDate,LastModifyDate, CreateBy, LastModifyBy,IsLive
 			FROM @ArchiveData
 			WHERE ProviderExternalId > ISNULL(@MaxCurrentValue,0)
 		END
