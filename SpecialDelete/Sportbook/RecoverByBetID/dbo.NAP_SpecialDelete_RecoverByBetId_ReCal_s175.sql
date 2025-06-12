@@ -20,6 +20,8 @@ AS
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230921@Max: [TVS] Recover Virtual Sports Bet and Recover By Bet ID - Update more info when calling SP from Settlement site [Redmine: #194269]
 		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+		- 20250612@July: Fix replication issue caused by NULL values in the action call/refund input ticket [Redmine:#229870]
+		
 	Param's Explanation:
 		@TransIds: Maxbet 1000 tickets
 		
@@ -27,7 +29,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @strTransIds			VARCHAR(MAX)
+	DECLARE @strTransIds			VARCHAR(MAX) =''
 			,@Bettype				SMALLINT = 7901
 			,@GameResult			VARCHAR(50)	= ''
 			,@SiteDBGroupID			SMALLINT = 0
@@ -151,13 +153,16 @@ BEGIN
 									,IsApplyMaxPO AS '@iMPO'
 							FROM #tmpTransId
 							FOR XML PATH('r'), ROOT( 'root' ))
-
-		EXEC dbo.NAP_Admin_Calculate_OtherSports
-				@matchid			 = @matchid
-				,@action			 = @Action
-				,@strTransIds		 = @strTransIds
-				,@Is3rd				 = 1
-				,@EventTable		 = 3
+		
+		IF ISNULL (@strTransIds, '') <> ''
+		BEGIN 
+			EXEC dbo.NAP_Admin_Calculate_OtherSports
+					@matchid			 = @matchid
+					,@action			 = @Action
+					,@strTransIds		 = @strTransIds
+					,@Is3rd				 = 1
+					,@EventTable		 = 3
+		END
 
 		INSERT INTO #BalanceAfter(custid, balance, winlost, winlostdate, gametypeid)
 		SELECT	bt.custid

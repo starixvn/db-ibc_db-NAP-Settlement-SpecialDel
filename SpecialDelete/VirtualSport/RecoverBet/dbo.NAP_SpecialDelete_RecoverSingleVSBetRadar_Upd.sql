@@ -30,6 +30,7 @@ AS
 		- 20241126@Lani: [TVS] Get site from srecommend, change serverAlias [Redmine: #213451]
 		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
 		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+		- 20250612@July: Fix replication issue caused by NULL values in the action call/refund input ticket [Redmine:#229870]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -887,17 +888,20 @@ BEGIN
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				) 
 				SELECT @TicketInfos_Recal = CONVERT(VARCHAR(MAX), @_xml)											
-		
-				EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
-							@matchid			 = @matchid 
-						   ,@action				 = 'CAL'  
-						   ,@strTransIds		 = @TicketInfos_Recal
-						   ,@EventTable			 = 1
-						   ,@Is3rd				 = 1 
-						   ,@IsCalculateBalance  = 0
-						   ,@CWLBettype			 = 0
-						   ,@BalanceType		 = 0				
-		
+				
+				IF ISNULL(@TicketInfos_Recal,'') <> ''
+				BEGIN
+					EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
+								@matchid			 = @matchid 
+							   ,@action				 = 'CAL'  
+							   ,@strTransIds		 = @TicketInfos_Recal
+							   ,@EventTable			 = 1
+							   ,@Is3rd				 = 1 
+							   ,@IsCalculateBalance  = 0
+							   ,@CWLBettype			 = 0
+							   ,@BalanceType		 = 0				
+				END
+
 				--> Refund		
 				SET @_xml = (
 					SELECT transid AS '@t'
@@ -909,16 +913,19 @@ BEGIN
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				) 
 				SELECT @TicketInfos_Refund = CONVERT(VARCHAR(MAX), @_xml)											
-		
-				EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
-							@matchid			 = @matchid 
-						   ,@action				 = 'REFUND'  
-						   ,@strTransIds		 = @TicketInfos_Refund
-						   ,@EventTable			 = 1
-						   ,@Is3rd				 = 1 
-						   ,@IsCalculateBalance  = 0
-						   ,@CWLBettype			 = 0
-						   ,@BalanceType		 = 0		
+				
+				IF ISNULL(@TicketInfos_Refund,'') <> ''
+				BEGIN
+					EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
+								@matchid			 = @matchid 
+							   ,@action				 = 'REFUND'  
+							   ,@strTransIds		 = @TicketInfos_Refund
+							   ,@EventTable			 = 1
+							   ,@Is3rd				 = 1 
+							   ,@IsCalculateBalance  = 0
+							   ,@CWLBettype			 = 0
+							   ,@BalanceType		 = 0		
+				END
 			END
 		END		
 
@@ -1055,17 +1062,19 @@ BEGIN
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				) 
 				SELECT @TicketInfos_Recal = CONVERT(VARCHAR(MAX), @_xml)											
-		
-				EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
-							@matchid			 = @matchid 
-						   ,@action				 = 'CAL'  
-						   ,@strTransIds		 = @TicketInfos_Recal
-						   ,@EventTable			 = 3
-						   ,@Is3rd				 = 1 
-						   ,@IsCalculateBalance  = 0
-						   ,@CWLBettype			 = 0
-						   ,@BalanceType		 = 0				
-		
+				
+				IF ISNULL(@TicketInfos_Recal,'') <> ''
+				BEGIN
+					EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
+								@matchid			 = @matchid 
+							   ,@action				 = 'CAL'  
+							   ,@strTransIds		 = @TicketInfos_Recal
+							   ,@EventTable			 = 3
+							   ,@Is3rd				 = 1 
+							   ,@IsCalculateBalance  = 0
+							   ,@CWLBettype			 = 0
+							   ,@BalanceType		 = 0				
+				END
 				--> Refund		
 				SET @_xml = (
 					SELECT transid AS '@t'
@@ -1077,16 +1086,19 @@ BEGIN
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				) 
 				SELECT @TicketInfos_Refund = CONVERT(VARCHAR(MAX), @_xml)											
-		
-				EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
-							@matchid			 = @matchid 
-						   ,@action				 = 'REFUND'  
-						   ,@strTransIds		 = @TicketInfos_Refund
-						   ,@EventTable			 = 3
-						   ,@Is3rd				 = 1 
-						   ,@IsCalculateBalance  = 0
-						   ,@CWLBettype			 = 0
-						   ,@BalanceType		 = 0		
+				
+				IF ISNULL(@TicketInfos_Refund,'') <> ''
+				BEGIN
+					EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
+								@matchid			 = @matchid 
+							   ,@action				 = 'REFUND'  
+							   ,@strTransIds		 = @TicketInfos_Refund
+							   ,@EventTable			 = 3
+							   ,@Is3rd				 = 1 
+							   ,@IsCalculateBalance  = 0
+							   ,@CWLBettype			 = 0
+							   ,@BalanceType		 = 0		
+				END
 			END
 		END	
 
@@ -1219,16 +1231,19 @@ BEGIN
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				) 
 				SELECT @TicketInfos_Recal = CONVERT(VARCHAR(MAX), @_xml)											
-		
-				EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
-							@matchid			 = @matchid 
-						   ,@action				 = 'CAL'  
-						   ,@strTransIds		 = @TicketInfos_Recal
-						   ,@EventTable			 = 3
-						   ,@Is3rd				 = 1 
-						   ,@IsCalculateBalance  = 0
-						   ,@CWLBettype			 = 0
-						   ,@BalanceType		 = 0				
+			
+				IF ISNULL(@TicketInfos_Recal,'') <> ''
+				BEGIN
+					EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
+								@matchid			 = @matchid 
+							   ,@action				 = 'CAL'  
+							   ,@strTransIds		 = @TicketInfos_Recal
+							   ,@EventTable			 = 3
+							   ,@Is3rd				 = 1 
+							   ,@IsCalculateBalance  = 0
+							   ,@CWLBettype			 = 0
+							   ,@BalanceType		 = 0	
+				END
 		
 				--> Refund		
 				SET @_xml = (
@@ -1241,16 +1256,19 @@ BEGIN
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				) 
 				SELECT @TicketInfos_Refund = CONVERT(VARCHAR(MAX), @_xml)											
-		
-				EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
-							@matchid			 = @matchid 
-						   ,@action				 = 'REFUND'  
-						   ,@strTransIds		 = @TicketInfos_Refund
-						   ,@EventTable			 = 3
-						   ,@Is3rd				 = 1 
-						   ,@IsCalculateBalance  = 0
-						   ,@CWLBettype			 = 0
-						   ,@BalanceType		 = 0		
+				
+				IF ISNULL(@TicketInfos_Refund,'') <> ''
+				BEGIN
+					EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
+								@matchid			 = @matchid 
+							   ,@action				 = 'REFUND'  
+							   ,@strTransIds		 = @TicketInfos_Refund
+							   ,@EventTable			 = 3
+							   ,@Is3rd				 = 1 
+							   ,@IsCalculateBalance  = 0
+							   ,@CWLBettype			 = 0
+							   ,@BalanceType		 = 0		
+				END
 			END
 		END
 
