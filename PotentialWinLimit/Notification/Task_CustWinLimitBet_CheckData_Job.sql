@@ -8,6 +8,7 @@ AS
     DB: DBSIC-bodb02
     Revisions:
 		- 20250602@July: Create new SP - [Redmine: #226514]
+		- 20250612@Helen: Modify SP to exclude parlay lucky - [Redmine: #226514]
 
 	Param's explanation:		
 */
@@ -67,7 +68,9 @@ BEGIN
 		WAITFOR DELAY '00:00:03.000'
 
 		INSERT INTO #Result_tmp (Transid, Currency, issueType)
-		SELECT TOP (@batch) b.transid, b.currency, CASE WHEN c.Transid IS NULL THEN 1 ELSE 2 END AS issueType
+		SELECT TOP (@batch) b.transid, b.currency, CASE WHEN c.Transid IS NULL THEN 1 
+														WHEN c.Transid IS NOT NULL AND  b.refno <> 100000000000 THEN 4 
+														ELSE 2 END AS issueType
 		FROM dbo.bettrans b  WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON b.custid = v.custid
 			CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
@@ -79,6 +82,7 @@ BEGIN
 		   AND b.bettype NOT IN (29,38) 
 		   AND (c.Transid IS NULL
 				OR (ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake <> c.AdjToWin)
+				OR (c.Transid IS NOT NULL AND  b.refno <> 100000000000)
 				)
 			AND v.site NOT IN ('Special','Hedging')
 
@@ -152,7 +156,7 @@ BEGIN
 
 		END
 
-		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp WHERE issueType = 3)
+		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp WHERE issueType IN (3,4))
 		BEGIN
 			SET @transIds = ''
 			SET @UUStransIds = '' 
@@ -161,24 +165,24 @@ BEGIN
 			FROM(
 				SELECT DISTINCT b.transId
 				FROM #Result_tmp b 
-				WHERE b.Currency <> 20 AND b.issueType = 3
+				WHERE b.Currency <> 20 AND b.issueType IN (3,4)
 			) AS tmp
 
 			SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 			FROM(
 				SELECT DISTINCT b.transId
 				FROM #Result_tmp b 
-				WHERE b.Currency = 20 AND b.issueType = 3
+				WHERE b.Currency = 20 AND b.issueType IN (3,4)
 			) AS tmp
 			
 			IF ISNULL(@transIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 OR parlay lucky for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 			END
 
 			IF ISNULL(@UUStransIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 OR parlay lucky for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 			END
 
 		END
@@ -289,6 +293,7 @@ BEGIN
 											) AS chk
 							 WHERE b.custid = t.CustID AND b.bettype NOT IN (29, 38)
 									AND b.statusID IN (0,1) 
+									AND b.refno = 100000000000
 							 GROUP BY b.custid
 							 ) AS r
 			WHERE c.AccumToWin <> r.ToWin
@@ -337,6 +342,7 @@ BEGIN
 												) AS chk
 									WHERE b.custid = t.CustID AND b.bettype NOT IN (29, 38)
 										AND b.statusID IN (0,1) 
+										AND b.refno = 100000000000
 									GROUP BY b.custid
 									) AS r
 				WHERE t.diff_ToWin = (r.ToWin - c.AccumToWin)
@@ -440,6 +446,7 @@ BEGIN
 											) AS t2
 							 WHERE b.custid = c.CustID AND b.bettype NOT IN (29, 38)
 									AND b.statusID NOT IN (101,102,103,111)
+									AND b.refno = 100000000000
 							 GROUP BY b.custid
 							 ) AS r
 			WHERE (c.AccumToWin <> r.ToWin OR c.AccumWinLoss <> r.WinLoss)
@@ -494,6 +501,7 @@ BEGIN
 												) AS t2
 									WHERE b.custid = c.CustID AND b.bettype NOT IN (29, 38)
 										AND b.statusID NOT IN (101,102,103,111)
+										AND b.refno = 100000000000
 									GROUP BY b.custid
 									) AS r
 				WHERE (t.diff_ToWin = (r.ToWin - c.AccumToWin)) OR (t.diff_WinLoss = (r.WinLoss - c.AccumWinLoss))
@@ -598,6 +606,7 @@ BEGIN
 							WHERE b.custid = cl.CustID
 								AND b.bettype NOT IN (29, 38)
 								AND b.statusID NOT IN (101,102,103,111)
+								AND b.refno = 100000000000
 							GROUP BY b.custid
 							) AS r
 		WHERE (lm.AccumToWin <> r.ToWin OR lm.AccumWinLoss <> r.WinLoss)
