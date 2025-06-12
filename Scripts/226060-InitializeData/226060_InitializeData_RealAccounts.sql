@@ -31,6 +31,7 @@ FROM bettrans b WITH (NOLOCK)
 								) AS chk
 WHERE transid <= @maxTransid AND b.bettype NOT IN (29,38)
 	AND c.site NOT IN ('Special','Hedging')
+	AND b.refno = 100000000000 
 ------ info for deployer
 DECLARE @StartRow INT 
 		, @StopRow INT 
@@ -75,8 +76,9 @@ BEGIN
 										WHERE m.bettype = b.bettype 
 										AND m.SportType < 99
 								) AS chk
-						WHERE b.custid = r.CustID AND b.statusID IN (0,1) AND b.bettype NOT IN (29,38)
+						WHERE b.custid = r.CustID AND b.statusID IN (0,1) AND b.bettype NOT IN (29,38) 
 							AND b.TransId <= @maxTransid
+							AND b.refno = 100000000000 
 						GROUP BY b.custid
 						) AS t
 		--for debug if need
@@ -94,6 +96,7 @@ BEGIN
 								) AS chk
 						WHERE b.custid = r.CustID AND b.statusID IN (0,1) AND b.bettype NOT IN (29,38)
 							AND b.TransId <= @maxTransid
+							AND b.refno = 100000000000 
 						GROUP BY b.custid) AS t
 		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM CustWinLimitBet bt WITH (NOLOCK) WHERE bt.CustID = r.custid)
 		--for debug if need
