@@ -56,6 +56,7 @@ AS
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250314@Lani: [TVS] Remove @wrongscore variable [Redmine: #216151]
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
+		- 20250612@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay[Redmine: #227829]
 
 	Param's explanation:	
 	
@@ -227,7 +228,9 @@ BEGIN
 				,rd.AwayId
 				,rd.KickOffTime
 				,rd.Sporttype
-				,STUFF(ts.TransIds,1,1,'') AS TransIds
+				,CASE WHEN @IssueTypeId IN (11,17,20) OR (@IssueTypeId = 22 AND rd.FilterBy IS NULL) THEN STUFF(ts.TransIds,1,1,'') 
+					  WHEN @IssueTypeId IN (22) AND rd.FilterBy = 1 THEN STUFF(sp.TransIds,1,1,'') 
+					  ELSE NULL END AS TransIds
 				,m.hthomescore
 				,m.htawayscore
 				,m.finalhomescore
@@ -271,9 +274,14 @@ BEGIN
 			) m
 			OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					WHERE s.RequestId = rd.RequestId AND @IssueTypeId IN (11,17,20,22)
+					WHERE s.RequestId = rd.RequestId AND (@IssueTypeId IN (11,17,20) OR (@IssueTypeId = 22 AND rd.FilterBy IS NULL))
 					FOR XML PATH('')
 				)ts	 (TransIds)
+			OUTER APPLY (SELECT ',' + CAST(MainTransId AS VARCHAR(MAX)) 
+					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH (NOLOCK)
+					WHERE sp.RequestId = rd.RequestId AND @IssueTypeId = 22 AND rd.FilterBy = 1
+					FOR XML PATH('')
+				)sp	 (TransIds)
 		WHERE	rd.RequestId = @RequestId
 		ORDER BY CASE WHEN @IssueTypeId = 1 THEN m.matchcode ELSE NULL END
 			, CASE WHEN @IssueTypeId = 3 THEN CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) ELSE NULL END
