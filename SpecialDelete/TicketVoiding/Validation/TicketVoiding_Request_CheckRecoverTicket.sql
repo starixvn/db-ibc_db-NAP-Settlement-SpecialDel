@@ -139,6 +139,83 @@ BEGIN
 			AND m.sporttype IN (50,8)
 			AND m.ChildMatchType = 200
 		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+	
+		--get ticket in bettrans14
+		IF EXISTS (SELECT TOP (1) 1 FROM #transIdTemp AS t 
+									INNER JOIN dbo.bettrans14 AS b14 WITH (NOLOCK) ON b14.transid = t.transid
+									WHERE b14.SiteDBGroupID = @SiteDBGroupId)
+		BEGIN 
+			INSERT INTO #validTransId( 
+			   matchid
+			  ,transid 
+			  ,custid
+			  ,bettype
+			  ,betid
+			  ,betdaqid 
+			  ,betfrom
+			  ,betteam
+			  ,statusID
+			  ,winlostdate
+			  ,SiteDBGroupID
+			  ,IsMove14
+			  ,refno
+			  ,Subtransid
+			)
+			SELECT 
+				z.matchid
+				,z.transid
+				,z.custid
+				,b14.bettype
+				,b14.betid
+				,b14.betdaqid
+				,b14.betfrom
+				,b14.betteam
+				,b14.statusID
+				,b14.winlostdate
+				,b14.SiteDBGroupID
+				,1 AS IsMove14
+				,z.refno
+				,z.transid AS SubTransId
+			FROM dbo.zzzbettrans AS z WITH (NOLOCK) 
+				INNER JOIN #transIdTemp AS t ON z.transid = t.transid
+				INNER JOIN dbo.bettrans14 AS b14 WITH (NOLOCK)
+					ON b14.transid = z.transid
+					AND b14.custid = z.custid
+					AND b14.matchid = z.matchid
+					AND b14.bettype = z.bettype
+			WHERE b14.betfrom <> 'p'
+				AND z.SiteDBGroupID = @SiteDBGroupId
+				AND b14.SiteDBGroupID = z.SiteDBGroupID
+				AND ISNULL(z.comstatus,'') <> 'CO'
+				AND 1 = CASE WHEN b14.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) AND b14.statuswinlost IS NULL THEN 0 ELSE 1 END -- not support recover single tickets that don't have statuswinlost in range 14
+
+			--exclude main parlay with refno not exist in BetParlayResults and all combine not completed
+			DELETE t
+			FROM #validTransId AS t
+			OUTER APPLY (
+				SELECT TOP 1 1 refno
+				FROM dbo.BetParlayResult AS b WITH (NOLOCK)
+				WHERE b.RefNo = t.refno ) AS rs
+			WHERE rs.refno IS NULL
+				AND t.IsMove14 = 1
+				AND t.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+
+			DELETE t
+			FROM #validTransId AS t
+			CROSS APPLY (
+				SELECT TOP 1 1 refno
+				FROM dbo.BetParlayResult AS b WITH (NOLOCK)
+				WHERE b.refno = t.refno AND b.statusid = 0 ) AS rs
+			WHERE t.IsMove14 = 1 
+				AND t.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+	
+			--Update main matchid for child match cricket/baseball
+			UPDATE d
+			SET d.matchid = m.ParentID
+			FROM #validTransId AS d
+			INNER JOIN dbo.match14 AS m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
+			WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+		END
 	END
 	ELSE
 	BEGIN
@@ -192,83 +269,6 @@ BEGIN
 		WHERE b.bettype = 29
 			AND bm.statusID = 102
 			AND b.betfrom <> 'p'
-	END
-	
-	--get ticket in bettrans14
-	IF @FilterBy IS NULL AND EXISTS (SELECT TOP (1) 1 FROM #transIdTemp AS t 
-														INNER JOIN dbo.bettrans14 AS b14 WITH (NOLOCK) ON b14.transid = t.transid
-														WHERE b14.SiteDBGroupID = @SiteDBGroupId)
-	BEGIN 
-		INSERT INTO #validTransId( 
-		   matchid
-		  ,transid 
-		  ,custid
-		  ,bettype
-		  ,betid
-		  ,betdaqid 
-		  ,betfrom
-		  ,betteam
-		  ,statusID
-		  ,winlostdate
-		  ,SiteDBGroupID
-		  ,IsMove14
-		  ,refno
-		  ,Subtransid
-		)
-		SELECT 
-			z.matchid
-			,z.transid
-			,z.custid
-			,b14.bettype
-			,b14.betid
-			,b14.betdaqid
-			,b14.betfrom
-			,b14.betteam
-			,b14.statusID
-			,b14.winlostdate
-			,b14.SiteDBGroupID
-			,1 AS IsMove14
-			,z.refno
-			,z.transid AS SubTransId
-		FROM dbo.zzzbettrans AS z WITH (NOLOCK) 
-			INNER JOIN #transIdTemp AS t ON z.transid = t.transid
-			INNER JOIN dbo.bettrans14 AS b14 WITH (NOLOCK)
-				ON b14.transid = z.transid
-				AND b14.custid = z.custid
-				AND b14.matchid = z.matchid
-				AND b14.bettype = z.bettype
-		WHERE b14.betfrom <> 'p'
-			AND z.SiteDBGroupID = @SiteDBGroupId
-			AND b14.SiteDBGroupID = z.SiteDBGroupID
-			AND ISNULL(z.comstatus,'') <> 'CO'
-			AND 1 = CASE WHEN b14.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) AND b14.statuswinlost IS NULL THEN 0 ELSE 1 END -- not support recover single tickets that don't have statuswinlost in range 14
-
-		--exclude main parlay with refno not exist in BetParlayResults and all combine not completed
-		DELETE t
-		FROM #validTransId AS t
-		OUTER APPLY (
-			SELECT TOP 1 1 refno
-			FROM dbo.BetParlayResult AS b WITH (NOLOCK)
-			WHERE b.RefNo = t.refno ) AS rs
-		WHERE rs.refno IS NULL
-			AND t.IsMove14 = 1
-			AND t.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-
-		DELETE t
-		FROM #validTransId AS t
-		CROSS APPLY (
-			SELECT TOP 1 1 refno
-			FROM dbo.BetParlayResult AS b WITH (NOLOCK)
-			WHERE b.refno = t.refno AND b.statusid = 0 ) AS rs
-		WHERE t.IsMove14 = 1 
-			AND t.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-	
-		--Update main matchid for child match cricket/baseball
-		UPDATE d
-		SET d.matchid = m.ParentID
-		FROM #validTransId AS d
-		INNER JOIN dbo.match14 AS m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
-		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 	
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #validTransId)

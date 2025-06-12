@@ -11,7 +11,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RecoverSubParlayType_Update]
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
-	,@ResettledTransIds   VARCHAR(MAX)	= NULL	OUTPUT
 )
 AS
 /*	
@@ -53,6 +52,8 @@ BEGIN
 			,@RecoverPatchSize		INT = 100
 			,@SubTransIds			VARCHAR(MAX) = ''
 			,@Transids_29			VARCHAR(MAX) = ''
+			,@StartTime_Retry		DATETIME
+			,@LimitSecond			INT = 180
 
 	CREATE TABLE #tblMatchParlayProcess (MatchId INT, RefNo BIGINT)
 	CREATE TABLE #tblRecoverBet (
@@ -132,10 +133,7 @@ BEGIN
 
 	IF @MatchDate <= @MoveBetDate
 	BEGIN
-		SELECT @ErrCode = 112, @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try search again.'
-
-		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
-
+		SELECT @ErrCode = 99, @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try search again.'
 		RETURN
 	END
 
@@ -144,14 +142,6 @@ BEGIN
 	SELECT t.value AS TransIds
 	FROM STRING_SPLIT(@TransIds,',') AS t
 	
-	IF @@ROWCOUNT = 0 
-	BEGIN
-		SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
-
-		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
-		RETURN
-	END
-
 	INSERT INTO #tblMatchParlayProcess(MatchId, RefNo)
 	SELECT bm.matchid, bm.refno
 	FROM @tblTransIds AS t
@@ -166,32 +156,44 @@ BEGIN
 		@LockName = 'ParlayRefno'
 		,@ThreadHold = @ThreadHold OUTPUT
 
-	--Apply new way to lock parlay ticket
-	IF @TotalSubParlay <= @ThreadHold
+	SET @StartTime_Retry = GETDATE()
+	WHILE (1=1)
 	BEGIN
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@IsLockingByRefno	= 1
-		   ,@SpName				= @SpName
-		   ,@Session			= @Session
-		   ,@AvaiableProcess	= @AvailableProcess OUTPUT
-		   ,@ErrCode			= @ErrCode OUTPUT
-		   ,@ErrMsg				= @ErrMsg OUTPUT
-	END
-	ELSE
-	BEGIN
-		--Check for concurrent running
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@IsExistParlay		= 1
-		   ,@IsReleased			= 0
-		   ,@AvaiableProcess	= @AvailableProcess OUTPUT
-		   ,@ErrCode			= @ErrCode OUTPUT
-		   ,@ErrMsg				= @ErrMsg OUTPUT
-	END
+		SELECT	@ErrCode = 0
+				,@ErrMsg = ''
 
-	IF (@ErrCode <> 0 OR @AvailableProcess = 0)
-	BEGIN
-		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
-		RETURN
+		IF DATEDIFF(SECOND, @StartTime_Retry, getdate()) > @LimitSecond
+		BEGIN
+			SELECT	@ErrCode = 1000000
+					,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+
+			RETURN;
+		END
+
+		-- Apply new way to lock parlay tickets	
+		IF @TotalSubParlay <= @ThreadHold
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno		= 1
+				,@SPName				= @SPName
+				,@Session				= @Session
+				,@avaiableProcess 		= @AvailableProcess OUTPUT
+				,@ErrCode				= @ErrCode OUTPUT
+				,@ErrMsg				= @ErrMsg OUTPUT
+		END
+		ELSE --@totalSubParlay > 10K
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				@isExistParlay		= 1  
+				,@avaiableProcess	= @AvailableProcess OUTPUT  
+				,@ErrCode			= @ErrCode OUTPUT  
+				,@ErrMsg			= @ErrMsg OUTPUT  
+		END
+
+		IF @AvailableProcess = 0 OR @ErrCode <> 0
+			CONTINUE
+		ELSE 
+			BREAK
 	END
 
 	BEGIN TRY
@@ -253,9 +255,7 @@ BEGIN
 				   ,@IsReleased     = 1
 			END
 
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
-
-			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+			SELECT @ErrCode = 100, @ErrMsg = 'No ticket found.'
 
 			RETURN 
 		END
@@ -463,52 +463,6 @@ BEGIN
 				@BalancePending = @tblDebitPending
 			   ,@Type			= 1 --sports
 
-		
-		DELETE z
-			OUTPUT deleted.matchid, deleted.transid, deleted.transdate, deleted.comstatus
-			INTO @tmpTransInfo (MatchId, TransId, TransDate, Comstatus)
-		FROM dbo.zzzbettrans AS z WITH (ROWLOCK, UPDLOCK)
-		INNER JOIN #tblRecoverBet AS t
-			ON z.custid = t.CustId
-			AND z.matchid = t.MatchId
-			AND z.transid = t.TransId
-		WHERE z.SiteDBGroupID = @SiteDBGroupId
-
-		IF @SiteDBGroupId <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
-		BEGIN
-			DELETE @tmpMatchId
-
-			INSERT INTO  @tmpMatchId(MatchId)
-			SELECT DISTINCT MatchId
-			FROM @tmpTransInfo
-
-			WHILE (1=1)
-			BEGIN
-				UPDATE TOP (1) p
-				SET p.IsFinish = 1, @MatchId = p.MatchId
-				FROM @tmpMatchId AS p
-				WHERE p.IsFinish IS NULL
-
-				IF @@ROWCOUNT = 0 break
-
-				SET @TransInfo = COMPRESS((
-				SELECT	MatchId AS 'mid'
-					   ,TransId AS 't'
-					   ,TransDate AS 'td'
-					   ,Comstatus AS 'cst'
-				FROM	@tmpTransInfo
-				WHERE matchid = @MatchId
-				FOR JSON PATH))
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-				SELECT 'TVS', 'RecoverSubParlay', 'zzzbettrans', 'D', @matchid, @TransInfo, 'p' 
-
-				SET @TransInfo = NULL
-			END
-
-			DELETE FROM @tmpTransInfo
-		END
-
 		DELETE zm
 			OUTPUT deleted.matchid, deleted.transid
 			INTO @tmpTransInfo (MatchId, TransId)
@@ -603,7 +557,6 @@ BEGIN
 
 		SELECT @ErrCode = 100, @ErrMsg = 'Unable to recover these parlay bets'
 
-		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 		RETURN
 	END CATCH
 

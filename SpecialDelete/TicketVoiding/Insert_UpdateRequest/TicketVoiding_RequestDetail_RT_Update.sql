@@ -95,25 +95,29 @@ BEGIN
 
 	IF @IsEditRequest = 1
 	BEGIN
-		SET @OldTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
-								  FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
-								  WHERE RequestId = @RequestId AND @FilterBy IS NULL
-								  FOR XML PATH ('')),1,1,'')
-
-		SET @OldTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
-								  FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
-								  WHERE RequestId = @RequestId AND @FilterBy IS NOT NULL
-								  FOR XML PATH ('')),1,1,'')
-		
 		DELETE FROM dbo.TicketVoiding_RequestDetail
 		WHERE RequestId = @RequestId
 
-		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_Single 
-		WHERE RequestId = @RequestId AND @FilterBy IS NULL
+		IF @FilterBy IS NULL
+		BEGIN
+			SET @OldTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
+								  FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
+								  WHERE RequestId = @RequestId
+								  FOR XML PATH ('')),1,1,'')
 
-		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay
-		WHERE RequestId = @RequestId AND @FilterBy IS NOT NULL
+			DELETE FROM dbo.TicketVoiding_RequestDetailTicket_Single 
+			WHERE RequestId = @RequestId
+		END
+		ELSE 
+		BEGIN
+			SET @OldTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
+									  FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
+									  WHERE RequestId = @RequestId
+									  FOR XML PATH ('')),1,1,'')
 
+			DELETE FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay
+			WHERE RequestId = @RequestId
+		END
 	END
 
 	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))) --parlay
@@ -214,13 +218,13 @@ BEGIN
 
 	IF @IsEditRequest = 0
 	BEGIN
-		SET @LogDataContent += ' TransIds: ' + @TransIds
+		SET @LogDataContent += ' TransIds: ' + @TransIds + CASE WHEN @FilterBy IS NULL THEN '' ELSE '@MatchId: ' + CAST(@MatchId AS VARCHAR(50)) END
 	END
 	ELSE 
 	BEGIN
 		IF @TransIds <> @OldTransIds
 		BEGIN
-			SET @LogDataContent += ' Old TransIds: ' + @OldTransIds + ' New TransIds: ' + @TransIds
+			SET @LogDataContent += ' Old TransIds: ' + @OldTransIds + ' New TransIds: ' + @TransIds + CASE WHEN @FilterBy IS NULL THEN '' ELSE '@MatchId: ' + CAST(@MatchId AS VARCHAR(50)) END
 		END
 	END
 
