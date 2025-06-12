@@ -29,6 +29,7 @@ FROM bettrans b WITH (NOLOCK)
 								) AS chk
 WHERE (transid > @maxTransid OR b.SettlementTime > @starTime_Initialize ) AND b.bettype NOT IN (29,38)
 	AND c.site NOT IN ('Special','Hedging')
+	AND b.refno = 100000000000 
 
 INSERT INTO #reset (CUSTID, LatestResetDate)
 SELECT b.custid, t.LatestResetDate
@@ -57,6 +58,7 @@ from #CustList t
 								) AS t2
 				 WHERE b.custid = lm.CustID AND b.bettype NOT IN (29, 38)
 						AND b.statusID NOT IN (101,102,103,111)
+						AND b.refno = 100000000000 
 				 GROUP BY b.custid
 				 ) AS r
 WHERE (lm.AccumToWin <> r.ToWin OR lm.AccumWinLoss <> r.WinLoss)
