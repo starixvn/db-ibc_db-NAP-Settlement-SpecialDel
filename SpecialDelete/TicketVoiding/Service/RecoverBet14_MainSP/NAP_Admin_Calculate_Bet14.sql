@@ -15,7 +15,8 @@ AS
 		- 20210922@Louisa: Remove @CutOffDate [Redmine:#159903]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250516@July: Recover 14 - Insert changed data into BalanceTrigger table [Redmine: #227625]
-		
+		- 20250612@July: Add new column refno [Redmine: #226514]
+
 	Param's Explanation:  
 		   
 */
@@ -94,7 +95,7 @@ BEGIN
 	  ,winlostdate SMALLDATETIME ,SettlementTime DATETIME ,actual_stake MONEY ,modds SMALLMONEY
 	  ,srecommend INT ,mrecommend INT,recommend INT ,custid INT	
 	  ,winlost MONEY ,awinLost MONEY ,mwinLost MONEY ,swinLost MONEY
-	  ,playercomm MONEY ,comm MONEY ,acomm MONEY ,scomm MONEY
+	  ,playercomm MONEY ,comm MONEY ,acomm MONEY ,scomm MONEY, refno BIGINT
 	)
 			
 	CREATE TABLE #AfterTransId14(
@@ -103,7 +104,7 @@ BEGIN
 	  ,winlostdate SMALLDATETIME ,SettlementTime DATETIME ,actual_stake MONEY ,modds SMALLMONEY
 	  ,srecommend INT ,mrecommend INT,recommend INT ,custid INT	
 	  ,winlost MONEY ,awinLost MONEY ,mwinLost MONEY ,swinLost MONEY
-	  ,playercomm MONEY ,comm MONEY ,acomm MONEY ,scomm MONEY, ruben TINYINT, creator INT, ExtraInfo VARCHAR(1000)
+	  ,playercomm MONEY ,comm MONEY ,acomm MONEY ,scomm MONEY, ruben TINYINT, creator INT, ExtraInfo VARCHAR(1000), refno BIGINT
 	)
 	
 	DECLARE @settlementTime DATETIME
@@ -139,13 +140,13 @@ BEGIN
 			  ,winlostdate ,SettlementTime ,actual_stake ,modds 
 			  ,srecommend ,mrecommend ,recommend ,custid	
 			  ,winlost ,awinLost ,mwinLost ,swinLost
-			  ,playercomm ,comm ,acomm ,scomm
+			  ,playercomm ,comm ,acomm ,scomm, refno
 			)
 		SELECT b.matchid, t.TransId, b.betdaqid, b.SiteDBGroupID
 			,b.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.modds
 			,b.srecommend, b.mrecommend, b.recommend, b.custid
 			,b.winlost, b.awinlost, b.mwinlost, b.swinlost
-			,b.playercomm, b.comm, b.acomm, b.scomm
+			,b.playercomm, b.comm, b.acomm, b.scomm, b.refno
 		FROM @tempTrans t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId
 	END
@@ -421,13 +422,13 @@ BEGIN
 			  ,winlostdate ,SettlementTime ,actual_stake ,modds 
 			  ,srecommend ,mrecommend ,recommend ,custid	
 			  ,winlost ,awinLost ,mwinLost ,swinLost
-			  ,playercomm ,comm ,acomm ,scomm, ruben, creator, ExtraInfo
+			  ,playercomm ,comm ,acomm ,scomm, ruben, creator, ExtraInfo, refno
 			)
 		SELECT b.matchid, t.TransId, b.betdaqid, b.SiteDBGroupID
 			,b.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.modds
 			,b.srecommend, b.mrecommend, b.recommend, b.custid
 			,b.winlost, b.awinlost, b.mwinlost, b.swinlost
-			,b.playercomm, b.comm, b.acomm, b.scomm, b.ruben, b.creator, b.ExtraInfo
+			,b.playercomm, b.comm, b.acomm, b.scomm, b.ruben, b.creator, b.ExtraInfo, b.refno
 		FROM @tempTrans t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId
 	END
@@ -467,7 +468,7 @@ BEGIN
 		INSERT INTO dbo.BalanceTrigger (custid, transid, bettype, actual_stake, winlost, playercomm, ActionDate, 
 			ActionID, [Action],
 			BalanceChanged,
-			MatchId, StatusId, SettlementType, swinlost, mwinlost, awinlost, scomm, acomm, comm, modds, winlostdate, bef_statusid, bef_winlost)
+			MatchId, StatusId, SettlementType, swinlost, mwinlost, awinlost, scomm, acomm, comm, modds, winlostdate, bef_statusid, bef_winlost, refno)
 		SELECT
 			-- if inserted.custid = 0, this should be VOID + Hidden
 			-- if deleted.custid = 0, this may be Bet Recover
@@ -582,6 +583,7 @@ BEGIN
 			,i.winlostdate
 			,d.statusID AS bef_statusid
 			,isnull(d.winlost,0) AS bef_winlost
+			,d.refno
 		FROM #AfterTransId14 i 
 				INNER JOIN #BeforeTransId14 d ON i.transid = d.transid
 		WHERE d.custid <> d.recommend 
