@@ -1,7 +1,8 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RecoveredTicket_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_RecoveredTicket_Select]
 ( 
 	@SingleTransIds VARCHAR(MAX) =''
+   ,@SubParlayTransIds VARCHAR(MAX) = ''
 )
 AS;
 /*	
@@ -18,7 +19,8 @@ AS;
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 
 	Param's explanation:	
-		
+		- SingleTransIds: single & main parlay ticket
+		- SubParlayTransIds: subparlay ticket
 */	
 BEGIN
 	SET NOCOUNT ON
@@ -100,12 +102,13 @@ BEGIN
         ,IsDeposit			BIT DEFAULT(0) --1: Deposit/ 0: Credit
 		,username			VARCHAR(50)
 		,IsMove14			BIT DEFAULT(0)
+		,TicketType			TINYINT 
 		
 	)
 
 	CREATE TABLE #transIdTemp (
 		transid		BIGINT PRIMARY KEY
-	   ,TicketType	TINYINT --1: single(exclude cancel CO), 2: parlay, 3: cancel CO
+	   ,TicketType	TINYINT --1: single & main parlay(exclude cancel CO), 2: sub parlay, 3: cancel CO
 	) 
 
 	INSERT INTO #transIdTemp (transid, TicketType)
@@ -113,138 +116,283 @@ BEGIN
 	FROM STRING_SPLIT(@SingleTransIds, ',')
 	WHERE value <> ''
 
+	INSERT INTO #transIdTemp (transid, TicketType)
+	SELECT DISTINCT value, 2
+	FROM STRING_SPLIT(@SubParlayTransIds, ',')
+	WHERE value <> ''
+
 	--Search single tickets (active & archive 14)
 	BEGIN
-		INSERT INTO #TVSTicketBets(
-				matchid 
-				,transid
-				,Subtransid 
-				,custid                
-				,transdate 
-				,checktime 
-				,hdp1 
-				,hdp2 
-				,livehomescore 
-				,liveawayscore 
-				,liveindicator 
-				,betteam 
-				,creator 
-				,refno 
-				,betid 
-				,bettype 
-				,betdaqid 
-				,betfrom 
-				,statusID 
-				,WalletType 
-				,RefCode 
-				,Subcustid         
-				,Sublivehomescore 
-				,Subliveawayscore 
-				,Subhdp1 
-				,Subhdp2 
-				,Subbetfrom 
-				,Subbettype 
-				,SubstatusID 
-				,Subtransdate 
-				,Subchecktime 
-				,Subliveindicator 
-				,recommend 
-				,mrecommend 
-				,srecommend 
-				,statuswinlost 
-				,IsMixParlay 
-				,odds 
-				,Subodds 
-				,oddsspread 
-				,oddstype 
-				,betcheck 
-				,Subbetcheck 
-				,stake 
-				,CurrencyName 
-				,Transdesc 
-				,ExtraInfo 
-				,BonusID 
-				,winlost        
-				,actual_stake 
-				,Status
-				,SubStatus 
-				,Subbetteam  
-				,Suboddsspread 
-				,SubTransdesc  
-				,modds 
-				,SiteDBGroupID
-				,oddsid
-				,winlostdate
-				,username
-				,MainTransId
-			)
-		SELECT b.matchid
-			,b.TransId
-			,b.transid AS SubTransID
-			,b.custid
-			,b.transdate
-			,b.checktime
-			,b.hdp1
-			,b.hdp2
-			,b.livehomescore
-			,b.liveawayscore
-			,b.liveindicator
-			,b.betteam
-			,b.creator
-			,b.refno
-			,b.betid
-			,b.bettype
-			,b.betdaqid 
-			,b.betfrom 
-			,b.statusID 
-			,b.WalletType 
-			,b.RefCode 
-			,b.custid Subcustid         
-			,b.livehomescore AS Sublivehomescore 
-			,b.liveawayscore AS Subliveawayscore 
-			,b.hdp1 AS Subhdp1 
-			,b.hdp2 AS Subhdp2 
-			,b.betfrom AS Subbetfrom 
-			,b.bettype AS Subbettype 
-			,b.statusID AS SubstatusID 
-			,b.transdate AS Subtransdate 
-			,b.checktime AS Subchecktime 
-			,b.liveindicator AS Subliveindicator 
-			,b.recommend 
-			,b.mrecommend 
-			,b.srecommend 
-			,b.statuswinlost 
-			,0 AS IsMixParlay 
-			,b.odds 
-			,b.odds AS Subodds 
-			,b.oddsspread
-			,b.oddstype 
-			,b.betcheck 
-			,b.betcheck AS Subbetcheck 
-			,b.stake 
-			,b.CurrencyName 
-			,b.Transdesc 
-			,b.ExtraInfo 
-			,b.BonusID 
-			,(b.winlost - b.actual_stake)       
-			,b.actual_stake 
-			,b.Status
-			,b.status AS SubStatus 
-			,b.betteam AS Subbetteam  
-			,b.oddsspread AS Suboddsspread 
-			,b.transdesc SubTransdesc  
-			,b.modds 
-			,b.SiteDBGroupID
-			,b.oddsid
-			,b.winlostdate
-			,b.Username
-			,b.transid AS MainTransId
-		FROM #transIdTemp d 
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON d.transid = b.TransId
-		WHERE b.statusID NOT IN (101, 102) --Reject, Void
-			AND b.SiteDBGroupID = @SiteDBGroupID
+		IF EXISTS (SELECT TOP 1 1 FROM #transIdTemp WHERE TicketType = 1)
+		BEGIN
+			INSERT INTO #TVSTicketBets(
+					matchid 
+					,transid
+					,Subtransid 
+					,custid                
+					,transdate 
+					,checktime 
+					,hdp1 
+					,hdp2 
+					,livehomescore 
+					,liveawayscore 
+					,liveindicator 
+					,betteam 
+					,creator 
+					,refno 
+					,betid 
+					,bettype 
+					,betdaqid 
+					,betfrom 
+					,statusID 
+					,WalletType 
+					,RefCode 
+					,Subcustid         
+					,Sublivehomescore 
+					,Subliveawayscore 
+					,Subhdp1 
+					,Subhdp2 
+					,Subbetfrom 
+					,Subbettype 
+					,SubstatusID 
+					,Subtransdate 
+					,Subchecktime 
+					,Subliveindicator 
+					,recommend 
+					,mrecommend 
+					,srecommend 
+					,statuswinlost 
+					,IsMixParlay 
+					,odds 
+					,Subodds 
+					,oddsspread 
+					,oddstype 
+					,betcheck 
+					,Subbetcheck 
+					,stake 
+					,CurrencyName 
+					,Transdesc 
+					,ExtraInfo 
+					,BonusID 
+					,winlost        
+					,actual_stake 
+					,Status
+					,SubStatus 
+					,Subbetteam  
+					,Suboddsspread 
+					,SubTransdesc  
+					,modds 
+					,SiteDBGroupID
+					,oddsid
+					,winlostdate
+					,username
+					,MainTransId
+					,TicketType
+				)
+			SELECT b.matchid
+				,b.TransId
+				,b.transid AS SubTransID
+				,b.custid
+				,b.transdate
+				,b.checktime
+				,b.hdp1
+				,b.hdp2
+				,b.livehomescore
+				,b.liveawayscore
+				,b.liveindicator
+				,b.betteam
+				,b.creator
+				,b.refno
+				,b.betid
+				,b.bettype
+				,b.betdaqid 
+				,b.betfrom 
+				,b.statusID 
+				,b.WalletType 
+				,b.RefCode 
+				,b.custid Subcustid         
+				,b.livehomescore AS Sublivehomescore 
+				,b.liveawayscore AS Subliveawayscore 
+				,b.hdp1 AS Subhdp1 
+				,b.hdp2 AS Subhdp2 
+				,b.betfrom AS Subbetfrom 
+				,b.bettype AS Subbettype 
+				,b.statusID AS SubstatusID 
+				,b.transdate AS Subtransdate 
+				,b.checktime AS Subchecktime 
+				,b.liveindicator AS Subliveindicator 
+				,b.recommend 
+				,b.mrecommend 
+				,b.srecommend 
+				,b.statuswinlost 
+				,0 AS IsMixParlay 
+				,b.odds 
+				,b.odds AS Subodds 
+				,b.oddsspread
+				,b.oddstype 
+				,b.betcheck 
+				,b.betcheck AS Subbetcheck 
+				,b.stake 
+				,b.CurrencyName 
+				,b.Transdesc 
+				,b.ExtraInfo 
+				,b.BonusID 
+				,(b.winlost - b.actual_stake)       
+				,b.actual_stake 
+				,b.Status
+				,b.status AS SubStatus 
+				,b.betteam AS Subbetteam  
+				,b.oddsspread AS Suboddsspread 
+				,b.transdesc SubTransdesc  
+				,b.modds 
+				,b.SiteDBGroupID
+				,b.oddsid
+				,b.winlostdate
+				,b.Username
+				,b.transid AS MainTransId
+				,d.TicketType
+			FROM #transIdTemp d 
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON d.transid = b.TransId
+			WHERE b.statusID NOT IN (101, 102) --Reject, Void
+				AND b.SiteDBGroupID = @SiteDBGroupID
 		
-		INSERT INTO #TVSTicketBets(
+			INSERT INTO #TVSTicketBets(
+					matchid 
+					,transid
+					,Subtransid 
+					,custid                
+					,transdate 
+					,checktime 
+					,hdp1 
+					,hdp2 
+					,livehomescore 
+					,liveawayscore 
+					,liveindicator 
+					,betteam 
+					,creator 
+					,refno 
+					,betid 
+					,bettype 
+					,betdaqid 
+					,betfrom 
+					,statusID 
+					,WalletType 
+					,RefCode 
+					,Subcustid         
+					,Sublivehomescore 
+					,Subliveawayscore 
+					,Subhdp1 
+					,Subhdp2 
+					,Subbetfrom 
+					,Subbettype 
+					,SubstatusID 
+					,Subtransdate 
+					,Subchecktime 
+					,Subliveindicator 
+					,recommend 
+					,mrecommend 
+					,srecommend 
+					,statuswinlost 
+					,IsMixParlay 
+					,odds 
+					,Subodds 
+					,oddsspread 
+					,oddstype 
+					,betcheck 
+					,Subbetcheck 
+					,stake 
+					,CurrencyName 
+					,Transdesc 
+					,ExtraInfo 
+					,BonusID 
+					,winlost        
+					,actual_stake 
+					,Status
+					,SubStatus 
+					,Subbetteam  
+					,Suboddsspread 
+					,SubTransdesc  
+					,modds 
+					,SiteDBGroupID
+					,oddsid
+					,winlostdate
+					,username
+					,IsMove14
+					,MainTransId
+					,TicketType
+				)
+			SELECT b.matchid
+				,b.TransId
+				,b.transid AS SubTransID
+				,b.custid
+				,b.transdate
+				,b.checktime
+				,b.hdp1
+				,b.hdp2
+				,b.livehomescore
+				,b.liveawayscore
+				,b.liveindicator
+				,b.betteam
+				,b.creator
+				,b.refno
+				,b.betid
+				,b.bettype
+				,b.betdaqid 
+				,b.betfrom 
+				,b.statusID 
+				,b.WalletType 
+				,b.RefCode 
+				,b.custid Subcustid         
+				,b.livehomescore AS Sublivehomescore 
+				,b.liveawayscore AS Subliveawayscore 
+				,b.hdp1 AS Subhdp1 
+				,b.hdp2 AS Subhdp2 
+				,b.betfrom AS Subbetfrom 
+				,b.bettype AS Subbettype 
+				,b.statusID AS SubstatusID 
+				,b.transdate AS Subtransdate 
+				,b.checktime AS Subchecktime 
+				,b.liveindicator AS Subliveindicator 
+				,b.recommend 
+				,b.mrecommend 
+				,b.srecommend 
+				,b.statuswinlost 
+				,0 AS IsMixParlay 
+				,b.odds 
+				,b.odds AS Subodds 
+				,b.oddsspread
+				,b.oddstype 
+				,b.betcheck 
+				,b.betcheck AS Subbetcheck 
+				,b.stake 
+				,b.CurrencyName 
+				,b.Transdesc 
+				,b.ExtraInfo 
+				,b.BonusID 
+				,(b.winlost - b.actual_stake)       
+				,b.actual_stake 
+				,b.Status
+				,b.status AS SubStatus 
+				,b.betteam AS Subbetteam  
+				,b.oddsspread AS Suboddsspread 
+				,b.transdesc SubTransdesc  
+				,b.modds 
+				,b.SiteDBGroupID
+				,b.oddsid
+				,b.winlostdate
+				,b.Username
+				,1 AS IsMove14
+				,b.transid AS MainTransId
+				,d.TicketType
+			FROM #transIdTemp d 
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON d.transid = b.TransId
+			WHERE b.statusID NOT IN (101, 102) --Reject, void
+				AND b.SiteDBGroupID = @SiteDBGroupID
+		END
+
+		IF EXISTS (SELECT TOP 1 1 FROM #transIdTemp WHERE TicketType = 2)
+		BEGIN
+			INSERT INTO #TVSTicketBets(
 				matchid 
 				,transid
 				,Subtransid 
@@ -305,75 +453,78 @@ BEGIN
 				,oddsid
 				,winlostdate
 				,username
-				,IsMove14
 				,MainTransId
+				,TicketType
 			)
-		SELECT b.matchid
-			,b.TransId
-			,b.transid AS SubTransID
-			,b.custid
-			,b.transdate
-			,b.checktime
-			,b.hdp1
-			,b.hdp2
-			,b.livehomescore
-			,b.liveawayscore
-			,b.liveindicator
-			,b.betteam
-			,b.creator
-			,b.refno
-			,b.betid
-			,b.bettype
-			,b.betdaqid 
-			,b.betfrom 
-			,b.statusID 
-			,b.WalletType 
-			,b.RefCode 
-			,b.custid Subcustid         
-			,b.livehomescore AS Sublivehomescore 
-			,b.liveawayscore AS Subliveawayscore 
-			,b.hdp1 AS Subhdp1 
-			,b.hdp2 AS Subhdp2 
-			,b.betfrom AS Subbetfrom 
-			,b.bettype AS Subbettype 
-			,b.statusID AS SubstatusID 
-			,b.transdate AS Subtransdate 
-			,b.checktime AS Subchecktime 
-			,b.liveindicator AS Subliveindicator 
-			,b.recommend 
-			,b.mrecommend 
-			,b.srecommend 
-			,b.statuswinlost 
-			,0 AS IsMixParlay 
-			,b.odds 
-			,b.odds AS Subodds 
-			,b.oddsspread
-			,b.oddstype 
-			,b.betcheck 
-			,b.betcheck AS Subbetcheck 
-			,b.stake 
-			,b.CurrencyName 
-			,b.Transdesc 
-			,b.ExtraInfo 
-			,b.BonusID 
-			,(b.winlost - b.actual_stake)       
-			,b.actual_stake 
-			,b.Status
-			,b.status AS SubStatus 
-			,b.betteam AS Subbetteam  
-			,b.oddsspread AS Suboddsspread 
-			,b.transdesc SubTransdesc  
-			,b.modds 
-			,b.SiteDBGroupID
-			,b.oddsid
-			,b.winlostdate
-			,b.Username
-			,1 AS IsMove14
-			,b.transid AS MainTransId
-		FROM #transIdTemp d 
-			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON d.transid = b.TransId
-		WHERE b.statusID NOT IN (101, 102) --Reject, void
-			AND b.SiteDBGroupID = @SiteDBGroupID
+			SELECT 
+				bm.matchid
+				,b.transid
+				,bm.TransId AS SubTransId
+				,b.custid
+				,b.transdate
+				,b.checktime
+				,b.hdp1
+				,b.hdp2
+				,b.livehomescore
+				,b.liveawayscore
+				,b.liveindicator
+				,b.betteam
+				,b.creator
+				,b.refno
+				,b.betid
+				,b.bettype
+				,b.betdaqid
+				,b.betfrom
+				,b.statusID
+				,b.WalletType
+				,b.refcode
+				,bm.custid AS SubCustid
+				,bm.livehomescore AS SubLivehomescore
+				,bm.liveawayscore AS SubLiveawayscore
+				,bm.hdp1 AS SubHdp1
+				,bm.hdp2 AS SubHdp2
+				,bm.betfrom AS SubBetfrom
+				,bm.bettype AS SubBettype
+				,bm.statusID AS SubStatusId
+				,bm.transdate AS SubTransdate
+				,bm.checktime AS SubChecktime
+				,bm.liveindicator AS SubLiveindicator
+				,b.recommend
+				,b.mrecommend
+				,b.srecommend
+				,b.statuswinlost
+				,1 AS IsMixParlay
+				,b.odds
+				,bm.odds AS Subodds
+				,b.oddsspread
+				,b.oddstype
+				,b.betcheck
+				,bm.betcheck AS Subbetcheck
+				,b.stake
+				,b.CurrencyName
+				,b.transdesc
+				,b.ExtraInfo
+				,b.BonusID
+				,b.winlost
+				,b.actual_stake
+				,b.status
+				,bm.status AS SubStatus
+				,bm.betteam AS SubBetteam
+				,bm.oddsspread AS SubOddsspread
+				,bm.transdesc AS SubTransdesc
+				,b.modds
+				,bm.SiteDBGroupID
+				,b.oddsid
+				,b.winlostdate
+				,b.Username
+				,b.TransId AS MainTransId
+				,t.TicketType
+			FROM #transIdTemp AS t
+			INNER JOIN dbo.bettransm AS bm ON t.transid = bm.TransId AND bm.SiteDBGroupID = @SiteDBGroupID
+			INNER JOIN dbo.bettrans AS b ON b.refno = bm.refno AND b.SiteDBGroupID = bm.SiteDBGroupID
+			WHERE bm.statusID NOT IN (101, 102)
+
+		END
 	END
 
 	-- UPDATE eventtype = 1
@@ -510,7 +661,7 @@ BEGIN
 	END
 
 	-- UPDATE IsMixParlay
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE TicketType = 1 AND bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
 	BEGIN
 		UPDATE t
 			SET IsMixParlay = 1

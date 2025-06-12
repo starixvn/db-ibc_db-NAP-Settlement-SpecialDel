@@ -137,7 +137,7 @@ BEGIN
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
-	ELSE IF @VoidingTypeId IN (18) --Recover sub parlay ticket
+	ELSE IF @VoidingTypeId IN (13) --Recover sub parlay ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RecoverSubParlayType_Update
 			@RequestId = @RequestId
@@ -150,7 +150,6 @@ BEGIN
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-			,@ResettledTransIds = @ResettledTransIds OUTPUT
 	END
 	ELSE IF @VoidingTypeId IN (14) --Cricket ticket
 	BEGIN
