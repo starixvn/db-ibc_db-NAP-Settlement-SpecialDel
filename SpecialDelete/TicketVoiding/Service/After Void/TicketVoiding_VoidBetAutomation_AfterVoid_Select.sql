@@ -1,5 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_AfterVoid_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_AfterVoid_Select](
+		@OnlineServerId			VARCHAR(10) = NULL --'0,1,2,3'
+)
 AS
 /*	Created by: 20230117@July
 	Task: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
@@ -12,6 +14,7 @@ AS
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250527@Hyman: [TVS] Add column IsSentToMTS [Redmine: #227379]
+		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services [Redmine: #224490]
 
 	Param's explanation:	
 */
@@ -65,6 +68,15 @@ BEGIN
 		, Type INT
 		, Licensees VARCHAR(MAX)
 	)
+	DECLARE @tmp_OnlineServerId AS TABLE (ServerId SMALLINT)
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmp_OnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	INSERT INTO @tmpResultAfterVoid (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
 							, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
@@ -97,6 +109,7 @@ BEGIN
 	FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
 	WHERE vb.statusID = 1
+		AND vh.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId)
 	ORDER BY vb.createdDate ASC
 		
 	SELECT @BroadcastSessionId = BroadcastSessionId, @RequestId = RequestId
@@ -149,6 +162,7 @@ BEGIN
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		LEFT JOIN Ticketvoiding_VoidBetAutomation_Service vb WITH(NOLOCK) ON vh.RequestId = vb.RequestID AND vh.VoidingHistoryId = vb.VoidingHistoryId
 	WHERE vh.BroadcastSessionId = @BroadcastSessionId AND vh.RequestId = @RequestId
+		AND vh.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId)
 
 	WHILE (1=1)
 	BEGIN
