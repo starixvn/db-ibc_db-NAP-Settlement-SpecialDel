@@ -130,8 +130,8 @@ BEGIN
 		  ,m.ChildMatchType
 		  ,m.eventstatus
 		  ,m.sporttype
-	 	  ,ss.ResourceID
-		  ,ss.SettleType
+	 	  ,sp.ResourceID
+		  ,sp.SettleType
 		  ,COUNT(1) AS TotalTicket
 		  ,SUM(IIF(b.statusID NOT IN (101, 102), 1, 0)) AS TotalValidTicket
 		  ,SUM(IIF(b.statusid = 0, 1, 0)) AS TotalRunningTicket
@@ -139,21 +139,14 @@ BEGIN
 		  ,SUM(IIF(mt.TransId IS NOT NULL AND b.statusid = 0, 1, 0)) AS TotalMarkedTicket
 	FROM #tmpAllParentChildMatch AS m 
 		INNER JOIN bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype)) ON m.matchid = b.matchid --WITH(NOLOCK,INDEX(CIX_matchid_bettype))
-		CROSS APPLY (
-			SELECT TOP 1 sp.ResourceID, sp.SettleType
-			FROM SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK)
-			WHERE sp.Sporttype = m.SportType
-				AND sp.bettype =  b.bettype
-				AND (sp.BetID = 0 OR b.BetID = sp.BetID) 
-		) ss
+		INNER JOIN SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK) ON  sp.Sporttype = m.SportType AND sp.bettype =  b.bettype AND (sp.BetID = 0 OR b.BetID = sp.BetID) 
 		OUTER APPLY (
 			SELECT	TOP 1 mt.TransId
 			FROM #tmpMarkedTransaction AS mt WITH(NOLOCK)
 			WHERE mt.TransId = b.transid
 		) mt
 	WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-	GROUP BY m.matchid,m.eventstatus, ss.ResourceID, ss.SettleType,m.ParentId,m.ChildMatchType,m.sporttype
-	OPTION (FORCE ORDER)
+	GROUP BY m.matchid,m.eventstatus, sp.ResourceID, sp.SettleType,m.ParentId,m.ChildMatchType,m.sporttype
 
 	INSERT INTO #tmpMatchCount(matchid, ParentId, ChildMatchType, eventstatus,sporttype, ResourceID, settleType, TotalTicket, TotalValidTicket, TotalRunningTicket, TotalWaitingTicket, TotalMarkedTicket)
 	SELECT m.matchid
@@ -161,8 +154,8 @@ BEGIN
 		  ,m.ChildMatchType
 		  ,m.eventstatus
 		  ,m.sporttype
-	 	  ,ss.ResourceID
-		  ,ss.SettleType
+	 	  ,sp.ResourceID
+		  ,sp.SettleType
 		  ,COUNT(1) AS TotalTicket
 		  ,SUM(IIF(bm.statusID NOT IN (101, 102), 1, 0))  AS TotalValidTicket
 		  ,SUM(IIF(bm.statusid = 0, 1, 0)) AS TotalRunningTicket
@@ -170,21 +163,14 @@ BEGIN
 		  ,SUM(IIF(mt.TransId IS NOT NULL AND bm.statusid = 0, 1, 0)) AS TotalMarkedTicket
 	FROM #tmpAllParentChildMatch AS m 
 		INNER JOIN bettransm AS bm WITH(NOLOCK) ON m.matchid = bm.matchid -- WITH(NOLOCK,INDEX(IX_matchid))
-		CROSS APPLY (
-			SELECT TOP 1 sp.ResourceID, sp.SettleType
-			FROM SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK)
-			WHERE sp.Sporttype = m.SportType
-				AND sp.bettype =  bm.bettype
-				AND (sp.BetID = 0 OR bm.betcheck = sp.BetID) 
-		) ss
+		INNER JOIN SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK) ON  sp.Sporttype = m.SportType AND sp.bettype =  bm.bettype AND (sp.BetID = 0 OR bm.betcheck = sp.BetID) 
 		OUTER APPLY (
 			SELECT	TOP 1 mt.transid
 			FROM #tmpMarkedTransaction AS mt WITH(NOLOCK)
 			WHERE mt.TransId = bm.transid
 		) mt
 	WHERE bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-	GROUP BY m.matchid,m.eventstatus, ss.ResourceID, ss.SettleType,m.ParentId,m.ChildMatchType,m.sporttype
-	OPTION (FORCE ORDER)
+	GROUP BY m.matchid,m.eventstatus, sp.ResourceID, sp.SettleType,m.ParentId,m.ChildMatchType,m.sporttype
 
 	IF @OverStatus != '0'
 	BEGIN
