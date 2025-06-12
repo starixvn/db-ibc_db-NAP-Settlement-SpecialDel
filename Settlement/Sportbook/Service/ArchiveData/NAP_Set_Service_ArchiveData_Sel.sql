@@ -24,13 +24,17 @@ BEGIN
 	BEGIN
 		;WITH cte_AllData AS
 		(	SELECT TOP(@BatchNo) 
-				r.ProviderExternalId		
+				r.ProviderExternalId	
+				,r.MatchId3rd
 				,r.MatchId		
 				,r.SourceId
 				,r.ResourceId	
 				,r.HomeValue
 				,r.AwayValue	
 				,r.CreateDate
+				,r.CreateBy
+				,r.LastModifyDate
+				,r.LastModifyBy
 				,r.IsLive
 			FROM ProviderExternalResultDetail r WITH(NOLOCK)
 			WHERE r.ProviderExternalId > CAST(@LastValue AS INT)
@@ -39,14 +43,18 @@ BEGIN
 			ORDER BY r.ProviderExternalId
 		)
 		SELECT @JsonInfo = COMPRESS(( SELECT 
-										cte.ProviderExternalId AS 'id'				
-										,cte.MatchId AS 'm'		
-										,cte.SourceId AS 's'
-										,cte.ResourceId AS 'rs'	
-										,cte.HomeValue AS 'h'		
-										,cte.AwayValue AS 'a'
-										,cte.CreateDate AS 'cd'
-										,cte.IsLive AS 'il'
+										cte.ProviderExternalId AS 'id'	
+										,cte.MatchId3rd		AS 'm3rd'
+										,cte.MatchId		AS 'm'		
+										,cte.SourceId		AS 's'
+										,cte.ResourceId		AS 'rs'	
+										,cte.HomeValue		AS 'h'		
+										,cte.AwayValue		AS 'a'
+										,cte.CreateDate		AS 'cd'
+										,cte.LastModifyDate AS 'lmd'
+										,cte.CreateBy		AS 'cb'
+										,cte.LastModifyBy	AS 'lmb'
+										,cte.IsLive			AS 'il'
 									FROM cte_AllData cte
 									FOR JSON PATH
 								))
@@ -56,13 +64,17 @@ BEGIN
 	BEGIN
 		;WITH cte_AllData AS
 		(	SELECT TOP(@BatchNo) 
-				r.ProviderExternalId			
+				r.ProviderExternalId	
+				,r.MatchId3rd
 				,r.MatchId		
 				,r.SourceId
 				,r.ResourceId	
 				,r.HomeValue
-				,r.AwayValue
+				,r.AwayValue	
 				,r.CreateDate
+				,r.CreateBy
+				,r.LastModifyDate
+				,r.LastModifyBy
 				,r.IsLive
 			FROM ProviderExternalResultDetailES r WITH(NOLOCK)
 			WHERE r.ProviderExternalId > CAST(@LastValue AS INT)
@@ -70,15 +82,19 @@ BEGIN
 				AND r.SourceId < 1001 AND SourceID NOT IN (98, 99)
 			ORDER BY ProviderExternalId
 		)
-		SELECT @JsonInfo = COMPRESS(( SELECT TOP(@BatchNo)
-										cte.ProviderExternalId AS 'id'				
-										,cte.MatchId AS 'm'		
-										,cte.SourceId AS 's'
-										,cte.ResourceId AS 'rs'	
-										,cte.HomeValue AS 'h'		
-										,cte.AwayValue AS 'a'
-										,cte.CreateDate AS 'cd'
-										,cte.IsLive AS 'il'
+		SELECT @JsonInfo = COMPRESS(( SELECT  
+										cte.ProviderExternalId AS 'id'	
+										,cte.MatchId3rd		AS 'm3rd'
+										,cte.MatchId		AS 'm'		
+										,cte.SourceId		AS 's'
+										,cte.ResourceId		AS 'rs'	
+										,cte.HomeValue		AS 'h'		
+										,cte.AwayValue		AS 'a'
+										,cte.CreateDate		AS 'cd'
+										,cte.LastModifyDate AS 'lmd'
+										,cte.CreateBy		AS 'cb'
+										,cte.LastModifyBy	AS 'lmb'
+										,cte.IsLive			AS 'il'
 									FROM cte_AllData cte 
 									FOR JSON PATH
 								))
@@ -87,14 +103,18 @@ BEGIN
 	ELSE IF @TableName = 'ProviderExternalResultDetailOS'
 	BEGIN
 		;WITH cte_AllData AS
-		(	SELECT  TOP(@BatchNo) 
-				r.ProviderExternalId			
+		(	SELECT TOP(@BatchNo) 
+				r.ProviderExternalId	
+				,r.MatchId3rd
 				,r.MatchId		
 				,r.SourceId
 				,r.ResourceId	
-				,r.HomeValue	
+				,r.HomeValue
 				,r.AwayValue	
 				,r.CreateDate
+				,r.CreateBy
+				,r.LastModifyDate
+				,r.LastModifyBy
 				,r.IsLive
 			FROM ProviderExternalResultDetailOS r WITH(NOLOCK)
 			WHERE r.ProviderExternalId > CAST(@LastValue AS INT)
@@ -102,15 +122,19 @@ BEGIN
 				AND r.SourceId < 1001 AND SourceID NOT IN (98, 99)
 			ORDER BY ProviderExternalId
 		)
-		SELECT @JsonInfo = COMPRESS(( SELECT TOP(@BatchNo)
-										cte.ProviderExternalId AS 'id'				
-										,cte.MatchId AS 'm'		
-										,cte.SourceId AS 's'
-										,cte.ResourceId AS 'rs'	
-										,cte.HomeValue AS 'h'		
-										,cte.AwayValue AS 'a'
-										,cte.CreateDate AS 'cd'
-										,cte.IsLive AS 'il'
+		SELECT @JsonInfo = COMPRESS(( SELECT 
+										cte.ProviderExternalId AS 'id'	
+										,cte.MatchId3rd		AS 'm3rd'
+										,cte.MatchId		AS 'm'		
+										,cte.SourceId		AS 's'
+										,cte.ResourceId		AS 'rs'	
+										,cte.HomeValue		AS 'h'		
+										,cte.AwayValue		AS 'a'
+										,cte.CreateDate		AS 'cd'
+										,cte.LastModifyDate AS 'lmd'
+										,cte.CreateBy		AS 'cb'
+										,cte.LastModifyBy	AS 'lmb'
+										,cte.IsLive			AS 'il'
 									FROM cte_AllData cte
 									FOR JSON PATH
 								))
