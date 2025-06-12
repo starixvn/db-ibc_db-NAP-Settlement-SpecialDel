@@ -362,7 +362,7 @@ BEGIN
 				FROM (
 					SELECT TOP (@batch) custid
 					FROM @tmp_RetryRule
-					WHERE Currency <> 20
+					WHERE Currency = 20
 					)t
 			END
 		END
@@ -520,7 +520,7 @@ BEGIN
 				FROM (
 					SELECT TOP (@batch) custid
 					FROM @tmp_RetryRule
-					WHERE Currency <> 20
+					WHERE Currency = 20
 					)t
 			END
 		END
