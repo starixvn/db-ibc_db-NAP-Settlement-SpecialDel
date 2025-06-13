@@ -27,6 +27,7 @@ AS;
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241021@Max: [TVS] New Issue Type - Other Issues [Redmine: #211913]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
+		- 20250613@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 
 	Param's explanation:	
 		
@@ -128,11 +129,18 @@ BEGIN
 			INNER JOIN #tmpResult t ON t.RequestId = s.Requestid
 		WHERE s.IsProcessed IS NOT NULL AND s.IssueTypeId = 22
 			AND s.SiteDBGroupID = @SiteDBGroupID
+		UNION 
+		SELECT t.RequestId, sp.TransId, sp.MatchId, sp.IsProcessed
+		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH (NOLOCK)
+			INNER JOIN #tmpResult t ON t.RequestId =  sp.RequestId
+		WHERE sp.IsProcessed IS NOT NULL
+			AND sp.IssueTypeId IN (22)
+			AND sp.SiteDBGroupID = @SiteDBGroupID
 
 		DELETE t
 		FROM @tmp_TransId t
 			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON t.TransId = z.transid AND z.comstatus <> 'CO'
-		WHERE z.SiteDBGroupID = @SiteDBGroupID
+		WHERE z.SiteDBGroupID = @SiteDBGroupID	
 
 		UPDATE t 
 		SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)
@@ -140,24 +148,30 @@ BEGIN
 			,TotalResettleProcessed= ISNULL(rt.TotalResettleProcessed,0) 
 		FROM	#tmpResult t
 		CROSS APPLY (SELECT 
-						SUM(CASE WHEN f.bettype IS NULL THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						,SUM(CASE WHEN f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						SUM(CASE WHEN f.bettype IS NULL AND sp.RequestId IS NULL THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						,SUM(CASE WHEN f.bettype IS NOT NULL OR sp.RequestId IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
 						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
 					FROM @tmp_TransId s
+						LEFT JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS sp WITH (NOLOCK) ON sp.RequestId = s.RequestId AND sp.SiteDBGroupID = @SiteDBGroupID
 						LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.Bettype = s.MatchId
 					WHERE s.RequestId = t.RequestId
 				)rt	
 		WHERE t.IssueTypeId = 22 --Recover Ticket
 	END
 
-	SELECT  RequestId			
-		   ,CASE WHEN IssueTypeId IN (13,17,22) THEN NULL ELSE matchid END AS matchid
-		   ,RequestDetailId 
+	SELECT  t.RequestId			
+		   ,CASE WHEN t.IssueTypeId IN (13,17,22) AND (t.IssueTypeId = 22 AND s.RequestId IS NULL) THEN NULL ELSE t.matchid END AS matchid
+		   ,t.RequestDetailId 
 		   ,TotalSingleProcessed	
 		   ,TotalParlayProcessed	
 		   ,TotalCancelCashOutProcessed
 		   ,TotalResettleProcessed
-	FROM #tmpResult
+	FROM #tmpResult AS t
+	OUTER APPLY (
+		SELECT TOP 1 RequestId
+		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS sp WITH (NOLOCK)
+		WHERE sp.RequestId = t.RequestId AND sp.SiteDBGroupID = @SiteDBGroupID
+	) s
 
 	DROP TABLE #tmpResult
 	DROP TABLE #tmpMatchVoidingHistory
