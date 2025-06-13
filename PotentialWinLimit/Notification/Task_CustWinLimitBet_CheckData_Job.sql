@@ -76,7 +76,7 @@ BEGIN
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON b.custid = v.custid
 			CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
 									WHERE m.bettype = b.bettype
-									AND m.SportType < 99
+									AND m.SportType <= 99
 									) AS chk
 			LEFT JOIN dbo.CustWinLimitBet_History c WITH (NOLOCK) ON b.TransId = c.Transid AND b.custid = c.custid AND c.ActionType = 0
 			LEFT JOIN dbo.bettransm bm WITH (NOLOCK) ON b.refno = bm.refno
@@ -94,7 +94,7 @@ BEGIN
 		FROM dbo.CustWinLimitBet_History c WITH (NOLOCK) 
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON c.custid = v.custid
 		WHERE c.ActionType = 0
-			AND (c.bettype IN (29,38) OR c.Sporttype >=99)
+			AND (c.bettype IN (29,38) OR c.Sporttype >99)
 			AND c.Transid > @lastTransid AND c.Transid <= @MaxTransId
 		
 		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp WHERE issueType = 1)
@@ -180,12 +180,12 @@ BEGIN
 			
 			IF ISNULL(@transIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 OR parlay lucky OR wrong Refno for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >99 OR parlay lucky OR wrong Refno for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 			END
 
 			IF ISNULL(@UUStransIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 OR parlay lucky OR wrong Refno for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >99 OR parlay lucky OR wrong Refno for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 			END
 
 		END
@@ -292,7 +292,7 @@ BEGIN
 							 FROM dbo.bettrans b  WITH (NOLOCK)
 								CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
 											WHERE m.bettype = b.bettype
-											AND m.SportType < 99
+											AND m.SportType <= 99
 											) AS chk
 							 WHERE b.custid = t.CustID AND b.bettype NOT IN (29, 38)
 									AND b.statusID IN (0,1) 
@@ -341,7 +341,7 @@ BEGIN
 									FROM dbo.bettrans b  WITH (NOLOCK)
 									CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
 												WHERE m.bettype = b.bettype
-												AND m.SportType < 99
+												AND m.SportType <= 99
 												) AS chk
 									WHERE b.custid = t.CustID AND b.bettype NOT IN (29, 38)
 										AND b.statusID IN (0,1) 
@@ -441,7 +441,7 @@ BEGIN
 							 FROM dbo.bettrans b WITH (NOLOCK)
 								CROSS APPLY (SELECT TOP (1) 1 AS isValid 
 											 FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
-											 WHERE m.bettype = b.bettype AND m.SportType < 99
+											 WHERE m.bettype = b.bettype AND m.SportType <= 99
 											) AS chk
 								OUTER APPLY (SELECT LatestResetDate
 											FROM #tmp_batch c
@@ -496,7 +496,7 @@ BEGIN
 									FROM dbo.bettrans b WITH (NOLOCK)
 									CROSS APPLY (SELECT TOP (1) 1 AS isValid 
 													FROM dbo.SportBettypeMatrix m WITH (NOLOCK)
-													WHERE m.bettype = b.bettype AND m.SportType < 99
+													WHERE m.bettype = b.bettype AND m.SportType <= 99
 												) AS chk
 									OUTER APPLY (SELECT LatestResetDate
 												FROM #tmp_batch c
