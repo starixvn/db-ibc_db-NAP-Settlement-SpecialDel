@@ -7,6 +7,7 @@ AS
    
    Revisions:
 		- 20250513@Louisa: Alpha - Potential Winning Limit/Threshold [Redmine:226060]
+		- 20250612@Louisa: Get single ticket only ( exclude lucky parlay) [Redmine:226060]
 	
 	CustWinLimitBet_History.ActionType
 	/*
@@ -67,7 +68,7 @@ BEGIN
 		-- sportsbook only
 		CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
 					WHERE m.bettype = b.bettype 
-						AND m.SportType < 99
+						AND m.SportType <= 99
 						) AS bt
 		OUTER APPLY (SELECT TOP 1 AdjToWin AS running_ToWin, Sporttype, bettype-- get ToWin of running and also check missing to insert history
 					FROM CustWinLimitBet_History c WITH (NOLOCK) 
@@ -81,6 +82,7 @@ BEGIN
 		AND ((bef_statusid <> StatusId AND bef_statusid <> 1)	OR winlost <> bef_winlost)
 		AND (bef_winlost IS NOT NULL AND bef_statusid IS NOT NULL) ---ignore action insert bet in balancetrigger
 		AND 1= CASE WHEN bef_statusid = 0 AND statusid = 1 THEN 0 ELSE 1 END
+		AND b.refno = 100000000000
 	ORDER BY RowID ASC
 	
 	IF @@ROWCOUNT < @Batch 
