@@ -160,27 +160,33 @@ BEGIN
 	ELSE --Recover Ticket
 	BEGIN
 		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT, MainTransId BIGINT)
+		DECLARE @FilterBy TINYINT 
 
-		INSERT INTO @tmp_TransId(RequestId, TransId, MatchId, IsProcessed, MainTransId)
-		SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed, NULL
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) --single and main parlay
-			INNER JOIN #tmpResult t ON t.RequestId = s.Requestid AND s.MatchId = t.MatchId
-		WHERE s.IsProcessed IS NOT NULL
-		UNION 
-		SELECT t.RequestId, sp.TransId, sp.MatchId, sp.IsProcessed, sp.MainTransId
-		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH (NOLOCK) -- subparlay
-			INNER JOIN #tmpResult t ON t.RequestId = sp.RequestId AND sp.MatchId = t.MatchId 
-		WHERE sp.IsProcessed IS NOT NULL
+		SET @FilterBy = (SELECT TOP 1 rd.FilterBy 
+						FROM TicketVoiding_RequestDetail AS rd WITH (NOLOCK)
+						INNER JOIN TicketVoiding_Request AS r WITH (NOLOCK) ON rd.RequestId = r.RequestId
+						WHERE r.IssueTypeId IN (22) AND r.RequestId = @RequestId)
 
-		DELETE t
-		FROM @tmp_TransId t
-			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON t.TransId = z.transid AND z.comstatus <> 'CO'
+		IF (@FilterBy IS NULL) --single and main parlay
+		BEGIN
+			INSERT INTO @tmp_TransId(RequestId, TransId, MatchId, IsProcessed, MainTransId)
+			SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed, NULL
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) 
+				INNER JOIN #tmpResult t ON t.RequestId = s.Requestid AND s.MatchId = t.MatchId
+			WHERE s.IsProcessed IS NOT NULL
 
-		DELETE t
-		FROM @tmp_TransId t
-			INNER JOIN dbo.zzzbettransm zm WITH (NOLOCK) ON t.TransId = zm.transid AND zm.comstatus <> 'CO'
-
-		
+			DELETE t
+			FROM @tmp_TransId t
+				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON t.TransId = z.transid AND z.comstatus <> 'CO'
+		END
+		ELSE -- subparlay
+		BEGIN
+			SELECT t.RequestId, sp.TransId, sp.MatchId, sp.IsProcessed, sp.MainTransId
+			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH (NOLOCK) 
+				INNER JOIN #tmpResult t ON t.RequestId = sp.RequestId AND sp.MatchId = t.MatchId 
+			WHERE sp.IsProcessed IS NOT NULL
+		END
+								
 		UPDATE t 
 		SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)
 			,TotalParlayProcessed = ISNULL(rt.TotalParlayProcessed,0)
