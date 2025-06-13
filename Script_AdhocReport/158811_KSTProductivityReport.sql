@@ -21,6 +21,7 @@
 						- correct the way to get @movebet, @BU of system [Redmine:#210398]
 						
 		- 20241008@Kathy: exclude main match interval resource of table tennis [Redmine:#211924]
+		- 20250612@Louisa: get sport applied auto payout dynamic [Redmine:#]
 */
 
 
@@ -66,7 +67,7 @@ GO
 		 ,leagueid INT, leaguename  NVARCHAR(1000), LeagueGroupID SMALLINT, LeagueGroupName NVARCHAR(400), betstatus NVARCHAR(100), [range] tinyint, ParentId INT, ChildMatchType TINYINT
 		)
 
-	CREATE TABLE #MatchId (matchid INT, sporttype TINYINT, ResultTable TINYINT, eventdate VARCHAR(10),  betstatus NVARCHAR(100), [range] tinyint, ParentId INT, ChildMatchType TINYINT)
+	CREATE TABLE #MatchId (matchid INT, sporttype TINYINT, ResultTable TINYINT, eventdate VARCHAR(10),  betstatus NVARCHAR(100), [range] tinyint, ParentId INT, ChildMatchType TINYINT, HasAuto BIT)
 	CREATE TABLE #TempResultDetail ( MatchId INT, ManualCalculated INT , ManualRefunded INT, AutoCal INT, AutoRefund INT )
 	CREATE TABLE #ResultTableSetting ( sporttype SMALLINT, ResultTable TINYINT )
 	CREATE TABLE #MatchIdAuto (matchid INT )
@@ -175,8 +176,8 @@ GO
 
 	END
 
-	INSERT INTO #MatchId (matchid, sporttype, ResultTable, eventdate, betstatus, [range], ParentId, ChildMatchType)
-	SELECT DISTINCT m.matchid, m.sporttype, ISNULL(ss.ResultTable,0), m.eventdate, m.betstatus, m.[range], m.ParentId, m.ChildMatchType
+	INSERT INTO #MatchId (matchid, sporttype, ResultTable, eventdate, betstatus, [range], ParentId, ChildMatchType, HasAuto)
+	SELECT DISTINCT m.matchid, m.sporttype, ISNULL(ss.ResultTable,0), m.eventdate, m.betstatus, m.[range], m.ParentId, m.ChildMatchType, CASE WHEN ISNULL(ss.AP_Group,0) > 1 AND ISNULL(ss.AP_Group,0) <> 1000 THEN 1 ELSE 0 END
 	FROM #TempMatchInfo m
 		LEFT JOIN #ResultTableSetting ss ON m.sporttype = ss.sporttype
 
@@ -449,7 +450,8 @@ GO
 	INSERT INTO @tmpAuto(MatchId)
 	SELECT DISTINCT  MatchId
 	FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
-	WHERE (p.sporttype = 47 OR (p.sporttype = 18 AND p.starttime <'2024-08-01'))
+	INNER JOIN #MatchId m ON p.MatchId = m.matchid
+	WHERE (m.HasAuto = 1 AND m.ResultTable = 0 OR (p.sporttype = 18 AND p.starttime <'2024-08-01'))
 		AND p.starttime between @fromDate and @toDate
 		AND p.IsAuto = 1
 	
