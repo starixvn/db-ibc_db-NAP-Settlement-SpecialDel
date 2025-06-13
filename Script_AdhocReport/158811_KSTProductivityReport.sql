@@ -37,8 +37,8 @@ GO
 */
 
 
-	DECLARE @fromDate DATETIME = '2024-08-01'
-			,@toDate  DATETIME = '2024-08-31 23:59:59'
+	DECLARE @fromDate DATETIME = '2025-06-01'
+			,@toDate  DATETIME = '2025-06-13 23:59:59'
 			
 			,@MovebetDate SMALLDATETIME
 			,@BUDate SMALLDATETIME
@@ -60,6 +60,7 @@ GO
 	IF OBJECT_ID ('tempdb..#MatchIdAuto' ) IS NOT NULL		DROP TABLE #MatchIdAuto
 	IF OBJECT_ID ('tempdb..#ResultTableSetting' ) IS NOT NULL		DROP TABLE #ResultTableSetting
 	IF OBJECT_ID ('tempdb..#ResultTableSetting' ) IS NOT NULL		DROP TABLE #tmpResourceTableTennis
+	IF OBJECT_ID ('tempdb..#tmpResourceTableTennis' ) IS NOT NULL		DROP TABLE #tmpResourceTableTennis
 
 	CREATE TABLE #TempMatchInfo (
 		matchid INT, eventdate VARCHAR(10), sporttype TINYINT, SportName NVARCHAR(100)
@@ -69,13 +70,13 @@ GO
 
 	CREATE TABLE #MatchId (matchid INT, sporttype TINYINT, ResultTable TINYINT, eventdate VARCHAR(10),  betstatus NVARCHAR(100), [range] tinyint, ParentId INT, ChildMatchType TINYINT, HasAuto BIT)
 	CREATE TABLE #TempResultDetail ( MatchId INT, ManualCalculated INT , ManualRefunded INT, AutoCal INT, AutoRefund INT )
-	CREATE TABLE #ResultTableSetting ( sporttype SMALLINT, ResultTable TINYINT )
+	CREATE TABLE #ResultTableSetting ( sporttype SMALLINT, ResultTable TINYINT, HasAuto BIT  )
 	CREATE TABLE #MatchIdAuto (matchid INT )
 	CREATE TABLE #tmpResourceTableTennis (MatchId INT, ResourceId VARCHAR(20), SettlementStatusId TINYINT, LastModifyBy INT, ParentId INT, ChildMatchType TINYINT)
 
 ------------------------------------------------------------------------------------------------------------------
-	INSERT INTO #ResultTableSetting ( sporttype, ResultTable)
-	SELECT r.sporttype, r.ResultTable
+	INSERT INTO #ResultTableSetting ( sporttype, ResultTable, HasAuto)
+	SELECT r.sporttype, r.ResultTable, CASE WHEN ISNULL(r.AP_Group,0) > 1 AND ISNULL(r.AP_Group,0) <> 1000 THEN 1 ELSE 0 END
 	FROM DBPRO.bodb02.dbo.SettlementResultTableSetting r WITH(NOLOCK)
 	WHERE ResultTable > 0 ---- 0: match  1:ResultDetail  2:ResultDetailOS  3:ResultDetailES
 
@@ -177,7 +178,7 @@ GO
 	END
 
 	INSERT INTO #MatchId (matchid, sporttype, ResultTable, eventdate, betstatus, [range], ParentId, ChildMatchType, HasAuto)
-	SELECT DISTINCT m.matchid, m.sporttype, ISNULL(ss.ResultTable,0), m.eventdate, m.betstatus, m.[range], m.ParentId, m.ChildMatchType, CASE WHEN ISNULL(ss.AP_Group,0) > 1 AND ISNULL(ss.AP_Group,0) <> 1000 THEN 1 ELSE 0 END
+	SELECT DISTINCT m.matchid, m.sporttype, ISNULL(ss.ResultTable,0), m.eventdate, m.betstatus, m.[range], m.ParentId, m.ChildMatchType, ss.HasAuto
 	FROM #TempMatchInfo m
 		LEFT JOIN #ResultTableSetting ss ON m.sporttype = ss.sporttype
 
@@ -448,7 +449,7 @@ GO
 	DECLARE @tmpAuto TABLE (MatchId INT)
 	
 	INSERT INTO @tmpAuto(MatchId)
-	SELECT DISTINCT  MatchId
+	SELECT DISTINCT  m.MatchId
 	FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
 	INNER JOIN #MatchId m ON p.MatchId = m.matchid
 	WHERE (m.HasAuto = 1 AND m.ResultTable = 0 OR (p.sporttype = 18 AND p.starttime <'2024-08-01'))
