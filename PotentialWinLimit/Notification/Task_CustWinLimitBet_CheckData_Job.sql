@@ -68,7 +68,7 @@ BEGIN
 		WAITFOR DELAY '00:00:03.000'
 
 		INSERT INTO #Result_tmp (Transid, Currency, issueType)
-		SELECT TOP (@batch) b.transid, b.currency, CASE WHEN c.Transid IS NULL THEN 1 
+		SELECT TOP (@batch) b.transid, b.currency, CASE WHEN c.Transid IS NULL AND  b.refno = 100000000000 THEN 1 
 														WHEN c.Transid IS NOT NULL AND  b.refno <> 100000000000 THEN 4 
 														ELSE 2 END AS issueType
 		FROM dbo.bettrans b  WITH (NOLOCK)
@@ -80,7 +80,7 @@ BEGIN
 			LEFT JOIN dbo.CustWinLimitBet_History c WITH (NOLOCK) ON b.TransId = c.Transid AND b.custid = c.custid AND c.ActionType = 0
 		WHERE  b.Transid > @lastTransid AND b.Transid <= @MaxTransId
 		   AND b.bettype NOT IN (29,38) 
-		   AND (c.Transid IS NULL
+		   AND (	(c.Transid IS NULL AND b.refno = 100000000000)
 				OR (ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake <> c.AdjToWin)
 				OR (c.Transid IS NOT NULL AND  b.refno <> 100000000000)
 				)
