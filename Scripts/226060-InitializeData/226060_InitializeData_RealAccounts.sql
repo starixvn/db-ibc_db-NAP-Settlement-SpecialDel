@@ -27,7 +27,7 @@ FROM bettrans b WITH (NOLOCK)
 	INNER JOIN CUSTDB.dbo.vw_Customer c with (nolock) on b.custid = c.custid
 	CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
 										WHERE m.bettype = b.bettype 
-										AND m.SportType < 99
+										AND m.SportType <= 99
 								) AS chk
 WHERE transid <= @maxTransid AND b.bettype NOT IN (29,38)
 	AND c.site NOT IN ('Special','Hedging')
@@ -74,7 +74,7 @@ BEGIN
 						FROM bettrans b WITH (NOLOCK)
 							CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
 										WHERE m.bettype = b.bettype 
-										AND m.SportType < 99
+										AND m.SportType <= 99
 								) AS chk
 						WHERE b.custid = r.CustID AND b.statusID IN (0,1) AND b.bettype NOT IN (29,38) 
 							AND b.TransId <= @maxTransid
@@ -92,7 +92,7 @@ BEGIN
 						FROM bettrans b WITH (NOLOCK)
 							CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
 										WHERE m.bettype = b.bettype 
-										AND m.SportType < 99
+										AND m.SportType <= 99
 								) AS chk
 						WHERE b.custid = r.CustID AND b.statusID IN (0,1) AND b.bettype NOT IN (29,38)
 							AND b.TransId <= @maxTransid
