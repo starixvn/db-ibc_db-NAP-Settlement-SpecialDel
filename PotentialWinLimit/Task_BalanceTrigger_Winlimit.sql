@@ -68,7 +68,7 @@ BEGIN
 		-- sportsbook only
 		CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
 					WHERE m.bettype = b.bettype 
-						AND m.SportType < 99
+						AND m.SportType <= 99
 						) AS bt
 		OUTER APPLY (SELECT TOP 1 AdjToWin AS running_ToWin, Sporttype, bettype-- get ToWin of running and also check missing to insert history
 					FROM CustWinLimitBet_History c WITH (NOLOCK) 
