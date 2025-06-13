@@ -39,7 +39,7 @@ BEGIN
 	DECLARE  @RecoverTicketInfoXML  XML = NULL
 			,@TransIds				VARCHAR(MAX) = NULL
 			,@ProductIds			VARCHAR(50) = NULL
-			,@FilterBy				TINYINT = NULL -- (NULL: sing & mix parlay, 3: subparlay)
+			,@FilterBy				TINYINT = NULL -- (NULL: sing & mix parlay, 1: subparlay)
 			,@SubIssueTypeId		TINYINT = NULL
 			,@MatchId				INT = NULL
 
@@ -110,7 +110,7 @@ BEGIN
 		END
 		ELSE 
 		BEGIN
-			SET @OldTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
+			SET @OldTransIds = STUFF((SELECT  ',' + CAST (MainTransId AS VARCHAR (50))
 									  FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 									  WHERE RequestId = @RequestId
 									  FOR XML PATH ('')),1,1,'')
@@ -134,14 +134,13 @@ BEGIN
 		
 	IF EXISTS ( SELECT TOP 1 1 FROM  #tmpMatch WHERE IsOutright = 0 AND IsMoved14 = 0) --match & subparlay
 	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, Sporttype, FilterBy)
+		INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, Sporttype)
 		SELECT @RequestId
 				, t.MatchId 
 				, ISNULL(m.leagueid, 0) 
 				, ISNULL(m.homeid, 0) 
 				, ISNULL(m.awayid, 0) 
 				, m.sporttype
-				, CASE WHEN @FilterBy IS NOT NULL THEN @FilterBy ELSE NULL END -- 1: Recover subparlay, NULL:  Recover single & main parlay
 		FROM #tmpMatch t
 			INNER JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid 
 		WHERE t.IsOutright = 0 AND t.IsMoved14 = 0

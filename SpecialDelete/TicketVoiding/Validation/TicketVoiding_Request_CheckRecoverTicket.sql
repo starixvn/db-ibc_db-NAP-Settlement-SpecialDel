@@ -250,7 +250,7 @@ BEGIN
 				,bm.bettype
 				,b.betid
 				,b.betdaqid
-				,b.betfrom
+				,bm.betfrom
 				,b.betteam
 				,bm.statusID
 				,bm.winlostdate AS SubWinlostdate
@@ -268,7 +268,7 @@ BEGIN
 				ON bm.matchid = tm.MatchId
 		WHERE b.bettype = 29
 			AND bm.statusID = 102
-			AND b.betfrom <> 'p'
+			AND bm.betfrom <> 'p'
 	END
 	
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #validTransId)
