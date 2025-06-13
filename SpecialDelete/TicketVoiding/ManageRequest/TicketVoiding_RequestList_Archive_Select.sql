@@ -64,6 +64,7 @@ AS
 		- 20250422@July: Manage Request - Show requestid for case retry [Redmine: #224848]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
+		- 20250613@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 
 	Param's explanation:	
 		@Status: 
@@ -224,11 +225,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId IN (13,17,22) THEN 0 ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN 0 ELSE rd.MatchId END
 				,CASE WHEN r.IssueTypeId IN (13,17,22) THEN 0 ELSE rd.Sporttype END
-				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId IN (3,19,21,23,12,24,25,18,27) THEN NULL ELSE rd.TransIds END
@@ -289,11 +290,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId IN (13,17,22) THEN 0 ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN 0 ELSE rd.MatchId END
 				,CASE WHEN r.IssueTypeId IN (13,17,22) THEN 0 ELSE rd.Sporttype END
-				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId IN (3,19,21,23,12,24,25,18,27) THEN NULL ELSE rd.TransIds END
@@ -358,11 +359,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId IN (13,17,22) THEN 0 ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN 0 ELSE rd.MatchId END
 				,CASE WHEN r.IssueTypeId IN (13,17,22) THEN 0 ELSE rd.Sporttype END
-				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId IN (13,17,22) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy IS NOT NULL) OR (r.IssueTypeId IN (22) AND rd.FilterBy IS NULL) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,t.eventdate
 				,CASE WHEN r.IssueTypeId IN (3,19,21,23,12,24,25,18,27) THEN NULL ELSE rd.TransIds END
