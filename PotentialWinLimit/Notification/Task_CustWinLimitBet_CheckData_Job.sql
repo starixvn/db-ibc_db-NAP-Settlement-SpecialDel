@@ -70,7 +70,7 @@ BEGIN
 		INSERT INTO #Result_tmp (Transid, Currency, issueType)
 		SELECT TOP (@batch) b.transid, b.currency, CASE WHEN c.Transid IS NULL AND  b.refno = 100000000000 THEN 1 
 														WHEN c.Transid IS NOT NULL AND  b.refno <> 100000000000 THEN 4 
-														WHEN b.refno <> 100000000000 THEN 5
+														WHEN bm.refno IS NULL AND b.refno <> 100000000000 THEN 5
 														ELSE 2 END AS issueType
 		FROM dbo.bettrans b  WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON b.custid = v.custid
@@ -79,12 +79,13 @@ BEGIN
 									AND m.SportType < 99
 									) AS chk
 			LEFT JOIN dbo.CustWinLimitBet_History c WITH (NOLOCK) ON b.TransId = c.Transid AND b.custid = c.custid AND c.ActionType = 0
+			LEFT JOIN dbo.bettransm bm WITH (NOLOCK) ON b.refno = bm.refno
 		WHERE  b.Transid > @lastTransid AND b.Transid <= @MaxTransId
 		   AND b.bettype NOT IN (29,38) 
 		   AND (	(c.Transid IS NULL AND b.refno = 100000000000)
 				OR (ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake <> c.AdjToWin)
 				OR (c.Transid IS NOT NULL AND  b.refno <> 100000000000)
-				OR (b.refno <> 100000000000 )
+				OR (bm.refno IS NULL AND b.refno <> 100000000000 )
 				)
 			AND v.site NOT IN ('Special','Hedging')
 
