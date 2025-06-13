@@ -70,6 +70,7 @@ BEGIN
 		INSERT INTO #Result_tmp (Transid, Currency, issueType)
 		SELECT TOP (@batch) b.transid, b.currency, CASE WHEN c.Transid IS NULL AND  b.refno = 100000000000 THEN 1 
 														WHEN c.Transid IS NOT NULL AND  b.refno <> 100000000000 THEN 4 
+														WHEN b.refno <> 100000000000 THEN 5
 														ELSE 2 END AS issueType
 		FROM dbo.bettrans b  WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON b.custid = v.custid
@@ -83,6 +84,7 @@ BEGIN
 		   AND (	(c.Transid IS NULL AND b.refno = 100000000000)
 				OR (ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake <> c.AdjToWin)
 				OR (c.Transid IS NOT NULL AND  b.refno <> 100000000000)
+				OR (b.refno <> 100000000000 )
 				)
 			AND v.site NOT IN ('Special','Hedging')
 
@@ -156,7 +158,7 @@ BEGIN
 
 		END
 
-		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp WHERE issueType IN (3,4))
+		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp WHERE issueType IN (3,4,5))
 		BEGIN
 			SET @transIds = ''
 			SET @UUStransIds = '' 
@@ -165,24 +167,24 @@ BEGIN
 			FROM(
 				SELECT DISTINCT b.transId
 				FROM #Result_tmp b 
-				WHERE b.Currency <> 20 AND b.issueType IN (3,4)
+				WHERE b.Currency <> 20 AND b.issueType IN (3,4,5)
 			) AS tmp
 
 			SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 			FROM(
 				SELECT DISTINCT b.transId
 				FROM #Result_tmp b 
-				WHERE b.Currency = 20 AND b.issueType IN (3,4)
+				WHERE b.Currency = 20 AND b.issueType IN (3,4,5)
 			) AS tmp
 			
 			IF ISNULL(@transIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 OR parlay lucky for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 OR parlay lucky OR wrong Refno for real currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 			END
 
 			IF ISNULL(@UUStransIds,'') <> ''
 			BEGIN
-				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 OR parlay lucky for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+				SET @ErrorMessage = @ErrorMessage + '1.3. CustWinLimitBet_History table have bettype IN (29,38) OR Sporttype >=99 OR parlay lucky OR wrong Refno for UUS currency. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 			END
 
 		END
