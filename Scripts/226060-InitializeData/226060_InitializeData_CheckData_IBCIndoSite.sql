@@ -15,6 +15,7 @@ INSERT INTO #CustList (custid)
 SELECT DISTINCT b.custid
 FROM bettrans b WITH (NOLOCK)
 	INNER JOIN CUSTDB.dbo.vw_Customer c WITH (NOLOCK) on b.custid = c.custid
+	INNER JOIN CUSTDB.dbo.CustPotentialWinLimit po WITH (NOLOCK) ON b.custid = po.CustID AND po.PotentialWinLimit > 0 
 	CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK)
 										WHERE m.bettype = b.bettype
 										AND m.SportType <= 99
