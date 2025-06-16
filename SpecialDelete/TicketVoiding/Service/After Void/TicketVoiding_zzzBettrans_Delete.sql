@@ -171,6 +171,47 @@ BEGIN
 			END
 			DELETE FROM @tmpTransInfo
 		END
+		
+		DELETE zm
+			OUTPUT deleted.matchid, deleted.transid
+			INTO @tmpTransInfo (MatchId, TransId)
+		FROM dbo.zzzbettransm AS zm WITH (ROWLOCK, UPDLOCK)
+		INNER JOIN @tmp_TransId AS t 
+			ON zm.transid = t.TransId
+		WHERE zm.SiteDBGroupID = @SiteDBGroupId
+
+		IF @SiteDBGroupId <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			DELETE @tmpMatchidInfo
+			
+			INSERT INTO @tmpMatchidInfo (MatchId)
+			SELECT DISTINCT matchid
+			FROM @tmpTransInfo
+
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP (1) p 
+				SET p.IsFinish = 1, @MatchId = p.MatchId
+				FROM @tmpMatchidInfo AS p
+				WHERE p.IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK
+
+				SET @TransInfo = COMPRESS((
+				SELECT	matchid AS 'mid'
+					  , transId AS 't'
+				FROM	@tmpTransInfo
+				WHERE matchid = @MatchId
+				FOR JSON PATH))
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'RecoverSubParlay', 'zzzbettransm', 'D', @matchid, @TransInfo, 'p' 
+
+				SET @TransInfo = NULL
+			END
+
+			DELETE FROM @tmpTransInfo
+		END
 		RETURN;
 	END
 END		
