@@ -43,10 +43,11 @@ WHERE  h.actiontype = 100 AND h.RepUpdateTime >= '2025-06-13 00:04:00' AND H.Rep
 GROUP BY custid
 HAVING COUNT(1) >= 2
 UNION
-SELECT DISTINCT h.custid
-FROM CustWinLimitBet_History h WITH (NOLOCK)	
-	INNER JOIN bettrans b with (nolock) on h.transid =  b.transid and refno > 100000000000
-WHERE  actiontype = 0  
+SELECT DISTINCT custid
+FROM bettrans b with (nolock)
+WHERE  b.refno > 100000000000 and transdate  <= '2025-06-12 03:00:00'
+	AND (SettlementTime IS NULL OR  SettlementTime >= '2025-06-12 03:00:00')
+	AND bettype not in (29,38)
 
 ------ info for deployer
 DECLARE @StartRow INT 
