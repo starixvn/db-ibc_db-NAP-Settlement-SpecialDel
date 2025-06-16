@@ -36,12 +36,17 @@ WHERE c.site NOT IN ('Special','Hedging')
 					WHERE h.custid = c.custid AND h.actiontype = 100
 					AND  h.RepUpdateTime >= '2025-06-13 00:04:00' AND H.RepUpdateTime <= '2025-06-13 00:10:00'
 					)
-UNION ALL
+UNION 
 SELECT custid
 FROM CustWinLimitBet_History h WITH (NOLOCK) 
 WHERE  h.actiontype = 100 AND h.RepUpdateTime >= '2025-06-13 00:04:00' AND H.RepUpdateTime <= '2025-06-13 00:15:00' 
 GROUP BY custid
 HAVING COUNT(1) >= 2
+UNION
+SELECT DISTINCT h.custid
+FROM CustWinLimitBet_History h WITH (NOLOCK)	
+	INNER JOIN bettrans b with (nolock) on h.transid =  b.transid and refno > 100000000000
+WHERE  actiontype = 0  
 
 ------ info for deployer
 DECLARE @StartRow INT 
