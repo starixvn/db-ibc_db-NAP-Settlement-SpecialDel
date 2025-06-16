@@ -9,6 +9,7 @@ AS
     Revisions:
 		- 20250602@July: Create new SP - [Redmine: #226514]
 		- 20250612@Helen: Modify SP to exclude parlay lucky - [Redmine: #226514]
+		- 20250616@July: Modify SP Check for missing data reset record in table CustWinLimitBet_History - [Redmine: #226514]
 
 	Param's explanation:		
 */
@@ -394,11 +395,11 @@ BEGIN
 	DECLARE @Today		DATETIME 
 		   ,@Nextday    DATETIME
 
+	SET @Today = CAST(GETDATE() AS DATE)
+	SET @Nextday = DATEADD(DAY, 1, @Today)
+
 	IF @CurrentTime >= '03:59:00' AND @CurrentTime < '04:20:00' --Maximum call 2 times because job interval 10 minute
 	BEGIN
-		SET @Today = CAST(GETDATE() AS DATE)
-		SET @Nextday = DATEADD(DAY, 1, @Today)
-
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
 		TRUNCATE TABLE #Result_tmp
@@ -643,6 +644,55 @@ BEGIN
 	UPDATE c SET c.VValue =  CONVERT(VARCHAR(50), @MaxRepUpdateTime, 21)
 	FROM dbo.systemsettings c WITH (ROWLOCK, UPDLOCK)
 	WHERE c.VName = 'CustWinLimitBet_LastRepUpdateTime'
+
+	-----------------------------------------------------6 Check for missing data reset record in table CustWinLimitBet_History ---------------------------------------------------------
+	
+	IF @CurrentTime >= '00:00:00' AND @CurrentTime < '00:10:00' --(Expect Call for 00:05p) => Maximum call 1 times because job interval 10 minute
+	BEGIN
+		SET @CustIds = ''
+		SET @UUSCustIds = ''
+
+		TRUNCATE TABLE #CustIdList_tmp 
+
+		INSERT INTO #CustIdList_tmp( CustID, Currency)
+		SELECT TOP (@batch) c.CustID, v.currency
+		FROM CustDB.dbo.CustPotentialWinLimit c WITH (NOLOCK)
+			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON c.custid = v.custid
+		WHERE c.IsAutoReset = 1 AND c.PotentialWinLimit > 0
+			AND v.site NOT IN ('Special','Hedging')
+			AND NOT EXISTS (SELECT TOP 1 1 
+							FROM dbo.CustWinLimitBet_History h WITH (NOLOCK) 
+							WHERE h.CustID = c.CustID AND ActionType = 100
+							AND h.RepUpdateTime >= @Today and h.RepUpdateTime < @Nextday
+							)
+		ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
+		              WHEN v.Currency IN (20) THEN 2
+					  ELSE 0 END ASC 
+
+		SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+		FROM (
+			SELECT custid
+			FROM #CustIdList_tmp
+			WHERE Currency <> 20
+			)t
+
+		SELECT @UUSCustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+		FROM (
+			SELECT custid
+			FROM #CustIdList_tmp
+			WHERE Currency = 20
+			)t
+
+		IF ISNULL(@CustIds,'') <> ''
+		BEGIN
+			SET @ErrorMessage = @ErrorMessage + '6. Check for missing data reset record in table CustWinLimitBet_History. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @CustIds + @CRLF
+		END
+
+		IF ISNULL(@UUSCustIds,'') <> ''
+		BEGIN
+			SET @ErrorMessage = @ErrorMessage + '6. Check for missing data reset record in table CustWinLimitBet_History. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
+		END
+	END
 
 	DROP TABLE #Result_tmp
 	DROP TABLE #CustIdList_tmp
