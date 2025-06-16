@@ -160,7 +160,7 @@ BEGIN
 	END
 
 	SELECT  t.RequestId			
-		   ,CASE WHEN t.IssueTypeId IN (13,17,22) AND (t.IssueTypeId = 22 AND s.RequestId IS NULL) THEN NULL ELSE t.matchid END AS matchid
+		   ,CASE WHEN t.IssueTypeId IN (13,17) OR (t.IssueTypeId = 22 AND s.RequestId IS NULL) THEN 0 ELSE t.matchid END AS matchid
 		   ,t.RequestDetailId 
 		   ,TotalSingleProcessed	
 		   ,TotalParlayProcessed	
