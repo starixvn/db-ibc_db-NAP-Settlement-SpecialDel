@@ -75,7 +75,7 @@ AS;
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
-		- 20250606@Lani: [TVS] Remove unused code [Redmine: #225845]
+		- 20250606@Lani: [TVS] Remove unused code and return column SecAcceptFlag [Redmine: #225845]
 
 	Param's Explanation:
 
@@ -153,7 +153,8 @@ BEGIN
 			  ActualStake			MONEY,
 			  eventdate				DATETIME,
 			  EndTime				DATETIME, --support Bitcoin
-			  VendorMatchId			VARCHAR(50)
+			  VendorMatchId			VARCHAR(50),
+			  SecAcceptFlag			BIT
              );
    
 	INSERT INTO @bettype_tmp (bettype)
@@ -226,6 +227,7 @@ BEGIN
 			,BonusID
 			,IsMarked
 			,ActualStake
+			,SecAcceptFlag
 		)
 		SELECT	
 			b.transid AS GroupId
@@ -274,6 +276,7 @@ BEGIN
 			,b.BonusID
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 			,b.actual_stake AS ActualStake
+			,b.SecAcceptFlag
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
 				ON b.transid = temp.transid
@@ -540,6 +543,7 @@ BEGIN
 		,d.EndTime 
 		,@SiteDBGroupID AS SiteDBGroupID
 		,VendorMatchId
+		,d.SecAcceptFlag
 	FROM #SpecialDeleteBets d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.custid = c.custid
