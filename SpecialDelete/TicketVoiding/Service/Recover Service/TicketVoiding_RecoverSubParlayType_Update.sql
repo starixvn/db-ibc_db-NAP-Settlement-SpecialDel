@@ -90,7 +90,6 @@ BEGIN
 	
 	DECLARE @tblTransIds TABLE (Transid BIGINT PRIMARY KEY)
 	DECLARE @tblSettledBeforeRecoveredMainTicket TABLE (TransId	BIGINT)
-	DECLARE @tmpMatchId TABLE (MatchId INT, MatchDate DATETIME, IsFinish BIT)
 	DECLARE @tmpBoostSite TABLE (SiteId INT, Srecommend INT, IsDeposit BIT DEFAULT(0))
 	DECLARE @tmpBoostSetting TABLE (SiteId INT, OverOdds DECIMAL(9,4), Boost TINYINT)
 	DECLARE @tmpTransIdBatch TABLE (TransId BIGINT)
@@ -116,13 +115,6 @@ BEGIN
 	FROM dbo.match WITH (NOLOCK)
 	WHERE matchid = @MatchId
 
-	INSERT INTO  @tmpMatchId (MatchId, MatchDate)
-	SELECT matchid, eventdate
-	FROM dbo.match WITH (NOLOCK)
-	WHERE 1 = CASE WHEN @Sporttype NOT IN (50,8) AND matchid = @MatchId THEN 1
-				   WHEN @Sporttype IN (50,8) AND ((matchid = @MatchId) OR (ParentID = @MatchId AND ChildMatchType = 200)) THEN 1
-				   ELSE 0 END
-
 	IF @MatchDate <= @MoveBetDate
 	BEGIN
 		SELECT @ErrCode = 99, @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try search again.'
@@ -139,7 +131,7 @@ BEGIN
 	FROM @tblTransIds AS t
 	INNER JOIN bettransm AS bm ON t.Transid = t.Transid
 	WHERE bm.statusID = 102
-		AND bm.matchid IN (SELECT matchid FROM @tmpMatchId)
+		AND bm.matchid = @MatchId
 		AND bm.SiteDBGroupID = @SiteDBGroupId
 
 	SET @TotalSubParlay = @@ROWCOUNT
@@ -224,7 +216,7 @@ BEGIN
 		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON t.Transid = bm.TransId AND bm.SiteDBGroupID = @SiteDBGroupId
 		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND bm.SiteDBGroupID = b.SiteDBGroupID
 		INNER JOIN dbo.match AS m WITH (NOLOCK) ON m.matchid = bm.matchid
-		WHERE bm.matchid IN (SELECT matchid FROM @tmpMatchId)
+		WHERE bm.matchid = @MatchId
 			AND b.bettype = 29
 			AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 			AND bm.statusID = 102
@@ -296,116 +288,106 @@ BEGIN
 
 		--RECOVER
 		--For BettransM
-		WHILE (1=1)
+		WHILE (1 = 1)
 		BEGIN
-			UPDATE TOP (1) p
-			SET p.IsFinish = 1, @MatchId = p.MatchId, @MatchDate = p.MatchDate
-			FROM @tmpMatchId AS p
-			WHERE p.IsFinish IS NULL
+			DELETE @tmpTransIdBatch
+			SET @SubTransIds = ''
+
+			UPDATE TOP (@RecoverPatchSize) t
+			SET t.IsFinish = 1
+				OUTPUT deleted.TransId
+				INTO @tmpTransIdBatch(TransId)
+			FROM #tblRecoverBet AS t
+			WHERE t.IsFinish IS NULL AND t.MatchId = @MatchId
 
 			IF @@ROWCOUNT = 0 BREAK
 
-			WHILE (1 = 1)
-			BEGIN
-				DELETE @tmpTransIdBatch
-				SET @SubTransIds = ''
+			SELECT @SubTransIds = @SubTransIds + CONVERT(VARCHAR(50),TransId) + ','
+			FROM @tmpTransIdBatch
 
-				UPDATE TOP (@RecoverPatchSize) t
-				SET t.IsFinish = 1
-					OUTPUT deleted.TransId
-					INTO @tmpTransIdBatch(TransId)
-				FROM #tblRecoverBet AS t
-				WHERE t.IsFinish IS NULL AND t.MatchId = @MatchId
+			EXEC dbo.NAP_Admin_Calculate_MP_broker
+				@matchid = @MatchId
+				,@matchdate = @MatchDate
+				,@mode = 'RECOVER' --Update bettransm + betparlaydetail
+				,@VoidTransId = @SubTransIds
+		END
 
-				IF @@ROWCOUNT = 0 BREAK
+		SELECT @Transids_29 = @Transids_29 + CONVERT(VARCHAR(50), transid) + ','
+		FROM #tblMainTicket
+		WHERE matchid = @MatchId
 
-				SELECT @SubTransIds = @SubTransIds + CONVERT(VARCHAR(50),TransId) + ','
-				FROM @tmpTransIdBatch
+		DELETE @tmpBoostSite
+		INSERT INTO @tmpBoostSite(SiteId, Srecommend)
+		SELECT DISTINCT t.SiteID, t.sRecommend
+		FROM #tblMainTicket AS t
+		WHERE t.Bettype = 29
+			AND MatchId = @MatchId
+			AND t.Betteam = '1' --mix parlay
+			AND t.Oddsspread = 2 --offer parlay bonus
+			AND NOT EXISTS (SELECT TOP 1 1
+							FROM dbo.bettransm AS bm WITH (NOLOCK)
+							WHERE t.refno = bm.refno
+								AND ((ISNULL(bm.statuswinlost,0) = 4 AND bm.statusID = 113) OR bm.statusID = 0)
+							)--lose/running
 
-				EXEC dbo.NAP_Admin_Calculate_MP_broker
-					@matchid = @MatchId
-					,@matchdate = @MatchDate
-					,@mode = 'RECOVER' --Update bettransm + betparlaydetail
-					,@VoidTransId = @SubTransIds
-			END
+		UPDATE si
+		SET IsDeposit = 1
+		FROM @tmpBoostSite si
+		INNER JOIN CustDB.dbo.Dep_CustSuper d WITH (NOLOCK) ON si.Srecommend = d.custid
 
-			SELECT @Transids_29 = @Transids_29 + CONVERT(VARCHAR(50), transid) + ','
-			FROM #tblMainTicket
-			WHERE matchid = @MatchId
-
-			DELETE @tmpBoostSite
-			INSERT INTO @tmpBoostSite(SiteId, Srecommend)
-			SELECT DISTINCT t.SiteID, t.sRecommend
-			FROM #tblMainTicket AS t
-			WHERE t.Bettype = 29
-				AND MatchId = @MatchId
-				AND t.Betteam = '1' --mix parlay
-				AND t.Oddsspread = 2 --offer parlay bonus
-				AND NOT EXISTS (SELECT TOP 1 1
-								FROM dbo.bettransm AS bm WITH (NOLOCK)
-								WHERE t.refno = bm.refno
-									AND ((ISNULL(bm.statuswinlost,0) = 4 AND bm.statusID = 113) OR bm.statusID = 0)
-								)--lose/running
-
-			UPDATE si
-			SET IsDeposit = 1
-			FROM @tmpBoostSite si
-			INNER JOIN CustDB.dbo.Dep_CustSuper d WITH (NOLOCK) ON si.Srecommend = d.custid
-
-			SET @SqlOpenqueryCommand = ''
-			SET @SqlOpenqueryCommand = 'SELECT SiteId, OverOdds, Boost FROM OPENQUERY(DBPRO,''SELECT SiteId, OverOdds, Boost FROM bodb02.dbo.ParlayOddsBoostSetting p WITH(NOLOCK) WHERE p.SiteId IN ('
-									+ (SELECT  STRING_AGG(CAST(s.SiteID AS VARCHAR(MAX)),',') 
+		SET @SqlOpenqueryCommand = ''
+		SET @SqlOpenqueryCommand = 'SELECT SiteId, OverOdds, Boost FROM OPENQUERY(DBPRO,''SELECT SiteId, OverOdds, Boost FROM bodb02.dbo.ParlayOddsBoostSetting p WITH(NOLOCK) WHERE p.SiteId IN ('
+								+ (SELECT  STRING_AGG(CAST(s.SiteID AS VARCHAR(MAX)),',') 
+									FROM (
+										SELECT SiteId
 										FROM (
 											SELECT SiteId
-											FROM (
-												SELECT SiteId
-												FROM @tmpBoostSite t
-												UNION
-												SELECT -1
-												UNION 
-												SELECT -2
-											) t
-											GROUP BY t.SiteID
-										) s 
-									)
-							+ ')'')'
+											FROM @tmpBoostSite t
+											UNION
+											SELECT -1
+											UNION 
+											SELECT -2
+										) t
+										GROUP BY t.SiteID
+									) s 
+								)
+						+ ')'')'
 
-			DELETE @tmpBoostSetting
-			INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)
-			EXEC(@SqlOpenqueryCommand)
+		DELETE @tmpBoostSetting
+		INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)
+		EXEC(@SqlOpenqueryCommand)
 
-			SET @StrSetting = ''
-			SELECT @strSetting = CAST((
-				SELECT	si.SiteId AS 's'
-						,(SELECT t.OverOdds AS 'o', t.Boost AS 'b' -- get its own settings
-							FROM (SELECT se.SiteId, se.OverOdds, se.Boost
-								FROM	@tmpBoostSetting se
-								WHERE	EXISTS (SELECT TOP 1 1 FROM	@tmpBoostSite si WHERE se.SiteId = si.SiteId)
-								UNION
-								SELECT	si.SiteId, se.OverOdds, se.Boost -- If the site ID does not have its own settings, the default value will be taken on default SiteId (-1 if it's credit, -2 if it's licensee)
-								FROM	@tmpBoostSite si
-									CROSS APPLY (
-										SELECT	se.OverOdds, se.Boost
-										FROM	@tmpBoostSetting se
-										WHERE	se.SiteId = CASE WHEN si.IsDeposit = 1 THEN -2 ELSE -1 END
-									) se
-								WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @tmpBoostSetting se WHERE si.SiteId = se.SiteId)
-							) t
-						WHERE si.SiteId = t.SiteId
-						FOR JSON AUTO
-						) AS v
-				FROM	@tmpBoostSite si
-				FOR JSON AUTO
-			) AS VARCHAR(MAX))
+		SET @StrSetting = ''
+		SELECT @strSetting = CAST((
+			SELECT	si.SiteId AS 's'
+					,(SELECT t.OverOdds AS 'o', t.Boost AS 'b' -- get its own settings
+						FROM (SELECT se.SiteId, se.OverOdds, se.Boost
+							FROM	@tmpBoostSetting se
+							WHERE	EXISTS (SELECT TOP 1 1 FROM	@tmpBoostSite si WHERE se.SiteId = si.SiteId)
+							UNION
+							SELECT	si.SiteId, se.OverOdds, se.Boost -- If the site ID does not have its own settings, the default value will be taken on default SiteId (-1 if it's credit, -2 if it's licensee)
+							FROM	@tmpBoostSite si
+								CROSS APPLY (
+									SELECT	se.OverOdds, se.Boost
+									FROM	@tmpBoostSetting se
+									WHERE	se.SiteId = CASE WHEN si.IsDeposit = 1 THEN -2 ELSE -1 END
+								) se
+							WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @tmpBoostSetting se WHERE si.SiteId = se.SiteId)
+						) t
+					WHERE si.SiteId = t.SiteId
+					FOR JSON AUTO
+					) AS v
+			FROM	@tmpBoostSite si
+			FOR JSON AUTO
+		) AS VARCHAR(MAX))
 
-			--Call pre-cal: betparlaydetail/betparlayresult
-			EXEC dbo.NAP_Admin_Calculate_MP_Broker
-				@matchid	 = @MatchId
-				,@matchdate  = @MatchDate
-				,@strXML	 = @Transids_29
-				,@mode		 = 'PRECAL-29'
-				,@strSetting = @StrSetting
-		END
+		--Call pre-cal: betparlaydetail/betparlayresult
+		EXEC dbo.NAP_Admin_Calculate_MP_Broker
+			@matchid	 = @MatchId
+			,@matchdate  = @MatchDate
+			,@strXML	 = @Transids_29
+			,@mode		 = 'PRECAL-29'
+			,@strSetting = @StrSetting
 
 		SELECT @refnos_29 = @refnos_29 + CONVERT(VARCHAR(50),refno) + '|' + CONVERT(VARCHAR(50),transid) + ','
 		FROM #tblMainTicket
