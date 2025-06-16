@@ -34,7 +34,6 @@ BEGIN
 			,@Sporttype				SMALLINT = NULL
 			,@AvailableProcess		BIT
 			,@MoveBetDate			DATETIME
-			,@TransInfo				VARBINARY(MAX) = NULL
 			,@SettledMainTranIds	VARCHAR(MAX) = NULL
 			,@SiteDBGroupId			SMALLINT = 0
 			,@StrSetting			VARCHAR(MAX)
@@ -89,13 +88,6 @@ BEGIN
 	)
 	CREATE INDEX IX_RecoverBet ON #tblRecoverBet (refno)
 	
-	
-	DECLARE @tmpTransInfo TABLE (
-			MatchId			INT
-			,TransId		BIGINT
-			,TransDate		DATETIME
-			,Comstatus		NVARCHAR(40)
-	)
 	DECLARE @tblTransIds TABLE (Transid BIGINT PRIMARY KEY)
 	DECLARE @tblSettledBeforeRecoveredMainTicket TABLE (TransId	BIGINT)
 	DECLARE @tmpMatchId TABLE (MatchId INT, MatchDate DATETIME, IsFinish BIT)
@@ -462,48 +454,6 @@ BEGIN
 			EXEC dbo.Dot_BalancePendingDebitIns
 				@BalancePending = @tblDebitPending
 			   ,@Type			= 1 --sports
-
-		DELETE zm
-			OUTPUT deleted.matchid, deleted.transid
-			INTO @tmpTransInfo (MatchId, TransId)
-		FROM dbo.zzzbettransm AS zm WITH (ROWLOCK, UPDLOCK)
-		INNER JOIN #tblRecoverBet AS t 
-			ON zm.custid = t.CustId
-			AND zm.matchid = t.MatchId
-			AND zm.transid = t.TransId
-		WHERE zm.SiteDBGroupID = @SiteDBGroupId
-
-		IF @SiteDBGroupId <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
-		BEGIN
-			DELETE @tmpMatchId 
-			INSERT INTO @tmpMatchId (MatchId)
-			SELECT DISTINCT matchid
-			FROM @tmpTransInfo
-
-			WHILE (1=1)
-			BEGIN
-				UPDATE TOP (1) p 
-				SET p.IsFinish = 1, @MatchId = p.MatchId
-				FROM @tmpMatchId AS p
-				WHERE p.IsFinish IS NULL
-
-				IF @@ROWCOUNT = 0 BREAK
-
-				SET @TransInfo = COMPRESS((
-				SELECT	matchid AS 'mid'
-					  , transId AS 't'
-				FROM	@tmpTransInfo
-				WHERE matchid = @MatchId
-				FOR JSON PATH))
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-				SELECT 'TVS', 'RecoverSubParlay', 'zzzbettransm', 'D', @matchid, @TransInfo, 'p' 
-
-				SET @TransInfo = NULL
-			END
-
-			DELETE FROM @tmpTransInfo
-		END
 
 		--Build list of changed status main transids that corresponding match needs to re-settle
 		IF @EventStatus = 'completed'

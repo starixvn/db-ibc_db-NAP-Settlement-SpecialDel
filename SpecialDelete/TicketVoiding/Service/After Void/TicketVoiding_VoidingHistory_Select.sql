@@ -12,6 +12,7 @@ AS
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20241223@July: [TVS] Support case after void steps are completed, except send email/Letstalk failed & user manually  [Redmine: #213398]
+		- 20250616@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 
 	Param's explanation:	
 	
@@ -22,6 +23,7 @@ BEGIN
 	DECLARE  @xmlVoidData		XML
 			,@VoidingHistoryId  INT
 			,@SingleTransIds	VARCHAR(MAX) = NULL
+			,@SubParlayTransIds	VARCHAR(MAX) = NULL
 			,@BroadcastSessionId VARCHAR(100)
 			,@IssueTypeId		TINYINT
 
@@ -86,6 +88,12 @@ BEGIN
 	BEGIN
 		SET @SingleTransIds =  STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
 									  FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
+										INNER JOIN #tmpVoidingHistory vh ON s.RequestId = vh.RequestId
+									  WHERE s.IssueTypeId = 22
+									  FOR XML PATH ('')),1,1,'')
+
+		SET @SubParlayTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
+									  FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH(NOLOCK)
 										INNER JOIN #tmpVoidingHistory vh ON s.RequestId = vh.RequestId
 									  WHERE s.IssueTypeId = 22
 									  FOR XML PATH ('')),1,1,'')
@@ -171,6 +179,7 @@ BEGIN
 		,TotalTicket
 		,IsRunAutoAfterVoid
 		,@SingleTransIds AS SingleTransIds
+		,@SubParlayTransIds AS SubParlayTransIds
 	FROM #tmpVoidData
 
 	DROP TABLE #tmpVoidingHistory
