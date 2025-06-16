@@ -60,7 +60,7 @@ BEGIN
 	SELECT @LastRepUpdateTime = CAST(VValue AS DATETIME2(7))
 	FROM dbo.systemsettings WITH (NOLOCK) WHERE VName = 'CustWinLimitBet_LastRepUpdateTime'
 	
-	SET @MaxRepUpdateTime = SYSDATETIME() 
+	SET @MaxRepUpdateTime = DATEADD(SECOND,-30,SYSDATETIME()) --back 30s
 
 	-----------------------------------------------------1 Check for missing data in CustWinLimitBet_History ---------------------------------------------------------
 	BEGIN
@@ -622,22 +622,45 @@ BEGIN
 		BEGIN
 			SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
 			FROM #Result_tmp
-			WHERE Currency <> 20
+			WHERE Currency <> 20 AND diff_ToWin >0 
 
 			SELECT @UUSCustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
 			FROM #Result_tmp
-			WHERE Currency = 20
+			WHERE Currency = 20 AND diff_ToWin >0 
+
+			IF ISNULL(@CustIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for real currency (diff_ToWin >0). RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
+			END
+
+			IF ISNULL(@UUSCustIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency (diff_ToWin >0). RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
+			END
+
+			SET @CustIds = ''
+			SET @UUSCustIds = ''
+
+			SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+			FROM #Result_tmp
+			WHERE Currency <> 20 AND diff_WinLoss >0 
+
+			SELECT @UUSCustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+			FROM #Result_tmp
+			WHERE Currency = 20 AND diff_WinLoss >0 
+
+			IF ISNULL(@CustIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for real currency (diff_WinLoss >0). RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
+			END
+
+			IF ISNULL(@UUSCustIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency (diff_WinLoss >0). RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
+			END
 		END
 
-		IF ISNULL(@CustIds,'') <> ''
-		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for real currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
-		END
-
-		IF ISNULL(@UUSCustIds,'') <> ''
-		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
-		END
+		
 	END
 		
 	--Update value config
