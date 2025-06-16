@@ -48,6 +48,7 @@ BEGIN
 	CREATE TABLE #tmpResult (
 		 RequestId					 INT
 		,MatchId					 INT
+		,FilterBy					 TINYINT
 		,RequestDetailId			 INT	
 		,TransIds					 VARCHAR(MAX)
 		,LastVoidedBy				 INT
@@ -60,13 +61,14 @@ BEGIN
 	
 	SELECT @IssueTypeId = IssueTypeId FROM dbo.TicketVoiding_Request WITH (NOLOCK) WHERE RequestId = @RequestId
 
-	INSERT INTO #tmpResult(RequestId, VoidingHistoryId, LastVoidedBy, MatchId, RequestDetailId, TransIds)
+	INSERT INTO #tmpResult(RequestId, VoidingHistoryId, LastVoidedBy, MatchId, RequestDetailId, TransIds, FilterBy)
 	SELECT DISTINCT rd.RequestId
 			,vh.VoidingHistoryId
 			,vh.UserId
 			,@MatchId
 			,ISNULL(@RequestDetailId,0) AS RequestDetailId
 			,vh.TransIds
+			,rd.FilterBy
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH (NOLOCK) ON rd.RequestId = vh.RequestId	
 		INNER JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
@@ -162,10 +164,7 @@ BEGIN
 		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT, MainTransId BIGINT)
 		DECLARE @FilterBy TINYINT 
 
-		SET @FilterBy = (SELECT TOP 1 rd.FilterBy 
-						FROM TicketVoiding_RequestDetail AS rd WITH (NOLOCK)
-						INNER JOIN TicketVoiding_Request AS r WITH (NOLOCK) ON rd.RequestId = r.RequestId
-						WHERE r.IssueTypeId IN (22) AND r.RequestId = @RequestId)
+		SET @FilterBy = (SELECT TOP 1 FilterBy FROM #tmpResult)
 
 		IF (@FilterBy IS NULL) --single and main parlay
 		BEGIN
