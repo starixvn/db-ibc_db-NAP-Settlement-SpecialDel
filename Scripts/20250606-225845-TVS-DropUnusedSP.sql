@@ -7,5 +7,22 @@
 */
 USE bodb02
 
-DROP PROCEDURE dbo.NAP_CustomerSelInfoByUsername
-GO
+DECLARE @Command VARCHAR(MAX)
+DECLARE @TmpDropObjectsName TABLE (Command VARCHAR(MAX), IsDrop BIT)
+INSERT INTO @TmpDropObjectsName (Command)
+SELECT 'DROP PROCEDURE ' + name
+ FROM dbo.sysobjects
+ WHERE (type = 'P')
+ AND (
+	name LIKE 'NAP_CustomerSelInfoByUsername%'
+)
+SELECT * FROM @tmpDropObjectsName
+WHILE (1=1)
+BEGIN
+	UPDATE TOP (1) @tmpDropObjectsName
+	SET @Command = Command, IsDrop = 1
+	WHERE IsDrop IS NULL
+	IF @@ROWCOUNT = 0 BREAK;
+	
+	EXEC (@Command)
+END
