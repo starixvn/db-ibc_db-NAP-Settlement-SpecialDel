@@ -61,7 +61,7 @@ BEGIN
 	   ,statusId		INT
 	   ,ValidationType	TINYINT
 	)
-	CREATE INDEX IX_ValidationType ON #Tickets_Result (ValidationType)
+	CREATE INDEX IX_ValidationType ON #Ticket_Result (ValidationType)
 	
 	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT, ValidationType TINYINT)
 	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT, ValidationType TINYINT) --main parlay
@@ -179,7 +179,7 @@ BEGIN
 	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #ParlayTickets --Parlay
 
 	INSERT INTO #Ticket_Result(TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
-	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #ParlayTickets --Sub Parlay
+	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #SubParlayTickets --Sub Parlay
 
 	INSERT INTO #Ticket_Result(TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
 	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #SingleTickets WHERE TicketType = 4 --Cricket
@@ -209,6 +209,7 @@ BEGIN
 	DROP TABLE #SubParlayTickets
 	DROP TABLE #SingleTickets_14
 	DROP TABLE #ParlayTickets_14
+	DROP TABLE #Ticket_Result
 END		
 GO
 
