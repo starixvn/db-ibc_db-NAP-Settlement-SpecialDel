@@ -97,12 +97,12 @@ BEGIN
 	INSERT INTO #transIdTemp (transid, TicketType) --single & main parlay
 	SELECT TransId, 1
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS rs  WITH (NOLOCK)
-	WHERE RequestId = @RequestId AND IsProcessed IS NOT NULL
+	WHERE RequestId = @RequestId AND IsProcessed IS NOT NULL AND SiteDBGroupID = @SiteDBGroupID
 
 	INSERT INTO #transIdTemp (transid, TicketType) --single & main parlay
 	SELECT TransId, 2
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS rsp  WITH (NOLOCK)
-	WHERE RequestId = @RequestId AND IsProcessed IS NOT NULL
+	WHERE RequestId = @RequestId AND IsProcessed IS NOT NULL AND SiteDBGroupID = @SiteDBGroupID
 
 	--Search single tickets (active & archive 14)
 	BEGIN
