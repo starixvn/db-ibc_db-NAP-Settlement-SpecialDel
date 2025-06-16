@@ -41,8 +41,6 @@ BEGIN
 			,@xmlVoidResults	XML = NULL
 			,@NegativeBalanceUsers VARCHAR(MAX) = ''
 			,@VoidingHistoryIds VARCHAR(MAX) = ''
-			,@SingleTransIds	VARCHAR(MAX) = ''
-			,@SubParlayTransIds VARCHAR(MAX) = ''
 			,@IssueTypeId INT
 
 	CREATE TABLE #tmpMatch 
@@ -137,19 +135,6 @@ BEGIN
 		AND (rd.Id = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
 
 	SELECT @IssueTypeId = (SELECT TOP 1 IssueTypeId FROM #tmpMatch)
-
-	IF @IssuetypeId = 22 --Recover Ticket
-	BEGIN
-		SET @SingleTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR(50)) -- For single & main parlay ticket
-									FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
-									WHERE RequestId = @RequestId
-									FOR XML PATH ('')),1,1,'')
-
-		SET @SubParlayTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR(50)) -- For subparlay ticket
-									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
-									WHERE RequestId = @RequestId
-									FOR XML PATH ('')),1,1,'')
-	END
 
     INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy, TransIds) 
 	SELECT	 vh.RequestId
@@ -272,8 +257,6 @@ BEGIN
 		,v.Username AS RequestedBy
 		,@NegativeBalanceUsers AS NegativeBalanceUsers
 		,@VoidingHistoryIds AS VoidingHistoryIds
-		,@SingleTransIds AS SingleTransIds
-		,@SubParlayTransIds AS SubParlayTransIds
 		,t.RecoveredTime
 		,t.Sporttype
 		,t.VendorMatchId

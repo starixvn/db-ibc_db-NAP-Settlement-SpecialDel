@@ -1,8 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RecoveredTicket_Select]
 ( 
-	@SingleTransIds VARCHAR(MAX) =''
-   ,@SubParlayTransIds VARCHAR(MAX) = ''
+	@RequestId INT
 )
 AS;
 /*	
@@ -112,14 +111,14 @@ BEGIN
 	) 
 
 	INSERT INTO #transIdTemp (transid, TicketType)
-	SELECT DISTINCT value, 1
-	FROM STRING_SPLIT(@SingleTransIds, ',')
-	WHERE value <> ''
+	SELECT TransId, 1
+	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single  WITH (NOLOCK)
+	WHERE RequestId = @RequestId AND IsProcessed IS NOT NULL
 
 	INSERT INTO #transIdTemp (transid, TicketType)
-	SELECT DISTINCT value, 2
-	FROM STRING_SPLIT(@SubParlayTransIds, ',')
-	WHERE value <> ''
+	SELECT DISTINCT TransId, 2
+	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay  WITH (NOLOCK)
+	WHERE RequestId = @RequestId AND IsProcessed IS NOT NULL
 
 	--Search single tickets (active & archive 14)
 	BEGIN
