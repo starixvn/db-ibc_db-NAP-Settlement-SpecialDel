@@ -193,7 +193,7 @@ BEGIN
 		FROM	#tmpResult t
 		CROSS APPLY (SELECT 
 						SUM(CASE WHEN f.bettype IS NULL AND s.MainTransId IS NULL THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						,SUM(CASE WHEN (f.bettype IS NOT NULL AND s.MainTransId IS NULL) OR (f.Bettype IS NULL AND s.MainTransId IS NOT NULL) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						,SUM(CASE WHEN f.bettype IS NOT NULL OR s.MainTransId IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
 						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
 					FROM @tmp_TransId s
 						LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.bettype = s.MatchId
