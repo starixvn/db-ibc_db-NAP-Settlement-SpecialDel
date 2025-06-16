@@ -266,6 +266,7 @@ BEGIN
 			,AP_RetryTime
 			,GameType
 			,IsAppliedSOP
+			,APGroup
 		)
 		SELECT	 m.matchid
 				,m.ParentID
@@ -301,6 +302,7 @@ BEGIN
 				,s.AP_RetryTime
 				,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
 				,s.IsAppliedSOP
+				,s.APGroup
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -361,6 +363,7 @@ BEGIN
 			,AP_RetryTime
 			,GameType
 			,IsAppliedSOP
+			,APGroup
 		)
 		SELECT	 m.matchid
 				,m.ParentID
@@ -396,6 +399,7 @@ BEGIN
 				,s.AP_RetryTime
 				,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
 				,s.IsAppliedSOP
+				,s.APGroup
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes s
 				ON m.sporttype = s.Sporttype
