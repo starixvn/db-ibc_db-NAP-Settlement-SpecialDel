@@ -121,16 +121,16 @@ BEGIN
 									
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchVoidingHistory WHERE IssueTypeId = 22)
 	BEGIN
-		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT)
+		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT, MainTransId BIGINT)
 
-		INSERT INTO @tmp_TransId(RequestId, TransId, MatchId, IsProcessed)
-		SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed
+		INSERT INTO @tmp_TransId(RequestId, TransId, MatchId, IsProcessed, MainTransId)
+		SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed, NULL
 		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN #tmpResult t ON t.RequestId = s.Requestid
 		WHERE s.IsProcessed IS NOT NULL AND s.IssueTypeId = 22
 			AND s.SiteDBGroupID = @SiteDBGroupID
 		UNION 
-		SELECT t.RequestId, sp.TransId, sp.MatchId, sp.IsProcessed
+		SELECT t.RequestId, sp.TransId, sp.MatchId, sp.IsProcessed, MainTransId
 		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH (NOLOCK)
 			INNER JOIN #tmpResult t ON t.RequestId =  sp.RequestId
 		WHERE sp.IsProcessed IS NOT NULL
@@ -148,11 +148,10 @@ BEGIN
 			,TotalResettleProcessed= ISNULL(rt.TotalResettleProcessed,0) 
 		FROM	#tmpResult t
 		CROSS APPLY (SELECT 
-						SUM(CASE WHEN f.bettype IS NULL AND sp.RequestId IS NULL THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						,SUM(CASE WHEN f.bettype IS NOT NULL OR sp.RequestId IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						SUM(CASE WHEN f.bettype IS NULL AND s.MainTransId IS NULL THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						,SUM(CASE WHEN f.bettype IS NOT NULL OR s.MainTransId IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
 						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
 					FROM @tmp_TransId s
-						LEFT JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS sp WITH (NOLOCK) ON sp.RequestId = s.RequestId AND sp.SiteDBGroupID = @SiteDBGroupID
 						LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.Bettype = s.MatchId
 					WHERE s.RequestId = t.RequestId
 				)rt	
@@ -160,18 +159,13 @@ BEGIN
 	END
 
 	SELECT  t.RequestId			
-		   ,CASE WHEN t.IssueTypeId IN (13,17) OR (t.IssueTypeId = 22 AND s.RequestId IS NULL) THEN 0 ELSE t.matchid END AS matchid
+		   ,CASE WHEN IssueTypeId IN (13,17) OR (IssueTypeId = 22 AND MatchId = 0) THEN NULL ELSE matchid END AS matchid
 		   ,t.RequestDetailId 
 		   ,TotalSingleProcessed	
 		   ,TotalParlayProcessed	
 		   ,TotalCancelCashOutProcessed
 		   ,TotalResettleProcessed
 	FROM #tmpResult AS t
-	OUTER APPLY (
-		SELECT TOP 1 RequestId
-		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS sp WITH (NOLOCK)
-		WHERE sp.RequestId = t.RequestId AND sp.SiteDBGroupID = @SiteDBGroupID
-	) s
 
 	DROP TABLE #tmpResult
 	DROP TABLE #tmpMatchVoidingHistory
