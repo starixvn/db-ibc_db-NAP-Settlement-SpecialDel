@@ -85,7 +85,7 @@ BEGIN
 		IF @@ROWCOUNT = 0
 			BREAK
 
-		UPDATE s SET s.IsProcessed = CASE WHEN t.ValidationType IN (2,4,6,22,26) THEN 2 ELSE 1 END --2:Mark resettled ticket, 1: Mark processed ticket
+		UPDATE s SET s.IsProcessed = CASE WHEN t.ValidationType IN (2,4,6,22,24,28) THEN 2 ELSE 1 END --2:Mark resettled ticket, 1: Mark processed ticket
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransIdBatch t ON t.Id = s.Id
 
@@ -107,7 +107,7 @@ BEGIN
 		IF @@ROWCOUNT = 0
 			BREAK
 
-		UPDATE s SET s.IsProcessed = CASE WHEN t.ValidationType IN (24) THEN 2 ELSE 1 END
+		UPDATE s SET s.IsProcessed = CASE WHEN t.ValidationType IN (26) THEN 2 ELSE 1 END
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransIdBatch t ON t.id = s.Id
 
