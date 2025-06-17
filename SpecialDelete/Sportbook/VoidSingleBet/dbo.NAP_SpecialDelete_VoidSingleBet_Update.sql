@@ -144,6 +144,7 @@ AS
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' columns, serverAlias [Redmine: #213451]
 		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
 		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -189,6 +190,7 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			NVARCHAR(MAX)
 			,@SB_Error			BIT
+			,@ActionID			INT = 200 --Void/Recover
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90512
@@ -299,6 +301,8 @@ BEGIN
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
+
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT, betid BIGINT)	
 
@@ -1913,15 +1917,47 @@ BEGIN
 		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets)
 		GROUP BY b.CustID
 
+		INSERT INTO #Balance (custid, balance, Increased)
+		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+		FROM #BeforeUpd b
+			INNER JOIN #AfterUpd a ON b.custid = a.custid
+		WHERE b.balance <> a.balance
+
 		SET @NegativeBalanceUsers = ''
 		SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), b.custid)
-		FROM #BeforeUpd b
-			 INNER JOIN	#AfterUpd a ON a.custid = b.custid
-		WHERE b.balance > a.balance
+		FROM #Balance b
+		WHERE Increased = 0
 		
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+
+		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative]
+					   ([ExecDate]
+					   ,[MatchID]
+					   ,[ActionID]
+					   ,[GroupID]
+					   ,[CustID]
+					   ,[Balance]
+					   ,[StatusID]
+					   ,[SessionId]
+					   ,[Remark])
+			SELECT	 GETDATE()
+					,@MatchId
+					,@ActionID
+					,0		-- For Void/Recover
+					,CustID
+					,Balance
+					,0
+					,NEWID()
+					,@spName
+			FROM	#Balance WITH (NOLOCK)
+			WHERE	Increased = 0
+		END		        
+		DROP TABLE #Balance
 
 		-- Update CashOutSelling [#165097]
 		UPDATE c
