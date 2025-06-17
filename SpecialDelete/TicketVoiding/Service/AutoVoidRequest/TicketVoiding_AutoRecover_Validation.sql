@@ -18,15 +18,12 @@ AS
 		- 20250605@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 
 	Param's explanation:
-		SingleRecover : 21 --single/mainparlay
-		SingleReSettle : 22 --single/mainparlay
-		ParlayRecover: 23 --sub
-		ParlayReSettle: 24 --sub
-		CricketRecover: 25
-		CricketReSettle: 26
-		CancelCO: 27 (For future use)
-		Single_14Recover: 28 --single/mainparlay
-		-- Parlay_14Recover: 29 (For future use)
+		ValidationType => 21, 22 (recover + resettle)
+		ValidationType => 23,24 (recover + resettle main)
+		ValidationType => 25, 26 (recover + resettle sub)
+		ValidationType => 27, 28 (recover + resettle)
+		ValidationType => 29 (resettle)
+		ValidationType => 30 (resettle)
 */
 BEGIN
 	SET NOCOUNT ON
@@ -109,8 +106,8 @@ BEGIN
 			,b.statusID
 			,CASE WHEN TicketType = 1 AND b.statuswinlost IS NULL THEN 21
 		          WHEN TicketType = 1 AND b.statuswinlost IS NOT NULL THEN 22
-				  WHEN TicketType = 4 AND b.statuswinlost IS NULL THEN 25
-				  WHEN TicketType = 4 AND b.statuswinlost IS NOT NULL THEN 26
+				  WHEN TicketType = 4 AND b.statuswinlost IS NULL THEN 27
+				  WHEN TicketType = 4 AND b.statuswinlost IS NOT NULL THEN 28
 				  ELSE 27 END  AS ValidationType 
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
@@ -124,7 +121,7 @@ BEGIN
 			,b.transdate
 			,b.winlostdate
 			,b.statusID
-			,CASE WHEN b.statuswinlost IS NOT NULL THEN 22 ELSE 21 END AS ValidationType
+			,CASE WHEN b.statuswinlost IS NOT NULL THEN 24 ELSE 23 END AS ValidationType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.TicketType = 2
@@ -137,7 +134,7 @@ BEGIN
 			  ,bm.transdate
 			  ,bm.winlostdate
 			  ,bm.statusID
-			  ,CASE WHEN bm.statuswinlost IS NOT NULL THEN 24 ELSE 23 END AS ValidationType
+			  ,CASE WHEN bm.statuswinlost IS NOT NULL THEN 26 ELSE 25 END AS ValidationType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 		WHERE t.TicketType = 2
@@ -153,7 +150,7 @@ BEGIN
 				,b.transdate
 				,b.winlostdate
 				,b.statusID
-				,28 AS ValidationType
+				,29 AS ValidationType
 			FROM #tmpInputTransId t
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 
@@ -165,7 +162,7 @@ BEGIN
 				,b.transdate
 				,b.winlostdate
 				,b.statusID
-				,28 AS ValidationType
+				,30 AS ValidationType
 			FROM #tmpInputTransId t
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		END
