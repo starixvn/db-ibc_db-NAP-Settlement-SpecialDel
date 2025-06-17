@@ -670,7 +670,7 @@ BEGIN
 
 	-----------------------------------------------------6 Check for missing data reset record in table CustWinLimitBet_History ---------------------------------------------------------
 	
-	IF @CurrentTime >= '00:00:00' AND @CurrentTime < '00:10:00' --(Expect Call for 00:05p) => Maximum call 1 times because job interval 10 minute
+	IF @CurrentTime >= '00:10:00' AND @CurrentTime < '00:20:00' --Maximum call 1 times because job interval 10 minute
 	BEGIN
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
@@ -708,12 +708,12 @@ BEGIN
 
 		IF ISNULL(@CustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '6. Check for missing data reset record in table CustWinLimitBet_History. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @CustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '6. Check missing data reset record in table CustWinLimitBet_History for real currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @CustIds + @CRLF
 		END
 
 		IF ISNULL(@UUSCustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '6. Check for missing data reset record in table CustWinLimitBet_History. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '6. Check missing data reset record in table CustWinLimitBet_History for UUS currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
 		END
 	END
 
