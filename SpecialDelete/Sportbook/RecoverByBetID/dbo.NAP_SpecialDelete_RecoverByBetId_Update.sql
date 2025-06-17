@@ -26,6 +26,7 @@ AS
 		- 20230921@Max: [TVS] Recover Virtual Sports Bet and Recover By Bet ID - Update more info when calling SP from Settlement site [Redmine: #194269]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's Explanation:	
 */
@@ -37,6 +38,8 @@ BEGIN
 	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
 			, @SubmittedDate DATETIME = GETDATE()
 			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+			, @ActionID	INT = 200 --Void/Recover
+
 	SET @ID =  NEWID()
 	BEGIN TRY
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
@@ -148,6 +151,8 @@ BEGIN
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsMatch3rd	BIT DEFAULT(0), IsFinish BIT)
 	DECLARE @BeforeRecover 	TVP_BalanceChange,
 			@AfterRecover 	TVP_BalanceChange;
+	
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
 
 	DECLARE @avaiableProcess	  BIT ,
 			@isITAdmin			  BIT = 0,
@@ -504,6 +509,39 @@ BEGIN
 
 	--Insert balance pending
 	EXEC [dbo].[NAP_Admin_BalancePendingIns] @BeforeUpd = @BeforeRecover, @AfterUpd = @AfterRecover;
+
+	INSERT INTO #Balance (custid, balance, Increased)
+	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	FROM @BeforeRecover b
+		INNER JOIN @AfterRecover a ON b.custid = a.custid
+	WHERE b.balance <> a.balance
+
+	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+					([ExecDate]
+					,[MatchID]
+					,[ActionID]
+					,[GroupID]
+					,[CustID]
+					,[Balance]
+					,[StatusID]
+					,[SessionId]
+					,[Remark])
+		SELECT	 GETDATE()
+				,0 --For case input multiple tickets across multiple matches
+				,@ActionID
+				,0		-- For Void/Recover
+				,CustID
+				,Balance
+				,0
+				,NEWID()
+				,@spName
+		FROM	#Balance WITH (NOLOCK)
+		WHERE	Increased = 0
+	END		        
+	DROP TABLE #Balance
 
 	--Delete recovers tickets
 	DELETE z 

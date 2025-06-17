@@ -116,6 +116,7 @@ AS
 	  - 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 	  - 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 	  - 20250606@Lani: [TVS] Remove unused code [Redmine: #225845]
+	  - 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	 Param's Explanation:   
 */
@@ -127,6 +128,7 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			NVARCHAR(MAX)
 			,@SB_Error			BIT
+			,@ActionID			INT = 200 --Void/Recover
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90513
@@ -273,6 +275,7 @@ BEGIN
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT, betid BIGINT)	
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
 
 	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
 	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, bonusId INT, WalletType TINYINT, status VARCHAR(20))
@@ -1148,6 +1151,39 @@ BEGIN
 		DROP TABLE #balanceGameChange
 	END  
 	
+	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+	INSERT INTO #Balance (custid, balance, Increased)
+	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	FROM @BeforeUpd b
+		INNER JOIN @AfterUpd a ON b.custid = a.custid
+	WHERE b.balance <> a.balance
+
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+					([ExecDate]
+					,[MatchID]
+					,[ActionID]
+					,[GroupID]
+					,[CustID]
+					,[Balance]
+					,[StatusID]
+					,[SessionId]
+					,[Remark])
+		SELECT	 GETDATE()
+				,0 --For case input multiple tickets across multiple matches
+				,@ActionID
+				,0		-- For Void/Recover
+				,CustID
+				,Balance
+				,0
+				,NEWID()
+				,@spName
+		FROM	#Balance WITH (NOLOCK)
+		WHERE	Increased = 0
+	END		        
+	DROP TABLE #Balance
+
 	------ releasing SD process
 	--CleanUP:
 	IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
