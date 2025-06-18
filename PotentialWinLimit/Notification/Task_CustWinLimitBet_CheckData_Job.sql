@@ -641,7 +641,7 @@ BEGIN
 									AND b.refno = 100000000000
 								GROUP BY b.custid
 								) AS r
-			WHERE (t.diff_ToWin = (r.ToWin - lm.AccumToWin)) OR (t.diff_WinLoss = (r.WinLoss - lm.AccumWinLoss))
+			WHERE (t.diff_ToWin = (r.ToWin - lm.AccumToWin)) AND (t.diff_WinLoss = (r.WinLoss - lm.AccumWinLoss))
 		END
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmp_RetryRule)
@@ -751,14 +751,18 @@ BEGIN
 
 	-----------------------------------------------------7 Check error in table CustWinLimitBet_Errors ---------------------------------------------------------
 	BEGIN
-		SET @ErrorMessage = '7. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check error in table CustWinLimitBet_Errors. ' + @CRLF
-
-		SET @ErrorMessage += STUFF(( SELECT @CRLF + ErrName +': '+ STRING_AGG(ExtraInfo, ',') 
+		DECLARE @Errors VARCHAR(MAX) = ''
+		SET @Errors = STUFF(( SELECT @CRLF + ErrName +': '+ STRING_AGG(ExtraInfo, ',') 
 									FROM dbo.CustWinLimitBet_Errors WITH (NOLOCK)
 									WHERE CreatedDate > @LastRepUpdateTime
 									GROUP BY ErrName 
 								 FOR XML PATH(''), TYPE  
 							).value('.', 'NVARCHAR(MAX)'), 1, LEN(@CRLF), '');
+
+		IF ISNULL(@Errors,'') <> ''
+		BEGIN
+			SET @ErrorMessage = @ErrorMessage + '7. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check error in table CustWinLimitBet_Errors. ' + @CRLF + @Errors
+		END
 
 	END
 
