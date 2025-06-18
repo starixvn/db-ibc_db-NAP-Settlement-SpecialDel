@@ -12,7 +12,7 @@ AS
 		- 20240925@Max: Exclude recover issuetype [Redmine: #186029]
 		- 20250108@July: Filter range date send Letstalk [Redmine: #213398]
 		- 20250129@Max: Update range date send Letstalk [Redmine: #213398]
-		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services [Redmine: #224490]
+		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services [Redmine: #224490] 
 
 	Param's explanation:	
 		Note table: TicketVoiding_Letstalk - Only support data within 2 months
