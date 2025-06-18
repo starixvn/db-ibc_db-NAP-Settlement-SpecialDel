@@ -137,7 +137,7 @@ BEGIN
 	INSERT INTO #tblMatchParlayProcess(MatchId, RefNo)
 	SELECT bm.matchid, bm.refno
 	FROM @tblTransIds AS t
-	INNER JOIN bettransm AS bm ON t.Transid = t.Transid
+	INNER JOIN bettransm AS bm ON bm.Transid = t.Transid
 	WHERE bm.statusID = 102
 		AND bm.matchid IN (SELECT matchid FROM @tmpMatchId)
 		AND bm.SiteDBGroupID = @SiteDBGroupId
