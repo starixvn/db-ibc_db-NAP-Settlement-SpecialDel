@@ -252,7 +252,7 @@ BEGIN
 		   ,b.custid
 		   ,b.balance
 		   ,b.ruben
-		   ,b.matchid
+		   ,t.matchid
 		   ,b.srecommend
 		   ,b.betteam
 		   ,b.oddsspread
