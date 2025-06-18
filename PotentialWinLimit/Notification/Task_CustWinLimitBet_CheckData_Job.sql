@@ -766,6 +766,7 @@ BEGIN
 		SELECT TOP (@batch) c.CustID, v.currency
 		FROM CustDB.dbo.CustPotentialWinLimit c WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON c.custid = v.custid
+			INNER JOIN dbo.CustWinLimitBet w WITH (NOLOCK) ON c.custid = w.custid
 		WHERE c.IsAutoReset = 1 AND c.PotentialWinLimit > 0
 			AND v.site NOT IN ('Special','Hedging')
 			AND NOT EXISTS (SELECT TOP 1 1 
