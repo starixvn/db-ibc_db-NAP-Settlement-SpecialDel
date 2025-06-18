@@ -509,7 +509,7 @@ BEGIN
 										AND b.refno = 100000000000
 									GROUP BY b.custid
 									) AS r
-				WHERE (t.diff_ToWin = (r.ToWin - c.AccumToWin)) OR (t.diff_WinLoss = (r.WinLoss - c.AccumWinLoss))
+				WHERE (t.diff_ToWin = (r.ToWin - c.AccumToWin)) AND (t.diff_WinLoss = (r.WinLoss - c.AccumWinLoss))
 			
 				IF @StopRow = @MaxRow BREAK
 
