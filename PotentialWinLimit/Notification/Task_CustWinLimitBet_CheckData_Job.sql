@@ -807,12 +807,12 @@ BEGIN
 	BEGIN
 		SET @ErrorMessage = '7. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check error table in table CustWinLimitBet_Errors. ' + @CRLF
 
-		SET @ErrorMessage = @ErrorMessage 
-						+ STUFF(( SELECT @CRLF + ErrName +': '+ STRING_AGG(ExtraInfo, ',') 
+		SET @ErrorMessage += STUFF(( SELECT @CRLF + ErrName +': '+ STRING_AGG(ExtraInfo, ',') 
 									FROM dbo.CustWinLimitBet_Errors WITH (NOLOCK)
-									WHERE CreatedDate > @LastRepUpdateTime
+									--WHERE CreatedDate > @LastRepUpdateTime
 									GROUP BY ErrName 
-								FOR XML PATH ('')),1,1,'')
+								 FOR XML PATH(''), TYPE  
+							).value('.', 'NVARCHAR(MAX)'), 1, LEN(@CRLF), '');
 
 	END
 
