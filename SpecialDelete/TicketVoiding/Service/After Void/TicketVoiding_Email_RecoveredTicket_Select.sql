@@ -389,7 +389,7 @@ BEGIN
 				,modds
 			)
 			SELECT b.matchid
-				,bm.TransId
+				,b.TransId
 				,bm.transid AS SubTransID
 				,b.custid
 				,b.transdate
@@ -617,16 +617,20 @@ BEGIN
 	FROM #TVSTicketBets t
 	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = t.srecommend)
 
-	SELECT  t.TransId    
+	SELECT  t.TransId   
+		   ,t.SubTransId 
 		   ,t.MatchId
-		   ,t.UserName
+		   ,c.username
+		   ,c.username2
 		   ,t.Odds     
 		   ,t.OddsType
 		   ,t.TransDate     
 		   ,t.Bettype    
 		   ,t.BetTeam    
 		   ,t.hdp1     
-		   ,t.hdp2    
+		   ,t.hdp2 
+		   ,t.subhdp1
+		   ,t.subhdp2  
 		   ,t.livehomescore    
 		   ,t.liveawayscore  
 		   ,t.Stake     
@@ -659,8 +663,23 @@ BEGIN
 		   ,t.IsCashOut 
 		   ,CASE WHEN t.IsCashOut = 0 AND t.eventstatus = 'completed' THEN 1 ELSE 0 END AS IsSettled
 		   ,t.CurrencyName
+		   ,c.currency
 		   ,t.modds AS MasterOdds
 		   ,t.IsDeposit
+		   ,t.matchcode
+		   ,t.showtime
+		   ,t.isNeutral
+		   ,t.stake
+		   ,t.IsMixParlay
+		   ,t.subbetcheck
+		   ,t.subOdds
+		   ,t.subbetteam
+		   ,t.subbettype
+		   ,t.SubStatus
+		   ,t.recommend
+		   ,t.Srecommend
+		   ,t.mrecommend
+		   ,t.winlostdate
 	FROM	#TVSTicketBets t
 		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.srecommend
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON t.custid = f.CustID
