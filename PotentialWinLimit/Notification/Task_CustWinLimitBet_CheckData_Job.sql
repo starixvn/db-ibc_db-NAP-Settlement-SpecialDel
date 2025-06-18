@@ -10,6 +10,7 @@ AS
 		- 20250602@July: Create new SP - [Redmine: #226514]
 		- 20250612@Helen: Modify SP to exclude parlay lucky - [Redmine: #226514]
 		- 20250616@July: Modify SP Check for missing data reset record in table CustWinLimitBet_History - [Redmine: #226514]
+		- 20250618@July: Modify SP Check error table CustWinLimitBet_Errors - [Redmine: #226514]
 
 	Param's explanation:		
 */
@@ -663,11 +664,6 @@ BEGIN
 		
 	END
 		
-	--Update value config
-	UPDATE c SET c.VValue =  CONVERT(VARCHAR(50), @MaxRepUpdateTime, 21)
-	FROM dbo.systemsettings c WITH (ROWLOCK, UPDLOCK)
-	WHERE c.VName = 'CustWinLimitBet_LastRepUpdateTime'
-
 	-----------------------------------------------------6 Check for missing data reset record in table CustWinLimitBet_History ---------------------------------------------------------
 	
 	IF @CurrentTime >= '00:10:00' AND @CurrentTime < '00:20:00' --Maximum call 1 times because job interval 10 minute
@@ -716,6 +712,48 @@ BEGIN
 			SET @ErrorMessage = @ErrorMessage + '6. Check missing data reset record in table CustWinLimitBet_History for UUS currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
 		END
 	END
+
+	-----------------------------------------------------7 Check error table in table CustWinLimitBet_Errors ---------------------------------------------------------
+	BEGIN
+		SET @CustIds = ''
+		SET @transIds = ''
+		DECLARE @tmp_CustWinLimitBet_Errors TABLE (ErrName VARCHAR(100) ,ExtraInfo VARCHAR(MAX)) 
+		
+		INSERT INTO @tmp_CustWinLimitBet_Errors (ErrName, ExtraInfo) 
+		SELECT DISTINCT ErrName, ExtraInfo
+		FROM dbo.CustWinLimitBet_Errors WITH (NOLOCK)
+		WHERE CreatedDate > @LastRepUpdateTime
+
+		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),TransId), ',') 
+		FROM (
+			SELECT ExtraInfo AS TransId
+			FROM @tmp_CustWinLimitBet_Errors
+			WHERE ErrName = 'Missing History by transid list'
+			)t
+
+		IF ISNULL(@transIds,'') <> ''
+		BEGIN
+			SET @ErrorMessage = @ErrorMessage + '7. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check table CustWinLimitBet_Errors for Missing History by transid list ' + @transIds + @CRLF
+		END
+
+		SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),CustId), ',') 
+		FROM (
+			SELECT ExtraInfo AS CustId
+			FROM @tmp_CustWinLimitBet_Errors
+			WHERE ErrName = 'Negative ToWin by custid list'
+			)t
+
+		IF ISNULL(@CustIds,'') <> ''
+		BEGIN
+			SET @ErrorMessage = @ErrorMessage + '7. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check table CustWinLimitBet_Errors for Negative ToWin by custid list ' + @CustIds + @CRLF
+		END
+
+	END
+
+	--Update value config
+	UPDATE c SET c.VValue =  CONVERT(VARCHAR(50), @MaxRepUpdateTime, 21)
+	FROM dbo.systemsettings c WITH (ROWLOCK, UPDLOCK)
+	WHERE c.VName = 'CustWinLimitBet_LastRepUpdateTime'
 
 	DROP TABLE #Result_tmp
 	DROP TABLE #CustIdList_tmp
