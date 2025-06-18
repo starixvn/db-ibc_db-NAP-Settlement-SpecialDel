@@ -47,6 +47,7 @@ BEGIN
 				,@IsMainOver						BIT = 0		
 				,@IsOver							BIT = 0			
 				,@IsCompletedWithRunningTicket		BIT = 0 
+				,@SitedbGroupID_Central				SMALLINT = 0
 
 	DECLARE @tmpQueueStatus TABLE (MatchId INT, IsCalculatingSingle TINYINT DEFAULT(0), IsCalculatingMP TINYINT DEFAULT(0))
 	CREATE TABLE #tmpMatch(MatchId INT, ParentID INT, SportType SMALLINT, EventStatus NVARCHAR(100), ChildMatchType TINYINT, SuspenderHalfTime NVARCHAR(50), SuspenderFullTime NVARCHAR(50))
@@ -145,7 +146,7 @@ BEGIN
 			FROM #tmpMarkedTransaction AS mt WITH(NOLOCK)
 			WHERE mt.TransId = b.transid
 		) mt
-	WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+	WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN @SitedbGroupID_Central ELSE b.SiteDBGroupID END
 	GROUP BY m.matchid,m.eventstatus, sp.ResourceID, sp.SettleType,m.ParentId,m.ChildMatchType,m.sporttype
 
 	INSERT INTO #tmpMatchCount(matchid, ParentId, ChildMatchType, eventstatus,sporttype, ResourceID, settleType, TotalTicket, TotalValidTicket, TotalRunningTicket, TotalWaitingTicket, TotalMarkedTicket)
@@ -163,13 +164,13 @@ BEGIN
 		  ,SUM(IIF(mt.TransId IS NOT NULL AND bm.statusid = 0, 1, 0)) AS TotalMarkedTicket
 	FROM #tmpAllParentChildMatch AS m 
 		INNER JOIN bettransm AS bm WITH(NOLOCK) ON m.matchid = bm.matchid -- WITH(NOLOCK,INDEX(IX_matchid))
-		INNER JOIN SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK) ON  sp.Sporttype = m.SportType AND sp.bettype =  bm.bettype AND (sp.BetID = 0 OR bm.betcheck = sp.BetID) 
+		INNER JOIN SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK) ON  sp.Sporttype = m.SportType AND sp.bettype =  bm.bettype AND (sp.BetID = 0 OR bm.betcheck = CAST(sp.BetID AS NVARCHAR(50))) 
 		OUTER APPLY (
 			SELECT	TOP 1 mt.transid
 			FROM #tmpMarkedTransaction AS mt WITH(NOLOCK)
 			WHERE mt.TransId = bm.transid
 		) mt
-	WHERE bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+	WHERE bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN @SitedbGroupID_Central ELSE bm.SiteDBGroupID END
 	GROUP BY m.matchid,m.eventstatus, sp.ResourceID, sp.SettleType,m.ParentId,m.ChildMatchType,m.sporttype
 
 	IF @OverStatus != '0'
