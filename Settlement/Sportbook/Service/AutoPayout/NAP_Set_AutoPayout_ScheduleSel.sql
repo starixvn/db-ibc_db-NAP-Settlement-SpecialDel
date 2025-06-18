@@ -168,12 +168,14 @@ BEGIN
 																						   END								 
 								 WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74, 108) THEN CASE WHEN f.TypeId = 2 THEN 1
 																							WHEN ss.AutoType = 8 AND f.TypeId = 1 THEN 1
+																							WHEN ISNULL(m.ChildMatchType,0) = 201 AND ss.AutoType = 8 AND f.TypeId = 1 THEN 1 --EXTRA TIME FOR SABA 3																							
 																							ELSE 0
 								  															END
-								 WHEN ISNULL(m.ChildMatchType,0) = 201 THEN CASE WHEN ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108) AND ss.AutoType = 8 AND f.TypeId IN (1,2) THEN 1 -- Child-Extra Time
-																				 WHEN ISNULL(l.LeagueGroupID,0) IN (42, 74) AND l.leagueid IN (95730,95731,96666,135822,147230,149677) AND ss.AutoType = 8 AND f.TypeId IN (1, 2) THEN 1--SABA-3
+								 WHEN ISNULL(m.ChildMatchType,0) = 201 THEN CASE WHEN ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108) THEN 1 -- Child-Extra Time
+																				 WHEN ISNULL(l.LeagueGroupID,0) IN (42, 74) AND ss.AutoType = 8 AND f.TypeId IN (1, 2) THEN 1--SABA-3
 																				 ELSE 0
 																				 END
+								 WHEN ISNULL(m.ChildMatchType,0) = 201 AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108) AND f.TypeId = 1 THEN 1 -- Child-Extra Time FOR REAL MATCH
 								 WHEN (mr.SubType BETWEEN 2101 AND 2199 OR mr.SubType BETWEEN 2601 AND 2699) THEN IIF(f.TypeId = 2,1,0)  -- Child-match Next Corner
 								 WHEN ss.AutoType = 9 THEN 0 -- Exclude Fantasy Match
 								 ELSE 1
