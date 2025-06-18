@@ -10,7 +10,7 @@ AS
 		- 20250602@July: Create new SP - [Redmine: #226514]
 		- 20250612@Helen: Modify SP to exclude parlay lucky - [Redmine: #226514]
 		- 20250616@July: Modify SP Check for missing data reset record in table CustWinLimitBet_History - [Redmine: #226514]
-		- 20250618@July: Modify SP Check error table CustWinLimitBet_Errors - [Redmine: #226514]
+		- 20250618@July: Modify SP Check error in table CustWinLimitBet_Errors - [Redmine: #226514]
 
 	Param's explanation:		
 */
@@ -557,7 +557,6 @@ BEGIN
 		TRUNCATE TABLE #Result_tmp
 		TRUNCATE TABLE #reset
 		TRUNCATE TABLE #CustIdTransidList_tmp
-		TRUNCATE TABLE #CustIdList_tmp
 		DELETE FROM @tmp_RetryRule
 
 		INSERT INTO #CustIdTransidList_tmp (transid, custid, Currency)
@@ -592,110 +591,57 @@ BEGIN
 			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.TransId 
 		WHERE b.TransId IS NULL
 
-		INSERT INTO #CustIdList_tmp (CustID, Currency)
-		SELECT DISTINCT custid, Currency 
-		FROM #CustIdTransidList_tmp
-		
-		SET @MaxRow = (SELECT MAX(ID) FROM #CustIdList_tmp)
-		SET @Threshold = 300
-
-		IF @Threshold >= @MaxRow
-			SET @Threshold = @MaxRow
-
-		-- SET for first batch
-		SELECT @StartRow = 1, @StopRow = @Threshold
-
-		WHILE (@MaxRow IS NOT NULL)
-		BEGIN
-			
-			TRUNCATE TABLE #tmp_batch
-
-			INSERT INTO #tmp_batch (custid, Currency)
-			SELECT custid, currency
-			FROM #CustIdList_tmp
-			WHERE ID BETWEEN @StartRow AND @StopRow
-
-			INSERT INTO #Result_tmp (custid, Currency, AccumToWin, AccumWinLoss, bettrans_AccumToWin, bettrans_AccumWinloss, diff_ToWin, diff_WinLoss)
-			SELECT cl.CustID, cl.currency, lm.AccumToWin, lm.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss AS bettrans_AccumWinloss
-						, r.ToWin - lm.AccumToWin AS diff_ToWin, r.WinLoss - lm.AccumWinLoss AS diff_WinLoss
-			FROM #tmp_batch  cl
-				CROSS APPLY (SELECT SUM(AdjToWin) AS AccumToWin, SUM(AdjWinloss) AS AccumWinLoss
-							FROM dbo.CustWinLimitBet_History h WITH (NOLOCK)
-								INNER JOIN #CustIdTransidList_tmp r ON h.Transid = r.transid AND h.CustID = r.custid
-							WHERE cl.CustID = h.custid
-							GROUP BY h.CustID
-							) AS lm
-				CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
-								   , SUM (CASE WHEN b.statusID NOT IN (0,1) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
-								FROM dbo.bettrans b WITH (NOLOCK)
-									INNER JOIN #CustIdTransidList_tmp r ON b.Transid = r.transid AND b.CustID = r.custid
-								WHERE b.custid = cl.CustID
-									AND b.bettype NOT IN (29, 38)
-									AND b.statusID NOT IN (101,102,103,111)
-									AND b.refno = 100000000000
-								GROUP BY b.custid
-								) AS r
-			WHERE (lm.AccumToWin <> r.ToWin OR lm.AccumWinLoss <> r.WinLoss)
-
-			IF @StopRow = @MaxRow BREAK
-
-			SET @StartRow = @StopRow + 1
-			SET @StopRow = @StopRow + @Threshold
-			IF @StopRow >= @MaxRow
-				SET @StopRow = @MaxRow
-		END
+		; WITH cte AS
+		(
+			SELECT DISTINCT custid, Currency FROM #CustIdTransidList_tmp
+		)
+		INSERT INTO #Result_tmp (custid, Currency, AccumToWin, AccumWinLoss, bettrans_AccumToWin, bettrans_AccumWinloss, diff_ToWin, diff_WinLoss)
+		SELECT cl.CustID, cl.currency, lm.AccumToWin, lm.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss AS bettrans_AccumWinloss
+					, r.ToWin - lm.AccumToWin AS diff_ToWin, r.WinLoss - lm.AccumWinLoss AS diff_WinLoss
+		FROM cte  cl
+			CROSS APPLY (SELECT SUM(AdjToWin) AS AccumToWin, SUM(AdjWinloss) AS AccumWinLoss
+						FROM dbo.CustWinLimitBet_History h WITH (NOLOCK)
+							INNER JOIN #CustIdTransidList_tmp r ON h.Transid = r.transid AND h.CustID = r.custid
+						WHERE cl.CustID = h.custid
+						GROUP BY h.CustID
+						) AS lm
+			CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
+								, SUM (CASE WHEN b.statusID NOT IN (0,1) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
+							FROM dbo.bettrans b WITH (NOLOCK)
+								INNER JOIN #CustIdTransidList_tmp r ON b.Transid = r.transid AND b.CustID = r.custid
+							WHERE b.custid = cl.CustID
+								AND b.bettype NOT IN (29, 38)
+								AND b.statusID NOT IN (101,102,103,111)
+								AND b.refno = 100000000000
+							GROUP BY b.custid
+							) AS r
+		WHERE (lm.AccumToWin <> r.ToWin OR lm.AccumWinLoss <> r.WinLoss)
 
 		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp)
 		BEGIN
 			--retry one more time for sure
 			WAITFOR DELAY '00:00:03.000'
 			
-			SET @MaxRow = (SELECT MAX(ID) FROM #Result_tmp)
-			SET @Threshold = 300
-
-			IF @Threshold >= @MaxRow
-				SET @Threshold = @MaxRow
-
-			-- SET for first batch
-			SELECT @StartRow = 1, @StopRow = @Threshold
-
-			WHILE (@MaxRow IS NOT NULL)
-			BEGIN
-				TRUNCATE TABLE #tmp_batch
-
-				INSERT INTO #tmp_batch (custid, Currency, diff_ToWin, diff_WinLoss)
-				SELECT custid, Currency, diff_ToWin, diff_WinLoss
-				FROM #Result_tmp
-				WHERE ID BETWEEN @StartRow AND @StopRow
-
-				INSERT INTO @tmp_RetryRule (custid, Currency, diff_ToWin, diff_WinLoss)
-				SELECT t.custid, t.Currency, t.diff_ToWin, t.diff_WinLoss
-				FROM #tmp_batch t
-					CROSS APPLY (SELECT SUM(AdjToWin) AS AccumToWin, SUM(AdjWinloss) AS AccumWinLoss
-								FROM dbo.CustWinLimitBet_History h WITH (NOLOCK)
-									INNER JOIN #CustIdTransidList_tmp r ON h.Transid = r.transid AND h.CustID = r.custid
-								WHERE t.CustID = h.custid
-								GROUP BY h.CustID
-								) AS lm
-					CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
-									   , SUM (CASE WHEN b.statusID NOT IN (0,1) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
-									FROM dbo.bettrans b WITH (NOLOCK)
-										INNER JOIN #CustIdTransidList_tmp r ON b.Transid = r.transid AND b.CustID = r.custid
-									WHERE b.custid = t.CustID
-										AND b.bettype NOT IN (29, 38)
-										AND b.statusID NOT IN (101,102,103,111)
-										AND b.refno = 100000000000
-									GROUP BY b.custid
-									) AS r
-				WHERE (t.diff_ToWin = (r.ToWin - lm.AccumToWin)) OR (t.diff_WinLoss = (r.WinLoss - lm.AccumWinLoss))
-
-				IF @StopRow = @MaxRow BREAK
-
-				SET @StartRow = @StopRow + 1
-				SET @StopRow = @StopRow + @Threshold
-				IF @StopRow >= @MaxRow
-					SET @StopRow = @MaxRow
-			END
+			INSERT INTO @tmp_RetryRule (custid, Currency, diff_ToWin, diff_WinLoss)
+			SELECT t.custid, t.Currency, t.diff_ToWin, t.diff_WinLoss
+			FROM #Result_tmp t
+				CROSS APPLY (SELECT SUM(AdjToWin) AS AccumToWin, SUM(AdjWinloss) AS AccumWinLoss
+							FROM dbo.CustWinLimitBet_History h WITH (NOLOCK)
+								INNER JOIN #CustIdTransidList_tmp r ON h.Transid = r.transid AND h.CustID = r.custid
+							WHERE t.CustID = h.custid
+							GROUP BY h.CustID
+							) AS lm
+				CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
+									, SUM (CASE WHEN b.statusID NOT IN (0,1) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
+								FROM dbo.bettrans b WITH (NOLOCK)
+									INNER JOIN #CustIdTransidList_tmp r ON b.Transid = r.transid AND b.CustID = r.custid
+								WHERE b.custid = t.CustID
+									AND b.bettype NOT IN (29, 38)
+									AND b.statusID NOT IN (101,102,103,111)
+									AND b.refno = 100000000000
+								GROUP BY b.custid
+								) AS r
+			WHERE (t.diff_ToWin = (r.ToWin - lm.AccumToWin)) OR (t.diff_WinLoss = (r.WinLoss - lm.AccumWinLoss))
 		END
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmp_RetryRule)
@@ -803,13 +749,13 @@ BEGIN
 		END
 	END
 
-	-----------------------------------------------------7 Check error table in table CustWinLimitBet_Errors ---------------------------------------------------------
+	-----------------------------------------------------7 Check error in table CustWinLimitBet_Errors ---------------------------------------------------------
 	BEGIN
-		SET @ErrorMessage = '7. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check error table in table CustWinLimitBet_Errors. ' + @CRLF
+		SET @ErrorMessage = '7. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check error in table CustWinLimitBet_Errors. ' + @CRLF
 
 		SET @ErrorMessage += STUFF(( SELECT @CRLF + ErrName +': '+ STRING_AGG(ExtraInfo, ',') 
 									FROM dbo.CustWinLimitBet_Errors WITH (NOLOCK)
-									--WHERE CreatedDate > @LastRepUpdateTime
+									WHERE CreatedDate > @LastRepUpdateTime
 									GROUP BY ErrName 
 								 FOR XML PATH(''), TYPE  
 							).value('.', 'NVARCHAR(MAX)'), 1, LEN(@CRLF), '');
