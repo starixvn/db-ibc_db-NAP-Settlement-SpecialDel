@@ -330,6 +330,7 @@ BEGIN
 
 			SELECT @Transids_29 = @Transids_29 + CONVERT(VARCHAR(50), transid) + ','
 			FROM #tblMainTicket
+			WHERE matchid = @MatchId
 
 			DELETE @tmpBoostSite
 			INSERT INTO @tmpBoostSite(SiteId, Srecommend)
