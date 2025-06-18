@@ -8,7 +8,7 @@ AS
 /*	
 	Created: 20211111@Tina
     Task: Support check data for Max Payout Per Match setting - [Redmine: #158846]
-    DB: DBTXN/bodb02
+    DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02 
     Revisions:
 		- 20211111@Tina: create
 		- 20211210@Tina: remove code check "No ticket found on Queue" [Redmine: #159626]
@@ -31,6 +31,7 @@ AS
 		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
 		- 20250403@Max: Enhance detection function when the system has duplicated code in the queue [Redmine: #222735]
 		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]  
+		- 20250609@July: Enhance MaxPayout Per Match for Virtual Sport [Redmine: #229870]
 
 	Param's explanation:		
 		
@@ -143,7 +144,7 @@ BEGIN
 					WHERE b.matchid = m.matchid 
 						AND h.Transid IS NULL
 						AND b.statusID NOT IN (101, 0)
-						AND b.bettype NOT IN (10,2799,10449,38,801,802,803,804,805,806) 
+						AND b.bettype NOT IN (10,2799,10449,11099,38,801,802,803,804,805,806) 
 						AND b.transdate BETWEEN @StartTime AND @EndTime
 						AND b.SiteDBGroupID = @SiteDBGroupID
 			) AS tmp
@@ -199,7 +200,7 @@ BEGIN
 					WHERE b.matchid = m.matchid 
 						AND h.Transid IS NULL
 						AND b.statusID NOT IN (101, 0)
-						AND b.bettype NOT IN (10,2799,10449,38,801,802,803,804,805,806) 
+						AND b.bettype NOT IN (10,2799,10449,11099,38,801,802,803,804,805,806) 
 						AND b.transdate BETWEEN @StartTime AND @EndTime
 						AND b.SiteDBGroupID = @SiteDBGroupID
 						AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
@@ -254,7 +255,7 @@ BEGIN
 					WHERE b.matchid = m.matchid 
 						AND h.Transid IS NULL
 						AND b.statusID NOT IN (101, 0)
-						AND b.bettype NOT IN (10,2799,10449,38,801,802,803,804,805,806) 
+						AND b.bettype NOT IN (10,2799,10449,11099,38,801,802,803,804,805,806) 
 						AND b.transdate BETWEEN @StartTime AND @EndTime
 						AND b.SiteDBGroupID = @SiteDBGroupID
 						AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend )
