@@ -318,6 +318,7 @@ BEGIN
 		SELECT DISTINCT t.SiteID, t.sRecommend
 		FROM #tblMainTicket AS t
 		WHERE t.Bettype = 29
+			AND t.MatchId =  @MatchId
 			AND t.Betteam = '1' --mix parlay
 			AND t.Oddsspread = 2 --offer parlay bonus
 			AND NOT EXISTS (SELECT TOP 1 1
