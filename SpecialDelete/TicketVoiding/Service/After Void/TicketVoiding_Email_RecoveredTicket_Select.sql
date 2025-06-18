@@ -389,7 +389,7 @@ BEGIN
 				,modds
 			)
 			SELECT b.matchid
-				,b.TransId
+				,bm.TransId
 				,bm.transid AS SubTransID
 				,b.custid
 				,b.transdate
