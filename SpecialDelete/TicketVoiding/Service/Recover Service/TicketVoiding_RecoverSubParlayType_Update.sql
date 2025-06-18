@@ -131,7 +131,6 @@ BEGIN
 	FROM @tblTransIds AS t
 	INNER JOIN bettransm AS bm ON bm.Transid = t.Transid
 	WHERE bm.statusID = 102
-		AND bm.matchid = @MatchId
 		AND bm.SiteDBGroupID = @SiteDBGroupId
 
 	SET @TotalSubParlay = @@ROWCOUNT
@@ -216,8 +215,7 @@ BEGIN
 		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON t.Transid = bm.TransId AND bm.SiteDBGroupID = @SiteDBGroupId
 		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND bm.SiteDBGroupID = b.SiteDBGroupID
 		INNER JOIN dbo.match AS m WITH (NOLOCK) ON m.matchid = bm.matchid
-		WHERE bm.matchid = @MatchId
-			AND b.bettype = 29
+		WHERE b.bettype = 29
 			AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 			AND bm.statusID = 102
 			AND m.sporttype BETWEEN 1 AND 99
@@ -298,7 +296,7 @@ BEGIN
 				OUTPUT deleted.TransId
 				INTO @tmpTransIdBatch(TransId)
 			FROM #tblRecoverBet AS t
-			WHERE t.IsFinish IS NULL AND t.MatchId = @MatchId
+			WHERE t.IsFinish IS NULL
 
 			IF @@ROWCOUNT = 0 BREAK
 
@@ -314,14 +312,12 @@ BEGIN
 
 		SELECT @Transids_29 = @Transids_29 + CONVERT(VARCHAR(50), transid) + ','
 		FROM #tblMainTicket
-		WHERE matchid = @MatchId
 
 		DELETE @tmpBoostSite
 		INSERT INTO @tmpBoostSite(SiteId, Srecommend)
 		SELECT DISTINCT t.SiteID, t.sRecommend
 		FROM #tblMainTicket AS t
 		WHERE t.Bettype = 29
-			AND MatchId = @MatchId
 			AND t.Betteam = '1' --mix parlay
 			AND t.Oddsspread = 2 --offer parlay bonus
 			AND NOT EXISTS (SELECT TOP 1 1
