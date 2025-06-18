@@ -101,7 +101,7 @@ BEGIN
 		WHERE isMissingHistory = 1
 		-- insert into table CustWinLimitBet_Errors
 
-		/*
+		
 		SELECT @Error_MissingHistoryTransID = STRING_AGG(CONVERT(VARCHAR(MAX),transId), ',') 
 		FROM(
 			SELECT DISTINCT transId
@@ -111,7 +111,7 @@ BEGIN
 
 		INSERT INTO dbo.CustWinLimitBet_Errors (ErrName,ExtraInfo,CreatedDate )
 		SELECT 'Missing History by transid list', @Error_MissingHistoryTransID, GETDATE()
-		*/
+		
 	END
 	
 	--CASE 1: To running: UNDO, RECOVER
@@ -191,7 +191,7 @@ BEGIN
 	FROM #winlimit_balancetrigger
 	ORDER BY rowID ASC
 
-	/*
+	
 	SET @Error_NegativeToWinList =  STUFF (@Error_NegativeToWinList,1,1,'')
 
 	IF ISNULL(@Error_NegativeToWinList,'') <> ''
@@ -199,7 +199,7 @@ BEGIN
 		INSERT INTO dbo.CustWinLimitBet_Errors (ErrName,ExtraInfo,CreatedDate )
 		SELECT 'Negative ToWin by custid list', @Error_NegativeToWinList, GETDATE()
 	END
-	*/
+	
 	DROP TABLE #winlimit_balancetrigger
 
 END
