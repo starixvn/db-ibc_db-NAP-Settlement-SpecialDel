@@ -9,6 +9,8 @@ AS
     Revisions:
 		- 20250602@July: Create new SP - [Redmine: #226514]
 		- 20250612@Helen: Modify SP to exclude parlay lucky - [Redmine: #226514]
+		- 20250616@July: Modify SP Check for missing data reset record in table CustWinLimitBet_History - [Redmine: #226514]
+		- 20250618@July: Modify SP Check error in table CustWinLimitBet_Errors - [Redmine: #226514]
 
 	Param's explanation:		
 */
@@ -46,7 +48,7 @@ BEGIN
 	CREATE TABLE #tmp_batch (custid INT PRIMARY KEY, Currency TINYINT, LatestResetDate DATETIME2(7), diff_ToWin MONEY, diff_WinLoss MONEY)
 
 	CREATE TABLE #reset (ID INT IDENTITY (1,1) PRIMARY KEY, CustID INT, Currency TINYINT, LatestResetDate DATETIME2(7))
-	DECLARE @tmp_RetryRule TABLE (custid INT, Currency TINYINT)
+	DECLARE @tmp_RetryRule TABLE (custid INT, Currency TINYINT, diff_ToWin MONEY, diff_WinLoss MONEY)
 
 	DECLARE @LastTransId BIGINT
 	      , @LastRepUpdateTime DATETIME2(7)
@@ -59,7 +61,7 @@ BEGIN
 	SELECT @LastRepUpdateTime = CAST(VValue AS DATETIME2(7))
 	FROM dbo.systemsettings WITH (NOLOCK) WHERE VName = 'CustWinLimitBet_LastRepUpdateTime'
 	
-	SET @MaxRepUpdateTime = SYSDATETIME() 
+	SET @MaxRepUpdateTime = DATEADD(SECOND,-30,SYSDATETIME()) --back 30s
 
 	-----------------------------------------------------1 Check for missing data in CustWinLimitBet_History ---------------------------------------------------------
 	BEGIN
@@ -394,11 +396,11 @@ BEGIN
 	DECLARE @Today		DATETIME 
 		   ,@Nextday    DATETIME
 
+	SET @Today = CAST(GETDATE() AS DATE)
+	SET @Nextday = DATEADD(DAY, 1, @Today)
+
 	IF @CurrentTime >= '03:59:00' AND @CurrentTime < '04:20:00' --Maximum call 2 times because job interval 10 minute
 	BEGIN
-		SET @Today = CAST(GETDATE() AS DATE)
-		SET @Nextday = DATEADD(DAY, 1, @Today)
-
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
 		TRUNCATE TABLE #Result_tmp
@@ -507,7 +509,7 @@ BEGIN
 										AND b.refno = 100000000000
 									GROUP BY b.custid
 									) AS r
-				WHERE (t.diff_ToWin = (r.ToWin - c.AccumToWin)) OR (t.diff_WinLoss = (r.WinLoss - c.AccumWinLoss))
+				WHERE (t.diff_ToWin = (r.ToWin - c.AccumToWin)) AND (t.diff_WinLoss = (r.WinLoss - c.AccumWinLoss))
 			
 				IF @StopRow = @MaxRow BREAK
 
@@ -555,6 +557,7 @@ BEGIN
 		TRUNCATE TABLE #Result_tmp
 		TRUNCATE TABLE #reset
 		TRUNCATE TABLE #CustIdTransidList_tmp
+		DELETE FROM @tmp_RetryRule
 
 		INSERT INTO #CustIdTransidList_tmp (transid, custid, Currency)
 		SELECT DISTINCT c.transid, c.custid, v.currency
@@ -593,7 +596,7 @@ BEGIN
 			SELECT DISTINCT custid, Currency FROM #CustIdTransidList_tmp
 		)
 		INSERT INTO #Result_tmp (custid, Currency, AccumToWin, AccumWinLoss, bettrans_AccumToWin, bettrans_AccumWinloss, diff_ToWin, diff_WinLoss)
-		SELECT TOP (@batch) cl.CustID, cl.currency, lm.AccumToWin, lm.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss AS bettrans_AccumWinloss
+		SELECT cl.CustID, cl.currency, lm.AccumToWin, lm.AccumWinLoss, r.ToWin AS bettrans_AccumToWin, r.WinLoss AS bettrans_AccumWinloss
 					, r.ToWin - lm.AccumToWin AS diff_ToWin, r.WinLoss - lm.AccumWinLoss AS diff_WinLoss
 		FROM cte  cl
 			CROSS APPLY (SELECT SUM(AdjToWin) AS AccumToWin, SUM(AdjWinloss) AS AccumWinLoss
@@ -603,7 +606,7 @@ BEGIN
 						GROUP BY h.CustID
 						) AS lm
 			CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
-							   , SUM (CASE WHEN b.statusID NOT IN (0,1) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
+								, SUM (CASE WHEN b.statusID NOT IN (0,1) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
 							FROM dbo.bettrans b WITH (NOLOCK)
 								INNER JOIN #CustIdTransidList_tmp r ON b.Transid = r.transid AND b.CustID = r.custid
 							WHERE b.custid = cl.CustID
@@ -613,32 +616,156 @@ BEGIN
 							GROUP BY b.custid
 							) AS r
 		WHERE (lm.AccumToWin <> r.ToWin OR lm.AccumWinLoss <> r.WinLoss)
-		ORDER BY CASE WHEN cl.Currency NOT IN (20) THEN 1
-		              WHEN cl.Currency IN (20) THEN 2
-					  ELSE 0 END ASC 
 
-		IF @@ROWCOUNT > 0
+		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp)
+		BEGIN
+			--retry one more time for sure
+			WAITFOR DELAY '00:00:03.000'
+			
+			INSERT INTO @tmp_RetryRule (custid, Currency, diff_ToWin, diff_WinLoss)
+			SELECT t.custid, t.Currency, t.diff_ToWin, t.diff_WinLoss
+			FROM #Result_tmp t
+				CROSS APPLY (SELECT SUM(AdjToWin) AS AccumToWin, SUM(AdjWinloss) AS AccumWinLoss
+							FROM dbo.CustWinLimitBet_History h WITH (NOLOCK)
+								INNER JOIN #CustIdTransidList_tmp r ON h.Transid = r.transid AND h.CustID = r.custid
+							WHERE t.CustID = h.custid
+							GROUP BY h.CustID
+							) AS lm
+				CROSS APPLY (SELECT	 SUM(CASE WHEN b.statusID IN (0,1) THEN ISNULL(CAST(ISNULL(b.ExtraInfo,'') AS XML).value('(/p1/@pa)[1]', 'MONEY'),0) - b.actual_stake ELSE 0 END) AS ToWin
+									, SUM (CASE WHEN b.statusID NOT IN (0,1) THEN b.winlost - b.actual_stake ELSE 0 END) AS WinLoss
+								FROM dbo.bettrans b WITH (NOLOCK)
+									INNER JOIN #CustIdTransidList_tmp r ON b.Transid = r.transid AND b.CustID = r.custid
+								WHERE b.custid = t.CustID
+									AND b.bettype NOT IN (29, 38)
+									AND b.statusID NOT IN (101,102,103,111)
+									AND b.refno = 100000000000
+								GROUP BY b.custid
+								) AS r
+			WHERE (t.diff_ToWin = (r.ToWin - lm.AccumToWin)) AND (t.diff_WinLoss = (r.WinLoss - lm.AccumWinLoss))
+		END
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmp_RetryRule)
 		BEGIN
 			SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
-			FROM #Result_tmp
-			WHERE Currency <> 20
+			FROM (
+				SELECT TOP (@batch) custid
+				FROM @tmp_RetryRule
+				WHERE Currency <> 20 AND diff_ToWin >0 
+				)t
 
 			SELECT @UUSCustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
-			FROM #Result_tmp
-			WHERE Currency = 20
+			FROM (
+				SELECT TOP (@batch) custid
+				FROM @tmp_RetryRule
+				WHERE Currency = 20 AND diff_ToWin >0 
+				)t
+
+			IF ISNULL(@CustIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for real currency (diff_ToWin >0). RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
+			END
+
+			IF ISNULL(@UUSCustIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency (diff_ToWin >0). RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
+			END
+
+			SET @CustIds = ''
+			SET @UUSCustIds = ''
+
+			SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+			FROM (
+				SELECT TOP (@batch) custid
+				FROM @tmp_RetryRule
+				WHERE Currency <> 20 AND diff_WinLoss >0 
+				)t
+
+			SELECT @UUSCustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+			FROM (
+				SELECT TOP (@batch) custid
+				FROM @tmp_RetryRule
+				WHERE Currency = 20 AND diff_WinLoss >0 
+				)t
+
+			IF ISNULL(@CustIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for real currency (diff_WinLoss >0). RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
+			END
+
+			IF ISNULL(@UUSCustIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency (diff_WinLoss >0). RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
+			END
 		END
+	END
+		
+	-----------------------------------------------------6 Check for missing data reset record in table CustWinLimitBet_History ---------------------------------------------------------
+	
+	IF @CurrentTime >= '00:10:00' AND @CurrentTime < '00:20:00' --Maximum call 1 times because job interval 10 minute
+	BEGIN
+		SET @CustIds = ''
+		SET @UUSCustIds = ''
+
+		TRUNCATE TABLE #CustIdList_tmp 
+
+		INSERT INTO #CustIdList_tmp( CustID, Currency)
+		SELECT TOP (@batch) c.CustID, v.currency
+		FROM CustDB.dbo.CustPotentialWinLimit c WITH (NOLOCK)
+			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON c.custid = v.custid
+			INNER JOIN dbo.CustWinLimitBet w WITH (NOLOCK) ON c.custid = w.custid
+		WHERE c.IsAutoReset = 1 AND c.PotentialWinLimit > 0
+			AND v.site NOT IN ('Special','Hedging')
+			AND NOT EXISTS (SELECT TOP 1 1 
+							FROM dbo.CustWinLimitBet_History h WITH (NOLOCK) 
+							WHERE h.CustID = c.CustID AND ActionType = 100
+							AND h.RepUpdateTime >= @Today and h.RepUpdateTime < @Nextday
+							)
+		ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
+		              WHEN v.Currency IN (20) THEN 2
+					  ELSE 0 END ASC 
+
+		SELECT @CustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+		FROM (
+			SELECT custid
+			FROM #CustIdList_tmp
+			WHERE Currency <> 20
+			)t
+
+		SELECT @UUSCustIds = STRING_AGG(CONVERT(VARCHAR(MAX),custid), ',') 
+		FROM (
+			SELECT custid
+			FROM #CustIdList_tmp
+			WHERE Currency = 20
+			)t
 
 		IF ISNULL(@CustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for real currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @CustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '6. Check missing data reset record in table CustWinLimitBet_History for real currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @CustIds + @CRLF
 		END
 
 		IF ISNULL(@UUSCustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '6. Check missing data reset record in table CustWinLimitBet_History for UUS currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
 		END
 	END
-		
+
+	-----------------------------------------------------7 Check error in table CustWinLimitBet_Errors ---------------------------------------------------------
+	BEGIN
+		DECLARE @Errors VARCHAR(MAX) = ''
+		SET @Errors = STUFF(( SELECT @CRLF + ErrName +': '+ STRING_AGG(ExtraInfo, ',') 
+									FROM dbo.CustWinLimitBet_Errors WITH (NOLOCK)
+									WHERE CreatedDate > @LastRepUpdateTime
+									GROUP BY ErrName 
+								 FOR XML PATH(''), TYPE  
+							).value('.', 'NVARCHAR(MAX)'), 1, LEN(@CRLF), '');
+
+		IF ISNULL(@Errors,'') <> ''
+		BEGIN
+			SET @ErrorMessage = @ErrorMessage + '7. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check error in table CustWinLimitBet_Errors. ' + @CRLF + @Errors
+		END
+
+	END
+
 	--Update value config
 	UPDATE c SET c.VValue =  CONVERT(VARCHAR(50), @MaxRepUpdateTime, 21)
 	FROM dbo.systemsettings c WITH (ROWLOCK, UPDLOCK)
