@@ -1,4 +1,4 @@
-/*<info serverAlias="DBLOG-bodb_CustomerLog_Archive,DBACC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBLOG-bodb_CustomerLog_Archive,DBARC-bodb_Archive" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE ArchiveService_Setting_Sel   
 AS  
 /*
