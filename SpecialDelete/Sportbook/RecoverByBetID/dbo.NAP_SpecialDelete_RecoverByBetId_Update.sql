@@ -536,7 +536,7 @@ BEGIN
 				,CustID
 				,Balance
 				,0
-				,NEWID()
+				,CAST(NEWID() AS NVARCHAR(50))
 				,@spName
 		FROM	#Balance WITH (NOLOCK)
 		WHERE	Increased = 0
