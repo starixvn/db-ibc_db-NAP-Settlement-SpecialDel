@@ -4,8 +4,8 @@ USE bodb_archive
 GO
 
 DECLARE @from datetime, @to datetime ,@RequestInfoGetCalcTimes VARBINARY(MAX) = NULL																									
-SET @from = '2023-09-01'																									
-SET @to = '2023-10-01'																									
+SET @from = '2025-05-01'																									
+SET @to = '2025-06-01'																									
 																									
 																								
 CREATE TABLE #temp_transid (
@@ -71,7 +71,7 @@ CREATE TABLE #temp_Ticket (
 	, livehomescore SMALLINT
 	, liveawayscore SMALLINT 
     , Transid_void BIGINT
-
+	, IsArchived BIT DEFAULT(0)
 )
 DECLARE @RequestId INT, @ListBettype VARCHAR(MAX) = '', @ListBetteam VARCHAR(MAX) ='', @ListScore VARCHAR(MAX) = ''
 
@@ -299,7 +299,6 @@ AND r.CreatedDate >= @from AND r.CreatedDate < @to
 AND NOT EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE r.RequestId = RequestId)
 
 
-
 INSERT INTO #temp_Ticket(
 	RequestId 
 	, matchid
@@ -316,7 +315,7 @@ INSERT INTO #temp_Ticket(
 	, betteam 
 	, livehomescore 
 	, liveawayscore  
-
+	, IsArchived
 )
 SELECT t.RequestId, t.Matchid, s.TransId,  b.Transdate 
 	, b.liveindicator  
@@ -330,6 +329,7 @@ SELECT t.RequestId, t.Matchid, s.TransId,  b.Transdate
 	, b.betteam 
 	, b.livehomescore 
 	, b.liveawayscore  
+	, 1 AS IsArchived
 FROM #temp_transid t
 		INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK) ON t.RequestId = s.RequestId 
 		CROSS APPLY (
@@ -338,8 +338,17 @@ FROM #temp_transid t
 			WHERE b.TransId = s.TransId
 		)b
         LEFT JOIN dbo.zzzbettrans_bk z WITH (NOLOCK) ON z.transid = b.TransId AND z.VoidingHistoryId IS NOT NULL
-    
+		
+---Update for case MBU T5 not copy zzzbetrans_bk, T6 delete zzzbettrans => miss data 
+UPDATE t
+SET Transid_void = vt.TransId
+FROM #temp_Ticket t
+	INNER JOIN dbo.TicketVoiding_VoidedTransaction_bk vt WITH (NOLOCK) ON t.TransId = vt.TransId
+WHERE IsArchived = 1
+	AND Transid_void IS NULL 
+	AND t.statusID = 102 --VOID
 
+------------------------------------------------------------------------------------
 UPDATE t
 SET t.TotalTicket = kq.TotalTicket
 ,t.Min_Trans = kq.Min_Trans
