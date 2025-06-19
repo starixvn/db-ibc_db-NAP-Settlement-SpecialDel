@@ -10,6 +10,7 @@ AS
 	Revision:
 		- 20231229@Aries: Enhancement of Auto Settlement [Redmine:#199004]
 		- 20240308@Aries: Direct Ice Hockey [Redmine:#201836]
+		- 20250507@Aries: Enhance the performance for the Multi-sport Page [Redmine:#223959]
 	Param's explanation:  
 		
 */
@@ -17,6 +18,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	CREATE TABLE #tmpMatch (MatchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON), Sporttype INT,eventstatus	NVARCHAR(100), ResultTable TINYINT,AutoPayoutStatus SMALLINT, HasAutoPayoutFail BIT, InstantStatus SMALLINT, HasInstantFail BIT)
+	CREATE TABLE #tmpMatchResource (MatchId  INT,ResourceID	VARCHAR(20))
 
 	INSERT INTO #tmpMatch(MatchId,Sporttype,eventstatus,ResultTable)
 	SELECT m.MatchId
@@ -29,9 +31,21 @@ BEGIN
 
 	IF EXISTS(SELECT TOP 1 1 FROM  #tmpMatch WHERE Sporttype = 1)
 	BEGIN
+
+		INSERT INTO #tmpMatchResource(MatchId,ResourceID)
+		SELECT a.matchid,IIF(a.CalculationType = 1, '01', '00')
+		FROM  #tmpMatch AS m
+			INNER JOIN dbo.AutoPayoutResult AS a WITH(NOLOCK) ON m.matchid = a.matchid
+			LEFT JOIN dbo.ResultDetail AS r WITH(NOLOCK) ON a.matchid = r.matchid 
+															 AND r.ResultStatusID IN (2,5)
+															 AND ((a.CalculationType = 1 AND r.ResourceID = '01') OR (a.CalculationType = 2 AND r.ResourceID = '00'))
+		WHERE a.matchid = m.matchid 
+			AND a.StatusId = 3
+			AND a.CalculationType IN (1,2)
+			AND r.ResultStatusID IS NULL
+
 		UPDATE  m
-		SET  m.HasAutoPayoutFail = 1
-			,m.AutoPayoutStatus = ap.StatusId
+		SET  m.AutoPayoutStatus = ap.StatusId
 		FROM #tmpMatch AS m
 			OUTER APPLY (
 				SELECT TOP 1 StatusId
@@ -40,17 +54,7 @@ BEGIN
 					AND a.CalculationType IN (1,2)
 					AND a.StatusId != 3
 			) AS ap
-		WHERE	m.Sporttype = 1 AND
-				EXISTS(SELECT TOP 1 1 
-					   FROM dbo.AutoPayoutResult AS a WITH(NOLOCK)  
-							LEFT JOIN dbo.ResultDetail AS r WITH(NOLOCK) ON a.matchid = r.matchid 
-																		AND r.ResultStatusID IN (2,5)
-																		AND ((a.CalculationType = 1 AND r.ResourceID = '01') OR (a.CalculationType = 2 AND r.ResourceID = '00'))
-					   WHERE a.matchid = m.matchid 
-							AND a.StatusId = 3
-							AND a.CalculationType IN (1,2)
-							AND r.ResultStatusID IS NULL
-				)
+		WHERE	m.Sporttype = 1 
 			
 		UPDATE  m
 		SET  m.HasInstantFail = 1
@@ -107,8 +111,8 @@ BEGIN
 
 	IF EXISTS(SELECT TOP 1 1 FROM  #tmpMatch WHERE Sporttype != 1 AND ResultTable = 0)
 	BEGIN
-		UPDATE  m
-		SET  m.HasAutoPayoutFail = 1
+		INSERT INTO #tmpMatchResource(MatchId,ResourceID)
+		SELECT m.matchid, '00'
 		FROM #tmpMatch AS m
 		WHERE	m.Sporttype != 1 AND  m.ResultTable = 0  AND m.eventstatus != 'completed' AND
 			 EXISTS(SELECT TOP 1 1 
@@ -118,23 +122,22 @@ BEGIN
 						AND ISNULL(a.SourceID,0) = 0
 						AND a.ResourceID  = '00'
 				)
-
 	END
 
 	IF EXISTS(SELECT TOP 1 1 FROM  #tmpMatch WHERE Sporttype != 1 AND ResultTable = 1)
 	BEGIN
-		UPDATE  m
-		SET  m.HasAutoPayoutFail = 1
+		INSERT INTO #tmpMatchResource(MatchId,ResourceID)
+		SELECT m.matchid, r.ResourceID
 		FROM #tmpMatch AS m
-		WHERE	m.Sporttype != 1 AND  m.ResultTable = 1 AND 
-			  EXISTS(SELECT TOP 1 1 
-					 FROM dbo.AutoPayoutResultOS AS a WITH(NOLOCK)  
-						LEFT JOIN dbo.ResultDetail AS r WITH(NOLOCK) ON a.matchid = r.matchid AND r.ResourceID = a.ResourceID AND r.ResultStatusID IN (2,5)
-					 WHERE a.matchid = m.matchid 
-						AND a.StatusId = 3
-						AND ISNULL(a.SourceID,0) = 0
-						AND r.ResultStatusID IS NULL
-				)
+			CROSS APPLY (SELECT a.ResourceID
+						 FROM dbo.AutoPayoutResultOS AS a WITH(NOLOCK)  
+							LEFT JOIN dbo.ResultDetail AS r WITH(NOLOCK) ON a.matchid = r.matchid AND r.ResourceID = a.ResourceID AND r.ResultStatusID IN (2,5)
+						 WHERE a.matchid = m.matchid 
+							AND a.StatusId = 3
+							AND ISNULL(a.SourceID,0) = 0
+							AND r.ResultStatusID IS NULL
+						) AS r	
+		WHERE	m.Sporttype != 1 AND  m.ResultTable = 1  
 
 		UPDATE  m
 		SET  m.HasInstantFail = 1
@@ -154,18 +157,18 @@ BEGIN
 
 	IF EXISTS(SELECT TOP 1 1 FROM  #tmpMatch WHERE Sporttype != 1 AND ResultTable = 2)
 	BEGIN
-		UPDATE  m
-		SET  m.HasAutoPayoutFail = 1
+		INSERT INTO #tmpMatchResource(MatchId,ResourceID)
+		SELECT m.matchid, r.ResourceID
 		FROM #tmpMatch AS m
-		WHERE	m.Sporttype != 1 AND  m.ResultTable = 2 AND 
-			  EXISTS(SELECT TOP 1 1 
-					 FROM dbo.AutoPayoutResultOS AS a WITH(NOLOCK)  
-						LEFT JOIN dbo.ResultDetailOS AS r WITH(NOLOCK) ON a.matchid = r.matchid AND r.ResourceID = a.ResourceID AND r.ResultStatusID IN (2,5)
-					 WHERE a.matchid = m.matchid 
-						AND a.StatusId = 3
-						AND ISNULL(a.SourceID,0) = 0
-						AND r.ResultStatusID IS NULL
-				)
+			CROSS APPLY (SELECT a.ResourceID
+						 FROM dbo.AutoPayoutResultOS AS a WITH(NOLOCK)  
+							LEFT JOIN dbo.ResultDetailOS AS r WITH(NOLOCK) ON a.matchid = r.matchid AND r.ResourceID = a.ResourceID AND r.ResultStatusID IN (2,5)
+						 WHERE a.matchid = m.matchid 
+							AND a.StatusId = 3
+							AND ISNULL(a.SourceID,0) = 0
+							AND r.ResultStatusID IS NULL
+						) AS r	
+		WHERE	m.Sporttype != 1 AND  m.ResultTable = 2 
 
 		UPDATE  m
 		SET  m.HasInstantFail = 1
@@ -185,18 +188,18 @@ BEGIN
 
 	IF EXISTS(SELECT TOP 1 1 FROM  #tmpMatch WHERE Sporttype != 1 AND ResultTable = 3)
 	BEGIN
-		UPDATE  m
-		SET  m.HasAutoPayoutFail = 1
+		INSERT INTO #tmpMatchResource(MatchId,ResourceID)
+		SELECT m.matchid, r.ResourceID
 		FROM #tmpMatch AS m
-		WHERE	m.Sporttype != 1 AND  m.ResultTable = 3 AND 
-			  EXISTS(SELECT TOP 1 1 
-					 FROM dbo.AutoPayoutResultOS AS a WITH(NOLOCK)  
-						LEFT JOIN dbo.ResultDetailES AS r WITH(NOLOCK) ON a.matchid = r.matchid AND r.ResourceID = a.ResourceID AND r.ResultStatusID IN (2,5)
-					 WHERE a.matchid = m.matchid 
-						AND a.StatusId = 3
-						AND ISNULL(a.SourceID,0) = 0
-						AND r.ResultStatusID IS NULL
-			  )
+			CROSS APPLY (SELECT a.ResourceID
+						 FROM dbo.AutoPayoutResultOS AS a WITH(NOLOCK)  
+							LEFT JOIN dbo.ResultDetailES AS r WITH(NOLOCK) ON a.matchid = r.matchid AND r.ResourceID = a.ResourceID AND r.ResultStatusID IN (2,5)
+						 WHERE a.matchid = m.matchid 
+							AND a.StatusId = 3
+							AND ISNULL(a.SourceID,0) = 0
+							AND r.ResultStatusID IS NULL
+						) AS r	
+		WHERE	m.Sporttype != 1 AND  m.ResultTable = 3 
 
 		UPDATE  m
 		SET  m.HasInstantFail = 1
@@ -214,6 +217,11 @@ BEGIN
 				) 
 	END
 
+	UPDATE  m
+	SET  m.HasAutoPayoutFail = 1
+	FROM #tmpMatch AS m
+	WHERE	m.MatchId IN (SELECT mr.MatchId FROM #tmpMatchResource AS mr)
+
 	SELECT MatchId
 		  ,Sporttype
 		  ,AutoPayoutStatus
@@ -221,5 +229,8 @@ BEGIN
 		  ,InstantStatus
 		  ,HasInstantFail 
 	FROM #tmpMatch
+
+	SELECT MatchId, ResourceID
+	FROM #tmpMatchResource
 END
 GO
