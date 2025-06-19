@@ -13,6 +13,7 @@ AS
 		- 20250108@July: Filter range date send Letstalk [Redmine: #213398]
 		- 20250129@Max: Update range date send Letstalk [Redmine: #213398]
 		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services [Redmine: #224490]
+		- 20250618@July: Send data from the letstalk table, ignoring case and skipping rows with NULL values. [Redmine: #227162] 
 
 	Param's explanation:	
 		Note table: TicketVoiding_Letstalk - Only support data within 2 months
@@ -69,9 +70,7 @@ BEGIN
 	WHERE  vh.BroadcastSessionId IS NOT NULL 
 		AND vh.StatusId = 2 AND vb.statusID = 2
 		AND r.IssueTypeId NOT IN (17,22) --Not send letstalk for issuetype archive, recover
-		AND 1 = CASE WHEN lt.BroadcastSessionId IS NULL THEN 1
-					 WHEN lt.BroadcastSessionId IS NOT NULL AND lt.StatusId = 1 THEN 1
-					 ELSE 0 END
+		AND lt.BroadcastSessionId IS NOT NULL AND lt.StatusId = 1 
 		AND vb.createdDate > @SettingTime
 		AND vh.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId)
 
