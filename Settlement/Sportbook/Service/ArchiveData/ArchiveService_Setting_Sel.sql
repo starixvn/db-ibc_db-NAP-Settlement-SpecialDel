@@ -1,4 +1,4 @@
-/*<info serverAlias="DBLOG-bodb_CustomerLog_Archive" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBLOG-bodb_CustomerLog_Archive,DBACC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE ArchiveService_Setting_Sel   
 AS  
 /*
@@ -7,7 +7,8 @@ AS
 	DB: DBACC/bodb_archive
 
 	Revision:
-		20240222@Louisa: Get Setting [Redmine:#201196]
+		- 20240222@Louisa: Get Setting [Redmine:#201196]
+		- 20250606@Louisa: archive data to DB061 [Redmine:#229613]
 
 */  
 BEGIN  
