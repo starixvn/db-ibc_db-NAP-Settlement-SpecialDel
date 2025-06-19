@@ -314,7 +314,7 @@ BEGIN
 					OUTPUT deleted.TransId
 					INTO @tmpTransIdBatch(TransId)
 				FROM #tblRecoverBet AS t
-				WHERE t.IsFinish IS NULL
+				WHERE t.IsFinish IS NULL AND t.MatchId = @MatchId
 
 				IF @@ROWCOUNT = 0 BREAK
 
