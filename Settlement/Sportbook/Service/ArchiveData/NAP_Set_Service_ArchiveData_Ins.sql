@@ -1,4 +1,4 @@
-/*<info serverAlias="DBACC-bodb_Archive" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBARC-bodb_Archive" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_Service_ArchiveData_Ins
 	@TableName VARCHAR(50)
 	,@JsonInfo VARBINARY(MAX)
