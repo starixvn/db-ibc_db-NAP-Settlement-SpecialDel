@@ -303,12 +303,14 @@ BEGIN
 		SET username = ci.username
 		   ,CustomerClass = CASE WHEN ci.CustomerClass IN (201, 4000) THEN ci.CustomerClass ELSE NULL END 
 		   ,IsVipMember = CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END
-		   ,IsCreditCashService = CASE WHEN cs.CustID IS NOT NULL AND ci.credit = 1 THEN 1 ELSE 0 END
+		   ,IsCreditCashService = CASE WHEN cs.CustID IS NOT NULL AND s.custid IS NULL THEN 1 ELSE 0 END
 	FROM	#tmpTransInfo al
 		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK)
 			ON al.custid = ci.custid
 		LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK)
 			ON al.custid = cs.CustID AND cs.ServiceType = 1
+		LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK)
+			ON al.srecommend = s.custid
 		LEFT JOIN @VIPAccount_tmp vip ON al.custid = vip.CustID
 
 	INSERT INTO #DuplicatedTransids (transid)
