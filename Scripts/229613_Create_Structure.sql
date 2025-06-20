@@ -3,7 +3,7 @@
 /*
 	Created by: 20250606@Louisa
 	Task: Archive data for ProviderExternalResultDetailXX [Redmine:#229613]
-	DB: DBLOG/bodb_CustomerLog_Archive
+	DB: DBARC/bodb_Archive
 
 	Revision:
 		20240222@Louisa: Create structure, init data [Redmine:#229613]
