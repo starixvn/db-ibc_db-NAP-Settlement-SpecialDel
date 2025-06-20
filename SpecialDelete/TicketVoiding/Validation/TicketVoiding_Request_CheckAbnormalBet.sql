@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@SubIssueTypeId			TINYINT	= NULL
 	,@IsRemoveCustomerClass201	BIT = 0
 	,@IsRemoveCustomerClass4K	BIT = 0
+	,@IsRemoveCreditCashService	BIT = 0			
 	,@TransInfoJson				VARCHAR(MAX) = NULL
 	,@IsAddSettledTickets		BIT = 0
 	,@IsVoidAllArchivedTickets	BIT = 0
@@ -67,6 +68,7 @@ AS
 		- 20240315@July: [TVS] Abnormal Bet - Support void System Parlay tickets [Redmine: #196462]
 		- 20240412@Max: Abnormal Bet - Add request tick on REMOVE CC 40000 but tickets CC 4000 still add to request [Redmine: #203813]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
+		- 20250619@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance - Abnormal Bet [Redmine: #225390]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -89,6 +91,7 @@ BEGIN
 			,@OldActionId				 TINYINT
 			,@TransIdsOfCustomerClass201 VARCHAR(MAX) = ''
 			,@TransIdsOfCustomerClass4K  VARCHAR(MAX) = ''
+			,@TransIdsOfCreditCashService VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
 			,@MatchId					 INT = 0
 			,@MarkTransIds 			     VARCHAR(MAX) =''
@@ -152,24 +155,25 @@ BEGIN
 	CREATE TABLE #invalidTransId (transid BIGINT, isMoved BIT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
-		transid			BIGINT PRIMARY KEY
-		--,isInMatch		BIT
-		,StatusId		INT
-		,bettype		SMALLINT
-		,custId			INT
-		,livehomescore	SMALLINT
-		,liveawayscore	SMALLINT
-		,liveindicator	BIT
-		,matchid		INT
-		,sporttype		SMALLINT
-		,betfrom		NVARCHAR(4)
-		,recommend		INT
-		,mrecommend		INT
-		,srecommend		INT
-		,betteam		NVARCHAR(10)
-		,CurrencyName	NVARCHAR(50)
-		,IsVipMember	BIT DEFAULT(0)
-		,CustomerClass	SMALLINT
+		transid						BIGINT PRIMARY KEY
+		--,isInMatch				BIT
+		,StatusId					INT
+		,bettype					SMALLINT
+		,custId						INT
+		,livehomescore				SMALLINT
+		,liveawayscore				SMALLINT
+		,liveindicator				BIT
+		,matchid					INT
+		,sporttype					SMALLINT
+		,betfrom					NVARCHAR(4)
+		,recommend					INT
+		,mrecommend					INT
+		,srecommend					INT
+		,betteam					NVARCHAR(10)
+		,CurrencyName				NVARCHAR(50)
+		,IsVipMember				BIT DEFAULT(0)
+		,IsCreditCashService		BIT DEFAULT(0)
+		,CustomerClass				SMALLINT
 		)
 	CREATE TABLE #DuplicatedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
@@ -182,57 +186,58 @@ BEGIN
 	CREATE TABLE #ABWhiteListCustIds (custid INT, AllowVoidSubType VARCHAR(200), IsAllowVoidVip BIT)
 	CREATE TABLE #ABWhiteListCustIds_AllowVoid (custid INT)
 	CREATE TABLE #tmpTransInfo(
-	   matchid			INT
-	  ,transid			BIGINT
-      ,refno			BIGINT
-	  ,custid			INT	
-      ,hdp1				SMALLMONEY
-	  ,hdp2				SMALLMONEY
-	  ,livehomescore	SMALLINT
-      ,liveawayscore	SMALLINT
-      ,liveindicator	BIT
-      ,odds				SMALLMONEY
-	  ,oddsspread		MONEY
-	  ,betfrom			NVARCHAR(4)
-      ,bettype			SMALLINT
-	  ,betteam			NVARCHAR(10)
-      ,betcheck			NVARCHAR(50)
-	  ,Status			NVARCHAR(10)
-	  ,transdate		DATETIME
-	  ,betid			BIGINT
-	  ,Transdesc		NVARCHAR(1000)
-	  ,statusID			TINYINT
-	  ,srecommend		INT
-	  ,mrecommend		INT
-	  ,recommend		INT
-	  ,creator			INT
-	  ,WalletType		TINYINT
-	  ,RefCode			BIGINT
-	  ,stake			MONEY
-	  ,oddstype			TINYINT
-	  ,CurrencyName		NVARCHAR(50)
-	  ,betdaqid			BIGINT
-	  ,ExtraInfo		VARCHAR(1000)
-	  ,statuswinlost	TINYINT
-	  ,IsMoved14		BIT
-	  ,winlost			MONEY
-	  ,actual_stake		MONEY
-	  ,winlostdate		SMALLDATETIME
-	  ,modds			SMALLMONEY
-	  ,IsMixParlay		BIT
-	  ,SiteDBGroupID	SMALLINT
-	  ,username         NVARCHAR(50)
-	  ,homeid           INT
-      ,awayid           INT
-	  ,leagueid         INT
-	  ,isNeutral        BIT
-	  ,matchcode        NVARCHAR(50)
-	  ,showtime         NVARCHAR(50)
-      ,sporttype        SMALLINT
-	  ,eventstatus		NVARCHAR(50)
-	  ,CustomerClass	SMALLINT
-	  ,IsVipMember		BIT DEFAULT(0)
-	  ,ChildMatchId		INT
+	   matchid					INT
+	  ,transid					BIGINT
+      ,refno					BIGINT
+	  ,custid					INT	
+      ,hdp1						SMALLMONEY
+	  ,hdp2						SMALLMONEY
+	  ,livehomescore			SMALLINT
+      ,liveawayscore			SMALLINT
+      ,liveindicator			BIT
+      ,odds						SMALLMONEY
+	  ,oddsspread				MONEY
+	  ,betfrom					NVARCHAR(4)
+      ,bettype					SMALLINT
+	  ,betteam					NVARCHAR(10)
+      ,betcheck					NVARCHAR(50)
+	  ,Status					NVARCHAR(10)
+	  ,transdate				DATETIME
+	  ,betid					BIGINT
+	  ,Transdesc				NVARCHAR(1000)
+	  ,statusID					TINYINT
+	  ,srecommend				INT
+	  ,mrecommend				INT
+	  ,recommend				INT
+	  ,creator					INT
+	  ,WalletType				TINYINT
+	  ,RefCode					BIGINT
+	  ,stake					MONEY
+	  ,oddstype					TINYINT
+	  ,CurrencyName				NVARCHAR(50)
+	  ,betdaqid					BIGINT
+	  ,ExtraInfo				VARCHAR(1000)
+	  ,statuswinlost			TINYINT
+	  ,IsMoved14				BIT
+	  ,winlost					MONEY
+	  ,actual_stake				MONEY
+	  ,winlostdate				SMALLDATETIME
+	  ,modds					SMALLMONEY
+	  ,IsMixParlay				BIT
+	  ,SiteDBGroupID			SMALLINT
+	  ,username					NVARCHAR(50)
+	  ,homeid					INT
+      ,awayid					INT
+	  ,leagueid					INT
+	  ,isNeutral				BIT
+	  ,matchcode				NVARCHAR(50)
+	  ,showtime					NVARCHAR(50)
+      ,sporttype				SMALLINT
+	  ,eventstatus				NVARCHAR(50)
+	  ,CustomerClass			SMALLINT
+	  ,IsCreditCashService		BIT DEFAULT(0)			
+	  ,IsVipMember				BIT DEFAULT(0)
+	  ,ChildMatchId				INT
 	)
 	INSERT INTO #tmpTransInfo( 
 		   matchid, transid, refno, custid, hdp1, hdp2, livehomescore, liveawayscore, liveindicator, odds, oddsspread 
@@ -298,9 +303,12 @@ BEGIN
 		SET username = ci.username
 		   ,CustomerClass = CASE WHEN ci.CustomerClass IN (201, 4000) THEN ci.CustomerClass ELSE NULL END 
 		   ,IsVipMember = CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END
+		   ,IsCreditCashService = CASE WHEN cs.CustID IS NOT NULL AND ci.credit = 1 THEN 1 ELSE 0 END
 	FROM	#tmpTransInfo al
 		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK)
 			ON al.custid = ci.custid
+		LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK)
+			ON al.custid = cs.CustID AND cs.ServiceType = 1
 		LEFT JOIN @VIPAccount_tmp vip ON al.custid = vip.CustID
 
 	INSERT INTO #DuplicatedTransids (transid)
@@ -397,6 +405,7 @@ BEGIN
 					,1 AS RemarkId
 					,s.IsVipMember
 					,s.CustomerClass
+					,s.IsCreditCashService
 				FROM #tmpInputTransid_RemarkId t
 					LEFT JOIN #tmpTransInfo s ON t.transid = s.transid
 			
@@ -440,6 +449,7 @@ BEGIN
 		,CurrencyName
 		,IsVipMember
 		,CustomerClass
+		,IsCreditCashService
 		)
 	SELECT b.transid
 		,b.statusID
@@ -458,6 +468,7 @@ BEGIN
 		,CurrencyName
 		,b.IsVipMember
 		,b.CustomerClass
+		,b.IsCreditCashService
 	FROM #tmpTransInfo b
 		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
 		LEFT JOIN @tmpMatchId_Info m ON b.matchid = m.matchid
@@ -600,6 +611,12 @@ BEGIN
 												FROM #validTransId AS v	
 												WHERE v.CustomerClass = 4000
 												FOR XML PATH('')), 1, 1, ''), '')
+		
+		--Get ticket of agency cash service customer (service type = 1)
+		SELECT @TransIdsOfCreditCashService = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+												FROM #validTransId AS v	
+												WHERE v.IsCreditCashService = 1
+												FOR XML PATH('')), 1, 1, ''), '')
 
 		--Check AB White List Invalid Transid
 		INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
@@ -689,8 +706,10 @@ BEGIN
 		FROM @tmpMarkTransId v
 			LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
 			LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
+			LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.CustID = cs.CustID AND cs.ServiceType = 1
 		WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
 					   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
+					   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
 					ELSE 0 END
 		
 	END
@@ -713,8 +732,10 @@ BEGIN
 			FROM #validTransId v
 				LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
 				LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
+				LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.custId = cs.CustID AND cs.ServiceType = 1
 			WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
 						   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
+						   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
 					      ELSE 0 END
 			
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
@@ -736,8 +757,10 @@ BEGIN
 			FROM @tmpMarkTransId v
 				LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
 				LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
+				LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.CustID = cs.CustID AND cs.ServiceType = 1
 			WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
 						   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
+						   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
 						ELSE 0 END
 
 		END
@@ -771,6 +794,7 @@ BEGIN
 	FROM #validTransId v 
 	WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND v.CustomerClass = 201 THEN 1
 					WHEN @IsRemoveCustomerClass4K = 1 AND v.CustomerClass = 4000 THEN 1
+					WHEN @IsRemoveCreditCashService = 1 AND v.IsCreditCashService = 1 THEN 1
 			ELSE 0 END
 	
 	DELETE FROM @tmpMatchId_Info
@@ -792,6 +816,7 @@ BEGIN
 			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
 			,@TransIdsOfCustomerClass201 AS TransIdsOfCustomerClass201
 			,@TransIdsOfCustomerClass4K AS TransIdsOfCustomerClass4K
+			,@TransIdsOfCreditCashService AS TransIdsOfCreditCashService
 			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 
@@ -848,6 +873,7 @@ BEGIN
 		,t.RemarkId 
 		,s.IsVipMember
 		,s.CustomerClass
+		,s.IsCreditCashService
 	FROM #tmpInputTransid_RemarkId t
 		LEFT JOIN #tmpTransInfo s ON t.transid = s.transid
 
