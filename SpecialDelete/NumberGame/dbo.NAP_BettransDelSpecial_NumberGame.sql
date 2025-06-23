@@ -50,6 +50,7 @@ AS
 		- 20241125@Lani: [TVS] Change join type, serverAlias [Redmine: #213451]
 		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
 		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+		- 20250623@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's Explanation: 
 		- @Opition: 
@@ -65,6 +66,7 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			NVARCHAR(MAX)
 			,@SB_Error			BIT
+			,@ActionId			INT = 200 --Void/Recover
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90518
@@ -137,6 +139,7 @@ BEGIN
 	CREATE TABLE #tblTransId (transid BIGINT PRIMARY KEY)	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)	
 	CREATE TABLE #TmpBallSequence (Seq	TINYINT)
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, increased BIT)
 	
 	DECLARE @tblMatch TABLE (matchid INT PRIMARY KEY, seq INT)
 
@@ -617,6 +620,39 @@ BEGIN
 			,gametypeid
 		FROM #BetAfter
 		GROUP BY CustID, winlostdate, gametypeid
+
+		INSERT INTO #Balance (custid, balance, increased)
+		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+		FROM #BeforeUpd AS b
+		INNER JOIN #AfterUpd AS a ON b.custid = a.custid
+		WHERE b.balance <> a.balance
+
+		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative]
+					   ([ExecDate]
+					   ,[MatchID]
+					   ,[ActionID]
+					   ,[GroupID]
+					   ,[CustID]
+					   ,[Balance]
+					   ,[StatusID]
+					   ,[SessionId]
+					   ,[Remark])
+			SELECT	 GETDATE()
+					,@MatchId
+					,@ActionID
+					,0		-- For Void/Recover
+					,CustID
+					,Balance
+					,0
+					,CAST(NEWID() AS NVARCHAR(50))
+					,@spName
+			FROM	#Balance
+			WHERE	increased = 0
+		END		        
+		DROP TABLE #Balance
 
 		INSERT INTO @tblCreditPending (custID, balance)
 		SELECT a.custid

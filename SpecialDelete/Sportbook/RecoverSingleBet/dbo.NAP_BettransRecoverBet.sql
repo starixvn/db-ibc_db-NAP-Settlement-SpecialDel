@@ -76,6 +76,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, serverAlias [Redmine: #213451]
+		- 20250623@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's Explanation:
 */
@@ -111,6 +112,8 @@ BEGIN
 			,@SiteDBGroupID     SMALLINT = 0
 			,@TransInfo			VARBINARY(MAX)
 			,@TransInfo3rd		VARBINARY(MAX)
+			,@ActionId			INT = 200 --Void/Recover
+
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @ErrCode INT = 0
@@ -174,6 +177,7 @@ BEGIN
 	CREATE TABLE #tbTransId (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #t_match_completed(inputtransid BIGINT, custid INT, transdate DATETIME, odds SMALLMONEY, stake MONEY, winlost MONEY, status NVARCHAR(10))
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, increased BIT)
 	
 	DECLARE @tmpTransInfo TABLE(
 			  matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost TINYINT, stake MONEY
@@ -913,8 +917,41 @@ BEGIN
 	GROUP BY b.matchid
 		   , b.custid
 		   , CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END
-		   , ISNULL(b.WalletType, 2) -- normal tickets are treated as cash tickets	
+		   , ISNULL(b.WalletType, 2) -- normal tickets are treated as cash tickets
 	
+	INSERT INTO #Balance(custid, balance, increased)
+	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	FROM @tblBeforeBalance AS b
+		INNER JOIN @tblAfterBalance AS a ON b.custid = a.custid
+	WHERE b.balance <> a.balance
+	
+	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+					([ExecDate]
+					,[MatchID]
+					,[ActionID]
+					,[GroupID]
+					,[CustID]
+					,[Balance]
+					,[StatusID]
+					,[SessionId]
+					,[Remark])
+		SELECT	 GETDATE()
+				,0 --For case input multiple tickets across multiple matches
+				,@ActionID
+				,0		-- For Void/Recover
+				,CustID
+				,Balance
+				,0
+				,CAST(NEWID() AS NVARCHAR(50))
+				,@spName
+		FROM	#Balance
+		WHERE	increased = 0
+	END		        
+	DROP TABLE #Balance
+
 	---INSERT data into pending balance table   
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 		  @BalanceWalletBefore	= @tblBeforeBalance
