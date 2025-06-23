@@ -737,7 +737,7 @@ BEGIN
 		
 		SET @NumberOfTickets = @@ROWCOUNT
 
-		SELECT @UsernamesOfCreditCashService  = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(t.transid AS VARCHAR(50))
+		SELECT @UsernamesOfCreditCashService  = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(t.username AS VARCHAR(50))
 												FROM #tmpTransInfo AS t
 												WHERE t.IsCreditCashService = 1
 												FOR XML PATH('')), 1, 1, ''), '')
