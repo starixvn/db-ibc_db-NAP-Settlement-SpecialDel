@@ -742,8 +742,6 @@ BEGIN
 												WHERE t.IsCreditCashService = 1
 												FOR XML PATH('')), 1, 1, ''), '')
 	END
-
-	END
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
