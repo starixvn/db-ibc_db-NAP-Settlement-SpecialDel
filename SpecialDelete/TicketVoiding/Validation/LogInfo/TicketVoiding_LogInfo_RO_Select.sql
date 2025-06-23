@@ -19,6 +19,7 @@ AS
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
+		- 20250619@July: Not show table loginfo when invalid ticket [Redmine: #227009]
 
 	Param's explanation:	
 		- @ReducedOverInfo: 
@@ -779,7 +780,7 @@ BEGIN
 	END
 
 	-- 3. Loginfo table
-	SELECT @MatchId AS MatchId
+	SELECT MatchId
 		,MIN(VoidFromTime) AS VoidFromTime
 		,MAX(VoidToTime) AS VoidToTime
 		,SUM(SingleCount) AS SingleCount
@@ -787,6 +788,7 @@ BEGIN
 		,SUM(SettleCount) AS SettleCount
 		,SUM(MainParlayCount) AS MainParlayCount
 	FROM #logInfo l
+	GROUP BY MatchId
 
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
 		,transid AS 't'
