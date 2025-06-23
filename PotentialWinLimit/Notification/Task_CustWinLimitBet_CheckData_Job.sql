@@ -11,6 +11,7 @@ AS
 		- 20250612@Helen: Modify SP to exclude parlay lucky - [Redmine: #226514]
 		- 20250616@July: Modify SP Check for missing data reset record in table CustWinLimitBet_History - [Redmine: #226514]
 		- 20250618@July: Modify SP Check error in table CustWinLimitBet_Errors - [Redmine: #226514]
+		- 20250623@July: Rule 7 - Exclude error Missing History  - [Redmine: #226060]
 
 	Param's explanation:		
 */
@@ -755,6 +756,7 @@ BEGIN
 		SET @Errors = STUFF(( SELECT @CRLF + ErrName +': '+ STRING_AGG(ExtraInfo, ',') 
 									FROM dbo.CustWinLimitBet_Errors WITH (NOLOCK)
 									WHERE CreatedDate > @LastRepUpdateTime
+										AND ErrName NOT IN ('Missing History by transid list')
 									GROUP BY ErrName 
 								 FOR XML PATH(''), TYPE  
 							).value('.', 'NVARCHAR(MAX)'), 1, LEN(@CRLF), '');
