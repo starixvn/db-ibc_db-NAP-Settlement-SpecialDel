@@ -613,7 +613,7 @@ BEGIN
 						,[SessionId]
 						,[Remark])
 			SELECT	 GETDATE()
-					,0 --For case input multiple tickets across multiple matches
+					,0
 					,@ActionID
 					,0		-- For Void/Recover
 					,CustID

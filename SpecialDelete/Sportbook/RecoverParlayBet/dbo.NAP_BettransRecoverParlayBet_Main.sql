@@ -34,6 +34,7 @@ AS
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20250623@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's Explanation:			
 		- @BetType: 'all': All
@@ -81,6 +82,7 @@ BEGIN
 		    ,@SiteDBGroupID		SMALLINT = 0
 			,@strSetting		VARCHAR(MAX)
 			,@sqlOpenqueryCommand NVARCHAR(MAX) = ''
+			,@ActionID				INT = 200 --Void/Recover
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -124,6 +126,8 @@ BEGIN
 		,srecommend		INT
 	)
 	CREATE INDEX IX_RecoverBet ON #tblRecoverBet (refno)
+
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, increased BIT)
 	
 	DECLARE @tblMatchIds TABLE ( 
 		 RowNumber		INT 										
@@ -475,16 +479,20 @@ BEGIN
 			INNER JOIN #tblRecoverBet t ON b.transid = t.transid
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY b.CustID
+
+		INSERT INTO #Balance(custid, balance, increased)
+		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+		FROM @tblBeforeBalance AS b
+		INNER JOIN @tblAfterBalance AS a ON b.custid = a.custid
+		WHERE b.balance <> a.balance
 	
 		DECLARE @tblDebitPending TVP_BalanceList
 		DECLARE @tblCreditPending TVP_BalanceList
 	
 		INSERT INTO @tblCreditPending (custID, balance)
-		SELECT		a.custid, (a.balance - b.balance) AS Balance
-		FROM		@tblBeforeBalance b
-		INNER JOIN	@tblAfterBalance a 	
-				ON	a.custid = b.custid
-		WHERE	    (a.balance - b.balance) > 0
+		SELECT		custid, balance
+		FROM		#Balance 
+		WHERE	    increased = 1
 	
 		IF @@rowcount <> 0
 			EXEC dbo.Dot_BalancePendingCreditIns 
@@ -492,11 +500,9 @@ BEGIN
 				,@Type			= 1 -- Sports		
 
 		INSERT INTO @tblDebitPending (custID, balance)
-		SELECT		a.custid, ABS(a.balance - b.balance) AS Balance
-		FROM		@tblBeforeBalance b
-		INNER JOIN	@tblAfterBalance a 	
-				ON	a.custid = b.custid
-		WHERE	    (a.balance - b.balance) < 0	
+		SELECT		custid, ABS(balance) AS Balance
+		FROM		#Balance 
+		WHERE	    increased = 0	
 	
 		IF @@rowcount <> 0
 			EXEC dbo.Dot_BalancePendingDebitIns 
@@ -509,15 +515,41 @@ BEGIN
 		SET @NegativeBalanceUsers = ''
 		SELECT @CustIds = @CustIds +
 						  CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + 
-						  CONVERT(VARCHAR(20), b.custid)
-		FROM @tblBeforeBalance b
-			 INNER JOIN	@tblAfterBalance a ON a.custid = b.custid 
-		WHERE b.balance > a.balance				
+						  CONVERT(VARCHAR(20), custid)
+		FROM #Balance 
+		WHERE increased = 0				
 		
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT	
 		
+		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative]
+						([ExecDate]
+						,[MatchID]
+						,[ActionID]
+						,[GroupID]
+						,[CustID]
+						,[Balance]
+						,[StatusID]
+						,[SessionId]
+						,[Remark])
+			SELECT	 GETDATE()
+					,0
+					,@ActionID
+					,0		-- For Void/Recover
+					,CustID
+					,Balance
+					,0
+					,CAST(NEWID() AS NVARCHAR(50))
+					,@spName
+			FROM	#Balance WITH (NOLOCK)
+			WHERE	increased = 0
+		END		        
+		DROP TABLE #Balance
+
 		DELETE	z
 			OUTPUT deleted.matchid, deleted.transid, deleted.transdate, deleted.comstatus
 			INTO @tmpTransInfo (matchid, transid, transdate, comstatus)

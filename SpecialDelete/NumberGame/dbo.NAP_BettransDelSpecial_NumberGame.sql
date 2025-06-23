@@ -641,7 +641,7 @@ BEGIN
 					   ,[SessionId]
 					   ,[Remark])
 			SELECT	 GETDATE()
-					,@MatchId
+					,CASE WHEN @Option = 0 THEN @MatchId ELSE 0 END
 					,@ActionID
 					,0		-- For Void/Recover
 					,CustID
