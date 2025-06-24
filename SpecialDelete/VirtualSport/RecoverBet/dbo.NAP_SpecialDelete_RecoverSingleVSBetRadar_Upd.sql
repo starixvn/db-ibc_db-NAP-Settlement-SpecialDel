@@ -31,6 +31,7 @@ AS
 		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
 		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 		- 20250612@July: Fix replication issue caused by NULL values in the action call/refund input ticket [Redmine:#229870]
+		- 20250624@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -58,6 +59,7 @@ BEGIN
 		  , @matchId					  INT
 		  , @TicketType					  TINYINT	
 		  , @isExistMatch3rd			  BIT = 0
+		  , @ActionId					  INT = 200 --Void/recover
 	
 	DECLARE @cnt_RecalMatchInspiredVS	  INT = 0	
 		  , @cnt_RefundMatchInspiredVS	  INT = 0		 
@@ -185,7 +187,8 @@ BEGIN
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, increased BIT)
+
 	DECLARE @beforeUpd 		TVP_BalanceChange		  
 		  , @afterUpd 		TVP_BalanceChange		  		  		  		 		
 	
@@ -1295,6 +1298,39 @@ BEGIN
 			  , 4 AS balanceType
 		FROM #afterUpd						 					 	  
 		GROUP BY CustID
+
+		INSERT INTO #Balance (custid, balance, increased)
+		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+		FROM @beforeUpd AS b
+		INNER JOIN @afterUpd AS a ON b.custid = a.custid
+		WHERE b.balance <> a.balance
+
+		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative]
+						([ExecDate]
+						,[MatchID]
+						,[ActionID]
+						,[GroupID]
+						,[CustID]
+						,[Balance]
+						,[StatusID]
+						,[SessionId]
+						,[Remark])
+			SELECT	 GETDATE()
+					,0
+					,@ActionID
+					,0		-- For Void/Recover
+					,CustID
+					,Balance
+					,0
+					,CAST(NEWID() AS NVARCHAR(50))
+					,@spName
+			FROM	#Balance
+			WHERE	increased = 0
+		END
+		DROP TABLE #Balance
 		
 		--> INSERT data into pending balance table   
 		EXEC [dbo].[NAP_Admin_BalancePendingIns]

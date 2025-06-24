@@ -34,6 +34,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns and serverAlias [Redmine: #213451]
+		- 20250623@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's Explanation:
 	
@@ -71,6 +72,7 @@ BEGIN
 		  , @SiteDBGroupID		SMALLINT
 		  , @transInfo			VARBINARY(MAX) 
 		  , @MatchId			INT
+		  , @ActionId			INT = 200 --Void/Recover
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -80,6 +82,7 @@ BEGIN
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tmpKeyId (KeyId INT)
 	CREATE TABLE #CashOutExtraInfo (TransId BIGINT, changetime DATETIME, winlost MONEY, actionid TINYINT)
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, increased BIT)
 	
 	CREATE TABLE #SpecialDeleteBets (		
 		TransId				BIGINT,
@@ -472,7 +475,40 @@ BEGIN
 			ON s.transId = b.transid
 	) AS temp
 	GROUP BY temp.custid
+
+	INSERT INTO #Balance (custid, balance, increased)
+	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	FROM @BeforeUpd AS b
+	INNER JOIN @AfterUpd AS a ON b.custid = a.custid
+	WHERE b.balance <> a.balance
 	
+	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+					([ExecDate]
+					,[MatchID]
+					,[ActionID]
+					,[GroupID]
+					,[CustID]
+					,[Balance]
+					,[StatusID]
+					,[SessionId]
+					,[Remark])
+		SELECT	 GETDATE()
+				,0
+				,@ActionID
+				,0		-- For Void/Recover
+				,CustID
+				,Balance
+				,0
+				,CAST(NEWID() AS NVARCHAR(50))
+				,@spName
+		FROM	#Balance
+		WHERE	increased = 0
+	END		        
+	DROP TABLE #Balance
+
 	--> compare BALANCE
 	EXEC [dbo].[NAP_Admin_BalancePendingIns]
 		@BeforeUpd	 = @beforeUpd
