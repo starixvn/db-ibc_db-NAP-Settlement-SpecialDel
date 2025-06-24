@@ -43,6 +43,7 @@ AS
 		- 20240725@Max: [TVS] Return betid to call remoting ref [Redmine: #205983]
 		- 20241125@Lani: [TVS] Update the value of 'EmailGroup' returned, change serverAlias [Redmine: #213451]
 		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+		- 20250624@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Explanation's Param:
 
@@ -85,6 +86,7 @@ BEGIN
 		  , @InvalidTransIds	VARCHAR(MAX)	= ''	
 		  , @transInfo			VARBINARY(MAX) 
 		  , @MatchId			INT
+		  , @ActionId			INT = 200 --Void/recover
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -92,6 +94,7 @@ BEGIN
 
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, increased BIT)
 	
 	CREATE TABLE #SpecialDeleteBets (
 		TransId				BIGINT,
@@ -447,6 +450,39 @@ BEGIN
 	) AS temp
 	GROUP BY temp.custid				
 	
+	INSERT INTO #Balance (custid, balance, increased)
+	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	FROM @BeforeUpd AS b
+	INNER JOIN @AfterUpd AS a ON b.custid = a.custid
+	WHERE b.balance <> a.balance
+
+	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+					([ExecDate]
+					,[MatchID]
+					,[ActionID]
+					,[GroupID]
+					,[CustID]
+					,[Balance]
+					,[StatusID]
+					,[SessionId]
+					,[Remark])
+		SELECT	 GETDATE()
+				,0
+				,@ActionID
+				,0		-- For Void/Recover
+				,CustID
+				,Balance
+				,0
+				,CAST(NEWID() AS NVARCHAR(50))
+				,@spName
+		FROM	#Balance
+		WHERE	increased = 0
+	END		        
+	DROP TABLE #Balance
+
 	--> compare BALANCE
 	EXEC [dbo].[NAP_Admin_BalancePendingIns]
 		@BeforeUpd	 = @beforeUpd

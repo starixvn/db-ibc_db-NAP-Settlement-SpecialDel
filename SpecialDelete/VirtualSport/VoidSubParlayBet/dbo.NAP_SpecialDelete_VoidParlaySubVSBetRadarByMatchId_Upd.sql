@@ -29,6 +29,7 @@ AS
 		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241126@Lani: [TVS] Get site from member, change serverAlias [Redmine: #213451]
+		- 20250624@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's Explanation:				
 		- @TransIds : Main transids.				
@@ -52,8 +53,8 @@ BEGIN
 		  , @ErrCode					INT				= 0	
 		  , @SiteDBGroupID				SMALLINT
 		  , @IsExistsVS2				BIT = 0
-		  , @IsExistsVS				BIT = 0
-
+		  , @IsExistsVS					BIT = 0
+		  , @ActionId					INT = 200 --Void/recover
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 		  
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'		  	  		  			  
@@ -108,6 +109,7 @@ BEGIN
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, increased BIT)
 	
 	DECLARE @beforeUpd TVP_BalanceChange
 		  , @afterUpd  TVP_BalanceChange	
@@ -413,7 +415,39 @@ BEGIN
 				INNER JOIN #BetDelete t 
 						ON	b.transid = t.TransId					 	  
 		GROUP BY b.CustID
-		
+
+		INSERT INTO #Balance (custid, balance, increased)
+		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+		FROM @beforeUpd AS b
+		INNER JOIN @afterUpd AS a ON b.custid = a.custid
+		WHERE b.balance <> a.balance
+
+		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative]
+						([ExecDate]
+						,[MatchID]
+						,[ActionID]
+						,[GroupID]
+						,[CustID]
+						,[Balance]
+						,[StatusID]
+						,[SessionId]
+						,[Remark])
+			SELECT	 GETDATE()
+					,@MatchId
+					,@ActionID
+					,0		-- For Void/Recover
+					,CustID
+					,Balance
+					,0
+					,CAST(NEWID() AS NVARCHAR(50))
+					,@spName
+			FROM	#Balance
+			WHERE	increased = 0
+		END		        
+
 		--> INSERT data into pending balance table   
 		EXEC [dbo].[NAP_Admin_BalancePendingIns]
 			  @BeforeUpd = @beforeUpd
@@ -437,11 +471,9 @@ BEGIN
 
 		SELECT @CustIds = @CustIds +
 							CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + 
-							CONVERT(VARCHAR(20), b.custid)
-		FROM @beforeUpd b
-				INNER JOIN	@afterUpd a 	
-						ON a.custid = b.custid
-		WHERE b.balance > a.balance				
+							CONVERT(VARCHAR(20), custid)
+		FROM #Balance
+		WHERE increased = 0			
 			
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
@@ -543,6 +575,7 @@ BEGIN
 	DROP TABLE #tblTransIds
 	DROP TABLE #tblMatchParlayProcess
 	DROP TABLE #BetDelete
+	DROP TABLE #Balance
 	SET NOCOUNT OFF		
 END
 GO
