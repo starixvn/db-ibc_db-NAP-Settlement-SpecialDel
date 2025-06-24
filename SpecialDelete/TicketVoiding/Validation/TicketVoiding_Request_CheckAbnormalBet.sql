@@ -187,7 +187,6 @@ BEGIN
 		,IsCreditCashService		BIT DEFAULT(0)
 		,CustomerClass				SMALLINT
 		)
-	CREATE TABLE #DuplicatedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #ABWhiteListTransIds(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
@@ -482,17 +481,18 @@ BEGIN
 			ON al.srecommend = s.custid
 		LEFT JOIN @VIPAccount_tmp vip ON al.custid = vip.CustID
 
-	INSERT INTO #DuplicatedTransids (transid)
-	SELECT i.transid
-	FROM #tmpInputTransid_RemarkId i
-		INNER JOIN #tmpTransInfo t ON i.Transid = t.transid
-	GROUP BY i.transid
-	HAVING COUNT(1) >= 2
-
+	--Duplicated Transids
 	UPDATE t
 	SET t.RemarkId = 2
 	FROM #tmpInputTransid_RemarkId t
-		INNER JOIN #DuplicatedTransids u ON t.Transid = u.transid
+		WHERE EXISTS (
+			SELECT i.transid
+			FROM #tmpInputTransid_RemarkId i
+				INNER JOIN #tmpTransInfo x ON i.Transid = x.Transid
+			WHERE i.Transid = t.Transid
+			GROUP BY i.Transid
+			HAVING COUNT(1) >= 2
+		)
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
 	BEGIN
@@ -1052,5 +1052,4 @@ BEGIN
 	DROP TABLE #tmpTransInfo
 	DROP TABLE #invalidTransId
 	DROP TABLE #tmpInputTransid_RemarkId
-	DROP TABLE #DuplicatedTransids
 END
