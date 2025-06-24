@@ -613,7 +613,7 @@ BEGIN
 						,[SessionId]
 						,[Remark])
 			SELECT	 GETDATE()
-					,0
+					,@MatchId
 					,@ActionID
 					,0		-- For Void/Recover
 					,CustID
