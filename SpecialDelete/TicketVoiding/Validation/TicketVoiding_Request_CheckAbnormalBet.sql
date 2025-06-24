@@ -445,6 +445,13 @@ BEGIN
 
 
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND (IsMoved14 = 0)))
+		SET d.matchid = m.ParentID
+		FROM #tmpTransInfo d
+			INNER JOIN dbo.match14 m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
+		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+	END
+
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (29) AND IsMoved14 = 0))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -462,7 +469,7 @@ BEGIN
 		FROM #tmpTransInfo d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29)
+		WHERE d.bettype NOT IN (29)
 	END
 	
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND (IsMoved14 = 1)))
@@ -483,7 +490,7 @@ BEGIN
 		FROM #tmpTransInfo d
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29)
+		WHERE d.bettype NOT IN (29)
 	END
 
 	UPDATE al
@@ -532,6 +539,7 @@ BEGIN
 
 		UPDATE t
 		SET t.RemarkId = 10
+					,s.IsCreditCashService
 		FROM #tmpInputTransid_RemarkId t
 		WHERE t.Transid IN (SELECT Transid FROM @tmpSiteDBDownInfo)
 
@@ -604,15 +612,17 @@ BEGIN
 			INNER JOIN #UnsupportedTransids u ON t.Transid = u.transid
 		
 	END
+		SELECT DISTINCT custId, recommend, mrecommend, srecommend
+		FROM #validTransId
+		)t
 	
 	INSERT INTO #TransidInRequest (TransId)
-	SELECT DISTINCT tmp.transid
+	SELECT DISTINCT s.transid
 	FROM DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK)
-		CROSS APPLY (
-					SELECT TransId
+		INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+					ON s.RequestId = r.RequestId AND SiteDBGroupID = @SiteDBGroupID
 					FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 					WHERE RequestId = r.RequestId AND SiteDBGroupID = @SiteDBGroupID
-				) AS tmp
 	WHERE  r.RequestId <> @RequestId 
 		AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
 
@@ -814,6 +824,8 @@ BEGIN
 		INSERT INTO @tmpMarkTransId (TransId)
 		SELECT transid
 		FROM #validTransId WHERE StatusId IN (0,1)		
+			LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.CustID = cs.CustID AND cs.ServiceType = 1
+					   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
 	END
 	ELSE IF @RequestId <> 0
 	BEGIN
@@ -829,6 +841,8 @@ BEGIN
 					AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
 					AND rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
 			
+				LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.custId = cs.CustID AND cs.ServiceType = 1
+						   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 			INSERT INTO @tmpMarkTransId (TransId)
 			SELECT transid 
@@ -844,6 +858,8 @@ BEGIN
 			SELECT transid
 			FROM #validTransId WHERE StatusId IN (0,1)
 
+				LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.CustID = cs.CustID AND cs.ServiceType = 1
+						   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
 		BEGIN
@@ -870,6 +886,7 @@ BEGIN
 		SELECT @RemoveTransids = @UnmarkTransIds
 	END
 
+					WHEN @IsRemoveCreditCashService = 1 AND v.IsCreditCashService = 1 THEN 1
 	/*****************Return table **************************/
 	--1. Info match table
 	SELECT matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate
