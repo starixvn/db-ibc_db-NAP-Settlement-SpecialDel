@@ -1179,7 +1179,7 @@ BEGIN
 				,0
 				,CAST(NEWID() AS NVARCHAR(50))
 				,@spName
-		FROM	#Balance WITH (NOLOCK)
+		FROM	#Balance
 		WHERE	Increased = 0
 	END		        
 	DROP TABLE #Balance
