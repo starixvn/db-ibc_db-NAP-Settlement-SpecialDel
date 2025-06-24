@@ -9,8 +9,7 @@
 USE bodb02
 GO
  UPDATE A WITH (ROWLOCK, UPDLOCK)
- SET A.ExternalResultTable				= 1
-	,A.Setting							= 2
+ SET A.Setting							= 2
 	,A.AP_Group							= 1
 	,A.AP_Check_M_Hold					= 1
 	,A.AP_Check_M_Hedge					= 1
