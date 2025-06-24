@@ -34,6 +34,7 @@ AS
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
 		- 20240321@Max: [TVS] Remove parameters when calling SP for settling parlay tickets [Redmine: #202022]
 		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
+		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's explanation:	
 		
@@ -62,8 +63,11 @@ BEGIN
 			,@CustIds			VARCHAR(MAX)
 			,@strSetting		VARCHAR(MAX)
 			,@sqlOpenqueryCommand NVARCHAR(MAX) = ''
+			,@SitedbgroupId		SMALLINT 
+			,@ActionID			INT = 200 --Void/Recover
 
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tblDebitPending TVP_BalanceList  
 	DECLARE @tblCreditPending TVP_BalanceList  
@@ -75,6 +79,8 @@ BEGIN
 
 	CREATE TABLE #BeforeUpd (custid INT, balance MONEY)  
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
+
 	CREATE TABLE #tmpSubTransId (TransId BIGINT, Refno BIGINT, MatchId INT, isFinish INT)
 	CREATE TABLE #tmpMainTransId (TransId BIGINT, Refno BIGINT, ruben TINYINT, CustId INT, MatchId INT
 		, srecommend INT, betteam NVARCHAR(10), oddsspread MONEY, SiteID INT
@@ -408,17 +414,48 @@ BEGIN
 	END
 	--------------------------------------
 
+	INSERT INTO #Balance (custid, balance, Increased)
+	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	FROM #BeforeUpd b
+		INNER JOIN #AfterUpd a ON b.custid = a.custid
+	WHERE b.balance <> a.balance
+
 	-- get negative balance user list
 	SET @CustIds = ''
-	SELECT	@CustIds = @CustIds + CAST(a.custid AS VARCHAR(20)) + ','
-	FROM	#BeforeUpd b
-		INNER JOIN #AfterUpd a
-			ON b.custid = a.custid
-	WHERE	b.balance > a.balance
+	SELECT	@CustIds = @CustIds + CAST(b.custid AS VARCHAR(20)) + ','
+	FROM	#Balance b
+	WHERE	Increased = 0
 
 	EXEC dbo.NAP_CustNegativeBalance_Sel
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+
+	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+					([ExecDate]
+					,[MatchID]
+					,[ActionID]
+					,[GroupID]
+					,[CustID]
+					,[Balance]
+					,[StatusID]
+					,[SessionId]
+					,[Remark])
+		SELECT	 GETDATE()
+				,@MatchId
+				,@ActionID
+				,0		-- For Void/Recover
+				,CustID
+				,Balance
+				,0
+				,@Session
+				,@spName + ' - RequestId: ' + CAST(@RequestId AS VARCHAR)
+		FROM	#Balance
+		WHERE	Increased = 0
+	END		        
+	DROP TABLE #Balance
 
 	IF @RowCount <= @ThreadHold
 	BEGIN
