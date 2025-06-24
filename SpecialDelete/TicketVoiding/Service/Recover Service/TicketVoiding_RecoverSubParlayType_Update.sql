@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RecoverSubParlayType_Update] 
+ALTER PROCEDURE [dbo].[TicketVoiding_RecoverSubParlayType_Update] 
 (
 	@RequestId			INT
 	,@MatchId			INT
@@ -20,6 +20,7 @@ AS
 	
 	Revisions: 
 		- 20250609@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay - Create new SP [Redmine: #227829]
+		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's explanation:
 		
@@ -53,6 +54,7 @@ BEGIN
 			,@Transids_29			VARCHAR(MAX) = ''
 			,@StartTime_Retry		DATETIME
 			,@LimitSecond			INT = 180
+			,@ActionID				INT = 200 --Void/Recover
 
 	CREATE TABLE #tblMatchParlayProcess (MatchId INT, RefNo BIGINT)
 	CREATE TABLE #tblRecoverBet (
@@ -100,6 +102,7 @@ BEGIN
 
 	DECLARE @tblDebitPending TVP_BalanceList
 	DECLARE @tblCreditPending TVP_BalanceList
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
 
 	SELECT @SiteDBGroupId = dbo.f_Get_SiteDBGroupID()
 
@@ -464,15 +467,47 @@ BEGIN
 			WHERE b.statusID = 0 AND b.SiteDBGroupID = @SiteDBGroupID
 		END
 
+		INSERT INTO #Balance (custid, balance, Increased)
+		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+		FROM @tblBeforeBalance b
+			INNER JOIN @tblAfterBalance a ON b.custid = a.custid
+		WHERE b.balance <> a.balance
+
 		--Build list of customer name with negative balance
 		SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20),b.custid)
-		FROM @tblBeforeBalance AS b
-		INNER JOIN @tblAfterBalance AS a ON a.CustId = b.CustId
-		WHERE b.balance > a.balance
+		FROM #Balance AS b
+		WHERE Increased = 0
 
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+
+		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative]
+						([ExecDate]
+						,[MatchID]
+						,[ActionID]
+						,[GroupID]
+						,[CustID]
+						,[Balance]
+						,[StatusID]
+						,[SessionId]
+						,[Remark])
+			SELECT	 GETDATE()
+					,@MatchId
+					,@ActionID
+					,0		-- For Void/Recover
+					,CustID
+					,Balance
+					,0
+					,@session
+					,@spName + ' - RequestId: ' + CAST(@RequestId AS VARCHAR)
+			FROM	#Balance
+			WHERE	Increased = 0
+		END		        
+		DROP TABLE #Balance
 
 		IF @TotalSubParlay <= @ThreadHold
 		BEGIN 
@@ -529,5 +564,6 @@ BEGIN
 	DROP TABLE #tblRecoverBet
 	DROP TABLE #tblMatchParlayProcess
 	DROP TABLE #tblMainTicket
+
 
 END

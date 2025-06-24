@@ -23,6 +23,7 @@ AS
 		- 20231227@Max: Create new SP [Redmine: #196020]
 		- 20240304@Max: Set LogActionId [Redmine: #196020]
 		- 20241218@July: Modify ErrCode [Redmine: #213398]
+		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's explanation:
 		
@@ -51,6 +52,7 @@ BEGIN
 			,@xmlTransId			VARCHAR(MAX) = ''
 			,@SB_Error			BIT
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
+			,@ActionID			INT = 200 --Void/Recover
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -101,7 +103,8 @@ BEGIN
 											
 	DECLARE @tblBeforeBalance	TABLE (custid INT, balance MONEY)
 	DECLARE @tblAfterBalance	TABLE (custid INT, balance MONEY)	
-	
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
+
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90201
 	SET @SB_Error = 0
@@ -488,18 +491,50 @@ BEGIN
 	
 		-- end capture
 
+		INSERT INTO #Balance (custid, balance, Increased)
+		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+		FROM @tblBeforeBalance b
+			INNER JOIN @tblAfterBalance a ON b.custid = a.custid
+		WHERE b.balance <> a.balance
+
 		--> Build list of customer name with negative balance
 		SET @NegativeBalanceUsers = ''
 		SELECT @CustIds = @CustIds +
 						  CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + 
 						  CONVERT(VARCHAR(20), b.custid)
-		FROM @tblBeforeBalance b
-			 INNER JOIN	@tblAfterBalance a ON a.custid = b.custid 
-		WHERE b.balance > a.balance				
+		FROM #Balance b
+		WHERE Increased = 0	
 		
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT	
+
+		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative]
+					   ([ExecDate]
+					   ,[MatchID]
+					   ,[ActionID]
+					   ,[GroupID]
+					   ,[CustID]
+					   ,[Balance]
+					   ,[StatusID]
+					   ,[SessionId]
+					   ,[Remark])
+			SELECT	 GETDATE()
+					,@MatchId
+					,@ActionID
+					,0		-- For Void/Recover
+					,CustID
+					,Balance
+					,0
+					,@session
+					,@spName + ' - RequestId: ' + CAST(@RequestId AS VARCHAR)
+			FROM	#Balance
+			WHERE	Increased = 0
+		END		        
+		DROP TABLE #Balance
 
 		IF @totalMainParlay <= @ThreadHold
 		BEGIN

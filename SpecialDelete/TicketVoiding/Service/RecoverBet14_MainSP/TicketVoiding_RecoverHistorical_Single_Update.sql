@@ -17,8 +17,7 @@ ALTER PROCEDURE dbo.TicketVoiding_RecoverHistorical_Single_Update
 )
 AS
 /*	
-	Created by: Kathy
-	Date 20190823
+	Created by: 20190823@Kathy
 	Task: recover single ticket [Redmine:#115376]
 	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
@@ -31,6 +30,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250516@July: Recover 14 - Insert changed data into BalanceTrigger table [Redmine: #227625]
+		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's explanation:	
 		
@@ -48,6 +48,9 @@ BEGIN
 			,@CustIds			VARCHAR(MAX)
 			,@IsSiteDB			BIT
 			,@TransidList		VARCHAR(MAX) = ''
+			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
+			,@ActionID			INT = 200 --Void/Recover
+			,@session			NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 		SET @IsSiteDB = 1
@@ -73,6 +76,7 @@ BEGIN
 		
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
 
 	DECLARE @BalanceInfoBeforeUpd TABLE (
 		CustId			INT
@@ -517,6 +521,39 @@ BEGIN
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	
+	INSERT INTO #Balance (custid, balance, Increased)
+	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	FROM @BeforeUpd b
+		INNER JOIN @AfterUpd a ON b.custid = a.custid
+	WHERE b.balance <> a.balance
+
+	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+					([ExecDate]
+					,[MatchID]
+					,[ActionID]
+					,[GroupID]
+					,[CustID]
+					,[Balance]
+					,[StatusID]
+					,[SessionId]
+					,[Remark])
+		SELECT	 GETDATE()
+				,@MatchId
+				,@ActionID
+				,0		-- For Void/Recover
+				,CustID
+				,Balance
+				,0
+				,@session
+				,@spName + ' - RequestId: ' + CAST(@RequestId AS VARCHAR)
+		FROM	#Balance
+		WHERE	Increased = 0
+	END		        
+	DROP TABLE #Balance
+
 	SET @AffectedList = CAST((
 		SELECT	CustId AS '@c'
 				,WinlostDate AS '@w'
