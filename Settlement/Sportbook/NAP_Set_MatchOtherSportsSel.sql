@@ -74,10 +74,9 @@ AS
 			- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
 			- 20250507@Aries: Sportsbook - Enhance UI on theCalculation Page, Multi - Sports page and change the Over Status filter on the Calculation Pop-up [Redmine:#225098]
 			- 20250528@Aries: Fix an issue due to showing "Provider Ready" at the HT and FT columns after settlement [Redmine:#228964]
-			- 20250610@Aries: Enhance the the "Provider Ready" functions for minor sports on the Settlement Site [Redmine:#230143]
-			- 20250616@Hughie: Support Template with FT only [Redmine:#221900]
-			
+			- 20250610@Aries: Enhance the the "Provider Ready" functions for minor sports on the Settlement Site [Redmine:#230143]		
 			- 20250507@Aries: Enhance the performance for the Multi-sport Page [Redmine:#223959]
+			- 20250616@Hughie: Support Template with FT only [Redmine:#221900]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
