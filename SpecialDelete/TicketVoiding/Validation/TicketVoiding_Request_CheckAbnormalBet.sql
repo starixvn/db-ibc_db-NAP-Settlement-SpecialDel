@@ -109,7 +109,7 @@ BEGIN
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT)
-	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), eventdate DATETIME)
+	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), eventdate DATETIME, GlobalShowTime SMALLDATETIME, livehomescore INT, liveawayscore INT)
 	DECLARE	@Letstalk_Info AS TABLE (MatchId INT, IsHasUUSTickets BIT, ListBettype VARCHAR(MAX),ListBetteam VARCHAR(MAX))
 	DECLARE @tmp_OfflineServerId AS TABLE (ServerId SMALLINT)
 
@@ -583,13 +583,12 @@ BEGIN
 			RETURN;
 		END
 
-		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid,sporttype, matchcode, eventdate)
-		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate
+		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid, sporttype, matchcode, eventdate, GlobalShowTime, livehomescore, liveawayscore)
+		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate, GlobalShowTime, livehomescore, liveawayscore
 		FROM dbo.match m WITH(NOLOCK)
 		WHERE m.matchid IN (SELECT MatchId FROM @tmpMatchId)
-		
-		UNION ALL
-		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate
+		UNION
+		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate, GlobalShowTime, livehomescore, liveawayscore
 		FROM dbo.match14 m WITH(NOLOCK) 
 		WHERE m.matchid IN (SELECT MatchId FROM @tmpMatchId)
 
@@ -827,15 +826,7 @@ BEGIN
 				THEN 1 ELSE 0
 			END
 		FROM #validTransId t
-			OUTER APPLY ( 	SELECT GlobalShowTime, livehomescore, liveawayscore, sporttype    
-							FROM dbo.match WITH (NOLOCK)
-							WHERE matchid = t.matchid
-							
-							UNION 
-							SELECT GlobalShowTime, livehomescore, liveawayscore, sporttype    
-							FROM dbo.match14 WITH (NOLOCK)
-							WHERE matchid = t.matchid
-						) m
+			LEFT JOIN @tmpMatchId_Info m ON t.matchid = m.MatchId
 
 		SELECT @NonLiveTransIds = ISNULL(STUFF((SELECT ',' + CAST(lt.transid AS VARCHAR(50))
 										FROM #LiveTransIds lt
