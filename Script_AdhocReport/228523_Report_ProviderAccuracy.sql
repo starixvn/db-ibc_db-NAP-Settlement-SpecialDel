@@ -65,11 +65,13 @@ BEGIN
 	DROP TABLE IF EXISTS #tmp_ProviderResult
 	DROP TABLE IF EXISTS #tmp_Match
 	DROP TABLE IF EXISTS #tmp_SettledResult
+	DROP TABLE IF EXISTS #tmp_ReduntdantData
 
 	CREATE TABLE #tmp_ProviderResult (ID INT IDENTITY(1,1), MatchID INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) , CreateDate DATETIME, rk INT)
 	CREATE TABLE #tmp_Match (MatchID INT, EventDate DATE, leagueid INT, leaguename NVARCHAR(500), homeid int, awayid int, isTestMatch BIT, LeagueGroupID INT, hometeamname NVARCHAR(100), awayteamname NVARCHAR(100), range TINYINT)
 	CREATE TABLE #tmp_SettledResult (ID INT IDENTITY(1,1), MatchID INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
-
+	CREATE TABLE #tmp_ReduntdantData (MatchId INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
+	
 	CREATE INDEX idx_tmp_Match ON #tmp_Match (Matchid)
 	CREATE INDEX idx_tmp_ProviderResult ON #tmp_ProviderResult (Matchid, resourceid)
 
@@ -143,13 +145,19 @@ BEGIN
 	DELETE FROM #tmp_Match WHERE isTestMatch = 1 OR  LeagueGroupID IN (122,113,252,151,215)
 	
 	------PROVIDER DATA-------------------------------------------------------------------
-	IF @ResultTable =1
+	IF @ProviderTable =1
 	BEGIN
 		INSERT INTO #tmp_ProviderResult (MatchID, ResourceID, HomeValue, AwayValue, CreateDate, rk  )
 		SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue, r.CreateDate , ROW_NUMBER() OVER( partition by r.matchid, r.ResourceId order by r.CreateDate  ) 
 		FROM bodb_archive.dbo.ProviderExternalResultDetail_BK r WITH(NOLOCK)
 		INNER JOIN #tmp_Match m ON r.Matchid = m.matchid
 	END
+
+	DELETE r 
+	OUTPUT  deleted.MatchId  , deleted.ResourceID , deleted.HomeValue , deleted.AwayValue
+	INTO #tmp_ReduntdantData (MatchId  , ResourceID , HomeValue , AwayValue )
+	FROM #tmp_ProviderResult r
+
 
 	------RESULT SETTLE DATA----------------------------------------------------------------
 	IF EXISTS (SELECT TOP 1 1 FROM #tmp_Match WHERE range = 1)
@@ -215,6 +223,14 @@ BEGIN
 				AND p.ResourceID = m.ResourceID
 	ORDER BY  m.eventdate 
 	
+
+
+	
+	---------Return Redundant data
+	SELECT MatchId  , ResourceID , HomeValue , AwayValue
+	FROM #tmp_ReduntdantData r
+	ORDER BY MatchID
+
 
 END
 GO
