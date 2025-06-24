@@ -74,9 +74,9 @@ AS
 			- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
 			- 20250507@Aries: Sportsbook - Enhance UI on theCalculation Page, Multi - Sports page and change the Over Status filter on the Calculation Pop-up [Redmine:#225098]
 			- 20250528@Aries: Fix an issue due to showing "Provider Ready" at the HT and FT columns after settlement [Redmine:#228964]
-			- 20250610@Aries: Enhance the the "Provider Ready" functions for minor sports on the Settlement Site [Redmine:#230143]
-			
+			- 20250610@Aries: Enhance the the "Provider Ready" functions for minor sports on the Settlement Site [Redmine:#230143]		
 			- 20250507@Aries: Enhance the performance for the Multi-sport Page [Redmine:#223959]
+			- 20250616@Hughie: Support Template with FT only [Redmine:#221900]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -115,7 +115,7 @@ BEGIN
 			,@IsCompletedWithRunningTicket		BIT = 0 
 
 	DECLARE @tmpLeagueIds   TABLE (LeagueId INT)
-	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT, ResultTable TINYINT, ExternalResultTable TINYINT, AP_RetryTime  INT,IsAppliedSOP BIT DEFAULT(0))
+	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT, ResultTable TINYINT, ExternalResultTable TINYINT, AP_RetryTime  INT,IsAppliedSOP BIT DEFAULT(0), APGroup SMALLINT)
 	DECLARE @tmpMatchStatus TABLE (MatchStatus TINYINT)
 	DECLARE @tmpOverStatus  TABLE (OverStatus TINYINT)
 	DECLARE @tmpHoldStatus  TABLE (HoldStatus TINYINT)
@@ -160,6 +160,7 @@ BEGIN
 		,AP_RetryTime					INT
 		,GameType 						TINYINT
 		,IsAppliedSOP					BIT
+		,APGroup						SMALLINT
 	)
 
 	BEGIN TRY
@@ -192,8 +193,8 @@ BEGIN
 		SET @OverStatus = '0'
 	END
 
-	INSERT INTO @tmpSporttypes( Sporttype, ResultTable, ExternalResultTable, AP_RetryTime, IsAppliedSOP)
-	SELECT	DISTINCT f.[value], s.ResultTable, s.ExternalResultTable, s.AP_Main_WaitingTime, s.IsAppliedSOP
+	INSERT INTO @tmpSporttypes( Sporttype, ResultTable, ExternalResultTable, AP_RetryTime, IsAppliedSOP, APGroup)
+	SELECT	DISTINCT f.[value], s.ResultTable, s.ExternalResultTable, s.AP_Main_WaitingTime, s.IsAppliedSOP, s.AP_Group
 	FROM	STRING_SPLIT(@Sporttypes, ',') f
 		INNER JOIN dbo.SettlementResultTableSetting s WITH(NOLOCK) 
 			ON f.[value] = s.sporttype
@@ -264,6 +265,7 @@ BEGIN
 			,AP_RetryTime
 			,GameType
 			,IsAppliedSOP
+			,APGroup
 		)
 		SELECT	 m.matchid
 				,m.ParentID
@@ -299,6 +301,7 @@ BEGIN
 				,s.AP_RetryTime
 				,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
 				,s.IsAppliedSOP
+				,s.APGroup
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -359,6 +362,7 @@ BEGIN
 			,AP_RetryTime
 			,GameType
 			,IsAppliedSOP
+			,APGroup
 		)
 		SELECT	 m.matchid
 				,m.ParentID
@@ -394,6 +398,7 @@ BEGIN
 				,s.AP_RetryTime
 				,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
 				,s.IsAppliedSOP
+				,s.APGroup
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes s
 				ON m.sporttype = s.Sporttype
@@ -645,6 +650,7 @@ BEGIN
 			,m.IsHalfTimeCal
 			,m.BestOfMap
 			,m.OfferLive
+			,m.APGroup
 			,ISNULL(s.WaitingTime, 300) AS AutoWaitingTime
 			,ISNULL(s2.WaitingTime, AP_RetryTime) AS AutoMainWaitingTime
 			,ISNULL(s2.EAR_WaitingTime, AP_RetryTime) AS AutoEarlyWaitingTime
