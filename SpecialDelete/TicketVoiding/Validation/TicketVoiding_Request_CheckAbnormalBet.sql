@@ -494,27 +494,6 @@ BEGIN
 			HAVING COUNT(1) >= 2
 		)
 
-	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
-	BEGIN
-		--1. Info match table
-		SELECT MatchId FROM @tmpMatchId
-		
-		--2. Validate Table
-		SET @InvalidTransIds = @TransIds
-		SELECT @InvalidTransIds AS InvalidTransIds
-
-		--3. List ticket unmark (if any)
-		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
-
-		--4. Transinfo table
-		SELECT @TransInfoJson AS TransInfoJson
-
-		--5. Export Ticket that the user inputs table
-		SELECT TransId, 1 AS RemarkId  FROM #tmpInputTransid_RemarkId
-
-		RETURN;
-	END
-
 	IF @FilterBy IS NULL
 	BEGIN
 		INSERT INTO @tmpMatchId (MatchId)
