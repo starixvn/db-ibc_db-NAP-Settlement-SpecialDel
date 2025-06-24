@@ -16,7 +16,7 @@ BEGIN
 			,@ProviderName	VARCHAR(50) ='sofas'
 			,@Sporttype		SMALLINT = 2
 			,@fromDate		DATETIME = '2025-01-01'
-			,@toDate		DATETIME = '2025-06-23 23:59:59'
+			,@toDate		DATETIME = '2025-06-23 23:59:59' 
 
 	IF @ProviderID IS NULL
 	BEGIN
@@ -51,12 +51,16 @@ BEGIN
 		Print 'Please input ProviderID correctly!'
 		RETURN
 	END
-----------------------------------------------------------------------
+
+-----------GET SETTING DATA----------------------------------
 	DECLARE @MovebetDate	SMALLDATETIME
 			,@BUDate		SMALLDATETIME
 			,@ResultTable	TINYINT
 			,@ProviderTable TINYINT
 			,@IsApplyAP		BIT
+	
+	
+	DECLARE @tmp_ValidResourceID TABLE (ResourceID VARCHAR(20), SettleType VARCHAR(30))
 
 	DROP TABLE IF EXISTS #tmp_ProviderResult
 	DROP TABLE IF EXISTS #tmp_Match
@@ -66,8 +70,8 @@ BEGIN
 	CREATE TABLE #tmp_Match (MatchID INT, EventDate DATE, leagueid INT, leaguename NVARCHAR(500), homeid int, awayid int, isTestMatch BIT, LeagueGroupID INT, hometeamname NVARCHAR(100), awayteamname NVARCHAR(100), range TINYINT)
 	CREATE TABLE #tmp_SettledResult (ID INT IDENTITY(1,1), MatchID INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
 
-	create index idx_tmp_Match ON #tmp_Match (Matchid)
-	create index idx_tmp_ProviderResult ON #tmp_ProviderResult (Matchid, resourceid)
+	CREATE INDEX idx_tmp_Match ON #tmp_Match (Matchid)
+	CREATE INDEX idx_tmp_ProviderResult ON #tmp_ProviderResult (Matchid, resourceid)
 
 	SELECT @MovebetDate = CONVERT(SMALLDATETIME, VValue)
 	FROM bodb02.dbo.SystemSettings
@@ -82,6 +86,16 @@ BEGIN
 			,@IsApplyAP		= CASE WHEN ISNULL(s.AP_Group,0) BETWEEN 1 AND 999 THEN 1 ELSE 0 END
 	FROM DBPRO.bodb02.dbo.SettlementResultTableSetting s WITH(NOLOCK)
 	WHERE s.Sporttype = @Sporttype
+
+	INSERT INTO @tmp_ValidResourceID ( ResourceID, SettleType ) 
+	SELECT DISTINCT  ISNULL(sp.ResourceID, major.ResourceID) AS ResourceID,  CASE WHEN  major.ResourceID IS NOT NULL THEN 'MNL' ELSE sp.SettleType END AS SettleType
+	FROM SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+		OUTER APPLY ( SELECT  major.ResourceID 
+					  FROM  f_Set_MajorRound(@sportype) major
+					  WHERE major.ResourceID = sp.ResourceID
+							) major
+	WHERE   sp.SportType = @sportype 
+      AND ISNULL(RefResourceID,'') = ''
 
 	-------MATCH INFO---------------------------------------------------------------
 	IF @toDate > @MovebetDate
@@ -194,11 +208,11 @@ BEGIN
 	 
 	 SELECT  r.MatchID
 			,r.ResourceID
-		FROM #tmp_SettledResult m
-		OUTER JOIN  #tmp_ProviderResult p
+			, isnull(m.homevalue,'') = isnull(p.homevalue,'') or isnull(m.awayvalue,'') = isnull(p.awayvalue,'')
+	FROM #tmp_SettledResult m
+	FULL OUTER JOIN  #tmp_ProviderResult p
 			ON p.Matchid = m.matchid
 				AND p.ResourceID = m.ResourceID
-				AND isnull(m.homevalue,'') = isnull(p.homevalue,'') or isnull(m.awayvalue,'') = isnull(p.awayvalue,'')
 	ORDER BY  m.eventdate 
 	
 
