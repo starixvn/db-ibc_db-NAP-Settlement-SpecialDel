@@ -20,7 +20,8 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 	
-	DECLARE @IsCalRefund		BIT = 0
+	DECLARE @IsCalRefund	BIT = 0
+			,@FMAutoRefund INT = 11;
 	
 	SELECT	@IsCalRefund = calrefund
 	FROM	dbo.match_remark WITH(NOLOCK)
@@ -45,8 +46,24 @@ BEGIN
             ,m.AutoSetting
             ,(SELECT AutoSetting FROM dbo.League WITH(NOLOCK) WHERE leagueid = m.leagueid) AS AutoSettingForLeague
 			,m.ChildMatchType
+			,ss.[Enable] AS IsFMAutoRefundLeague
+			,aps.[Enable] AS IsFMAutoRefund
 	FROM	dbo.Match m WITH (NOLOCK)
-	WHERE	MatchID = @MatchID
+	LEFT JOIN dbo.League l WITH (NOLOCK)
+        ON m.leagueid = l.leagueid
+    OUTER APPLY (
+        SELECT  TOP 1 ss.[Enable]
+        FROM    dbo.SettlementSetting ss WITH (NOLOCK)
+        WHERE   ss.LeagueId = m.leagueid 
+			AND ss.AutoType = @FMAutoRefund
+    ) ss
+    OUTER APPLY (
+        SELECT  TOP 1 ap.[Enable]
+        FROM    dbo.AutoPayoutSetting ap WITH (NOLOCK)
+        WHERE   ap.MatchId = m.matchid 
+			AND ap.AutoType = @FMAutoRefund
+    ) aps
+	WHERE	m.matchid = @MatchID
 
 END
 GO
