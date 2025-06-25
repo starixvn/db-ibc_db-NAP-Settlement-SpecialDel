@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@IsRemoveCreditCashService	BIT = 0			
 	,@IsAddSettledTickets		BIT = 0
 	,@IsVoidAllArchivedTickets	BIT = 0
-	,@OfflineServerId			VARCHAR(10) = NULL --SiteDB down. Ex:'0,1,2,3'
+	,@OnlineServerId			VARCHAR(10) = NULL --Ex:'0,1,2,3'
 )
 AS
 /*  
@@ -111,15 +111,15 @@ BEGIN
 	DECLARE @tmpMatchId AS TABLE (MatchId INT)
 	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), eventdate DATETIME, GlobalShowTime SMALLDATETIME, livehomescore INT, liveawayscore INT)
 	DECLARE	@Letstalk_Info AS TABLE (MatchId INT, IsHasUUSTickets BIT, ListBettype VARCHAR(MAX),ListBetteam VARCHAR(MAX))
-	DECLARE @tmp_OfflineServerId AS TABLE (ServerId SMALLINT)
+	DECLARE @tmp_OnlineServerId AS TABLE (ServerId SMALLINT)
 
 	SET @Archived_FromDate = CONVERT(DATE, DATEADD(DAY, -7, GETDATE()))
 
-	IF ISNULL(@OfflineServerId, '') <> ''
+	IF ISNULL(@OnlineServerId, '') <> ''
 	BEGIN
-		INSERT INTO @tmp_OfflineServerId (ServerId)
+		INSERT INTO @tmp_OnlineServerId (ServerId)
 		SELECT value AS ServerId
-		FROM STRING_SPLIT(@OfflineServerId, ',')
+		FROM STRING_SPLIT(@OnlineServerId, ',')
 		WHERE value <> ''
 	END
 
@@ -325,11 +325,11 @@ BEGIN
 		,b.winlostdate
 	FROM #inputTransid t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
-		LEFT JOIN @tmp_OfflineServerId os ON b.SiteDBGroupID = os.ServerId
+		LEFT JOIN @tmp_OnlineServerId os ON b.SiteDBGroupID = os.ServerId
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.betfrom <> 'P'
 		AND 1 = CASE WHEN os.ServerId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID THEN 1
-		             WHEN os.ServerId IS NOT NULL AND b.SiteDBGroupID = os.ServerId THEN 1  -- Get ticket sitedb down
+		             WHEN os.ServerId IS NOT NULL AND b.SiteDBGroupID <> os.ServerId THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END
 		
 	--Update Main MatchId for child match cricket/baseball (Sporttype In (50,8))
@@ -418,11 +418,11 @@ BEGIN
 			,b.winlostdate
 		FROM #inputTransid t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
-			LEFT JOIN @tmp_OfflineServerId os ON b.SiteDBGroupID = os.ServerId
+			LEFT JOIN @tmp_OnlineServerId os ON b.SiteDBGroupID = os.ServerId
 		WHERE b.statusID NOT IN (101, 102, 103)
 			AND b.betfrom <> 'P'
 			AND 1 = CASE WHEN os.ServerId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID THEN 1
-						 WHEN os.ServerId IS NOT NULL AND b.SiteDBGroupID = os.ServerId THEN 1  -- Get ticket sitedb down
+						 WHEN os.ServerId IS NOT NULL AND b.SiteDBGroupID <> os.ServerId THEN 1  -- Get ticket sitedb down
 					     ELSE 0 END
 
 		--Update Main MatchId for child match cricket/baseball (Sporttype In (50,8))
@@ -515,13 +515,10 @@ BEGIN
 			SET @InvalidTransIds = @TransIds
 			SELECT @InvalidTransIds AS InvalidTransIds
 
-			--3. List ticket unmark (if any)
-			SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
+			--3. List ticket unmark/mark & Transinfo table (if any)
+			SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson  FROM @tmpUnmarkTransId
 
-			--4. Transinfo table
-			SELECT @TransInfoJson AS TransInfoJson
-
-			--5. Export Ticket that the user inputs table
+			--4. Export Ticket that the user inputs table
 			SELECT  t.transid 
 					,s.matchid
 					,s.homeid    
@@ -930,12 +927,7 @@ BEGIN
 			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 
-	--3. List ticket unmark (if any)
-	SELECT @UnmarkTransIds AS UnmarkTransIds
-		  ,@RemoveTransids AS RemoveTransids -- Ticket remove -> re-cal
-		  ,@MarkTransIds AS MarkTransIds
-
-	--4. Transinfo table
+	--3. List ticket unmark/mark & Transinfo table (if any)
 	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
 		,b.custid AS  'c'           
@@ -947,9 +939,12 @@ BEGIN
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
 	
-	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
+	SELECT @UnmarkTransIds AS UnmarkTransIds
+		  ,@RemoveTransids AS RemoveTransids -- Ticket remove -> re-cal
+		  ,@MarkTransIds AS MarkTransIds
+		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
-	--5. Export Ticket that the user inputs table [#194133]
+	--4. Export Ticket that the user inputs table [#194133]
 	SELECT  t.transid 
 		,s.matchid
 		,s.homeid    
@@ -987,7 +982,7 @@ BEGIN
 	FROM #tmpInputTransid_RemarkId t
 		LEFT JOIN #tmpTransInfo s ON t.transid = s.transid
 
-	--6. Info for send letstalk when add request
+	--5. Info for send letstalk when add request
 	INSERT INTO @Letstalk_Info (MatchId, IsHasUUSTickets, ListBettype, ListBetteam)
 	SELECT m.MatchId
 		,ISNULL(t1.IsHasUUSTickets, 0)
