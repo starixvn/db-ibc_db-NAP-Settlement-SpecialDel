@@ -1,8 +1,8 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_PendingMarkTickets_Insert]
+ALTER PROCEDURE [dbo].[TicketVoiding_PendingMarkTickets_Insert]
 (	
 	 @TransIds				VARCHAR(MAX)
-	,@MatchId				DATETIME = NULL
+	,@MatchId				INT = NULL
 	,@SiteDBGroupID			SMALLINT = 1
 )
 AS
