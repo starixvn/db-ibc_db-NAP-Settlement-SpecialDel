@@ -61,6 +61,7 @@ BEGIN
 	
 	
 	DECLARE @tmp_ValidResourceID TABLE (ResourceID VARCHAR(20), SettleType VARCHAR(30))
+	DECLARE @tmp_MajorRound TABLE (ResourceID VARCHAR(20), Sporttype SMALLINT,RoundID VARCHAR(3),RoundName VARCHAR(5),GroupType VARCHAR(2),isFinal BIT,OrdNo SMALLINT,AllowDirectly BIT,IntervalNo  SMALLINT)
 
 	DROP TABLE IF EXISTS #tmp_ProviderResult
 	DROP TABLE IF EXISTS #tmp_Match
@@ -73,7 +74,8 @@ BEGIN
 	CREATE TABLE #tmp_ReduntdantData (MatchId INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
 	
 	CREATE INDEX idx_tmp_Match ON #tmp_Match (Matchid)
-	CREATE INDEX idx_tmp_ProviderResult ON #tmp_ProviderResult (Matchid, resourceid)
+	CREATE INDEX idx_tmp_ProviderResult_Matchid_ResourceID ON #tmp_ProviderResult (Matchid, resourceid)
+	CREATE INDEX idx_tmp_SettledResult_Matchid_ResourceID ON #tmp_ProviderResult (Matchid, resourceid)
 
 	SELECT @MovebetDate = CONVERT(SMALLDATETIME, VValue)
 	FROM bodb02.dbo.SystemSettings
@@ -89,16 +91,20 @@ BEGIN
 	FROM DBPRO.bodb02.dbo.SettlementResultTableSetting s WITH(NOLOCK)
 	WHERE s.Sporttype = @Sporttype
 
+
+	INSERT INTO @tmp_MajorRound ( Sporttype,RoundID,RoundName,ResourceID,GroupType,isFinal,OrdNo,AllowDirectly,IntervalNo )
+	EXEC DBPRO.bodb02.dbo.NAP_Admin_MajorRound_Sel	@Sporttype
+
 	INSERT INTO @tmp_ValidResourceID ( ResourceID, SettleType ) 
 	SELECT DISTINCT  ISNULL(sp.ResourceID, major.ResourceID) AS ResourceID,  CASE WHEN  major.ResourceID IS NOT NULL THEN 'MNL' ELSE sp.SettleType END AS SettleType
-	FROM SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+	FROM DBPRO.bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 		OUTER APPLY ( SELECT  major.ResourceID 
-					  FROM  f_Set_MajorRound(@sportype) major
+					  FROM  @tmp_MajorRound major
 					  WHERE major.ResourceID = sp.ResourceID
 							) major
-	WHERE   sp.SportType = @sportype 
+	WHERE   sp.SportType = @sporttype 
       AND ISNULL(RefResourceID,'') = ''
-
+	 
 	-------MATCH INFO---------------------------------------------------------------
 	IF @toDate > @MovebetDate
 	BEGIN
@@ -157,6 +163,8 @@ BEGIN
 	OUTPUT  deleted.MatchId  , deleted.ResourceID , deleted.HomeValue , deleted.AwayValue
 	INTO #tmp_ReduntdantData (MatchId  , ResourceID , HomeValue , AwayValue )
 	FROM #tmp_ProviderResult r
+		RIGHT JOIN  @tmp_ValidResourceID valid ON r.ResourceID = valid.ResourceID
+	WHERE r.ResourceID IS NULL
 
 
 	------RESULT SETTLE DATA----------------------------------------------------------------
@@ -196,7 +204,19 @@ BEGIN
 				AND r.ResultStatusID IN (2,5)
 		END
 	END
-	--------- % MATCH HAS PROVIDER----------------------------------------------------------------
+
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmp_ProviderResult p 
+					INNER JOIN @tmp_ValidResourceID valid ON p.ResourceID = valid.ResourceID
+					WHERE valid.SettleType = 'EAR')
+	BEGIN
+		DELETE r
+		FROM #tmp_SettledResult r
+			INNER JOIN @tmp_ValidResourceID valid ON r.ResourceID = valid.ResourceID
+		WHERE valid.SettleType = 'EAR'
+
+	END
+
+	---------RETURN % MATCH HAS PROVIDER----------------------------------------------------------------
 	SELECT eventdate , Total_Match, Match_has_Provider, ( CAST(Match_has_Provider AS DeCIMAL(3,1))/Total_Match)*100  as rate
 	FROM ( SELECT convert(varchar(10), m.eventdate, 120 ) as eventdate 
 			,count(  m.matchid) as Total_Match
@@ -208,25 +228,38 @@ BEGIN
 					 )p
 		GROUP BY m.eventdate 
 		 )m
-	order by  m.eventdate 
-	
-	------------% RESOURCE HAS PROVIDER -----------------------------------------------------------------------------------
-
-	DROP TABLE IF EXISTS #tmp_AllResult
-	 
-	 SELECT  r.MatchID
-			,r.ResourceID
-			, isnull(m.homevalue,'') = isnull(p.homevalue,'') or isnull(m.awayvalue,'') = isnull(p.awayvalue,'')
-	FROM #tmp_SettledResult m
-	FULL OUTER JOIN  #tmp_ProviderResult p
-			ON p.Matchid = m.matchid
-				AND p.ResourceID = m.ResourceID
 	ORDER BY  m.eventdate 
 	
+	------------RETURN % RESOURCE HAS PROVIDER -----------------------------------------------------------------------------------	 
+	SELECT m.matchid
+			--,m.eventdate
+			,m.ResourceID 
+			,count(ProviderResourceID) AS cntSendData
+			,sum(cntHasData) AS cntHasData
+			,sum(CASE WHEN cntCorrect = 1 THEN 1 ELSE 0 END ) AS cntCorrect
+			,sum(CASE WHEN cntCorrect = 2 THEN 1 ELSE 0 END ) AS cntWrong
+	FROM (	SELECT  r.MatchID
+					,r.ResourceID
+					,p.ResourceID AS ProviderResourceID
+					,CASE WHEN p.resourceID IS NULL THEN 0 ELSE 1 END AS cntHasData
+					,CASE WHEN p.resourceID IS NOT NULL THEN CASE WHEN (isnull(r.homevalue,'') = isnull(p.homevalue,'') or isnull(r.awayvalue,'') = isnull(p.awayvalue,'') ) THEN 1 
+																	ELSE 2
+																	END
+							ELSE 0
+					 END AS cntCorrect
+					-- ,r.eventdate 
+			FROM #tmp_SettledResult r
+			LEFT JOIN  #tmp_ProviderResult p
+					ON p.Matchid = r.matchid
+						AND p.ResourceID = r.ResourceID
+		)m
+	GROUP BY m.matchid, m.ResourceID
+	--ORDER BY  m.eventdate 
+	
 
 
 	
-	---------Return Redundant data
+	---------RETURN REDUNDANT DATA -----------------------------------------------------------------------------------
 	SELECT MatchId  , ResourceID , HomeValue , AwayValue
 	FROM #tmp_ReduntdantData r
 	ORDER BY MatchID
