@@ -68,7 +68,7 @@ BEGIN
 	DROP TABLE IF EXISTS #tmp_SettledResult
 	DROP TABLE IF EXISTS #tmp_ReduntdantData
 
-	CREATE TABLE #tmp_ProviderResult (ID INT IDENTITY(1,1), MatchID INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) , CreateDate DATETIME, rk INT)
+	CREATE TABLE #tmp_ProviderResult (ID INT IDENTITY(1,1), MatchID INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) , CreateDate DATETIME, rk INT, IsLive BIT )
 	CREATE TABLE #tmp_Match (MatchID INT, EventDate DATE, leagueid INT, leaguename NVARCHAR(500), homeid int, awayid int, isTestMatch BIT, LeagueGroupID INT, hometeamname NVARCHAR(100), awayteamname NVARCHAR(100), range TINYINT)
 	CREATE TABLE #tmp_SettledResult (ID INT IDENTITY(1,1), MatchID INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
 	CREATE TABLE #tmp_ReduntdantData (MatchId INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
@@ -157,6 +157,7 @@ BEGIN
 		SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue, r.CreateDate , ROW_NUMBER() OVER( partition by r.matchid, r.ResourceId order by r.CreateDate  ) 
 		FROM bodb_archive.dbo.ProviderExternalResultDetail_BK r WITH(NOLOCK)
 		INNER JOIN #tmp_Match m ON r.Matchid = m.matchid
+		WHERE r.IsLive = 0
 	END
 
 	DELETE r 
@@ -238,9 +239,11 @@ BEGIN
 			,sum(cntHasData) AS cntHasData
 			,sum(CASE WHEN cntCorrect = 1 THEN 1 ELSE 0 END ) AS cntCorrect
 			,sum(CASE WHEN cntCorrect = 2 THEN 1 ELSE 0 END ) AS cntWrong
+			,DATEDIFF(SeCOND,MIN(m.CreateDate) ,  MAX(m.CreateDate) ) AS DurationSendData
 	FROM (	SELECT  r.MatchID
 					,r.ResourceID
 					,p.ResourceID AS ProviderResourceID
+					,p.CreateDate
 					,CASE WHEN p.resourceID IS NULL THEN 0 ELSE 1 END AS cntHasData
 					,CASE WHEN p.resourceID IS NOT NULL THEN CASE WHEN (isnull(r.homevalue,'') = isnull(p.homevalue,'') or isnull(r.awayvalue,'') = isnull(p.awayvalue,'') ) THEN 1 
 																	ELSE 2
