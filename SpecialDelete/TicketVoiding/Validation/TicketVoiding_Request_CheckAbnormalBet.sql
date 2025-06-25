@@ -326,7 +326,9 @@ BEGIN
 	FROM #inputTransid t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
 		LEFT JOIN @tmp_OnlineServerId os ON b.SiteDBGroupID = os.ServerId
-	WHERE b.statusID NOT IN (101, 102, 103)
+	WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+				   ELSE 0 END
 		AND b.betfrom <> 'P'
 		AND 1 = CASE WHEN os.ServerId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID THEN 1
 		             WHEN os.ServerId IS NOT NULL AND b.SiteDBGroupID <> os.ServerId THEN 1  -- Get ticket sitedb down
@@ -419,7 +421,9 @@ BEGIN
 		FROM #inputTransid t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
 			LEFT JOIN @tmp_OnlineServerId os ON b.SiteDBGroupID = os.ServerId
-		WHERE b.statusID NOT IN (101, 102, 103)
+		WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				       WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+				       ELSE 0 END
 			AND b.betfrom <> 'P'
 			AND 1 = CASE WHEN os.ServerId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID THEN 1
 						 WHEN os.ServerId IS NOT NULL AND b.SiteDBGroupID <> os.ServerId THEN 1  -- Get ticket sitedb down
@@ -499,12 +503,7 @@ BEGIN
 		INSERT INTO @tmpMatchId (MatchId)
 		SELECT DISTINCT b.matchid
 		FROM #tmpTransInfo AS b WITH (NOLOCK)
-			INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
-		WHERE (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
-						WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
-						ELSE 0 END) 
-				AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
-				AND b.matchcode IS NOT NULL 			
+		WHERE EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
 									
 		IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpMatchId)
 		BEGIN
@@ -616,7 +615,6 @@ BEGIN
 		,b.CustomerClass
 		,b.IsCreditCashService
 	FROM #tmpTransInfo b
-		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
 		LEFT JOIN @tmpMatchId_Info m ON b.matchid = m.matchid
 	WHERE 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
 			        WHEN @FilterBy IS NOT NULL AND b.bettype = 29 THEN 1
