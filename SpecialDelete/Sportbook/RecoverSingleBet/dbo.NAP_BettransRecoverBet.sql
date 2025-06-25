@@ -919,11 +919,18 @@ BEGIN
 		   , CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END
 		   , ISNULL(b.WalletType, 2) -- normal tickets are treated as cash tickets
 	
+	---INSERT data into pending balance table   
+	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+		  @BalanceWalletBefore	= @tblBeforeBalance
+		, @BalanceWalletAfter	= @tblAfterBalance
+		, @ActionId				= 0		
+	
 	INSERT INTO #Balance(custid, balance, increased)
-	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	SELECT b.custid, SUM(a.balance) - SUM(b.balance), CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
 	FROM @tblBeforeBalance AS b
 		INNER JOIN @tblAfterBalance AS a ON b.custid = a.custid
-	WHERE b.balance <> a.balance
+	GROUP BY b.custid
+	HAVING SUM(b.balance) <> SUM(a.balance)
 	
 	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
 	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
@@ -952,12 +959,6 @@ BEGIN
 	END		        
 	DROP TABLE #Balance
 
-	---INSERT data into pending balance table   
-	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
-		  @BalanceWalletBefore	= @tblBeforeBalance
-		, @BalanceWalletAfter	= @tblAfterBalance
-		, @ActionId				= 0		
-	
 	---- list ticket: match is completed
 	INSERT INTO #t_match_completed(inputtransid, custid, transdate, odds, stake, winlost, status)
 	select	t.transid AS inputtransid,

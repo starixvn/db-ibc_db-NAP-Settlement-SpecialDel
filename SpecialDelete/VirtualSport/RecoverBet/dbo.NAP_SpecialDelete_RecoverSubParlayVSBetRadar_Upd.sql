@@ -456,6 +456,11 @@ BEGIN
 						ON	b.transid = t.TransId					 	  
 		GROUP BY b.CustID
 
+		--> INSERT data into pending balance table   
+		EXEC [dbo].[NAP_Admin_BalancePendingIns]
+			  @BeforeUpd = @beforeUpd
+			, @AfterUpd	 = @afterUpd
+
 		INSERT INTO #Balance (custid, balance, increased)
 		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
 		FROM @beforeUpd AS b
@@ -488,11 +493,6 @@ BEGIN
 			WHERE	increased = 0
 		END
 		DROP TABLE #Balance
-		
-		--> INSERT data into pending balance table   
-		EXEC [dbo].[NAP_Admin_BalancePendingIns]
-			  @BeforeUpd = @beforeUpd
-			, @AfterUpd	 = @afterUpd
 
 		--> Delete zzzbettransm
 		DELETE z

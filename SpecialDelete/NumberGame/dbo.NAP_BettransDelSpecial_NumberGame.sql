@@ -621,39 +621,6 @@ BEGIN
 		FROM #BetAfter
 		GROUP BY CustID, winlostdate, gametypeid
 
-		INSERT INTO #Balance (custid, balance, increased)
-		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-		FROM #BeforeUpd AS b
-		INNER JOIN #AfterUpd AS a ON b.custid = a.custid
-		WHERE b.balance <> a.balance
-
-		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
-		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
-		BEGIN
-			INSERT INTO [dbo].[BalanceNegative]
-					   ([ExecDate]
-					   ,[MatchID]
-					   ,[ActionID]
-					   ,[GroupID]
-					   ,[CustID]
-					   ,[Balance]
-					   ,[StatusID]
-					   ,[SessionId]
-					   ,[Remark])
-			SELECT	 GETDATE()
-					,CASE WHEN @Option = 0 THEN @MatchId ELSE 0 END
-					,@ActionID
-					,0		-- For Void/Recover
-					,CustID
-					,Balance
-					,0
-					,CAST(NEWID() AS NVARCHAR(50))
-					,@spName
-			FROM	#Balance
-			WHERE	increased = 0
-		END		        
-		DROP TABLE #Balance
-
 		INSERT INTO @tblCreditPending (custID, balance)
 		SELECT a.custid
 			,(a.balance - b.balance) AS Balance
@@ -724,6 +691,40 @@ BEGIN
 			INNER JOIN #BetAfter a 
 				ON	a.transid = b.transid
 		WHERE (a.winlost - b.winlost) < 0
+		
+		INSERT INTO #Balance (custid, balance, increased)
+		SELECT b.custid, SUM(a.balance) - SUM(b.balance), CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
+		FROM #BeforeUpd AS b
+		INNER JOIN #AfterUpd AS a ON b.custid = a.custid
+		GROUP BY b.custid
+		HAVING SUM(a.balance) <> SUM(b.balance)
+
+		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative]
+					   ([ExecDate]
+					   ,[MatchID]
+					   ,[ActionID]
+					   ,[GroupID]
+					   ,[CustID]
+					   ,[Balance]
+					   ,[StatusID]
+					   ,[SessionId]
+					   ,[Remark])
+			SELECT	 GETDATE()
+					,CASE WHEN @Option = 0 THEN @MatchId ELSE 0 END
+					,@ActionID
+					,0		-- For Void/Recover
+					,CustID
+					,Balance
+					,0
+					,CAST(NEWID() AS NVARCHAR(50))
+					,@spName
+			FROM	#Balance
+			WHERE	increased = 0
+		END		        
+		DROP TABLE #Balance
 		
 		----------------Insert Max Payout Queue----------------
 		DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL, @sporttype SMALLINT = NULL
