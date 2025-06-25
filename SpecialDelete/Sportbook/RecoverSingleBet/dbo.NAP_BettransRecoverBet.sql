@@ -928,9 +928,9 @@ BEGIN
 	INSERT INTO #Balance(custid, balance, increased)
 	SELECT b.custid, SUM(a.balance) - SUM(b.balance), CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
 	FROM @tblBeforeBalance AS b
-		INNER JOIN @tblAfterBalance AS a ON b.custid = a.custid
+		INNER JOIN @tblAfterBalance AS a ON b.custid = a.custid AND b.matchid = a.matchid
+	WHERE a.balance <> b.balance
 	GROUP BY b.custid
-	HAVING SUM(b.balance) <> SUM(a.balance)
 	
 	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
 	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
