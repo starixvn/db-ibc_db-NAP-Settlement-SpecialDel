@@ -389,6 +389,7 @@ BEGIN
 		  ,credit
 		  ,AdjustVoidLimit
 		  ,IsCreditCashService
+		  ,IsDeposit
 		)
 	SELECT matchid
 		  ,transid 
@@ -434,6 +435,7 @@ BEGIN
 		  ,c.credit
 		  ,c.AdjustLimit
 		  ,CASE WHEN cs.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsCreditCashService
+		  ,0 AS IsDeposit
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
 		LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK) ON c.custid = cs.CustID AND cs.ServiceType = 1
@@ -511,6 +513,7 @@ BEGIN
 			  ,credit
 			  ,AdjustVoidLimit
 			  ,IsCreditCashService
+			  ,IsDeposit
 			)
 		SELECT matchid
 			  ,transid 
@@ -556,9 +559,10 @@ BEGIN
 			  ,c.credit
 			  ,c.AdjustLimit
 			  ,CASE WHEN cs.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsCreditCashService
+			  ,0 AS IsDeposit
 		FROM dbo.bettrans14 b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
-			LEFT JOIN CustDB.dbo.CustProductStatus cs ON c.custid = cs.CustID AND cs.ServiceType = 1
+			LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK) ON c.custid = cs.CustID AND cs.ServiceType = 1
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			OUTER APPLY (
 					SELECT TOP 1 1 LeagueGroupID 
@@ -667,12 +671,6 @@ BEGIN
 				WHERE @IsOutright = 1 AND b.IsVoid14 = 1
 			END
 		END
-
-		-- update Isdeposit
-		UPDATE b 
-			SET IsDeposit = 1
-		FROM #tmpTransInfo b
-		WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = b.srecommend)
 	END
 
 	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
