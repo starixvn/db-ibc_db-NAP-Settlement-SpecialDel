@@ -436,7 +436,7 @@ BEGIN
 		  ,CASE WHEN cs.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsCreditCashService
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
-		LEFT JOIN CustDB.dbo.CustProductStatus cs ON c.custid = cs.CustID AND cs.ServiceType = 1
+		LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK) ON c.custid = cs.CustID AND cs.ServiceType = 1
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		OUTER APPLY (
 				SELECT TOP 1 1 LeagueGroupID 
@@ -797,7 +797,7 @@ BEGIN
 										AND t.bettype NOT IN (9,29,10)
 										AND t.IsVoid14 = 0
 										AND 1 = CASE WHEN @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1 THEN 0
-													 ELSE 0 END
+													 ELSE 1 END
 									FOR XML PATH('')), 1, 1, '')
 									, '')
 		END
