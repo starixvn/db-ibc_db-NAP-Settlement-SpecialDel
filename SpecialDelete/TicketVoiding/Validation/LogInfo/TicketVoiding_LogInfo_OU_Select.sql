@@ -32,6 +32,7 @@ AS
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
+		- 20250626@Lani: [TVS] Vega Project - Migration data from KBT to KL on the TVS Site [Redmine: #227162]
 
 	Param's explanation:
 		+ @WrongOUInfo
@@ -470,7 +471,7 @@ BEGIN
 		END AS GroupName
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
-		INNER JOIN #FilterBetTypeTbl fb ON fb.Matchid = d.matchid AND fb.BetTypeId = b.bettype
+		LEFT JOIN #FilterBetTypeTbl fb ON fb.Matchid = d.matchid AND fb.BetTypeId = b.bettype
 		CROSS APPLY (
 			SELECT DISTINCT value AS WrongMarket
 			FROM STRING_SPLIT(d.WrongMarket, '&')
@@ -625,7 +626,7 @@ BEGIN
 		FROM #FilterInfo d
 			 INNER LOOP JOIN dbo.bettransm sub ON d.MatchId_tmp = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
-			 INNER JOIN #FilterBetTypeTbl fb ON fb.Matchid = d.matchid AND sub.bettype = fb.BetTypeId
+			 LEFT JOIN #FilterBetTypeTbl fb ON fb.Matchid = d.matchid AND sub.bettype = fb.BetTypeId
 			 CROSS APPLY (
 			 	SELECT DISTINCT value AS WrongMarket
 			 	FROM STRING_SPLIT(d.WrongMarket, '&')
