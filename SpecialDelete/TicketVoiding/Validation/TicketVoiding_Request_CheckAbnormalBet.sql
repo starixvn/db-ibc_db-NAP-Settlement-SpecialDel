@@ -248,7 +248,7 @@ BEGIN
 	  ,CustomerClass			SMALLINT
 	  ,IsCreditCashService		BIT DEFAULT(0)			
 	  ,IsVipMember				BIT DEFAULT(0)
-	  ,ChildMatchId				INT
+	  ,IsSiteDBDown				BIT DEFAULT(0)
 	)
 	--Search single tickets
 	INSERT INTO #tmpTransInfo(
@@ -287,6 +287,7 @@ BEGIN
 			,modds 
 			,SiteDBGroupID
 			,winlostdate
+		    ,IsSiteDBDown
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -323,17 +324,18 @@ BEGIN
 		,b.modds 
 		,b.SiteDBGroupID
 		,b.winlostdate
+		,CASE WHEN b.SiteDBGroupID = os.ServerId AND os.ServerId <> @SiteDBGroupID THEN 1 ELSE 0 END AS IsSiteDBDown
 	FROM #inputTransid t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
-		LEFT JOIN @tmp_OnlineServerId os ON b.SiteDBGroupID = os.ServerId
+		INNER JOIN @tmp_OnlineServerId os ON b.SiteDBGroupID = os.ServerId
 	WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 				   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 				   ELSE 0 END
 		AND b.betfrom <> 'P'
-		AND 1 = CASE WHEN os.ServerId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID THEN 1
-		             WHEN os.ServerId IS NOT NULL AND b.SiteDBGroupID <> os.ServerId THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 1 
+					 WHEN b.SiteDBGroupID = os.ServerId AND os.ServerId <> @SiteDBGroupID THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END
-		
+
 	--Update Main MatchId for child match cricket/baseball (Sporttype In (50,8))
 	UPDATE d
 	SET d.matchid = m.ParentID
@@ -382,6 +384,7 @@ BEGIN
 			,modds 
 			,SiteDBGroupID
 			,winlostdate
+		    ,IsSiteDBDown
 		)
 		SELECT b.matchid
 			,b.TransId
@@ -418,15 +421,16 @@ BEGIN
 			,b.modds 
 			,b.SiteDBGroupID
 			,b.winlostdate
+			,CASE WHEN b.SiteDBGroupID = os.ServerId AND os.ServerId <> @SiteDBGroupID THEN 1 ELSE 0 END AS IsSiteDBDown
 		FROM #inputTransid t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
-			LEFT JOIN @tmp_OnlineServerId os ON b.SiteDBGroupID = os.ServerId
+			INNER JOIN @tmp_OnlineServerId os ON b.SiteDBGroupID = os.ServerId
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 				       WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 				       ELSE 0 END
 			AND b.betfrom <> 'P'
-			AND 1 = CASE WHEN os.ServerId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID THEN 1
-						 WHEN os.ServerId IS NOT NULL AND b.SiteDBGroupID <> os.ServerId THEN 1  -- Get ticket sitedb down
+			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 1
+						 WHEN b.SiteDBGroupID = os.ServerId AND os.ServerId <> @SiteDBGroupID THEN 1  -- Get ticket sitedb down
 					     ELSE 0 END
 
 		--Update Main MatchId for child match cricket/baseball (Sporttype In (50,8))
