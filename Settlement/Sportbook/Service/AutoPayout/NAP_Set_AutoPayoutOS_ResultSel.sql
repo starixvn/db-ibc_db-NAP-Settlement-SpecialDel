@@ -21,6 +21,7 @@ AS
 		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 		- 20250120@Aries: Enhance the Validate Order for Auto Payout2 [Redmine:#209415]
 		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
+		- 20250625@Aries: Match completed, but the auto payout flow still logs a failure [Redmine:#231523]
 
 	Param's Explanation:
 
@@ -91,6 +92,7 @@ BEGIN
 						AND p.AwayValue = IIF(r.ResourceID = '00', CAST(m.finalawayscore AS VARCHAR(50)),  CAST(m.htawayscore AS VARCHAR(50)))
 				) AS pe
 		WHERE m.matchid = @MatchId
+			AND m.eventstatus = 'running'
 			AND r.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)
 	
 	END

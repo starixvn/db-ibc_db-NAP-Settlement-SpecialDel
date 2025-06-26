@@ -19,6 +19,7 @@ AS
 		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
 		- 20250604@Aries: Enhance the performance on the DBPRO for the Settlement flow [Redmine:#229607]
 		- 20250605@Aries: Settlement - The Table Tennis could not auto payout [Redmine:#229681]
+		- 20250625@Aries: Match completed, but the auto payout flow still logs a failure [Redmine:#231523]
 
 
 */
@@ -392,6 +393,7 @@ BEGIN
 						AND p.AwayValue = IIF(r.ResourceID = '00', CAST(m.finalawayscore AS VARCHAR(50)),  CAST(m.htawayscore AS VARCHAR(50)))
 				) AS pe
 		WHERE m.ResultTable = 0
+			AND m.eventstatus = 'running'
 			AND ap.IsExistsAP IS NULL
 
 		INSERT INTO #MatchResource(matchId,ResourceId,CreatedDate,ResourceType,IsTrader)
