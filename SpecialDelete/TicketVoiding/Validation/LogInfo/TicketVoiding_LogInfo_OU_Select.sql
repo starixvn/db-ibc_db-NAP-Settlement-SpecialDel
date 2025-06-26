@@ -32,6 +32,7 @@ AS
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
+		- 20250626@Lani: [TVS] Vega Project - Migration data from KBT to KL on the TVS Site [Redmine: #227162]
 
 	Param's explanation:
 		+ @WrongOUInfo
@@ -470,7 +471,7 @@ BEGIN
 		END AS GroupName
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
-		INNER JOIN #FilterBetTypeTbl fb ON fb.Matchid = d.matchid AND fb.BetTypeId = b.bettype
+		LEFT JOIN #FilterBetTypeTbl fb ON fb.Matchid = d.matchid AND fb.BetTypeId = b.bettype
 		CROSS APPLY (
 			SELECT DISTINCT value AS WrongMarket
 			FROM STRING_SPLIT(d.WrongMarket, '&')
@@ -484,10 +485,11 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
-		AND 1 = CASE WHEN b.bettype = fb.BetTypeId AND b.hdp1 = xHDPou.WrongMarket AND b.matchid = fb.Matchid THEN 1
+		AND 1 = CASE WHEN b.bettype = fb.BetTypeId AND fb.BetTypeId IS NOT NULL AND b.hdp1 = xHDPou.WrongMarket AND b.matchid = fb.Matchid THEN 1
 					 WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1 --Only support soccer
 					 WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1 --Only support soccer 
 					 ELSE 0 END
+
 
 	---get sub ticket of a mix parlay	
 	IF EXISTS (
@@ -625,7 +627,7 @@ BEGIN
 		FROM #FilterInfo d
 			 INNER LOOP JOIN dbo.bettransm sub ON d.MatchId_tmp = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
-			 INNER JOIN #FilterBetTypeTbl fb ON fb.Matchid = d.matchid AND sub.bettype = fb.BetTypeId
+			 LEFT JOIN #FilterBetTypeTbl fb ON fb.Matchid = d.matchid AND sub.bettype = fb.BetTypeId
 			 CROSS APPLY (
 			 	SELECT DISTINCT value AS WrongMarket
 			 	FROM STRING_SPLIT(d.WrongMarket, '&')
@@ -642,7 +644,7 @@ BEGIN
 				AND 1 = CASE WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' THEN 1
 				             WHEN d.sporttype <> 1 THEN 1 
 							 ELSE 0 END
-				AND 1 = CASE WHEN sub.bettype = fb.BetTypeId AND sub.hdp1 = xHDPou.WrongMarket AND sub.matchid = fb.Matchid THEN 1
+				AND 1 = CASE WHEN sub.bettype = fb.BetTypeId AND fb.BetTypeId IS NOT NULL AND sub.hdp1 = xHDPou.WrongMarket AND sub.matchid = fb.Matchid THEN 1
 							 WHEN d.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1
 							 WHEN d.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1
 						ELSE 0 END
@@ -1007,7 +1009,7 @@ BEGIN
 				, COUNT(CASE WHEN b.bettype <> f.BetTypeId AND b.SettledType = 1 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
 		FROM #CTE_Ticket_Single s WITH (NOLOCK)
 			INNER JOIN #TVSTicketBets b ON b.transid = s.transid AND b.IsMixParlay = 0
-			INNER JOIN #FilterBetTypeTbl f ON b.matchid = f.MatchId AND b.Subbettype = f.BetTypeId
+			INNER JOIN #FilterBetTypeTbl f ON b.matchid = f.MatchId
 		WHERE b.StatusId IN (111, 112, 113)
 		GROUP BY b.matchid
 		
