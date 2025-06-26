@@ -18,6 +18,7 @@ AS
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
+		- 20252705@Aries: SOP- Soccer- Phase 3.2- Outside Score for Calculate Popup [Redmine:#226229]
 
 	Param's explanation:
 		
@@ -40,10 +41,6 @@ BEGIN
 		 , @IsAppliedSOP		= r.IsAppliedSOP
 	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
 	WHERE r.Sporttype = @SportType
-	
-	IF @SportType = 8
-		SELECT @ExternalResultTable =2
-				,@IsAppliedSOP = 1
 
 	IF @IsAppliedSOP = 1
 	BEGIN
@@ -51,9 +48,7 @@ BEGIN
 		EXEC [dbo].[NAP_Set_ProviderExternalResultDetailOSLatestInfoSel]
 			 @MatchId		= @MatchId
 			,@SettleType	= @SettleType
-
 	END
-
 	ELSE 
 	BEGIN
 		;WITH  cteLatestSports AS
