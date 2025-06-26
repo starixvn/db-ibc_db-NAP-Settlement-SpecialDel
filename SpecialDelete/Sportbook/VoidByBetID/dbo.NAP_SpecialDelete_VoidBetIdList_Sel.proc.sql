@@ -1,13 +1,8 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] 
 (
-	@CustID            VARCHAR(MAX) = NULL,
     @TransIds          VARCHAR(MAX) = NULL,
-    @FromDate          DATETIME     = NULL,
-    @ToDate            DATETIME     = NULL,
     @IncludeMainParlay BIT          = 0,
-	@Products		   VARCHAR(50)  = NULL,
-	@StatusIds		   VARCHAR(50)  = NULL,
 	@AbnormalBetType   TINYINT		= NULL --NULL: Uncheck AbnormalBet UI, 0: single, 1: main parlay
 
 )
@@ -80,54 +75,30 @@ AS;
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
+		- 20250606@Lani: [TVS] Remove unused code and return column SecAcceptFlag [Redmine: #225845]
 
 	Param's Explanation:
-		+ @CustID NOT NULL: Search by CustID
-		+ @TransIds NOT NULL: Search by TransID
-		+ @Products : 1 - Sportbook
-					2 - Parlay
-					3 - Bet Builder
-					4 - Outright
-					5 - Saba
-					6 - NonSport
 
 	*/
 BEGIN
 	SET NOCOUNT ON
 	
-	IF(@CustID IS NULL AND @TransIds IS NULL) RETURN
+	IF(@TransIds IS NULL) RETURN
 	
 	DECLARE @movebetdate	DATETIME,
-			@maxdate 		DATETIME = '9999-01-01',
-			@IsSB			BIT = 0,
-			@IsParlay		BIT = 0,
-			@IsBB			BIT = 0,
-			@IsOutright		BIT = 0,
-			@IsSaba			BIT = 0,
-			@IsNonSport		BIT = 0,
 			@SiteDBGroupID	SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE  @InvalidTransIds   VARCHAR(MAX) = ''
 			,@MovedTransIds     VARCHAR(MAX) = '' 
 
-	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)	
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @movebetdate OUTPUT
 	
-	SELECT @FromDate	= ISNULL(@FromDate, @movebetdate)
-		, @FromDate 	= CASE WHEN @FromDate <= @movebetdate THEN DATEADD(d, 1, @movebetdate) ELSE @FromDate END
-
-	IF @ToDate IS NULL
-	BEGIN
-		SET @ToDate = @maxdate
-	END
-	
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	
-	CREATE TABLE #CustId (CustId INT)
 
 	CREATE TABLE #SpecialDeleteBets
              (GroupID               BIGINT,
@@ -182,52 +153,24 @@ BEGIN
 			  ActualStake			MONEY,
 			  eventdate				DATETIME,
 			  EndTime				DATETIME, --support Bitcoin
-			  VendorMatchId			VARCHAR(50)
+			  VendorMatchId			VARCHAR(50),
+			  SecAcceptFlag			BIT
              );
    
-	IF @CustID IS NULL
-	BEGIN
-		INSERT INTO @bettype_tmp (bettype)
-		SELECT DISTINCT pt.bettype
-		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
-		WHERE 1 = CASE WHEN @AbnormalBetType IS NULL THEN 1
-					   WHEN @AbnormalBetType = 0 AND pt.ProductID = 1 
-							AND pt.bettype < 19001
-							AND pt.bettype NOT IN (SELECT Bettype FROM f_TVS_SpeciallyBettypes()) -- Parlay Tickets, outright, Bet Builder
-							AND pt.bettype NOT IN (1231, 1232, 1233, 1237, 1238, 2770, 2771, 15500, 15501) -- virtual sport
-					   THEN 1 --Only Sportsbook
-					   WHEN @AbnormalBetType = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
-					   ELSE 0 END
-			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
-			AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
-			AND pt.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
-	END
-	ELSE
-	BEGIN
-		SELECT @IsSB = CASE WHEN CHARINDEX('1',@Products) > 0 THEN 1 ELSE 0 END
-				, @IsParlay = CASE WHEN CHARINDEX('2',@Products) > 0 THEN 1 ELSE 0 END
-				, @IsBB = CASE WHEN CHARINDEX('3',@Products) > 0 THEN 1 ELSE 0 END
-				, @IsOutright = CASE WHEN CHARINDEX('4',@Products) > 0 THEN 1 ELSE 0 END
-				, @IsSaba = CASE WHEN CHARINDEX('5',@Products) > 0 THEN 1 ELSE 0 END
-				, @IsNonSport = CASE WHEN CHARINDEX('6',@Products) > 0 THEN 1 ELSE 0 END
-	
-		INSERT INTO @bettype_tmp (bettype)
-		SELECT DISTINCT pt.bettype
-		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
-		WHERE 1 = CASE
-						WHEN (@IsSB = 1 OR @IsSaba = 1) 
-							AND pt.ProductID = 1 
-							AND pt.BetType NOT IN (9,29,10)
-							AND pt.SubProduct NOT IN ('Bet Builder') THEN 1 -- Sportsbook
-						WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
-						WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
-						WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
-						WHEN @IsNonSport = 1 AND ProductID IN (3,5,27,77,106) THEN 1
+	INSERT INTO @bettype_tmp (bettype)
+	SELECT DISTINCT pt.bettype
+	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+	WHERE 1 = CASE WHEN @AbnormalBetType IS NULL THEN 1
+					WHEN @AbnormalBetType = 0 AND pt.ProductID = 1 
+						AND pt.bettype < 19001
+						AND pt.bettype NOT IN (SELECT Bettype FROM f_TVS_SpeciallyBettypes()) -- Parlay Tickets, outright, Bet Builder
+						AND pt.bettype NOT IN (1231, 1232, 1233, 1237, 1238, 2770, 2771, 15500, 15501) -- virtual sport
+					THEN 1 --Only Sportsbook
+					WHEN @AbnormalBetType = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
 					ELSE 0 END
-			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
-			AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
-			AND pt.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
-	END
+		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
+		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
+		AND pt.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
 
 	IF(LEN(@TransIds) > 0)
 	BEGIN
@@ -235,42 +178,6 @@ BEGIN
 		SELECT DISTINCT value 
 		FROM STRING_SPLIT(@TransIds, ',')
 		WHERE value <> ''
-	END
-	
-	IF(@CustID <> '')
-	BEGIN
-		INSERT INTO #CustId (CustId)
-		SELECT DISTINCT value 
-		FROM STRING_SPLIT(@CustID, ',')
-		WHERE value <> ''
-
-		INSERT INTO @Status_tmp (StatusId)
-		SELECT DISTINCT value 
-		FROM STRING_SPLIT(@StatusIds, ',')
-		
-		INSERT INTO #transIdTemp (transid)
-		SELECT b.transid 
-		FROM dbo.bettrans AS b WITH (NOLOCK)
-			OUTER APPLY (
-				SELECT TOP 1 1 LeagueGroupID 
-				FROM dbo.match m WITH (NOLOCK)
-					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
-				WHERE m.matchid = b.matchid
-					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
-			)ml
-			INNER JOIN #CustId c ON c.CustId = b.custid
-			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
-		WHERE b.winlostdate BETWEEN @FromDate AND @ToDate 
-			AND 1 = CASE 
-						WHEN @IsSB = 1 
-							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
-						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
-							AND  ml.LeagueGroupID IS NULL THEN 1
-						WHEN @IsSaba = 1 
-							AND ml.LeagueGroupID IS NOT NULL THEN 1								
-					ELSE 0 END	
-			AND statusID IN (SELECT statusID FROM @Status_tmp)
-			AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 	
 	--Search by TransIds
@@ -320,6 +227,7 @@ BEGIN
 			,BonusID
 			,IsMarked
 			,ActualStake
+			,SecAcceptFlag
 		)
 		SELECT	
 			b.transid AS GroupId
@@ -368,6 +276,7 @@ BEGIN
 			,b.BonusID
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 			,b.actual_stake AS ActualStake
+			,b.SecAcceptFlag
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
 				ON b.transid = temp.transid
@@ -377,13 +286,12 @@ BEGIN
 						WHERE b.transid = TransId
 					)m
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype				
-		WHERE	b.winlostdate >= @FromDate				
-			AND b.statusID NOT IN (101, 102, 103)	
+		WHERE	b.statusID NOT IN (101, 102, 103)	
 			AND b.SiteDBGroupID = @SiteDBGroupID
 	END			
 
 	-- delete main parlay tickets
-	IF(@IncludeMainParlay = 0 AND @Products IS NULL AND @AbnormalBetType IS NULL)
+	IF(@IncludeMainParlay = 0 AND @AbnormalBetType IS NULL)
 	BEGIN
 			DELETE b FROM #SpecialDeleteBets b 
 			WHERE  b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1,3))
@@ -635,6 +543,7 @@ BEGIN
 		,d.EndTime 
 		,@SiteDBGroupID AS SiteDBGroupID
 		,VendorMatchId
+		,d.SecAcceptFlag
 	FROM #SpecialDeleteBets d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.custid = c.custid
@@ -668,7 +577,6 @@ BEGIN
 				ELSE d.transid
 			 END
 
-	DROP TABLE #CustId
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #transIdTemp
 	DROP TABLE #InvalidTransIds
