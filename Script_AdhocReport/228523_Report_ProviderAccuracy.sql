@@ -14,9 +14,9 @@ GO
 BEGIN
 	DECLARE @ProviderID		INT   ---SELECT * FROM DBPRO.bodb02.dbo.ProviderInfo p WITH(NOLOCK) WHERE p.SourceID = @SourecID		
 			,@ProviderName	VARCHAR(50) ='sofas'
-			,@Sporttype		SMALLINT = 2
-			,@fromDate		DATETIME = '2025-01-01'
-			,@toDate		DATETIME = '2025-06-23 23:59:59' 
+			,@Sporttype		SMALLINT = 6
+			,@fromDate		DATETIME = '2025-06-14'
+			,@toDate		DATETIME = '2025-06-26 23:59:59' 
 
 	IF @ProviderID IS NULL
 	BEGIN
@@ -266,7 +266,7 @@ BEGIN
 	WHERE   sp.SportType = @sporttype 
       AND ISNULL(RefResourceID,'') = ''
 	 
-	-------MATCH INFO---------------------------------------------------------------
+	------- MATCH INFO ---------------------------------------------------------------
 	IF @toDate > @MovebetDate
 	BEGIN
 		INSERT INTO  #tmp_Match (MatchID, EventDate, leagueid, homeid, awayid, range)
@@ -275,6 +275,7 @@ BEGIN
 		WHERE m.sporttype = @Sporttype
 			AND m.eventstatus = 'completed'
 			AND m.eventdate BETWEEN @fromDate AND @toDate
+            AND m.eventdate > @MovebetDate and m.eventdate <= @toDate
 			AND m.IsDeleted = 0
 	END
 
@@ -286,9 +287,10 @@ BEGIN
 		WHERE m.sporttype = @Sporttype
 			AND m.eventstatus = 'completed'
 			AND m.eventdate BETWEEN @fromDate AND @toDate 
+            AND m.eventdate >= @BUDate AND m.eventdate <= @MovebetDate
 	END
 
-	IF @fromDate <= @MovebetDate 
+	IF  @fromDate < @BUDate
 	BEGIN
 		INSERT INTO  #tmp_Match (MatchID, EventDate, leagueid, homeid, awayid, range)
 		SELECT m.MatchID, m.EventDate, m.leagueid , m.homeid, m.awayid, 3 AS range
@@ -296,6 +298,7 @@ BEGIN
 		WHERE m.sporttype = @Sporttype
 			AND m.eventstatus = 'completed'
 			AND m.eventdate BETWEEN @fromDate AND @toDate 
+            AND m.eventdate < @BUDate
 	END
 
 	UPDATE m
@@ -318,15 +321,43 @@ BEGIN
 		SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue, r.CreateDate , ROW_NUMBER() OVER( partition by r.matchid, r.ResourceId order by r.CreateDate  ) 
 		FROM bodb_archive.dbo.ProviderExternalResultDetail_BK r WITH(NOLOCK)
 		INNER JOIN #tmp_Match m ON r.Matchid = m.matchid
-		WHERE ISNULL(r.IsLive,0) = 0
+		WHERE SourceId = @ProviderID
+			AND ISNULL(r.IsLive,0) = 0
+
+	END
+	ELSE IF @ProviderTable = 2
+	BEGIN
+		INSERT INTO #tmp_ProviderResult (MatchID, ResourceID, HomeValue, AwayValue, CreateDate, rk  )
+		SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue, r.CreateDate , ROW_NUMBER() OVER( partition by r.matchid, r.ResourceId order by r.CreateDate  ) 
+		FROM bodb_archive.dbo.ProviderExternalResultDetailOS_BK r WITH(NOLOCK)
+		INNER JOIN #tmp_Match m ON r.Matchid = m.matchid
+		WHERE SourceId = @ProviderID
+			AND ISNULL(r.IsLive,0) = 0
+	END
+	ELSE IF @ProviderTable = 3
+	BEGIN
+		INSERT INTO #tmp_ProviderResult (MatchID, ResourceID, HomeValue, AwayValue, CreateDate, rk  )
+		SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue, r.CreateDate , ROW_NUMBER() OVER( partition by r.matchid, r.ResourceId order by r.CreateDate  ) 
+		FROM bodb_archive.dbo.ProviderExternalResultDetailES_BK r WITH(NOLOCK)
+		INNER JOIN #tmp_Match m ON r.Matchid = m.matchid
+		WHERE SourceId = @ProviderID
+			AND ISNULL(r.IsLive,0) = 0
 	END
 
+	---redudant data
 	DELETE r 
 	OUTPUT  deleted.MatchId  , deleted.ResourceID , deleted.HomeValue , deleted.AwayValue
 	INTO #tmp_ReduntdantData (MatchId  , ResourceID , HomeValue , AwayValue )
 	FROM #tmp_ProviderResult r
 		RIGHT JOIN  @tmp_ValidResourceID valid ON r.ResourceID = valid.ResourceID
 	WHERE r.ResourceID IS NULL
+
+	---case map-unmapdata
+	DELETE r 
+	OUTPUT  deleted.MatchId  , deleted.ResourceID , deleted.HomeValue , deleted.AwayValue
+	INTO #tmp_ReduntdantData (MatchId  , ResourceID , HomeValue , AwayValue )
+	FROM #tmp_ProviderResult r
+	WHERE r.MatchId IN (0,1,-1) 
 
 
 	------RESULT SETTLE DATA----------------------------------------------------------------
@@ -337,7 +368,25 @@ BEGIN
 			INSERT INTO #tmp_SettledResult ( MatchID, ResourceID, HomeValue, AwayValue )
 			SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
 			FROM ResultDetail r wITH(NOLOCK)
-			INNER JOIN #tmp_Match m ON r.MatchId = m.Matchid
+				INNER JOIN #tmp_Match m ON r.MatchId = m.Matchid
+			WHERE m.range =1
+				AND r.ResultStatusID IN (2,5)
+		END
+		ELSE IF @ResultTable = 2
+		BEGIN
+			INSERT INTO #tmp_SettledResult ( MatchID, ResourceID, HomeValue, AwayValue )
+			SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
+			FROM ResultDetailOS r wITH(NOLOCK)
+				INNER JOIN #tmp_Match m ON r.MatchId = m.Matchid
+			WHERE m.range =1
+				AND r.ResultStatusID IN (2,5)
+		END
+		ELSE IF @ResultTable = 3
+		BEGIN
+			INSERT INTO #tmp_SettledResult ( MatchID, ResourceID, HomeValue, AwayValue )
+			SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
+			FROM ResultDetailES r wITH(NOLOCK)
+				INNER JOIN #tmp_Match m ON r.MatchId = m.Matchid
 			WHERE m.range =1
 				AND r.ResultStatusID IN (2,5)
 		END
@@ -353,6 +402,24 @@ BEGIN
 			WHERE m.range = 2
 				AND r.ResultStatusID IN (2,5)
 		END
+		ELSE IF @ResultTable = 2
+		BEGIN
+			INSERT INTO #tmp_SettledResult ( MatchID, ResourceID, HomeValue, AwayValue )
+			SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
+			FROM ResultDetailOS14 r wITH(NOLOCK)
+			INNER JOIN #tmp_Match m ON r.MatchId = m.Matchid
+			WHERE m.range = 2
+				AND r.ResultStatusID IN (2,5)
+		END
+		ELSE IF @ResultTable = 3
+		BEGIN
+			INSERT INTO #tmp_SettledResult ( MatchID, ResourceID, HomeValue, AwayValue )
+			SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
+			FROM ResultDetailES14 r wITH(NOLOCK)
+			INNER JOIN #tmp_Match m ON r.MatchId = m.Matchid
+			WHERE m.range = 2
+				AND r.ResultStatusID IN (2,5)
+		END
 	END
 	IF EXISTS (SELECT TOP 1 1 FROM #tmp_Match WHERE range = 3)
 	BEGIN
@@ -361,6 +428,24 @@ BEGIN
 			INSERT INTO #tmp_SettledResult ( MatchID, ResourceID, HomeValue, AwayValue )
 			SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
 			FROM bodb_archive.dbo.ResultDetail_BK r wITH(NOLOCK)
+			INNER JOIN #tmp_Match m ON r.MatchId = m.Matchid
+			WHERE m.range =3
+				AND r.ResultStatusID IN (2,5)
+		END
+		ELSE IF @ResultTable = 2
+		BEGIN
+			INSERT INTO #tmp_SettledResult ( MatchID, ResourceID, HomeValue, AwayValue )
+			SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
+			FROM bodb_archive.dbo.ResultDetailOS_BK r wITH(NOLOCK)
+			INNER JOIN #tmp_Match m ON r.MatchId = m.Matchid
+			WHERE m.range =3
+				AND r.ResultStatusID IN (2,5)
+		END
+		ELSE IF @ResultTable = 3
+		BEGIN
+			INSERT INTO #tmp_SettledResult ( MatchID, ResourceID, HomeValue, AwayValue )
+			SELECT r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
+			FROM bodb_archive.dbo.ResultDetailES_BK r wITH(NOLOCK)
 			INNER JOIN #tmp_Match m ON r.MatchId = m.Matchid
 			WHERE m.range =3
 				AND r.ResultStatusID IN (2,5)
