@@ -7,7 +7,6 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSubParlayVSBetRadar_Upd]
 AS
 /*  
 	Created by: 20170607@Kent  
-	Task: 
 	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02	    
 
 	Revisions:  		
