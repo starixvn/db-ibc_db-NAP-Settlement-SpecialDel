@@ -1009,7 +1009,7 @@ BEGIN
 				, COUNT(CASE WHEN b.bettype <> f.BetTypeId AND b.SettledType = 1 AND b.sporttype = 1 THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
 		FROM #CTE_Ticket_Single s WITH (NOLOCK)
 			INNER JOIN #TVSTicketBets b ON b.transid = s.transid AND b.IsMixParlay = 0
-			INNER JOIN #FilterBetTypeTbl f ON b.matchid = f.MatchId AND b.Subbettype = f.BetTypeId
+			INNER JOIN #FilterBetTypeTbl f ON b.matchid = f.MatchId
 		WHERE b.StatusId IN (111, 112, 113)
 		GROUP BY b.matchid
 		
