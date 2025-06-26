@@ -100,6 +100,7 @@ BEGIN
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
 			,@TransInfoJson				 VARBINARY(MAX) = NULL
+			,@SiteDBDownInfoJson		 VARBINARY(MAX) = NULL	
 			,@Archived_FromDate			 DATETIME = NULL
 			,@SiteDBDownInfoJson		 VARBINARY(MAX) = NULL
 			,@SiteDBGroupID				 SMALLINT
@@ -178,7 +179,6 @@ BEGIN
 		,liveawayscore				SMALLINT
 		,liveindicator				BIT
 		,matchid					INT
-		,sporttype					SMALLINT
 		,betfrom					NVARCHAR(4)
 		,recommend					INT
 		,mrecommend					INT
@@ -563,7 +563,6 @@ BEGIN
 		,liveawayscore
 		,liveindicator
 		,matchid
-		,sporttype
 		,betfrom
 		,recommend
 		,mrecommend
@@ -588,7 +587,7 @@ BEGIN
 		,b.mrecommend
 		,b.srecommend
 		,b.betteam
-		,CurrencyName
+		,b.CurrencyName
 		,b.IsVipMember
 		,b.CustomerClass
 		,b.IsCreditCashService
@@ -616,15 +615,8 @@ BEGIN
 		FROM #validTransId
 		)t
 	
-	INSERT INTO #TransidInRequest (TransId)
-	SELECT DISTINCT s.transid
-	FROM DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK)
-		INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					ON s.RequestId = r.RequestId AND SiteDBGroupID = @SiteDBGroupID
 					FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 					WHERE RequestId = r.RequestId AND SiteDBGroupID = @SiteDBGroupID
-	WHERE  r.RequestId <> @RequestId 
-		AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
 
 	-- get invalid or moved transId
 	INSERT INTO #invalidTransId (transid, isMoved)
@@ -673,15 +665,25 @@ BEGIN
 			INNER JOIN #validTransId v ON t.Transid = v.transid
 		WHERE v.StatusId NOT IN (0,1)
 
-		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-										FROM #inputTransid t 
-											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
-										FOR XML PATH('')), 1, 1, ''), '')
+		-- Get Transid in Request
+		BEGIN 
+			INSERT INTO #TransidInRequest (TransId)
+			SELECT DISTINCT t.transid
+			FROM #inputTransid t
+				INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) ON s.transid = t.transid AND s.SiteDBGroupID = @SiteDBGroupID
+				INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK) ON s.RequestId = r.RequestId
+			WHERE  r.RequestId <> @RequestId 
+				AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
 
-		UPDATE t
-		SET t.RemarkId = 6 --Existing Request
-		FROM #tmpInputTransid_RemarkId t
-			INNER JOIN #TransidInRequest v ON t.Transid = v.transid
+			SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+											FROM #TransidInRequest 
+											FOR XML PATH('')), 1, 1, ''), '')
+
+			UPDATE t
+			SET t.RemarkId = 6 --Existing Request
+			FROM #tmpInputTransid_RemarkId t
+				INNER JOIN #TransidInRequest v ON t.Transid = v.transid
+		END
 
 		SELECT @TransIdsOfVIPCustomer = ISNULL(STUFF((SELECT ', ' + CAST(v.transid AS VARCHAR(50))
 											FROM #validTransId AS v				
@@ -824,8 +826,6 @@ BEGIN
 		INSERT INTO @tmpMarkTransId (TransId)
 		SELECT transid
 		FROM #validTransId WHERE StatusId IN (0,1)		
-			LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.CustID = cs.CustID AND cs.ServiceType = 1
-					   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
 	END
 	ELSE IF @RequestId <> 0
 	BEGIN
@@ -841,8 +841,7 @@ BEGIN
 					AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
 					AND rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
 			
-				LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.custId = cs.CustID AND cs.ServiceType = 1
-						   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
+					       WHEN @IsRemoveCreditCashService = 1 AND IsCreditCashService = 1 THEN 1
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 			INSERT INTO @tmpMarkTransId (TransId)
 			SELECT transid 
@@ -856,10 +855,8 @@ BEGIN
 		BEGIN
 			INSERT INTO @tmpMarkTransId (TransId)
 			SELECT transid
-			FROM #validTransId WHERE StatusId IN (0,1)
-
-				LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.CustID = cs.CustID AND cs.ServiceType = 1
-						   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
+			FROM #validTransId 
+			WHERE StatusId IN (0,1)
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
 		BEGIN
@@ -867,6 +864,7 @@ BEGIN
 			SELECT rdt.TransId
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 			WHERE rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
+				AND SiteDBGroupID = @SiteDBGroupID
 
 		END
 	END
@@ -937,7 +935,7 @@ BEGIN
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson 
 		  ,@SingleCountSiteDBDown AS SingleCount
 		  ,@ParlayCountSiteDBDown AS ParlayCount
-	
+
 	--5. Export Ticket that the user inputs table [#194133]
 	SELECT  t.transid 
 		,t.RemarkId 
