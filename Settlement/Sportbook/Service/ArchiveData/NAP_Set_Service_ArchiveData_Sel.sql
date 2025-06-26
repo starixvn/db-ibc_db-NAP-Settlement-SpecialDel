@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTP-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_Service_ArchiveData_Sel  
 	@Date DATE
 	,@BatchNo INT = 2000
@@ -13,6 +13,7 @@ AS
 	     
 	 Revisions:  
 		- 20250606@Louisa: archive data to DB061 [Redmine:#229613]
+		- 20250626@Louisa: change source server from DBPRO to DBTP [Redmine:#229613]
 */  
 BEGIN  
 	SET NOCOUNT ON  
