@@ -643,19 +643,6 @@ BEGIN
 	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #UnsupportedTransids u ON t.Transid = u.transid
 
-	-- get ABWhiteList Cust
-	INSERT #ABWhiteListCustIds (custid, AllowVoidSubType, IsAllowVoidVip)
-	SELECT t.custId, ab.AllowVoidSubType, ab.IsAllowVoidVip 
-	FROM (
-		SELECT DISTINCT custId, recommend, mrecommend, srecommend
-		FROM #validTransId
-		)t
-		CROSS APPLY (
-					SELECT TOP(1) a.AllowVoidSubType, a.IsAllowVoidVip					
-					FROM DBCTG.bodb02.dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)	
-					WHERE a.CustID IN (t.CustID, t.recommend, t.mrecommend, t.srecommend)
-					ORDER BY a.LevelId
-			)ab
 	
 	--final valid transid
 	DELETE t
@@ -763,32 +750,47 @@ BEGIN
 												FOR XML PATH('')), 1, 1, ''), '')
 
 		--Check AB White List Invalid Transid
-		INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
-		SELECT t.custid
-		FROM #ABWhiteListCustIds t
-			LEFT JOIN @VIPAccount_tmp v ON v.CustID= t.CustID
-		WHERE CHARINDEX(',' + CONVERT(VARCHAR(5), @SubIssueTypeId) + ',', ',' + t.AllowVoidSubType + ',') > 0
-			AND 1 = CASE WHEN v.CustID IS NULL then 1
-						WHEN v.CustID IS NOT NULL AND ISNULL(t.IsAllowVoidVip,0) = 1 THEN 1
-					ELSE 0 END
+		BEGIN
+			INSERT #ABWhiteListCustIds (custid, AllowVoidSubType, IsAllowVoidVip)
+			SELECT t.custId, ab.AllowVoidSubType, ab.IsAllowVoidVip 
+			FROM (
+				SELECT DISTINCT custId, recommend, mrecommend, srecommend
+				FROM #validTransId
+				)t
+				CROSS APPLY (
+							SELECT TOP(1) a.AllowVoidSubType, a.IsAllowVoidVip					
+							FROM DBCTG.bodb02.dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)	
+							WHERE a.CustID IN (t.CustID, t.recommend, t.mrecommend, t.srecommend)
+							ORDER BY a.LevelId
+					)ab
 		
-		IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds_AllowVoid)
-		BEGIN
-			DELETE t1
-			FROM #ABWhiteListCustIds t1
-				INNER JOIN #ABWhiteListCustIds_AllowVoid t2 ON t2.custid = t1.custid
-		END
+			INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
+			SELECT t.custid
+			FROM #ABWhiteListCustIds t
+				LEFT JOIN @VIPAccount_tmp v ON v.CustID= t.CustID
+			WHERE CHARINDEX(',' + CONVERT(VARCHAR(5), @SubIssueTypeId) + ',', ',' + t.AllowVoidSubType + ',') > 0
+				AND 1 = CASE WHEN v.CustID IS NULL THEN 1
+							 WHEN v.CustID IS NOT NULL AND ISNULL(t.IsAllowVoidVip,0) = 1 THEN 1
+						ELSE 0 END
+		
+			IF @@ROWCOUNT > 0
+			BEGIN
+				DELETE t1
+				FROM #ABWhiteListCustIds t1
+					INNER JOIN #ABWhiteListCustIds_AllowVoid t2 ON t2.custid = t1.custid
+			END
 
-		IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds)
-		BEGIN
-			INSERT INTO #ABWhiteListTransIds (transid)
-			SELECT t.transid
-			FROM #validTransId t
-				INNER JOIN #ABWhiteListCustIds c ON c.CustID = t.custId
+			IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds)
+			BEGIN
+				INSERT INTO #ABWhiteListTransIds (transid)
+				SELECT t.transid
+				FROM #validTransId t
+					INNER JOIN #ABWhiteListCustIds c ON c.CustID = t.custId
 
-			SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-											FROM #ABWhiteListTransIds t
-											FOR XML PATH('')), 1, 1, ''), '')
+				SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+												FROM #ABWhiteListTransIds t
+												FOR XML PATH('')), 1, 1, ''), '')
+			END
 		END
 	END
 	
