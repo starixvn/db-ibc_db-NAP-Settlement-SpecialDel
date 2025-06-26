@@ -474,8 +474,8 @@ BEGIN
 		WHERE b.balance <> a.balance
 
 		--Build list of customer name with negative balance
-		SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20),b.custid)
-		FROM #Balance AS b
+		SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20),custid)
+		FROM #Balance
 		WHERE Increased = 0
 
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	

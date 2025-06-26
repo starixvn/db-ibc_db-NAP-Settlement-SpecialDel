@@ -456,30 +456,27 @@ BEGIN
 		, @BalanceWalletAfter	= @AfterUpd
 		, @ActionId				= 0
 
+	INSERT INTO #Balance (custid, balance, Increased)
+	SELECT b.custid, SUM(a.balance - b.balance) AS balance, CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
+	FROM @BeforeUpd b
+		INNER JOIN @AfterUpd a ON b.custid = a.custid
+								AND b.matchid = a.matchid
+								AND b.balanceType = a.balanceType
+								AND b.bonusId = a.bonusId
+								AND b.walletType = a.walletType	
+	WHERE b.balance <> a.balance
+	GROUP BY b.custid
+
 	--> Build list of customer name with negative balance
 	SET @CustIds = ''
-	SELECT @CustIds = @CustIds +
-						CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + 
-						CONVERT(VARCHAR(20), b.custid)
-	FROM @BeforeUpd b
-			INNER JOIN	@AfterUpd a 
-				ON a.custid = b.custid 
-				AND b.matchid = a.matchid
-				AND b.balanceType = a.balanceType
-				AND b.bonusId = a.bonusId
-				AND b.walletType = a.walletType	
-	WHERE b.balance > a.balance				
+	SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), custid)
+	FROM #Balance
+	WHERE Increased = 0	
 		
 	EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 		@CustIds = @CustIds,
 		@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT	
 	
-	INSERT INTO #Balance (custid, balance, Increased)
-	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-	FROM @BeforeUpd b
-		INNER JOIN @AfterUpd a ON b.custid = a.custid
-	WHERE b.balance <> a.balance
-
 	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
 	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
 	BEGIN

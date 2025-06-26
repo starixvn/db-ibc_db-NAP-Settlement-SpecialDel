@@ -450,10 +450,28 @@ BEGIN
 	) AS temp
 	GROUP BY temp.custid				
 	
+	--> compare BALANCE
+	EXEC [dbo].[NAP_Admin_BalancePendingIns]
+		@BeforeUpd	 = @beforeUpd
+		, @AfterUpd	 = @afterUpd
+
+	
+	--Update CashoutSelling
+	UPDATE s
+	SET s.CashOutStatus = 6
+		, s.CashoutExtraInfo = REPLACE(s.CashoutExtraInfo, '</root>', c.CashOutExtraInfo) + '</root>'
+		, s.ChangeDate = CONVERT(DATETIME,@FCUpdateTime)
+	FROM dbo.CashOutSelling s WITH (ROWLOCK, UPDLOCK)
+		CROSS APPLY (
+				SELECT N'<r ct=''' + CONVERT(VARCHAR(30),CONVERT(DATETIME,@FCUpdateTime),21) + ''' s=''6'' w=''0''/>' AS CashOutExtraInfo
+				FROM #SpecialDeleteBets t
+				WHERE t.TransId = s.TransID
+			)c
+
 	INSERT INTO #Balance (custid, balance, increased)
 	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
 	FROM @BeforeUpd AS b
-	INNER JOIN @AfterUpd AS a ON b.custid = a.custid
+		INNER JOIN @AfterUpd AS a ON b.custid = a.custid
 	WHERE b.balance <> a.balance
 
 	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
@@ -482,23 +500,6 @@ BEGIN
 		WHERE	increased = 0
 	END		        
 	DROP TABLE #Balance
-
-	--> compare BALANCE
-	EXEC [dbo].[NAP_Admin_BalancePendingIns]
-		@BeforeUpd	 = @beforeUpd
-		, @AfterUpd	 = @afterUpd
-
-	--Update CashoutSelling
-	UPDATE s
-	SET s.CashOutStatus = 6
-		, s.CashoutExtraInfo = REPLACE(s.CashoutExtraInfo, '</root>', c.CashOutExtraInfo) + '</root>'
-		, s.ChangeDate = CONVERT(DATETIME,@FCUpdateTime)
-	FROM dbo.CashOutSelling s WITH (ROWLOCK, UPDLOCK)
-		CROSS APPLY (
-				SELECT N'<r ct=''' + CONVERT(VARCHAR(30),CONVERT(DATETIME,@FCUpdateTime),21) + ''' s=''6'' w=''0''/>' AS CashOutExtraInfo
-				FROM #SpecialDeleteBets t
-				WHERE t.TransId = s.TransID
-			)c
 
 	------ releasing SD process
 	EXEC dbo.NAP_Admin_CheckingProcess

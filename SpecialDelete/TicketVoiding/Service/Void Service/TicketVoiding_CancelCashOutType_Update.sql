@@ -307,27 +307,22 @@ BEGIN
 		@isExistMatch		= 1
 		, @IsReleased		= 1
 
+	INSERT INTO #Balance (custid, balance, Increased)
+	SELECT b.custid, SUM(a.balance - b.balance) AS balance, CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
+	FROM @BeforeUpd b
+		INNER JOIN @AfterUpd a ON b.custid = a.custid AND b.balanceType = a.balanceType
+	WHERE b.balance <> a.balance
+	GROUP BY b.custid
+
 	-- get negative balance user list
 	SET @CustIds = ''
-	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
-	FROM	(
-		SELECT DISTINCT b.custid
-		FROM @BeforeUpd b
-			INNER JOIN @AfterUpd a
-				ON b.custid = a.custid
-					AND b.balanceType = a.balanceType
-		WHERE	b.balance > a.balance
-	)t
+	SELECT	@CustIds = @CustIds + CAST(custid AS VARCHAR(20)) + ','
+	FROM #Balance
+	WHERE Increased = 0
 
 	EXEC dbo.NAP_CustNegativeBalance_Sel
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-
-	INSERT INTO #Balance (custid, balance, Increased)
-	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-	FROM @BeforeUpd b
-		INNER JOIN @AfterUpd a ON b.custid = a.custid
-	WHERE b.balance <> a.balance
 
 	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
 	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit

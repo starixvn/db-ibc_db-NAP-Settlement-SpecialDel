@@ -926,9 +926,13 @@ BEGIN
 		, @ActionId				= 0		
 	
 	INSERT INTO #Balance(custid, balance, increased)
-	SELECT b.custid, SUM(a.balance) - SUM(b.balance), CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
+	SELECT b.custid, SUM(a.balance - b.balance) AS balance, CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
 	FROM @tblBeforeBalance AS b
-		INNER JOIN @tblAfterBalance AS a ON b.custid = a.custid AND b.matchid = a.matchid
+		INNER JOIN @tblAfterBalance AS a ON b.custid = a.custid
+									AND b.matchid = a.matchid
+									AND b.balanceType = a.balanceType
+									AND b.bonusId = a.bonusId
+									AND b.walletType = a.walletType
 	WHERE a.balance <> b.balance
 	GROUP BY b.custid
 	
