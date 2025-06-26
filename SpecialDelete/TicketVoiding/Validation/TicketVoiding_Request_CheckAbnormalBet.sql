@@ -625,31 +625,31 @@ BEGIN
 				ELSE 0 END
 
 	-- get unsuppored transid
-	INSERT #UnsupportedTransids (transid)
-	SELECT t.transid
-	FROM #validTransId t
-		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE bt.bettype IS NULL AND @FilterBy IS NULL
+	IF @FilterBy IS NULL
+	BEGIN
+		
+		DELETE FROM #validTransId
+			OUTPUT DELETED.transid INTO #UnsupportedTransids (transid)
+		WHERE bettype NOT IN (SELECT bettype FROM @bettype_tmp)
 
-	SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-									FROM #UnsupportedTransids t
-									FOR XML PATH('')), 1, 1, ''), '')
+		SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+										FROM #UnsupportedTransids t
+										FOR XML PATH('')), 1, 1, ''), '')
 	
-	UPDATE t
-	SET t.RemarkId = 5
-	FROM #tmpInputTransid_RemarkId t
-		INNER JOIN #UnsupportedTransids u ON t.Transid = u.transid
-
-	--final valid transid
-	DELETE t
-	FROM #validTransId t
-		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE  (bt.bettype IS NULL AND 1 = CASE WHEN @FilterBy IS NULL THEN 1 
-										    WHEN @FilterBy = 1 AND t.bettype = 29 AND t.betteam <> '1' THEN 1
-										    WHEN @FilterBy = 2 AND t.bettype = 29 AND t.betteam = '1' THEN 1
-										    ELSE 0 END 
-										   )
-	
+		UPDATE t
+		SET t.RemarkId = 5
+		FROM #tmpInputTransid_RemarkId t
+			INNER JOIN #UnsupportedTransids u ON t.Transid = u.transid
+		
+	END
+	ELSE
+	BEGIN
+		DELETE t
+		FROM #validTransId t
+		WHERE  1 = CASE WHEN @FilterBy = 1 AND t.bettype = 29 AND t.betteam <> '1' THEN 1
+					    WHEN @FilterBy = 2 AND t.bettype = 29 AND t.betteam = '1' THEN 1
+					    ELSE 0 END 
+	END
 
 	-- get invalid or moved transId
 	INSERT INTO #invalidTransId (transid, isMoved)
@@ -720,6 +720,9 @@ BEGIN
 			SET t.RemarkId = 6 --Existing Request
 			FROM #tmpInputTransid_RemarkId t
 				INNER JOIN #TransidInRequest v ON t.Transid = v.transid
+
+			DELETE FROM #validTransId
+			WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
 		END
 
 		SELECT @TransIdsOfVIPCustomer = ISNULL(STUFF((SELECT ', ' + CAST(v.transid AS VARCHAR(50))
@@ -856,7 +859,6 @@ BEGIN
 			SELECT transid 
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 			WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
-					AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
 					AND rdt.RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID
 			
 					       WHEN @IsRemoveCreditCashService = 1 AND IsCreditCashService = 1 THEN 1
@@ -865,8 +867,6 @@ BEGIN
 			SELECT transid 
 			FROM #validTransId v
 			WHERE v.StatusId IN (0,1) 
-				AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = v.TransId)-- exist in # request
-				AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpUnmarkTransId um WHERE um.TransId = v.transid)
 		
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
