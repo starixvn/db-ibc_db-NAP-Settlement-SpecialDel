@@ -370,13 +370,16 @@ BEGIN
 			ON t.TransId = b.transid
 	GROUP BY b.custid
 
+	INSERT INTO #Balance (custid, balance, Increased)
+	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	FROM #BeforeUpd b
+		INNER JOIN #AfterUpd a ON b.custid = a.custid
+	WHERE b.balance <> a.balance
+
 	INSERT INTO @tblCreditPending (custID, balance)  
-	SELECT	a.custid  
-			,(a.balance - b.balance) AS Balance  
-	FROM	#BeforeUpd b  
-		INNER JOIN #AfterUpd a 
-			ON	a.custid = b.custid  
-	WHERE	(a.balance - b.balance) > 0  
+	SELECT	custid, balance
+	FROM #Balance
+	WHERE Increased = 1
 		 
 	IF @@rowcount <> 0  
 		EXEC dbo.Dot_BalancePendingCreditIns   
@@ -384,12 +387,9 @@ BEGIN
 			,@Type   = 1 -- Sports  
 
 	INSERT INTO @tblDebitPending (custID, balance)  
-	SELECT	a.custid  
-			,ABS(a.balance - b.balance) AS Balance  
-	FROM	#BeforeUpd b  
-		INNER JOIN #AfterUpd a 
-			ON	a.custid = b.custid  
-	WHERE	(a.balance - b.balance) < 0  
+	SELECT custid, ABS(balance) AS Balance  
+	FROM #Balance
+	WHERE Increased = 0
 		 
 	IF @@rowcount <> 0  
 		EXEC dbo.Dot_BalancePendingDebitIns   
@@ -414,16 +414,10 @@ BEGIN
 	END
 	--------------------------------------
 
-	INSERT INTO #Balance (custid, balance, Increased)
-	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-	FROM #BeforeUpd b
-		INNER JOIN #AfterUpd a ON b.custid = a.custid
-	WHERE b.balance <> a.balance
-
 	-- get negative balance user list
 	SET @CustIds = ''
-	SELECT	@CustIds = @CustIds + CAST(b.custid AS VARCHAR(20)) + ','
-	FROM	#Balance b
+	SELECT	@CustIds = @CustIds + CAST(custid AS VARCHAR(20)) + ','
+	FROM	#Balance
 	WHERE	Increased = 0
 
 	EXEC dbo.NAP_CustNegativeBalance_Sel

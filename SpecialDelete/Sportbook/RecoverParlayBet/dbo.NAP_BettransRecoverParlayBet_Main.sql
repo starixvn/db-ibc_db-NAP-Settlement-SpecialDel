@@ -6,9 +6,8 @@ ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Main]
 	@IP						VARCHAR(50)
 AS
 /*
-	Created: Elodie
-	Date: 20161017
-	DB: DBTXN/bodb02
+	Created: 20161017@Elodie
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 		
 		- 20161104@Kent: Correct logic for GroupName [Redmine:#65531]

@@ -479,7 +479,7 @@ BEGIN
 	INSERT INTO #Balance (custid, balance, increased)
 	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
 	FROM @BeforeUpd AS b
-	INNER JOIN @AfterUpd AS a ON b.custid = a.custid
+		INNER JOIN @AfterUpd AS a ON b.custid = a.custid
 	WHERE b.balance <> a.balance
 	
 	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]

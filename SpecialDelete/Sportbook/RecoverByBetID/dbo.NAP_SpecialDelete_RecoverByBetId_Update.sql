@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverByBetId_Update]
 	@TransIds		      VARCHAR(MAX), 
 	@UserId			      INT,	
@@ -7,7 +7,7 @@ AS
 /*
 	Created: Paul
 	Task: Recover by bet id
-	DB: DBTXN.bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	Original: 
 
 	Revisions:
@@ -28,7 +28,7 @@ AS
 		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
-	Param's Explanation:	
+	Param's Explanation:				   
 */
 
 BEGIN
@@ -511,10 +511,11 @@ BEGIN
 	EXEC [dbo].[NAP_Admin_BalancePendingIns] @BeforeUpd = @BeforeRecover, @AfterUpd = @AfterRecover;
 
 	INSERT INTO #Balance (custid, balance, Increased)
-	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	SELECT b.custid, SUM(a.balance - b.balance) AS balance, CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
 	FROM @BeforeRecover b
-		INNER JOIN @AfterRecover a ON b.custid = a.custid
+		INNER JOIN @AfterRecover a ON b.custid = a.custid AND b.balanceType = a.balanceType
 	WHERE b.balance <> a.balance
+	GROUP BY b.custid
 
 	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
 	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
