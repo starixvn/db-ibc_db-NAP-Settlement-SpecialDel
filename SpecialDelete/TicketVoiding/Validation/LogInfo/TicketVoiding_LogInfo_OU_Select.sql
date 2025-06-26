@@ -485,10 +485,11 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
-		AND 1 = CASE WHEN b.bettype = fb.BetTypeId AND b.hdp1 = xHDPou.WrongMarket AND b.matchid = fb.Matchid THEN 1
+		AND 1 = CASE WHEN b.bettype = fb.BetTypeId AND fb.BetTypeId IS NOT NULL AND b.hdp1 = xHDPou.WrongMarket AND b.matchid = fb.Matchid THEN 1
 					 WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1 --Only support soccer
 					 WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1 --Only support soccer 
 					 ELSE 0 END
+
 
 	---get sub ticket of a mix parlay	
 	IF EXISTS (
@@ -643,7 +644,7 @@ BEGIN
 				AND 1 = CASE WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' THEN 1
 				             WHEN d.sporttype <> 1 THEN 1 
 							 ELSE 0 END
-				AND 1 = CASE WHEN sub.bettype = fb.BetTypeId AND sub.hdp1 = xHDPou.WrongMarket AND sub.matchid = fb.Matchid THEN 1
+				AND 1 = CASE WHEN sub.bettype = fb.BetTypeId AND fb.BetTypeId IS NOT NULL AND sub.hdp1 = xHDPou.WrongMarket AND sub.matchid = fb.Matchid THEN 1
 							 WHEN d.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1
 							 WHEN d.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1
 						ELSE 0 END
