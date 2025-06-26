@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.TicketVoiding_VoidHistorical_Update
 (
 	@RequestId			INT
@@ -18,7 +18,7 @@ AS
 /*		
 	Created by: 20211202@Max
 	Task: TVS - Void Archived Tickets [Redmine: #140180]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 
 		- 20211202@Max: Create new SP [Redmine:#140180]
