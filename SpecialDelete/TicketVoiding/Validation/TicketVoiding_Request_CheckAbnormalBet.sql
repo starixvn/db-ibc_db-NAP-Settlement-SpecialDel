@@ -548,24 +548,20 @@ BEGIN
 	
 	-- get invalid or moved transId
 	INSERT INTO #invalidTransId (transid, isMoved)
-	SELECT temp.transid
+	SELECT tmp.transid
 		  ,ISNULL(bm.IsMoved14, 0) AS isMoved
-	FROM #inputTransid AS temp
+	FROM #inputTransid AS tmp
 		OUTER APPLY (
 		SELECT TOP 1 IsMoved14
 		FROM #tmpTransInfo
-		WHERE transid = temp.transid 
+		WHERE transid = tmp.transid 
 			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 AND winlostdate < @Archived_FromDate THEN 1 ELSE 0 END
 		) bm
-		OUTER APPLY (
-		SELECT transid
-		FROM #UnsupportedTransids
-		WHERE transid = temp.transid
-		) u
 	WHERE NOT EXISTS (SELECT 1 FROM #tmpTransInfo 
-					  WHERE transid = temp.transid 
+					  WHERE transid = tmp.transid 
 					  AND 1 = CASE WHEN @ActionId = 1 AND StatusId IN (111,112,113) THEN 0 ELSE 1 END)
-		AND u.transid IS NULL
+		AND tmp.transid NOT IN ( SELECT TransId FROM #UnsupportedTransids)
+		AND tmp.transid NOT IN ( SELECT TransId FROM @tmpSiteDBDownInfo)
 
 	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 									FROM #invalidTransId
