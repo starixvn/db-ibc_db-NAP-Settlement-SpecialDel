@@ -1,9 +1,8 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_PendingMarkTickets_Insert]
 (	
-	 @TransIds				VARCHAR(MAX)
-	,@MatchId				INT = NULL
-	,@SiteDBGroupID			SMALLINT = 1
+	 @SiteDBDownInfoJson	VARCHAR(MAX)  = NULL
+	,@RequestId				INT			  = NULL
 )
 AS
 /*	
@@ -15,24 +14,30 @@ AS
 		- 20250610@July: Create new SP [Redmine: #228047]
 
 	Param's explanation:
+	  Notes: Call after save request done
 		
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @tmpListTransIds TABLE (TransId BIGINT)
+	DECLARE @Decompress_SiteDBDownInfoJson NVARCHAR(MAX) = NULL
+	SET @Decompress_SiteDBDownInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @SiteDBDownInfoJson, 1)) AS NVARCHAR(MAX))
 
-	INSERT INTO @tmpListTransIds (TransId)
-	SELECT value
-	FROM STRING_SPLIT(@TransIds, ',')
-	WHERE value <> ''
+	DECLARE @tmpSiteDBDownInfo TABLE (MatchId INT, TransId BIGINT, IsMixParlay BIT, SiteDBGroupID SMALLINT, isMarked BIT)
 
-	INSERT INTO dbo.TicketVoiding_PendingMarkTickets (TransId, MatchId, StatusId, SiteDBGroupID)
+	INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
+	SELECT mid ,t ,isP ,sitedb, isMarked
+	FROM OPENJSON(@Decompress_SiteDBDownInfoJson) 
+	WITH( mid INT, t BIGINT, isP BIT ,sitedb SMALLINT, isMarked BIT
+	) tbl
+
+	INSERT INTO dbo.TicketVoiding_PendingMarkTickets (TransId, MatchId, StatusId, SiteDBGroupID, RequestId)
 	SELECT TransId
-		  ,@MatchId
+		  ,MatchId
 		  ,1 -- StatusId = 1 for Running
-		  ,@SiteDBGroupID
-	FROM @tmpListTransIds
+		  ,SiteDBGroupID
+		  ,@RequestId
+	FROM @tmpSiteDBDownInfo
 
 END
 GO

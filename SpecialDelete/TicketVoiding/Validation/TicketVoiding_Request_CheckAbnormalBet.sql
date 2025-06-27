@@ -771,6 +771,14 @@ BEGIN
 		SET t.RemarkId = 9 --AB Exception TransIds
 	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #ABWhiteListTransIds v ON t.Transid = v.transid  
+	
+	--Remove CC201 & CC4000 in list transids insert into request
+	DELETE v
+	FROM #tmpTransInfo v 
+	WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND v.CustomerClass = 201 THEN 1
+				   WHEN @IsRemoveCustomerClass4K = 1 AND v.CustomerClass = 4000 THEN 1
+				   WHEN @IsRemoveCreditCashService = 1 AND v.IsCreditCashService = 1 THEN 1
+			ELSE 0 END
 
 	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
 	--Remove CC201 & CC4000, transid of credit cash service in list transids insert into request
@@ -803,7 +811,6 @@ BEGIN
 			WHERE NOT EXISTS( SELECT TOP 1 1 FROM #tmpTransInfo it WHERE rdt.TransId=it.transid) -- exist vs input
 					AND rdt.RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID
 			
-					       WHEN @IsRemoveCreditCashService = 1 AND IsCreditCashService = 1 THEN 1
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 			INSERT INTO @tmpMarkTransId (TransId)
 			SELECT transid 
@@ -843,7 +850,6 @@ BEGIN
 		SELECT @RemoveTransids = @UnmarkTransIds
 	END
 
-					WHEN @IsRemoveCreditCashService = 1 AND v.IsCreditCashService = 1 THEN 1
 	/*****************Return table **************************/
 	--1. Info match table
 	SELECT matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate
