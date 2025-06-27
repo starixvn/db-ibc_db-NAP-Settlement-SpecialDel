@@ -310,10 +310,9 @@ BEGIN
 		,b.modds 
 		,b.SiteDBGroupID
 		,b.winlostdate
-		,CASE WHEN b.SiteDBGroupID = os.ServerId AND os.ServerId <> @SiteDBGroupID THEN 1 ELSE 0 END AS IsSiteDBDown
+		,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
 	FROM #inputTransid t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
-		INNER JOIN @tmp_OnlineServerId os ON b.SiteDBGroupID = os.ServerId
 	WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 				   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 				   ELSE 0 END
@@ -326,7 +325,7 @@ BEGIN
 					 WHEN @IsVoidAllArchivedTickets = 1 THEN 1
 				     ELSE 0 END
 		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 1 
-					 WHEN b.SiteDBGroupID = os.ServerId AND os.ServerId <> @SiteDBGroupID THEN 1  -- Get ticket sitedb down
+					 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END
 
 	IF EXISTS (SELECT TOP(1) 1 
@@ -407,7 +406,7 @@ BEGIN
 			,b.modds 
 			,b.SiteDBGroupID
 			,b.winlostdate
-			,CASE WHEN b.SiteDBGroupID = os.ServerId AND os.ServerId <> @SiteDBGroupID THEN 1 ELSE 0 END AS IsSiteDBDown
+			,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
 		FROM #inputTransid t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
 			INNER JOIN @tmp_OnlineServerId os ON b.SiteDBGroupID = os.ServerId
@@ -423,7 +422,7 @@ BEGIN
 					     WHEN @IsVoidAllArchivedTickets = 1 THEN 1
 				         ELSE 0 END
 			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 1
-						 WHEN b.SiteDBGroupID = os.ServerId AND os.ServerId <> @SiteDBGroupID THEN 1  -- Get ticket sitedb down
+						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
 					     ELSE 0 END
 	END
 
