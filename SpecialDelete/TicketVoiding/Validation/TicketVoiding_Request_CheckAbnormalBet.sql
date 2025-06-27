@@ -697,23 +697,22 @@ BEGIN
 		INNER JOIN #ABWhiteListTransIds v ON t.Transid = v.transid  
 
 	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
+	--Remove CC201 & CC4000, transid of credit cash service in list transids insert into request
+	DELETE v
+	FROM #validTransId v 
+	WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND v.CustomerClass = 201 THEN 1
+					WHEN @IsRemoveCustomerClass4K = 1 AND v.CustomerClass = 4000 THEN 1
+					WHEN @IsRemoveCreditCashService = 1 AND v.IsCreditCashService = 1 THEN 1
+			ELSE 0 END
+	
+	DELETE FROM @tmpMatchId_Info
+	WHERE matchid NOT IN (SELECT DISTINCT matchid FROM #validTransId)
 
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		INSERT INTO @tmpMarkTransId (TransId, CustID)
 		SELECT transid, custId
-		FROM #validTransId WHERE StatusId IN (0,1)
-
-		DELETE v
-		FROM @tmpMarkTransId v
-			LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
-			LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
-			LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.CustID = cs.CustID AND cs.ServiceType = 1
-		WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
-					   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
-					   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
-					ELSE 0 END
-		
+		FROM #validTransId WHERE StatusId IN (0,1)		
 	END
 	ELSE IF @RequestId <> 0
 	BEGIN
@@ -728,17 +727,6 @@ BEGIN
 			WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
 					AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
 					AND rdt.RequestId = @RequestId
-	
-			INSERT INTO @tmpUnmarkTransId (TransId)
-			SELECT v.transid 
-			FROM #validTransId v
-				LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
-				LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
-				LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.custId = cs.CustID AND cs.ServiceType = 1
-			WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
-						   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
-						   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
-					      ELSE 0 END
 			
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 			INSERT INTO @tmpMarkTransId (TransId)
@@ -754,17 +742,6 @@ BEGIN
 			INSERT INTO @tmpMarkTransId (TransId, CustID)
 			SELECT transid, custId
 			FROM #validTransId WHERE StatusId IN (0,1)
-
-			DELETE v
-			FROM @tmpMarkTransId v
-				LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
-				LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
-				LEFT JOIN CustDB.dbo.CustProductStatus AS cs WITH (NOLOCK) ON v.CustID = cs.CustID AND cs.ServiceType = 1
-			WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
-						   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
-						   WHEN @IsRemoveCreditCashService = 1 AND cs.CustID IS NOT NULL THEN 1
-						ELSE 0 END
-
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
 		BEGIN
@@ -790,17 +767,6 @@ BEGIN
 				
 		SELECT @RemoveTransids = @UnmarkTransIds
 	END
-
-	--Remove CC201 & CC4000 in list transids insert into request
-	DELETE v
-	FROM #validTransId v 
-	WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND v.CustomerClass = 201 THEN 1
-					WHEN @IsRemoveCustomerClass4K = 1 AND v.CustomerClass = 4000 THEN 1
-					WHEN @IsRemoveCreditCashService = 1 AND v.IsCreditCashService = 1 THEN 1
-			ELSE 0 END
-	
-	DELETE FROM @tmpMatchId_Info
-	WHERE matchid NOT IN (SELECT DISTINCT matchid FROM #validTransId)
 
 	/*****************Return table **************************/
 	--1. Info match table
