@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelInfo_Auto_1s]
 	@MatchID		INT
 AS
@@ -13,6 +13,7 @@ AS
 		- 20200311@Sol: PH5 Enhancement - Early popyp auto fill [Redmine:#128076]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+		- 20250623@Hughie: Auto Refund- Fast Market & Time Machine- Support Special Session [Redmine:#225889]
 
 		
 	Param's Explanation:
@@ -44,7 +45,7 @@ BEGIN
 			,m.finalawayscore
             ,@IsCalRefund AS IsCalRefund
             ,m.AutoSetting
-            ,(SELECT AutoSetting FROM dbo.League WITH(NOLOCK) WHERE leagueid = m.leagueid) AS AutoSettingForLeague
+			,l.AutoSetting AS AutoSettingForLeague
 			,m.ChildMatchType
 			,ss.[Enable] AS IsFMAutoRefundLeague
 			,aps.[Enable] AS IsFMAutoRefund

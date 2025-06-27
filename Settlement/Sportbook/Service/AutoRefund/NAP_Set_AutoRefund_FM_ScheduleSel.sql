@@ -55,7 +55,7 @@ BEGIN
 			WHERE ss.LeagueId = m.leagueid
 				AND ss.AutoType = 11
 		) ss
-	WHERE r.ResourceId LIKE '221WB__' OR r.ResourceId = '221SUS'
+	WHERE (r.ResourceId LIKE '221WB__' OR r.ResourceId = '221SUS')
 		AND r.ResultStatusID = 5
 		AND m.eventdate BETWEEN @fromdate AND @todate 
 		AND GlobalShowTime <= @checktime
