@@ -152,6 +152,7 @@ BEGIN
 								, 7: NonLive
 								, 8: DifferentLiveScore
 								, 9: AB Exception TransIds
+								, 10: SiteDB down TransIds
 							  */
 	)
 	CREATE TABLE #inputTransid (transid BIGINT PRIMARY KEY)
@@ -485,6 +486,33 @@ BEGIN
 			ON al.srecommend = s.custid
 		LEFT JOIN @VIPAccount_tmp vip ON al.custid = vip.CustID
 
+
+	BEGIN
+		DECLARE @tmpSiteDBDownInfo TABLE (
+			MatchId INT,
+			TransId BIGINT,
+			IsMixParlay BIT,
+			SiteDBGroupID SMALLINT,
+			isMarked BIT
+		);
+
+		DELETE FROM #tmpTransInfo
+		OUTPUT 
+			ISNULL(DELETED.ChildMatchId, DELETED.MatchId),
+			DELETED.TransId,
+			DELETED.IsMixParlay,
+			DELETED.SiteDBGroupID,
+			CASE WHEN DELETED.statusID IN (0,1) THEN 1 ELSE 0 END
+		INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
+		WHERE IsSiteDBDown = 1;
+
+		UPDATE t
+		SET t.RemarkId = 10
+		FROM #tmpInputTransid_RemarkId t
+		WHERE t.Transid IN (SELECT Transid FROM @tmpSiteDBDownInfo)
+
+	END
+
 	--Duplicated Transids
 	UPDATE t
 	SET t.RemarkId = 2
@@ -664,6 +692,9 @@ BEGIN
 				INNER JOIN #TransidInRequest v ON t.Transid = v.transid
 
 			DELETE FROM #tmpTransInfo
+			WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
+
+			DELETE FROM @tmpSiteDBDownInfo
 			WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
 		END
 
@@ -879,16 +910,14 @@ BEGIN
 		,b.IsMixParlay AS 'isP'
 		,b.SiteDBGroupID AS 'sitedb'
 	FROM #tmpTransInfo b
-	WHERE b.IsSiteDBDown = 0
 	FOR JSON PATH))
 	
-	SET @SiteDBDownInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
-		,t.transid AS 't'
-		,t.IsMixParlay AS 'isP'
-		,t.SiteDBGroupID AS 'sitedb'
-		,CASE WHEN t.statusID IN (0,1) THEN 1 ELSE 0 END AS 'isMarked'
-	FROM #tmpTransInfo t
-	WHERE IsSiteDBDown = 1
+	SET @SiteDBDownInfoJson = COMPRESS((SELECT matchid AS 'mid'
+		,transid AS 't'
+		,IsMixParlay AS 'isP'
+		,SiteDBGroupID AS 'sitedb'
+		,isMarked AS 'isMarked'
+	FROM @tmpSiteDBDownInfo 
 	FOR JSON PATH))
 
 	SELECT @UnmarkTransIds AS UnmarkTransIds
