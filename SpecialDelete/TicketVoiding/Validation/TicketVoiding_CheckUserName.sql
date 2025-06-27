@@ -740,6 +740,12 @@ BEGIN
 												WHERE t.IsCreditCashService = 1
 												FOR XML PATH('')), 1, 1, ''), '')
 	END
+
+	--Remove ticket of credit cash service customer
+	DELETE t
+	FROM #tmpTransInfo AS t
+	WHERE 1 = CASE WHEN @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1 THEN 1 ELSE 0 END
+
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
@@ -747,8 +753,6 @@ BEGIN
 									WHERE t.StatusId IN (0,1) 
 										AND t.bettype NOT IN (9,29,10)
 										AND t.IsVoid14 = 0
-										AND 1 = CASE WHEN @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1 THEN 0
-													 ELSE 1 END
 									FOR XML PATH('')), 1, 1, '')
 									, '')
 	END
@@ -766,10 +770,6 @@ BEGIN
 						  AND rdt.RequestId = @RequestId 
 					      AND rdt.SiteDBGroupID = @SiteDBGroupID
 					      AND rdt.bettype NOT IN (9,29,10)
-					UNION
-					SELECT t.transid
-					FROM #tmpTransInfo t WITH (NOLOCK)
-					WHERE @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1
 				)
 				SELECT @UnmarkTransIds =
 					ISNULL(STUFF((
@@ -785,7 +785,6 @@ BEGIN
 												AND t.IsVoid14 = 0
 											FOR XML PATH('')), 1, 1, '')
 									, '')
-
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
@@ -794,8 +793,6 @@ BEGIN
 									WHERE t.StatusId IN (0,1) 
 										AND t.bettype NOT IN (9,29,10)
 										AND t.IsVoid14 = 0
-										AND 1 = CASE WHEN @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1 THEN 0
-													 ELSE 1 END
 									FOR XML PATH('')), 1, 1, '')
 									, '')
 		END
@@ -809,11 +806,6 @@ BEGIN
 										,'')
 		END
 	END
-
-	--Remove ticket of credit cash service customer
-	DELETE t
-	FROM #tmpTransInfo AS t
-	WHERE 1 = CASE WHEN @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1 THEN 1 ELSE 0 END
 
 	--Get list match
 	SELECT @MatchIDs = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
