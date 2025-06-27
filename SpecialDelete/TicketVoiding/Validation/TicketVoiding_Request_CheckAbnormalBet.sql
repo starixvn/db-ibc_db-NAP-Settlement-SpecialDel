@@ -95,7 +95,6 @@ BEGIN
 			,@TransIdsOfCreditCashService VARCHAR(MAX) = ''
 			,@TransIdsOfSiteDBDown		 VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
-			,@MatchId					 INT = 0
 			,@MarkTransIds 			     VARCHAR(MAX) =''
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
@@ -111,7 +110,7 @@ BEGIN
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
-	DECLARE @tmpMatchId AS TABLE (MatchId INT)
+	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), eventdate DATETIME)
 	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), eventdate DATETIME)
 	DECLARE	@Letstalk_Info AS TABLE (MatchId INT, IsHasUUSTickets BIT, ListBettype VARCHAR(MAX),ListBetteam VARCHAR(MAX))
 	DECLARE @tmp_OnlineServerId AS TABLE (ServerId SMALLINT)
@@ -234,6 +233,9 @@ BEGIN
 	  ,ChildMatchId				INT
 	  ,IsSiteDBDown				BIT DEFAULT(0)
 	  ,eventdate				DATETIME
+	  ,m_liveawayscore			INT
+	  ,eventdate				DATETIME
+
 	)
 	--Search single tickets
 	INSERT INTO #tmpTransInfo(
@@ -428,12 +430,7 @@ BEGIN
 					     ELSE 0 END
 	END
 
-
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND (IsMoved14 = 0)))
-		SET d.matchid = m.ParentID, d.ChildMatchId = m.matchid
-		FROM #tmpTransInfo d
-			INNER JOIN dbo.match14 m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
-		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (29) AND IsMoved14 = 0))
@@ -450,6 +447,9 @@ BEGIN
 			--Update Main MatchId for child match cricket/baseball (Sporttype In (50,8))
 			,d.matchid = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.ParentID ELSE d.matchid END
 			,d.ChildMatchId = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.matchid ELSE NULL END
+			,eventdate = m.eventdate
+			,m_livehomescore = m.livehomescore
+			,m_liveawayscore = m.liveawayscore
 			,eventdate = m.eventdate
 		FROM #tmpTransInfo d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
@@ -471,6 +471,9 @@ BEGIN
 			--Update Main MatchId for child match cricket/baseball (Sporttype In (50,8))
 			,d.matchid = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.ParentID ELSE d.matchid END
 			,d.ChildMatchId = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.matchid ELSE NULL END
+			,eventdate = m.eventdate
+			,m_livehomescore = m.livehomescore
+			,m_liveawayscore = m.liveawayscore
 			,eventdate = m.eventdate
 		FROM #tmpTransInfo d
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
@@ -521,22 +524,18 @@ BEGIN
 		FROM #tmpTransInfo t
 		WHERE IsSiteDBDown = 1
 			AND t.transid IN (SELECT transid FROM #tmpInputTransid_RemarkId WHERE RemarkId IS NULL)
-
 		UPDATE t
 		SET t.RemarkId = 10
-					,s.IsCreditCashService
 		FROM #tmpInputTransid_RemarkId t
 		WHERE t.Transid IN (SELECT Transid FROM @tmpSiteDBDownInfo)
 
+			
 		SELECT @TransIdsOfSiteDBDown = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 										FROM @tmpSiteDBDownInfo t
 										FOR XML PATH('')), 1, 1, ''), '')
-
 		SELECT @SingleCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 0 THEN 1 ELSE NULL END)
 		      ,@ParlayCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 1 THEN 1 ELSE NULL END)
 		FROM @tmpSiteDBDownInfo
-
-	END
 
 		,b.sporttype
 	WHERE IsSiteDBDown = 0
@@ -596,6 +595,7 @@ BEGIN
 	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #invalidTransId v ON t.Transid = v.transid
 	
+
 	IF @ActionId <> 2
 	BEGIN
 		SELECT @SettledTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
@@ -615,7 +615,7 @@ BEGIN
 		BEGIN 
 			INSERT INTO #TransidInRequest (TransId)
 			SELECT DISTINCT t.transid
-			FROM #inputTransid t
+			FROM #tmpTransInfo t
 				INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) ON s.transid = t.transid AND s.SiteDBGroupID = @SiteDBGroupID
 				INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK) ON s.RequestId = r.RequestId
 			WHERE  r.RequestId <> @RequestId 
@@ -707,10 +707,10 @@ BEGIN
 		-- get non-live and different score transids
 		INSERT #LiveTransIds(TransId, IsNonLive, IsDifferentScore)
 		SELECT t.transid
-			, CASE WHEN m.GlobalShowTime < GETDATE() AND t.liveindicator = 0 THEN 1 ELSE 0 END
+			, CASE WHEN t.GlobalShowTime < GETDATE() AND t.liveindicator = 0 THEN 1 ELSE 0 END
 			, CASE
-				WHEN m.sporttype IN (1,49,51) AND t.liveindicator = 1
-					AND (m.livehomescore <> t.livehomescore OR m.liveawayscore <> t.liveawayscore)
+				WHEN t.sporttype IN (1,49,51) AND t.liveindicator = 1
+					AND (t.m_livehomescore <> t.livehomescore OR t.m_liveawayscore <> t.liveawayscore)
 				THEN 1 ELSE 0
 			END
 		FROM #tmpTransInfo t
@@ -757,7 +757,6 @@ BEGIN
 			ELSE 0 END
 
 	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
-
 	IF @FilterBy IS NULL
 	BEGIN
 		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid, sporttype, matchcode, eventdate)
@@ -830,6 +829,16 @@ BEGIN
 		SELECT @RemoveTransids = @UnmarkTransIds
 	END
 
+		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid, sporttype, matchcode, eventdate)
+		SELECT DISTINCT matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate
+		FROM #tmpTransInfo
+	END
+	ELSE
+	BEGIN
+		INSERT INTO @tmpMatchId_Info (MatchId)
+		SELECT 29 AS MatchId
+	END
+	 
 	/*****************Return table **************************/
 	--1. Info match table
 	SELECT matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate
