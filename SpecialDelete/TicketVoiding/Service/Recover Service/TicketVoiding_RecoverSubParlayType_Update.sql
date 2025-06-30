@@ -261,6 +261,7 @@ BEGIN
 		FROM #tblRecoverBet AS t
 		INNER JOIN bettransm AS bm WITH (NOLOCK) ON t.TransId = bm.TransId
 		INNER JOIN bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
+		WHERE b.bettype = 29
 
 		--Capture list of settled main transIds before recover
 		INSERT INTO @tblSettledBeforeRecoveredMainTicket(TransId)
