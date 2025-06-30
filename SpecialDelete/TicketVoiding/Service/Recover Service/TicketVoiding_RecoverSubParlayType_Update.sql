@@ -34,7 +34,7 @@ BEGIN
 			,@Sporttype				SMALLINT = NULL
 			,@AvailableProcess		BIT
 			,@MoveBetDate			DATETIME
-			,@SettledMainTranIds	VARCHAR(MAX) = NULL
+			,@SettledMainTranIds	VARCHAR(MAX) = ''
 			,@SiteDBGroupId			SMALLINT = 0
 			,@StrSetting			VARCHAR(MAX)
 			,@SqlOpenqueryCommand	NVARCHAR(MAX) = ''
@@ -528,6 +528,5 @@ BEGIN
 	DROP TABLE #tblRecoverBet
 	DROP TABLE #tblMatchParlayProcess
 	DROP TABLE #tblMainTicket
-
 
 END
