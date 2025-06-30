@@ -37,6 +37,7 @@ AS
 		- 20240822@Aries: Enhance AutoPayout2 to support Direct Payout [Redmine:#209415]
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 		- 20250512@Hughie: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+		- 20250623@Hughie: Auto Refund- Fast Market & Time Machine- Support Special Session [Redmine:#225889]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -121,13 +122,13 @@ BEGIN
 				AND AutoType = @AutoType
 	END
 
-	IF @IsApplyAll = 1 AND @AutoType = 7
+	IF @IsApplyAll = 1 AND @AutoType IN (7, 11)
 	BEGIN
 		INSERT INTO @tmpUpdatedMatches(MatchId, IsMissing)
 		SELECT m.MatchId
 				,CASE WHEN ms.MatchId IS NULL THEN 1 ELSE 0 END AS IsMissing
 		FROM match AS m WITH(NOLOCK)
-			LEFT JOIN dbo.AutoPayoutSetting AS ms WITH(NOLOCK) ON ms.matchid = m.matchid AND ms.AutoType = 7
+			LEFT JOIN dbo.AutoPayoutSetting AS ms WITH(NOLOCK) ON ms.matchid = m.matchid AND ms.AutoType IN (7, 11)
 		WHERE m.leagueID = @LeagueId
 			AND m.eventstatus = 'running'
 
@@ -143,7 +144,7 @@ BEGIN
 		SET ms.[Enable] = @Enable
 		FROM dbo.AutoPayoutSetting AS ms WITH(UPDLOCK, ROWLOCK)
 		WHERE ms.matchid IN (SELECT um.matchid FROM @tmpUpdatedMatches as um)
-		AND ms.AutoType = 7
+		AND ms.AutoType IN (7, 11)
 		AND ISNULL(ms.[Enable],0) <> @Enable
  
 		SELECT @UpdatedMatchIDs =  CAST(matchID AS VARCHAR) + ',' + @UpdatedMatchIDs
