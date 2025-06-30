@@ -27,7 +27,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @refnos_29				VARCHAR(MAX)
+	DECLARE @refnos_29				VARCHAR(MAX) = ''
 			,@CustIds				VARCHAR(MAX) = ''
 			,@MatchDate				DATETIME
 			,@EventStatus			NVARCHAR(100) = ''
@@ -250,7 +250,7 @@ BEGIN
 		   ,b.refno
 		   ,b.statusID
 		   ,b.custid
-		   ,b.balance
+		   ,b.winlost - b.actual_stake + b.playercomm AS balance
 		   ,b.ruben
 		   ,t.matchid
 		   ,b.srecommend
