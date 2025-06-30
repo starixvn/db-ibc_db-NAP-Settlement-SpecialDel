@@ -28,7 +28,7 @@ BEGIN
 	)
 
 	INSERT INTO @tmpResourceIds(ResourceId) 
-	VALUES   ('221WB01'),('221WB02'),('221WB03'),('221WB04'),('221SUS');
+	VALUES   ('221WB01'),('221WB02'),('221WB03'),('221WB04')--,('221SUS');
 
 	DECLARE @CurrTime DATETIME = GETDATE()
 
@@ -51,15 +51,17 @@ BEGIN
 		) ap
 		OUTER APPLY(
 			SELECT TOP 1 ss.WaitingTime, ss.[Enable]
-			FROM SettlementSetting ss with (nolock) 
+			FROM SettlementSetting ss WITH (NOLOCK) 
 			WHERE ss.LeagueId = m.leagueid
 				AND ss.AutoType = 11
 		) ss
-	WHERE (r.ResourceId LIKE '221WB__' OR r.ResourceId = '221SUS')
+		
+	WHERE r.ResourceId LIKE '221WB__' --OR r.ResourceId = '221SUS')
 		AND r.ResultStatusID = 5
+		AND r.LastModifyDate <= DATEADD(SECOND, - COALESCE(ap.Waitingtime,ss.Waitingtime,300), @CurrTime)
 		AND m.eventdate BETWEEN @fromdate AND @todate 
 		AND GlobalShowTime <= @checktime
-		AND COALESCE(ap.[Enable],ss.[Enable],0) = 1
+		AND (ISNULL(ap.[Enable],0) = 1 OR ISNULL(ss.[Enable],0) = 1)
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
 
 END
