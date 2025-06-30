@@ -37,7 +37,11 @@ BEGIN
 		  ,1 -- StatusId = 1 for Running
 		  ,SiteDBGroupID
 		  ,@RequestId
-	FROM @tmpSiteDBDownInfo
+	FROM @tmpSiteDBDownInfo s
+	WHERE NOT EXISTS ( SELECT TOP 1 1 
+					   FROM dbo.TicketVoiding_PendingMarkTickets p WITH (NOLOCK)
+					   WHERE s.TransId = p.TransId AND s.MatchId = p.MatchId
+					)
 
 END
 GO

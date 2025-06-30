@@ -584,7 +584,6 @@ BEGIN
 	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #invalidTransId v ON t.Transid = v.transid
 	
-
 	IF @ActionId <> 2
 	BEGIN
 		SELECT @SettledTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
@@ -898,7 +897,6 @@ BEGIN
 		,t.RemarkId 
 		,s.IsVipMember
 		,s.CustomerClass
-		,s.IsCreditCashService
 	FROM #tmpInputTransid_RemarkId t
 		LEFT JOIN #tmpTransInfo s ON t.transid = s.transid
 
