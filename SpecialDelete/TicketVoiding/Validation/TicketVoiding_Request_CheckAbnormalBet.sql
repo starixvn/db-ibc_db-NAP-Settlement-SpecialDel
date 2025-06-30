@@ -93,6 +93,7 @@ BEGIN
 			,@TransIdsOfCustomerClass201 VARCHAR(MAX) = ''
 			,@TransIdsOfCustomerClass4K  VARCHAR(MAX) = ''
 			,@TransIdsOfCreditCashService VARCHAR(MAX) = ''
+			,@TransIdsOfSiteDBDown		 VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
 			,@MarkTransIds 			     VARCHAR(MAX) =''
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
@@ -296,7 +297,7 @@ BEGIN
 		,b.mrecommend 
 		,b.srecommend 
 		,b.statuswinlost 
-		,0 AS IsMixParlay 
+		,CASE WHEN b.bettype = 29 THEN 1 ELSE 0 END AS IsMixParlay 
 		,0 AS IsMoved14 
 		,b.odds 
 		,b.oddsspread
@@ -392,7 +393,7 @@ BEGIN
 			,b.mrecommend 
 			,b.srecommend 
 			,b.statuswinlost 
-			,0 AS IsMixParlay 
+			,CASE WHEN b.bettype = 29 THEN 1 ELSE 0 END AS IsMixParlay 
 			,1 AS IsMoved14 
 			,b.odds 
 			,b.oddsspread
@@ -496,7 +497,9 @@ BEGIN
 			SiteDBGroupID SMALLINT,
 			isMarked BIT
 		);
-
+		DECLARE @SingleCountSiteDBDown INT
+		       ,@ParlayCountSiteDBDown INT
+		
 		DELETE FROM #tmpTransInfo
 		OUTPUT 
 			ISNULL(DELETED.ChildMatchId, DELETED.MatchId),
@@ -511,6 +514,14 @@ BEGIN
 		SET t.RemarkId = 10
 		FROM #tmpInputTransid_RemarkId t
 		WHERE t.Transid IN (SELECT Transid FROM @tmpSiteDBDownInfo)
+
+		SELECT @TransIdsOfSiteDBDown = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+										FROM @tmpSiteDBDownInfo t
+										FOR XML PATH('')), 1, 1, ''), '')
+
+		SELECT @SingleCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 0 THEN 1 ELSE NULL END)
+		      ,@ParlayCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 1 THEN 1 ELSE NULL END)
+		FROM @tmpSiteDBDownInfo
 
 	END
 
@@ -827,6 +838,7 @@ BEGIN
 			,@TransIdsOfCustomerClass201 AS TransIdsOfCustomerClass201
 			,@TransIdsOfCustomerClass4K AS TransIdsOfCustomerClass4K
 			,@TransIdsOfCreditCashService AS TransIdsOfCreditCashService
+			,@TransIdsOfSiteDBDown AS TransIdsOfSiteDBDown
 			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 
@@ -841,7 +853,7 @@ BEGIN
 	FROM #tmpTransInfo b
 	FOR JSON PATH))
 	
-	SET @SiteDBDownInfoJson = COMPRESS((SELECT matchid AS 'mid'
+	SET @SiteDBDownInfoJson = COMPRESS((SELECT MatchId AS 'mid'
 		,transid AS 't'
 		,IsMixParlay AS 'isP'
 		,SiteDBGroupID AS 'sitedb'
@@ -854,6 +866,8 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson 
+		  ,@SingleCountSiteDBDown AS SingleCount
+		  ,@ParlayCountSiteDBDown AS ParlayCount
 
 	--4. Export Ticket that the user inputs table [#194133]
 	SELECT  t.transid 

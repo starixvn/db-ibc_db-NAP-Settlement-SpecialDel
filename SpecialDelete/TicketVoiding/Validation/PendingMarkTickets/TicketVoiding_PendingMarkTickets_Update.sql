@@ -1,8 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_PendingMarkTickets_Update]
 (	
-	 @RequestId		        INT	 = NULL
-	,@StatusId		        SMALLINT = NULL
+	 @StatusId		        SMALLINT = NULL
 	,@TransIds				VARCHAR(MAX) = NULL
 	,@SiteDBGroupID			SMALLINT = 0
 )
@@ -29,8 +28,7 @@ BEGIN
 	WHERE value <> ''
 
 	UPDATE dbo.TicketVoiding_PendingMarkTickets WITH (ROWLOCK, UPDLOCK)
-	SET RequestId = @RequestId
-	   ,StatusId = @StatusId
+	SET StatusId = @StatusId
 	WHERE TransId IN (SELECT TransId FROM @tmpListTransIds)
 	  AND SiteDBGroupID = @SiteDBGroupID
 	  AND StatusId IN (1) -- Only Running
