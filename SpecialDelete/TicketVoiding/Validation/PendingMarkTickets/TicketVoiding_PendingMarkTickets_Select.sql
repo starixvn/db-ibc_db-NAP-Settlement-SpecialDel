@@ -18,19 +18,9 @@ BEGIN
 	DECLARE @MarkTransIds VARCHAR(MAX) =''
 
 	SELECT t.TransId
-		  ,t.MatchId
-		  ,t.StatusId
 		  ,t.SiteDBGroupID
-		  ,t.RequestId
 	FROM dbo.TicketVoiding_PendingMarkTickets AS t WITH (NOLOCK)
 	WHERE t.StatusId IN (1) -- Only Running
-
-	SELECT @MarkTransIds = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(TransId AS VARCHAR(50)) 
-										FROM dbo.TicketVoiding_PendingMarkTickets WITH (NOLOCK)
-										WHERE StatusId IN (1) -- Only Running
-										FOR XML PATH('')), 1,1,''),'')
 	
-	SELECT @MarkTransIds AS MarkTransIds
-
 END
 GO

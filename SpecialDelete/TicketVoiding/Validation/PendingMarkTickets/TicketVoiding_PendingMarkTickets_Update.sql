@@ -3,7 +3,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_PendingMarkTickets_Update]
 (	
 	 @StatusId		        SMALLINT = NULL
 	,@TransIds				VARCHAR(MAX) = NULL
-	,@SiteDBGroupID			SMALLINT = 0
 )
 AS
 /*	
@@ -29,8 +28,8 @@ BEGIN
 
 	UPDATE dbo.TicketVoiding_PendingMarkTickets WITH (ROWLOCK, UPDLOCK)
 	SET StatusId = @StatusId
+	   ,ModifiedDate = GETDATE()
 	WHERE TransId IN (SELECT TransId FROM @tmpListTransIds)
-	  AND SiteDBGroupID = @SiteDBGroupID
 	  AND StatusId IN (1) -- Only Running
 END
 GO
