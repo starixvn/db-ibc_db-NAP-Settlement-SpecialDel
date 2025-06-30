@@ -20,6 +20,7 @@ AS
 		- 20220317@Max: Support Max Payout & Max Turnover for Deposit - [Redmine: #167898]
 		- 20240318@Max: Enhance temp table [Redmine: #199517]
 		- 20240923@Max: Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine: #211145]
+		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
 	
 	Param's explanation:	
 		
@@ -308,7 +309,7 @@ BEGIN
 	END
 
 	--For Parlay
-	IF @EventTypeID IN (3,4) AND @MatchId = 29
+	IF @EventTypeID IN (3,4) AND @MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	BEGIN
 		IF @sitetype = 1
 		BEGIN
