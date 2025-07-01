@@ -16,6 +16,7 @@ AS;
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
+		- 20250611@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 
 	Param's explanation:	
 		- SingleTransIds: single & main parlay ticket
@@ -107,16 +108,17 @@ BEGIN
 
 	CREATE TABLE #transIdTemp (
 		transid		BIGINT PRIMARY KEY
+	   ,MatchId     INT
 	   ,TicketType	TINYINT --1: single & main parlay(exclude cancel CO), 2: sub parlay, 3: cancel CO
 	) 
 
-	INSERT INTO #transIdTemp (transid, TicketType)
-	SELECT TransId, 1
+	INSERT INTO #transIdTemp (transid, MatchId, TicketType)
+	SELECT TransId, MatchId, 1
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single  WITH (NOLOCK)
 	WHERE RequestId = @RequestId AND IsProcessed IS NOT NULL AND SiteDBGroupID = @SiteDBGroupID
 
-	INSERT INTO #transIdTemp (transid, TicketType)
-	SELECT TransId, 2
+	INSERT INTO #transIdTemp (transid, MatchId, TicketType)
+	SELECT MainTransId, MatchId, 2
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay  WITH (NOLOCK)
 	WHERE RequestId = @RequestId AND IsProcessed IS NOT NULL AND SiteDBGroupID = @SiteDBGroupID
 
@@ -519,8 +521,8 @@ BEGIN
 				,b.TransId AS MainTransId
 				,t.TicketType
 			FROM #transIdTemp AS t
-			INNER JOIN dbo.bettransm AS bm ON t.transid = bm.TransId AND bm.SiteDBGroupID = @SiteDBGroupID
-			INNER JOIN dbo.bettrans AS b ON b.refno = bm.refno AND b.SiteDBGroupID = bm.SiteDBGroupID
+			INNER JOIN bettrans AS b WITH (NOLOCK) ON t.transid = b.TransId AND b.SiteDBGroupID = @SiteDBGroupID
+            INNER JOIN bettransm AS bm WITH (NOLOCK) ON b.refno = bm.refno AND b.SiteDBGroupID = bm.SiteDBGroupID AND t.MatchId = bm.matchid
 			WHERE bm.statusID NOT IN (101, 102)
 
 		END
