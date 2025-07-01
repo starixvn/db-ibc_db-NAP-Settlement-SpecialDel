@@ -15,12 +15,10 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @MarkTransIds VARCHAR(MAX) =''
-
-	SELECT t.TransId
-		  ,t.SiteDBGroupID
-	FROM dbo.TicketVoiding_PendingMarkTickets AS t WITH (NOLOCK)
-	WHERE t.StatusId IN (1) -- Only Running
+	SELECT TransId
+		  ,SiteDBGroupID
+	FROM dbo.TicketVoiding_PendingMarkTickets WITH (NOLOCK)
+	WHERE StatusId IN (1) -- Only Running
 	
 END
 GO

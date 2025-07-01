@@ -847,6 +847,7 @@ BEGIN
 	FROM #tmpTransInfo b
 	FOR JSON PATH))
 	
+	--List ticket insert table TicketVoiding_PendingMarkTickets
 	SET @SiteDBDownInfoJson = COMPRESS((SELECT MatchId AS 'mid'
 		,transid AS 't'
 		,IsMixParlay AS 'isP'
