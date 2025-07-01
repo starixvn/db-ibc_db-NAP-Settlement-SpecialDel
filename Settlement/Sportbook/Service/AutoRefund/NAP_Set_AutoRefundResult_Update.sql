@@ -11,6 +11,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:
 		 - 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+		 - 20250623@Hughie: Auto Refund- Fast Market ＆ Time Machine- Support Special Session [Redmine:#225889]
 
 	Param's Explanation:
 		@SelectedResources= '<Resources>
