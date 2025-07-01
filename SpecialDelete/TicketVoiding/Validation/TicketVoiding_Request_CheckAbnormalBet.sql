@@ -325,7 +325,9 @@ BEGIN
 		AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.winlostdate >= @Archived_FromDate THEN 1
 					 WHEN @IsVoidAllArchivedTickets = 1 THEN 1
 				     ELSE 0 END
-		AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) 
+		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1
+					 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END
 
 	IF EXISTS (SELECT TOP(1) 1 
 				FROM #inputTransid t
@@ -419,7 +421,9 @@ BEGIN
 			AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.winlostdate >= @Archived_FromDate THEN 1
 					     WHEN @IsVoidAllArchivedTickets = 1 THEN 1
 				         ELSE 0 END
-			AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) 
+			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1
+						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
+					     ELSE 0 END
 	END
 
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (29) AND IsMoved14 = 0))

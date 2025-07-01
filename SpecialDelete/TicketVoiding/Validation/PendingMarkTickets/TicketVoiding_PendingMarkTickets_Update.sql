@@ -30,6 +30,5 @@ BEGIN
 	SET StatusId = @StatusId
 	   ,ModifiedDate = GETDATE()
 	WHERE TransId IN (SELECT TransId FROM @tmpListTransIds)
-	  AND StatusId IN (1) -- Only Running
 END
 GO
