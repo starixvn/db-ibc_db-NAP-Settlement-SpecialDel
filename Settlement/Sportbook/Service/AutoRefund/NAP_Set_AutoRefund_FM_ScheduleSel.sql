@@ -57,7 +57,7 @@ BEGIN
 		) ss
 		
 	WHERE r.ResourceId LIKE '221WB__' --OR r.ResourceId = '221SUS')
-		AND r.ResultStatusID = 5
+		AND r.ResultStatusID = 1
 		AND r.LastModifyDate <= DATEADD(SECOND, - COALESCE(ap.Waitingtime,ss.Waitingtime,300), @CurrTime)
 		AND m.eventdate BETWEEN @fromdate AND @todate 
 		AND GlobalShowTime <= @checktime
