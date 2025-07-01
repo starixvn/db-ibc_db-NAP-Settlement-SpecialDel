@@ -21,14 +21,15 @@ AS
 				1: Waitting
 				2: Success
 				3: Fail
-		@CalculationType: 7 - Auto Refund
+		@CalculationType: 7 - Auto Refund Early
+						 11 - Auto Refund FM
 			
 */
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE  @handle INT
-	CREATE TABLE #tmpResourceIds ( ResourceId VARCHAR(20),SourceId TINYINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50),Remark VARCHAR(1000),OtherInfo VARCHAR(MAX), PRIMARY KEY(ResourceId) )
+	CREATE TABLE #tmpResourceIds ( ResourceId VARCHAR(20),SourceId TINYINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50),Remark VARCHAR(1000),OtherInfo VARCHAR(MAX))
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO #tmpResourceIds (ResourceId,SourceId, HomeValue, AwayValue,Remark,OtherInfo)
