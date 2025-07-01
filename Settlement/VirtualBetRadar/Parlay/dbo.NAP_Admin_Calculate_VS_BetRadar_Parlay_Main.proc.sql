@@ -24,6 +24,7 @@ AS
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20240521@Louisa: Enhancement - get match via linked server due to rep latency [Redmine:#205375]
 		- 20250401@Hughie: Extend data type of currency from tinyint to smallint [Redmine:#222173]
+		- 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
 
 	Param's Explanation:
 	
@@ -56,6 +57,7 @@ BEGIN
 		, @transMPO				VARCHAR(MAX)
 		, @SiteDBGroupId		SMALLINT
 		, @sporttype			SMALLINT
+		, @MainParlayMaxPO		VARCHAR(MAX)
 	
 	DECLARE @odds 				MONEY
 		, @commWinRate 			MONEY 
@@ -446,6 +448,21 @@ BEGIN
 				,@balanceUpd 	= @balanceUpd OUTPUT
 				,@ErrCode 		= @ErrCode OUTPUT
 				,@ErrMsg 		= @ErrMsg OUTPUT
+				,@AffectedTransIds = @MainParlayMaxPO OUTPUT
+
+			--Insert Max Payout Queue
+			IF ISNULL(@MainParlayMaxPO,'') <> ''
+			BEGIN
+				BEGIN TRY
+					EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
+						@MatchId = 2799
+						,@TransIds = @MainParlayMaxPO
+				END TRY
+				BEGIN CATCH
+					SELECT @ErrCode = ERROR_NUMBER()
+						, @ErrMsg = ERROR_MESSAGE()
+				END CATCH
+			END
 			
 			--tracing updated balance ACC
 			IF(@balanceUpd IS NOT NULL)

@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bettrans]
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@TicketType		VARCHAR(1)		= 's'
 	,@transMPO			VARCHAR(MAX)	= NULL 	
+	,@AffectedTransIds  VARCHAR(MAX)	= NULL OUTPUT
 AS
 /*
 	Created: 20160606@Bobby
@@ -21,6 +22,7 @@ AS
 		- 20221109@Louisa: log more info [Redmine:#178694]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20241211@Louisa: add matchid for BalancePendingCreditGame [Redmine:#215066]
+		- 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
 
 	Param's Explanation:
 		
@@ -107,7 +109,7 @@ BEGIN
 									) 
 								)
 								
-		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket, @matchid = @matchid, @Action = @Action, @TicketType = @TicketType
+		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket, @matchid = @matchid, @Action = @Action, @TicketType = @TicketType, @AffectedTransIds = @AffectedTransIds OUTPUT
 			
 	END TRY
 	BEGIN CATCH

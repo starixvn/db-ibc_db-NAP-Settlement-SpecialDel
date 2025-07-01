@@ -21,6 +21,7 @@ AS
 		- 20240521@Louisa: Enhancement - get match via linked server due to replication latency [Redmine:#205375]
 		- 20240704@Aries: VS5 - Virtually Sports [Redmine:#207309]
 		- 20250328@Hughie: Extend data type of currency from tinyint to smallint [Redmine:#222173]
+		- 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
 
 	Param's Explanation:
  
@@ -45,6 +46,7 @@ BEGIN
 			,@TransInfoMaxPO		VARCHAR(MAX)
 			,@SPName				SYSNAME
 			,@parlayBettype			INT
+			,@MainParlayMaxPO		VARCHAR(MAX)
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
 	DECLARE @subtable TABLE(transid BIGINT, statuswinlost TINYINT, statusID TINYINT)
@@ -497,6 +499,21 @@ BEGIN
 					,@matchid			= @MatchId
 					,@ErrCode			= @ErrCode	OUTPUT
 					,@ErrMsg			= @ErrMsg	OUTPUT
+					,@AffectedTransIds  = @MainParlayMaxPO OUTPUT
+
+			--Insert Max Payout Queue
+			IF ISNULL(@MainParlayMaxPO,'') <> ''
+			BEGIN
+				BEGIN TRY
+					EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
+						@MatchId = @parlayBettype
+						,@TransIds = @MainParlayMaxPO
+				END TRY
+				BEGIN CATCH
+					SELECT @ErrCode = ERROR_NUMBER()
+						, @ErrMsg = ERROR_MESSAGE()
+				END CATCH
+			END
 		END
 	END TRY
 	BEGIN CATCH

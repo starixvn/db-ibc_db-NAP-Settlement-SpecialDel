@@ -9,6 +9,7 @@ CREATE PROCEDURE dbo.Bet_ExecRep_NAP_Admin_02
 	,@transMPO			VARCHAR(MAX)	= NULL 	
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
+	,@AffectedTransIds  VARCHAR(MAX)	= NULL OUTPUT
 AS
 /*
     Created by: 20201006@Louisa
@@ -21,6 +22,7 @@ AS
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20240410@Kathy: support parlay - write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20241211@Louisa: add matchid for BalancePendingCreditGame [Redmine:#215066]
+		- 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
 
     Param's Explanation:
         - ExecRep SP: DBTrans_Bet
@@ -179,6 +181,14 @@ BEGIN
 				AND b.transid 	= s.transid
 		
 		SET @EndTime = SYSDATETIME()
+
+		SELECT @AffectedTransIds = (SELECT	transId AS '@transid'
+											,custid AS '@custid'
+											,ruben AS '@ruben'
+									FROM	@tmpTransInfo
+									WHERE	ruben <> bef_ruben
+									FOR XML PATH('r'), ROOT('root')
+							)
 
 		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN

@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_BettransUpd]
 	,@matchid	INT = 0
 	,@Action VARCHAR(20) = NULL
 	,@TicketType VARCHAR(1) = NULL
+	,@AffectedTransIds  VARCHAR(MAX) = NULL OUTPUT
 AS
 /*
 	Created: 20160606@Bobby
@@ -21,6 +22,7 @@ AS
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20240410@Kathy: support parlay - write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20240710@Kathy: Add SettlementTime [Redmine:#207749]
+		- 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
 		
 	Param's Explanation:
 		- ExecRep SP: DBTrans_Bet
@@ -49,6 +51,8 @@ BEGIN
 			,bef_winlost MONEY ,bef_statusid TINYINT
 			,extrainfo VARCHAR(1000)
 			,SettlementTime DATETIME
+			,bef_ruben TINYINT 
+			,custid INT
 		)
 	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd','U') IS NOT NULL 
@@ -184,6 +188,8 @@ BEGIN
 			,deleted.statusid
 			,inserted.extrainfo
 			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+			,deleted.ruben
+			,inserted.custid
 	INTO @tmpTransInfo (transId 
 			,modds, statuswinlost, winlostdate 
 			,WinLost,aWinLost,mWinLost,sWinLost 
@@ -191,7 +197,9 @@ BEGIN
 			,Status ,StatusID ,ruben 
 			,bef_winlost  ,bef_statusid
 			,extrainfo
-			,SettlementTime)
+			,SettlementTime
+			,bef_ruben
+			,custid)
 	FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN @sourceTicket s 
 		ON b.matchid 		= s.matchid
@@ -199,6 +207,14 @@ BEGIN
 			AND b.bettype 	= s.bettype
 			AND b.transid 	= s.transid
 	SET @EndTime = SYSDATETIME()
+
+	SELECT @AffectedTransIds = (SELECT	transId AS '@transid'
+											,custid AS '@custid'
+											,ruben AS '@ruben'
+									FROM	@tmpTransInfo
+									WHERE	ruben <> bef_ruben
+									FOR XML PATH('r'), ROOT('root')
+							)
 
 	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
