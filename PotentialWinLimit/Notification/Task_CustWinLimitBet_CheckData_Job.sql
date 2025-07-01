@@ -12,6 +12,7 @@ AS
 		- 20250616@July: Modify SP Check for missing data reset record in table CustWinLimitBet_History - [Redmine: #226514]
 		- 20250618@July: Modify SP Check error in table CustWinLimitBet_Errors - [Redmine: #226514]
 		- 20250623@July: Rule 7 - Exclude error Missing History  - [Redmine: #226060]
+		- 20250701@July: Check TransIds exceeding the current potential setting - [Redmine: #232140]
 
 	Param's explanation:		
 */
@@ -558,6 +559,7 @@ BEGIN
 		TRUNCATE TABLE #Result_tmp
 		TRUNCATE TABLE #reset
 		TRUNCATE TABLE #CustIdTransidList_tmp
+		TRUNCATE TABLE #CustIdList_tmp
 		DELETE FROM @tmp_RetryRule
 
 		INSERT INTO #CustIdTransidList_tmp (transid, custid, Currency)
@@ -567,18 +569,18 @@ BEGIN
 		WHERE c.RepUpdateTime > @LastRepUpdateTime AND c.RepUpdateTime <= @MaxRepUpdateTime
 			AND v.site NOT IN ('Special','Hedging')
 
-		INSERT INTO #reset (CustID, LatestResetDate)
-		SELECT c.CustID, MAX(c.RepUpdateTime) as LatestResetDate
+		INSERT INTO #reset (CustID, LatestResetDate, Currency)
+		SELECT c.CustID, MAX(c.RepUpdateTime) AS LatestResetDate, t.Currency
 		FROM dbo.CustWinLimitBet_History c WITH (NOLOCK)
 			INNER JOIN #CustIdTransidList_tmp t ON c.CustID = t.custid
 		WHERE c.ActionType = 100 -- latest reset
-		GROUP BY c.CustID
+		GROUP BY c.CustID, t.Currency
 		
 		--- Remove custid does not perform any reset action.
 		DELETE t
 		FROM #CustIdTransidList_tmp t
 		WHERE t.custid NOT IN (SELECT custid FROM #reset)
-		
+	
 		--- Remove ticket placing bet before reset due to very difficult to check OR not exists table xxx_history then IGNORE
 		DELETE t
 		FROM #CustIdTransidList_tmp t
@@ -699,8 +701,66 @@ BEGIN
 			END
 		END
 	END
-		
-	-----------------------------------------------------6 Check for missing data reset record in table CustWinLimitBet_History ---------------------------------------------------------
+	
+	-----------------------------------------------------6 Check TransIds exceeding the current potential setting ---------------------------------------------------------
+	BEGIN
+		TRUNCATE TABLE #Result_tmp
+
+		;WITH CTE_Rule AS
+		(
+			SELECT h.custid
+				-- For debug
+				--, h.id, h.AdjToWin, AdjWinloss, h.AdjToWin + AdjWinloss AS Potential
+				, h.ActionType
+				, h.transid
+				, SUM(h.AdjToWin + AdjWinloss) OVER(PARTITION BY h.custid ORDER BY h.id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS Potential_sum
+				, r.Currency
+				, h.repupdatetime
+			FROM #reset r --Re-use of rule 5
+				INNER JOIN CustWinLimitBet_History h WITH (NOLOCK) ON r.custid = h.custid AND h.repupdatetime > r.LatestResetDate
+		)
+		INSERT INTO #Result_tmp (custid, Currency, transid)
+		SELECT TOP (@batch) c.custid, Currency, transid
+		FROM CTE_Rule c
+			INNER JOIN CustDB.dbo.CustPotentialWinLimit p WITH (NOLOCK) ON p.custid = c.custid AND p.PotentialWinLimit <> 0
+		WHERE c.Potential_sum > p.PotentialWinLimit 
+			AND c.actiontype = 0 --place bet
+			AND c.repupdatetime > @LastRepUpdateTime AND c.RepUpdateTime <= @MaxRepUpdateTime
+		ORDER BY CASE WHEN c.Currency NOT IN (20) THEN 1
+		              WHEN c.Currency IN (20) THEN 2
+					  ELSE 0 END ASC 
+	
+		IF EXISTS (SELECT TOP 1 1 FROM #Result_tmp)
+		BEGIN
+			SET @transIds = ''
+			SET @UUStransIds = '' 
+
+			SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+			FROM(
+				SELECT DISTINCT b.transId
+				FROM #Result_tmp b 
+				WHERE b.Currency <> 20 
+			) AS tmp
+
+			SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+			FROM(
+				SELECT DISTINCT b.transId
+				FROM #Result_tmp b 
+				WHERE b.Currency = 20
+			) AS tmp
+			
+			IF ISNULL(@transIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '6. Check TransIds exceeding the current potential setting for real currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
+			END
+
+			IF ISNULL(@UUStransIds,'') <> ''
+			BEGIN
+				SET @ErrorMessage = @ErrorMessage + '6. Check TransIds exceeding the current potential setting for UUS currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
+			END
+		END
+	END
+	-----------------------------------------------------7 Check for missing data reset record in table CustWinLimitBet_History ---------------------------------------------------------
 	
 	IF @CurrentTime >= '00:10:00' AND @CurrentTime < '00:20:00' --Maximum call 1 times because job interval 10 minute
 	BEGIN
@@ -741,16 +801,16 @@ BEGIN
 
 		IF ISNULL(@CustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '6. Check missing data reset record in table CustWinLimitBet_History for real currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @CustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '7. Check missing data reset record in table CustWinLimitBet_History for real currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @CustIds + @CRLF
 		END
 
 		IF ISNULL(@UUSCustIds,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '6. Check missing data reset record in table CustWinLimitBet_History for UUS currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
+			SET @ErrorMessage = @ErrorMessage + '7. Check missing data reset record in table CustWinLimitBet_History for UUS currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
 		END
 	END
 
-	-----------------------------------------------------7 Check error in table CustWinLimitBet_Errors ---------------------------------------------------------
+	-----------------------------------------------------8 Check error in table CustWinLimitBet_Errors ---------------------------------------------------------
 	BEGIN
 		DECLARE @Errors VARCHAR(MAX) = ''
 		SET @Errors = STUFF(( SELECT @CRLF + ErrName +': '+ STRING_AGG(ExtraInfo, ',') 
@@ -763,7 +823,7 @@ BEGIN
 
 		IF ISNULL(@Errors,'') <> ''
 		BEGIN
-			SET @ErrorMessage = @ErrorMessage + '7. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check error in table CustWinLimitBet_Errors. ' + @CRLF + @Errors
+			SET @ErrorMessage = @ErrorMessage + '8. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check error in table CustWinLimitBet_Errors. ' + @CRLF + @Errors
 		END
 
 	END
