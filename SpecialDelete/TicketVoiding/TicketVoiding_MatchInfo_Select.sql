@@ -36,12 +36,17 @@ BEGIN
 		, VendorMatchId VARCHAR(50), RaceId VARCHAR(10))
 	
 	DECLARE @ProductIdTbl TABLE (ProductId TINYINT)
+	DECLARE @SporttypeProductIdTmp TABLE (SportType SMALLINT, ProductId TINYINT)
 
 	INSERT INTO @ProductIdTbl (ProductId)
 	SELECT DISTINCT value
 	FROM STRING_SPLIT(@ProductIds,',')
 	WHERE value <> ''
 	
+	INSERT INTO @SporttypeProductIdTmp (ProductId, SportType)
+	SELECT DISTINCT ProductID, SportType
+	FROM SportBettypeMatrix WITH (NOLOCK) 
+
 	IF @Sporttype NOT IN (147,177,198,125,126,127) OR @Sporttype IS NULL
 	BEGIN
 		INSERT INTO #MatchInfo(matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ParentId, Kickofftime)
@@ -52,15 +57,19 @@ BEGIN
 				AND 1 = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 							 ELSE 1 END
 				AND 1 = CASE WHEN @ProductIds IS NOT NULL AND NOT EXISTS (SELECT TOP 1 1 
-																		  FROM SportBettypeMatrix s WITH (NOLOCK) 
+																		  FROM @SporttypeProductIdTmp s
 																		  WHERE s.SportType = m.sporttype AND s.ProductID IN (SELECT ProductId FROM @ProductIdTbl)) THEN 0
-							ELSE 1 END
+							 ELSE 1 END
 		UNION 
 		SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode, m.parentid, m.kickofftime
 		FROM	dbo.match14 m WITH(NOLOCK)
 		WHERE	m.sporttype = @Sporttype 
 				AND m.matchid = @MatchId 
 				AND 1 = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+							 ELSE 1 END
+				AND 1 = CASE WHEN @ProductIds IS NOT NULL AND NOT EXISTS (SELECT TOP 1 1 
+																		  FROM @SporttypeProductIdTmp s
+																		  WHERE s.SportType = m.sporttype AND s.ProductID IN (SELECT ProductId FROM @ProductIdTbl)) THEN 0
 							 ELSE 1 END
 	END
 
