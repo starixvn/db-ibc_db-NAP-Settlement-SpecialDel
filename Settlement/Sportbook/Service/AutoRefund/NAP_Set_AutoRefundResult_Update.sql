@@ -49,7 +49,8 @@ BEGIN
 		  ) AS SOURCE ON TARGET.ResourceId  = SOURCE.ResourceId 
 							AND TARGET.Matchid  = @MatchId 
 							AND TARGET.TypeId = @TypeId 
-							AND TARGET.SourceId  = SOURCE.SourceId 
+							AND TARGET.SourceId  = SOURCE.SourceId
+							AND TARGET.OtherInfo = SOURCE.OtherInfo
 	WHEN MATCHED THEN
 		UPDATE SET   StatusId	  = @StatusId
 					,Remark		  = IIF(ISNULL(SOURCE.Remark,'') != '',SOURCE.Remark,TARGET.Remark)
