@@ -42,3 +42,5 @@ INSERT INTO Settlement_ArchiveSetting ( ArchiveName, ArchiveValue, ArchiveTime )
 VALUES   ('ProviderExternalResultDetail'	, '0'	, GETDATE() )
 		,('ProviderExternalResultDetailES'	, '0'	, GETDATE() )
 		,('ProviderExternalResultDetailOS'	, '0'	, GETDATE() )
+
+
