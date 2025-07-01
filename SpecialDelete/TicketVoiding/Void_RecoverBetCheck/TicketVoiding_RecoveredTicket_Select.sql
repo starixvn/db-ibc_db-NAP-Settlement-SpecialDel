@@ -18,6 +18,7 @@ AS;
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250611@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 
+
 	Param's explanation:	
 		- SingleTransIds: single & main parlay ticket
 		- SubParlayTransIds: subparlay ticket
