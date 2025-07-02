@@ -186,7 +186,7 @@ BEGIN
 											,custid AS '@custid'
 											,ruben AS '@ruben'
 									FROM	@tmpTransInfo
-									WHERE	ruben <> bef_ruben
+									WHERE	ruben <> before_ruben
 									FOR XML PATH('r'), ROOT('root')
 							)
 
