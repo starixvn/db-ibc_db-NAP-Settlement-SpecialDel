@@ -21,6 +21,7 @@ AS
 		- 20240315@July: Fix null winlostdate follow settle [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
+		- 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
 
 	Param's Explanation:				
 		- @strRefnos : Refno Maintransids.
@@ -49,6 +50,8 @@ BEGIN
 			,@TransInfoMaxPO		VARCHAR(MAX)
 			,@Action			    VARCHAR(10) = 'CAL'
 			,@sporttype				SMALLINT = 188
+			,@MainParlayMaxPO		VARCHAR(MAX)
+			,@MatchId_MaxPO			INT = NULL
 	
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -73,6 +76,7 @@ BEGIN
 	DECLARE @tmpTransMPO TABLE (custid INT, winlost MONEY, actualPO MONEY, transdate DATETIME, bettype SMALLINT, transid BIGINT)
 	DECLARE @tmpTransMPOBatch TABLE (TransID BIGINT,custid INT, actualPO MONEY, MaxWinLimit MONEY, winlost MONEY,transdate DATETIME, bettype SMALLINT)
 	DECLARE @tmpMaxWinLimit	TABLE( CustId INT, MaxWinLimit MONEY)
+	DECLARE @Match_tmp AS TABLE (matchId INT, IsFinish BIT)
 	
 	CREATE TABLE #tmpsubTransID (refno BIGINT, transid BIGINT, statuswinlost TINYINT, statusID TINYINT)
 	CREATE TABLE #tempMainParlay ( 
@@ -462,54 +466,86 @@ BEGIN
 	END
 
 	BEGIN TRY
-		WHILE (1 = 1)
-		BEGIN
-			DELETE @MainTickets
+		INSERT INTO @Match_tmp (matchId)
+		SELECT DISTINCT t.matchid
+		FROM #tempMainParlay t
+		WHERE t.Bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 
-			DELETE TOP (@batchNo) #tempMainParlay
-			OUTPUT deleted.recommend, deleted.matchid, deleted.custid, deleted.bettype, deleted.transid
-				, deleted.winlost, deleted.awinlost, deleted.mwinlost, deleted.swinlost
-				, deleted.playercomm, deleted.comm, deleted.acomm, deleted.scomm
-				, deleted.statusid, deleted.modds, deleted.actual_stake, deleted.winlostdate
-				, deleted.actualPO
-			INTO @MainTickets(recommend, matchid, custid, bettype, transid
-				,winlost, awinlost, mwinlost, swinlost
-				,playercomm, comm, acomm, scomm
-				,statusid, modds, actual_stake, winlostdate
-				,actualPO
-			)	
-			WHERE isChanged = 1
+		WHILE (1=1)
+		BEGIN
+			SELECT @MatchId_MaxPO = NULL
+		
+			UPDATE TOP(1) mt SET mt.IsFinish = 1, @MatchId_MaxPO = mt.matchid
+			FROM @Match_tmp mt
+			WHERE mt.IsFinish IS NULL
 
 			IF @@ROWCOUNT = 0 BREAK
 
-			SELECT @BetTicketJson = CONVERT(VARCHAR(MAX)
-									,(SELECT b.matchid 							AS 'mi'
-											,b.transid 							AS 'ti'
-											,b.winlost 							AS 'wl'
-											,b.awinlost 						AS 'awl'
-											,b.mwinlost 						AS 'mwl'				
-											,b.swinlost 						AS 'swl'
-											,b.playercomm 						AS 'pcomm'
-											,b.comm 							AS 'comm'
-											,b.acomm 							AS 'acomm'
-											,b.scomm 							AS 'scomm'	
-											,b.statusid 						AS 'st'	
-											,b.modds 							AS 'mo'
-											,b.winlostdate						AS 'wd'		
-											,b.actualPO							AS 'apo'	
-										FROM @MainTickets AS b
-										FOR JSON AUTO
-									) 
-								)
-			EXEC dbo.Bet_ExecRep_NAP_Admin_02  
-					@BetTicketJson		= @BetTicketJson
-					,@Action			= @Action
-					,@ActionID			= @ActionID
-					,@CWLBettype		= @CWLBettype
-					,@matchid			= @MatchId
-					,@IsCalBalance		= 0
-					,@ErrCode			= @ErrCode	OUTPUT
-					,@ErrMsg			= @ErrMsg	OUTPUT
+			WHILE (1 = 1)
+			BEGIN
+				DELETE @MainTickets
+
+				DELETE TOP (@batchNo) #tempMainParlay
+				OUTPUT deleted.recommend, deleted.matchid, deleted.custid, deleted.bettype, deleted.transid
+					, deleted.winlost, deleted.awinlost, deleted.mwinlost, deleted.swinlost
+					, deleted.playercomm, deleted.comm, deleted.acomm, deleted.scomm
+					, deleted.statusid, deleted.modds, deleted.actual_stake, deleted.winlostdate
+					, deleted.actualPO
+				INTO @MainTickets(recommend, matchid, custid, bettype, transid
+					,winlost, awinlost, mwinlost, swinlost
+					,playercomm, comm, acomm, scomm
+					,statusid, modds, actual_stake, winlostdate
+					,actualPO
+				)	
+				WHERE isChanged = 1	
+					AND matchid = @MatchId_MaxPO
+
+				IF @@ROWCOUNT = 0 BREAK
+
+				SELECT @BetTicketJson = CONVERT(VARCHAR(MAX)
+										,(SELECT b.matchid 							AS 'mi'
+												,b.transid 							AS 'ti'
+												,b.winlost 							AS 'wl'
+												,b.awinlost 						AS 'awl'
+												,b.mwinlost 						AS 'mwl'				
+												,b.swinlost 						AS 'swl'
+												,b.playercomm 						AS 'pcomm'
+												,b.comm 							AS 'comm'
+												,b.acomm 							AS 'acomm'
+												,b.scomm 							AS 'scomm'	
+												,b.statusid 						AS 'st'	
+												,b.modds 							AS 'mo'
+												,b.winlostdate						AS 'wd'		
+												,b.actualPO							AS 'apo'	
+											FROM @MainTickets AS b
+											FOR JSON AUTO
+										) 
+									)
+				EXEC dbo.Bet_ExecRep_NAP_Admin_02  
+						@BetTicketJson		= @BetTicketJson
+						,@Action			= @Action
+						,@ActionID			= @ActionID
+						,@CWLBettype		= @CWLBettype
+						,@matchid			= @MatchId
+						,@IsCalBalance		= 0
+						,@ErrCode			= @ErrCode	OUTPUT
+						,@ErrMsg			= @ErrMsg	OUTPUT
+						,@AffectedTransIds  = @MainParlayMaxPO OUTPUT
+
+				--Insert Max Payout Queue
+				IF ISNULL(@MainParlayMaxPO,'') <> ''
+				BEGIN
+					BEGIN TRY
+						EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
+							@MatchId = @MatchId_MaxPO
+							,@TransIds = @MainParlayMaxPO
+					END TRY
+					BEGIN CATCH
+						SELECT @ErrCode = ERROR_NUMBER()
+							, @ErrMsg = ERROR_MESSAGE()
+					END CATCH
+				END
+			END
 		END
 	END TRY
 	BEGIN CATCH
