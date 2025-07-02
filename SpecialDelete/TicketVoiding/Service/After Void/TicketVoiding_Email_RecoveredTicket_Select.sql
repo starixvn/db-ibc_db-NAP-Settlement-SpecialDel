@@ -388,7 +388,7 @@ BEGIN
 				,IsCashOut
 				,modds
 			)
-			SELECT b.matchid
+			SELECT bm.matchid
 				,b.TransId
 				,bm.transid AS SubTransID
 				,b.custid
