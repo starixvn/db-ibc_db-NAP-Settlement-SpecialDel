@@ -16,6 +16,8 @@ AS
 			- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100]
 			- 20240608@Aries: Filter Over Status Table Tennis - Don't show parent match when child match has no ticket [Redmine:#208972]
 			- 20250507@Aries: Enhance the performance for the Multi-sport Page [Redmine:#223959]
+			- 20250701@Aries: Fix an issue that a timeout occurred when filtering a large amount of data on the Settlement Site [Redmine:#231940]
+
 
 	Parameters Explanation: 
 		@MatchInfo='[{"m":83541400,"s":9,"cmt":0,"e":"running","cfht":0,"cfft":4635582},{"m":83541402,"s":9,"cmt":0,"e":"running","cfht":0,"cfft":0}]'
@@ -52,9 +54,8 @@ BEGIN
 	DECLARE @tmpQueueStatus TABLE (MatchId INT, IsCalculatingSingle TINYINT DEFAULT(0), IsCalculatingMP TINYINT DEFAULT(0))
 	CREATE TABLE #tmpMatch(MatchId INT, ParentID INT, SportType SMALLINT, EventStatus NVARCHAR(100), ChildMatchType TINYINT, SuspenderHalfTime NVARCHAR(50), SuspenderFullTime NVARCHAR(50))
 	
-	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT, refno BIGINT)
-	CREATE INDEX IX_tmpMarkedTransaction_transId ON #tmpMarkedTransaction(transId)
-
+	DECLARE @__tmpMarkedTransaction TABLE (transId BIGINT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON), matchId INT, refno BIGINT)
+	
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON), ParentId INT, ChildMatchType TINYINT, SportType SMALLINT, eventstatus NVARCHAR(50))
 	CREATE INDEX CIX_tmp_ParentId ON #tmpAllParentChildMatch(ParentId)
 
@@ -108,7 +109,7 @@ BEGIN
 		SET @OverStatus = '0'
 	END
 
-	INSERT INTO #tmpMarkedTransaction (transId, matchId, refno)
+	INSERT INTO @__tmpMarkedTransaction (transId, matchId, refno)
 	SELECT	mt.TransId, m.matchid, IIF(p.matchid = 29,p.refno, 0)
 	FROM #tmpAllParentChildMatch m
 		INNER LOOP JOIN dbo.MarkedTransaction AS mt WITH(NOLOCK,INDEX(IX_MarkedTransaction_MatchId))  ON m.matchid = mt.MatchId -- INNER LOOP JOIN  &  WITH(NOLOCK,INDEX(IX_MarkedTransaction_MatchId)) 
@@ -119,9 +120,9 @@ BEGIN
 		) AS p
     OPTION (FORCE ORDER)
 
-	INSERT INTO #tmpMarkedTransaction (transId, matchId, refno)
+	INSERT INTO @__tmpMarkedTransaction (transId, matchId, refno)
 	SELECT  bm.TransId,mt.MatchId,mt.RefNo
-	FROM #tmpMarkedTransaction AS mt
+	FROM @__tmpMarkedTransaction AS mt
 		INNER JOIN bettransm AS bm WITH(NOLOCK,INDEX(IX_refno)) ON mt.refno = bm.refno AND mt.matchid = bm.matchid --WITH(NOLOCK,INDEX(IX_refno))
 	WHERE mt.refno > 0
 
@@ -139,13 +140,9 @@ BEGIN
 		  ,SUM(IIF(b.statusid = 1, 1, 0)) AS TotalWaitingTicket
 		  ,SUM(IIF(mt.TransId IS NOT NULL AND b.statusid = 0, 1, 0)) AS TotalMarkedTicket
 	FROM #tmpAllParentChildMatch AS m 
-		INNER JOIN bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype)) ON m.matchid = b.matchid --WITH(NOLOCK,INDEX(CIX_matchid_bettype))
+		INNER JOIN bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype), FORCESEEK) ON m.matchid = b.matchid --WITH(NOLOCK,INDEX(CIX_matchid_bettype))
 		INNER JOIN SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK) ON  sp.Sporttype = m.SportType AND sp.bettype =  b.bettype AND (sp.BetID = 0 OR b.BetID = sp.BetID) 
-		OUTER APPLY (
-			SELECT	TOP 1 mt.TransId
-			FROM #tmpMarkedTransaction AS mt WITH(NOLOCK)
-			WHERE mt.TransId = b.transid
-		) mt
+		LEFT JOIN @__tmpMarkedTransaction AS mt ON mt.TransId = b.transid
 	WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN @SitedbGroupID_Central ELSE b.SiteDBGroupID END
 	GROUP BY m.matchid,m.eventstatus, sp.ResourceID, sp.SettleType,m.ParentId,m.ChildMatchType,m.sporttype
 
@@ -163,13 +160,9 @@ BEGIN
 		  ,SUM(IIF(bm.statusid = 1, 1, 0)) AS TotalWaitingTicket
 		  ,SUM(IIF(mt.TransId IS NOT NULL AND bm.statusid = 0, 1, 0)) AS TotalMarkedTicket
 	FROM #tmpAllParentChildMatch AS m 
-		INNER JOIN bettransm AS bm WITH(NOLOCK) ON m.matchid = bm.matchid -- WITH(NOLOCK,INDEX(IX_matchid))
+		INNER LOOP JOIN bettransm AS bm WITH(NOLOCK, FORCESEEK) ON m.matchid = bm.matchid -- WITH(NOLOCK,INDEX(IX_matchid))
 		INNER JOIN SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK) ON  sp.Sporttype = m.SportType AND sp.bettype =  bm.bettype AND (sp.BetID = 0 OR bm.betcheck = CAST(sp.BetID AS NVARCHAR(50))) 
-		OUTER APPLY (
-			SELECT	TOP 1 mt.transid
-			FROM #tmpMarkedTransaction AS mt WITH(NOLOCK)
-			WHERE mt.TransId = bm.transid
-		) mt
+		LEFT JOIN @__tmpMarkedTransaction AS mt ON mt.TransId = bm.transid
 	WHERE bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN @SitedbGroupID_Central ELSE bm.SiteDBGroupID END
 	GROUP BY m.matchid,m.eventstatus, sp.ResourceID, sp.SettleType,m.ParentId,m.ChildMatchType,m.sporttype
 
@@ -273,7 +266,6 @@ BEGIN
 		LEFT JOIN @tmpQueueStatus AS q ON	q.matchid = m.MatchId
 
 
-	DROP TABLE #tmpMarkedTransaction
 	DROP TABLE #tmpMatch
     DROP TABLE #tmpMatchCount
 END
