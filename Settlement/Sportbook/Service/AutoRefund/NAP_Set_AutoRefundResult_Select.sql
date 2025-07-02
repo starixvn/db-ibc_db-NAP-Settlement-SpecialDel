@@ -18,27 +18,27 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @Resource TABLE (MatchId INT, resourceId VARCHAR(20), TypeId TINYINT, OtherInfo VARCHAR(MAX))
+	DECLARE @Resource TABLE (matchId INT, resourceId VARCHAR(20), typeId TINYINT, otherInfo VARCHAR(MAX))
 
 	INSERT INTO @Resource (MatchId, resourceId, TypeId, OtherInfo)
-	SELECT tbl.MatchId
+	SELECT tbl.matchId
           ,tbl.resourceId
-		  ,tbl.TypeId
-		  ,tbl.OtherInfo
+		  ,tbl.typeId
+		  ,tbl.otherInfo
 	FROM OPENJSON(@ResourceInfo) WITH (
             matchId		        INT
            ,resourceId		    VARCHAR(20)	
-		   ,TypeId				TINYINT
-		   ,OtherInfo			VARCHAR(MAX)
+		   ,typeId				TINYINT
+		   ,otherInfo			VARCHAR(MAX)
 	) AS tbl
 
 	SELECT ar.matchId
 		  ,ar.resourceId
 		  ,ar.statusId
 	FROM dbo.AutoRefundResult AS ar WITH(NOLOCK) 
-		INNER JOIN @Resource AS r ON r.matchId = ar.matchId AND ar.TypeId = r.TypeId
-	WHERE 1 = CASE WHEN r.TypeId = 11 AND ar.OtherInfo = r.OtherInfo AND ar.ResourceId = r.resourceId THEN 1
-	                WHEN ar.TypeId = 7 AND ar.resourceId =  r.resourceId THEN 1
+		INNER JOIN @Resource AS r ON r.matchId = ar.MatchId AND ar.TypeId = r.typeId
+	WHERE 1 = CASE WHEN r.typeId = 11 AND ar.OtherInfo = r.otherInfo AND ar.ResourceId = r.resourceId THEN 1
+	                WHEN ar.TypeId = 7 AND ar.ResourceId =  r.resourceId THEN 1
 					ELSE 0
 					END
 
