@@ -35,6 +35,7 @@ BEGIN
 	SELECT ar.matchId
 		  ,ar.resourceId
 		  ,ar.statusId
+		  ,r.otherInfo
 	FROM dbo.AutoRefundResult AS ar WITH(NOLOCK) 
 		INNER JOIN @Resource AS r ON r.matchId = ar.MatchId AND ar.TypeId = r.typeId
 	WHERE 1 = CASE WHEN r.typeId = 11 AND ar.OtherInfo = r.otherInfo AND ar.ResourceId = r.resourceId THEN 1
