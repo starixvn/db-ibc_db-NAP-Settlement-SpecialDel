@@ -7,7 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_m]
     ,@hta INT = NULL
     ,@matchdate DATETIME
     ,@priorAction VARCHAR(20) = NULL
-    ,@action VARCHAR(10) = 'CAL'
+    ,@action VARCHAR(30) = 'CAL'
     ,@VoidTransID VARCHAR(2000) = ''
     ,@UserID INT = 0    
     ,@TennisTotal INT = NULL     
