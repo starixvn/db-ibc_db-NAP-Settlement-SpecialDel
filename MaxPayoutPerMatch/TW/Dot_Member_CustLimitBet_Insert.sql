@@ -28,6 +28,7 @@ AS
 		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]
 		- 20250609@July: Enhance MaxPayout Per Match for Virtual Sport [Redmine: #229870]
 		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
+		- 20250703@July: Max Payout Per Match for E-Sport [Redmine: #230454]
 	
 	Param's explanation:	
 		
@@ -47,7 +48,8 @@ BEGIN
 		RETURN
 	END
 	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) 
-		OR (@sporttype IN (43,44) AND @sitetype <> 3)
+		OR (@sporttype IN (43) AND @sitetype <> 3 AND @bettype NOT IN (9001,9002,9003,9058,9088,9007,9059,9060)) --Support Maxpayout deposit , credit only support 8 bettypes
+		OR (@sporttype IN (44) AND @sitetype <> 3)
 		OR (@sporttype IN (164
 			--,178,179,180,186,188,147,177,134,125,126,127 --VS Product
 		)) 
