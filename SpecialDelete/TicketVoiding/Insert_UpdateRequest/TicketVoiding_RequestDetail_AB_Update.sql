@@ -26,6 +26,7 @@ AS
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20250627@July: Change way get list info json - [Redmine: #228047]
+		- 20250703@Lani: Abnormal Bet - Send ticket of the username in AB Exception List to CTS [Redmine: #231465]
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet
@@ -42,10 +43,11 @@ BEGIN
 			,@OldMatchId		 INT
 			,@OldTransIds 		 VARCHAR(MAX) = NULL
 			,@row_count			 INT = 0
-			,@TransIds				VARCHAR(MAX) = NULL
-			,@FilterBy				TINYINT = NULL
-			,@SubIssueTypeId		TINYINT = NULL
-			,@AbnormalBetInfoXML	 XML = NULL	
+			,@TransIds			 VARCHAR(MAX) = NULL
+			,@FilterBy			 TINYINT = NULL
+			,@SubIssueTypeId	 TINYINT = NULL
+			,@AbnormalBetInfoXML XML = NULL
+			,@ABWhiteListTransIds VARCHAR(MAX) = NULL
 
 	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50))
 
@@ -83,6 +85,7 @@ BEGIN
 	SELECT @TransIds = t.c.value('@TransIds','VARCHAR(MAX)')
 		, @FilterBy = NULLIF(t.c.value('@FilterBy','TINYINT'),'')
 		, @SubIssueTypeId = t.c.value('@SubIssueTypeId','TINYINT')
+		, @ABWhiteListTransIds = NULLIF(t.c.value('@ABWhiteListTransIds','VARCHAR(MAX)'),'')
 	FROM @AbnormalBetInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AbnormalBetInfoXML = NULL))
 
@@ -127,6 +130,7 @@ BEGIN
 		, RequestType
 		, SubIssueTypeId
 		, FilterBy
+		, TransIds
 	)
 	SELECT @RequestId
 		, m.MatchId
@@ -137,6 +141,7 @@ BEGIN
 		, CASE WHEN @ActionId IN (4,8) THEN 1 ELSE 0 END
 		, @SubIssueTypeId
 		, @FilterBy
+		, '<r TransIds="' + @ABWhiteListTransIds + '" />' AS TransIds
 	FROM @tmpMatchId_Info m
 	
 	IF @IsEditRequest = 1
@@ -159,7 +164,7 @@ BEGIN
 
 	-- Get content of log data 
 	SET @LogDataContent = ''
-	SET @LogDataContent += ' TransIds: ' + @TransIds + ', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20))
+	SET @LogDataContent += ' TransIds: ' + @TransIds + ', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20)) + CASE WHEN @ABWhiteListTransIds IS NOT NULL THEN ', ABWhiteListTransIds: ' + @ABWhiteListTransIds ELSE '' END
 	
 	-- Write Log
 	SET @EndTime = GETDATE()
