@@ -632,6 +632,7 @@ BEGIN
 					  AND 1 = CASE WHEN @ActionId = 1 AND StatusId IN (111,112,113) THEN 0 ELSE 1 END)
 		AND temp.transid NOT IN ( SELECT TransId FROM #UnsupportedTransids)
 		AND temp.transid NOT IN ( SELECT TransId FROM @tmpSiteDBDownInfo)
+		AND temp.transid NOT IN ( SELECT TransId FROM #TransidInRequest)
 
 	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 									FROM #invalidTransId
@@ -881,14 +882,15 @@ BEGIN
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 
 		--3. List ticket unmark/mark & Transinfo table (if any)
-	SET @TransInfoJson = COMPRESS((SELECT b.matchid AS 'mid'
-		,b.transid AS 't'
+	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
+		,t.transid AS 't'
 		,b.custid AS  'c'           
 		,b.bettype AS 'btype'
 		,b.betid AS 'bid'
 		,b.IsMixParlay AS 'isP'
 		,b.SiteDBGroupID AS 'sitedb'
-	FROM #tmpTransInfo b
+	FROM #validTransId t
+		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
 	
 	--List ticket insert table TicketVoiding_PendingMarkTickets
@@ -911,6 +913,7 @@ BEGIN
 	
 	--5. Export Ticket that the user inputs table [#194133]
 	SELECT  t.transid 
+		,t.RemarkId 
 		,s.matchid
 		,s.homeid    
 		,s.awayid    
@@ -940,7 +943,6 @@ BEGIN
 		,s.betcheck
 		,s.IsMixParlay
 		,s.SiteDBGroupID
-		,t.RemarkId 
 		,s.IsVipMember
 		,s.CustomerClass
 		,s.IsCreditCashService
