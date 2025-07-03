@@ -1,4 +1,4 @@
 Settlement\VirtualBetRadar\dbo.NAP_Admin_Settlement_VS_BetRadar.proc.sql
 Settlement\VirtualBetRadar\dbo.NAP_Admin_Settlement_VS_BetRadar_MP.proc.sql
 Settlement\LeapGaming\NAP_Admin_Settlement_s178.sql
-Settlement\VS5-Virtually\dbo.NAP_Admin_Settlement_VS5.sql
+Settlement\LeapGaming\NAP_Admin_Settlement_s178.sql
