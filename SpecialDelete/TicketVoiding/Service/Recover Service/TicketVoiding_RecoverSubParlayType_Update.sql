@@ -325,7 +325,7 @@ BEGIN
 				EXEC dbo.NAP_Admin_Calculate_MP_broker
 					@matchid = @MatchId
 					,@matchdate = @MatchDate
-					,@mode = 'RECOVER' --Update bettransm + betparlaydetail
+					,@mode = 'RECOVER-RECAL' --Update bettransm + betparlaydetail
 					,@VoidTransId = @SubTransIds
 			END
 
