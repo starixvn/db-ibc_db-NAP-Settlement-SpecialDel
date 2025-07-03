@@ -61,6 +61,7 @@ AS
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230306@Louisa: Exclude LiveScores HDP for Field Hockey [Redmine:#184450]
 		- 20241113@Louisa: set priority of action MoveEvent higher than Settlement for WinlostDate value [Redmine:#213613]
+		- 20250703@Max: Support re-settle when recover voided sub parlay from TVS [Redmine: #227829]
 
     Param's Explanation:
        
@@ -452,6 +453,57 @@ BEGIN
                     AND statusID = 102
                     AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
         END --@doing = 'RECOVER'
+
+		 IF @doing = 'RECOVER-RECAL'
+        BEGIN 
+			SET @FunctionName = 'RecoverSubParlay'
+
+            INSERT INTO @tmpTransIdsVoidRecover(transid)
+            SELECT CONVERT(BIGINT, [value])
+            FROM STRING_SPLIT(@VoidTransId, ',')
+        
+            UPDATE bm 
+                SET    
+					winlost = 0
+                    ,ruben = CASE WHEN statuswinlost IS NULL THEN 0
+								ELSE 1
+							END
+                    ,[status] = CASE 
+							WHEN statuswinlost = 0  THEN N'DRAW'
+							WHEN statuswinlost = 6 THEN N'Refund'
+							WHEN statuswinlost IN (3,4) THEN N'LOSE'
+							WHEN statuswinlost IN (1,2) THEN N'WON'
+							WHEN statuswinlost IS NULL THEN 'running'
+						END
+					,statusID = CASE 
+									WHEN statuswinlost = 0 THEN 111
+									WHEN statuswinlost = 6 THEN 103 
+									WHEN statuswinlost IN (3,4) THEN 113
+									WHEN statuswinlost IN (1,2) THEN 112
+									WHEN statuswinlost IS NULL THEN 0
+								END
+                    ,creator = z.creator
+			OUTPUT inserted.transid, inserted.winlost, inserted.ruben
+					, Inserted.status
+					, inserted.statusID, inserted.creator
+			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, statusId, creator)
+			FROM dbo.bettransm bm WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN dbo.zzzbettrans z WITH (NOLOCK) ON z.transid = bm.TransId
+            WHERE  bm.matchid = @matchid
+                    AND statusID = 102
+                    AND bm.transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)                
+        
+            UPDATE  pd 
+                SET pd.statusid = b.statusID
+					,pd.statuswinlost = b.statuswinlost
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+			INTO #tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
+			FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+				INNER JOIN dbo.bettransm b ON b.transid = pd.transid
+            WHERE    pd.matchid = @matchid 
+                    AND pd.statusID = 102
+                    AND pd.transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
+        END --@doing = 'RECOVER-RECAL'
 
         -- ===================================================        
         IF @doing = 'UNDO'
@@ -2245,7 +2297,7 @@ BEGIN
 
 		IF @IsSiteDB = 1 AND @doing <> 'CAL'
 		BEGIN
-			IF @doing IN ('VOID', 'RECOVER')
+			IF @doing IN ('VOID', 'RECOVER', 'RECOVER-RECAL')
 			BEGIN
 				SET @transinfoJson = (
 					SELECT	transId AS 't'	
