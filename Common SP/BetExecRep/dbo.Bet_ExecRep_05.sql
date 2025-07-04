@@ -101,7 +101,7 @@ BEGIN
 			,creator INT
 			,bef_winlost MONEY ,bef_statusid TINYINT
 			,actualPO MONEY, IsApplyMaxPO BIT, extrainfo VARCHAR(1000)
-			,bef_ruben TINYINT
+			,bef_ruben TINYINT, custid INT
 			)
 
 	SELECT @_xml = CONVERT(XML, @_sXML)
@@ -613,11 +613,11 @@ BEGIN
 			,inserted.statuswinlost
 			,inserted.winlost
 			,inserted.statusId ,inserted.status ,inserted.ruben ,inserted.creator
-			,deleted.winlost ,deleted.statusid,deleted.ruben
+			,deleted.winlost ,deleted.statusid,deleted.ruben, inserted.custid
 		INTO @tmpTransInfo (
 			transid 
 			,statuswinlost ,winlost, statusId ,status ,ruben ,creator
-			,bef_winlost ,bef_statusid ,bef_ruben
+			,bef_winlost ,bef_statusid ,bef_ruben,custid
 			)
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
