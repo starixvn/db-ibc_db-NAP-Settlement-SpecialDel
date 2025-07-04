@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_05]
 	,@_sXML 		VARCHAR(MAX)
 	,@Action		VARCHAR(20) = NULL
 	,@matchid		INT		= 0
+	,@AffectedTransIds  VARCHAR(MAX) = NULL OUTPUT
 
 AS
 /*
@@ -33,6 +34,7 @@ AS
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine: #199700]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20240710@Kathy: Add SettlementTime [Redmine:#207749]
+		- 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
 		
 	Param: 
 		+ @updatetype: 
@@ -99,6 +101,7 @@ BEGIN
 			,creator INT
 			,bef_winlost MONEY ,bef_statusid TINYINT
 			,actualPO MONEY, IsApplyMaxPO BIT, extrainfo VARCHAR(1000)
+			,bef_ruben TINYINT
 			)
 
 	SELECT @_xml = CONVERT(XML, @_sXML)
@@ -610,19 +613,27 @@ BEGIN
 			,inserted.statuswinlost
 			,inserted.winlost
 			,inserted.statusId ,inserted.status ,inserted.ruben ,inserted.creator
-			,deleted.winlost ,deleted.statusid
+			,deleted.winlost ,deleted.statusid,deleted.ruben
 		INTO @tmpTransInfo (
 			transid 
 			,statuswinlost ,winlost, statusId ,status ,ruben ,creator
-			,bef_winlost ,bef_statusid 
+			,bef_winlost ,bef_statusid ,bef_ruben
 			)
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 
 		SET @EndTime = SYSDATETIME()
 
+		SELECT @AffectedTransIds = (SELECT	transId AS '@transid'
+											,custid AS '@custid'
+											,ruben AS '@ruben'
+									FROM	@tmpTransInfo
+									WHERE	ruben <> bef_ruben
+									FOR XML PATH('r'), ROOT('root')
+							)
+
 		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
-		BEGIN
+		BEGIN			
 			SET @TransInfoJson = (
 				SELECT	transId AS 't'
 						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS 'statuswl'
