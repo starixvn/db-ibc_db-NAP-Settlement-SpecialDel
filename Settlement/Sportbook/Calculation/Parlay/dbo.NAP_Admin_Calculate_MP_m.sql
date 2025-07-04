@@ -152,7 +152,7 @@ BEGIN
         OPTION ( OPTIMIZE FOR ( @xmlBettypes = NULL ) )
     END --END: params for corner bets, sportting solution and betradar ----------------------------------
 		
-	DECLARE @modds MONEY , @doing VARCHAR(10) = 'zzz'
+	DECLARE @modds MONEY , @doing VARCHAR(30) = 'zzz'
 	
 	WHILE (@doing <> @action)
     BEGIN        
