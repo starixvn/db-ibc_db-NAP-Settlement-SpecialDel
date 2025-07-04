@@ -483,6 +483,9 @@ BEGIN
 									WHEN statuswinlost IS NULL THEN 0
 								END
                     ,creator = z.creator
+					,winlostdate = CASE WHEN statuswinlost IS NULL THEN NULL
+										ELSE bm.winlostdate
+									END
 			OUTPUT inserted.transid, inserted.winlost, inserted.ruben
 					, Inserted.status
 					, inserted.statusID, inserted.creator
@@ -496,6 +499,7 @@ BEGIN
             UPDATE  pd 
                 SET pd.statusid = b.statusID
 					,pd.statuswinlost = b.statuswinlost
+					,pd.winlostdate = b.winlostdate
 			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
 			INTO #tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
 			FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
@@ -2305,7 +2309,7 @@ BEGIN
 							,Status AS 's' 
 							,creator AS 'cr'
 							,statusId AS 'sid' 
-							,CASE WHEN @doing = 'RECOVER' AND winlostdate IS NULL THEN '' ELSE winlostdate END AS 'wld'
+							,CASE WHEN @doing IN ('RECOVER','RECOVER-RECAL') AND winlostdate IS NULL THEN '' ELSE winlostdate END AS 'wld'
 							,CASE WHEN @doing = 'RECOVER' AND statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS 'statuswl'
 							,ruben AS 'r' -- ruben
 					FROM	@tmpOutputBettransmVoidRecover
