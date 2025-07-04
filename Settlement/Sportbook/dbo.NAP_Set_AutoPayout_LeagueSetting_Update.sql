@@ -50,6 +50,7 @@ AS
 			+ 8: HardCode Direct Soccer
 			+ 9. HardCode Fantasy Soccer
 			+ 10. HardCode Fantasy Basketball
+			+ 11: Auto Refund Fast Market
 		- @RetryTime: in second
 		- @Action: Update or Delete
  
