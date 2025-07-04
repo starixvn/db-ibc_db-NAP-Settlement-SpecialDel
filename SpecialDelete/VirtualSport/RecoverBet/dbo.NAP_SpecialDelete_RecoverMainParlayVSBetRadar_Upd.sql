@@ -345,7 +345,7 @@ BEGIN
 				, @updatetype 	= 6
 				, @_sXML 		= @_sXML
 				, @matchId		= 2799
-				, @AffectedTransIds = @MainParlayMaxPO
+				, @AffectedTransIds = @MainParlayMaxPO OUTPUT
 
 			--Insert Max Payout Queue
 			IF ISNULL(@MainParlayMaxPO,'') <> ''
@@ -423,7 +423,7 @@ BEGIN
 				, @updatetype 	= 6
 				, @_sXML 		= @_sXML
 				, @matchId		= 10449
-				, @AffectedTransIds = @MainParlayMaxPO
+				, @AffectedTransIds = @MainParlayMaxPO OUTPUT
 
 			--Insert Max Payout Queue
 			IF ISNULL(@MainParlayMaxPO,'') <> ''
@@ -457,7 +457,7 @@ BEGIN
 				, @updatetype 	= 6
 				, @_sXML 		= @_sXML
 				, @matchId		= 11099
-				, @AffectedTransIds = @MainParlayMaxPO
+				, @AffectedTransIds = @MainParlayMaxPO OUTPUT
 
 			--Insert Max Payout Queue
 			IF ISNULL(@MainParlayMaxPO,'') <> ''
