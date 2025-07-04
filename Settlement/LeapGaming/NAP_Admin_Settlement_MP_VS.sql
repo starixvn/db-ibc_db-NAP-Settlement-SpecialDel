@@ -173,6 +173,7 @@ BEGIN
 		FROM dbo.bettransm bm WITH(ROWLOCK)
 		WHERE bm.matchid = @matchid
 			AND bm.statusID <> 101
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 	END
 
 	INSERT INTO @tmpRefnos (refno)
