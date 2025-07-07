@@ -467,8 +467,9 @@ GO
 		, CASE WHEN ka.matchid IS NOT NULL THEN 1 ELSE 0 END AS AutoCal
 		, 0 AS AutoRefund
 	FROM #MatchId m
-		INNER JOIN @tmpAuto ka 
+		LEFT JOIN @tmpAuto ka 
 			ON m.matchid  = ka.matchid
+    WHERE m.HasAuto = 1 AND m.ResultTable = 0 
 
 	------------------------ Other sports: Result is saved in dbo.match -------
 	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
