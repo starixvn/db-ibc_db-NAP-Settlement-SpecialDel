@@ -36,7 +36,7 @@ BEGIN
 	DECLARE @tmp_Request AS TABLE (RequestId INT, Detail_count INT, Actual_count INT, CreatedBy INT, CreatedDate DATETIME, Sporttype SMALLINT, IssueTypeId TINYINT)
 	DECLARE @tmp_Request_Retry AS TABLE (RequestId INT, Detail_count INT)
 	DECLARE @RequestListTbl AS TABLE (RequestId INT, TransIds VARCHAR(MAX))
-	DECLARE @RequestABWhiteTransIds AS TABLE (RequestId INT, TransId BIGINT, CustId INT, Sporttype SMALLINT, IsParlay BIT, CreatedBy INT, CreatedDate DATETIME)
+	DECLARE @RequestABWhiteTransIds AS TABLE (RequestId INT, TransId BIGINT, CustId INT, Sporttype SMALLINT, IsParlay BIT, CreatedBy INT, CreatedDate DATETIME, IssueTypeId TINYINT)
 
 	--Get list transids
 	INSERT INTO @RequestListTbl (RequestId, TransIds)
@@ -62,6 +62,7 @@ BEGIN
 	  , t.IsParlay = CASE WHEN b.matchid <> 29 THEN NULL ELSE 1 END
 	  , t.CreatedBy = r.LastModifiedBy
 	  , t.CreatedDate = r.LastModifiedDate
+	  , t.IssueTypeId = r.IssueTypeId
 	FROM @RequestABWhiteTransIds t
 	INNER JOIN TicketVoiding_Request AS r WITH (NOLOCK) ON r.RequestId = t.RequestId
 	INNER JOIN bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
@@ -151,7 +152,7 @@ BEGIN
 		, t.CreatedDate
 		, t.IsParlay
 		, t.Sporttype
-		, 11 AS IssueTypeId
+		, t.IssueTypeId
 	FROM @RequestABWhiteTransIds AS t 
 	CROSS APPLY
 	(

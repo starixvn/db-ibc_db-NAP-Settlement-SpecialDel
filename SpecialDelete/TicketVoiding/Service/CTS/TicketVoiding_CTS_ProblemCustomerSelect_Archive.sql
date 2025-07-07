@@ -1,5 +1,5 @@
 /*<info serverAlias="DBARC-bodb_Archive" executers="wsv_cts" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_CTS_ProblemCustomerSelect_Archive]
+ALTER PROCEDURE [dbo].[TicketVoiding_CTS_ProblemCustomerSelect_Archive]
 	@Datetime		DATETIME = NULL
 AS
 /*	Created by: 20220606@July
@@ -12,6 +12,7 @@ AS
 		- 20230330@July: [TVS] Send problem customer in Abnormal Account request to CTS [Redmine:#185238]
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20250707@Lani: [TVS] Abnormal Bet - Send ticket of the username in AB Exception List to CTS [Redmine: #231465]
 
 	Param's explanation:
 		
@@ -20,7 +21,40 @@ BEGIN
 	SET NOCOUNT ON
 
 	CREATE TABLE #tmpResult (RequestId INT, ReasonID INT, CustId INT, CreatedBy INT, CreatedDate DATETIME, IsParlay BIT, Sporttype SMALLINT, IssueTypeId TINYINT)
+
+	DECLARE @RequestListTbl AS TABLE (RequestId INT, TransIds VARCHAR(MAX))
+	DECLARE @RequestABWhiteTransIds AS TABLE (RequestId INT, TransId BIGINT, CustId INT, Sporttype SMALLINT, IsParlay BIT, CreatedBy INT, CreatedDate DATETIME, IssueTypeId TINYINT)
 	
+	--Get list transid
+	INSERT INTO @RequestListTbl (RequestId, TransIds)
+	SELECT DISTINCT r.RequestId
+					, TRY_CAST(t.TransIds AS XML).value('(/r/@TransIds)[1]', 'VARCHAR(MAX)')
+	FROM TicketVoiding_Request_bk AS r WITH (NOLOCK)
+	CROSS APPLY 
+	(
+		SELECT TOP 1 rd.TransIds, r.LastModifiedBy, r.LastModifiedDate
+		FROM TicketVoiding_RequestDetail_bk AS rd WITH (NOLOCK)
+		WHERE rd.RequestId = r.RequestId
+	) AS t
+	WHERE r.LastModifiedDate > @Datetime AND r.IssueTypeId IN (11) AND t.TransIds IS NOT NULL
+
+	INSERT INTO @RequestABWhiteTransIds (RequestId, TransId)
+	SELECT r.RequestId, value
+	FROM @RequestListTbl AS r
+	CROSS APPLY STRING_SPLIT(r.TransIds,',')
+
+	UPDATE t
+	SET t.CustId = b.CustId
+	  , t.Sporttype = CASE WHEN b.matchid <> 29 THEN m.sporttype ELSE NULL END
+	  , t.IsParlay = CASE WHEN b.matchid <> 29 THEN NULL ELSE 1 END
+	  , t.CreatedBy = r.LastModifiedBy
+	  , t.CreatedDate = r.LastModifiedDate
+	  , t.IssueTypeId = r.IssueTypeId
+	FROM @RequestABWhiteTransIds t
+	INNER JOIN TicketVoiding_Request_bk AS r WITH (NOLOCK) ON r.RequestId = t.RequestId
+	INNER JOIN bettrans_bk AS b WITH (NOLOCK) ON b.TransId = t.TransId
+	INNER JOIN match_bk AS m WITH (NOLOCK) ON b.matchid = m.matchid
+
 	-- Get TVS - add/edit request
 	INSERT INTO #tmpResult(RequestId, ReasonID, CustId, CreatedBy, CreatedDate, IsParlay, Sporttype, IssueTypeID)
 	SELECT DISTINCT s.RequestId
@@ -46,6 +80,22 @@ BEGIN
 		)rd
 	WHERE r.IssueTypeId IN (11,13) AND r.LastModifiedDate > @Datetime
 		AND s.CustId IS NOT NULL
+	UNION 
+	SELECT t.RequestId
+		, s.SubIssueTypeId AS ReasonID
+		, t.CustId 
+		, t.CreatedBy
+		, t.CreatedDate
+		, t.IsParlay
+		, t.Sporttype
+		, t.IssueTypeId
+	FROM @RequestABWhiteTransIds AS t 
+	CROSS APPLY
+	(
+		SELECT TOP 1 SubIssueTypeId
+		FROM TicketVoiding_RequestDetail_bk rd WITH (NOLOCK)
+		WHERE rd.RequestId = t.RequestId
+	) s
 
 	-- Get Function - Void by betid
 	INSERT INTO #tmpResult(RequestId, ReasonID, CustId, CreatedBy, CreatedDate, IsParlay, Sporttype, IssueTypeId)
