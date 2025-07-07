@@ -66,7 +66,7 @@ BEGIN
 	FROM @RequestABWhiteTransIds t
 	INNER JOIN TicketVoiding_Request AS r WITH (NOLOCK) ON r.RequestId = t.RequestId
 	INNER JOIN bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
-	INNER JOIN match AS m WITH (NOLOCK) ON b.matchid = m.matchid
+	LEFT JOIN match AS m WITH (NOLOCK) ON b.matchid = m.matchid
 
 	INSERT INTO @tmp_Request (RequestId, Detail_count, Actual_count, CreatedBy, CreatedDate, Sporttype, IssueTypeId)
 	SELECT r.RequestId, dt.Detail_count, act.Actual_count, r.LastModifiedBy, r.LastModifiedDate, CASE WHEN rd.cnt = 1 THEN dt.Sporttype ELSE NULL END AS Sporttype, r.IssueTypeId
