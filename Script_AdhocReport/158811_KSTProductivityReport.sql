@@ -38,7 +38,7 @@ GO
 
 
 	DECLARE @fromDate DATETIME = '2025-06-01'
-			,@toDate  DATETIME = '2025-06-13 23:59:59'
+			,@toDate  DATETIME = '2025-06-30 23:59:59'
 			
 			,@MovebetDate SMALLDATETIME
 			,@BUDate SMALLDATETIME
@@ -76,9 +76,8 @@ GO
 
 ------------------------------------------------------------------------------------------------------------------
 	INSERT INTO #ResultTableSetting ( sporttype, ResultTable, HasAuto)
-	SELECT r.sporttype, r.ResultTable, CASE WHEN ISNULL(r.AP_Group,0) > 1 AND ISNULL(r.AP_Group,0) <> 1000 THEN 1 ELSE 0 END
+	SELECT r.sporttype, r.ResultTable, CASE WHEN ISNULL(r.AP_Group,0) between 1 and 999 OR r.sporttype in (18,47,7) THEN 1 ELSE 0 END
 	FROM DBPRO.bodb02.dbo.SettlementResultTableSetting r WITH(NOLOCK)
-	WHERE ResultTable > 0 ---- 0: match  1:ResultDetail  2:ResultDetailOS  3:ResultDetailES
 
 	-- match
 	IF @toDate > @MovebetDate
@@ -453,7 +452,6 @@ GO
 	FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
 	INNER JOIN #MatchId m ON p.MatchId = m.matchid
 	WHERE (m.HasAuto = 1 AND m.ResultTable = 0 OR (p.sporttype = 18 AND p.starttime <'2024-08-01'))
-		AND p.starttime between @fromDate and @toDate
 		AND p.IsAuto = 1
 	
 	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
@@ -469,9 +467,8 @@ GO
 		, CASE WHEN ka.matchid IS NOT NULL THEN 1 ELSE 0 END AS AutoCal
 		, 0 AS AutoRefund
 	FROM #MatchId m
-		LEFT JOIN @tmpAuto ka 
+		INNER JOIN @tmpAuto ka 
 			ON m.matchid  = ka.matchid
-	WHERE (m.sporttype = 47 OR (m.sporttype = 18 AND m.eventdate <'2024-08-01')) 
 
 	------------------------ Other sports: Result is saved in dbo.match -------
 	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
@@ -481,8 +478,7 @@ GO
 		, 0 AS AutoCal
 		, 0 AS AutoRefund
 	FROM #MatchId m
-	WHERE m.sporttype NOT IN (18, 47)
-		AND 1 = CASE WHEN m.ResultTable = 0 THEN 1
+	WHERE 1 = CASE WHEN m.ResultTable = 0 AND m.HasAuto = 0  THEN 1
 					WHEN m.sporttype = 50 AND m.eventdate < '2021-04-08' THEN 1 -- 2021-04-08: Move Cricket to ResultDetailOS
 					WHEN m.sporttype = 45 AND m.eventdate < '2021-07-19' THEN 1 -- 2021-07-19: Move Beach Volleyball to ResultDetailOS
 					WHEN m.sporttype = 6	AND m.eventdate < '2021-10-07' THEN 1 --2021-10-07: Move Volleyball to ResultDetailOS
