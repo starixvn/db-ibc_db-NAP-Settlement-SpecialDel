@@ -59,13 +59,13 @@ BEGIN
 	SELECT m.matchid, 1 EventTypeID
 	FROM dbo.match m WITH (NOLOCK)
 	WHERE m.eventdate <= @Archive_Date
-		AND (m.sporttype <= 99 OR (m.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197))) --get support Sports
+		AND (m.sporttype <= 99 OR (m.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197,188))) --get support Sports
 
 	UNION ALL
 	SELECT m14.matchid, 1 EventTypeID
 	FROM dbo.match14 m14 WITH (NOLOCK)
 	WHERE m14.eventdate <= @Archive_Date
-		AND (m14.sporttype <= 99 OR (m14.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197))) --get support Sports
+		AND (m14.sporttype <= 99 OR (m14.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197,188))) --get support Sports
 
 	UNION ALL
 	SELECT o.orid MatchId, 2 EventTypeID
