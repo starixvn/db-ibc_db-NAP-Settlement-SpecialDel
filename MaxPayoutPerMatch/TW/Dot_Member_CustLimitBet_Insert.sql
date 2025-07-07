@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member,svc_tig" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="Dot_Member,svc_tig" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Dot_Member_CustLimitBet_Insert]
 (
 	@MatchId		INT
@@ -14,7 +14,7 @@ AS
 /*	
 	Created: 20210726@Max
     Task: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
-    DB: DBTXN/bodb02
+    DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
