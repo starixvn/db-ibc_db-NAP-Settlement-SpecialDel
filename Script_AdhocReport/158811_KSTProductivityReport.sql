@@ -21,7 +21,7 @@
 						- correct the way to get @movebet, @BU of system [Redmine:#210398]
 						
 		- 20241008@Kathy: exclude main match interval resource of table tennis [Redmine:#211924]
-		- 20250612@Louisa: get sport applied auto payout dynamic [Redmine:#]
+		- 20250612@Louisa: get sport applied auto payout dynamic [Redmine:#232459]
 */
 
 
