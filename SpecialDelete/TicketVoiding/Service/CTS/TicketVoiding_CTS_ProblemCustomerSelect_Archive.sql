@@ -53,7 +53,7 @@ BEGIN
 	FROM @RequestABWhiteTransIds t
 	INNER JOIN TicketVoiding_Request_bk AS r WITH (NOLOCK) ON r.RequestId = t.RequestId
 	INNER JOIN bettrans_bk AS b WITH (NOLOCK) ON b.TransId = t.TransId
-	INNER JOIN match_bk AS m WITH (NOLOCK) ON b.matchid = m.matchid
+	LEFT JOIN match_bk AS m WITH (NOLOCK) ON b.matchid = m.matchid
 
 	-- Get TVS - add/edit request
 	INSERT INTO #tmpResult(RequestId, ReasonID, CustId, CreatedBy, CreatedDate, IsParlay, Sporttype, IssueTypeID)
