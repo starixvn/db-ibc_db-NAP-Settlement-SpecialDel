@@ -141,7 +141,7 @@ BEGIN
 		, CASE WHEN @ActionId IN (4,8) THEN 1 ELSE 0 END
 		, @SubIssueTypeId
 		, @FilterBy
-		, '<r TransIds="' + @ABWhiteListTransIds + '" />' AS TransIds
+		, '<r ABWhiteListTransIds="' + @ABWhiteListTransIds + '" />' AS TransIds
 	FROM @tmpMatchId_Info m
 	
 	IF @IsEditRequest = 1

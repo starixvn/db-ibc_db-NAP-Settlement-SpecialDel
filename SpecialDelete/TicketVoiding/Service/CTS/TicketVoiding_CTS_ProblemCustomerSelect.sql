@@ -41,7 +41,7 @@ BEGIN
 	--Get list transids
 	INSERT INTO @RequestListTbl (RequestId, TransIds)
 	SELECT DISTINCT r.RequestId
-					, TRY_CAST(t.TransIds AS XML).value('(/r/@TransIds)[1]', 'VARCHAR(MAX)')
+					, TRY_CAST(t.TransIds AS XML).value('(/r/@ABWhiteListTransIds)[1]', 'VARCHAR(MAX)')
 	FROM TicketVoiding_Request AS r WITH (NOLOCK)
 	CROSS APPLY 
 	(
