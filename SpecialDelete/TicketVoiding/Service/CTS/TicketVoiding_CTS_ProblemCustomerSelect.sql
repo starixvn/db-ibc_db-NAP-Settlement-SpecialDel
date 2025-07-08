@@ -35,17 +35,21 @@ BEGIN
 
 	DECLARE @tmp_Request AS TABLE (RequestId INT, Detail_count INT, Actual_count INT, CreatedBy INT, CreatedDate DATETIME, Sporttype SMALLINT, IssueTypeId TINYINT)
 	DECLARE @tmp_Request_Retry AS TABLE (RequestId INT, Detail_count INT)
-	DECLARE @RequestListTbl AS TABLE (RequestId INT, TransIds VARCHAR(MAX))
-	DECLARE @RequestABWhiteTransIds AS TABLE (RequestId INT, TransId BIGINT, CustId INT, Sporttype SMALLINT, IsParlay BIT, CreatedBy INT, CreatedDate DATETIME, IssueTypeId TINYINT)
+	DECLARE @RequestListTbl AS TABLE (RequestId INT, ReasonId INT, TransIds VARCHAR(MAX), CreatedBy INT, CreatedDate DATETIME, IssueTypeId TINYINT)
+	DECLARE @RequestABWhiteTransIds AS TABLE (RequestId INT, TransId BIGINT, CustId INT, Sporttype SMALLINT, IsParlay BIT)
 
 	--Get list transids
-	INSERT INTO @RequestListTbl (RequestId, TransIds)
+	INSERT INTO @RequestListTbl (RequestId, TransIds, CreatedBy, CreatedDate, IssueTypeId, ReasonId)
 	SELECT DISTINCT r.RequestId
 					, TRY_CAST(t.TransIds AS XML).value('(/r/@ABWhiteListTransIds)[1]', 'VARCHAR(MAX)')
+					, r.LastModifiedBy
+					, r.LastModifiedDate
+					, r.IssueTypeId
+					, t.SubIssueTypeId AS ReasonId
 	FROM TicketVoiding_Request AS r WITH (NOLOCK)
 	CROSS APPLY 
 	(
-		SELECT TOP 1 rd.TransIds, r.LastModifiedBy, r.LastModifiedDate
+		SELECT TOP 1 rd.TransIds, rd.SubIssueTypeId
 		FROM TicketVoiding_RequestDetail AS rd WITH (NOLOCK)
 		WHERE rd.RequestId = r.RequestId
 	) AS t
@@ -57,16 +61,14 @@ BEGIN
 	CROSS APPLY STRING_SPLIT(r.TransIds,',')
 
 	UPDATE t
-	SET t.CustId = b.CustId
-	  , t.Sporttype = CASE WHEN b.matchid <> 29 THEN m.sporttype ELSE NULL END
-	  , t.IsParlay = CASE WHEN b.matchid <> 29 THEN NULL ELSE 1 END
-	  , t.CreatedBy = r.LastModifiedBy
-	  , t.CreatedDate = r.LastModifiedDate
-	  , t.IssueTypeId = r.IssueTypeId
+	SET t.CustId = ISNULL(b.custid,b14.custid)
+	  , t.Sporttype = CASE WHEN ISNULL(b.matchid, b14.matchid) <> 29 THEN ISNULL(m.sporttype, m14.sporttype) ELSE NULL END
+	  , t.IsParlay = CASE WHEN ISNULL(b.matchid, b14.matchid) <> 29 THEN NULL ELSE 1 END
 	FROM @RequestABWhiteTransIds t
-	INNER JOIN TicketVoiding_Request AS r WITH (NOLOCK) ON r.RequestId = t.RequestId
-	INNER JOIN bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
+	LEFT JOIN bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
+	LEFT JOIN bettrans14 AS b14 WITH (NOLOCK) ON b14.TransId = t.TransId
 	LEFT JOIN match AS m WITH (NOLOCK) ON b.matchid = m.matchid
+	LEFT JOIN match14 AS m14 WITH (NOLOCK) ON b14.matchid = m14.matchid
 
 	INSERT INTO @tmp_Request (RequestId, Detail_count, Actual_count, CreatedBy, CreatedDate, Sporttype, IssueTypeId)
 	SELECT r.RequestId, dt.Detail_count, act.Actual_count, r.LastModifiedBy, r.LastModifiedDate, CASE WHEN rd.cnt = 1 THEN dt.Sporttype ELSE NULL END AS Sporttype, r.IssueTypeId
@@ -145,21 +147,17 @@ BEGIN
 		INNER JOIN @tmp_Request r ON r.RequestId = s.RequestId
 	WHERE s.CustId IS NOT NULL
 	UNION 
-	SELECT t.RequestId
-		, s.SubIssueTypeId AS ReasonID
+	SELECT DISTINCT t.RequestId
+		, r.ReasonId
 		, t.CustId 
-		, t.CreatedBy
-		, t.CreatedDate
+		, r.CreatedBy
+		, r.CreatedDate
 		, t.IsParlay
 		, t.Sporttype
-		, t.IssueTypeId
+		, r.IssueTypeId
 	FROM @RequestABWhiteTransIds AS t 
-	CROSS APPLY
-	(
-		SELECT TOP 1 SubIssueTypeId
-		FROM TicketVoiding_RequestDetail rd WITH (NOLOCK)
-		WHERE rd.RequestId = t.RequestId
-	) s
+	INNER JOIN @RequestListTbl AS r ON t.RequestId = r.RequestId
+	
 
 	-- Get Function - Void by betid
 	INSERT INTO #tmpResult(RequestId, ReasonID, CustId, CreatedBy, CreatedDate, IsParlay, Sporttype, IssueTypeId)
