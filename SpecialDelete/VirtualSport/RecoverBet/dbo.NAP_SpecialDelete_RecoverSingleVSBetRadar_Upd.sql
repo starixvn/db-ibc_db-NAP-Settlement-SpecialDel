@@ -59,7 +59,7 @@ BEGIN
 		  , @matchId					  INT
 		  , @TicketType					  TINYINT	
 		  , @isExistMatch3rd			  BIT = 0
-		  , @ActionId					  INT = 200 --Void/recover
+		  , @ActionId					  INT = 90999 --TVS - Agency Cash Service
 	
 	DECLARE @cnt_RecalMatchInspiredVS	  INT = 0	
 		  , @cnt_RefundMatchInspiredVS	  INT = 0		 

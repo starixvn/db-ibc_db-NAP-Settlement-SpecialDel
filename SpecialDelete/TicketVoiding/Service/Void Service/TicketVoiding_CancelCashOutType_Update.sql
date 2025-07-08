@@ -47,7 +47,7 @@ BEGIN
 		  , @xmlTransId			VARCHAR(MAX) = ''
 		  , @SiteDBGroupID		SMALLINT
 		  , @transInfo			VARBINARY(MAX) 
-		  , @ActionID			INT = 200 --Void/Recover
+		  , @ActionID			INT = 90999 --TVS - Agency Cash Service
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 

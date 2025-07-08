@@ -56,7 +56,7 @@ BEGIN
 		  , @IsExistsVS2				BIT = 0
 		  , @IsExistsVS					BIT = 0
 		  , @bettype					SMALLINT
-		  , @ActionId					INT = 200 --Void/recover
+		  , @ActionId					INT = 90999 --TVS - Agency Cash Service
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )

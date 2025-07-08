@@ -128,7 +128,7 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			NVARCHAR(MAX)
 			,@SB_Error			BIT
-			,@ActionID			INT = 200 --Void/Recover
+			,@ActionID			INT = 90999 --TVS - Agency Cash Service
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90513

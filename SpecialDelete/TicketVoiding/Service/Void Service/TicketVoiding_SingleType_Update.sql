@@ -114,7 +114,7 @@ BEGIN
 			,@SitedbgroupId				SMALLINT 
 			,@IsSiteDB					BIT
 			,@TransInfo					VARBINARY(MAX)
-			,@ActionID					INT = 200 --Void/Recover
+			,@ActionID					INT = 90999 --TVS - Agency Cash Service
 
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
