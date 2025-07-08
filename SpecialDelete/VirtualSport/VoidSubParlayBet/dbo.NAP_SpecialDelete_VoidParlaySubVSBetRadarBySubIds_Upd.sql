@@ -520,7 +520,7 @@ BEGIN
 					,CustID
 					,Balance
 					,0
-					,CAST(NEWID() AS NVARCHAR(50))
+					,NULL --NULL: Not Sportsbook
 					,@spName
 			FROM	#Balance
 			WHERE	increased = 0
