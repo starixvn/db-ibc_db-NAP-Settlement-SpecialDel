@@ -81,7 +81,7 @@ BEGIN
 	WHERE r.IssueTypeId IN (11,13) AND r.LastModifiedDate > @Datetime
 		AND s.CustId IS NOT NULL
 	UNION 
-	SELECT t.RequestId
+	SELECT DISTINCT t.RequestId
 		, r.ReasonID
 		, t.CustId 
 		, r.CreatedBy

@@ -61,14 +61,29 @@ BEGIN
 	CROSS APPLY STRING_SPLIT(r.TransIds,',')
 
 	UPDATE t
-	SET t.CustId = ISNULL(b.custid,b14.custid)
-	  , t.Sporttype = CASE WHEN ISNULL(b.matchid, b14.matchid) <> 29 THEN ISNULL(m.sporttype, m14.sporttype) ELSE NULL END
-	  , t.IsParlay = CASE WHEN ISNULL(b.matchid, b14.matchid) <> 29 THEN NULL ELSE 1 END
-	FROM @RequestABWhiteTransIds t
-	LEFT JOIN bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
-	LEFT JOIN bettrans14 AS b14 WITH (NOLOCK) ON b14.TransId = t.TransId
-	LEFT JOIN match AS m WITH (NOLOCK) ON b.matchid = m.matchid
-	LEFT JOIN match14 AS m14 WITH (NOLOCK) ON b14.matchid = m14.matchid
+	SET t.CustId = b.CustId
+	  , t.Sporttype = CASE WHEN b.matchid <> 29 THEN m.sporttype ELSE NULL END
+	  , t.IsParlay = CASE WHEN b.matchid <> 29 THEN NULL ELSE 1 END
+	FROM @RequestABWhiteTransIds AS t
+	INNER JOIN bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
+	OUTER APPLY (
+					SELECT m.sporttype
+					FROM dbo.match m WITH(NOLOCK)
+					WHERE m.matchid = b.MatchId
+					UNION
+					SELECT m14.sporttype
+					FROM dbo.match14 m14 WITH(NOLOCK)
+					WHERE m14.matchid = b.matchid
+			) m
+
+	UPDATE t
+	SET t.CustId = b14.custid
+	  , t.Sporttype = CASE WHEN b14.matchid <> 29 THEN m14.sporttype ELSE NULL END
+	  , t.IsParlay = CASE WHEN b14.matchid <> 29 THEN NULL ELSE 1 END
+	FROM @RequestABWhiteTransIds AS t
+	INNER JOIN bettrans14 AS b14 WITH (NOLOCK) ON t.TransId = b14.transid
+	LEFT JOIN match14 AS m14 WITH (NOLOCK) ON m14.matchid = b14.matchid
+	WHERE t.CustId IS NULL
 
 	INSERT INTO @tmp_Request (RequestId, Detail_count, Actual_count, CreatedBy, CreatedDate, Sporttype, IssueTypeId)
 	SELECT r.RequestId, dt.Detail_count, act.Actual_count, r.LastModifiedBy, r.LastModifiedDate, CASE WHEN rd.cnt = 1 THEN dt.Sporttype ELSE NULL END AS Sporttype, r.IssueTypeId
