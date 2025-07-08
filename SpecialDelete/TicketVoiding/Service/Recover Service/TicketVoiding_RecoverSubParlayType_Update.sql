@@ -54,7 +54,7 @@ BEGIN
 			,@Transids_29			VARCHAR(MAX) = ''
 			,@StartTime_Retry		DATETIME
 			,@LimitSecond			INT = 180
-			,@ActionID				INT = 200 --Void/Recover
+			,@ActionID				INT = 90999 --TVS - Agency Cash Service
 
 	CREATE TABLE #tblMatchParlayProcess (MatchId INT, RefNo BIGINT)
 	CREATE TABLE #tblRecoverBet (

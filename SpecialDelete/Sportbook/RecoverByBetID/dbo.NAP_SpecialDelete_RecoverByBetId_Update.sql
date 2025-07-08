@@ -38,7 +38,7 @@ BEGIN
 	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
 			, @SubmittedDate DATETIME = GETDATE()
 			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
-			, @ActionID	INT = 200 --Void/Recover
+			, @ActionID	INT = 90999 --TVS - Agency Cash Service
 
 	SET @ID =  NEWID()
 	BEGIN TRY

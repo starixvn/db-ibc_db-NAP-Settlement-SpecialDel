@@ -64,7 +64,7 @@ BEGIN
 			,@strSetting		VARCHAR(MAX)
 			,@sqlOpenqueryCommand NVARCHAR(MAX) = ''
 			,@SitedbgroupId		SMALLINT 
-			,@ActionID			INT = 200 --Void/Recover
+			,@ActionID			INT = 90999 --TVS - Agency Cash Service
 
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()

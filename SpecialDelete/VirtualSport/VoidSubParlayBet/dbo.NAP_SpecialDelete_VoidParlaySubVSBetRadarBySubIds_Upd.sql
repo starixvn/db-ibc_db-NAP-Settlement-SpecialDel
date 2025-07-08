@@ -41,7 +41,7 @@ BEGIN
 		  , @CustIds					VARCHAR(MAX)
 		  , @Movebetdate				DATETIME
 		  , @spName						VARCHAR(500) = OBJECT_NAME(@@PROCID)
-		  , @ActionId					INT = 200 --Void/recover
+		  , @ActionId					INT = 90999 --TVS - Agency Cash Service
 
 	DECLARE @_xml						XML		
 		  , @_sXML						VARCHAR(MAX)

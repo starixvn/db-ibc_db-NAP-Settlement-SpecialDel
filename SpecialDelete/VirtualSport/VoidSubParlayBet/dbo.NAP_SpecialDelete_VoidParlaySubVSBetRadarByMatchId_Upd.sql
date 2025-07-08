@@ -54,7 +54,7 @@ BEGIN
 		  , @SiteDBGroupID				SMALLINT
 		  , @IsExistsVS2				BIT = 0
 		  , @IsExistsVS					BIT = 0
-		  , @ActionId					INT = 200 --Void/recover
+		  , @ActionId					INT = 90999 --TVS - Agency Cash Service
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 		  
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'		  	  		  			  

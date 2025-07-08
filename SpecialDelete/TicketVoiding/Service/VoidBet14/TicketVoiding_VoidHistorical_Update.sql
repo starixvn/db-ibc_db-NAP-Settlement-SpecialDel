@@ -52,7 +52,7 @@ BEGIN
 			,@TransidList       VARCHAR(MAX) =''
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			,@SitedbgroupId		SMALLINT
-			,@ActionID			INT = 200 --Void/Recover
+			,@ActionID			INT = 90999 --TVS - Agency Cash Service
 			,@session			NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
