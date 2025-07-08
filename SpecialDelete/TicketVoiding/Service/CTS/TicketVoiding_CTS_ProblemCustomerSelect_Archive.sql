@@ -82,20 +82,15 @@ BEGIN
 		AND s.CustId IS NOT NULL
 	UNION 
 	SELECT t.RequestId
-		, s.SubIssueTypeId AS ReasonID
+		, r.ReasonID
 		, t.CustId 
-		, t.CreatedBy
-		, t.CreatedDate
+		, r.CreatedBy
+		, r.CreatedDate
 		, t.IsParlay
 		, t.Sporttype
-		, t.IssueTypeId
+		, r.IssueTypeId
 	FROM @RequestABWhiteTransIds AS t 
-	CROSS APPLY
-	(
-		SELECT TOP 1 SubIssueTypeId
-		FROM TicketVoiding_RequestDetail_bk rd WITH (NOLOCK)
-		WHERE rd.RequestId = t.RequestId
-	) s
+	INNER JOIN @RequestListTbl AS r ON t.RequestId = r.RequestId
 
 	-- Get Function - Void by betid
 	INSERT INTO #tmpResult(RequestId, ReasonID, CustId, CreatedBy, CreatedDate, IsParlay, Sporttype, IssueTypeId)
