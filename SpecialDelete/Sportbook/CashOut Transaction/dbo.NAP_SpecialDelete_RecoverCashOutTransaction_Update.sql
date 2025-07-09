@@ -476,39 +476,6 @@ BEGIN
 	) AS temp
 	GROUP BY temp.custid
 
-	INSERT INTO #Balance (custid, balance, increased)
-	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-	FROM @BeforeUpd AS b
-		INNER JOIN @AfterUpd AS a ON b.custid = a.custid
-	WHERE b.balance <> a.balance
-	
-	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
-	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
-	BEGIN
-		INSERT INTO [dbo].[BalanceNegative]
-					([ExecDate]
-					,[MatchID]
-					,[ActionID]
-					,[GroupID]
-					,[CustID]
-					,[Balance]
-					,[StatusID]
-					,[SessionId]
-					,[Remark])
-		SELECT	 GETDATE()
-				,0
-				,@ActionID
-				,0		-- For Void/Recover
-				,CustID
-				,Balance
-				,0
-				,CAST(NEWID() AS NVARCHAR(50))
-				,@spName
-		FROM	#Balance
-		WHERE	increased = 0
-	END		        
-	DROP TABLE #Balance
-
 	--> compare BALANCE
 	EXEC [dbo].[NAP_Admin_BalancePendingIns]
 		@BeforeUpd	 = @beforeUpd
@@ -569,6 +536,39 @@ BEGIN
 				WHERE t.TransId = s.TransID
 			)c
 	
+	INSERT INTO #Balance (custid, balance, increased)
+	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	FROM @BeforeUpd AS b
+		INNER JOIN @AfterUpd AS a ON b.custid = a.custid
+	WHERE b.balance <> a.balance
+	
+	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+					([ExecDate]
+					,[MatchID]
+					,[ActionID]
+					,[GroupID]
+					,[CustID]
+					,[Balance]
+					,[StatusID]
+					,[SessionId]
+					,[Remark])
+		SELECT	 GETDATE()
+				,0
+				,@ActionID
+				,0		-- For Void/Recover
+				,CustID
+				,Balance
+				,0
+				,CAST(NEWID() AS NVARCHAR(50))
+				,@spName
+		FROM	#Balance
+		WHERE	increased = 0
+	END		        
+	DROP TABLE #Balance
+
 	------ releasing SD process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		  @isExistMatch		= 1

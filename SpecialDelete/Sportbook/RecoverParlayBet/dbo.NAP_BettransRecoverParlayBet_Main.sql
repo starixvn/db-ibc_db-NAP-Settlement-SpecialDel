@@ -278,6 +278,7 @@ BEGIN
 			INNER JOIN #tblRecoverBet t ON b.transid = t.transid
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY b.CustID
+
 		---- end capture
 		--Prepare for Max Payout
 		SELECT @MainParlay_MaxPO = (SELECT t.CustId AS '@custid'
@@ -536,7 +537,7 @@ BEGIN
 						,[SessionId]
 						,[Remark])
 			SELECT	 GETDATE()
-					,0
+					,29
 					,@ActionID
 					,0		-- For Void/Recover
 					,CustID
