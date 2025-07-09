@@ -237,7 +237,6 @@ BEGIN
 	
 	DECLARE @tmpTrans_beforeUpd AS TABLE (matchid INT, transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT, betdaqid BIGINT, status VARCHAR(20))
 
-	CREATE TABLE #NegativeBalance (transid BIGINT)
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
 	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
@@ -812,21 +811,6 @@ BEGIN
 			
 		END
 		
-		--> capture Before Balance Update
-		IF @CountSingle > 0
-		BEGIN
-			INSERT INTO #NegativeBalance (transid)  
-			SELECT	b.transid
-			FROM  #SpecialDeleteBets_Single b WITH (NOLOCK)
-		END		
-		
-		IF @CountParlay > 0
-		BEGIN
-			INSERT INTO #NegativeBalance (transid)  
-			SELECT	b.transid
-			FROM  #SpecialDeleteBets_Parlay b WITH (NOLOCK)
-		END
-
 		-------> Insert backups	
 		--> backups for single
 		IF @CountSingle > 0
@@ -1045,8 +1029,8 @@ BEGIN
 
 		INSERT INTO #BeforeUpd(custid, balance)
 		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
-		FROM @tmpTrans_beforeUpd b
-		WHERE transid IN (SELECT transid FROM #NegativeBalance)			
+		FROM dbo.bettrans b WITH (NOLOCK)
+		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets_Single UNION ALL SELECT transid FROM #SpecialDeleteBets_Parlay)
 		GROUP BY b.CustID
 
 		--Correct data captured before because CO happen when voiding ticket
@@ -1673,7 +1657,6 @@ BEGIN
 	DROP TABLE #tblMatchProcess 
 	DROP TABLE #BeforeUpd  
 	DROP TABLE #AfterUpd 
-	DROP TABLE #NegativeBalance
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #tblMatchParlayProcess
 
