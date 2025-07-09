@@ -20,7 +20,7 @@ AS
 		- 20250604@Aries: Enhance the performance on the DBPRO for the Settlement flow [Redmine:#229607]
 		- 20250605@Aries: Settlement - The Table Tennis could not auto payout [Redmine:#229681]
 		- 20250625@Aries: Match completed, but the auto payout flow still logs a failure [Redmine:#231523]
-
+		- 20250709@Max: Auto Payout 2- Support Template with FT only for Golf [Redmine: #231388]
 
 */
 BEGIN
@@ -392,8 +392,17 @@ BEGIN
 						AND p.HomeValue = IIF(r.ResourceID = '00', CAST(m.finalhomescore AS VARCHAR(50)),  CAST(m.hthomescore AS VARCHAR(50)))
 						AND p.AwayValue = IIF(r.ResourceID = '00', CAST(m.finalawayscore AS VARCHAR(50)),  CAST(m.htawayscore AS VARCHAR(50)))
 				) AS pe
+			OUTER APPLY (
+					SELECT TOP 1 IsHTCal
+					FROM dbo.match_remark r WITH (NOLOCK)
+					WHERE r.matchid = m.matchId
+					AND r.IsHTCal = 0
+			)mr
 		WHERE m.ResultTable = 0
 			AND m.eventstatus = 'running'
+			AND 1 = CASE WHEN r.ResourceID = '00' THEN 1
+						WHEN r.ResourceID = '01' AND mr.IsHTCal = 0 THEN 1
+					ELSE 0 END
 			AND ap.IsExistsAP IS NULL
 
 		INSERT INTO #MatchResource(matchId,ResourceId,CreatedDate,ResourceType,IsTrader)
