@@ -1103,7 +1103,8 @@ BEGIN
 		
 		BEGIN
 			INSERT INTO #SpecialDeleteBets (			
-				transid			
+				 grouptransid
+				,transid			
 				,custid			
 				,odds
 				,oddsspread		
@@ -1165,6 +1166,7 @@ BEGIN
 				,modds
 			)
 			SELECT
+				b.transid AS grouptransid,
 				b.transid,
 				bm.custid,
 				b.odds,
@@ -1512,12 +1514,12 @@ BEGIN
 			, BonusID = CASE WHEN main.BonusID > 0 AND main.WalletType = 1 THEN main.BonusID ELSE 0 END
 			, WalletType = ISNULL(main.WalletType, 2) -- Cash Wallet as default
 			, main.betdaqid
-			, main.matchid
+			, tmpmain.matchid
 		FROM dbo.bettrans main WITH (NOLOCK)
 			INNER JOIN #SpecialDeleteBets tmpmain  
 				ON	main.transid = tmpmain.transid 
 					AND main.transid = tmpmain.grouptransid
-					AND main.matchid = tmpmain.matchid
+					AND (main.matchid = tmpmain.matchid OR main.matchid= 29) --For case subparlay
 		WHERE main.SiteDBGroupID = @SiteDBGroupID 
 			AND main.statusID NOT IN (101,102,103)
 
@@ -1677,12 +1679,12 @@ BEGIN
 			SELECT	main.custid
 				  , main.BonusID
 				  , main.WalletType
-				  , main.winlost, main.actual_stake, main.playercomm,  main.matchid
+				  , main.winlost, main.actual_stake, main.playercomm,  tmpmain.matchid
 			FROM	dbo.bettrans main WITH (NOLOCK)
 				INNER JOIN #SpecialDeleteBets tmpmain
 					ON	main.transid = tmpmain.transid 
 						AND main.transid = tmpmain.grouptransid
-						AND main.matchid = tmpmain.matchid
+						AND ( main.matchid = tmpmain.matchid OR main.matchid = 29) ----For case subparlay
 			
 		) tmp
 		GROUP BY matchid
