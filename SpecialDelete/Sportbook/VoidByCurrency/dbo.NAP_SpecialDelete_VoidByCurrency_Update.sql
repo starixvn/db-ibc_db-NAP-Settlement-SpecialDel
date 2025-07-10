@@ -1306,7 +1306,6 @@ BEGIN
 					   ,[CustID]
 					   ,[Balance]
 					   ,[StatusID]
-					   ,[SessionId]
 					   ,[Remark])
 			SELECT	 GETDATE()
 					,@MatchId
@@ -1315,7 +1314,6 @@ BEGIN
 					,CustID
 					,Balance
 					,0
-					,CAST(NEWID() AS NVARCHAR(50))
 					,@spName
 			FROM	#Balance
 			WHERE	Increased = 0
