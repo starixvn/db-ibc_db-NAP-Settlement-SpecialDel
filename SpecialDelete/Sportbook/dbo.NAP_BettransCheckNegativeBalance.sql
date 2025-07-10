@@ -32,6 +32,7 @@ AS
 		- 20230331@July: TVS changes for new process of BU [Redmine: #184000]
 		- 20240111@July: [TVS] Negative Balance - Don't Send Notification to Single Wallet Licensee [Redmine: #199097]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
+		- 20250710@July: Fix bug recover cancel CO not show negative [Redmine: #225390]
 
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
@@ -85,40 +86,79 @@ BEGIN
 	INSERT INTO @tmpTransId(transid)
 	SELECT value FROM STRING_SPLIT(@TransIds, ',') WHERE value <> ''
 
-	INSERT INTO #BetDelete(
-			transid
-			,custid
-			,winlost
-			,actual_stake
-			,playercomm
-			,bettype
-			,matchid
-			,refno
-			,WalletType
-			,BonusID
-			,srecommend
-	)
-	SELECT	b.transid -- normal ticket 
-			,b.custid
-			,b.winlost
-			,b.actual_stake
-			,b.playercomm
-			,b.bettype
-			,b.matchid
-			,b.refno
-			,b.WalletType
-			,b.BonusID
-			,b.srecommend
-	FROM	@tmpTransId t
-		INNER JOIN bettrans b WITH(NOLOCK)
-			ON	b.transid = t.transid AND b.SiteDBGroupID = @SiteDBGroupID
-	WHERE	1 = CASE 
-					WHEN @Type = 0 AND @ExcludeRunning = 0 AND b.statusID IN (0, 1,111,112,113) THEN 1 
-					WHEN @Type = 0 AND @ExcludeRunning = 1 AND b.statusID IN (111, 112, 113) THEN 1
-					WHEN @Type = 1 AND b.statusID = 102 THEN 1
-					ELSE 0 
-					END 
 	
+	IF @Type = 0 --Void
+	BEGIN
+		INSERT INTO #BetDelete(
+				transid
+				,custid
+				,winlost
+				,actual_stake
+				,playercomm
+				,bettype
+				,matchid
+				,refno
+				,WalletType
+				,BonusID
+				,srecommend
+		)
+		SELECT	b.transid -- normal ticket 
+				,b.custid
+				,b.winlost
+				,b.actual_stake
+				,b.playercomm
+				,b.bettype
+				,b.matchid
+				,b.refno
+				,b.WalletType
+				,b.BonusID
+				,b.srecommend
+		FROM	@tmpTransId t
+			INNER JOIN bettrans b WITH(NOLOCK)
+				ON	b.transid = t.transid AND b.SiteDBGroupID = @SiteDBGroupID
+		WHERE	1 = CASE 
+						WHEN @ExcludeRunning = 0 AND b.statusID IN (0, 1,111,112,113) THEN 1 
+						WHEN @ExcludeRunning = 1 AND b.statusID IN (111, 112, 113) THEN 1
+						ELSE 0 
+						END 
+	END
+	ELSE IF @Type = 1 --Recover
+	BEGIN
+		INSERT INTO #BetDelete(
+				transid
+				,custid
+				,winlost
+				,actual_stake
+				,playercomm
+				,bettype
+				,matchid
+				,refno
+				,WalletType
+				,BonusID
+				,srecommend
+		)
+		SELECT	b.transid -- normal ticket 
+				,b.custid
+				,b.winlost
+				,b.actual_stake
+				,b.playercomm
+				,b.bettype
+				,b.matchid
+				,b.refno
+				,b.WalletType
+				,b.BonusID
+				,b.srecommend
+		FROM	@tmpTransId t
+			INNER JOIN bettrans b WITH(NOLOCK)
+				ON	b.transid = t.transid AND b.SiteDBGroupID = @SiteDBGroupID
+			INNER JOIN dbo.zzzbettrans z WITH (NOLOCK)
+			    ON z.transid = t.TransId AND b.SiteDBGroupID = z.SiteDBGroupID
+		WHERE	1 = CASE 
+						WHEN b.statusID = 102 THEN 1 --Recover
+						WHEN b.statusID <> 102 AND z.comstatus = 'CO' THEN 1 --Recover cancel CO
+						END 
+	END
+
 	-- delete bonus tickets belonging to canceled/expired campaign
 	DELETE t
 	FROM #BetDelete t
