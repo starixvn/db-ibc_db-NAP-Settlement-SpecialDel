@@ -712,7 +712,6 @@ BEGIN
 					   ,[CustID]
 					   ,[Balance]
 					   ,[StatusID]
-					   ,[SessionId]
 					   ,[Remark])
 			SELECT	 GETDATE()
 					,CASE WHEN @Option = 0 THEN @MatchId ELSE 0 END
@@ -721,7 +720,6 @@ BEGIN
 					,CustID
 					,Balance
 					,0
-					,CAST(NEWID() AS NVARCHAR(50))
 					,@spName
 			FROM	#Balance
 			WHERE	increased = 0

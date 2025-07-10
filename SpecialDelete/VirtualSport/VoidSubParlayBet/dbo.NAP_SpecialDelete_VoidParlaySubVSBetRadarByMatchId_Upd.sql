@@ -433,7 +433,6 @@ BEGIN
 						,[CustID]
 						,[Balance]
 						,[StatusID]
-						,[SessionId]
 						,[Remark])
 			SELECT	 GETDATE()
 					,@MatchId
@@ -442,7 +441,6 @@ BEGIN
 					,CustID
 					,Balance
 					,0
-					,NULL --NULL: Not Sportsbook
 					,@spName
 			FROM	#Balance
 			WHERE	increased = 0

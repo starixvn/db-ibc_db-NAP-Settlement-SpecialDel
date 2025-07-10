@@ -335,7 +335,6 @@ BEGIN
 					,[CustID]
 					,[Balance]
 					,[StatusID]
-					,[SessionId]
 					,[Remark])
 		SELECT	 GETDATE()
 				,@MatchId
@@ -344,7 +343,6 @@ BEGIN
 				,CustID
 				,Balance
 				,0
-				,@session
 				,@spName + ' - RequestId: ' + CAST(@RequestId AS VARCHAR)
 		FROM	#Balance
 		WHERE	Increased = 0
