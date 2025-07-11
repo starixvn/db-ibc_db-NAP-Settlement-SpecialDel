@@ -1,3 +1,13 @@
+----------Part 0. Check server-----------------------
+-- Compare with column F when running on KL.
+/*
+It has 2 vlan, 10.142.x.x vs 10.146.x.x
+x got the same is ok, for example: it must be this "10.146.30.61", but we see this "10.142.30.61", it's still okay.
+*/
+SELECT client_net_address, local_net_address, local_tcp_port, @@SERVERNAME
+FROM sys.dm_exec_connections
+WHERE session_id = @@SPID
+
 -----------Part 3. Sync service (settlement-TVS): Check settlement Queue, settlement sync logs, balance pending, ...------------
 ----------------1.1 at sitedb
 /*
