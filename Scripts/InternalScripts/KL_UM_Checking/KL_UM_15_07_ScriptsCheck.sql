@@ -1,4 +1,4 @@
-----------Part 0. Check server-----------------------
+﻿----------Part 0. Check server-----------------------
 -- Compare column local_net_address with column F when running on KL.
 /*
 It has 2 vlan, 10.142.x.x vs 10.146.x.x
@@ -7,6 +7,25 @@ x got the same is ok, for example: it must be this "10.146.30.61", but we see th
 SELECT client_net_address, local_net_address, local_tcp_port, @@SERVERNAME
 FROM sys.dm_exec_connections
 WHERE session_id = @@SPID
+
+-----------Part 1/2. Data Consistency for scaleout feature --------------------------
+--DBCONSISTENCY-bodb_Consistency
+SELECT CASE WHEN RuleNumber = 204 THEN 'daily every 30 minutes'
+            WHEN RuleNumber = 205 THEN 'daily every 5 minutes'
+            ELSE 'daily every 3 minutes' END AS Interval, *
+FROM CustomerSetting_DataConsistency_Config (NOLOCK)
+WHERE VValue IS NOT NULL 
+
+--DBBAH-bodb02 & DBSIG-bodb02
+--Rule 61/interval 3 minutes
+EXEC MonDB.dbo.vndba_sp_trace
+  @TraceTimer = 1,
+  @LoginNameLike = '%wsv_nap%',
+  @DatabaseNameLike = 'bodb02',
+  @MinCPU = 0,
+  @TextDataLike = '%DBA_Consistency_BalanceTrigger_Checking%',
+  @TraceStartEvents = 0,
+  @mode = 0
 
 -----------Part 3. Sync service (settlement-TVS): Check settlement Queue, settlement sync logs, balance pending, ...------------
 ----------------1.1 at sitedb
@@ -312,6 +331,10 @@ SELECT MAX(RowID) FROM [bodb02].[dbo].[BalanceTrigger] WITH(NOLOCK)
 --expect sValue will be changed
 SELECT TOP 10 *
 FROM dbo.TOControl_Tickets_Setting WITH(NOLOCK)
+
+select max(rowid) from TOControl_TicketDetails_Insert with (nolock)
+select max(rowid) from TOControl_TicketDetails_Update with (nolock)
+
 --Job name: bodb02: SSB - TO Control -  Get tickets
 --> expect max(id) will be changed
 SELECT max(id)  FROM TOControl_Transition with (nolock)
@@ -321,22 +344,23 @@ order by CreatedDate desc
 SELECT top 10 * FROM TOControl_Setting WITH (NOLOCK)
 WHERE  matchid =xxx and custid = xxxx 
 ORDER BY ModifiedDate DESC
-
------------Part 1/2. Data Consistency for scaleout feature --------------------------
---DBCONSISTENCY-bodb_Consistency
-SELECT CASE WHEN RuleNumber = 204 THEN 'daily every 30 minutes'
-            WHEN RuleNumber = 205 THEN 'daily every 5 minutes'
-            ELSE 'daily every 3 minutes' END AS Interval, *
-FROM CustomerSetting_DataConsistency_Config (NOLOCK)
-WHERE VValue IS NOT NULL 
-
---DBBAH-bodb02 & DBSIG-bodb02
---Rule 61/interval 3 minutes
-EXEC MonDB.dbo.vndba_sp_trace
-  @TraceTimer = 1,
-  @LoginNameLike = '%wsv_nap%',
-  @DatabaseNameLike = 'bodb02',
-  @MinCPU = 0,
-  @TextDataLike = '%DBA_Consistency_BalanceTrigger_Checking%',
-  @TraceStartEvents = 0,
-  @mode = 0
+-----------Part 13. Running tickets on DB054,DB055 with statusID = 88 (Settled)	
+/*
+- Flow on DB052, DB054													
+#1: DB052, sẽ có cái trigger trên bettrans insert to table BetSettled_Transition, TRIGGER: bettrans_Settled_UPDATE													
+#2: DB052, sẽ có cái job bodb02: SSB - Get settled tickets (chỉ lấy bettrans, bettransm có làm năm 2018 nhưng sau đó đã bỏ, Task_Get_Tickets_settled2), lấy transid này đưa qua service broker đẩy từ queue Queue_Settled_Ticket_DBAGE tới db054 Queue_Settled_Ticket_BETRUNNING													
+#3: DB054, trên DB ServiceBrokerDB sẽ activate cái queue Queue_Settled_Ticket_BETRUNNING, call SP sb.Settled_Ticket_ProcessData													
+	Trong SP này sẽ call SP bodb02.[sb].[Task_Update_SettleTickets] này để update statusid = 88, rubben = 1												
+- Tương tự flow trên DB053, DB055 là 1 cặp để standby cho DB052, DB054													
+- Local DB054,db055 -> server TESTDB055													
+*/			
+--DB052,DB053@bodb02
+DECLARE @MaxRowId BIGINT, @LastRowId BIGINT
+SELECT @LastRowId = sValue
+FROM dbo.Tickets_settled_setting WITH(NOLOCK)
+WHERE sKey = 'TransitionId'
+	
+SELECT @MaxRowId = MAX(RowId)
+FROM dbo.BetSettled_Transition WITH(NOLOCK)
+WHERE RowId > @LastRowId
+SELECT @LastRowId, @MaxRowId, @MaxRowId - @LastRowId AS pending
