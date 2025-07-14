@@ -1,5 +1,5 @@
 ----------Part 0. Check server-----------------------
--- Compare with column F when running on KL.
+-- Compare column local_net_address with column F when running on KL.
 /*
 It has 2 vlan, 10.142.x.x vs 10.146.x.x
 x got the same is ok, for example: it must be this "10.146.30.61", but we see this "10.142.30.61", it's still okay.
@@ -192,6 +192,43 @@ SELECT top 10
 FROM SSB_SettlementLogs l WITH(NOLOCK) 
 WHERE MessageType like '%sitedb3_bet_settle_msg_type_0_%'
 	AND SessionId = xxxx -- sessionid from step 1
+-----------Part 6. Settlement checking --------------------------
+--SiteDB
+SELECT TOP 100 * FROM Single_Calculate_Queue WITH (NOLOCK) WHERE IsCalculating IN (0,1)
+SELECT TOP 100 * FROM Single_Calculate_Queue_3rd WITH (NOLOCK) WHERE IsCalculating IN (0,1)
+SELECT TOP 100 * FROM Parlay_Calculate_Queue WITH (NOLOCK) WHERE IsCalculating IN (0,1)
+
+--DBTP/bodb02
+Declare @matchid INT
+       ,@Sporttype SMALLINT
+	   ,@leagueid INT
+SELECT TOP 10 *
+FROM dbo.SettlementResultDetailHistory s WITH (NOLOCK)
+WHERE s.MatchId = @MATCHID
+ORDER BY NewLastModifiedDate DESC
+
+SELECT TOP 100 * FROM userlog WITH (NOLOCK) 
+WHERE Extend = @matchid AND doing LIKE '%'+ @matchid + '%'
+
+SELECT TOP 10 * FROM dbo.AutoPayoutResult a WITH (NOLOCK) 
+WHERE ISNULL(a.Remark,'') <> '' 
+ORDER BY AutoPayoutResultID DESC
+
+SELECT TOP 10 * FROM dbo.AutoRefundResult a WITH (NOLOCK) 
+WHERE ISNULL(a.Remark,'') <> ''
+
+SELECT TOP 10 * FROM dbo.AutoPayoutSetting WITH (NOLOCK) 
+WHERE MatchId = @matchid -- AP2 Setting By Match
+
+SELECT TOP 10 * FROM dbo.SettlementResultTableSetting WITH (NOLOCK) 
+WHERE Sporttype = @Sporttype --AP2 setting by Sport
+
+SELECT TOP 10 * FROM dbo.SettlementSetting WITH (NOLOCK) 
+WHERE leagueid = @leagueid -- AP2 setting by league
+
+SELECT TOP 10 * FROM dbo.AutoRefundSetting WITH (NOLOCK) -- Auto Refund Soccer Early setting
+
+SELECT TOP 10 AutoSetting,* FROM [dbo].[match] WITH (NOLOCK) WHERE matchid = @matchid
 
 ---------Part 7. Void service- Check TVS processing -----------------
 --DBTXN/bodb02
