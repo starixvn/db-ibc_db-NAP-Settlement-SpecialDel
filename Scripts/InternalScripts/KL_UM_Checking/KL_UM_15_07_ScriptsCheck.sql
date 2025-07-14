@@ -211,14 +211,16 @@ WHERE s.MatchId = @MATCHID
 ORDER BY NewLastModifiedDate DESC
 
 SELECT TOP 100 * FROM userlog WITH (NOLOCK) 
-WHERE Extend = @matchid AND doing LIKE '%'+ @matchid + '%'
+WHERE Extend = @matchid --AND doing LIKE '%'+ @matchid + '%'
 
+--DBPRO/bodb02
 SELECT TOP 10 * FROM dbo.AutoPayoutResult a WITH (NOLOCK) 
 WHERE ISNULL(a.Remark,'') <> '' 
 ORDER BY AutoPayoutResultID DESC
 
 SELECT TOP 10 * FROM dbo.AutoRefundResult a WITH (NOLOCK) 
 WHERE ISNULL(a.Remark,'') <> ''
+ORDER BY AutoRefundResultId DESC
 
 SELECT TOP 10 * FROM dbo.AutoPayoutSetting WITH (NOLOCK) 
 WHERE MatchId = @matchid -- AP2 Setting By Match
