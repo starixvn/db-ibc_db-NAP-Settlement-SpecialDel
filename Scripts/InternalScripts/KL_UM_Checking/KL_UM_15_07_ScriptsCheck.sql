@@ -194,6 +194,7 @@ WHERE MessageType like '%sitedb3_bet_settle_msg_type_0_%'
 	AND SessionId = xxxx -- sessionid from step 1
 
 ---------Part 7. Void service- Check TVS processing -----------------
+--DBTXN/bodb02
 select top 10 * from TicketVoiding_Queue with (nolock)
 where StatusId = 1
 order by QueueId desc
@@ -269,3 +270,22 @@ order by CreatedDate desc
 SELECT top 10 * FROM TOControl_Setting WITH (NOLOCK)
 WHERE  matchid =xxx and custid = xxxx 
 ORDER BY ModifiedDate DESC
+
+-----------Part 1/2. Data Consistency for scaleout feature --------------------------
+--DBCONSISTENCY-bodb_Consistency
+SELECT CASE WHEN RuleNumber = 204 THEN 'daily every 30 minutes'
+            WHEN RuleNumber = 205 THEN 'daily every 5 minutes'
+            ELSE 'daily every 3 minutes' END AS Interval, *
+FROM CustomerSetting_DataConsistency_Config (NOLOCK)
+WHERE VValue IS NOT NULL 
+
+--DBBAH-bodb02 & DBSIG-bodb02
+--Rule 61/interval 3 minutes
+EXEC MonDB.dbo.vndba_sp_trace
+  @TraceTimer = 1,
+  @LoginNameLike = '%wsv_nap%',
+  @DatabaseNameLike = 'bodb02',
+  @MinCPU = 0,
+  @TextDataLike = '%DBA_Consistency_BalanceTrigger_Checking%',
+  @TraceStartEvents = 0,
+  @mode = 0
