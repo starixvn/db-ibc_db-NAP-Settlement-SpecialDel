@@ -24,7 +24,10 @@ begin --1. check settlement Queue
 
 	select 'Single_Calculate_Queue_VS' as 'task', *
 	from dbo.Single_Calculate_Queue_VS with(nolock) where IsCalculating < 2
-	-- queue3 3rd betbuilder
+	
+	SELECT 'Single_Calculate_Queue_3rd' as  'task', *
+	FROM Single_Calculate_Queue_3rd WITH (NOLOCK) WHERE IsCalculating < 2
+
 end --check settlement Queue
 
 begin --check sync settlement log
@@ -281,6 +284,15 @@ set @date = convert(date, getdate())
 SELECT TOP 10 * FROM WinLimit_CustWinlostGame WITH (NOLOCK)
 WHERE  WinlostDate = @date 
 ORDER BY RepUpdateTime DESC
+
+
+-----------Part 6. Potential Winlimit JOB --------------------------
+ --SITEDB03
+USE bodb02
+GO
+SELECT VValue FROM [bodb02].[dbo].SystemSettings WITH (NOLOCK) WHERE VName = 'CustWinLimitBet'
+SELECT MAX(RowID) FROM [bodb02].[dbo].[BalanceTrigger] WITH(NOLOCK)
+
 
 -----------Part 10. TO Control --------------------------
 ---Flow Information
