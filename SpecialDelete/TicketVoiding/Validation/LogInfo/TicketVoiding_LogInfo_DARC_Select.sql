@@ -613,7 +613,7 @@ BEGIN
 	END
 
 	--Not display Score in message template when voiding non-live tickets only [193108]
-	IF NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE liveindicator = 1)
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE liveindicator = 1 AND IsSiteDBDown = 0)
 	BEGIN
 		UPDATE l SET l.LiveScores = ''
 		FROM #logInfo l
