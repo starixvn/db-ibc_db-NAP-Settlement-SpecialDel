@@ -70,6 +70,7 @@ AS
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20250619@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance - Abnormal Bet [Redmine: #225390]
 		- 20250624@July: [TVS] Enhance TVS in case 1 or many siteDBs down - Scale out validate [Redmine: #228047]
+		- 20250715@Lani: [TVS] Abnormal Bet - Send ticket of the username in AB Exception List to CTS [Redmine: #231465]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -708,49 +709,50 @@ BEGIN
 												WHERE v.IsCreditCashService = 1
 												FOR XML PATH('')), 1, 1, ''), '')
 
-		--Check AB White List Invalid Transid
+	END
+
+	--Check AB White List Invalid Transid
+	BEGIN
+		-- get ABWhiteList Cust
+		INSERT #ABWhiteListCustIds (custid, AllowVoidSubType, IsAllowVoidVip)
+		SELECT t.custId, ab.AllowVoidSubType, ab.IsAllowVoidVip 
+		FROM (
+			SELECT DISTINCT custId, recommend, mrecommend, srecommend
+			FROM #validTransId
+			)t
+			CROSS APPLY (
+						SELECT TOP(1) a.AllowVoidSubType, a.IsAllowVoidVip					
+						FROM DBCTG.bodb02.dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)	
+						WHERE a.CustID IN (t.CustID, t.recommend, t.mrecommend, t.srecommend)
+						ORDER BY a.LevelId
+				)ab
+
+		INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
+		SELECT t.custid
+		FROM #ABWhiteListCustIds t
+			LEFT JOIN @VIPAccount_tmp v ON v.CustID= t.CustID
+		WHERE CHARINDEX(',' + CONVERT(VARCHAR(5), @SubIssueTypeId) + ',', ',' + t.AllowVoidSubType + ',') > 0
+			AND 1 = CASE WHEN v.CustID IS NULL then 1
+						WHEN v.CustID IS NOT NULL AND ISNULL(t.IsAllowVoidVip,0) = 1 THEN 1
+					ELSE 0 END
+	
+		IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds_AllowVoid)
 		BEGIN
-			-- get ABWhiteList Cust
-			INSERT #ABWhiteListCustIds (custid, AllowVoidSubType, IsAllowVoidVip)
-			SELECT t.custId, ab.AllowVoidSubType, ab.IsAllowVoidVip 
-			FROM (
-				SELECT DISTINCT custId, recommend, mrecommend, srecommend
-				FROM #validTransId
-				)t
-				CROSS APPLY (
-							SELECT TOP(1) a.AllowVoidSubType, a.IsAllowVoidVip					
-							FROM DBCTG.bodb02.dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)	
-							WHERE a.CustID IN (t.CustID, t.recommend, t.mrecommend, t.srecommend)
-							ORDER BY a.LevelId
-					)ab
+			DELETE t1
+			FROM #ABWhiteListCustIds t1
+				INNER JOIN #ABWhiteListCustIds_AllowVoid t2 ON t2.custid = t1.custid
+		END
 
-			INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
-			SELECT t.custid
-			FROM #ABWhiteListCustIds t
-				LEFT JOIN @VIPAccount_tmp v ON v.CustID= t.CustID
-			WHERE CHARINDEX(',' + CONVERT(VARCHAR(5), @SubIssueTypeId) + ',', ',' + t.AllowVoidSubType + ',') > 0
-				AND 1 = CASE WHEN v.CustID IS NULL then 1
-							WHEN v.CustID IS NOT NULL AND ISNULL(t.IsAllowVoidVip,0) = 1 THEN 1
-						ELSE 0 END
-		
-			IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds_AllowVoid)
-			BEGIN
-				DELETE t1
-				FROM #ABWhiteListCustIds t1
-					INNER JOIN #ABWhiteListCustIds_AllowVoid t2 ON t2.custid = t1.custid
-			END
+		IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds)
+		BEGIN
+			INSERT INTO #ABWhiteListTransIds (transid)
+			SELECT t.transid
+			FROM #validTransId t
+				INNER JOIN #ABWhiteListCustIds c ON c.CustID = t.custId
 
-			IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds)
-			BEGIN
-				INSERT INTO #ABWhiteListTransIds (transid)
-				SELECT t.transid
-				FROM #validTransId t
-					INNER JOIN #ABWhiteListCustIds c ON c.CustID = t.custId
-
-				SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-												FROM #ABWhiteListTransIds t
-												FOR XML PATH('')), 1, 1, ''), '')
-			END
+			SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+											FROM #ABWhiteListTransIds t
+											FOR XML PATH('')), 1, 1, ''), '')
 		END
 	END
 	
