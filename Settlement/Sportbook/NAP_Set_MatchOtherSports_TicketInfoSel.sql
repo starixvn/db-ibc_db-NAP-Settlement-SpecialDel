@@ -17,6 +17,7 @@ AS
 			- 20240608@Aries: Filter Over Status Table Tennis - Don't show parent match when child match has no ticket [Redmine:#208972]
 			- 20250507@Aries: Enhance the performance for the Multi-sport Page [Redmine:#223959]
 			- 20250701@Aries: Fix an issue that a timeout occurred when filtering a large amount of data on the Settlement Site [Redmine:#231940]
+			- 20250716@Max: Enhance performance when filtering a large amount of data on the Settlement Site [Redmine: #233183]
 
 
 	Parameters Explanation: 
@@ -140,11 +141,12 @@ BEGIN
 		  ,SUM(IIF(b.statusid = 1, 1, 0)) AS TotalWaitingTicket
 		  ,SUM(IIF(mt.TransId IS NOT NULL AND b.statusid = 0, 1, 0)) AS TotalMarkedTicket
 	FROM #tmpAllParentChildMatch AS m 
-		INNER JOIN bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype), FORCESEEK) ON m.matchid = b.matchid --WITH(NOLOCK,INDEX(CIX_matchid_bettype))
+		INNER LOOP JOIN bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype), FORCESEEK) ON m.matchid = b.matchid --WITH(NOLOCK,INDEX(CIX_matchid_bettype))
 		INNER JOIN SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK) ON  sp.Sporttype = m.SportType AND sp.bettype =  b.bettype AND (sp.BetID = 0 OR b.BetID = sp.BetID) 
 		LEFT JOIN @__tmpMarkedTransaction AS mt ON mt.TransId = b.transid
 	WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN @SitedbGroupID_Central ELSE b.SiteDBGroupID END
 	GROUP BY m.matchid,m.eventstatus, sp.ResourceID, sp.SettleType,m.ParentId,m.ChildMatchType,m.sporttype
+	OPTION (FORCE ORDER)
 
 	INSERT INTO #tmpMatchCount(matchid, ParentId, ChildMatchType, eventstatus,sporttype, ResourceID, settleType, TotalTicket, TotalValidTicket, TotalRunningTicket, TotalWaitingTicket, TotalMarkedTicket)
 	SELECT m.matchid
