@@ -17,8 +17,8 @@ AS
 		- 20230330@July: [TVS] Send problem customer in Abnormal Account request to CTS [Redmine:#185238]
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240327@Max: [CTS] - [TVS] - Missing Void Info - Not auto-mark PA [Redmine: #201993]
-		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
-		- 20240701@July: Change alias server - [Redmine: #218202]
+		- 20240701@July: [TVS] Manage Request - Change way to get data [Redmine: #205983]
+		- 20250312@July: [TVS] Change alias server [Redmine: #218202]
 		- 20250703@Lani: [TVS] Abnormal Bet - Send ticket of the username in AB Exception List to CTS [Redmine: #231465]
 
 	Param's explanation:
