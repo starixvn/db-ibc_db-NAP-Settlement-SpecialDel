@@ -1252,6 +1252,7 @@ BEGIN
 				WHERE li.MatchId = t.matchid AND t.Id = li.Id
 				GROUP BY li.matchid
 			)li
+	WHERE t.IsSiteDBDown = 0
 	FOR JSON PATH))
 	
 	--List ticket insert table TicketVoiding_PendingMarkTickets

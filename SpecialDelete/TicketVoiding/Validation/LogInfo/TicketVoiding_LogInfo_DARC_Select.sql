@@ -942,6 +942,7 @@ BEGIN
 		,b.SiteDBGroupID AS 'sitedb'
 		,b.IsCancelCashOut AS 'isCCO'
 	FROM #TVSTicketBets b
+	WHERE b.IsSiteDBDown = 0
 	FOR JSON PATH))
 
 	--List ticket insert table TicketVoiding_PendingMarkTickets
