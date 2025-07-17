@@ -338,6 +338,12 @@ BEGIN
                 ,LastModifyDate     = GETDATE() 
         WHERE   MatchID = @MatchID
                 AND ResourceID IN ('00','01','08','09','14F','14L','127F','127L')
+        
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND Resourceid IN ('00','01','GR')
+            AND SourceId = 99
 
     END
     /* END - @Command = 'NAP_Admin_Settlement_1-UNDO' */
@@ -771,6 +777,12 @@ BEGIN
 					,LastModifyDate     = GETDATE() 
         FROM    dbo.ResultDetail r
         WHERE   r.MatchID = @MatchID AND (r.ResourceID IN ('00','01','08','09','488','489','490') OR r.ResourceID LIKE '486%' OR r.ResourceID LIKE '487%')
+
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND Resourceid IN ('00','01','GR')
+            AND SourceId = 99
     END
     ELSE IF @Command = 'NAP_Admin_Settlement_1-Corner-UNDO-FT'
     BEGIN
@@ -783,6 +795,12 @@ BEGIN
 					,LastModifyDate     = GETDATE() 
         FROM    dbo.ResultDetail r
         WHERE   r.MatchID = @MatchID AND (r.ResourceID IN ('00','08','488','490') OR r.ResourceID LIKE '486%')
+
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND Resourceid IN ('00','01','GR')
+            AND SourceId = 99
     END
 END
 GO
