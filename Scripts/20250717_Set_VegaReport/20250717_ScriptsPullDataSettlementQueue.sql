@@ -90,7 +90,7 @@ BEGIN
 	SELECT	matchid, starttime, exectime, duration, CASE WHEN adminid = 0 THEN 1 ELSE 0 END AS isauto, adminid, action, eventdate, sqlcommand, 1
 	FROM	DBSITEC1.bodb02.dbo.Single_Calculate_Queue s WITH (NOLOCK)
 	WHERE	action IN ('CAL-HT', 'CAL-FT', 'CAL', 'CAL-INST-HT','CAL-INST-FT')
-			AND Starttime > @maxdate
+			AND Starttime >= @maxdate
 	UNION ALL
 	SELECT	matchid, starttime, exectime, duration, CASE WHEN Creator = 0 THEN 1 ELSE 0 END AS isauto, creator, 'CAL-PARLAY' AS action, eventdate, '' AS sqlcommand, 1
 	FROM	DBSITEC1.bodb02.dbo.Parlay_Calculate_Queue p WITH (NOLOCK)
