@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoRecover_Validation]
 (
 	 @SingleTicketsJSON			NVARCHAR(MAX) = NULL
@@ -15,9 +15,15 @@ AS
 		- 20231227@Max: Create new SP [Redmine: #196020]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250506@July: Change to remove step update isprocess call 2 times [Redmine: #219112]
+		- 20250605@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 
 	Param's explanation:
-		
+		ValidationType => 21, 22 (recover + resettle)
+		ValidationType => 23,24 (recover + resettle main)
+		ValidationType => 25, 26 (recover + resettle sub)
+		ValidationType => 27, 28 (recover + resettle)
+		ValidationType => 29 (resettle)
+		ValidationType => 30 (resettle)
 */
 BEGIN
 	SET NOCOUNT ON
@@ -40,9 +46,23 @@ BEGIN
 		, IssueTypeId TINYINT
 		, TicketType TINYINT
 	)
+
+	CREATE TABLE #Ticket_Result
+	(
+		TransId			BIGINT
+	   ,RequestId		INT
+	   ,Matchid			INT
+	   ,IssueTypeId		TINYINT
+	   ,transdate		DATETIME
+	   ,winlostdate		DATETIME
+	   ,statusId		INT
+	   ,ValidationType	TINYINT
+	)
+	CREATE INDEX IX_ValidationType ON #Ticket_Result (ValidationType)
 	
 	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT, ValidationType TINYINT)
-	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT, ValidationType TINYINT)
+	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT, ValidationType TINYINT) --main parlay
+	CREATE TABLE #SubParlayTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT, ValidationType TINYINT) --subparlay
 
 	--Bet14
 	CREATE TABLE #SingleTickets_14 (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT, ValidationType TINYINT)
@@ -84,11 +104,11 @@ BEGIN
 			,b.transdate
 			,b.winlostdate
 			,b.statusID
-			,CASE WHEN TicketType = 1 AND b.statuswinlost IS NULL THEN 1
-		          WHEN TicketType = 1 AND b.statuswinlost IS NOT NULL THEN 2
-				  WHEN TicketType = 4 AND b.statuswinlost IS NULL THEN 5
-				  WHEN TicketType = 4 AND b.statuswinlost IS NOT NULL THEN 6
-				  ELSE 7 END  AS ValidationType 
+			,CASE WHEN TicketType = 1 AND b.statuswinlost IS NULL THEN 21
+		          WHEN TicketType = 1 AND b.statuswinlost IS NOT NULL THEN 22
+				  WHEN TicketType = 4 AND b.statuswinlost IS NULL THEN 27
+				  WHEN TicketType = 4 AND b.statuswinlost IS NOT NULL THEN 28
+				  ELSE 27 END  AS ValidationType 
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.TicketType <> 2
@@ -101,9 +121,22 @@ BEGIN
 			,b.transdate
 			,b.winlostdate
 			,b.statusID
-			,CASE WHEN b.statuswinlost IS NOT NULL THEN 4 ELSE 3 END AS ValidationType
+			,CASE WHEN b.statuswinlost IS NOT NULL THEN 24 ELSE 23 END AS ValidationType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE t.TicketType = 2
+		
+		INSERT INTO #SubParlayTickets (TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
+		SELECT t.TransId
+			  ,t.RequestId
+			  ,t.MatchId
+			  ,t.IssueTypeId
+			  ,bm.transdate
+			  ,bm.winlostdate
+			  ,bm.statusID
+			  ,CASE WHEN bm.statuswinlost IS NOT NULL THEN 26 ELSE 25 END AS ValidationType
+		FROM #tmpInputTransId t
+			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 		WHERE t.TicketType = 2
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpInputTransId t
@@ -117,7 +150,7 @@ BEGIN
 				,b.transdate
 				,b.winlostdate
 				,b.statusID
-				,8 AS ValidationType
+				,29 AS ValidationType
 			FROM #tmpInputTransId t
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 
@@ -129,26 +162,51 @@ BEGIN
 				,b.transdate
 				,b.winlostdate
 				,b.statusID
-				,9 AS ValidationType
+				,30 AS ValidationType
 			FROM #tmpInputTransId t
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		END
 	END
 	
+	
+	INSERT INTO #Ticket_Result(TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
 	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #SingleTickets WHERE TicketType = 1 --Single
+
+	INSERT INTO #Ticket_Result(TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
 	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #ParlayTickets --Parlay
 
+	INSERT INTO #Ticket_Result(TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
+	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #SubParlayTickets --Sub Parlay
+
+	INSERT INTO #Ticket_Result(TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
 	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #SingleTickets WHERE TicketType = 4 --Cricket
 
+	INSERT INTO #Ticket_Result(TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
 	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #SingleTickets_14 --Single_14
+
+	INSERT INTO #Ticket_Result(TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
 	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #ParlayTickets_14 --Parlay_14
+
+
+	SELECT TransId
+		  ,RequestId
+		  ,Matchid
+	      ,IssueTypeId
+	      ,transdate
+	      ,winlostdate
+	      ,statusId
+	      ,ValidationType
+	FROM #Ticket_Result
+	ORDER BY ValidationType
 
 	DROP TABLE #tmpInputTransId
 	DROP TABLE #tmpTransIds
 	DROP TABLE #SingleTickets
 	DROP TABLE #ParlayTickets
+	DROP TABLE #SubParlayTickets
 	DROP TABLE #SingleTickets_14
 	DROP TABLE #ParlayTickets_14
+	DROP TABLE #Ticket_Result
 END		
 GO
 

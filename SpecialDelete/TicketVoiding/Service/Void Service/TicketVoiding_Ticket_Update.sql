@@ -36,6 +36,7 @@ AS
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
+		- 20250609@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay - Call new sp [Redmine: #227829]
 	
 	Param's explanation:	
 		
@@ -121,7 +122,7 @@ BEGIN
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
-	ELSE IF @VoidingTypeId IN (12) --Parlay ticket
+	ELSE IF @VoidingTypeId IN (12) --Main parlay ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RecoverMainParlayType_Update
 			@RequestId = @RequestId
@@ -135,6 +136,20 @@ BEGIN
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
+	END
+	ELSE IF @VoidingTypeId IN (13) --Recover sub parlay ticket
+	BEGIN
+		EXEC dbo.TicketVoiding_RecoverSubParlayType_Update
+			@RequestId = @RequestId
+			,@MatchId = @MatchId
+			,@VoidingHistoryId = @VoidingHistoryId
+			,@TransIds = @TransIds
+			,@UserId = @UserId
+			,@IP = @IP
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+			,@FailedTransIds = @FailedTransIds OUTPUT
+			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	END
 	ELSE IF @VoidingTypeId IN (14) --Cricket ticket
 	BEGIN

@@ -64,6 +64,7 @@ AS
         - 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240425@Kathy: enhance MaxPayout [Redmine:#199518]
+		- 20250703@Max: Support re-settle when recover voided sub parlay from TVS [Redmine: #227829]
 
     Param's Explanation:
         @action         @mode
@@ -204,6 +205,7 @@ BEGIN
 			, @AffectedTransIds = @AffectedTransIds OUTPUT
     END
 
+	/*TVS: VOID/RECOVER ==> NAP_Admin_Calculate_MP_m */
     IF @mode = 'VOID'
     BEGIN
         EXEC dbo.NAP_Admin_Calculate_MP_m @matchid = @MatchID
@@ -216,14 +218,21 @@ BEGIN
             , @VoidTransID = @VoidTransID
             , @UserId = @UserId
     END
-
-    IF @Mode = 'RECOVER'
+    IF @Mode = 'RECOVER' --Function recover of SD
     BEGIN
         EXEC dbo.NAP_Admin_Calculate_MP_m @matchid = @MatchID
             , @matchdate = @matchdate
             , @action = 'RECOVER'
             , @VoidTransID = @VoidTransID
     END
+	IF @mode = 'RECOVER-RECAL' --Recover from TVS
+	 BEGIN
+        EXEC dbo.NAP_Admin_Calculate_MP_m @matchid = @MatchID
+            , @matchdate = @matchdate
+            , @action = 'RECOVER-RECAL'
+            , @VoidTransID = @VoidTransID
+    END
+	/*====================================================*/
 	
 	IF @Mode = 'subParlay' AND @Action = 'MoveTicket'
 	BEGIN

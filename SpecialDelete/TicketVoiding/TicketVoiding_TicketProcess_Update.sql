@@ -19,6 +19,7 @@ AS
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240319@Max: [TVS] SP tuning for EC2024 [Redmine: #200840]
 		- 20250505@July: [TVS] Case Resettled miss update IsProcessed [Redmine: #219112]
+		- 20250613@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 
 	Param's explanation:
 */
@@ -84,7 +85,7 @@ BEGIN
 		IF @@ROWCOUNT = 0
 			BREAK
 
-		UPDATE s SET s.IsProcessed = CASE WHEN t.ValidationType IN (2,4,6) THEN 2 ELSE 1 END --2:Mark resettled ticket, 1: Mark processed ticket
+		UPDATE s SET s.IsProcessed = CASE WHEN t.ValidationType IN (2,4,6,22,24,28) THEN 2 ELSE 1 END --2:Mark resettled ticket, 1: Mark processed ticket
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransIdBatch t ON t.Id = s.Id
 
@@ -106,7 +107,7 @@ BEGIN
 		IF @@ROWCOUNT = 0
 			BREAK
 
-		UPDATE s SET s.IsProcessed = 1
+		UPDATE s SET s.IsProcessed = CASE WHEN t.ValidationType IN (26) THEN 2 ELSE 1 END
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransIdBatch t ON t.id = s.Id
 

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_CustLimitBetQueue_Insert_Parlay]
 (
 	@MatchId		INT	
@@ -17,6 +17,7 @@ AS
 		- 20230119@July: Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site - [Redmine: #182803]
 		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 		- 20240325@Max: Max Payout - NAP_Admin_CustLimitBetQueue_Insert_Parlay Enhancement [Redmine: #202058]
+		- 20250703@Max: Support re-settle when recover voided sub parlay from TVS [Redmine: #227829]
 
 	Param's explanation:	
 		
@@ -155,6 +156,31 @@ BEGIN
 					SELECT @MatchId, @CustId, @TransIds, 5, 0, @CreatedDate
 				END
 			END	
+		END
+
+		--Support TVS Recover parlay auto cal for main transid
+		IF EXISTS (SELECT TOP(1) 1 FROM @CustLimitBet_tmp)
+		BEGIN
+			WHILE (1=1)
+			BEGIN
+				DELETE @CustLimitBet_Batch
+				SET @TransIds = ''
+
+				DELETE TOP (1000) t
+					OUTPUT DELETED.CustId, DELETED.transid
+					INTO @CustLimitBet_Batch (CustId, transid)
+				FROM @CustLimitBet_tmp t
+
+				IF @@ROWCOUNT = 0 BREAK
+
+				SELECT @TransIds = (SELECT t.CustId AS '@custid'
+										,t.TransId AS '@transid'
+									FROM	@CustLimitBet_Batch t
+									FOR XML PATH('r'), ROOT('root')
+								)
+				INSERT INTO dbo.CustLimitBetQueue (MatchId, Transids, ActionID, Statusid, CreatedDate)
+				SELECT @MatchId, @TransIds, 4, 0, @CreatedDate
+			END
 		END
 	END
 END

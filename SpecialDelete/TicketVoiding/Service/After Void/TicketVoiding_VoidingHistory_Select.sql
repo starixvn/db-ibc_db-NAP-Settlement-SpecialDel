@@ -12,6 +12,7 @@ AS
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20241223@July: [TVS] Support case after void steps are completed, except send email/Letstalk failed & user manually  [Redmine: #213398]
+		- 20250616@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 
 	Param's explanation:	
 	
@@ -21,7 +22,7 @@ BEGIN
 	
 	DECLARE  @xmlVoidData		XML
 			,@VoidingHistoryId  INT
-			,@SingleTransIds	VARCHAR(MAX) = NULL
+			,@RequestId			INT
 			,@BroadcastSessionId VARCHAR(100)
 			,@IssueTypeId		TINYINT
 
@@ -34,6 +35,7 @@ BEGIN
 	)
 	CREATE TABLE #tmpVoidData (	
 		VoidingHistoryId INT
+		,RequestId INT
 		,IssueTypeId INT
 		,SubIssueTypeId INT
 		,SubIssueTypeName VARCHAR(500)
@@ -82,15 +84,6 @@ BEGIN
 							INNER JOIN #tmpVoidingHistory vh ON vh.RequestId = r.RequestId
 					   )
 			
-	IF @IssueTypeId = 22 --Recover Ticket
-	BEGIN
-		SET @SingleTransIds =  STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (50))
-									  FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
-										INNER JOIN #tmpVoidingHistory vh ON s.RequestId = vh.RequestId
-									  WHERE s.IssueTypeId = 22
-									  FOR XML PATH ('')),1,1,'')
-	END
-
 	WHILE (1=1)
 	BEGIN
 		UPDATE TOP(1) t
@@ -98,12 +91,13 @@ BEGIN
 			,@xmlVoidData = t.VoidData
 			,@VoidingHistoryId = t.VoidingHistoryId
 			,@BroadcastSessionId = t.BroadcastSessionId
+			,@RequestId = t.RequestId
 		FROM #tmpVoidingHistory t
 		WHERE t.IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
 
-		INSERT INTO #tmpVoidData ( VoidingHistoryId, BroadcastSessionId, IssueTypeId, SubIssueTypeId, SubIssueTypeName, SubIssueTypeNameCS
+		INSERT INTO #tmpVoidData ( VoidingHistoryId, BroadcastSessionId, IssueTypeId, RequestId, SubIssueTypeId, SubIssueTypeName, SubIssueTypeNameCS
 								, Reason, ReasonSC, ContentChineseTraditional, ContentChineseSimplified, ContentNewChineseSimplified
 								, ContentEnglish, ContentSpanish, ContentItalian, ContentJapanese, ContentKorean
 								, ContentThai, CreatorId, CreatorName, DecidedBy, VoidFromTime
@@ -113,6 +107,7 @@ BEGIN
 			 @VoidingHistoryId AS VoidingHistoryId
 			,@BroadcastSessionId AS BroadcastSessionId
 			,@IssueTypeId AS IssueTypeId
+			,@RequestId AS RequestId
 			,T.C.value('@SubIssueTypeId', 'INT') AS SubIssueTypeId
 			,T.C.value('@SubIssueTypeName', 'VARCHAR(500)') AS SubIssueTypeName
 			,T.C.value('@SubIssueTypeNameCS', 'NVARCHAR(256)') AS SubIssueTypeNameCS
@@ -144,6 +139,7 @@ BEGIN
 	/*****************Return table **************************/
 	SELECT 
 		 VoidingHistoryId 
+		,RequestId
 		,BroadcastSessionId --Support insert Service & insert Letstalk status = 1
 		,IssueTypeId 
 		,SubIssueTypeId
@@ -170,7 +166,6 @@ BEGIN
 		,IsHasSettledTicket 
 		,TotalTicket
 		,IsRunAutoAfterVoid
-		,@SingleTransIds AS SingleTransIds
 	FROM #tmpVoidData
 
 	DROP TABLE #tmpVoidingHistory

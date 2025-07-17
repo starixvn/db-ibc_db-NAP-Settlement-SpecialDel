@@ -35,6 +35,7 @@ AS
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
 		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services - [Redmine: #224490]
+		- 20250612@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay[Redmine: #227829]
 
 	Param's explanation:
 		
@@ -47,6 +48,7 @@ BEGIN
 	CREATE TABLE #tmpResult (
 		 RequestId					 INT
 		,MatchId					 INT
+		,FilterBy					 TINYINT
 		,RequestDetailId			 INT	
 		,TransIds					 VARCHAR(MAX)
 		,LastVoidedBy				 INT
@@ -59,13 +61,14 @@ BEGIN
 	
 	SELECT @IssueTypeId = IssueTypeId FROM dbo.TicketVoiding_Request WITH (NOLOCK) WHERE RequestId = @RequestId
 
-	INSERT INTO #tmpResult(RequestId, VoidingHistoryId, LastVoidedBy, MatchId, RequestDetailId, TransIds)
+	INSERT INTO #tmpResult(RequestId, VoidingHistoryId, LastVoidedBy, MatchId, RequestDetailId, TransIds, FilterBy)
 	SELECT DISTINCT rd.RequestId
 			,vh.VoidingHistoryId
 			,vh.UserId
 			,@MatchId
 			,ISNULL(@RequestDetailId,0) AS RequestDetailId
 			,vh.TransIds
+			,rd.FilterBy
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH (NOLOCK) ON rd.RequestId = vh.RequestId	
 		INNER JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
@@ -158,26 +161,39 @@ BEGIN
 	END
 	ELSE --Recover Ticket
 	BEGIN
-		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT)
+		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT, MainTransId BIGINT)
+		DECLARE @FilterBy TINYINT 
 
-		INSERT INTO @tmp_TransId(RequestId, TransId, MatchId, IsProcessed)
-		SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-			INNER JOIN #tmpResult t ON t.RequestId = s.Requestid AND s.MatchId = t.MatchId
-		WHERE s.IsProcessed IS NOT NULL
+		SET @FilterBy = (SELECT TOP 1 FilterBy FROM #tmpResult)
 
-		DELETE t
-		FROM @tmp_TransId t
-			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON t.TransId = z.transid AND z.comstatus <> 'CO'
+		IF (@FilterBy IS NULL) --single and main parlay
+		BEGIN
+			INSERT INTO @tmp_TransId(RequestId, TransId, MatchId, IsProcessed, MainTransId)
+			SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed, NULL
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) 
+				INNER JOIN #tmpResult t ON t.RequestId = s.Requestid AND s.MatchId = t.MatchId
+			WHERE s.IsProcessed IS NOT NULL
 
+			DELETE t
+			FROM @tmp_TransId t
+				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON t.TransId = z.transid AND z.comstatus <> 'CO'
+		END
+		ELSE -- subparlay
+		BEGIN
+			SELECT t.RequestId, sp.TransId, sp.MatchId, sp.IsProcessed, sp.MainTransId
+			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH (NOLOCK) 
+				INNER JOIN #tmpResult t ON t.RequestId = sp.RequestId AND sp.MatchId = t.MatchId 
+			WHERE sp.IsProcessed IS NOT NULL
+		END
+								
 		UPDATE t 
 		SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)
 			,TotalParlayProcessed = ISNULL(rt.TotalParlayProcessed,0)
 			,TotalResettleProcessed= ISNULL(rt.TotalResettleProcessed,0) 
 		FROM	#tmpResult t
 		CROSS APPLY (SELECT 
-						SUM(CASE WHEN f.bettype IS NULL THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						,SUM(CASE WHEN f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						SUM(CASE WHEN f.bettype IS NULL AND s.MainTransId IS NULL THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						,SUM(CASE WHEN f.bettype IS NOT NULL OR s.MainTransId IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
 						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
 					FROM @tmp_TransId s
 						LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.bettype = s.MatchId
