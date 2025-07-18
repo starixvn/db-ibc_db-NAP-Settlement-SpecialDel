@@ -169,7 +169,7 @@ BEGIN
 
 	CREATE TABLE #invalidTransId (transid BIGINT, isMoved BIT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
-		--,isInMatch				BIT
+	CREATE TABLE #validTransId (
 		transid						BIGINT PRIMARY KEY
 		,StatusId					INT
 		,bettype					SMALLINT
@@ -796,6 +796,16 @@ BEGIN
 					WHEN @IsRemoveCreditCashService = 1 AND v.IsCreditCashService = 1 THEN 1
 			ELSE 0 END
 	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
+
+	IF @FilterBy IS NULL
+	BEGIN
+		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid, sporttype, matchcode, eventdate)
+		SELECT DISTINCT v.matchid, homeid, awayid, leagueid, v.sporttype, matchcode, eventdate
+		FROM #validTransId v
+			INNER JOIN #tmpTransInfo t ON v.matchid = t.matchid
+	END
+	ELSE
+	BEGIN
 		INSERT INTO @tmpMatchId_Info (MatchId)
 		SELECT 29 AS MatchId
 	END
@@ -847,8 +857,9 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpUnmarkTransId)
 		BEGIN
 			DELETE p
-			FROM DBCTG.bodb02.TicketVoiding_PendingMarkTickets p
+			FROM DBCTG.bodb02.dbo.TicketVoiding_PendingMarkTickets p
 			WHERE p.transid IN (SELECT TransId FROM @tmpUnmarkTransId)
+				AND RequestId = @RequestId
 		END
 	END
 
