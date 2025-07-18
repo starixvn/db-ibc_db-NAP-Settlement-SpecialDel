@@ -344,7 +344,7 @@ BEGIN
         DELETE  
         FROM  ProviderExternalResultDetail 
         WHERE matchid = @matchid 
-            AND Resourceid IN ('00','01','GR')
+            AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
             AND SourceId = 99
 
     END
@@ -784,7 +784,7 @@ BEGIN
         DELETE  
         FROM  ProviderExternalResultDetail 
         WHERE matchid = @matchid 
-            AND Resourceid IN ('00','01','GR')
+            AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
             AND SourceId = 99
     END
     ELSE IF @Command = 'NAP_Admin_Settlement_1-Corner-UNDO-FT'
@@ -803,7 +803,7 @@ BEGIN
         DELETE  
         FROM  ProviderExternalResultDetail 
         WHERE matchid = @matchid 
-            AND Resourceid IN ('00','01','GR')
+            AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
             AND SourceId = 99
     END
 END
