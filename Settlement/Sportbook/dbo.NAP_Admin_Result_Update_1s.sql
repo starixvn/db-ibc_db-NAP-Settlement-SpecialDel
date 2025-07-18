@@ -197,6 +197,7 @@ BEGIN
                 ,ResultSetting      = ISNULL(ResultSetting,0) & (~6) 
                 ,LastModifyBy       = @Creator 
                 ,LastModifyDate     = GETDATE() 
+                
         WHERE   MatchID = @MatchID
                 AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
 
@@ -336,6 +337,7 @@ BEGIN
                 ,SettlementStatusID = 0     -- Initial
                 ,LastModifyBy       = @Creator 
                 ,LastModifyDate     = GETDATE() 
+                ,ResultSetting      = ISNULL(ResultSetting,0) & (~6)
         WHERE   MatchID = @MatchID
                 AND ResourceID IN ('00','01','08','09','14F','14L','127F','127L')
         
@@ -775,6 +777,7 @@ BEGIN
 					,SettlementStatusID = 0     -- Initial
 					,LastModifyBy       = @Creator 
 					,LastModifyDate     = GETDATE() 
+                    ,ResultSetting      = ISNULL(ResultSetting,0) & (~6)
         FROM    dbo.ResultDetail r
         WHERE   r.MatchID = @MatchID AND (r.ResourceID IN ('00','01','08','09','488','489','490') OR r.ResourceID LIKE '486%' OR r.ResourceID LIKE '487%')
 
@@ -792,7 +795,8 @@ BEGIN
 					,ResultStatusID     = 0     -- Initial 
 					,SettlementStatusID = 0     -- Initial
 					,LastModifyBy       = @Creator 
-					,LastModifyDate     = GETDATE() 
+					,LastModifyDate     = GETDATE()
+                    ,ResultSetting      = ISNULL(ResultSetting,0) & (~6) 
         FROM    dbo.ResultDetail r
         WHERE   r.MatchID = @MatchID AND (r.ResourceID IN ('00','08','488','490') OR r.ResourceID LIKE '486%')
 
