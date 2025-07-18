@@ -743,8 +743,8 @@ BEGIN
 		IF @IsRemoveCreditCashService = 1 AND ISNULL(@UsernamesOfCreditCashService, '') <> ''
 		BEGIN
 			DELETE t
-			FROM TicketVoiding_AbnormalAccountVoidAmount t
-			INNER JOIN CustDB.dbo.custInfo c ON t.custid = c.custid
+			FROM TicketVoiding_AbnormalAccountVoidAmount AS t
+			INNER JOIN CustDB.dbo.custInfo AS c WITH (NOLOCK) ON t.custid = c.custid
 			WHERE c.username IN (SELECT value FROM STRING_SPLIT(@UsernamesOfCreditCashService, ','))
 		END
 
