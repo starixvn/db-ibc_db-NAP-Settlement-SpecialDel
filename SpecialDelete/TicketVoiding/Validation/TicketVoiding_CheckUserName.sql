@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName_UAT4]
+ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 (
 	 @UserNames			NVARCHAR(MAX) = ''
 	,@RequestId			INT = 0
