@@ -124,15 +124,5 @@ BEGIN
 						,@ErrMsg = 'WARNING! Cannot proceed due to running odds. Please close them all and try again.'
 		END
     END
-	ELSE
-	BEGIN
-		IF @Action = 'REFUND' AND @IsSettleAbandonedMatchIBC = 0 AND @IsEarly = 0 ---- Refund ALL (POS), refund fast market
-			SELECT	@ErrCode = 1001034
-					,@ErrMsg = 'WARNING! Cannot proceed due to this match is NOT marked for Refund All.'
-
-	END
-
-	
-
 END
 GO
