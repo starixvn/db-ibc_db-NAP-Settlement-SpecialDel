@@ -763,10 +763,17 @@ BEGIN
                 ,SettlementStatusID = 0
                 ,LastModifyBy       = @Creator 
                 ,LastModifyDate     = GETDATE() 
+                ,ResultSetting      = ISNULL(ResultSetting,0) & (~6)
         FROM    dbo.ResultDetail r
             INNER JOIN @tmpResultDetail t 
                 ON  r.ResourceID = t.ResourceID
         WHERE   r.MatchID = @MatchID
+
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
+            AND SourceId = 99
     END
 	ELSE IF @Command = 'NAP_Admin_Settlement_1-Corner-UNDO'
     BEGIN
