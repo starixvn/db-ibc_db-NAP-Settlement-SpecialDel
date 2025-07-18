@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
+ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName_UAT4]
 (
 	 @UserNames			NVARCHAR(MAX) = ''
 	,@RequestId			INT = 0
@@ -750,7 +750,8 @@ BEGIN
 	BEGIN
 		DELETE t
 		FROM TicketVoiding_AbnormalAccountVoidAmount t
-		WHERE t.username IN (SELECT value FROM STRING_SPLIT(@UsernamesOfCreditCashService, ','))
+		INNER JOIN CustDB.dbo.custInfo c ON t.custid = c.custid
+		WHERE c.username IN (SELECT value FROM STRING_SPLIT(@UsernamesOfCreditCashService, ','))
 	END
 
 	IF @RequestId = 0 AND @ActionId <> 2
