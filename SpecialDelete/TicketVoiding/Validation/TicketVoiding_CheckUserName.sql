@@ -746,6 +746,13 @@ BEGIN
 	FROM #tmpTransInfo AS t
 	WHERE 1 = CASE WHEN @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1 THEN 1 ELSE 0 END
 
+	IF @IsRemoveCreditCashService = 1 AND ISNULL(@UsernamesOfCreditCashService, '') <> ''
+	BEGIN
+		DELETE t
+		FROM TicketVoiding_AbnormalAccountVoidAmount t
+		WHERE t.username IN (SELECT value FROM STRING_SPLIT(@UsernamesOfCreditCashService, ','))
+	END
+
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
