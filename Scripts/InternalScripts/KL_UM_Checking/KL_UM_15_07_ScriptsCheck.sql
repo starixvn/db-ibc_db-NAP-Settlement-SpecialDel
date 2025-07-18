@@ -201,8 +201,9 @@ select top 10 Logid, StatusId
 from SiteDB_SettlementService_LastLog with (nolock)
 where logid = xxxx
 ----STEP 2. Check sync service at DBTRANS/bodb02
---Queue at DBTRANS sitedb1/2/3_bet_settle_queue
---SP: NAP_SettlementService_CalculationLogIns
+--Queue at DBTRANS:NAP_SettlementService_CalculationLogIns -->  sitedb1/2/3_bet_settle_queue: 
+--SSB_Settlement_SiteDB1_Process_Message -> SSB_Settlement_SiteDB_Execute_Message->NAP_SettlementService_Calculation
+
 use bodb02
 go
 select top 10 * from SiteDB_SettlementService_CalculationLog_History with (nolock)
