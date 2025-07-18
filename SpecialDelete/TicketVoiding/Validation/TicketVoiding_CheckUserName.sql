@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
+ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName_UAT4]
 (
 	 @UserNames			NVARCHAR(MAX) = ''
 	,@RequestId			INT = 0
@@ -743,9 +743,9 @@ BEGIN
 		IF @IsRemoveCreditCashService = 1 AND ISNULL(@UsernamesOfCreditCashService, '') <> ''
 		BEGIN
 			DELETE t
-			FROM TicketVoiding_AbnormalAccountVoidAmount AS t
-			INNER JOIN CustDB.dbo.custInfo AS c WITH (NOLOCK) ON t.custid = c.custid
-			WHERE c.username IN (SELECT value FROM STRING_SPLIT(@UsernamesOfCreditCashService, ','))
+			FROM DBCTG.bodb02.dbo.TicketVoiding_AbnormalAccountVoidAmount AS t
+			INNER JOIN #tmpTransInfo AS tmp ON t.custid = tmp.custid
+			WHERE tmp.IsCreditCashService = 1
 		END
 
 	END
