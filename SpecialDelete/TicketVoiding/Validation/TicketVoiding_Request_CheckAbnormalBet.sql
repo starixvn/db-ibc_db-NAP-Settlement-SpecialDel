@@ -827,7 +827,7 @@ BEGIN
 			WHERE v.StatusId IN (0,1) 
 				AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = v.TransId)-- exist in # request
 				AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpUnmarkTransId um WHERE um.TransId = v.transid)
-		
+
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
@@ -842,6 +842,13 @@ BEGIN
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 			WHERE rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
 			
+		END
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpUnmarkTransId)
+		BEGIN
+			DELETE p
+			FROM DBCTG.bodb02.TicketVoiding_PendingMarkTickets p
+			WHERE p.transid IN (SELECT TransId FROM @tmpUnmarkTransId)
 		END
 	END
 
