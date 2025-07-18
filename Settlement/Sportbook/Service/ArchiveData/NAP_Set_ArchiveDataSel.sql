@@ -1,7 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_ArchiveDataSel]   
-	@Date DATE
-	,@BatchNo INT = 2000
+	@BatchNo INT = 2000
 	,@TableName VARCHAR(50)
 	,@JsonInfo VARBINARY(MAX) OUTPUT
 
@@ -14,12 +13,16 @@ AS
 	   
 	 Revisions:  
 		- 20230308@Kathy: create SP [Redmine:#184726]   
+		- 20250718@Max: Support Daily Settlement Report for Vega project [Redmine: #233410]
 		
 	 Param's Explanation:  
     
 */  
 BEGIN  
 	SET NOCOUNT ON  
+
+	DECLARE @ArchiveDate DATE
+	SET @ArchiveDate = DATEADD(DAY, -1, GETDATE())
 
 	IF @TableName = 'Single_Calculate_Queue'
 	BEGIN
@@ -40,7 +43,7 @@ BEGIN
 			FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)
 				INNER JOIN dbo.match m WITH(NOLOCK)
 					ON s.matchid = m.matchid
-			WHERE	Starttime < @Date
+			WHERE	CONVERT(DATE, Starttime) = @ArchiveDate
 			ORDER BY keyid
 			FOR JSON PATH 
 		)
@@ -64,7 +67,7 @@ BEGIN
 			FROM	dbo.Parlay_Calculate_Queue p WITH(NOLOCK)
 				INNER JOIN dbo.match m WITH(NOLOCK)
 					ON p.matchid = m.matchid
-			WHERE Starttime < @Date
+			WHERE CONVERT(DATE, Starttime) = @ArchiveDate
 			ORDER BY keyid
 			FOR JSON PATH
 		))
