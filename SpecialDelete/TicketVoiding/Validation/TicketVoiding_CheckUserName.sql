@@ -739,20 +739,21 @@ BEGIN
 												FROM #tmpTransInfo AS t
 												WHERE t.IsCreditCashService = 1
 												FOR XML PATH('')), 1, 1, ''), '')
+		
+		IF @IsRemoveCreditCashService = 1 AND ISNULL(@UsernamesOfCreditCashService, '') <> ''
+		BEGIN
+			DELETE t
+			FROM TicketVoiding_AbnormalAccountVoidAmount t
+			INNER JOIN CustDB.dbo.custInfo c ON t.custid = c.custid
+			WHERE c.username IN (SELECT value FROM STRING_SPLIT(@UsernamesOfCreditCashService, ','))
+		END
+
 	END
 
 	--Remove ticket of credit cash service customer
 	DELETE t
 	FROM #tmpTransInfo AS t
 	WHERE 1 = CASE WHEN @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1 THEN 1 ELSE 0 END
-
-	IF @IsRemoveCreditCashService = 1 AND ISNULL(@UsernamesOfCreditCashService, '') <> ''
-	BEGIN
-		DELETE t
-		FROM TicketVoiding_AbnormalAccountVoidAmount t
-		INNER JOIN CustDB.dbo.custInfo c ON t.custid = c.custid
-		WHERE c.username IN (SELECT value FROM STRING_SPLIT(@UsernamesOfCreditCashService, ','))
-	END
 
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
