@@ -404,6 +404,7 @@ BEGIN
 						WHEN r.ResourceID = '01' AND mr.IsHTCal = 0 THEN 1
 					ELSE 0 END
 			AND ap.IsExistsAP IS NULL
+			AND m.AP_Main_HasTrader = 1
 
 		INSERT INTO #MatchResource(matchId,ResourceId,CreatedDate,ResourceType,IsTrader)
 		SELECT matchId,ResourceId,CreatedDate,1 AS ResourceType,1 AS IsTrader
