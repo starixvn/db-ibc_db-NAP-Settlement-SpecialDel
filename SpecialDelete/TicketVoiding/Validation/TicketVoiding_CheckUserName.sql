@@ -739,15 +739,6 @@ BEGIN
 												FROM #tmpTransInfo AS t
 												WHERE t.IsCreditCashService = 1
 												FOR XML PATH('')), 1, 1, ''), '')
-		
-		IF @IsRemoveCreditCashService = 1 AND ISNULL(@UsernamesOfCreditCashService, '') <> ''
-		BEGIN
-			DELETE t
-			FROM DBCTG.bodb02.dbo.TicketVoiding_AbnormalAccountVoidAmount AS t
-			INNER JOIN #tmpTransInfo AS tmp ON t.custid = tmp.custid
-			WHERE tmp.IsCreditCashService = 1
-		END
-
 	END
 
 	--Remove ticket of credit cash service customer
