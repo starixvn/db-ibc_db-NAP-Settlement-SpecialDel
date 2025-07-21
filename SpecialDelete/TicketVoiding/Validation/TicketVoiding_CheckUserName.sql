@@ -739,7 +739,6 @@ BEGIN
 												FROM #tmpTransInfo AS t
 												WHERE t.IsCreditCashService = 1
 												FOR XML PATH('')), 1, 1, ''), '')
-		
 	END
 
 	--Remove ticket of credit cash service customer
