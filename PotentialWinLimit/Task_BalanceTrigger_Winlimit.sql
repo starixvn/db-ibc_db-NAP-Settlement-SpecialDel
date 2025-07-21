@@ -8,6 +8,7 @@ AS
    Revisions:
 		- 20250513@Louisa: Alpha - Potential Winning Limit/Threshold [Redmine:226060]
 		- 20250612@Louisa: Get single ticket only ( exclude lucky parlay) [Redmine:226060]
+		- 20250721@Helen: Support Parlay [Redmine:232605]
 	
 	CustWinLimitBet_History.ActionType
 	/*
@@ -38,6 +39,7 @@ BEGIN
 	CREATE TABLE #winlimit_balancetrigger (rowID BIGINT, CustID INT, transid BIGINT,bef_statusid TINYINT, StatusId TINYINT , bef_winlost MONEY, winlost MONEY, adjToWin MONEY,adjWinLoss MONEY, Running_ToWin MONEY, isMissingHistory BIT
 			, ActionType TINYINT, LatestResetDate datetime2, actionDate DATETIME, actual_stake MONEY
 			, sporttype SMALLINT, bettype INT
+			, Accum_bettype INT
 			)
 	
 	SET @LastRow= (SELECT VValue FROM [bodb02].[dbo].SystemSettings WITH (NOLOCK) WHERE VName = 'CustWinLimitBet')
@@ -47,10 +49,15 @@ BEGIN
 	INSERT INTO #winlimit_balancetrigger (rowID, CustID, transid, bef_statusid, StatusId, bef_winlost, winlost, Running_ToWin
 						, isMissingHistory, LatestResetDate, actionDate
 						, adjToWin, adjWinLoss,ActionType,actual_stake
-						, sporttype	, bettype
+						, sporttype	, bettype, Accum_bettype
 						)
 	SELECT TOP(@Batch) rowID,custid, transid, bef_statusid, StatusId, bef_winlost, winlost, t1.running_ToWin
-						, CASE WHEN t1.running_ToWin IS NULL THEN 1 ELSE 0 END AS isMissingHistory,  t2.LatestResetDate, b.ActionDate 
+						, CASE WHEN t1.running_ToWin IS NULL THEN 1 ELSE 0 END AS isMissingHistory
+						,  CASE 
+								WHEN (b.bettype IN (29,38) OR b.refno > 100000000000) THEN t2.LatestResetDate_parlay
+								ELSE t2.LatestResetDate_single 
+							END AS LatestResetDate
+						,  b.ActionDate 
 						-- capture adj ToWin/WinLoss for normal case from running to settle/void/reject
 						, AdjToWin = CASE WHEN Running_ToWin IS NOT NULL AND StatusId > 1 AND b.bef_statusid IN (0,1) THEN -Running_ToWin ELSE NULL END
 						, adjwinloss = CASE WHEN StatusId > 1 AND b.bef_statusid IN (0,1) THEN winlost - actual_stake ELSE NULL END
@@ -64,6 +71,11 @@ BEGIN
 										END 
 						, b.actual_stake
 						, t1.Sporttype, t1.Bettype
+						, CASE 
+								WHEN (b.bettype IN (29,38) OR refno > 100000000000) THEN 29
+								ELSE 0
+							END AS Accum_bettype
+
 	FROM [bodb02].[dbo].[BalanceTrigger] b WITH(NOLOCK)
 		-- sportsbook only
 		CROSS APPLY (SELECT TOP (1) 1 AS isValid FROM SportBettypeMatrix m WITH (NOLOCK) 
@@ -74,15 +86,15 @@ BEGIN
 					FROM CustWinLimitBet_History c WITH (NOLOCK) 
 					WHERE c.CustID = b.CustID AND c.ActionType = 0 AND b.transid = c.Transid -- insert bet row
 					) AS t1
-		OUTER APPLY (SELECT MAX(c.RepUpdateTime) AS LatestResetDate
+		OUTER APPLY (SELECT  MAX(CASE WHEN c.bettype = 0   THEN c.RepUpdateTime ELSE NULL END) AS LatestResetDate_single
+							, MAX(CASE WHEN c.bettype = 29 THEN c.RepUpdateTime ELSE NULL END) AS LatestResetDate_parlay
 					FROM CustWinLimitBet_History c WITH (NOLOCK) 
 					WHERE c.CustID = b.CustID AND c.ActionType = 100 -- latest reset
 					) AS t2
-	WHERE RowID <= @maxValue AND RowID > @LastRow AND b.bettype NOT IN (29,38) -- exclude parlay
+	WHERE RowID <= @maxValue AND RowID > @LastRow 
 		AND ((bef_statusid <> StatusId AND bef_statusid <> 1)	OR winlost <> bef_winlost)
 		AND (bef_winlost IS NOT NULL AND bef_statusid IS NOT NULL) ---ignore action insert bet in balancetrigger
 		AND 1= CASE WHEN bef_statusid = 0 AND statusid = 1 THEN 0 ELSE 1 END
-		AND b.refno = 100000000000
 	ORDER BY RowID ASC
 	
 	IF @@ROWCOUNT < @Batch 
@@ -100,8 +112,6 @@ BEGIN
 			INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = t.transid
 		WHERE isMissingHistory = 1
 		-- insert into table CustWinLimitBet_Errors
-
-		
 		SELECT @Error_MissingHistoryTransID = STRING_AGG(CONVERT(VARCHAR(MAX),transId), ',') 
 		FROM(
 			SELECT DISTINCT transId
@@ -178,8 +188,8 @@ BEGIN
 	FROM CustWinLimitBet C WITH (ROWLOCK, UPDLOCK)
 		CROSS APPLY (SELECT SUM (b.adjToWin) AS adjToWin_total, SUM(b.adjWinLoss) AS adjWinLoss_total
 					FROM #winlimit_balancetrigger b
-					WHERE b.CustID = c.CustID
-					GROUP BY b.CustID
+					WHERE b.CustID = c.CustID AND c.Bettype = b.Accum_bettype
+					GROUP BY b.CustID, b.Accum_bettype
 					) AS t
 	UPDATE s
 		SET VValue = @maxBatch
@@ -190,8 +200,7 @@ BEGIN
 	SELECT [CustID], sporttype, bettype, [Transid], [AdjToWin], [AdjWinLoss], ISNULL([ActionType],254),[dbo].[f_GetDateTime2]()
 	FROM #winlimit_balancetrigger
 	ORDER BY rowID ASC
-
-	
+		
 	SET @Error_NegativeToWinList =  STUFF (@Error_NegativeToWinList,1,1,'')
 
 	IF ISNULL(@Error_NegativeToWinList,'') <> ''
