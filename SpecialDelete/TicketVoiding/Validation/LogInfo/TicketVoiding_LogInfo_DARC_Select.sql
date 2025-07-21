@@ -440,40 +440,11 @@ BEGIN
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29 AND b.bettype = 29
 			AND act.VoidTime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime
-			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-						 ELSE 0 END
+			AND b.SiteDBGroupID = sub.SiteDBGroupID
 			AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
 						 WHEN sub.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
 						 ELSE 0 END
 	END 
-
-	--Get ticket of sitedb down 
-	BEGIN
-		DECLARE @tmpSiteDBDownInfo TABLE (
-			MatchId INT,
-			TransId BIGINT,
-			IsMixParlay BIT,
-			SiteDBGroupID SMALLINT,
-			isMarked BIT
-		);
-		DECLARE @SingleCountSiteDBDown INT
-		       ,@ParlayCountSiteDBDown INT
-			   ,@TransIdsOfSiteDBDown 	VARCHAR(MAX) = ''
-
-		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
-		SELECT MatchId, TransId, IsMixParlay, SiteDBGroupID, CASE WHEN statusID IN (0,1) THEN 1 ELSE 0 END AS isMarked
-		FROM #TVSTicketBets
-		WHERE IsSiteDBDown = 1;
-
-		SELECT @TransIdsOfSiteDBDown = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-										FROM @tmpSiteDBDownInfo t
-										FOR XML PATH('')), 1, 1, ''), '')
-		
-		SELECT @SingleCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 0 THEN 1 ELSE NULL END)
-		      ,@ParlayCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 1 THEN 1 ELSE NULL END)
-		FROM @tmpSiteDBDownInfo
-	END
 
 	-----Delete ticket check subissuetype exclude bettypes (single & parlay).
 	DELETE b
@@ -558,6 +529,31 @@ BEGIN
 			WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.MatchId = v.MatchId)
 		END
 
+	END
+
+	--Get ticket of sitedb down 
+	BEGIN
+		DECLARE @tmpSiteDBDownInfo TABLE (
+			MatchId INT,
+			TransId BIGINT,
+			IsMixParlay BIT,
+			SiteDBGroupID SMALLINT,
+			isMarked BIT,
+			IsCancelCashOut BIT
+		);
+		DECLARE @SingleCountSiteDBDown INT
+		       ,@ParlayCountSiteDBDown INT
+			   ,@CancelCashOutCountSiteDBDown INT
+
+		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked, IsCancelCashOut)
+		SELECT MatchId, SubTransid, IsMixParlay, SiteDBGroupID, CASE WHEN SubStatusId IN (0,1) THEN 1 ELSE 0 END AS isMarked, IsCancelCashOut
+		FROM #TVSTicketBets
+		WHERE IsSiteDBDown = 1;
+
+		SELECT @SingleCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 0 THEN 1 ELSE NULL END)
+		      ,@ParlayCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 1 THEN 1 ELSE NULL END)
+			  ,@CancelCashOutCountSiteDBDown = COUNT(CASE WHEN IsCancelCashOut = 1 THEN 1 ELSE NULL END)
+		FROM @tmpSiteDBDownInfo
 	END
 
 	--Data Section
@@ -961,6 +957,7 @@ BEGIN
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
 		  ,@SingleCountSiteDBDown AS SingleCount
 		  ,@ParlayCountSiteDBDown AS ParlayCount
+		  ,@CancelCashOutCountSiteDBDown AS CancelCashOutCount
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
