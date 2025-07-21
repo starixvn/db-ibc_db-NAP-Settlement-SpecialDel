@@ -47,14 +47,14 @@ BEGIN
 			AND c.roleid = 1
 	GROUP by c.custid, c.site
 
-	--Get Movebetdate
-	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
-		
-	--Get BalanceUpDate
-	EXEC dbo.NAP_Admin_GetBalanceUpDate @BalanceUpDate = @balanceupdate OUTPUT
-
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpCustIdSendMail)
 	BEGIN
+
+		--Get Movebetdate
+		EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
+		
+		--Get BalanceUpDate
+		EXEC dbo.NAP_Admin_GetBalanceUpDate @BalanceUpDate = @balanceupdate OUTPUT
 
 		-- turn to use bettrans in realtime
 		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
