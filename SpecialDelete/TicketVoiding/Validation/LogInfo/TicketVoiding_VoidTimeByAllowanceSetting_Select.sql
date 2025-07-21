@@ -1,11 +1,12 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-alter PROCEDURE [dbo].[TicketVoiding_VoidTimeByAllowanceSetting_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_VoidTimeByAllowanceSetting_Select]
 (	
 	 @IssueTypeId		  INT = 1
 	,@ActionId			  INT = 5
 	,@WrongScoreInfo	  VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo  VARCHAR(MAX) = NULL
 	,@RedCardInfo		  VARCHAR(MAX) = NULL
+	,@OnlineServerId	  VARCHAR(10) = NULL
 	
 )
 AS
@@ -17,8 +18,10 @@ AS
 	Revisions: 
 		- 20250513@July: Create new SP [Redmine: #227029]
 		- 20250526@July: Fix issue: DA/RC/WS - Detect wrong start void time  [Redmine: #228555]
+		- 20250721@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
 
 	Param's explanation:
+		+ OnlineServerId: '0,1,2,3'
 		
 */
 BEGIN
@@ -135,8 +138,18 @@ BEGIN
       ,bettype SMALLINT
 	  ,betdaqid BIGINT
 	  ,Subbettype SMALLINT
+	  ,IsSiteDBDown BIT DEFAULT(0)
 	)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmpOnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -170,6 +183,7 @@ BEGIN
 				,SiteDBGroupID
 				,CheckTimeCashOut
 				,AcceptModeCashOut
+				,IsSiteDBDown
 			)
 		SELECT DISTINCT d.MatchId
 			,b.TransId
@@ -191,6 +205,7 @@ BEGIN
 			,b.SiteDBGroupID
 			,c.CheckTime AS CheckTimeCashOut
 			,c.AcceptMode AS AcceptModeCashOut
+			,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 			INNER JOIN @bettype_tmp bt ON b.bettype = bt.bettype
@@ -210,7 +225,9 @@ BEGIN
 						 ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
 								   ELSE 0 END
 						 END
-			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						 ELSE 0 END
 	
 		--Search sub-parlay
 		IF EXISTS (
@@ -220,7 +237,10 @@ BEGIN
 						WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 				  					   WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   					   ELSE 0 END
-							AND bm.betfrom <> 'P' AND bm.SiteDBGroupID = @SiteDBGroupID
+							AND bm.betfrom <> 'P' 
+							AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+										 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+										 ELSE 0 END
 						)
 		BEGIN		
 			INSERT INTO #tmpTransInfo(
@@ -242,6 +262,7 @@ BEGIN
 					,Status
 					,SubStatus 
 					,SiteDBGroupID
+					,IsSiteDBDown
 				)
 			SELECT DISTINCT d.MatchId
 				,b.TransId
@@ -261,6 +282,7 @@ BEGIN
 				,b.Status
 				,sub.status AS SubStatus 
 				,sub.SiteDBGroupID
+				,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
 			FROM #FilterInfo d
 				INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 				INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -274,7 +296,10 @@ BEGIN
 						 WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
 						 WHEN d.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 					END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
-				AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
+				AND b.SiteDBGroupID = sub.SiteDBGroupID
+				AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+							 WHEN sub.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+							 ELSE 0 END
 
 		END
 
@@ -429,6 +454,7 @@ BEGIN
 				,SiteDBGroupID
 				,CheckTimeCashOut
 				,AcceptModeCashOut
+				,IsSiteDBDown
 			)
 		SELECT DISTINCT d.MatchId
 			,b.TransId
@@ -450,6 +476,7 @@ BEGIN
 			,b.SiteDBGroupID
 			,c.CheckTime AS CheckTimeCashOut
 			,c.AcceptMode AS AcceptModeCashOut
+			,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -466,7 +493,9 @@ BEGIN
 						 WHEN b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 	
 						  AND b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
 						 ELSE 0 END
-			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						 ELSE 0 END
 	
 		--Search sub-parlay
 		IF EXISTS (
@@ -476,7 +505,10 @@ BEGIN
 						WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 									   WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 									   ELSE 0 END
-							AND bm.betfrom <> 'P' AND bm.SiteDBGroupID = @SiteDBGroupID
+							AND bm.betfrom <> 'P' 
+							AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+										 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+										 ELSE 0 END
 						)
 		BEGIN		
 			INSERT INTO #tmpTransInfo(
@@ -498,6 +530,7 @@ BEGIN
 					,Status
 					,SubStatus 
 					,SiteDBGroupID
+					,IsSiteDBDown
 				)
 			SELECT DISTINCT d.MatchId
 				,b.TransId
@@ -517,6 +550,7 @@ BEGIN
 				,b.Status
 				,sub.status AS SubStatus 
 				,sub.SiteDBGroupID
+				,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
 			FROM #FilterInfo d
 				INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 				INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -527,7 +561,10 @@ BEGIN
 				AND sub.betfrom <> 'P'
 				AND b.matchid = 29 AND b.bettype = 29
 				AND ((sub.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
-				AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
+				AND b.SiteDBGroupID = sub.SiteDBGroupID
+				AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+							 WHEN sub.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+							 ELSE 0 END
 		END 
 
 		--Delete ticket having subissuetype exclude bettype
