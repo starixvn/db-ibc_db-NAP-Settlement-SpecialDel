@@ -13,35 +13,35 @@ BEGIN
         SET NOCOUNT ON
 
         CREATE TABLE #tmpData (
-                [Year]                                                        INT
+                [Year]                                                  INT
                 ,[Month]                                                INT
-                ,[Date]                                                        DATETIME
-                ,[Weekday]                                                VARCHAR(20)
-                ,sporttype                                                SMALLINT
-                ,sportname                                                NVARCHAR(50)
-                ,GroupID                                                INT
-                ,GroupName                                                VARCHAR(200)
-                ,LeagueName                                                NVARCHAR(500)
+                ,[Date]                                                 DATETIME
+                ,[Weekday]                                              VARCHAR(20)
+                ,sporttype                                              SMALLINT
+                ,sportname                                              NVARCHAR(50)
+                ,GroupID												INT
+                ,GroupName                                              VARCHAR(200)
+                ,LeagueName                                             NVARCHAR(500)
                 ,matchid                                                INT
-                ,hometeam                                                NVARCHAR(100) 
-                ,awayteam                                                NVARCHAR(100)
-                ,GlobalShowTime                                        DATETIME
-                ,keyscoreUser                                        NVARCHAR(50)
-                ,SettleAction                                        VARCHAR(20)
-                ,SettlementStatus                                VARCHAR(20)
-                ,ConfirmStatus                                        VARCHAR(20)
-                ,ConfirmDate                                        DATETIME
-                ,Step1_WaitforKeyscore_Duration INT
-                ,Step2_WaitforSettle_Duration        INT
-                ,Step3_Settle_Duration                        INT
-                ,IsHold                                                        INT
-                ,IsLive                                                        BIT DEFAULT(0)
-                ,IsChildMatch                                        BIT
-                ,Action                                                        VARCHAR(20)
-                ,ActionId                                                INT
-                ,ParentID                                                INT 
-                ,ChildMatchType                                        TINYINT    
-				,LeagueID	INT
+                ,hometeam                                               NVARCHAR(100) 
+                ,awayteam                                               NVARCHAR(100)
+                ,GlobalShowTime											DATETIME
+                ,keyscoreUser											NVARCHAR(50)
+                ,SettleAction											VARCHAR(20)
+                ,SettlementStatus										VARCHAR(20)
+                ,ConfirmStatus											VARCHAR(20)
+                ,ConfirmDate											DATETIME
+                ,Step1_WaitforKeyscore_Duration							INT
+                ,Step2_WaitforSettle_Duration							INT
+                ,Step3_Settle_Duration									INT
+                ,IsHold                                                 INT
+                ,IsLive                                                 BIT DEFAULT(0)
+                ,IsChildMatch											BIT
+                ,Action                                                 VARCHAR(20)
+                ,ActionId                                               INT
+                ,ParentID                                               INT 
+                ,ChildMatchType											TINYINT    
+				,LeagueID												INT
         )
         CREATE TABLE #MatchLive(matchid INT)
 
