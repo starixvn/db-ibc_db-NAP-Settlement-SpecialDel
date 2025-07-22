@@ -9,7 +9,7 @@
 USE bodb02
 GO
 BEGIN
-	IF NOT EXISTS ( SELECT TOP 1 1 FROM dbo.ProviderGameTypeMapping pgm WITH(ROWLOCK)
+	IF NOT EXISTS ( SELECT TOP 1 1 FROM dbo.ProviderGameTypeMapping pgm WITH(NOLOCK)
 					WHERE pgm.sporttype = 10 AND SourceId = 1	)
 	BEGIN
 		INSERT INTO dbo.ProviderGameTypeMapping
