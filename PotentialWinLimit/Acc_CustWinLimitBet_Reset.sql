@@ -17,7 +17,7 @@ AS
 
 	Note param:
 		@ListCustId =  [{"CustId":"1","ResetType":"0"},{"CustId":"2","ResetType":"1"}]
-				ResetType = 0 --all (single + parlay), 1 --only
+				ResetType = 0 --all (single + parlay), 1 --only single, 2 --only parlay
 */
 BEGIN
 	SET NOCOUNT ON
@@ -60,6 +60,18 @@ BEGIN
 			FROM CustWinLimitBet b WITH(ROWLOCK,UPDLOCK)
 				INNER JOIN @tmpCustIds c ON b.CustID = c.CustID 
 			WHERE c.ResetType = 1 AND b.SportType = 0 AND b.Bettype = 0
+		END
+
+		IF EXISTS(SELECT TOP 1 1 FROM @tmpCustIds WHERE ResetType = 2) -- only parlay
+		BEGIN
+			UPDATE b	
+			SET AccumWinLoss = 0
+				,RepUpdateTime = [dbo].[f_GetDateTime2]() 
+			OUTPUT deleted.CustID, NULL, 0, -deleted.AccumWinLoss, 0, deleted.bettype, 100, [dbo].[f_GetDateTime2]() 
+			INTO CustWinLimitBet_History (CustID, Transid, AdjToWin, AdjWinLoss, SportType, Bettype, ActionType, RepUpdateTime)
+			FROM CustWinLimitBet b WITH(ROWLOCK,UPDLOCK)
+				INNER JOIN @tmpCustIds c ON b.CustID = c.CustID 
+			WHERE c.ResetType = 2 AND b.SportType = 0 AND b.Bettype = 29
 		END
 
 	END TRY
