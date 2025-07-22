@@ -1,6 +1,6 @@
 /*<info serverAlias="DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
-	Created by: 20250506Aries
+	Created by: 20250722@Hughie
 	Task	  : Negative Balance for Agency Cash Service  [Redmine:#225377]
 	DB		  : DBSIC/bodb02
 	Revisions:
@@ -45,25 +45,27 @@ EXEC @ReturnCode = msdb.dbo.sp_add_jobstep @job_id=@jobId, @step_name=N'Run SP',
 		@retry_attempts=0, 
 		@retry_interval=0, 
 		@os_run_priority=0, @subsystem=N'TSQL', 
-		@command=N'EXEC dbo.Task_Cash_BalanceNegative', 
+		@command=N'EXEC dbo.Task_BalanceNegative_Job
+		@Jobname  = ''bodb02: Task_Cash_BalanceNegative''
+		,@Waitfordelay = ''00:00:01.500''', 
+		@database_name=N'bodb02', 
+		@flags=0
+IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
+EXEC @ReturnCode = msdb.dbo.sp_add_jobstep @job_id=@jobId, @step_name=N'Waitfor delay', 
+		@step_id=2, 
+		@cmdexec_success_code=0, 
+		@on_success_action=4, 
+		@on_success_step_id=1, 
+		@on_fail_action=2, 
+		@on_fail_step_id=0, 
+		@retry_attempts=0, 
+		@retry_interval=0, 
+		@os_run_priority=0, @subsystem=N'TSQL', 
+		@command=N'waitfor delay ''00:00:01.500''', 
 		@database_name=N'bodb02', 
 		@flags=0
 IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
 EXEC @ReturnCode = msdb.dbo.sp_update_job @job_id = @jobId, @start_step_id = 1
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-EXEC @ReturnCode = msdb.dbo.sp_add_jobschedule @job_id=@jobId, @name=N'Sche: Cash Negative Balance', 
-		@enabled=1, 
-		@freq_type=4, 
-		@freq_interval=1, 
-		@freq_subday_type=2, 
-		@freq_subday_interval=2, 
-		@freq_relative_interval=0, 
-		@freq_recurrence_factor=0, 
-		@active_start_date=20130708, 
-		@active_end_date=99991231, 
-		@active_start_time=0, 
-		@active_end_time=235959, 
-		@schedule_uid=N'635b8bc7-751c-4aaf-9cf1-089813377b96'
 IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
 EXEC @ReturnCode = msdb.dbo.sp_add_jobserver @job_id = @jobId, @server_name = N'(local)'
 IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback

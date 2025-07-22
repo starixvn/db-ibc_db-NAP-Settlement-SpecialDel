@@ -104,6 +104,10 @@ BEGIN
 	UNION ALL
 	SELECT 'bodb02: Task_BalanceTrigger_WinLimit'	, '00:01:00', 0
 
+	--Negative Balance for Agency Cash Service
+	UNION ALL
+	SELECT 'bodb02: Task_Cash_BalanceNegative'	, '00:01:00', 0
+
 
 	SELECT @WaitingTime = WaitingTime
 			,@IsWaiting = IsWaiting
