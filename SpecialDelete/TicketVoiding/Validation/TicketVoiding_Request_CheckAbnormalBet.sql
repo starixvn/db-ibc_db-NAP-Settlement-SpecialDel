@@ -500,7 +500,6 @@ BEGIN
 			ON al.srecommend = s.custid
 		LEFT JOIN @VIPAccount_tmp vip ON al.custid = vip.CustID
 
-
 	BEGIN
 		DECLARE @tmpSiteDBDownInfo TABLE (
 			MatchId INT,
@@ -909,14 +908,17 @@ BEGIN
 	FOR JSON PATH))
 	
 	--List ticket insert table TicketVoiding_PendingMarkTickets
-	SET @SiteDBDownInfoJson = COMPRESS((SELECT MatchId AS 'mid'
-		,transid AS 't'
-		,IsMixParlay AS 'isP'
-		,SiteDBGroupID AS 'sitedb'
-		,isMarked AS 'isMarked'
-	FROM @tmpSiteDBDownInfo 
-	WHERE isMarked = 1
-	FOR JSON PATH))
+	IF @ActionId <> 2
+	BEGIN
+		SET @SiteDBDownInfoJson = COMPRESS((SELECT MatchId AS 'mid'
+			,transid AS 't'
+			,IsMixParlay AS 'isP'
+			,SiteDBGroupID AS 'sitedb'
+			,isMarked AS 'isMarked'
+		FROM @tmpSiteDBDownInfo 
+		WHERE isMarked = 1
+		FOR JSON PATH))
+	END
 
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@RemoveTransids AS RemoveTransids -- Ticket remove -> re-cal
