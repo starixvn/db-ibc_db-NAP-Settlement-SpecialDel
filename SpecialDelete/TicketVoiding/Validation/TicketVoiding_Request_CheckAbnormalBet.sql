@@ -844,6 +844,7 @@ BEGIN
 			INSERT INTO @tmpMarkTransId (TransId)
 			SELECT transid
 			FROM #validTransId WHERE StatusId IN (0,1)
+
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
 		BEGIN
@@ -851,15 +852,11 @@ BEGIN
 			SELECT rdt.TransId
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 			WHERE rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
-			
-		END
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpUnmarkTransId)
-		BEGIN
 			DELETE p
 			FROM DBCTG.bodb02.dbo.TicketVoiding_PendingMarkTickets p
-			WHERE p.transid IN (SELECT TransId FROM @tmpUnmarkTransId)
-				AND RequestId = @RequestId
+			WHERE RequestId = @RequestId
+			
 		END
 	END
 
