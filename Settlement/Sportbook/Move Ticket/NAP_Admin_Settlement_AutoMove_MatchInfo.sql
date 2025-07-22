@@ -1,5 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Settlement_AutoMove_MatchInfo
+	@EventDate DATE
 /*	
 	Created: 20250721@Louisa
 	Task: Auto move ticket of Cricket [Redmine:#227191]
@@ -11,8 +12,6 @@ ALTER PROCEDURE NAP_Admin_Settlement_AutoMove_MatchInfo
 AS
 BEGIN
 	SET NOCOUNT ON 
-
-	DECLARE @ToDay DATE = GETDATE()
 
 	DECLARE @MainMatchInfo TABLE ( MatchId INT, sporttype SMALLINT, SettlementStatus TINYINT, eventdate DATETIME )
 
@@ -27,7 +26,7 @@ BEGIN
 			)
 		AND ISNULL(m.ParentID, 0) = 0
 		AND m.eventstatus <> 'completed'
-		AND m.eventdate = @ToDay
+		AND m.eventdate = @EventDate
 		AND m.kickofftime < GETDATE()
 		AND m.IsDeleted = 0
 
