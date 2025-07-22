@@ -857,6 +857,12 @@ BEGIN
 					ON	r.SubTransId=b.transid						
 		END
 		
+		INSERT INTO #BeforeUpd(custid, balance)
+		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
+		FROM dbo.bettrans b WITH (NOLOCK)
+		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets_Single UNION ALL SELECT transid FROM #SpecialDeleteBets_Parlay)
+		GROUP BY b.CustID
+
 		-------> update status for tickets to void		
 		--> update status for single
 		IF @CountSingle > 0
@@ -1026,12 +1032,6 @@ BEGIN
 		GROUP BY T.matchid, T.custid			   
 			   , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END
 			   , ISNULL(T.WalletType, 2) -- normal tickets are treated as cash tickets
-
-		INSERT INTO #BeforeUpd(custid, balance)
-		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
-		FROM dbo.bettrans b WITH (NOLOCK)
-		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets_Single UNION ALL SELECT transid FROM #SpecialDeleteBets_Parlay)
-		GROUP BY b.CustID
 
 		--Correct data captured before because CO happen when voiding ticket
 		IF EXISTS (SELECT TOP(1) 1 FROM #SpecialDeleteBets_Single	b
