@@ -904,17 +904,14 @@ BEGIN
 	FOR JSON PATH))
 	
 	--List ticket insert table TicketVoiding_PendingMarkTickets
-	IF @ActionId <> 2
-	BEGIN
-		SET @SiteDBDownInfoJson = COMPRESS((SELECT MatchId AS 'mid'
-			,transid AS 't'
-			,IsMixParlay AS 'isP'
-			,SiteDBGroupID AS 'sitedb'
-			,isMarked AS 'isMarked'
-		FROM @tmpSiteDBDownInfo 
-		WHERE isMarked = 1
-		FOR JSON PATH))
-	END
+	SET @SiteDBDownInfoJson = COMPRESS((SELECT MatchId AS 'mid'
+		,transid AS 't'
+		,IsMixParlay AS 'isP'
+		,SiteDBGroupID AS 'sitedb'
+		,isMarked AS 'isMarked'
+	FROM @tmpSiteDBDownInfo 
+	WHERE isMarked = 1
+	FOR JSON PATH))
 
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@RemoveTransids AS RemoveTransids -- Ticket remove -> re-cal

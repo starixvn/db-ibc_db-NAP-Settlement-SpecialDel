@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_PendingMarkTickets_Insert]
 (	
 	 @SiteDBDownInfoJson	VARCHAR(MAX)  = NULL
 	,@RequestId				INT			  = NULL
+	,@ActionId				INT			  = 2
 )
 AS
 /*	
@@ -25,6 +26,13 @@ BEGIN
 
 	DECLARE @tmpSiteDBDownInfo TABLE (MatchId INT, TransId BIGINT, IsMixParlay BIT, SiteDBGroupID SMALLINT, isMarked BIT)
 
+	IF @ActionId = 2 --Change other action to take note
+	BEGIN
+		DELETE p
+		FROM dbo.TicketVoiding_PendingMarkTickets p
+		WHERE RequestId = @RequestId
+	END
+
 	INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
 	SELECT mid ,t ,isP ,sitedb, isMarked
 	FROM OPENJSON(@Decompress_SiteDBDownInfoJson) 
@@ -40,7 +48,7 @@ BEGIN
 	FROM @tmpSiteDBDownInfo s
 	WHERE NOT EXISTS ( SELECT TOP 1 1 
 					   FROM dbo.TicketVoiding_PendingMarkTickets p WITH (NOLOCK)
-					   WHERE s.TransId = p.TransId AND s.MatchId = p.MatchId
+					   WHERE s.TransId = p.TransId AND p.RequestId = @RequestId
 					)
 
 END
