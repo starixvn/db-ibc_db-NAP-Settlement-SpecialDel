@@ -852,10 +852,6 @@ BEGIN
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 			WHERE rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
 
-			DELETE p
-			FROM DBCTG.bodb02.dbo.TicketVoiding_PendingMarkTickets p
-			WHERE RequestId = @RequestId
-			
 		END
 	END
 
