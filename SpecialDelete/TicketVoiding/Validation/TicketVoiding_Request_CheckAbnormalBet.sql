@@ -500,6 +500,19 @@ BEGIN
 			ON al.srecommend = s.custid
 		LEFT JOIN @VIPAccount_tmp vip ON al.custid = vip.CustID
 
+	--Duplicated Transids
+	UPDATE t
+	SET t.RemarkId = 2
+	FROM #tmpInputTransid_RemarkId t
+		WHERE EXISTS (
+			SELECT i.transid
+			FROM #tmpInputTransid_RemarkId i
+				INNER JOIN #tmpTransInfo x ON i.Transid = x.Transid
+			WHERE i.Transid = t.Transid
+			GROUP BY i.Transid
+			HAVING COUNT(1) >= 2
+		)
+	
 	BEGIN
 		DECLARE @tmpSiteDBDownInfo TABLE (
 			MatchId INT,
@@ -513,8 +526,9 @@ BEGIN
 		
 		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
 		SELECT ISNULL(ChildMatchId, MatchId) AS MatchId, TransId, IsMixParlay, SiteDBGroupID, CASE WHEN statusID IN (0,1) THEN 1 ELSE 0 END AS isMarked
-		FROM #tmpTransInfo
-		WHERE IsSiteDBDown = 1;
+		FROM #tmpTransInfo t
+		WHERE IsSiteDBDown = 1
+			AND t.transid IN (SELECT transid FROM #tmpInputTransid_RemarkId WHERE RemarkId IS NULL)
 
 		UPDATE t
 		SET t.RemarkId = 10
@@ -530,19 +544,6 @@ BEGIN
 		FROM @tmpSiteDBDownInfo
 
 	END
-
-	--Duplicated Transids
-	UPDATE t
-	SET t.RemarkId = 2
-	FROM #tmpInputTransid_RemarkId t
-		WHERE EXISTS (
-			SELECT i.transid
-			FROM #tmpInputTransid_RemarkId i
-				INNER JOIN #tmpTransInfo x ON i.Transid = x.Transid
-			WHERE i.Transid = t.Transid
-			GROUP BY i.Transid
-			HAVING COUNT(1) >= 2
-		)
 
 	-- select valid TransId of Abnormal bet
 	INSERT INTO #validTransId (
@@ -629,8 +630,7 @@ BEGIN
 	WHERE NOT EXISTS (SELECT 1 FROM #validTransId 
 					  WHERE transid = temp.transid 
 					  AND 1 = CASE WHEN @ActionId = 1 AND StatusId IN (111,112,113) THEN 0 ELSE 1 END)
-		AND temp.transid NOT IN ( SELECT TransId FROM #UnsupportedTransids)
-		AND temp.transid NOT IN ( SELECT TransId FROM @tmpSiteDBDownInfo)
+		AND temp.transid NOT IN ( SELECT TransId FROM #tmpInputTransid_RemarkId WHERE RemarkId IS NOT NULL)
 		AND temp.transid NOT IN ( SELECT TransId FROM #TransidInRequest)
 
 	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
