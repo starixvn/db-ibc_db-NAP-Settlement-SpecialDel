@@ -856,7 +856,7 @@ BEGIN
 				INNER JOIN CustWinLimitBet_History h WITH (NOLOCK) ON r.custid = h.custid 
 				INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = h.Transid
 			WHERE 1 = CASE WHEN b.refno = 100000000000 AND h.repupdatetime > r.LatestResetDate_single THEN 1
-							WHEN b.refno > 100000000000 AND h.repupdatetime > r.LatestResetDate_parlay THEN 1
+							WHEN (b.bettype IN (29,38) OR b.refno > 100000000000) AND h.repupdatetime > r.LatestResetDate_parlay THEN 1
 							ELSE 0 END
 		)
 		INSERT INTO #Result_tmp (custid, Currency, transid)
@@ -912,14 +912,14 @@ BEGIN
 		SELECT TOP (@batch) c.CustID, v.currency
 		FROM CustDB.dbo.CustPotentialWinLimit c WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.Customer v WITH (NOLOCK) ON c.custid = v.custid
-			INNER JOIN dbo.CustWinLimitBet w WITH (NOLOCK) ON c.custid = w.custid
+			INNER JOIN dbo.CustWinLimitBet w WITH (NOLOCK) ON c.custid = w.custid 
 		WHERE c.IsAutoReset = 1 AND c.PotentialWinLimit > 0
 			AND v.site NOT IN ('Special','Hedging')
 			AND NOT EXISTS (SELECT TOP 1 1 
 							FROM dbo.CustWinLimitBet_History h WITH (NOLOCK) 
-							WHERE h.CustID = c.CustID AND ActionType = 100 AND w.Bettype = ISNULL(h.bettype,0)
-							AND h.RepUpdateTime >= @Today and h.RepUpdateTime < @Nextday
-							AND h.Bettype = w.Bettype
+							WHERE h.CustID = c.CustID AND ActionType = 100 
+								AND w.Bettype = h.bettype
+								AND h.RepUpdateTime >= @Today and h.RepUpdateTime < @Nextday
 							)
 		ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
 		              WHEN v.Currency IN (20) THEN 2
