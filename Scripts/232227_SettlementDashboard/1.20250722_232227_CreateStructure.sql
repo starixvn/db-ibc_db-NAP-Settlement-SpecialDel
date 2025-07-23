@@ -1,12 +1,12 @@
-/*<info serverAlias="DBWH-bodb_dwrs" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBWH-bodb_Account" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20250722@Max
 	Task	  : Integration - Settlement Time Dashboard report [Redmine:#232227]
-	DB		  : DBWH-bodb_dwrs
+	DB		  : DBWH-bodb_Account
 	Revisions:
 		- 20250722@Max: Create structure [Redmine:#232227]
 */
-USE bodb_dwrs
+USE bodb_Account
 GO
 
 CREATE TABLE dbo.SettlementPerformanceReport (
@@ -25,8 +25,8 @@ CREATE TABLE dbo.SettlementPerformanceReport (
 CONSTRAINT [PK_SettlementPerformanceReport] PRIMARY KEY NONCLUSTERED 
 (
 	[RowID] ASC
-) ON [PRIMARY]
-) ON [PRIMARY]
+) ON [DATA]
+) ON [DATA]
 
 CREATE CLUSTERED INDEX IX_SettlementPerformanceReport_EventDate_SportType_LeagueID
 ON SettlementPerformanceReport (EventDate, SportType, LeagueID);
