@@ -50,6 +50,7 @@ AS
 		- 20241125@Lani: [TVS] Change join type, serverAlias [Redmine: #213451]
 		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
 		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+		- 20250623@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's Explanation: 
 		- @Opition: 
@@ -65,6 +66,7 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			NVARCHAR(MAX)
 			,@SB_Error			BIT
+			,@ActionId			INT = 90999 --TVS - Agency Cash Service
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90518
@@ -137,6 +139,7 @@ BEGIN
 	CREATE TABLE #tblTransId (transid BIGINT PRIMARY KEY)	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)	
 	CREATE TABLE #TmpBallSequence (Seq	TINYINT)
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, increased BIT)
 	
 	DECLARE @tblMatch TABLE (matchid INT PRIMARY KEY, seq INT)
 
@@ -688,6 +691,40 @@ BEGIN
 			INNER JOIN #BetAfter a 
 				ON	a.transid = b.transid
 		WHERE (a.winlost - b.winlost) < 0
+		
+		INSERT INTO #Balance (custid, balance, increased)
+		SELECT b.custid, SUM(a.balance - b.balance) AS balance, CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
+		FROM #BeforeUpd AS b
+			INNER JOIN #AfterUpd AS a ON b.custid = a.custid 
+										AND b.winlostdate = a.winlostdate 
+										AND b.gametypeid = a.gametypeid
+		WHERE a.balance <> b.balance
+		GROUP BY b.custid
+
+		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative]
+					   ([ExecDate]
+					   ,[MatchID]
+					   ,[ActionID]
+					   ,[GroupID]
+					   ,[CustID]
+					   ,[Balance]
+					   ,[StatusID]
+					   ,[Remark])
+			SELECT	 GETDATE()
+					,CASE WHEN @Option = 0 THEN @MatchId ELSE 0 END
+					,@ActionID
+					,0		-- For Void/Recover
+					,CustID
+					,Balance
+					,0
+					,@spName
+			FROM	#Balance
+			WHERE	increased = 0
+		END		        
+		DROP TABLE #Balance
 		
 		----------------Insert Max Payout Queue----------------
 		DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL, @sporttype SMALLINT = NULL

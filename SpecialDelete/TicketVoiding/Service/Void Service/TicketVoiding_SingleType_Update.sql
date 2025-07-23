@@ -64,6 +64,7 @@ AS
 		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
 		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
+		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's explanation:	
 		
@@ -113,9 +114,11 @@ BEGIN
 			,@SitedbgroupId				SMALLINT 
 			,@IsSiteDB					BIT
 			,@TransInfo					VARBINARY(MAX)
-			
+			,@ActionID					INT = 90999 --TVS - Agency Cash Service
+
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
 
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 	DECLARE @tblTransId_MoveBet TABLE (MatchId INT, TransId BIGINT)
@@ -919,24 +922,51 @@ BEGIN
 	END
 	-------------------------------------------------------
 	
+	INSERT INTO #Balance (custid, balance, Increased)
+	SELECT b.custid, SUM(a.balance - b.balance) AS balance, CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
+	FROM @BeforeUpd b
+		INNER JOIN @AfterUpd a ON b.custid = a.custid
+									AND b.matchid = a.matchid
+									AND b.balanceType = a.balanceType
+									AND b.bonusId = a.bonusId
+									AND b.walletType = a.walletType
+	WHERE b.balance <> a.balance
+	GROUP BY b.custid
+
 	-- get negative balance user list
 	SET @CustIds = ''
-	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
-	FROM	(
-		SELECT DISTINCT b.custid
-		FROM @BeforeUpd b
-			INNER JOIN @AfterUpd a
-				ON b.custid = a.custid
-					AND b.matchid = a.matchid
-					AND b.balanceType = a.balanceType
-					AND b.bonusId = a.bonusId
-					AND b.walletType = a.walletType
-		WHERE	b.balance > a.balance
-	)t
+	SELECT	@CustIds = @CustIds + CAST(custid AS VARCHAR(20)) + ','
+	FROM #Balance
+	WHERE Increased = 0
 
 	EXEC dbo.NAP_CustNegativeBalance_Sel
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+	
+	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+					([ExecDate]
+					,[MatchID]
+					,[ActionID]
+					,[GroupID]
+					,[CustID]
+					,[Balance]
+					,[StatusID]
+					,[Remark])
+		SELECT	 GETDATE()
+				,@MatchId
+				,@ActionID
+				,0		-- For Void/Recover
+				,CustID
+				,Balance
+				,0
+				,@spName + ' - RequestId: ' + CAST(@RequestId AS VARCHAR)
+		FROM	#Balance
+		WHERE	Increased = 0
+	END		        
+	DROP TABLE #Balance
 
 	-- Write Log
 	SET @EndTime = GETDATE()

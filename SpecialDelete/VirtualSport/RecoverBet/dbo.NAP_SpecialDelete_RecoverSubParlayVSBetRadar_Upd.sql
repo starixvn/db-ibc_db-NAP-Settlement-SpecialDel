@@ -7,7 +7,6 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSubParlayVSBetRadar_Upd]
 AS
 /*  
 	Created by: 20170607@Kent  
-	Task: 
 	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02	    
 
 	Revisions:  		
@@ -25,6 +24,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241126@Lani: [TVS] Get site from member, change serverAlias [Redmine: #213451]
+		- 20250624@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -58,7 +58,8 @@ BEGIN
 		  , @SiteDBGroupID				SMALLINT
 		  , @transInfo					VARBINARY(MAX) 
 		  , @IsExistsVS2				BIT = 0
-		  , @IsExistsVS				BIT = 0
+		  , @IsExistsVS					BIT = 0
+		  , @ActionId					INT = 90999 --TVS - Agency Cash Service
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT)
@@ -117,6 +118,7 @@ BEGIN
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, increased BIT)
 	
 	DECLARE @beforeUpd TVP_BalanceChange
 		  , @afterUpd  TVP_BalanceChange
@@ -452,11 +454,42 @@ BEGIN
 				INNER JOIN #RecoverBet t 
 						ON	b.transid = t.TransId					 	  
 		GROUP BY b.CustID
-		
+
 		--> INSERT data into pending balance table   
 		EXEC [dbo].[NAP_Admin_BalancePendingIns]
 			  @BeforeUpd = @beforeUpd
 			, @AfterUpd	 = @afterUpd
+
+		INSERT INTO #Balance (custid, balance, increased)
+		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+		FROM @beforeUpd AS b
+		INNER JOIN @afterUpd AS a ON b.custid = a.custid
+		WHERE b.balance <> a.balance
+
+		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative]
+						([ExecDate]
+						,[MatchID]
+						,[ActionID]
+						,[GroupID]
+						,[CustID]
+						,[Balance]
+						,[StatusID]
+						,[Remark])
+			SELECT	 GETDATE()
+					,@MatchId
+					,@ActionID
+					,0		-- For Void/Recover
+					,CustID
+					,Balance
+					,0
+					,@spName
+			FROM	#Balance
+			WHERE	increased = 0
+		END
+		DROP TABLE #Balance
 
 		--> Delete zzzbettransm
 		DELETE z

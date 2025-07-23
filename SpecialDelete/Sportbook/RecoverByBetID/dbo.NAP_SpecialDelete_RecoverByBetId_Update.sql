@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverByBetId_Update]
 	@TransIds		      VARCHAR(MAX), 
 	@UserId			      INT,	
@@ -7,7 +7,7 @@ AS
 /*
 	Created: Paul
 	Task: Recover by bet id
-	DB: DBTXN.bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	Original: 
 
 	Revisions:
@@ -26,8 +26,9 @@ AS
 		- 20230921@Max: [TVS] Recover Virtual Sports Bet and Recover By Bet ID - Update more info when calling SP from Settlement site [Redmine: #194269]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
-	Param's Explanation:	
+	Param's Explanation:				   
 */
 
 BEGIN
@@ -37,6 +38,8 @@ BEGIN
 	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
 			, @SubmittedDate DATETIME = GETDATE()
 			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+			, @ActionID	INT = 90999 --TVS - Agency Cash Service
+
 	SET @ID =  NEWID()
 	BEGIN TRY
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
@@ -148,6 +151,8 @@ BEGIN
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsMatch3rd	BIT DEFAULT(0), IsFinish BIT)
 	DECLARE @BeforeRecover 	TVP_BalanceChange,
 			@AfterRecover 	TVP_BalanceChange;
+	
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
 
 	DECLARE @avaiableProcess	  BIT ,
 			@isITAdmin			  BIT = 0,
@@ -504,6 +509,38 @@ BEGIN
 
 	--Insert balance pending
 	EXEC [dbo].[NAP_Admin_BalancePendingIns] @BeforeUpd = @BeforeRecover, @AfterUpd = @AfterRecover;
+
+	INSERT INTO #Balance (custid, balance, Increased)
+	SELECT b.custid, SUM(a.balance - b.balance) AS balance, CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
+	FROM @BeforeRecover b
+		INNER JOIN @AfterRecover a ON b.custid = a.custid AND b.balanceType = a.balanceType
+	WHERE b.balance <> a.balance
+	GROUP BY b.custid
+
+	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+					([ExecDate]
+					,[MatchID]
+					,[ActionID]
+					,[GroupID]
+					,[CustID]
+					,[Balance]
+					,[StatusID]
+					,[Remark])
+		SELECT	 GETDATE()
+				,0 --For case input multiple tickets across multiple matches
+				,@ActionID
+				,0		-- For Void/Recover
+				,CustID
+				,Balance
+				,0
+				,@spName
+		FROM	#Balance
+		WHERE	Increased = 0
+	END		        
+	DROP TABLE #Balance
 
 	--Delete recovers tickets
 	DELETE z 

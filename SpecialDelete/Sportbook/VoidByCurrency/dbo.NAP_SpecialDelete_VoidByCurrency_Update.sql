@@ -77,6 +77,7 @@ AS
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Param's Explanation:
 */
@@ -88,6 +89,7 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			NVARCHAR(MAX)
 			,@SB_Error			BIT
+			,@ActionID			INT = 90999 --TVS - Agency Cash Service
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90514
@@ -235,10 +237,10 @@ BEGIN
 	
 	DECLARE @tmpTrans_beforeUpd AS TABLE (matchid INT, transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT, betdaqid BIGINT, status VARCHAR(20))
 
-	CREATE TABLE #NegativeBalance (transid BIGINT)
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
-	
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
+
 	CREATE TABLE #SpecialDeleteBets (
 			id					INT IDENTITY,
 			GroupID				BIGINT,
@@ -809,21 +811,6 @@ BEGIN
 			
 		END
 		
-		--> capture Before Balance Update
-		IF @CountSingle > 0
-		BEGIN
-			INSERT INTO #NegativeBalance (transid)  
-			SELECT	b.transid
-			FROM  #SpecialDeleteBets_Single b WITH (NOLOCK)
-		END		
-		
-		IF @CountParlay > 0
-		BEGIN
-			INSERT INTO #NegativeBalance (transid)  
-			SELECT	b.transid
-			FROM  #SpecialDeleteBets_Parlay b WITH (NOLOCK)
-		END
-
 		-------> Insert backups	
 		--> backups for single
 		IF @CountSingle > 0
@@ -870,6 +857,12 @@ BEGIN
 					ON	r.SubTransId=b.transid						
 		END
 		
+		INSERT INTO #BeforeUpd(custid, balance)
+		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
+		FROM dbo.bettrans b WITH (NOLOCK)
+		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets_Single UNION ALL SELECT transid FROM #SpecialDeleteBets_Parlay)
+		GROUP BY b.CustID
+
 		-------> update status for tickets to void		
 		--> update status for single
 		IF @CountSingle > 0
@@ -1039,12 +1032,6 @@ BEGIN
 		GROUP BY T.matchid, T.custid			   
 			   , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END
 			   , ISNULL(T.WalletType, 2) -- normal tickets are treated as cash tickets
-
-		INSERT INTO #BeforeUpd(custid, balance)
-		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
-		FROM @tmpTrans_beforeUpd b
-		WHERE transid IN (SELECT transid FROM #NegativeBalance)			
-		GROUP BY b.CustID
 
 		--Correct data captured before because CO happen when voiding ticket
 		IF EXISTS (SELECT TOP(1) 1 FROM #SpecialDeleteBets_Single	b
@@ -1292,17 +1279,47 @@ BEGIN
 		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets_Single UNION ALL SELECT transid FROM #SpecialDeleteBets_Parlay)
 		GROUP BY b.CustID
 
+		INSERT INTO #Balance (custid, balance, Increased)
+		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+		FROM #BeforeUpd b
+			INNER JOIN #AfterUpd a ON b.custid = a.custid
+		WHERE b.balance <> a.balance
+
 		SET @NegativeBalanceUsers = ''
 		SELECT @NegativeBalanceCustIds = @NegativeBalanceCustIds + 
 			CASE WHEN @NegativeBalanceCustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), b.custid)
-		FROM #BeforeUpd b
-			 INNER JOIN	#AfterUpd a ON a.custid = b.custid
-		WHERE b.balance > a.balance
+		FROM #Balance b
+		WHERE Increased = 0
 
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @NegativeBalanceCustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			 
+		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+		IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+		BEGIN
+			INSERT INTO [dbo].[BalanceNegative]
+					   ([ExecDate]
+					   ,[MatchID]
+					   ,[ActionID]
+					   ,[GroupID]
+					   ,[CustID]
+					   ,[Balance]
+					   ,[StatusID]
+					   ,[Remark])
+			SELECT	 GETDATE()
+					,@MatchId
+					,@ActionID
+					,0		-- For Void/Recover
+					,CustID
+					,Balance
+					,0
+					,@spName
+			FROM	#Balance
+			WHERE	Increased = 0
+		END		        
+		DROP TABLE #Balance
+
 		-- Update CashOutSelling [#165097]
 		UPDATE c
 		SET CashOutStatus = 6 --Void
@@ -1638,7 +1655,6 @@ BEGIN
 	DROP TABLE #tblMatchProcess 
 	DROP TABLE #BeforeUpd  
 	DROP TABLE #AfterUpd 
-	DROP TABLE #NegativeBalance
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #tblMatchParlayProcess
 

@@ -22,6 +22,7 @@ AS
 		- 20231215@Max: [TVS] Include negative balance member by cancel cash out action to email [Redmine: #196706]
 		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
 		- 20250117@July: Apply retry when cancelling cash out action [Redmine: #224848]
+		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 
 	Explanation's Param:
 
@@ -46,6 +47,7 @@ BEGIN
 		  , @xmlTransId			VARCHAR(MAX) = ''
 		  , @SiteDBGroupID		SMALLINT
 		  , @transInfo			VARBINARY(MAX) 
+		  , @ActionID			INT = 90999 --TVS - Agency Cash Service
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -75,7 +77,8 @@ BEGIN
 	
 	DECLARE @BeforeUpd 	TVP_BalanceChange
 	DECLARE @AfterUpd 	TVP_BalanceChange
-	
+	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
+
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 	DECLARE @tmpTransInfo TABLE (transId BIGINT, matchId INT
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
@@ -304,21 +307,47 @@ BEGIN
 		@isExistMatch		= 1
 		, @IsReleased		= 1
 
+	INSERT INTO #Balance (custid, balance, Increased)
+	SELECT b.custid, SUM(a.balance - b.balance) AS balance, CASE WHEN SUM(a.balance) > SUM(b.balance) THEN 1 ELSE 0 END
+	FROM @BeforeUpd b
+		INNER JOIN @AfterUpd a ON b.custid = a.custid AND b.balanceType = a.balanceType
+	WHERE b.balance <> a.balance
+	GROUP BY b.custid
+
 	-- get negative balance user list
 	SET @CustIds = ''
-	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
-	FROM	(
-		SELECT DISTINCT b.custid
-		FROM @BeforeUpd b
-			INNER JOIN @AfterUpd a
-				ON b.custid = a.custid
-					AND b.balanceType = a.balanceType
-		WHERE	b.balance > a.balance
-	)t
+	SELECT	@CustIds = @CustIds + CAST(custid AS VARCHAR(20)) + ','
+	FROM #Balance
+	WHERE Increased = 0
 
 	EXEC dbo.NAP_CustNegativeBalance_Sel
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+
+	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+					([ExecDate]
+					,[MatchID]
+					,[ActionID]
+					,[GroupID]
+					,[CustID]
+					,[Balance]
+					,[StatusID]
+					,[Remark])
+		SELECT	 GETDATE()
+				,@MatchId
+				,@ActionID
+				,0		-- For Void/Recover
+				,CustID
+				,Balance
+				,0
+				,@spName + ' - RequestId: ' + CAST(@RequestId AS VARCHAR)
+		FROM	#Balance
+		WHERE	Increased = 0
+	END		        
+	DROP TABLE #Balance
 
 	-- Write Log
 	SET @EndTime = GETDATE()

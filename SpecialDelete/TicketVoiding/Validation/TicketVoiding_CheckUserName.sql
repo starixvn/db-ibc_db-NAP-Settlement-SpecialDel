@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
     ,@ToDate			DATETIME     = NULL
 	,@AdjustVoidLimit	VARCHAR(MAX) = NULL
 	,@IsVoidAllArchivedTickets	BIT = 0
+	,@IsRemoveCreditCashService BIT = 0 
 )
 AS
 /*
@@ -47,6 +48,7 @@ AS
 		- 20250311@Max: [TVS] Enhance the Auto Void flow (Instant with Policy) of Abnormal Account  [#Redmine: #217979]
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250513@Lani: [TVS] Integrate - Pingoal Soccer Marble [Redmine: #227161]
+		- 20250620@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance - Abnormal Account [Redmine: #225390]
 
 	Param's Explanation:
 */
@@ -78,6 +80,7 @@ BEGIN
 			,@IsBeingMovebetdate	  BIT = 0 --1: movebet date comming up or being
 			,@BeingMovebetDate		  SMALLDATETIME
 			,@currentdate			  SMALLDATETIME = GETDATE()
+			,@UsernamesOfCreditCashService VARCHAR(MAX) = ''
 
 	DECLARE @SiteDBGroupID			 SMALLINT
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -162,6 +165,7 @@ BEGIN
 	  ,ExtraInfo VARCHAR(1000)
 	  ,credit money
 	  ,AdjustVoidLimit money
+	  ,IsCreditCashService BIT DEFAULT(0)
 	  ,id [int] IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -384,6 +388,8 @@ BEGIN
 		  ,username
 		  ,credit
 		  ,AdjustVoidLimit
+		  ,IsCreditCashService
+		  ,IsDeposit
 		)
 	SELECT matchid
 		  ,transid 
@@ -428,8 +434,11 @@ BEGIN
 		  ,c.Username
 		  ,c.credit
 		  ,c.AdjustLimit
+		  ,CASE WHEN cs.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsCreditCashService
+		  ,0 AS IsDeposit
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
+		LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK) ON c.custid = cs.CustID AND cs.ServiceType = 1
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		OUTER APPLY (
 				SELECT TOP 1 1 LeagueGroupID 
@@ -503,6 +512,8 @@ BEGIN
 			  ,username
 			  ,credit
 			  ,AdjustVoidLimit
+			  ,IsCreditCashService
+			  ,IsDeposit
 			)
 		SELECT matchid
 			  ,transid 
@@ -547,8 +558,11 @@ BEGIN
 			  ,c.Username
 			  ,c.credit
 			  ,c.AdjustLimit
+			  ,CASE WHEN cs.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsCreditCashService
+			  ,0 AS IsDeposit
 		FROM dbo.bettrans14 b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
+			LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK) ON c.custid = cs.CustID AND cs.ServiceType = 1
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			OUTER APPLY (
 					SELECT TOP 1 1 LeagueGroupID 
@@ -657,12 +671,6 @@ BEGIN
 				WHERE @IsOutright = 1 AND b.IsVoid14 = 1
 			END
 		END
-
-		-- update Isdeposit
-		UPDATE b 
-			SET IsDeposit = 1
-		FROM #tmpTransInfo b
-		WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = b.srecommend)
 	END
 
 	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
@@ -697,7 +705,6 @@ BEGIN
 		
 				SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
 						,transid AS 't'
-		
 						,statusID AS 'sid'
 				FROM #tmpTransInfo R
 				WHERE ID BETWEEN @StartRow AND @StopRow
@@ -727,13 +734,25 @@ BEGIN
 		WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
 		
 		SET @NumberOfTickets = @@ROWCOUNT
+
+		SELECT @UsernamesOfCreditCashService  = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(t.username AS VARCHAR(50))
+												FROM #tmpTransInfo AS t
+												WHERE t.IsCreditCashService = 1
+												FOR XML PATH('')), 1, 1, ''), '')
+		
 	END
+
+	--Remove ticket of credit cash service customer
+	DELETE t
+	FROM #tmpTransInfo AS t
+	WHERE 1 = CASE WHEN @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1 THEN 1 ELSE 0 END
 
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #tmpTransInfo t
-									WHERE t.StatusId IN (0,1) AND t.bettype NOT IN (9,29,10)
+									WHERE t.StatusId IN (0,1) 
+										AND t.bettype NOT IN (9,29,10)
 										AND t.IsVoid14 = 0
 									FOR XML PATH('')), 1, 1, '')
 									, '')
@@ -745,13 +764,20 @@ BEGIN
 		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Edit from to time of Abnormal account issue -> unmark ticket change void time
-			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #tmpTransInfo tp WHERE rdt.TransId = tp.transid)
-												AND rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
-												AND rdt.bettype NOT IN (9,29,10)
-											FOR XML PATH('')), 1,1,'')
-											,'')
+			;WITH CTE AS (
+					SELECT rdt.transid
+					FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH (NOLOCK)
+					WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo tp WHERE rdt.TransId = tp.transid)
+						  AND rdt.RequestId = @RequestId 
+					      AND rdt.SiteDBGroupID = @SiteDBGroupID
+					      AND rdt.bettype NOT IN (9,29,10)
+				)
+				SELECT @UnmarkTransIds =
+					ISNULL(STUFF((
+						SELECT ',' + CAST(transid AS VARCHAR(50))
+						FROM CTE
+						FOR XML PATH('')), 1, 1, ''),'')
+
 			
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
@@ -760,13 +786,13 @@ BEGIN
 												AND t.IsVoid14 = 0
 											FOR XML PATH('')), 1, 1, '')
 									, '')
-
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #tmpTransInfo t
-									WHERE t.StatusId IN (0,1) AND t.bettype NOT IN (9,29,10)
+									WHERE t.StatusId IN (0,1) 
+										AND t.bettype NOT IN (9,29,10)
 										AND t.IsVoid14 = 0
 									FOR XML PATH('')), 1, 1, '')
 									, '')
@@ -803,6 +829,7 @@ BEGIN
 		  ,@IsBeingMovebetdate AS IsBeingMovebetdate
 		  ,@UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
+		  ,@UsernamesOfCreditCashService AS UsernamesOfCreditCashService
 
 	--2. List TransId for case auto void with policy
 	IF @ActionId = 10
@@ -1161,6 +1188,7 @@ BEGIN
 		,b.matchid AS GroupName
 		,b.transid AS subtransid
 		,IIF(tmp.TransId IS NOT NULL, 1, 0) AS IsChecked
+		,b.IsCreditCashService
 	FROM #tmpTransInfo b
 		INNER JOIN @tmp_MatchInfo m ON m.MatchId = b.matchid
 		LEFT JOIN #SelectedTrans tmp ON tmp.TransId = b.transid
