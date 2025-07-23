@@ -1171,13 +1171,6 @@ BEGIN
 			
 		END
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpUnmarkTransId)
-		BEGIN
-			DELETE p
-			FROM DBCTG.bodb02.dbo.TicketVoiding_PendingMarkTickets p
-			WHERE p.transid IN (SELECT TransId FROM @tmpUnmarkTransId) AND p.RequestId = @RequestId
-		END
-
 	END
 	
 	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
