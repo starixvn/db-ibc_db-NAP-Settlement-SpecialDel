@@ -253,7 +253,9 @@ BEGIN
 				, AVG(CAST (Step3_Settle_Duration as bigint)) 'SiteDBSettleDuration'
 				, AVG(CAST ((Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) as bigint)) 'TotalDuration'
 				, GETDATE()
-				FROM #tmpData t
+		FROM #tmpData t
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.SettlementPerformanceReport s WITH (NOLOCK)
+                                    WHERE s.EventDate = t.Date AND s.Sporttype = t.sporttype and s.LeagueID = t.LeagueID)
 		GROUP BY [sporttype],[SportName],LeagueID, LeagueName, Date
 	END
 	ELSE
