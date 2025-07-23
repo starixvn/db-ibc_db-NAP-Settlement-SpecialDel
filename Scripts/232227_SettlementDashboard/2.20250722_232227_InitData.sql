@@ -1,13 +1,15 @@
-/*<info serverAlias="DBWH-bodb_dwrs" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBWH-bodb_Account" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20250722@Max
 	Task	  : Integration - Settlement Time Dashboard report [Redmine:#232227]
-	DB		  : DBWH-bodb_dwrs
+	DB		  : DBWH-bodb_Account
 	Revisions:
 		- 20250722@Max: Init data [Redmine:#232227]
 */
 
-DECLARE @FromDate       DATETIME = '2025-01-01'
+USE bodb_Account
+
+DECLARE @FromDate       DATETIME = '2025-07-22'
         ,@ToDate        DATETIME = '2025-07-22'
 BEGIN
         SET NOCOUNT ON
@@ -221,7 +223,10 @@ BEGIN
                         ON         s.matchid = m.matchid
 
 	/*Init data from 2025-01-01*/
-	INSERT INTO dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration)
+	INSERT INTO bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
+	OUTPUT inserted.SportType, inserted.SportName, inserted.LeagueID, inserted.LeagueName, inserted.EventDate
+		, inserted.WaitforKeyscore, inserted.WaitingTimeInQueue, inserted.SiteDBSettleDuration, inserted.TotalDuration, inserted.CreatedDate
+	INTO DBDW2.bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
 	SELECT t.sporttype
 			,t.sportname
 			,t.LeagueID
@@ -231,7 +236,10 @@ BEGIN
 			, AVG(CAST (Step2_WaitforSettle_Duration as bigint)) 'WaitingTimeInQueue'
 			, AVG(CAST (Step3_Settle_Duration as bigint)) 'SiteDBSettleDuration'
 			, AVG(CAST ((Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) as bigint)) 'TotalDuration'
-			FROM #tmpData t
+			, GETDATE()
+	FROM #tmpData t
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM bodb_account.dbo.SettlementPerformanceReport s WITH (NOLOCK)
+                                    WHERE s.EventDate = t.Date AND s.Sporttype = t.sporttype and s.LeagueID = t.LeagueID)
 	GROUP BY [sporttype],[SportName],LeagueID, LeagueName, Date
 
 	DROP TABLE #MatchLive
