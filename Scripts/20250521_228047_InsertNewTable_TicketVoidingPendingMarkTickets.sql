@@ -10,7 +10,7 @@ GO
 CREATE TABLE [dbo].[TicketVoiding_PendingMarkTickets](
 	[Id] [INT] IDENTITY(1,1) NOT NULL,
 	[TransId] [BIGINT] NOT NULL,
-	[MatchId] [INT] NULL,
+	[MatchId] [INT] NOT NULL,
 	[StatusId] [TINYINT] NULL,
 	[RequestId] [INT] NULL,
 	[SiteDBGroupId] [SMALLINT] NOT NULL,
