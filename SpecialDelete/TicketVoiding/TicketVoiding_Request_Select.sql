@@ -57,6 +57,7 @@ AS
 		- 20250314@Lani: [TVS] Remove @wrongscore variable [Redmine: #216151]
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 		- 20250612@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay[Redmine: #227829]
+		- 20250707@Lani: Abnormal Bet - Send ticket of the username in AB Exception List to CTS [Redmine: #231465]
 
 	Param's explanation:	
 	
@@ -262,6 +263,7 @@ BEGIN
 				,@MinuteOffset AS MinuteOffset
 				,@SecondOffset AS SecondOffset
 				,rd.Id AS RequestDetailId
+				,CASE WHEN @IssueTypeId = 11 THEN TRY_CAST(rd.TransIds AS XML).value('(/r/@ABWhiteListTransIds)[1]', 'VARCHAR(MAX)') ELSE NULL END AS ABWhiteListTransIds 
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral

@@ -17,8 +17,9 @@ AS
 		- 20230330@July: [TVS] Send problem customer in Abnormal Account request to CTS [Redmine:#185238]
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240327@Max: [CTS] - [TVS] - Missing Void Info - Not auto-mark PA [Redmine: #201993]
-		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
-		- 20240701@July: Change alias server - [Redmine: #218202]
+		- 20240701@July: [TVS] Manage Request - Change way to get data [Redmine: #205983]
+		- 20250312@July: [TVS] Change alias server [Redmine: #218202]
+		- 20250703@Lani: [TVS] Abnormal Bet - Send ticket of the username in AB Exception List to CTS [Redmine: #231465]
 
 	Param's explanation:
 		
@@ -34,6 +35,55 @@ BEGIN
 
 	DECLARE @tmp_Request AS TABLE (RequestId INT, Detail_count INT, Actual_count INT, CreatedBy INT, CreatedDate DATETIME, Sporttype SMALLINT, IssueTypeId TINYINT)
 	DECLARE @tmp_Request_Retry AS TABLE (RequestId INT, Detail_count INT)
+	DECLARE @RequestListTbl AS TABLE (RequestId INT, ReasonId INT, TransIds VARCHAR(MAX), CreatedBy INT, CreatedDate DATETIME, IssueTypeId TINYINT)
+	DECLARE @RequestABWhiteTransIds AS TABLE (RequestId INT, TransId BIGINT, CustId INT, Sporttype SMALLINT, IsParlay BIT)
+
+	--Get list transids
+	INSERT INTO @RequestListTbl (RequestId, TransIds, CreatedBy, CreatedDate, IssueTypeId, ReasonId)
+	SELECT DISTINCT r.RequestId
+					, TRY_CAST(t.TransIds AS XML).value('(/r/@ABWhiteListTransIds)[1]', 'VARCHAR(MAX)')
+					, r.LastModifiedBy
+					, r.LastModifiedDate
+					, r.IssueTypeId
+					, t.SubIssueTypeId AS ReasonId
+	FROM TicketVoiding_Request AS r WITH (NOLOCK)
+	CROSS APPLY 
+	(
+		SELECT TOP 1 rd.TransIds, rd.SubIssueTypeId
+		FROM TicketVoiding_RequestDetail AS rd WITH (NOLOCK)
+		WHERE rd.RequestId = r.RequestId
+	) AS t
+	WHERE r.LastModifiedDate > @Datetime AND r.IssueTypeId IN (11) AND t.TransIds IS NOT NULL
+
+	INSERT INTO @RequestABWhiteTransIds (RequestId, TransId)
+	SELECT r.RequestId, value
+	FROM @RequestListTbl AS r
+	CROSS APPLY STRING_SPLIT(r.TransIds,',')
+
+	UPDATE t
+	SET t.CustId = b.CustId
+	  , t.Sporttype = CASE WHEN b.matchid <> 29 THEN m.sporttype ELSE NULL END
+	  , t.IsParlay = CASE WHEN b.matchid <> 29 THEN NULL ELSE 1 END
+	FROM @RequestABWhiteTransIds AS t
+	INNER JOIN bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
+	OUTER APPLY (
+					SELECT m.sporttype
+					FROM dbo.match m WITH(NOLOCK)
+					WHERE m.matchid = b.MatchId
+					UNION
+					SELECT m14.sporttype
+					FROM dbo.match14 m14 WITH(NOLOCK)
+					WHERE m14.matchid = b.matchid
+			) m
+
+	UPDATE t
+	SET t.CustId = b14.custid
+	  , t.Sporttype = CASE WHEN b14.matchid <> 29 THEN m14.sporttype ELSE NULL END
+	  , t.IsParlay = CASE WHEN b14.matchid <> 29 THEN NULL ELSE 1 END
+	FROM @RequestABWhiteTransIds AS t
+	INNER JOIN bettrans14 AS b14 WITH (NOLOCK) ON t.TransId = b14.transid
+	LEFT JOIN match14 AS m14 WITH (NOLOCK) ON m14.matchid = b14.matchid
+	WHERE t.CustId IS NULL
 
 	INSERT INTO @tmp_Request (RequestId, Detail_count, Actual_count, CreatedBy, CreatedDate, Sporttype, IssueTypeId)
 	SELECT r.RequestId, dt.Detail_count, act.Actual_count, r.LastModifiedBy, r.LastModifiedDate, CASE WHEN rd.cnt = 1 THEN dt.Sporttype ELSE NULL END AS Sporttype, r.IssueTypeId
@@ -111,6 +161,18 @@ BEGIN
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)  
 		INNER JOIN @tmp_Request r ON r.RequestId = s.RequestId
 	WHERE s.CustId IS NOT NULL
+	UNION 
+	SELECT DISTINCT t.RequestId
+		, r.ReasonId
+		, t.CustId 
+		, r.CreatedBy
+		, r.CreatedDate
+		, t.IsParlay
+		, t.Sporttype
+		, r.IssueTypeId
+	FROM @RequestABWhiteTransIds AS t 
+	INNER JOIN @RequestListTbl AS r ON t.RequestId = r.RequestId
+	
 
 	-- Get Function - Void by betid
 	INSERT INTO #tmpResult(RequestId, ReasonID, CustId, CreatedBy, CreatedDate, IsParlay, Sporttype, IssueTypeId)
