@@ -6,6 +6,7 @@ ALTER PROCEDURE [NAP_Set_SettlementStatusChecking]
 	,@IsSettleDetermined	BIT = 0
 	,@IsSettleAbandonedMatchIBC BIT = 0
 	,@IsAutoRefund			BIT = 0
+	,@ConfirmRefund			BIT = 0
 	,@ErrCode				INT = 0 OUTPUT
 	,@ErrMsg				VARCHAR(200) = '' OUTPUT
 AS
@@ -24,6 +25,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20240108@Aries: Refund-SDT only when the match is 'Suspend' (from Admin-site) for Soccer [Redmine:#208512]
 		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
+		- 20250721@Hughie: SOP- Soccer- Phase 3.4- Confirm Refund for Refund Pop-up [Redmine:#226236]
 		
 	Parameters Explanation:    
 		@Action: CAL, CAL-HT, CAL-FT, REFUND, REFUND-HT, REFUND-FT
@@ -124,5 +126,11 @@ BEGIN
 						,@ErrMsg = 'WARNING! Cannot proceed due to running odds. Please close them all and try again.'
 		END
     END
+	ELSE IF @Action = 'REFUND' AND @IsEarly = 0 AND @IsSettleAbandonedMatchIBC = 0  AND @IsSettleDetermined = 0 AND @ConfirmRefund = 0 -- Refund All (POS)
+	BEGIN
+		IF EXISTS (SELECT TOP 1 1 FROM dbo.odds o WITH(NOLOCK) WHERE o.matchid = @matchid AND o.oddsstatus NOT IN ('closed', 'internal') AND ISNULL(o.IsDeleted,0) = 0 ) 	-- check running odds---- Refund ALL (POS)
+			SELECT	@ErrCode = 1001035
+					,@ErrMsg = 'WARNING! Cannot proceed due to running odds. Please close them all and try again.'
+	END
 END
 GO
