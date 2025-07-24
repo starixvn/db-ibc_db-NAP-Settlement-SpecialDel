@@ -15,12 +15,16 @@ AS
 		- 20240529@July: [TVS] Ticket Listing - Get affected tickets of Result Amendment for Bet Builder and Other Sports [Redmine: #203615]
 		- 20240730@July: [TVS] Ticket Listing - Change way to get affected tickets of result amendment [Redmine: #208591]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20250724@July: Get Result Amendment for main parlay ticket of matchid input [Redmine: #233478]
 
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
 	
+	DECLARE @CheckDate		DATETIME
+	SET @CheckDate = DATEADD(DAY,-2,CAST(GETDATE() AS DATE))
+
 	DECLARE @tmpMatchId TABLE (MatchId INT, Sporttype SMALLINT)
 
 	INSERT INTO @tmpMatchId (MatchId, Sporttype)
@@ -37,8 +41,6 @@ BEGIN
 			AND ISNULL(ChildMatchType,0) = 200
 	END
 
-	CREATE TABLE #tmpAffectTickets (TransId BIGINT)
-
 	CREATE TABLE #tblSettlementHistory (
 		  TransId BIGINT
 		, SettlementType TINYINT
@@ -48,44 +50,48 @@ BEGIN
 	)
 	CREATE CLUSTERED INDEX IDX_tblSettlementHistory_TransId ON #tblSettlementHistory (TransId)
 
-	IF EXISTS (SELECT TOP 1 1 FROM bodb02.dbo.settlementhistory WITH(NOLOCK) WHERE MatchId IN (SELECT MatchId FROM @tmpMatchId))
-	BEGIN
-		INSERT INTO #tblSettlementHistory (TransId, SettlementType, CreatedDate, BalanceChanged, RN_settle)
-		SELECT TransId
-		    , SettlementType
-		    , CreatedDate
-		    , BalanceChanged
-			, CASE WHEN SettlementType IN (0,5) THEN NULL 
-			       ELSE ROW_NUMBER() OVER (PARTITION BY TransId ORDER BY CASE WHEN SettlementType IN (0,5) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
-			  END AS RN_settle
-		FROM bodb02.dbo.settlementhistory WITH(NOLOCK) 
-		WHERE Matchid IN (SELECT MatchId FROM @tmpMatchId)
-		
-		IF EXISTS (SELECT TOP 1 1 FROM #tblSettlementHistory WHERE SettlementType IN (2,3)) 
-		BEGIN
-			;WITH CTE_Repeat AS (
-				SELECT TransId, BalanceChanged
-					  ,COUNT(RN_settle) OVER (PARTITION BY TransId ORDER BY CreatedDate DESC) AS Rownumber
-				FROM #tblSettlementHistory
-			)
-			,CTE_Sum AS (
-				SELECT TransId, Rownumber
-					  ,SUM(a.BalanceChanged) as Sum_BalanceChanged
-				FROM CTE_Repeat a
-				GROUP BY TransId, Rownumber
-			)
-			INSERT INTO #tmpAffectTickets(TransId)
-			SELECT DISTINCT sh.TransId
-			FROM #tblSettlementHistory sh
-				INNER JOIN CTE_Sum c ON sh.TransId = c.TransId AND sh.RN_settle = c.Rownumber
-			WHERE sh.SettlementType IN (2,3)
-			  AND c.Sum_BalanceChanged <> 0
-		END
-	END
+	CREATE TABLE #tblResultAmendment (TransId BIGINT PRIMARY KEY)
+	
+	INSERT INTO #tblResultAmendment (TransId)
+	SELECT DISTINCT TransId
+	FROM dbo.SettlementHistory WITH(NOLOCK)
+	WHERE SettlementType IN (2,3)
+	  AND 1 = CASE WHEN MatchId IN (SELECT MatchId FROM @tmpMatchId) THEN 1
+				   WHEN MatchId = 29 AND CreatedDate >= @CheckDate THEN 1 -- Special case for MatchId Sub
+				   ELSE 0 END
 
-	SELECT t.TransId
-	FROM #tmpAffectTickets t
+	IF @@ROWCOUNT = 0
+		RETURN;
+
+	INSERT INTO #tblSettlementHistory (TransId, SettlementType, CreatedDate, BalanceChanged, RN_settle)
+	SELECT TransId
+		, SettlementType
+		, CreatedDate
+		, BalanceChanged
+		, CASE WHEN SettlementType IN (0,5) THEN NULL 
+			    ELSE ROW_NUMBER() OVER (PARTITION BY TransId ORDER BY CASE WHEN SettlementType IN (0,5) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
+			END AS RN_settle
+	FROM dbo.SettlementHistory WITH(NOLOCK) 
+	WHERE TransId IN (SELECT TransId FROM #tblResultAmendment)
+
+	;WITH CTE_Repeat AS (
+		SELECT TransId, BalanceChanged
+				,COUNT(RN_settle) OVER (PARTITION BY TransId ORDER BY CreatedDate DESC) AS Rownumber
+		FROM #tblSettlementHistory
+	)
+	,CTE_Sum AS (
+		SELECT TransId, Rownumber
+				,SUM(a.BalanceChanged) as Sum_BalanceChanged
+		FROM CTE_Repeat a
+		GROUP BY TransId, Rownumber
+	)
+	SELECT DISTINCT sh.TransId
+	FROM #tblSettlementHistory sh
+		INNER JOIN CTE_Sum c ON sh.TransId = c.TransId AND sh.RN_settle = c.Rownumber
+	WHERE sh.SettlementType IN (2,3)
+		AND c.Sum_BalanceChanged <> 0
 
 	DROP TABLE #tblSettlementHistory
-	DROP TABLE #tmpAffectTickets
+	DROP TABLE #tblResultAmendment
+
 END

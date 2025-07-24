@@ -98,6 +98,7 @@ AS;
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250428@Max: TVS- Search matchid got error on ticket listing [Redmine: #225671]
+		- 20250724@July: Get Result Amendment for main parlay ticket of matchid input [Redmine: #233478]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -600,7 +601,6 @@ BEGIN
 			FROM  #SpecialDeleteBets b
 			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
 		END
-		
 
 		IF @BetTeams IS NOT NULL
 		BEGIN
@@ -820,6 +820,14 @@ BEGIN
 			WHERE ds.custid IS NOT NULL OR cs.CustId IS NOT NULL
 		END 
 
+		IF (@IsReSettled = 1 AND @Type IN (0,3))
+		BEGIN
+			DELETE b
+			FROM #SpecialDeleteBets b
+			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #tmpAffectTickets t WHERE b.transid=t.Transid)
+				AND b.IsParlay = 1
+		END
+
 		IF @SelectionSubParlays <> ''
 		BEGIN
 			INSERT INTO @tmpSelectionSubParlay (Id)
@@ -929,7 +937,7 @@ BEGIN
 	END 
 
 	-- System parlay Virtual Sports
-    IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)))
+    IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1)))
 	BEGIN 
 		---ALL
 		--IF @LicenseeName= 'ALL'  
@@ -992,8 +1000,8 @@ BEGIN
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
-				AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
-				AND b.matchID IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+				AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1)) 
+				AND b.matchID IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
