@@ -66,6 +66,20 @@ BEGIN
 	)
 	CREATE TABLE #MatchLive(matchid INT)
 
+	CREATE TABLE #tmpResult (
+		SportType SMALLINT
+		,SportName NVARCHAR(50)
+		,LeagueID INT
+		,LeagueName NVARCHAR(2000)
+		,EventDate DATETIME
+		,WaitforKeyscore INT
+		,WaitingTimeInQueue INT
+		,SiteDBSettleDuration INT
+		,SubDBSettleDuration INT
+		,TotalDuration INT
+		,CreatedDate DATETIME
+	)
+
 	;WITH cteSettlementPerformanceLog
 	AS (
 		
@@ -242,7 +256,7 @@ BEGIN
 
 	IF @Mode = 'Daily'
 	BEGIN
-		INSERT INTO dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
+		INSERT INTO #tmpResult(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
 		SELECT t.sporttype
 				,t.sportname
 				,t.LeagueID
@@ -257,6 +271,36 @@ BEGIN
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.SettlementPerformanceReport s WITH (NOLOCK)
                                     WHERE s.EventDate = t.Date AND s.Sporttype = t.sporttype and s.LeagueID = t.LeagueID)
 		GROUP BY [sporttype],[SportName],LeagueID, LeagueName, Date
+
+		INSERT INTO bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
+		SELECT t.SportType, t.SportName, t.LeagueID, t.LeagueName, t.EventDate, t.WaitforKeyscore, t.WaitingTimeInQueue, t.SiteDBSettleDuration, t.TotalDuration, t.CreatedDate 
+		FROM #tmpResult t
+		ORDER BY EventDate, [sporttype],[SportName],LeagueID, LeagueName
+
+		IF @@SERVERNAME = 'DBDW'
+		BEGIN
+			BEGIN TRY
+				INSERT INTO DBDW2.bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
+				SELECT t.SportType, t.SportName, t.LeagueID, t.LeagueName, t.EventDate, t.WaitforKeyscore, t.WaitingTimeInQueue, t.SiteDBSettleDuration, t.TotalDuration, t.CreatedDate 
+				FROM #tmpResult t
+				ORDER BY EventDate, [sporttype],[SportName],LeagueID, LeagueName
+			END TRY
+			BEGIN CATCH
+				SELECT ERROR_MESSAGE()
+			END CATCH
+		END
+		ELSE IF @@SERVERNAME = 'DBDW2'
+		BEGIN
+			BEGIN TRY
+				INSERT INTO DBDW.bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
+				SELECT t.SportType, t.SportName, t.LeagueID, t.LeagueName, t.EventDate, t.WaitforKeyscore, t.WaitingTimeInQueue, t.SiteDBSettleDuration, t.TotalDuration, t.CreatedDate 
+				FROM #tmpResult t
+				ORDER BY EventDate, [sporttype],[SportName],LeagueID, LeagueName
+			END TRY
+			BEGIN CATCH
+				SELECT ERROR_MESSAGE()
+			END CATCH
+		END
 	END
 	ELSE
 	BEGIN
@@ -460,8 +504,9 @@ BEGIN
 	END
 
 
-DROP TABLE #tmpData
-DROP TABLE #MatchLive
+	DROP TABLE #tmpData
+	DROP TABLE #MatchLive
+	DROP TABLE #tmpResult
 		
 END
     
