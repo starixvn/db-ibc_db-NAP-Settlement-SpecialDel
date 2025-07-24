@@ -25,6 +25,7 @@ AS
 		- 20240327@Max: [CTS] - [TVS] - Missing Void Info - Not auto-mark PA [Redmine: #201993]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20250627@July: Change way get list info json - [Redmine: #228047]
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet
@@ -41,15 +42,12 @@ BEGIN
 			,@OldMatchId		 INT
 			,@OldTransIds 		 VARCHAR(MAX) = NULL
 			,@row_count			 INT = 0
-			,@Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 			,@TransIds				VARCHAR(MAX) = NULL
 			,@FilterBy				TINYINT = NULL
 			,@SubIssueTypeId		TINYINT = NULL
 			,@AbnormalBetInfoXML	 XML = NULL	
 
 	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50))
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 
@@ -72,9 +70,14 @@ BEGIN
 		  ,SiteDBGroupID
 		)
 	SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
-	) tbl
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+			SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
+			WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT)
+		) tbl
+	WHERE f.value <> ''
 
 	SET @AbnormalBetInfoXML = CONVERT(XML, @AbnormalBetInfo)
 	SELECT @TransIds = t.c.value('@TransIds','VARCHAR(MAX)')

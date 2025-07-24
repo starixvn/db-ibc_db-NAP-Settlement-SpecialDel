@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 (
 	 @TransIds					VARCHAR(MAX) = NULL
@@ -9,15 +9,15 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@IsRemoveCustomerClass201	BIT = 0
 	,@IsRemoveCustomerClass4K	BIT = 0
 	,@IsRemoveCreditCashService	BIT = 0			
-	,@TransInfoJson				VARCHAR(MAX) = NULL
 	,@IsAddSettledTickets		BIT = 0
 	,@IsVoidAllArchivedTickets	BIT = 0
+	,@OnlineServerId			VARCHAR(10) = NULL --Ex:'0,1,2,3'
 )
 AS
 /*  
 	Created by: 20190625@Raymond.Le  
 	Task: Validate matchId, betId of Abnormal bet
-	DB: DBCTG/bodb02   
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02 
 	Original:      
 
 	Revisions:  
@@ -69,6 +69,7 @@ AS
 		- 20240412@Max: Abnormal Bet - Add request tick on REMOVE CC 40000 but tickets CC 4000 still add to request [Redmine: #203813]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20250619@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance - Abnormal Bet [Redmine: #225390]
+		- 20250624@July: [TVS] Enhance TVS in case 1 or many siteDBs down - Scale out validate [Redmine: #228047]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -92,24 +93,37 @@ BEGIN
 			,@TransIdsOfCustomerClass201 VARCHAR(MAX) = ''
 			,@TransIdsOfCustomerClass4K  VARCHAR(MAX) = ''
 			,@TransIdsOfCreditCashService VARCHAR(MAX) = ''
+			,@TransIdsOfSiteDBDown		 VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
 			,@MatchId					 INT = 0
 			,@MarkTransIds 			     VARCHAR(MAX) =''
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
-			,@TransInfoJson_Output		 VARBINARY(MAX) = NULL
+			,@TransInfoJson				 VARBINARY(MAX) = NULL
 			,@Archived_FromDate			 DATETIME = NULL
+			,@SiteDBDownInfoJson		 VARBINARY(MAX) = NULL
+			,@SiteDBGroupID				 SMALLINT
+	
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
-	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT)
+	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT)
 	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), eventdate DATETIME)
 	DECLARE	@Letstalk_Info AS TABLE (MatchId INT, IsHasUUSTickets BIT, ListBettype VARCHAR(MAX),ListBetteam VARCHAR(MAX))
+	DECLARE @tmp_OnlineServerId AS TABLE (ServerId SMALLINT)
 
 	SET @Archived_FromDate = CONVERT(DATE, DATEADD(DAY, -7, GETDATE()))
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmp_OnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -139,6 +153,7 @@ BEGIN
 								, 7: NonLive
 								, 8: DifferentLiveScore
 								, 9: AB Exception TransIds
+								, 10: SiteDB down TransIds
 							  */
 	)
 	CREATE TABLE #inputTransid (transid BIGINT PRIMARY KEY)
@@ -156,7 +171,6 @@ BEGIN
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
 		transid						BIGINT PRIMARY KEY
-		--,isInMatch				BIT
 		,StatusId					INT
 		,bettype					SMALLINT
 		,custId						INT
@@ -175,7 +189,6 @@ BEGIN
 		,IsCreditCashService		BIT DEFAULT(0)
 		,CustomerClass				SMALLINT
 		)
-	CREATE TABLE #DuplicatedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #ABWhiteListTransIds(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
@@ -238,34 +251,200 @@ BEGIN
 	  ,IsCreditCashService		BIT DEFAULT(0)			
 	  ,IsVipMember				BIT DEFAULT(0)
 	  ,ChildMatchId				INT
+	  ,IsSiteDBDown				BIT DEFAULT(0)
+	  ,eventdate				DATETIME
 	)
-	INSERT INTO #tmpTransInfo( 
-		   matchid, transid, refno, custid, hdp1, hdp2, livehomescore, liveawayscore, liveindicator, odds, oddsspread 
-		 , betfrom, bettype, betteam, betcheck, Status, transdate, betid, Transdesc, statusID
-		 , srecommend, mrecommend, recommend, creator, WalletType, RefCode, stake, oddstype, winlost
-		 , CurrencyName, betdaqid, ExtraInfo, actual_stake, winlostdate, modds, statuswinlost, IsMoved14, IsMixParlay, SiteDBGroupID, ChildMatchId
+	--Search single tickets
+	INSERT INTO #tmpTransInfo(
+			matchid 
+			,transid
+			,custid                
+			,transdate 
+			,hdp1 
+			,hdp2 
+			,livehomescore 
+			,liveawayscore 
+			,liveindicator 
+			,betteam 
+			,creator 
+			,refno 
+			,betid 
+			,bettype 
+			,betdaqid 
+			,betfrom 
+			,statusID 
+			,recommend 
+			,mrecommend 
+			,srecommend 
+			,statuswinlost 
+			,IsMixParlay 
+			,IsMoved14 
+			,odds 
+			,oddsspread 
+			,oddstype 
+			,betcheck 
+			,stake 
+			,CurrencyName 
+			,winlost        
+			,actual_stake 
+			,Status
+			,modds 
+			,SiteDBGroupID
+			,winlostdate
+		    ,IsSiteDBDown
 		)
-	SELECT mid, t, ref, c, hdp1, hdp2, lh, la, li, o, os
-		 , bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid 
-		 , sre, mre, re, cr, wt, refc, stake, ost, w
-		 , curr, bdaq, ex, acstake, wld, m, statuswl, isM, isP, sitedb, cmid
-	FROM STRING_SPLIT(@TransInfoJson, ',') f
-		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
-		CROSS APPLY (
-			SELECT mid, t, ref, c, hdp1, hdp2, lh, la, li, o, os
-				 , bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid 
-				 , sre, mre, re, cr, wt, refc, stake, ost, w
-				 , curr, bdaq, ex, acstake, wld, m, statuswl, isM, isP, sitedb, cmid
-				FROM OPENJSON(t.Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, os MONEY
-					, bfr NVARCHAR(4), btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME,bid BIGINT ,tdes NVARCHAR(1000), sid TINYINT 
-					, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, w MONEY
-					, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), acstake MONEY, wld SMALLDATETIME, m SMALLMONEY ,statuswl TINYINT ,isM BIT ,isP BIT ,sitedb SMALLINT, cmid INT
-				)
-		) tbl
-	WHERE f.value <> ''
+	SELECT b.matchid
+		,b.TransId
+		,b.custid
+		,b.transdate
+		,b.hdp1
+		,b.hdp2
+		,b.livehomescore
+		,b.liveawayscore
+		,b.liveindicator
+		,b.betteam
+		,b.creator
+		,b.refno
+		,b.betid
+		,b.bettype
+		,b.betdaqid 
+		,b.betfrom 
+		,b.statusID 
+		,b.recommend 
+		,b.mrecommend 
+		,b.srecommend 
+		,b.statuswinlost 
+		,CASE WHEN b.bettype = 29 THEN 1 ELSE 0 END AS IsMixParlay 
+		,0 AS IsMoved14 
+		,b.odds 
+		,b.oddsspread
+		,b.oddstype 
+		,b.betcheck 
+		,b.stake 
+		,b.CurrencyName 
+		,b.winlost        
+		,b.actual_stake 
+		,b.Status
+		,b.modds 
+		,b.SiteDBGroupID
+		,b.winlostdate
+		,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
+	FROM #inputTransid t
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
+	WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+				   ELSE 0 END
+		AND b.betfrom <> 'P'
+		AND 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
+			         WHEN @FilterBy = 1 AND b.bettype = 29 AND b.betteam = '1' THEN 1
+					 WHEN @FilterBy = 2 AND b.bettype = 29 AND b.betteam <> '1' THEN 1
+				     ELSE 0 END
+		AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.winlostdate >= @Archived_FromDate THEN 1
+					 WHEN @IsVoidAllArchivedTickets = 1 THEN 1
+				     ELSE 0 END
+		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1
+					 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END
 
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND (IsMoved14 = 0 OR ChildMatchId IS NOT NULL)))
+	IF EXISTS (SELECT TOP(1) 1 
+				FROM #inputTransid t
+					INNER JOIN dbo.bettrans14 b14 WITH (NOLOCK) ON b14.transid = t.transid
+			)
+	BEGIN
+		INSERT INTO #tmpTransInfo(
+			matchid 
+			,transid
+			,custid                
+			,transdate 
+			,hdp1 
+			,hdp2 
+			,livehomescore 
+			,liveawayscore 
+			,liveindicator 
+			,betteam 
+			,creator 
+			,refno 
+			,betid 
+			,bettype 
+			,betdaqid 
+			,betfrom 
+			,statusID 
+			,recommend 
+			,mrecommend 
+			,srecommend 
+			,statuswinlost 
+			,IsMixParlay 
+			,IsMoved14 
+			,odds 
+			,oddsspread 
+			,oddstype 
+			,betcheck 
+			,stake 
+			,CurrencyName 
+			,winlost        
+			,actual_stake 
+			,Status
+			,modds 
+			,SiteDBGroupID
+			,winlostdate
+		    ,IsSiteDBDown
+		)
+		SELECT b.matchid
+			,b.TransId
+			,b.custid
+			,b.transdate
+			,b.hdp1
+			,b.hdp2
+			,b.livehomescore
+			,b.liveawayscore
+			,b.liveindicator
+			,b.betteam
+			,b.creator
+			,b.refno
+			,b.betid
+			,b.bettype
+			,b.betdaqid 
+			,b.betfrom 
+			,b.statusID 
+			,b.recommend 
+			,b.mrecommend 
+			,b.srecommend 
+			,b.statuswinlost 
+			,CASE WHEN b.bettype = 29 THEN 1 ELSE 0 END AS IsMixParlay 
+			,1 AS IsMoved14 
+			,b.odds 
+			,b.oddsspread
+			,b.oddstype 
+			,b.betcheck 
+			,b.stake 
+			,b.CurrencyName 
+			,b.winlost        
+			,b.actual_stake 
+			,b.Status
+			,b.modds 
+			,b.SiteDBGroupID
+			,b.winlostdate
+			,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
+		FROM #inputTransid t
+			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
+		WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+				       WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+				       ELSE 0 END
+			AND b.betfrom <> 'P'
+			AND 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
+			             WHEN @FilterBy = 1 AND b.bettype = 29 AND b.betteam = '1' THEN 1
+					     WHEN @FilterBy = 2 AND b.bettype = 29 AND b.betteam <> '1' THEN 1
+				         ELSE 0 END
+			AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.winlostdate >= @Archived_FromDate THEN 1
+					     WHEN @IsVoidAllArchivedTickets = 1 THEN 1
+				         ELSE 0 END
+			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1
+						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
+					     ELSE 0 END
+	END
+
+
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND (IsMoved14 = 0)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -276,13 +455,17 @@ BEGIN
 			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
 			,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
 			,eventstatus = ISNULL(m.eventstatus,'')
+			--Update Main MatchId for child match cricket/baseball (Sporttype In (50,8))
+			,d.matchid = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.ParentID ELSE d.matchid END
+			,d.ChildMatchId = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.matchid ELSE NULL END
+			,eventdate = m.eventdate
 		FROM #tmpTransInfo d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
 		WHERE d.bettype NOT IN (9, 29)
 	END
 	
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND (IsMoved14 = 1 OR ChildMatchId IS NOT NULL)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND (IsMoved14 = 1)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -293,6 +476,10 @@ BEGIN
 			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
 			,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
 			,eventstatus = ISNULL(m.eventstatus,'')
+			--Update Main MatchId for child match cricket/baseball (Sporttype In (50,8))
+			,d.matchid = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.ParentID ELSE d.matchid END
+			,d.ChildMatchId = CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 THEN m.matchid ELSE NULL END
+			,eventdate = m.eventdate
 		FROM #tmpTransInfo d
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
@@ -313,125 +500,51 @@ BEGIN
 			ON al.srecommend = s.custid
 		LEFT JOIN @VIPAccount_tmp vip ON al.custid = vip.CustID
 
-	INSERT INTO #DuplicatedTransids (transid)
-	SELECT i.transid
-	FROM #tmpInputTransid_RemarkId i
-		INNER JOIN #tmpTransInfo t ON i.Transid = t.transid
-	GROUP BY i.transid
-	HAVING COUNT(1) >= 2
-
+	--Duplicated Transids
 	UPDATE t
 	SET t.RemarkId = 2
 	FROM #tmpInputTransid_RemarkId t
-		INNER JOIN #DuplicatedTransids u ON t.Transid = u.transid
-
-	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
+		WHERE EXISTS (
+			SELECT i.transid
+			FROM #tmpInputTransid_RemarkId i
+				INNER JOIN #tmpTransInfo x ON i.Transid = x.Transid
+			WHERE i.Transid = t.Transid
+			GROUP BY i.Transid
+			HAVING COUNT(1) >= 2
+		)
+	
 	BEGIN
-		--1. Info match table
-		SELECT MatchId FROM @tmpMatchId
+		DECLARE @tmpSiteDBDownInfo TABLE (
+			MatchId INT,
+			TransId BIGINT,
+			IsMixParlay BIT,
+			SiteDBGroupID SMALLINT,
+			isMarked BIT
+		);
+		DECLARE @SingleCountSiteDBDown INT
+		       ,@ParlayCountSiteDBDown INT
 		
-		--2. Validate Table
-		SET @InvalidTransIds = @TransIds
-		SELECT @InvalidTransIds AS InvalidTransIds
+		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
+		SELECT ISNULL(ChildMatchId, MatchId) AS MatchId, TransId, IsMixParlay, SiteDBGroupID, CASE WHEN statusID IN (0,1) THEN 1 ELSE 0 END AS isMarked
+		FROM #tmpTransInfo t
+		WHERE IsSiteDBDown = 1
+			AND t.transid IN (SELECT transid FROM #tmpInputTransid_RemarkId WHERE RemarkId IS NULL)
 
-		--3. List ticket unmark (if any)
-		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
+		UPDATE t
+		SET t.RemarkId = 10
+		FROM #tmpInputTransid_RemarkId t
+		WHERE t.Transid IN (SELECT Transid FROM @tmpSiteDBDownInfo)
 
-		--4. Transinfo table
-		SELECT @TransInfoJson_Output AS TransInfoJson
+		SELECT @TransIdsOfSiteDBDown = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+										FROM @tmpSiteDBDownInfo t
+										FOR XML PATH('')), 1, 1, ''), '')
 
-		--5. Export Ticket that the user inputs table
-		SELECT TransId, 1 AS RemarkId  FROM #tmpInputTransid_RemarkId
+		SELECT @SingleCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 0 THEN 1 ELSE NULL END)
+		      ,@ParlayCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 1 THEN 1 ELSE NULL END)
+		FROM @tmpSiteDBDownInfo
 
-		RETURN;
 	END
 
-	IF @FilterBy IS NULL
-	BEGIN
-		INSERT INTO @tmpMatchId (MatchId)
-		SELECT DISTINCT b.matchid
-		FROM #tmpTransInfo AS b WITH (NOLOCK)
-			INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
-		WHERE (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
-						WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
-						ELSE 0 END) 
-				AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
-				AND b.matchcode IS NOT NULL 			
-									
-		IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpMatchId)
-		BEGIN
-			--1. Info match table
-			SELECT MatchId FROM @tmpMatchId
-		
-			--2. Validate Table
-			SET @InvalidTransIds = @TransIds
-			SELECT @InvalidTransIds AS InvalidTransIds
-
-			--3. List ticket unmark (if any)
-			SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
-
-			--4. Transinfo table
-			SELECT @TransInfoJson_Output AS TransInfoJson
-
-			--5. Export Ticket that the user inputs table
-			SELECT  t.transid 
-					,s.matchid
-					,s.homeid    
-					,s.awayid    
-					,s.leagueid  
-					,s.isNeutral 
-					,s.matchcode
-					,s.sporttype
-					,s.transdate
-					,s.custid		
-					,s.username	
-					,s.bettype
-					,s.odds
-					,s.OddsType
-					,s.Stake
-					,s.WinLost - s.actual_stake AS WinLost
-					,s.statusID
-					,s.status
-					,s.currencyname
-					,s.betteam
-					,s.hdp1
-					,s.hdp2
-					,s.livehomescore
-					,s.liveawayscore
-					,s.LiveIndicator AS IsLiveIndicator
-					,s.oddsspread
-					,s.betid
-					,s.betcheck
-					,s.IsMixParlay
-					,s.SiteDBGroupID
-					,1 AS RemarkId
-					,s.IsVipMember
-					,s.CustomerClass
-					,s.IsCreditCashService
-				FROM #tmpInputTransid_RemarkId t
-					LEFT JOIN #tmpTransInfo s ON t.transid = s.transid
-			
-			RETURN;
-		END
-
-		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid,sporttype, matchcode, eventdate)
-		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate
-		FROM dbo.match m WITH(NOLOCK)
-		WHERE m.matchid IN (SELECT MatchId FROM @tmpMatchId)
-		
-		UNION ALL
-		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode, eventdate
-		FROM dbo.match14 m WITH(NOLOCK) 
-		WHERE m.matchid IN (SELECT MatchId FROM @tmpMatchId)
-
-	END
-	ELSE
-	BEGIN
-		SET @MatchId = 29
-		INSERT INTO @tmpMatchId_Info (MatchId)
-		SELECT @MatchId
-	END
-	 
 	-- select valid TransId of Abnormal bet
 	INSERT INTO #validTransId (
 		transid
@@ -460,8 +573,8 @@ BEGIN
 		,b.livehomescore
 		,b.liveawayscore
 		,b.liveindicator
-		,m.matchid
-		,m.sporttype
+		,b.matchid
+		,b.sporttype
 		,b.betfrom
 		,b.recommend
 		,b.mrecommend
@@ -472,67 +585,33 @@ BEGIN
 		,b.CustomerClass
 		,b.IsCreditCashService
 	FROM #tmpTransInfo b
-		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
-		LEFT JOIN @tmpMatchId_Info m ON b.matchid = m.matchid
-	WHERE 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
-			        WHEN @FilterBy IS NOT NULL AND b.bettype = 29 THEN 1
-				   ELSE 0 END
-		AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.winlostdate >= @Archived_FromDate THEN 1
-					WHEN @IsVoidAllArchivedTickets = 1 THEN 1
-				ELSE 0 END
+	WHERE IsSiteDBDown = 0
 
-	-- get unsuppored transid
-	INSERT #UnsupportedTransids (transid)
-	SELECT t.transid
-	FROM #validTransId t
-		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE bt.bettype IS NULL AND @FilterBy IS NULL
+	IF @FilterBy IS NULL
+	BEGIN
+		-- get unsuppored transid
+		DELETE FROM #validTransId
+			OUTPUT DELETED.transid INTO #UnsupportedTransids (transid)
+		WHERE bettype NOT IN (SELECT bettype FROM @bettype_tmp)
 
-	SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-									FROM #UnsupportedTransids t
-									FOR XML PATH('')), 1, 1, ''), '')
+		SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+										FROM #UnsupportedTransids t
+										FOR XML PATH('')), 1, 1, ''), '')
 	
-	UPDATE t
-	SET t.RemarkId = 5
-	FROM #tmpInputTransid_RemarkId t
-		INNER JOIN #UnsupportedTransids u ON t.Transid = u.transid
-
-	-- get ABWhiteList Cust
-	INSERT INTO @CustId_tmp (CustID, recommend, mrecommend, srecommend)
-	SELECT DISTINCT v.custId, v.recommend, v.mrecommend, v.srecommend
-	FROM #validTransId v
-	
-	INSERT #ABWhiteListCustIds (custid, AllowVoidSubType, IsAllowVoidVip)
-	SELECT t.custId, ab.AllowVoidSubType, ab.IsAllowVoidVip 
-	FROM @CustId_tmp t
-		CROSS APPLY (
-					SELECT TOP(1) a.AllowVoidSubType, a.IsAllowVoidVip					
-					FROM dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)	
-					WHERE a.CustID IN (t.CustID, t.recommend, t.mrecommend, t.srecommend)
-					ORDER BY a.LevelId
-			)ab
-	
-	--final valid transid
-	DELETE t
-	FROM #validTransId t
-		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE (1 = CASE WHEN @ActionId <>2 AND StatusId IN (101, 102, 103) THEN 1
-				    WHEN @ActionId = 2 AND StatusId IN (101, 103) THEN 1
-					ELSE 0 END)
-		OR (bt.bettype IS NULL AND 1 = CASE WHEN @FilterBy IS NULL THEN 1 
-										    WHEN @FilterBy = 1 AND t.bettype = 29 AND t.betteam <> '1' THEN 1
-										    WHEN @FilterBy = 2 AND t.bettype = 29 AND t.betteam = '1' THEN 1
-										    ELSE 0 END 
-										   )
-		OR t.betfrom ='p'
+		UPDATE t
+		SET t.RemarkId = 5
+		FROM #tmpInputTransid_RemarkId t
+			INNER JOIN #UnsupportedTransids u ON t.Transid = u.transid
+		
+	END
 	
 	INSERT INTO #TransidInRequest (TransId)
 	SELECT DISTINCT tmp.transid
-	FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
+	FROM DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK)
 		CROSS APPLY (
 					SELECT TransId
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-					WHERE RequestId = r.RequestId
+					FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+					WHERE RequestId = r.RequestId AND SiteDBGroupID = @SiteDBGroupID
 				) AS tmp
 	WHERE  r.RequestId <> @RequestId 
 		AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
@@ -548,15 +627,11 @@ BEGIN
 		WHERE transid = temp.transid 
 			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 AND winlostdate < @Archived_FromDate THEN 1 ELSE 0 END
 		) bm
-		OUTER APPLY (
-		SELECT transid
-		FROM #UnsupportedTransids
-		WHERE transid = temp.transid
-		) u
 	WHERE NOT EXISTS (SELECT 1 FROM #validTransId 
 					  WHERE transid = temp.transid 
 					  AND 1 = CASE WHEN @ActionId = 1 AND StatusId IN (111,112,113) THEN 0 ELSE 1 END)
-		AND u.transid IS NULL
+		AND temp.transid NOT IN ( SELECT TransId FROM #tmpInputTransid_RemarkId WHERE RemarkId IS NOT NULL)
+		AND temp.transid NOT IN ( SELECT TransId FROM #TransidInRequest)
 
 	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 									FROM #invalidTransId
@@ -621,32 +696,48 @@ BEGIN
 												FOR XML PATH('')), 1, 1, ''), '')
 
 		--Check AB White List Invalid Transid
-		INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
-		SELECT t.custid
-		FROM #ABWhiteListCustIds t
-			LEFT JOIN @VIPAccount_tmp v ON v.CustID= t.CustID
-		WHERE CHARINDEX(',' + CONVERT(VARCHAR(5), @SubIssueTypeId) + ',', ',' + t.AllowVoidSubType + ',') > 0
-			AND 1 = CASE WHEN v.CustID IS NULL then 1
-						WHEN v.CustID IS NOT NULL AND ISNULL(t.IsAllowVoidVip,0) = 1 THEN 1
-					ELSE 0 END
+		BEGIN
+			-- get ABWhiteList Cust
+			INSERT #ABWhiteListCustIds (custid, AllowVoidSubType, IsAllowVoidVip)
+			SELECT t.custId, ab.AllowVoidSubType, ab.IsAllowVoidVip 
+			FROM (
+				SELECT DISTINCT custId, recommend, mrecommend, srecommend
+				FROM #validTransId
+				)t
+				CROSS APPLY (
+							SELECT TOP(1) a.AllowVoidSubType, a.IsAllowVoidVip					
+							FROM DBCTG.bodb02.dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)	
+							WHERE a.CustID IN (t.CustID, t.recommend, t.mrecommend, t.srecommend)
+							ORDER BY a.LevelId
+					)ab
+
+			INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
+			SELECT t.custid
+			FROM #ABWhiteListCustIds t
+				LEFT JOIN @VIPAccount_tmp v ON v.CustID= t.CustID
+			WHERE CHARINDEX(',' + CONVERT(VARCHAR(5), @SubIssueTypeId) + ',', ',' + t.AllowVoidSubType + ',') > 0
+				AND 1 = CASE WHEN v.CustID IS NULL then 1
+							WHEN v.CustID IS NOT NULL AND ISNULL(t.IsAllowVoidVip,0) = 1 THEN 1
+						ELSE 0 END
 		
-		IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds_AllowVoid)
-		BEGIN
-			DELETE t1
-			FROM #ABWhiteListCustIds t1
-				INNER JOIN #ABWhiteListCustIds_AllowVoid t2 ON t2.custid = t1.custid
-		END
+			IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds_AllowVoid)
+			BEGIN
+				DELETE t1
+				FROM #ABWhiteListCustIds t1
+					INNER JOIN #ABWhiteListCustIds_AllowVoid t2 ON t2.custid = t1.custid
+			END
 
-		IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds)
-		BEGIN
-			INSERT INTO #ABWhiteListTransIds (transid)
-			SELECT t.transid
-			FROM #validTransId t
-				INNER JOIN #ABWhiteListCustIds c ON c.CustID = t.custId
+			IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds)
+			BEGIN
+				INSERT INTO #ABWhiteListTransIds (transid)
+				SELECT t.transid
+				FROM #validTransId t
+					INNER JOIN #ABWhiteListCustIds c ON c.CustID = t.custId
 
-			SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-											FROM #ABWhiteListTransIds t
-											FOR XML PATH('')), 1, 1, ''), '')
+				SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+												FROM #ABWhiteListTransIds t
+												FOR XML PATH('')), 1, 1, ''), '')
+			END
 		END
 	END
 	
@@ -696,7 +787,6 @@ BEGIN
 	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #ABWhiteListTransIds v ON t.Transid = v.transid  
 
-	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
 	--Remove CC201 & CC4000, transid of credit cash service in list transids insert into request
 	DELETE v
 	FROM #validTransId v 
@@ -704,29 +794,40 @@ BEGIN
 					WHEN @IsRemoveCustomerClass4K = 1 AND v.CustomerClass = 4000 THEN 1
 					WHEN @IsRemoveCreditCashService = 1 AND v.IsCreditCashService = 1 THEN 1
 			ELSE 0 END
-	
-	DELETE FROM @tmpMatchId_Info
-	WHERE matchid NOT IN (SELECT DISTINCT matchid FROM #validTransId)
+	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
+
+	IF @FilterBy IS NULL
+	BEGIN
+		INSERT INTO @tmpMatchId_Info (MatchId, homeid, awayid, leagueid, sporttype, matchcode, eventdate)
+		SELECT DISTINCT v.matchid, homeid, awayid, leagueid, v.sporttype, matchcode, eventdate
+		FROM #validTransId v
+			INNER JOIN #tmpTransInfo t ON v.matchid = t.matchid
+	END
+	ELSE
+	BEGIN
+		INSERT INTO @tmpMatchId_Info (MatchId)
+		SELECT 29 AS MatchId
+	END
 
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
-		INSERT INTO @tmpMarkTransId (TransId, CustID)
-		SELECT transid, custId
+		INSERT INTO @tmpMarkTransId (TransId)
+		SELECT transid
 		FROM #validTransId WHERE StatusId IN (0,1)		
 	END
 	ELSE IF @RequestId <> 0
 	BEGIN
-		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
+		SELECT @OldActionId = ISNULL(ActionId,0) FROM DBCTG.bodb02.dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
 
 		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Remove transid from request => unmark ticket & re-cal ticket
 			INSERT INTO @tmpUnmarkTransId (TransId)
 			SELECT transid 
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 			WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
 					AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
-					AND rdt.RequestId = @RequestId
+					AND rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
 			
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 			INSERT INTO @tmpMarkTransId (TransId)
@@ -735,21 +836,22 @@ BEGIN
 			WHERE v.StatusId IN (0,1) 
 				AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = v.TransId)-- exist in # request
 				AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpUnmarkTransId um WHERE um.TransId = v.transid)
-		
+
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
-			INSERT INTO @tmpMarkTransId (TransId, CustID)
-			SELECT transid, custId
+			INSERT INTO @tmpMarkTransId (TransId)
+			SELECT transid
 			FROM #validTransId WHERE StatusId IN (0,1)
+
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
 		BEGIN
 			INSERT INTO @tmpUnmarkTransId (TransId)
 			SELECT rdt.TransId
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-			WHERE rdt.RequestId = @RequestId
-			
+			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+			WHERE rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
+
 		END
 	END
 
@@ -785,16 +887,12 @@ BEGIN
 			,@TransIdsOfCustomerClass201 AS TransIdsOfCustomerClass201
 			,@TransIdsOfCustomerClass4K AS TransIdsOfCustomerClass4K
 			,@TransIdsOfCreditCashService AS TransIdsOfCreditCashService
+			,@TransIdsOfSiteDBDown AS TransIdsOfSiteDBDown
 			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 
-	--3. List ticket unmark (if any)
-	SELECT @UnmarkTransIds AS UnmarkTransIds
-		  ,@RemoveTransids AS RemoveTransids -- Ticket remove -> re-cal
-		  ,@MarkTransIds AS MarkTransIds
-
-	--4. Transinfo table
-	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
+		--3. List ticket unmark/mark & Transinfo table (if any)
+	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
 		,b.custid AS  'c'           
 		,b.bettype AS 'btype'
@@ -805,10 +903,27 @@ BEGIN
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
 	
-	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
+	--List ticket insert table TicketVoiding_PendingMarkTickets
+	SET @SiteDBDownInfoJson = COMPRESS((SELECT MatchId AS 'mid'
+		,transid AS 't'
+		,IsMixParlay AS 'isP'
+		,SiteDBGroupID AS 'sitedb'
+		,isMarked AS 'isMarked'
+	FROM @tmpSiteDBDownInfo 
+	WHERE isMarked = 1
+	FOR JSON PATH))
+
+	SELECT @UnmarkTransIds AS UnmarkTransIds
+		  ,@RemoveTransids AS RemoveTransids -- Ticket remove -> re-cal
+		  ,@MarkTransIds AS MarkTransIds
+		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
+		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson 
+		  ,@SingleCountSiteDBDown AS SingleCount
+		  ,@ParlayCountSiteDBDown AS ParlayCount
 	
 	--5. Export Ticket that the user inputs table [#194133]
 	SELECT  t.transid 
+		,t.RemarkId 
 		,s.matchid
 		,s.homeid    
 		,s.awayid    
@@ -838,7 +953,6 @@ BEGIN
 		,s.betcheck
 		,s.IsMixParlay
 		,s.SiteDBGroupID
-		,t.RemarkId 
 		,s.IsVipMember
 		,s.CustomerClass
 		,s.IsCreditCashService
@@ -880,5 +994,4 @@ BEGIN
 	DROP TABLE #tmpTransInfo
 	DROP TABLE #invalidTransId
 	DROP TABLE #tmpInputTransid_RemarkId
-	DROP TABLE #DuplicatedTransids
 END
