@@ -829,13 +829,13 @@ BEGIN
 	BEGIN
 		TRUNCATE TABLE #Result_tmp
 		
-		DECLARE @Reset_tmp AS TABLE (CustID INT,LatestResetDate_single DATETIME, LatestResetDate_parlay DATETIME, Currency SMALLINT, OfferOption TINYINT, PotentialWinLimit MONEY )
+		DECLARE @Reset_tmp AS TABLE (CustID INT,LatestResetDate_Single DATETIME, LatestResetDate_Parlay DATETIME, Currency SMALLINT, OfferOption TINYINT, PotentialWinLimit MONEY )
 		
-		INSERT INTO @Reset_tmp (CustID, currency, LatestResetDate_single, LatestResetDate_parlay, OfferOption, PotentialWinLimit )
+		INSERT INTO @Reset_tmp (CustID, currency, LatestResetDate_Single, LatestResetDate_Parlay, OfferOption, PotentialWinLimit )
 		SELECT r.custid
 				, r.Currency
-				, MAX(CASE WHEN r.Accum_bettype = 0 THEN LatestResetDate ELSE NULL END) AS LatestResetDate_single 
-				, MAX(CASE WHEN r.Accum_bettype = 29 THEN LatestResetDate ELSE NULL END) AS LatestResetDate_parlay
+				, MAX(CASE WHEN r.Accum_bettype = 0 THEN LatestResetDate ELSE NULL END) AS LatestResetDate_Single 
+				, MAX(CASE WHEN r.Accum_bettype = 29 THEN LatestResetDate ELSE NULL END) AS LatestResetDate_Parlay
 				, ISNULL(p.OfferOption,0) --bit0: using for on/off parlay (2^0) - 0 : non offer, 1 offer parlay
 				, p.PotentialWinLimit
 		FROM #reset r
@@ -856,8 +856,8 @@ BEGIN
 			FROM @Reset_tmp r --Re-use of rule 5
 				INNER JOIN CustWinLimitBet_History h WITH (NOLOCK) ON r.custid = h.custid 
 				INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = h.Transid
-			WHERE 1 = CASE WHEN r.OfferOption = 0 AND b.refno = 100000000000 AND h.repupdatetime > r.LatestResetDate_single THEN 1
-						   WHEN r.OfferOption = 1 AND (b.bettype IN (29,38) OR b.refno > 100000000000) AND h.repupdatetime > r.LatestResetDate_parlay THEN 1
+			WHERE 1 = CASE WHEN r.OfferOption = 0 AND b.refno = 100000000000 AND h.repupdatetime > r.LatestResetDate_Single THEN 1
+						   WHEN r.OfferOption = 1 AND (b.bettype IN (29,38) OR b.refno > 100000000000) AND h.repupdatetime > r.LatestResetDate_Parlay THEN 1
 						   ELSE 0 END
 		)
 		INSERT INTO #Result_tmp (custid, Currency, transid)
@@ -916,15 +916,15 @@ BEGIN
 			INNER JOIN dbo.CustWinLimitBet w WITH (NOLOCK) ON c.custid = w.custid 
 		WHERE c.IsAutoReset = 1 AND c.PotentialWinLimit > 0
 			AND v.site NOT IN ('Special','Hedging')
+			AND 1= CASE WHEN ISNULL(c.OfferOption,0) = 0 AND w.Bettype = 0 THEN 1
+			            WHEN c.OfferOption = 1 AND w.Bettype = 29 THEN 1
+						ELSE 0 END
 			AND NOT EXISTS (SELECT TOP 1 1 
 							FROM dbo.CustWinLimitBet_History h WITH (NOLOCK) 
 							WHERE h.CustID = c.CustID AND ActionType = 100 
 								AND w.Bettype = h.bettype
 								AND h.RepUpdateTime >= @Today and h.RepUpdateTime < @Nextday
 							)
-			AND 1= CASE WHEN ISNULL(c.OfferOption,0) = 0 AND w.Bettype = 0 THEN 1
-			            WHEN c.OfferOption = 1 AND w.Bettype = 29 THEN 1
-						ELSE 0 END
 		ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
 		              WHEN v.Currency IN (20) THEN 2
 					  ELSE 0 END ASC 
