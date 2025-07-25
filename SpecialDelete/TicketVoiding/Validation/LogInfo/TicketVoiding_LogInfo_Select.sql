@@ -24,6 +24,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@WrongOfferedNameInfo  	VARCHAR(MAX) = NULL
 	,@OtherIssuesInfo  			VARCHAR(MAX) = NULL
 	,@MatchEarlyCompletedInfo   VARCHAR(MAX) = NULL
+	,@OnlineServerId	  		VARCHAR(10) = NULL
 )
 AS
 /*	
@@ -82,6 +83,7 @@ AS
 		- 20250106@Lani: [TVS] Change sp called of issue type 'Wrong 1st HDP & OU'  [Redmine: #215545]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 		- 20250514@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
+		- 20250725@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
 
 	Param's explanation:
 		
@@ -137,6 +139,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@DARCInfo			   = @DangerAcceptedInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 
 	IF @IssueTypeId = 2 --WrongOdds
@@ -156,6 +159,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongScoreInfo	   = @WrongScoreInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 4 --Wrong HDP
 	BEGIN
@@ -205,6 +209,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@DARCInfo			   = @RedCardInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 12 --Wrong Market Offered
 	BEGIN
@@ -214,6 +219,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@AdvancedModeInfo	   = @WrongMarketOfferedInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId IN (19,23) --ReducedOver, Abandoned
 	BEGIN
@@ -240,7 +246,8 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
-			,@AdvancedModeInfo		   = @TechnicalErrorInfo
+			,@AdvancedModeInfo	   = @TechnicalErrorInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 25 --Wrong Odds SB
 	BEGIN
