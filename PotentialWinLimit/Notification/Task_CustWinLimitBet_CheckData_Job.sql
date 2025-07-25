@@ -829,17 +829,19 @@ BEGIN
 	BEGIN
 		TRUNCATE TABLE #Result_tmp
 		
-		DECLARE @Reset_tmp AS TABLE (CustID INT,LatestResetDate_single DATETIME, LatestResetDate_parlay DATETIME, Currency SMALLINT, IsIncludeParlay BIT, PotentialWinLimit MONEY )
+		DECLARE @Reset_tmp AS TABLE (CustID INT,LatestResetDate_single DATETIME, LatestResetDate_parlay DATETIME, Currency SMALLINT, OfferOption TINYINT, PotentialWinLimit MONEY )
 		--INSERT INTO #reset (CustID, LatestResetDate, Currency, Accum_bettype)
 		
-		INSERT INTO @Reset_tmp (CustID,currency, LatestResetDate_single, LatestResetDate_parlay, IsIncludeParlay, PotentialWinLimit )
-		SELECT r.custid, Currency, MAX(CASE WHEN Accum_bettype = 0 THEN LatestResetDate ELSE NULL END) AS LatestResetDate_single 
-				, MAX(CASE WHEN Accum_bettype = 29 THEN LatestResetDate ELSE NULL END) AS LatestResetDate_parlay
-				, 0
+		INSERT INTO @Reset_tmp (CustID, currency, LatestResetDate_single, LatestResetDate_parlay, OfferOption, PotentialWinLimit )
+		SELECT r.custid
+				, r.Currency
+				, MAX(CASE WHEN r.Accum_bettype = 0 THEN LatestResetDate ELSE NULL END) AS LatestResetDate_single 
+				, MAX(CASE WHEN r.Accum_bettype = 29 THEN LatestResetDate ELSE NULL END) AS LatestResetDate_parlay
+				, p.OfferOption
 				, p.PotentialWinLimit
 		FROM #reset r
 			INNER JOIN CustDB.dbo.CustPotentialWinLimit p WITH (NOLOCK) ON p.custid = r.custid AND p.PotentialWinLimit <> 0
-		GROUP BY r.custid, r.Currency, p.PotentialWinLimit
+		GROUP BY r.custid, r.Currency, p.OfferOption, p.PotentialWinLimit
 
 		;WITH CTE_Rule AS
 		(
@@ -856,8 +858,8 @@ BEGIN
 				INNER JOIN CustWinLimitBet_History h WITH (NOLOCK) ON r.custid = h.custid 
 				INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = h.Transid
 			WHERE 1 = CASE WHEN b.refno = 100000000000 AND h.repupdatetime > r.LatestResetDate_single THEN 1
-							WHEN (b.bettype IN (29,38) OR b.refno > 100000000000) AND h.repupdatetime > r.LatestResetDate_parlay THEN 1
-							ELSE 0 END
+						   WHEN (b.bettype IN (29,38) OR b.refno > 100000000000) AND h.repupdatetime > r.LatestResetDate_parlay THEN 1
+						   ELSE 0 END
 		)
 		INSERT INTO #Result_tmp (custid, Currency, transid)
 		SELECT TOP (@batch) c.custid, Currency, transid
