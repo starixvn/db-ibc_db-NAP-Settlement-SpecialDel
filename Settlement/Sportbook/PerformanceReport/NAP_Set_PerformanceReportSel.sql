@@ -273,7 +273,7 @@ BEGIN
 		GROUP BY [sporttype],[SportName],LeagueID, LeagueName, Date
 		
 		BEGIN TRY
-			INSERT INTO DBDW.bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
+			INSERT INTO DBWH.bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
 			SELECT t.SportType, t.SportName, t.LeagueID, t.LeagueName, t.EventDate, t.WaitforKeyscore, t.WaitingTimeInQueue, t.SiteDBSettleDuration, t.TotalDuration, t.CreatedDate 
 			FROM #tmpResult t
 			ORDER BY EventDate, [sporttype],[SportName],LeagueID, LeagueName
