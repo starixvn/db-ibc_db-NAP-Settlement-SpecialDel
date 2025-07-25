@@ -38,42 +38,18 @@ BEGIN
 		FROM OPENJSON(@ListCustId) 
 		WITH(CustId INT, ResetType INT)
 		
-		IF EXISTS(SELECT TOP 1 1 FROM @tmpCustIds WHERE ResetType = 0) --All: Single + parlay
-		BEGIN
-			UPDATE b	
-			SET AccumWinLoss = 0
-				,RepUpdateTime = [dbo].[f_GetDateTime2]() 
-			OUTPUT deleted.CustID, NULL, 0, -deleted.AccumWinLoss, 0, deleted.Bettype, 100, [dbo].[f_GetDateTime2]() 
-			INTO CustWinLimitBet_History (CustID, Transid, AdjToWin, AdjWinLoss, SportType, Bettype, ActionType, RepUpdateTime)
-			FROM CustWinLimitBet b WITH(ROWLOCK,UPDLOCK)
-				INNER JOIN @tmpCustIds c ON b.CustID = c.CustID 
-			WHERE c.ResetType = 0 
-		END
+		UPDATE b	
+		SET AccumWinLoss = 0
+			,RepUpdateTime = [dbo].[f_GetDateTime2]() 
+		OUTPUT deleted.CustID, NULL, 0, -deleted.AccumWinLoss, 0, deleted.Bettype, 100, [dbo].[f_GetDateTime2]() 
+		INTO CustWinLimitBet_History (CustID, Transid, AdjToWin, AdjWinLoss, SportType, Bettype, ActionType, RepUpdateTime)
+		FROM CustWinLimitBet b WITH(ROWLOCK,UPDLOCK)
+			INNER JOIN @tmpCustIds c ON b.CustID = c.CustID 
+		WHERE 1 = CASE WHEN c.ResetType = 0 THEN 1 --All: Single + parlay
+					   WHEN c.ResetType = 1 AND b.SportType = 0 AND b.Bettype = 0 THEN 1 -- only single
+					   WHEN c.ResetType = 2 AND b.SportType = 0 AND b.Bettype = 29 THEN 1 -- only parlay
+					   ELSE 0 END
 		
-		IF EXISTS(SELECT TOP 1 1 FROM @tmpCustIds WHERE ResetType = 1) -- only single
-		BEGIN
-			UPDATE b	
-			SET AccumWinLoss = 0
-				,RepUpdateTime = [dbo].[f_GetDateTime2]() 
-			OUTPUT deleted.CustID, NULL, 0, -deleted.AccumWinLoss, 0, deleted.bettype, 100, [dbo].[f_GetDateTime2]() 
-			INTO CustWinLimitBet_History (CustID, Transid, AdjToWin, AdjWinLoss, SportType, Bettype, ActionType, RepUpdateTime)
-			FROM CustWinLimitBet b WITH(ROWLOCK,UPDLOCK)
-				INNER JOIN @tmpCustIds c ON b.CustID = c.CustID 
-			WHERE c.ResetType = 1 AND b.SportType = 0 AND b.Bettype = 0
-		END
-
-		IF EXISTS(SELECT TOP 1 1 FROM @tmpCustIds WHERE ResetType = 2) -- only parlay
-		BEGIN
-			UPDATE b	
-			SET AccumWinLoss = 0
-				,RepUpdateTime = [dbo].[f_GetDateTime2]() 
-			OUTPUT deleted.CustID, NULL, 0, -deleted.AccumWinLoss, 0, deleted.bettype, 100, [dbo].[f_GetDateTime2]() 
-			INTO CustWinLimitBet_History (CustID, Transid, AdjToWin, AdjWinLoss, SportType, Bettype, ActionType, RepUpdateTime)
-			FROM CustWinLimitBet b WITH(ROWLOCK,UPDLOCK)
-				INNER JOIN @tmpCustIds c ON b.CustID = c.CustID 
-			WHERE c.ResetType = 2 AND b.SportType = 0 AND b.Bettype = 29
-		END
-
 	END TRY
 	BEGIN CATCH
 		SET @ErrCode = ERROR_NUMBER()
