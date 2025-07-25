@@ -38,7 +38,7 @@ IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
 EXEC @ReturnCode = msdb.dbo.sp_add_jobstep @job_id=@jobId, @step_name=N'Run SP', 
 		@step_id=1, 
 		@cmdexec_success_code=0, 
-		@on_success_action=1, 
+		@on_success_action=3, 
 		@on_success_step_id=0, 
 		@on_fail_action=2, 
 		@on_fail_step_id=0, 
@@ -47,7 +47,7 @@ EXEC @ReturnCode = msdb.dbo.sp_add_jobstep @job_id=@jobId, @step_name=N'Run SP',
 		@os_run_priority=0, @subsystem=N'TSQL', 
 		@command=N'EXEC dbo.Task_BalanceNegative_Job
 		@Jobname  = ''bodb02: Task_Cash_BalanceNegative''
-		,@Waitfordelay = ''00:00:01.500''', 
+		,@Waitfordelay = ''00:00:03''', 
 		@database_name=N'bodb02', 
 		@flags=0
 IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
@@ -61,9 +61,23 @@ EXEC @ReturnCode = msdb.dbo.sp_add_jobstep @job_id=@jobId, @step_name=N'Waitfor 
 		@retry_attempts=0, 
 		@retry_interval=0, 
 		@os_run_priority=0, @subsystem=N'TSQL', 
-		@command=N'waitfor delay ''00:00:01.500''', 
+		@command=N'waitfor delay ''00:00:03''', 
 		@database_name=N'bodb02', 
 		@flags=0
+IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
+EXEC @ReturnCode = msdb.dbo.sp_add_jobschedule @job_id=@jobId, @name=N'Sche: Cash Negative Balance', 
+		@enabled=1, 
+		@freq_type=4, 
+		@freq_interval=1, 
+		@freq_subday_type=4, 
+		@freq_subday_interval=1, 
+		@freq_relative_interval=0, 
+		@freq_recurrence_factor=0, 
+		@active_start_date=20130708, 
+		@active_end_date=99991231, 
+		@active_start_time=0, 
+		@active_end_time=235959, 
+		@schedule_uid=N'635b8bc7-751c-4aaf-9cf1-089813377b96'
 IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
 EXEC @ReturnCode = msdb.dbo.sp_update_job @job_id = @jobId, @start_step_id = 1
 IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
