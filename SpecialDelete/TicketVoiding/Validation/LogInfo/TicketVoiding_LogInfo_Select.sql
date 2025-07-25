@@ -150,6 +150,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongOddsInfo		   = @WrongOddsInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 3 --Wrong score
 	BEGIN
@@ -168,6 +169,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@WrongHDPInfo		   = @WrongHDPInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 5 --Wrong 1st HDP
 	BEGIN
@@ -176,6 +178,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@Wrong1stHDPInfo	   = @Wrong1stHDPInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 6 --Wrong OU
 	BEGIN
@@ -184,6 +187,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@WrongOUInfo		   = @WrongOUInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 7 --Wrong 1st OU
 	BEGIN
@@ -192,6 +196,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@Wrong1stOUInfo	   = @Wrong1stOUInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId IN (8,9) --EKO,WKO
 	BEGIN
@@ -257,6 +262,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongOddsSBInfo	   = @WrongOddsSBInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 26 --Wrong Offered Name
 	BEGIN
