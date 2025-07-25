@@ -830,14 +830,13 @@ BEGIN
 		TRUNCATE TABLE #Result_tmp
 		
 		DECLARE @Reset_tmp AS TABLE (CustID INT,LatestResetDate_single DATETIME, LatestResetDate_parlay DATETIME, Currency SMALLINT, OfferOption TINYINT, PotentialWinLimit MONEY )
-		--INSERT INTO #reset (CustID, LatestResetDate, Currency, Accum_bettype)
 		
 		INSERT INTO @Reset_tmp (CustID, currency, LatestResetDate_single, LatestResetDate_parlay, OfferOption, PotentialWinLimit )
 		SELECT r.custid
 				, r.Currency
 				, MAX(CASE WHEN r.Accum_bettype = 0 THEN LatestResetDate ELSE NULL END) AS LatestResetDate_single 
 				, MAX(CASE WHEN r.Accum_bettype = 29 THEN LatestResetDate ELSE NULL END) AS LatestResetDate_parlay
-				, p.OfferOption
+				, ISNULL(p.OfferOption,0) --bit0: using for on/off parlay (2^0) - 0 : non offer, 1 offer parlay
 				, p.PotentialWinLimit
 		FROM #reset r
 			INNER JOIN CustDB.dbo.CustPotentialWinLimit p WITH (NOLOCK) ON p.custid = r.custid AND p.PotentialWinLimit <> 0
@@ -857,8 +856,8 @@ BEGIN
 			FROM @Reset_tmp r --Re-use of rule 5
 				INNER JOIN CustWinLimitBet_History h WITH (NOLOCK) ON r.custid = h.custid 
 				INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = h.Transid
-			WHERE 1 = CASE WHEN b.refno = 100000000000 AND h.repupdatetime > r.LatestResetDate_single THEN 1
-						   WHEN (b.bettype IN (29,38) OR b.refno > 100000000000) AND h.repupdatetime > r.LatestResetDate_parlay THEN 1
+			WHERE 1 = CASE WHEN r.OfferOption = 0 AND b.refno = 100000000000 AND h.repupdatetime > r.LatestResetDate_single THEN 1
+						   WHEN r.OfferOption = 1 AND (b.bettype IN (29,38) OR b.refno > 100000000000) AND h.repupdatetime > r.LatestResetDate_parlay THEN 1
 						   ELSE 0 END
 		)
 		INSERT INTO #Result_tmp (custid, Currency, transid)
@@ -923,6 +922,9 @@ BEGIN
 								AND w.Bettype = h.bettype
 								AND h.RepUpdateTime >= @Today and h.RepUpdateTime < @Nextday
 							)
+			AND 1= CASE WHEN ISNULL(c.OfferOption,0) = 0 AND w.Bettype = 0 THEN 1
+			            WHEN c.OfferOption = 1 AND w.Bettype = 29 THEN 1
+						ELSE 0 END
 		ORDER BY CASE WHEN v.Currency NOT IN (20) THEN 1
 		              WHEN v.Currency IN (20) THEN 2
 					  ELSE 0 END ASC 
