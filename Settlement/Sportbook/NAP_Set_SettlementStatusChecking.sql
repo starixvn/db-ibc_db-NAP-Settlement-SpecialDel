@@ -6,7 +6,6 @@ ALTER PROCEDURE [NAP_Set_SettlementStatusChecking]
 	,@IsSettleDetermined	BIT = 0
 	,@IsSettleAbandonedMatchIBC BIT = 0
 	,@IsAutoRefund			BIT = 0
-	,@ConfirmRefund			BIT = 0
 	,@ErrCode				INT = 0 OUTPUT
 	,@ErrMsg				VARCHAR(200) = '' OUTPUT
 AS
