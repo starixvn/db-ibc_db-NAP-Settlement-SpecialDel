@@ -22,6 +22,8 @@ AS
 		- 20230712@Max: Scale out credit [Redmine: #181595]
 		- 20230907@July: Remove job un-used [Redmine: #193701]
 		- 20250416@Louisa:  Potential Winning Limit/Threshold [Redmine:#226060]
+		- 20250722@Hughie:  Negative Balance for Agency Cash Service  [Redmine:#225377]
+
 
 */
 BEGIN
@@ -103,6 +105,10 @@ BEGIN
 	--Accum Potential Winning Limit
 	UNION ALL
 	SELECT 'bodb02: Task_BalanceTrigger_WinLimit'	, '00:01:00', 0
+
+	--Negative Balance for Agency Cash Service
+	UNION ALL
+	SELECT 'bodb02: Task_Cash_BalanceNegative'	, '00:01:00', 0
 
 
 	SELECT @WaitingTime = WaitingTime

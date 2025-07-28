@@ -10,6 +10,7 @@ AS
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240425@Aries: Fix IsCalculating = 99 [Redmine: #201480]
 		- 20241206@Aries: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
+		- 20250606@Aries: Integrate - Agency Cash Service [Redmine:#225377]
 
 	Param's Explanation:  
 		- @WrongResult: '<root><r Id="96801004" Home="20" Away="" RefBettypeID ="9680" G="1" OtherInfo="16776" Action="CAL" LogDate="2023-11-24 03:25:22.243" /></root>'	 
@@ -51,7 +52,7 @@ BEGIN
 		RETURN
 	END
 
-	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL 
+	IF OBJECT_ID('BalanceNegativeHistory','U') IS NOT NULL 
 	BEGIN
 		SELECT	 h.matchid
 				,m.leagueid
