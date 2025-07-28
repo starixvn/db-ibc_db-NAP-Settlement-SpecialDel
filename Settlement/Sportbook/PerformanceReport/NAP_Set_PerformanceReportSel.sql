@@ -3,6 +3,7 @@ ALTER PROCEDURE dbo.NAP_Set_PerformanceReportSel
 	@FromDate	DATETIME
 	,@ToDate	DATETIME
 	,@UserGroup	TINYINT = 0
+	,@Mode		VARCHAR(20) = ''
 AS
 /*
 	Created: 20200104@Max
@@ -22,6 +23,7 @@ AS
 		- 20241001@Kathy: Remove groupid 73
 		- 20241008@Kathy: exclude child match of table tennis [Redmine:#211924]
 		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
+		- 20250722@Max: Integration - Settlement Time Dashboard report [Redmine:#232227]
 
 	Param's explaination:
 		@UserGroup: 0-send to internal
@@ -60,8 +62,23 @@ BEGIN
 		,ActionId						INT
 		,ParentID						INT 
 		,ChildMatchType					TINYINT	
+		,LeagueID						INT
 	)
 	CREATE TABLE #MatchLive(matchid INT)
+
+	CREATE TABLE #tmpResult (
+		SportType SMALLINT
+		,SportName NVARCHAR(50)
+		,LeagueID INT
+		,LeagueName NVARCHAR(2000)
+		,EventDate DATETIME
+		,WaitforKeyscore INT
+		,WaitingTimeInQueue INT
+		,SiteDBSettleDuration INT
+		,SubDBSettleDuration INT
+		,TotalDuration INT
+		,CreatedDate DATETIME
+	)
 
 	;WITH cteSettlementPerformanceLog
 	AS (
@@ -102,7 +119,7 @@ BEGIN
 	INSERT INTO #tmpData(Year, Month, Date, Weekday, sporttype, sportname, GroupID, GroupName, LeagueName, matchid, hometeam, awayteam
 		, GlobalShowTime, keyscoreUser, SettleAction,	SettlementStatus, ConfirmStatus, ConfirmDate
 		, Step1_WaitforKeyscore_Duration, Step2_WaitforSettle_Duration, Step3_Settle_Duration, IsHold, IsChildMatch
-		, Action, ActionId, ParentID, ChildMatchType
+		, Action, ActionId, ParentID, ChildMatchType, LeagueID
 	)
 	SELECT
 		YEAR(m.eventdate) [Year]
@@ -137,6 +154,7 @@ BEGIN
 		,s.ActionId
 		,m.ParentID
 		,m.ChildMatchType
+		,l.leagueid
 	FROM  cteSettlementPerformanceLog s
 		INNER JOIN bodb02.dbo.League l with(nolock)
 			on s.LeagueId = l.leagueid
@@ -236,108 +254,96 @@ BEGIN
 			INNER JOIN #tmpData m 
 				ON 	s.matchid = m.matchid
 
-----1. Sheet 1: Soccer
-	SELECT [Year]							
-			,[Month]						
-			,[Date]							
-			,[Weekday]						
-			,sporttype						
-			,sportname
-			,GroupID	AS leaguegroupId
-			,GroupName	AS leaguegroupName							
-			,LeagueName						
-			,matchid						
-			,hometeam						
-			,awayteam						
-			,GlobalShowTime					
-			,keyscoreUser					
-			,SettleAction					
-			,SettlementStatus				
-			,ConfirmStatus								
-			,Step1_WaitforKeyscore_Duration 
-			,Step2_WaitforSettle_Duration	
-			,Step3_Settle_Duration			
-			,IsHold		
-			,IsLive
-			,IsChildMatch
-			,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
-	FROM	#tmpData
-	WHERE	sporttype = 1
-		AND 1 = CASE WHEN @UserGroup = 1 THEN 1
-					 WHEN @UserGroup = 0
-						AND GroupName NOT LIKE 'Special%'
-						AND Action in('CAL-HT', 'CAL-FT')
-						AND IsHold = 0
-						AND ConfirmStatus =  'Confirm'
-						THEN 1
-				ELSE 0
-				END
-	ORDER BY [Year] DESC
-		,[Month] DESC
-		,[Date] DESC
-		,[Weekday] DESC
-		,[sporttype] DESC
-		,[SportName] DESC
-		,[GroupName] DESC
-		,[leaguename] DESC
-		,[matchid] DESC
-		,[ConfirmDate]
-		,[hometeam] DESC
-		,[awayteam] DESC
-		,[GlobalShowTime] DESC
-		,[keyscoreUser] DESC
-		,[SettleAction] DESC
-		,[SettlementStatus] DESC 
+	IF @Mode = 'Daily'
+	BEGIN
+		INSERT INTO #tmpResult(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
+		SELECT t.sporttype
+				,t.sportname
+				,t.LeagueID
+				,t.LeagueName
+				,t.Date AS EventDate
+				, AVG(CAST (Step1_WaitforKeyscore_Duration as bigint)) as 'WaitforKeyscore'
+				, AVG(CAST (Step2_WaitforSettle_Duration as bigint)) 'WaitingTimeInQueue'
+				, AVG(CAST (Step3_Settle_Duration as bigint)) 'SiteDBSettleDuration'
+				, AVG(CAST ((Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) as bigint)) 'TotalDuration'
+				, GETDATE()
+		FROM #tmpData t
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.SettlementPerformanceReport s WITH (NOLOCK)
+                                    WHERE s.EventDate = t.Date AND s.Sporttype = t.sporttype and s.LeagueID = t.LeagueID)
+		GROUP BY [sporttype],[SportName],LeagueID, LeagueName, Date
+		
+		BEGIN TRY
+			INSERT INTO DBWH.bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
+			SELECT t.SportType, t.SportName, t.LeagueID, t.LeagueName, t.EventDate, t.WaitforKeyscore, t.WaitingTimeInQueue, t.SiteDBSettleDuration, t.TotalDuration, t.CreatedDate 
+			FROM #tmpResult t
+			ORDER BY EventDate, [sporttype],[SportName],LeagueID, LeagueName
+
+			INSERT INTO DBDW2.bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
+			SELECT t.SportType, t.SportName, t.LeagueID, t.LeagueName, t.EventDate, t.WaitforKeyscore, t.WaitingTimeInQueue, t.SiteDBSettleDuration, t.TotalDuration, t.CreatedDate 
+			FROM #tmpResult t
+			ORDER BY EventDate, [sporttype],[SportName],LeagueID, LeagueName
+		END TRY
+		BEGIN CATCH
+			SELECT ERROR_MESSAGE()
+		END CATCH
+	END
+	ELSE
+	BEGIN
+		----1. Sheet 1: Soccer
+		SELECT [Year]							
+				,[Month]						
+				,[Date]							
+				,[Weekday]						
+				,sporttype						
+				,sportname
+				,GroupID	AS leaguegroupId
+				,GroupName	AS leaguegroupName							
+				,LeagueName						
+				,matchid						
+				,hometeam						
+				,awayteam						
+				,GlobalShowTime					
+				,keyscoreUser					
+				,SettleAction					
+				,SettlementStatus				
+				,ConfirmStatus								
+				,Step1_WaitforKeyscore_Duration 
+				,Step2_WaitforSettle_Duration	
+				,Step3_Settle_Duration			
+				,IsHold		
+				,IsLive
+				,IsChildMatch
+				,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
+		FROM	#tmpData
+		WHERE	sporttype = 1
+			AND 1 = CASE WHEN @UserGroup = 1 THEN 1
+						 WHEN @UserGroup = 0
+							AND GroupName NOT LIKE 'Special%'
+							AND Action in('CAL-HT', 'CAL-FT')
+							AND IsHold = 0
+							AND ConfirmStatus =  'Confirm'
+							THEN 1
+					ELSE 0
+					END
+		ORDER BY [Year] DESC
+			,[Month] DESC
+			,[Date] DESC
+			,[Weekday] DESC
+			,[sporttype] DESC
+			,[SportName] DESC
+			,[GroupName] DESC
+			,[leaguename] DESC
+			,[matchid] DESC
+			,[ConfirmDate]
+			,[hometeam] DESC
+			,[awayteam] DESC
+			,[GlobalShowTime] DESC
+			,[keyscoreUser] DESC
+			,[SettleAction] DESC
+			,[SettlementStatus] DESC 
  
 
- ----2. Sheet 2: OS
-	SELECT	[Year]							
-			,[Month]						
-			,[Date]							
-			,[Weekday]						
-			,sporttype						
-			,sportname	
-			,GroupID	AS leaguegroupId
-			,GroupName	AS leaguegroupName					
-			,LeagueName						
-			,matchid						
-			,hometeam						
-			,awayteam						
-			,GlobalShowTime					
-			,keyscoreUser					
-			,SettleAction					
-			,SettlementStatus				
-			,ConfirmStatus								
-			,Step1_WaitforKeyscore_Duration 
-			,Step2_WaitforSettle_Duration	
-			,Step3_Settle_Duration			
-			,IsHold	
-			,IsLive
-			,IsChildMatch
-			,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
-	FROM	#tmpData
-	WHERE	(sporttype IN ( 50,5,18,9,6) AND @UserGroup = 0 )
-			OR (sporttype <> 1 AND @UserGroup = 1)
-	ORDER BY [Year] DESC 
-		,[Month] DESC
-		,[Date] DESC
-		,[Weekday] DESC
-		,[sporttype] DESC
-		,[SportName] DESC
-		,[GroupName] DESC
-		,[leaguename] DESC
-		,[matchid] DESC
-		,[ConfirmDate]
-		,[hometeam] DESC
-		,[awayteam] DESC
-		,[GlobalShowTime] DESC
-		,[keyscoreUser] DESC
-		,[SettleAction] DESC
-		,[SettlementStatus] DESC 
-	
-	IF @UserGroup = 0
-	BEGIN
-		---- Sheet 3: Basketball
+	 ----2. Sheet 2: OS
 		SELECT	[Year]							
 				,[Month]						
 				,[Date]							
@@ -345,7 +351,7 @@ BEGIN
 				,sporttype						
 				,sportname	
 				,GroupID	AS leaguegroupId
-				,GroupName	AS leaguegroupName						
+				,GroupName	AS leaguegroupName					
 				,LeagueName						
 				,matchid						
 				,hometeam						
@@ -363,7 +369,8 @@ BEGIN
 				,IsChildMatch
 				,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
 		FROM	#tmpData
-		WHERE	sporttype = 2
+		WHERE	(sporttype IN ( 50,5,18,9,6) AND @UserGroup = 0 )
+				OR (sporttype <> 1 AND @UserGroup = 1)
 		ORDER BY [Year] DESC 
 			,[Month] DESC
 			,[Date] DESC
@@ -380,63 +387,111 @@ BEGIN
 			,[keyscoreUser] DESC
 			,[SettleAction] DESC
 			,[SettlementStatus] DESC 
-
-		---- sheet 4: AVG soccer
-		SELECT  
-			[sporttype]
-			,[SportName]
-			,[YEAR]
-			,[MONTH]
-			,GroupName	AS LeagueGroupName
-			,avg(cast (Step1_WaitforKeyscore_Duration as bigint)) as 'WaitforKeyscore'
-			, AVG(cast (Step2_WaitforSettle_Duration as bigint)) 'WaitingTimeInQueue'
-			, AVG(cast (Step3_Settle_Duration as bigint)) 'DurationSettlement'
-			, AVG(cast ((Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) as bigint)) 'Total'
-			FROM #tmpData
-			WHERE sporttype = 1
-				AND @UserGroup = 0 --internal
-			group by [sporttype],[SportName],GroupID, GroupName, [Month],[year]
-			order by [sporttype],[SportName],[Year], [Month], GroupName
-
-		---- sheet 5: AVG OS
-		SELECT  
-			[sporttype]
-			,[SportName]
-			,[YEAR]
-			,[MONTH]
-			,GroupName	AS LeagueGroupName
-			,avg(cast (Step1_WaitforKeyscore_Duration as bigint)) as 'WaitforKeyscore'
-			, AVG(cast (Step2_WaitforSettle_Duration as bigint)) 'WaitingTimeInQueue'
-			, AVG(cast (Step3_Settle_Duration as bigint)) 'DurationSettlement'
-			, AVG(cast ((Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) as bigint)) 'Total'
-		FROM #tmpData
-		WHERE sporttype IN ( 50,5,18,9,6) 
-			AND @UserGroup = 0
-		group by [sporttype],[SportName],GroupName, [Month],[year]
-		order by [sporttype],[SportName],[Year], [Month],GroupName
-
-		---- sheet 6: AVG Basketball
-		SELECT  
-			[sporttype]
-			,[SportName]
-			,[YEAR]
-			,[MONTH]
-			,GroupName	AS LeagueGroupName	
-			,avg(cast (Step1_WaitforKeyscore_Duration as bigint)) as 'WaitforKeyscore'
-			, AVG(cast (Step2_WaitforSettle_Duration as bigint)) 'WaitingTimeInQueue'
-			, AVG(cast (Step3_Settle_Duration as bigint)) 'DurationSettlement'
-			, AVG(cast ((Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) as bigint)) 'Total'
-		FROM #tmpData
-		WHERE sporttype = 2
-			AND @UserGroup = 0
-		group by [sporttype],[SportName],GroupName, [Month],[year]
-		order by [sporttype],[SportName],[Year], [Month],GroupName
 	
+		IF @UserGroup = 0
+		BEGIN
+			---- Sheet 3: Basketball
+			SELECT	[Year]							
+					,[Month]						
+					,[Date]							
+					,[Weekday]						
+					,sporttype						
+					,sportname	
+					,GroupID	AS leaguegroupId
+					,GroupName	AS leaguegroupName						
+					,LeagueName						
+					,matchid						
+					,hometeam						
+					,awayteam						
+					,GlobalShowTime					
+					,keyscoreUser					
+					,SettleAction					
+					,SettlementStatus				
+					,ConfirmStatus								
+					,Step1_WaitforKeyscore_Duration 
+					,Step2_WaitforSettle_Duration	
+					,Step3_Settle_Duration			
+					,IsHold	
+					,IsLive
+					,IsChildMatch
+					,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
+			FROM	#tmpData
+			WHERE	sporttype = 2
+			ORDER BY [Year] DESC 
+				,[Month] DESC
+				,[Date] DESC
+				,[Weekday] DESC
+				,[sporttype] DESC
+				,[SportName] DESC
+				,[GroupName] DESC
+				,[leaguename] DESC
+				,[matchid] DESC
+				,[ConfirmDate]
+				,[hometeam] DESC
+				,[awayteam] DESC
+				,[GlobalShowTime] DESC
+				,[keyscoreUser] DESC
+				,[SettleAction] DESC
+				,[SettlementStatus] DESC 
+
+			---- sheet 4: AVG soccer
+			SELECT  
+				[sporttype]
+				,[SportName]
+				,[YEAR]
+				,[MONTH]
+				,GroupName	AS LeagueGroupName
+				,avg(cast (Step1_WaitforKeyscore_Duration as bigint)) as 'WaitforKeyscore'
+				, AVG(cast (Step2_WaitforSettle_Duration as bigint)) 'WaitingTimeInQueue'
+				, AVG(cast (Step3_Settle_Duration as bigint)) 'DurationSettlement'
+				, AVG(cast ((Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) as bigint)) 'Total'
+				FROM #tmpData
+				WHERE sporttype = 1
+					AND @UserGroup = 0 --internal
+				group by [sporttype],[SportName],GroupID, GroupName, [Month],[year]
+				order by [sporttype],[SportName],[Year], [Month], GroupName
+
+			---- sheet 5: AVG OS
+			SELECT  
+				[sporttype]
+				,[SportName]
+				,[YEAR]
+				,[MONTH]
+				,GroupName	AS LeagueGroupName
+				,avg(cast (Step1_WaitforKeyscore_Duration as bigint)) as 'WaitforKeyscore'
+				, AVG(cast (Step2_WaitforSettle_Duration as bigint)) 'WaitingTimeInQueue'
+				, AVG(cast (Step3_Settle_Duration as bigint)) 'DurationSettlement'
+				, AVG(cast ((Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) as bigint)) 'Total'
+			FROM #tmpData
+			WHERE sporttype IN ( 50,5,18,9,6) 
+				AND @UserGroup = 0
+			group by [sporttype],[SportName],GroupName, [Month],[year]
+			order by [sporttype],[SportName],[Year], [Month],GroupName
+
+			---- sheet 6: AVG Basketball
+			SELECT  
+				[sporttype]
+				,[SportName]
+				,[YEAR]
+				,[MONTH]
+				,GroupName	AS LeagueGroupName	
+				,avg(cast (Step1_WaitforKeyscore_Duration as bigint)) as 'WaitforKeyscore'
+				, AVG(cast (Step2_WaitforSettle_Duration as bigint)) 'WaitingTimeInQueue'
+				, AVG(cast (Step3_Settle_Duration as bigint)) 'DurationSettlement'
+				, AVG(cast ((Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) as bigint)) 'Total'
+			FROM #tmpData
+			WHERE sporttype = 2
+				AND @UserGroup = 0
+			group by [sporttype],[SportName],GroupName, [Month],[year]
+			order by [sporttype],[SportName],[Year], [Month],GroupName
+	
+		END
 	END
 
 
-DROP TABLE #tmpData
-DROP TABLE #MatchLive
+	DROP TABLE #tmpData
+	DROP TABLE #MatchLive
+	DROP TABLE #tmpResult
 		
 END
     
