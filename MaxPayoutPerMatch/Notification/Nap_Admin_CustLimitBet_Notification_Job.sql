@@ -18,6 +18,7 @@ AS
 		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 		- 20240710@Kathy: Change instance name [Redmine:#207768]
 		- 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
+		- 20250728@Max: Temp exclude VS mix parlay from noti [Redmine: #231837]
 
 
 	Param's explanation:		
@@ -62,6 +63,7 @@ BEGIN
 												FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
 												WHERE q.Statusid = 2
 													AND DATEDIFF(MINUTE, q.ExecTime, @CurrentTime) < 2
+													AND q.Matchid NOT IN (2799,10449,11099)
 												FOR XML PATH(''))
 												,1,1,''),'')
 	
