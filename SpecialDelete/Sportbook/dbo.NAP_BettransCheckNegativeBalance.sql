@@ -33,6 +33,7 @@ AS
 		- 20240111@July: [TVS] Negative Balance - Don't Send Notification to Single Wallet Licensee [Redmine: #199097]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 		- 20250710@July: Fix bug recover cancel CO not show negative [Redmine: #225390]
+		- 20250728@July: Fix bug recover for case cancel CO -> cashout-> void ticket (2 rows in zzzbettrans) [Redmine: #217851]
 
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
@@ -68,7 +69,7 @@ BEGIN
 	)	
 	
 	CREATE TABLE #BetDelete (
-		transid			BIGINT PRIMARY KEY
+		transid			BIGINT
 		,custid			INT
 		,winlost		MONEY
 		,actual_stake	MONEY
@@ -102,7 +103,7 @@ BEGIN
 				,BonusID
 				,srecommend
 		)
-		SELECT	b.transid -- normal ticket 
+		SELECT	DISTINCT b.transid -- normal ticket 
 				,b.custid
 				,b.winlost
 				,b.actual_stake
@@ -137,7 +138,7 @@ BEGIN
 				,BonusID
 				,srecommend
 		)
-		SELECT	b.transid -- normal ticket 
+		SELECT	DISTINCT b.transid -- normal ticket 
 				,b.custid
 				,b.winlost
 				,b.actual_stake
