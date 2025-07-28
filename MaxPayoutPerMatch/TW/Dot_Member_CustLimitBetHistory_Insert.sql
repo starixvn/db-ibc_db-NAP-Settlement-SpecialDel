@@ -28,7 +28,7 @@ AS
 		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]
 		- 20250609@July: Enhance MaxPayout Per Match for Virtual Sport [Redmine: #229870]
 		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
-		- 20250703@July: Max Payout Per Match for E-Sport/ Muay Thai [Redmine: #230454]
+		- 20250703@July: Max Payout Per Match for E-Sport/ Muay Thai [Redmine: #230454] & for all bettypes of SportBook [Redmine: #234047]
 	
 	Param's explanation:	
 		
