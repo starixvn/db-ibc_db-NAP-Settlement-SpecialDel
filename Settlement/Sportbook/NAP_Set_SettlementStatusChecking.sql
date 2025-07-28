@@ -126,7 +126,7 @@ BEGIN
 						,@ErrMsg = 'WARNING! Cannot proceed due to running odds. Please close them all and try again.'
 		END
     END
-	ELSE IF @Action = 'REFUND' AND @IsEarly = 0 AND @IsSettleAbandonedMatchIBC = 0  AND @IsSettleDetermined = 0 AND @ConfirmRefund = 0 -- Refund All (POS)
+	ELSE IF @Action = 'REFUND' AND @IsEarly = 0 AND @IsSettleAbandonedMatchIBC = 0  AND @IsSettleDetermined = 0 -- Refund All (POS)
 	BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM dbo.odds o WITH(NOLOCK) WHERE o.matchid = @matchid AND o.oddsstatus NOT IN ('closed', 'internal') AND ISNULL(o.IsDeleted,0) = 0 ) 	-- check running odds---- Refund ALL (POS)
 			SELECT	@ErrCode = 1001035
