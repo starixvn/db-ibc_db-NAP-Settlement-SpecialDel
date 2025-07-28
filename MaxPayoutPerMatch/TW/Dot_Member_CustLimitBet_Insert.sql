@@ -27,6 +27,7 @@ AS
 		- 20241031@Max: VS6 (Betby) - Company Max Payout & Max Payout Per Match [Redmine: #212547]
 		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]
 		- 20250609@July: Enhance MaxPayout Per Match for Virtual Sport [Redmine: #229870]
+		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
 	
 	Param's explanation:	
 		
@@ -41,7 +42,7 @@ BEGIN
 	
 
 	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186,188,147,177,134,125,126,127) AND (@sporttype NOT BETWEEN 190 AND 198))
-		OR (@bettype IN(2799,10449,11099)) OR (@bettype BETWEEN 801 AND 806)
+		OR (@bettype BETWEEN 801 AND 806)
 	BEGIN
 		RETURN
 	END
