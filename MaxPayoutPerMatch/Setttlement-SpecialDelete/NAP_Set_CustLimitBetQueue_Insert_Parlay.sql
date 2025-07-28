@@ -1,7 +1,8 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_CustLimitBetQueue_Insert_Parlay]
 (
-	@TransIds	VARCHAR(MAX) = NULL
+	@MatchId	INT = 29
+	,@TransIds	VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -10,6 +11,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20240429@Max: Create SP [Redmine: #204464]
+		- 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
 
 	Param's explanation:
 		
@@ -18,7 +20,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	INSERT INTO dbo.CustLimitBetQueue (MatchId, Transids, ActionID, Statusid, CreatedDate)
-	SELECT 29, @TransIds, 6, 0, GETDATE()
+	SELECT @MatchId, @TransIds, 6, 0, GETDATE()
 
 END
 GO

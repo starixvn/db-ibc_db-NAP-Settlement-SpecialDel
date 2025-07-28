@@ -24,6 +24,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241126@Lani: [TVS] Get site from srecommend, serverAlias [Redmine: #213451]
 		- 20250624@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
+		- 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -57,6 +58,7 @@ BEGIN
 		  , @IsExistsVS					BIT = 0
 		  , @bettype					SMALLINT
 		  , @ActionId					INT = 90999 --TVS - Agency Cash Service
+		  , @MainParlayMaxPO				VARCHAR(MAX)
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
@@ -343,6 +345,23 @@ BEGIN
 				, @updatetype 	= 6
 				, @_sXML 		= @_sXML
 				, @matchId		= 2799
+				, @AffectedTransIds = @MainParlayMaxPO OUTPUT
+
+			--Insert Max Payout Queue
+			IF ISNULL(@MainParlayMaxPO,'') <> ''
+			BEGIN
+				BEGIN TRY
+					EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
+						@MatchId = 2799
+						,@TransIds = @MainParlayMaxPO
+				END TRY
+				BEGIN CATCH
+					SELECT @ErrCode = ERROR_NUMBER()
+						, @ErrMsg = ERROR_MESSAGE()
+				END CATCH
+
+				SET @MainParlayMaxPO = ''
+			END
 			
 			--> get match list
 			INSERT INTO #MatchInfo(matchid, matchdate)
@@ -404,6 +423,23 @@ BEGIN
 				, @updatetype 	= 6
 				, @_sXML 		= @_sXML
 				, @matchId		= 10449
+				, @AffectedTransIds = @MainParlayMaxPO OUTPUT
+
+			--Insert Max Payout Queue
+			IF ISNULL(@MainParlayMaxPO,'') <> ''
+			BEGIN
+				BEGIN TRY
+					EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
+						@MatchId = 10449
+						,@TransIds = @MainParlayMaxPO
+				END TRY
+				BEGIN CATCH
+					SELECT @ErrCode = ERROR_NUMBER()
+						, @ErrMsg = ERROR_MESSAGE()
+				END CATCH
+
+				SET @MainParlayMaxPO = ''
+			END
 
 			--VS5
 			--> Update Bettrans	to running
@@ -421,6 +457,23 @@ BEGIN
 				, @updatetype 	= 6
 				, @_sXML 		= @_sXML
 				, @matchId		= 11099
+				, @AffectedTransIds = @MainParlayMaxPO OUTPUT
+
+			--Insert Max Payout Queue
+			IF ISNULL(@MainParlayMaxPO,'') <> ''
+			BEGIN
+				BEGIN TRY
+					EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
+						@MatchId = 11099
+						,@TransIds = @MainParlayMaxPO
+				END TRY
+				BEGIN CATCH
+					SELECT @ErrCode = ERROR_NUMBER()
+						, @ErrMsg = ERROR_MESSAGE()
+				END CATCH
+
+				SET @MainParlayMaxPO = ''
+			END
 			
 			--> get match list
 			INSERT INTO #MatchInfo(matchid, matchdate)

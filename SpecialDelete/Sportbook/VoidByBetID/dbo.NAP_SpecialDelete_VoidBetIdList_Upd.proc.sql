@@ -117,6 +117,7 @@ AS
 	  - 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 	  - 20250606@Lani: [TVS] Remove unused code [Redmine: #225845]
 	  - 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
+	  - 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
 
 	 Param's Explanation:   
 */
@@ -1279,21 +1280,38 @@ BEGIN
 			,@TransidList = @TransIds_MaxPO
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype = 29)
-	BEGIN
-		--Prepare for Max Payout
-		SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
-									,t.ruben AS '@ruben'
-									,t.transid AS '@transid'
-								FROM #SpecialDeleteBets t
-								WHERE t.Bettype = 29
-								GROUP BY custid, ruben, transid
-								FOR XML PATH('r'), ROOT('root')
-							)
+	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)))
+	BEGIN	
+		DELETE @Match_tmp
+		INSERT INTO @Match_tmp (matchId)
+		SELECT DISTINCT t.matchid
+		FROM #SpecialDeleteBets t
+		WHERE t.Bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 
-		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
-			@MatchId= 29
-			,@TransidList = @MainParlay_MaxPO
+		WHILE (1=1)
+		BEGIN
+			SELECT @MainParlay_MaxPO = '', @MatchId_MaxPO = NULL
+		
+			UPDATE TOP(1) mt SET mt.IsFinish = 1, @MatchId_MaxPO = mt.matchid
+			FROM @Match_tmp mt
+			WHERE mt.IsFinish IS NULL
+
+			IF @@ROWCOUNT = 0 BREAK
+
+			--Prepare for Max Payout
+			SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
+										,t.ruben AS '@ruben'
+										,t.transid AS '@transid'
+									FROM #SpecialDeleteBets t
+									WHERE t.Bettype = @MatchId_MaxPO
+									GROUP BY custid, ruben, transid
+									FOR XML PATH('r'), ROOT('root')
+								)
+
+			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+				@MatchId= @MatchId_MaxPO
+				,@TransidList = @MainParlay_MaxPO
+		END
 	END
 
 	--get list VIP Account
