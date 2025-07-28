@@ -32,6 +32,7 @@ AS
 		- 20250403@Max: Enhance detection function when the system has duplicated code in the queue [Redmine: #222735]
 		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]  
 		- 20250609@July: Enhance MaxPayout Per Match for Virtual Sport [Redmine: #229870]
+		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
 
 	Param's explanation:		
 		
@@ -67,8 +68,11 @@ BEGIN
 	FROM dbo.[match] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
 		AND (m.sporttype <= 99 OR m.sporttype IN (164,178,179,180,186,188,190,191,192,193,194,195,196,197))
-	UNION ALL
-	SELECT 29 matchid, NULL sporttype
+	UNION ALL --Main parlay matchId
+	SELECT bettype AS matchid 
+		, NULL sporttype
+	FROM f_TVS_SpeciallyBettypes()
+	WHERE TypeId IN (0,1)
 	UNION ALL
 	SELECT m.Match3rdId, m.sporttype
 	FROM dbo.[Match3rd] m WITH (NOLOCK)
@@ -492,7 +496,7 @@ BEGIN
 							FROM dbo.CustLimitBetQueue Q with (nolock)
 							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 121)+'%'								
 						)
-			AND t.matchid <> 29
+			AND t.matchid NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 			AND t.currency <> 20
 						) AS tmp
 
@@ -504,7 +508,7 @@ BEGIN
 							FROM dbo.CustLimitBetQueue Q with (nolock)
 							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 121)+'%'								
 						)
-			AND t.matchid <> 29
+			AND t.matchid NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 			AND t.currency = 20
 						) AS tmp
 
@@ -532,7 +536,7 @@ BEGIN
 								(Q.Transids like '%'+CONVERT(VARCHAR(20), T.transid)+'%' AND Q.Transids NOT LIKE '%rejectTicket%') 
 								)							
 							)
-				AND t.Matchid = 29
+				AND t.Matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 				AND t.currency <> 20
 		) AS tmp
 
@@ -548,7 +552,7 @@ BEGIN
 								(Q.Transids like '%'+CONVERT(VARCHAR(20), T.transid)+'%' AND Q.Transids NOT LIKE '%rejectTicket%') 
 								)							
 							)
-				AND t.Matchid = 29
+				AND t.Matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 				AND t.currency = 20
 		) AS tmp
 

@@ -20,6 +20,7 @@ AS
 		- 20240118@Louisa: Support Max Payout for VS4 [Redmine:#199700]
 		- 20240325@Max: Max Payout - NAP_Admin_CustLimitBetQueue_Insert_Parlay Enhancement [Redmine: #202058]
 		- 20250225@Max: Enhance case duplicate rejected parlay ticket in queue [Redmine: #218599]
+		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
 	
 	Param's explanation:	
 		
@@ -102,7 +103,7 @@ BEGIN
 		BEGIN TRY
 			SET @xml = CONVERT(XML, @Transids)
 
-			IF @MatchId <> 29 --Match, Bettype 38
+			IF @MatchId NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) --Match, Bettype 38
 			BEGIN
 				SELECT @MinTransId = t.c.value('@mintransid','bigint')
 					,@MaxTransId = t.c.value('@maxtransid','bigint')
@@ -128,7 +129,7 @@ BEGIN
 					AND b.checktime = @RejectTime
 					AND b.statusID = 101
 			END
-			ELSE IF @MatchId = 29  --Parlay
+			ELSE IF @MatchId IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) --Parlay
 			BEGIN
 				IF @Transids LIKE '%rejectTicket%' --temp code for release, will remove after
 				BEGIN
@@ -150,7 +151,7 @@ BEGIN
 						INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 					WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
 						AND b.SiteDBGroupID = @SiteDBGroupID
-						AND b.matchid = 29
+						AND b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 						AND b.checktime = @RejectTime
 						AND b.statusID = 101
 						AND b.creator = @Creator
@@ -172,7 +173,7 @@ BEGIN
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 						INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 					WHERE b.SiteDBGroupID = @SiteDBGroupID
-						AND b.matchid = 29
+						AND b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 						AND b.statusID = 101
 				END
 
@@ -199,12 +200,12 @@ BEGIN
 		END CATCH
 
 		--Remove unsupport sporttype/bettype
-		IF @MatchId <> 29
+		IF @MatchId NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		BEGIN
 			DELETE t
 			FROM #CustLimitBet_tmp t
 			WHERE (t.sporttype > 99  AND t.sporttype NOT IN (164,178,179,180,186,188) AND t.sporttype NOT BETWEEN 190 AND 197)
-				OR (t.bettype IN(29, 2799,10449) OR (t.bettype BETWEEN 801 AND 806))
+				OR (t.bettype BETWEEN 801 AND 806)
 		END
 	END
 

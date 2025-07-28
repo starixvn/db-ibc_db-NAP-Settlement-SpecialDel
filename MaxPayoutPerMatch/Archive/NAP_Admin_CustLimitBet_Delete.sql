@@ -22,6 +22,7 @@ AS
 		- 20241031@Max: VS6 (Betby) - Company Max Payout & Max Payout Per Match [Redmine: #212547]
 		- 20241203@Max: Improve performance of Max Payout per Match [Redmine: #214294]
 		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]  
+		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
 	
 	Param's explanation:	
 		
@@ -58,13 +59,13 @@ BEGIN
 	SELECT m.matchid, 1 EventTypeID
 	FROM dbo.match m WITH (NOLOCK)
 	WHERE m.eventdate <= @Archive_Date
-		AND (m.sporttype <= 99 OR (m.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197))) --get support Sports
+		AND (m.sporttype <= 99 OR (m.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197,188))) --get support Sports
 
 	UNION ALL
 	SELECT m14.matchid, 1 EventTypeID
 	FROM dbo.match14 m14 WITH (NOLOCK)
 	WHERE m14.eventdate <= @Archive_Date
-		AND (m14.sporttype <= 99 OR (m14.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197))) --get support Sports
+		AND (m14.sporttype <= 99 OR (m14.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197,188))) --get support Sports
 
 	UNION ALL
 	SELECT o.orid MatchId, 2 EventTypeID
@@ -221,8 +222,10 @@ BEGIN
 	INSERT INTO #tmp_QueueID (QueueID)
 	SELECT q.QueueID
 	FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
-	WHERE 1= CASE WHEN q.Matchid <> 29 AND q.EventTypeID IS NULL AND q.ExecTime <= @Archive_Date THEN 1
-				WHEN q.Matchid = 29 AND DATEDIFF(DAY, q.CreatedDate, GETDATE()) >= 10 THEN 1 --Phase 2 delete for Parlay
+	WHERE 1= CASE WHEN q.Matchid NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
+					AND q.EventTypeID IS NULL AND q.ExecTime <= @Archive_Date THEN 1
+				WHEN q.Matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
+					AND DATEDIFF(DAY, q.CreatedDate, GETDATE()) >= 10 THEN 1 --Phase 2 delete for Parlay
 			ELSE 0 END
 
 	--delete bonus data CustLimitBetQueue
@@ -258,7 +261,7 @@ BEGIN
 		INSERT INTO #tmp_TransId_pre_mbc (Transid,custid)
 		SELECT transid, custid
 		FROM dbo.CustLimitBetHistory_MBC m1 WITH (NOLOCK)
-		WHERE m1.Matchid = 29
+		WHERE m1.Matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		GROUP BY matchid,transid,custid
 
 		INSERT INTO #tmp_TransId_Parlay_mbc (CustId, TransId)
@@ -284,7 +287,7 @@ BEGIN
 				DELETE t
 				FROM dbo.CustLimitBetHistory_MBC t 
 					INNER JOIN #tmp_TransId_Parlay_batch b ON t.CustID = b.CustId and t.Transid = b.TransId
-				WHERE t.matchid = 29 
+				WHERE t.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
 
 				TRUNCATE TABLE #tmp_TransId_Parlay_batch
 
@@ -300,7 +303,7 @@ BEGIN
 		INSERT INTO #tmp_TransId_pre_789 (Transid,custid)
 		SELECT transid,custid
 		FROM dbo.CustLimitBetHistory_789  m2 WITH (NOLOCK)
-		WHERE m2.Matchid = 29
+		WHERE m2.Matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		GROUP BY matchid,transid,custid
 
 		INSERT INTO #tmp_TransId_Parlay_789 (CustId, TransId)
@@ -328,7 +331,7 @@ BEGIN
 				DELETE t
 				FROM dbo.CustLimitBetHistory_789 t 
 					INNER JOIN #tmp_TransId_Parlay_batch b ON t.CustID = b.CustId and t.Transid = b.TransId
-				WHERE t.matchid = 29 
+				WHERE t.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 
 				TRUNCATE TABLE #tmp_TransId_Parlay_batch
 
@@ -344,7 +347,7 @@ BEGIN
 		INSERT INTO #tmp_TransId_pre_LIC (Transid,custid)
 		SELECT transid,custid
 		FROM dbo.CustLimitBetHistory_LIC  m2 WITH (NOLOCK)
-		WHERE m2.Matchid = 29
+		WHERE m2.Matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		GROUP BY matchid,transid,custid
 
 		INSERT INTO #tmp_TransId_Parlay_LIC (CustId, TransId)
@@ -372,7 +375,7 @@ BEGIN
 				DELETE t
 				FROM dbo.CustLimitBetHistory_LIC t 
 					INNER JOIN #tmp_TransId_Parlay_batch b ON t.CustID = b.CustId and t.Transid = b.TransId
-				WHERE t.matchid = 29 
+				WHERE t.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) 
 
 				TRUNCATE TABLE #tmp_TransId_Parlay_batch
 
