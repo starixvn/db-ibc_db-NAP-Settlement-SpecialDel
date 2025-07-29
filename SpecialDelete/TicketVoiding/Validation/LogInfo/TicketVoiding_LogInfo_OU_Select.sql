@@ -842,21 +842,18 @@ BEGIN
 			TransId BIGINT,
 			IsMixParlay BIT,
 			SiteDBGroupID SMALLINT,
-			isMarked BIT,
-			GroupName VARCHAR(50)
+			isMarked BIT
 		);
 		DECLARE @SingleCountSiteDBDown INT
 		       ,@ParlayCountSiteDBDown INT
-			   ,@PHCountSiteDBDown INT
 
-		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked, GroupName)
-		SELECT MatchId, SubTransid, IsMixParlay, SiteDBGroupID, CASE WHEN SubStatusId IN (0,1) THEN 1 ELSE 0 END AS isMarked, GroupName
+		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
+		SELECT MatchId, SubTransid, IsMixParlay, SiteDBGroupID, CASE WHEN SubStatusId IN (0,1) THEN 1 ELSE 0 END AS isMarked
 		FROM #TVSTicketBets
 		WHERE IsSiteDBDown = 1;
 
 		SELECT @SingleCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 0 THEN 1 ELSE NULL END)
 		      ,@ParlayCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 1 THEN 1 ELSE NULL END)
-			  ,@PHCountSiteDBDown = COUNT(CASE WHEN GroupName = 'PH' THEN 1 ELSE NULL END)
 		FROM @tmpSiteDBDownInfo
 	END
 
@@ -1288,7 +1285,6 @@ BEGIN
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
 		  ,@SingleCountSiteDBDown AS SingleCount
 		  ,@ParlayCountSiteDBDown AS ParlayCount
-		  ,@PHCountSiteDBDown AS PHCountSiteDBDown
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
