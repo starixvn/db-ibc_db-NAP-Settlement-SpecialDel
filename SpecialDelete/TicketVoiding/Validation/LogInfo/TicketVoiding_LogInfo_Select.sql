@@ -236,6 +236,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@ReducedOverInfo	   = @ReducedOverInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 21 --Not Participate
 	BEGIN
@@ -245,6 +246,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@NotParticipateInfo   = @NotParticipateInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 24 --Technical Error
 	BEGIN
@@ -283,6 +285,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@OtherIssuesInfo	   = @OtherIssuesInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 27 --Match Early Completed
     BEGIN
@@ -292,6 +295,7 @@ BEGIN
             ,@IsShowLogOnly           = @IsShowLogOnly
             ,@IssueTypeId             = @IssueTypeId
             ,@MatchEarlyCompletedInfo = @MatchEarlyCompletedInfo
+			,@OnlineServerId	      = @OnlineServerId
     END
 	
 	-- Write useraction log	
