@@ -286,7 +286,7 @@ BEGIN
 				BREAK
   
 				DELETE t
-				FROM dbo.CustLimitBetHistory_MBC t 
+				FROM dbo.CustLimitBetHistory_MBC t WITH (ROWLOCK) 
 					INNER JOIN #tmp_TransId_Parlay_batch b ON t.matchid = b.matchid AND t.CustID = b.CustId AND t.Transid = b.TransId
 
 				TRUNCATE TABLE #tmp_TransId_Parlay_batch
@@ -329,7 +329,7 @@ BEGIN
 				BREAK
   
 				DELETE t
-				FROM dbo.CustLimitBetHistory_789 t 
+				FROM dbo.CustLimitBetHistory_789 t WITH (ROWLOCK)
 					INNER JOIN #tmp_TransId_Parlay_batch b ON t.matchid = b.matchid AND t.CustID = b.CustId AND t.Transid = b.TransId
 
 				TRUNCATE TABLE #tmp_TransId_Parlay_batch
@@ -372,7 +372,7 @@ BEGIN
 				BREAK
   
 				DELETE t
-				FROM dbo.CustLimitBetHistory_LIC t 
+				FROM dbo.CustLimitBetHistory_LIC t WITH (ROWLOCK)
 					INNER JOIN #tmp_TransId_Parlay_batch b ON t.matchid = b.matchid AND t.CustID = b.CustId AND t.Transid = b.TransId
 
 				TRUNCATE TABLE #tmp_TransId_Parlay_batch
