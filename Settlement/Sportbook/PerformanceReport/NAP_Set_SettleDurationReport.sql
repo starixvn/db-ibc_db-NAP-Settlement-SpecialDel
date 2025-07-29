@@ -213,7 +213,8 @@ BEGIN
 		--Return data
 		SELECT [Date]
             , [SportName]
-            , COUNT(matchid) AS MatchCount          
+            , COUNT(DISTINCT matchid) AS MatchCount 
+            , COUNT(1) AS MatchCount_Action      
             , AVG(
                 CAST(
                   CASE WHEN sporttype = 1 THEN Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration
