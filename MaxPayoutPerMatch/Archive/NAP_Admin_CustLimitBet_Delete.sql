@@ -136,7 +136,7 @@ BEGIN
 			WHILE (1=1)
 			BEGIN
 				DELETE TOP(1000) mbc
-				FROM dbo.CustLimitBet_MBC mbc
+				FROM dbo.CustLimitBet_MBC mbc WITH (ROWLOCK)
 				WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 				IF @@ROWCOUNT = 0 BREAK
@@ -146,7 +146,7 @@ BEGIN
 			WHILE (1=1)
 			BEGIN
 				DELETE TOP(1000) mbc
-				FROM dbo.CustLimitBetHistory_MBC mbc 
+				FROM dbo.CustLimitBetHistory_MBC mbc WITH (ROWLOCK)
 				WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 				IF @@ROWCOUNT = 0 BREAK
@@ -161,7 +161,7 @@ BEGIN
 			WHILE (1=1)
 			BEGIN
 				DELETE TOP(1000) m789
-				FROM dbo.CustLimitBet_789 m789 
+				FROM dbo.CustLimitBet_789 m789 WITH (ROWLOCK)
 				WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 				IF @@ROWCOUNT = 0 BREAK
@@ -171,7 +171,7 @@ BEGIN
 			WHILE (1=1)
 			BEGIN
 				DELETE TOP(1000) m789
-				FROM dbo.CustLimitBetHistory_789 m789
+				FROM dbo.CustLimitBetHistory_789 m789 WITH (ROWLOCK)
 				WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 
 				IF @@ROWCOUNT = 0 BREAK
@@ -186,7 +186,7 @@ BEGIN
 			WHILE (1=1)
 			BEGIN
 				DELETE TOP(1000) lic
-				FROM dbo.CustLimitBet_LIC lic
+				FROM dbo.CustLimitBet_LIC lic WITH (ROWLOCK)
 				WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 				IF @@ROWCOUNT = 0 BREAK
@@ -196,7 +196,7 @@ BEGIN
 			WHILE (1=1)
 			BEGIN
 				DELETE TOP(1000) lic
-				FROM dbo.CustLimitBetHistory_LIC lic
+				FROM dbo.CustLimitBetHistory_LIC lic WITH (ROWLOCK)
 				WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 
 				IF @@ROWCOUNT = 0 BREAK
@@ -246,7 +246,7 @@ BEGIN
 			SELECT QueueID FROM @tmp_batch
 
 			DELETE q
-			FROM dbo.CustLimitBetQueue q
+			FROM dbo.CustLimitBetQueue q WITH (ROWLOCK)
 				INNER JOIN @tmp_batch t ON t.QueueID = q.QueueID
 		END
 	END
@@ -397,7 +397,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) q
-			FROM dbo.CustLimitBet_QueueRetry q
+			FROM dbo.CustLimitBet_QueueRetry q WITH (ROWLOCK)
 			WHERE q.MainQueueId = @QueueId
 			
 			IF @@ROWCOUNT = 0 BREAK
