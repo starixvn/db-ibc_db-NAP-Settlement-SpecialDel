@@ -24,6 +24,7 @@ AS
 		- 20241008@Kathy: exclude child match of table tennis [Redmine:#211924]
 		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 		- 20250722@Max: Integration - Settlement Time Dashboard report [Redmine:#232227]
+		- 20250729@Max: Fix issue wrong DB [Redmine:#232227]
 
 	Param's explaination:
 		@UserGroup: 0-send to internal
@@ -268,7 +269,7 @@ BEGIN
 				, AVG(CAST ((Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) as bigint)) 'TotalDuration'
 				, GETDATE()
 		FROM #tmpData t
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.SettlementPerformanceReport s WITH (NOLOCK)
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM bodb_account.dbo.SettlementPerformanceReport s WITH (NOLOCK)
                                     WHERE s.EventDate = t.Date AND s.Sporttype = t.sporttype and s.LeagueID = t.LeagueID)
 		GROUP BY [sporttype],[SportName],LeagueID, LeagueName, Date
 		
@@ -278,7 +279,7 @@ BEGIN
 			FROM #tmpResult t
 			ORDER BY EventDate, [sporttype],[SportName],LeagueID, LeagueName
 
-			INSERT INTO DBDW2.bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
+			INSERT INTO DBSTAGING.bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
 			SELECT t.SportType, t.SportName, t.LeagueID, t.LeagueName, t.EventDate, t.WaitforKeyscore, t.WaitingTimeInQueue, t.SiteDBSettleDuration, t.TotalDuration, t.CreatedDate 
 			FROM #tmpResult t
 			ORDER BY EventDate, [sporttype],[SportName],LeagueID, LeagueName
