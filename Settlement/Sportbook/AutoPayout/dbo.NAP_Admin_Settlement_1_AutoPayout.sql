@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout]  
 	@creator 			INT
 	, @matchid			INT
@@ -52,6 +52,7 @@ AS
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
+		- 20250716@Louisa: Update metadata [Redmine:#217573] 
 
 	Param's Explanation:
 		 

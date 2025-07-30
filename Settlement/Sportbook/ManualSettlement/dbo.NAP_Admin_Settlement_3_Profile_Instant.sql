@@ -24,7 +24,7 @@ AS
 	   - 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 	   - 20230817@Kathy: Write log [Redmine:#192311]
 	   - 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
-
+	   - 20250716@Louisa: CO Jacktime [Redmine:#217573] 
 */
 BEGIN
     SET NOCOUNT ON;
@@ -388,6 +388,7 @@ BEGIN
 					,@action	  = 'Cashout'
 					,@mode		  = 'CAL'
 					,@strTransIds = @strTransIds
+					,@BroadcastSessionId = @BroadcastSessionId
 
 			END
 

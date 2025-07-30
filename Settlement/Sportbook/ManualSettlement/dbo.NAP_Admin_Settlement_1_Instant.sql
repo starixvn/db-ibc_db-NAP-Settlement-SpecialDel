@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Member" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap,svc_tig" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Instant] 
     @creator			INT
     ,@matchid			INT
@@ -27,6 +27,7 @@ AS
 		- 20220419@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
+		- 20250716@Louisa: Update metadata [Redmine:#217573] 
 
     Param's Explanation:
 	
