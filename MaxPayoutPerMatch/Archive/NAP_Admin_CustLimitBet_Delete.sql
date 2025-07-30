@@ -210,7 +210,7 @@ BEGIN
 		BEGIN
 			DELETE TOP(1000) q
 				OUTPUT DELETED.QueueID INTO #tmp_QueueRetry (QueueId)
-			FROM dbo.CustLimitBetQueue q
+			FROM dbo.CustLimitBetQueue q WITH (ROWLOCK)
 			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 			IF @@ROWCOUNT = 0 BREAK
