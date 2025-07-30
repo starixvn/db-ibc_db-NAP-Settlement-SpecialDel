@@ -65,6 +65,7 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240425@Kathy: enhance MaxPayout [Redmine:#199518]
 		- 20250703@Max: Support re-settle when recover voided sub parlay from TVS [Redmine: #227829]
+		- 20250730@Max: Add server_DBKUL on KL environment [Redmine: #234402]
 
     Param's Explanation:
         @action         @mode
@@ -96,7 +97,7 @@ BEGIN
 		,@ServerAlias = @ServerAlias OUTPUT	
 		,@TotalParlayQueue = @TotalParlayQueue OUTPUT
 		
-	IF (@@SERVERNAME IN ('DB052', 'DB053', 'DBTP','DB061', 'DB062') OR @IsEnableServiceBroker = 1) AND @CalledByBrokerService = 0 
+	IF (@@SERVERNAME IN ('DB052', 'DB053', 'DBTP','DB061', 'DB062', 'DBKULC1') OR @IsEnableServiceBroker = 1) AND @CalledByBrokerService = 0 
     BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
         DECLARE @sMessage NVARCHAR(MAX)

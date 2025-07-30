@@ -37,6 +37,7 @@ AS
 	    - 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20250730@Max: Add server_DBKUL on KL environment [Redmine: #234402]
 
     Param's explanation:
         Version 1: Only use for Void Ticket via TVS
@@ -93,7 +94,7 @@ BEGIN
 
     IF @IsUseServiceBroker = 1 
     BEGIN
-         IF (@@SERVERNAME IN ('DB052', 'DB053', 'DB054','DBTP', 'DB061', 'DB062', 'DB055') OR @IsEnableServiceBroker = 1)
+         IF (@@SERVERNAME IN ('DB052', 'DB053', 'DB054','DBTP', 'DB061', 'DB062', 'DB055', 'DBKULC1') OR @IsEnableServiceBroker = 1)
                 AND @CalledByBrokerService = 0
         BEGIN
             -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
