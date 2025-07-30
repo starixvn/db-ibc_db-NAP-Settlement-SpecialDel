@@ -37,7 +37,6 @@ AS
 		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
         - 20240520@Aries: Transfer the logic business from the DB layer to the Application layer for Happy5 [Redmine:#202389]
         - 20240918@Aries: Betradar VS - Integrate 2 new sports Virtual Horse Racing & Virtual Dog Racing [Redmine:#210875]
-		- 20250730@Max: Add server_DBKUL on KL environment [Redmine: #234402]
 
     Param's Explanation: 
         - @HasNoBalanceNegative: 0 - Fix exception case for Happy5. It hasn't negative balance logic, 1 - Others
@@ -73,7 +72,7 @@ BEGIN
     EXEC dbo.NAP_Set_ServerInfo 
         @IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
         
-    IF (@@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DBTP', 'DB061', 'DB062', 'DB055', 'DBKULC1') OR @IsEnableServiceBroker = 1)
+    IF (@@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DBTP', 'DB061', 'DB062', 'DB055') OR @IsEnableServiceBroker = 1)
             AND @CalledByBrokerService = 0
             
     BEGIN

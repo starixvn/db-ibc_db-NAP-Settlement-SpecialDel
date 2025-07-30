@@ -220,7 +220,7 @@ BEGIN
 		,@ServerAlias = @ServerAlias OUTPUT	
 		,@TotalQueue = @TotalQueue OUTPUT
 
-	IF (@@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DBTP','DB061', 'DB062', 'DB055', 'DBKULC1') OR @IsEnableServiceBroker = 1)
+	IF (@@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DBTP','DB061', 'DB062', 'DB055') OR @IsEnableServiceBroker = 1)
 		 AND @CalledByBrokerService = 0
     BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
