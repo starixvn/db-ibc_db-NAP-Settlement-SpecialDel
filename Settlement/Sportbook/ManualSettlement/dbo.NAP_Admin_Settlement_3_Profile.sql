@@ -40,6 +40,7 @@ AS
 	   - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
 	   - 20230817@Kathy: Write log [Redmine:#192311]
 	   - 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+	   - 20250716@Louisa: CO Jacktime [Redmine:#217573] 
 */
 BEGIN
     SET NOCOUNT ON;
@@ -747,6 +748,7 @@ BEGIN
 						,@action	  = 'Cashout'
 						,@mode		  = @CashoutMode
 						,@strTransIds = @strTransIds
+						,@BroadcastSessionId = @BroadcastSessionId
 				END
 
 				INSERT INTO @BalanceWalletAfter (matchid, custid, balanceType, WalletType, BonusID, balance)

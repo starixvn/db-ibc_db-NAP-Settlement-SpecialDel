@@ -92,6 +92,7 @@ AS
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20250716@Louisa: CO Jacktime [Redmine:#217573] 
 		
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -414,6 +415,7 @@ BEGIN
 					,@action			 = 'Cashout'
 					,@mode				 = 'UNDO'
 					,@strTransIds		 = @strTransIds
+					,@BroadcastSessionId = @BroadcastSessionId
 					
 			END
 		END

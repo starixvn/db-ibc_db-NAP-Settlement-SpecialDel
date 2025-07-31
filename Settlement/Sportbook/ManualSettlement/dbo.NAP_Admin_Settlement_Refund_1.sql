@@ -37,6 +37,7 @@ AS
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20241003@Aries: Enhance that AutoPauout doesn't key Fulltime, Event Status still show complete of Basketball [Redmine:#211258]
+		- 20250716@Louisa: CO Jacktime [Redmine:#217573] 
 
     Param's Explanation:
 	* @SDTRecord: Used to store a bitmap of these settings: (from right to left)
@@ -788,6 +789,7 @@ BEGIN
 					,@action	  = 'Cashout'
 					,@mode		  = @ModeCO
 					,@strTransIds = @strTransIds
+					,@BroadcastSessionId = @BroadcastSessionId
 
 			END
 
