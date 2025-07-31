@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20240919@Aries: Created [Redmine: #209655]
+		- 20250603@Aries: Settlement - Integration Project - 6 Scores challenge [Redmine: #229380]
 
 	Param's Explanation: 
 		- @Mode: 0-Real, 1-UUS&Real, 2-UUS
@@ -33,6 +34,8 @@ BEGIN
 	BEGIN
 		SELECT  @SId  AS [SId] 
 		   ,@ProgramId AS ProgramId
+		   ,NULL AS CurrencyCode
+		   ,NULL AS Amount
 		   ,NULL AS Transid
 		   ,NULL AS CustID
 		   ,NULL AS Username      
@@ -48,6 +51,8 @@ BEGIN
 
 	SELECT  t.[SId]
 		   ,t.ProgramId
+		   ,e.Code AS CurrencyCode
+		   ,t.Amount
 		   ,t.Transid
 		   ,t.CustID
 		   ,c.Username      
@@ -58,6 +63,7 @@ BEGIN
 		   ,t.srecommend	AS SuperID
 		   ,s.username		AS SuperUsername
 	FROM SabaWalletTicket AS t  WITH(NOLOCK)
+		INNER JOIN CustDB.dbo.Exchange AS e WITH(NOLOCK) ON e.ExchangeId = t.CurrencyID
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)  ON t.custid = c.custid
 		LEFT JOIN Custdb.dbo.customer r WITH(NOLOCK)  ON t.recommend = r.custid AND r.roleid = 2
 		LEFT JOIN Custdb.dbo.customer mr WITH(NOLOCK) ON t.mrecommend = mr.custid AND mr.roleid = 3
