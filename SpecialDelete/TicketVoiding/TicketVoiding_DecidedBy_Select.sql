@@ -7,6 +7,7 @@ AS
 	
 	Revisions: 
 		- 20240810@July: Create new SP [Redmine: #208659]
+		- 20250728@Lani: [TVS] DA/RC/WC - Add new values to the Decided By [Redmine: #233473]
 	
 	Param's explanation:	
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -23,6 +24,7 @@ BEGIN
 			username LIKE 'SSNV%' 
 		 OR username LIKE 'CSNV%'
 		 OR username IN ('Yong','Pau')
+		 OR CustId = 772209
 		) 
 		AND username NOT LIKE '%[0-9]%'
 		AND roleid >= 5
