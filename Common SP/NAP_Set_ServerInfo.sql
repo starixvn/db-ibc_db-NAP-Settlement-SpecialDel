@@ -27,6 +27,7 @@ AS
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [Redmine:#180225]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
         - 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
+		- 20250730@Max: Add server_DBKUL on KL environment [Redmine: #234402]
 */
 BEGIN
     SET NOCOUNT ON
@@ -137,6 +138,8 @@ BEGIN
 
     UNION ALL
     SELECT 'DBTP10C', 'DBACC', 1, 8, 4, 'PROD',0, 4, 4
+	UNION ALL
+    SELECT 'DBKULC1', 'DBACC', 1, 8, 4, 'PROD',0, 4, 4
 
 
     SELECT  @ServerAlias = ServerAlias
