@@ -171,6 +171,7 @@ AS
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20250108@Louisa: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
         - 20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
+		- 20250716@Louisa: CO Jacktime [Redmine:#217573] 
 
     Param's Explanation:
         @action             @mode
