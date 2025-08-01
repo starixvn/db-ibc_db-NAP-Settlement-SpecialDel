@@ -10,7 +10,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
     ,@ToDate			DATETIME     = NULL
 	,@AdjustVoidLimit	VARCHAR(MAX) = NULL
 	,@IsVoidAllArchivedTickets	BIT = 0
-	,@IsRemoveCreditCashService BIT = 0 
+	,@IsRemoveCreditCashService BIT = 0
+	,@OnlineServerId	VARCHAR(10) = NULL
 )
 AS
 /*
@@ -49,6 +50,7 @@ AS
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250513@Lani: [TVS] Integrate - Pingoal Soccer Marble [Redmine: #227161]
 		- 20250620@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance - Abnormal Account [Redmine: #225390]
+		- 20250801@Lani: [TVS] ScaleOut DBTrans [Phase 5] - Abnormal Account/EKO/WKO/Wrong Offered Name [Redmine: #232582]
 
 	Param's Explanation:
 */
@@ -81,6 +83,8 @@ BEGIN
 			,@BeingMovebetDate		  SMALLDATETIME
 			,@currentdate			  SMALLDATETIME = GETDATE()
 			,@UsernamesOfCreditCashService VARCHAR(MAX) = ''
+			,@SiteDBDownInfoJson	  VARBINARY(MAX) = NULL
+			,@UserNameSiteDBDown	  VARCHAR(MAX) = ''
 
 	DECLARE @SiteDBGroupID			 SMALLINT
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -93,7 +97,8 @@ BEGIN
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @AdjustVoidLimit_tmp AS TABLE (CustId INT, AdjustLimit MONEY) 
+	DECLARE @AdjustVoidLimit_tmp AS TABLE (CustId INT, AdjustLimit MONEY)
+	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
 	DECLARE @tmp_MatchInfo AS TABLE (
 		MatchId INT, IsOutright BIT, IsVoid14 BIT
 		,homeid INT
@@ -102,6 +107,14 @@ BEGIN
 		,matchcode NVARCHAR(50)
 		,sporttype SMALLINT
 	)
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmpOnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	INSERT INTO #InputUsernameList (Username, custid, roleid, credit, srecommend)
 	SELECT CAST(l.value AS NVARCHAR(30))
@@ -166,6 +179,7 @@ BEGIN
 	  ,credit money
 	  ,AdjustVoidLimit money
 	  ,IsCreditCashService BIT DEFAULT(0)
+	  ,IsSiteDBDown BIT DEFAULT(0)
 	  ,id [int] IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -390,6 +404,7 @@ BEGIN
 		  ,AdjustVoidLimit
 		  ,IsCreditCashService
 		  ,IsDeposit
+		  ,IsSiteDBDown
 		)
 	SELECT matchid
 		  ,transid 
@@ -436,6 +451,7 @@ BEGIN
 		  ,c.AdjustLimit
 		  ,CASE WHEN cs.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsCreditCashService
 		  ,0 AS IsDeposit
+		  ,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
 		LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK) ON c.custid = cs.CustID AND cs.ServiceType = 1
@@ -451,7 +467,9 @@ BEGIN
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND statusID IN (SELECT statusID FROM @Status_tmp)
 		AND b.betfrom <> 'P'
-		AND b.SiteDBGroupID = @SiteDBGroupID
+		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END
 		AND b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 		AND 1 = CASE 
 					WHEN @IsSB = 1 
@@ -747,6 +765,53 @@ BEGIN
 	FROM #tmpTransInfo AS t
 	WHERE 1 = CASE WHEN @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1 THEN 1 ELSE 0 END
 
+	--Get ticket of sitedbdown
+	BEGIN
+
+		DECLARE @tmpSiteDBDownInfo TABLE (
+			MatchId INT,
+			TransId BIGINT,
+			IsMixParlay BIT,
+			SiteDBGroupID SMALLINT,
+			isMarked BIT
+		);
+
+		DECLARE @SingleCountSiteDBDown INT
+		       ,@ParlayCountSiteDBDown INT
+		DECLARE @tmpUserName AS TABLE (UserName NVARCHAR(50))
+
+
+		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
+		SELECT MatchId, transid , IsMixParlay, SiteDBGroupID, CASE WHEN TransId IN (0,1) THEN 1 ELSE 0 END AS isMarked
+		FROM #tmpTransInfo 
+		WHERE IsSiteDBDown = 1 AND IsVoid14 = 0
+
+		SELECT @SingleCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 0 THEN 1 ELSE NULL END)
+		      ,@ParlayCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 1 THEN 1 ELSE NULL END)
+		FROM @tmpSiteDBDownInfo
+
+		;WITH cteUserName AS (
+				SELECT DISTINCT t.username, c.roleid, t.custid, t.recommend, t.mrecommend, t.srecommend
+				FROM #tmpTransInfo AS t
+				INNER JOIN CustDB.dbo.custInfo AS c ON c.custid = t.custid
+				WHERE IsSiteDBDown = 1
+			)
+		INSERT INTO @tmpUserName (UserName)
+		SELECT DISTINCT i.UserName
+		FROM #InputUsernameList AS i
+		JOIN cteUserName AS t
+			ON (
+				(i.roleid = 1 AND i.custid = t.custid)
+			 OR (i.roleid = 2 AND i.custid = t.recommend)
+			 OR (i.roleid = 3 AND i.custid = t.mrecommend)
+			 OR	(i.roleid = 4 AND i.custid = t.srecommend)
+			)
+
+		SELECT @UserNameSiteDBDown = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(t.username AS VARCHAR(50))
+												   FROM @tmpUserName AS t
+												   FOR XML PATH('')), 1, 1, ''), '')
+	END
+
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
@@ -754,6 +819,7 @@ BEGIN
 									WHERE t.StatusId IN (0,1) 
 										AND t.bettype NOT IN (9,29,10)
 										AND t.IsVoid14 = 0
+										AND t.IsSiteDBDown = 0
 									FOR XML PATH('')), 1, 1, '')
 									, '')
 	END
@@ -784,6 +850,7 @@ BEGIN
 											FROM #tmpTransInfo t
 											WHERE t.StatusId IN (0,1) AND t.bettype NOT IN (9,29,10)
 												AND t.IsVoid14 = 0
+												AND t.IsSiteDBDown = 0
 											FOR XML PATH('')), 1, 1, '')
 									, '')
 		END
@@ -794,6 +861,7 @@ BEGIN
 									WHERE t.StatusId IN (0,1) 
 										AND t.bettype NOT IN (9,29,10)
 										AND t.IsVoid14 = 0
+										AND t.IsSiteDBDown = 0
 									FOR XML PATH('')), 1, 1, '')
 									, '')
 		END
@@ -811,6 +879,7 @@ BEGIN
 	--Get list match
 	SELECT @MatchIDs = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
 							  FROM #tmpTransInfo m
+							  WHERE m.IsSiteDBDown = 0
 							  FOR XML PATH ('')
 							),1,1,'')
 
@@ -820,6 +889,16 @@ BEGIN
 		SET @IsInValidTotalTicket = 1 
 
 	/*****************Return table **************************/
+	--List ticket insert table TicketVoiding_PendingMarkTickets
+	SET @SiteDBDownInfoJson = COMPRESS((SELECT MatchId AS 'mid'
+		,transid AS 't'
+		,IsMixParlay AS 'isP'
+		,SiteDBGroupID AS 'sitedb'
+		,isMarked AS 'isMarked'
+	FROM @tmpSiteDBDownInfo 
+	WHERE isMarked = 1
+	FOR JSON PATH))
+
 	-- 1. Validate Table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
 		  ,@InvalidUserName AS InvalidUserName
@@ -830,6 +909,10 @@ BEGIN
 		  ,@UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 		  ,@UsernamesOfCreditCashService AS UsernamesOfCreditCashService
+		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
+		  ,@SingleCountSiteDBDown AS SingleCount
+		  ,@ParlayCountSiteDBDown AS ParlayCount
+		  ,@UserNameSiteDBDown AS UserNameSiteDBDown
 
 	--2. List TransId for case auto void with policy
 	IF @ActionId = 10
@@ -845,6 +928,7 @@ BEGIN
 			,ABS(SUM(CASE WHEN statusid = 112 THEN winlost ELSE 0 END)) AS tot_win
 			,ISNULL(t.AdjustVoidLimit, t.credit) AS credit
 		FROM #tmpTransInfo t
+		WHERE t.IsSiteDBDown = 0
 		GROUP BY t.custid, t.credit, t.AdjustVoidLimit
 
 		DELETE c
@@ -867,7 +951,7 @@ BEGIN
 				WHERE t.custid = r.custid
 					AND t.tot_lose <= t.credit
 			)t
-		WHERE statusid = 112
+		WHERE statusid = 112 AND r.IsSiteDBDown = 0
 
 		--2.2. Get duplicate groups
 		;WITH GroupedData AS (
@@ -884,6 +968,7 @@ BEGIN
 			WHERE matchid <> 29
 				AND t1.TransId IS NULL
 				AND statusID = 112
+				AND IsSiteDBDown = 0
 		),FilteredGroups AS (
 			SELECT group_number, custid
 			FROM GroupedData
@@ -902,6 +987,7 @@ BEGIN
 		WHERE statusID = 112
 			AND NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.transid = t.transid)
 			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Dup d WHERE d.transid = t.transid)
+			AND t.IsSiteDBDown = 0
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmp_Dup)
 		BEGIN
@@ -1117,6 +1203,7 @@ BEGIN
 				FROM #tmpTransInfo t
 				WHERE CustId = @CustId AND statusID = 112
 					AND NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.transid = t.transid)
+					AND t.IsSiteDBDown = 0
 				ORDER BY winlost desc;
 
 				OPEN TransactionCursor;
@@ -1192,6 +1279,7 @@ BEGIN
 	FROM #tmpTransInfo b
 		INNER JOIN @tmp_MatchInfo m ON m.MatchId = b.matchid
 		LEFT JOIN #SelectedTrans tmp ON tmp.TransId = b.transid
+	WHERE b.IsSiteDBDown = 0
 
 	--3. List members winlost amount for case auto void with policy
 	SELECT DISTINCT b.CustId
@@ -1199,6 +1287,7 @@ BEGIN
 		,b.credit AS GivenCredit
 		,b.AdjustVoidLimit AS AdjustVoidLimit
 	FROM #tmpTransInfo b
+	WHERE b.IsSiteDBDown = 0
 	ORDER BY b.username
 
 	DROP TABLE #InputUsernameList

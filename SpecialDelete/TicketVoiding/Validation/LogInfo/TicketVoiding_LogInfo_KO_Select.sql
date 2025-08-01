@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_KO_Select]
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
 	,@KickOffInfo		  VARCHAR(MAX) = NULL
+	,@OnlineServerId	  VARCHAR(10) = NULL
 )
 AS
 /*	
@@ -23,6 +24,7 @@ AS
 		- 20240809@July: [TVS] EKO/WKOT - Add warning popup when there is a settled ticket [Redmine: #208617]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
+		- 20250729@Lani: [TVS] ScaleOut DBTrans [Phase 5] - Abnormal Account/EKO/WKO/Wrong Offered Name [Redmine: #232582]
 
 	Param's explanation:
 	+ @KickOffInfo: 
@@ -39,6 +41,7 @@ BEGIN
 			,@MatchId				   INT
 			,@LogInfoTicketsJson      VARBINARY(MAX) = NULL
 			,@SiteDBGroupID			  SMALLINT
+			,@SiteDBDownInfoJson	  VARBINARY(MAX) = NULL
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -73,6 +76,15 @@ BEGIN
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
+	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmpOnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
 	CREATE TABLE #TVSTicketBets(
@@ -146,6 +158,7 @@ BEGIN
 	  ,RefCode BIGINT
 	  ,SettledType TINYINT -- 1: Instant Settlement, 2: Normal Settlement
 	  ,GroupName VARCHAR(50)
+	  ,IsSiteDBDown BIT DEFAULT(0)
 	  ,ID INT IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -286,6 +299,7 @@ BEGIN
 			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
+			,IsSiteDBDown
 		)
 	SELECT  DISTINCT d.MatchId
 			,b.TransId
@@ -344,6 +358,7 @@ BEGIN
 			,b.transdesc SubTransdesc  
 			,b.modds 
 			,b.SiteDBGroupID
+			,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON b.matchid = d.MatchId_tmp
 	WHERE b.transdate >= d.KickOffTime
@@ -352,7 +367,9 @@ BEGIN
 						ELSE 0 END
 			AND b.liveindicator = 0
 			AND b.betfrom <> 'P'
-			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						 ELSE 0 END
 						
 	---get sub ticket of a mix parlay	
 	IF EXISTS (
@@ -362,7 +379,10 @@ BEGIN
 				WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 				  			   WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   			   ELSE 0 END
-					AND bm.betfrom <> 'P' AND bm.SiteDBGroupID = @SiteDBGroupID
+					AND bm.betfrom <> 'P' 
+					AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+								 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+								 ELSE 0 END
 			 )
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
@@ -423,6 +443,7 @@ BEGIN
 					,SubTransdesc  
 					,modds 
 					,SiteDBGroupID
+					,IsSiteDBDown
 				)
 		SELECT DISTINCT d.MatchId
 				,b.TransId
@@ -481,6 +502,7 @@ BEGIN
 				,sub.transdesc SubTransdesc  
 				,b.modds
 				,sub.SiteDBGroupID
+				,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
 		FROM #FilterInfo d
 			 INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -492,7 +514,10 @@ BEGIN
 				AND b.liveindicator = 0 AND sub.liveindicator = 0
 				AND sub.betfrom <> 'P'
 				AND b.statusID NOT IN (101, 102, 103)
-				AND b.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID = @SiteDBGroupID
+				AND b.SiteDBGroupID = sub.SiteDBGroupID
+				AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+							 WHEN sub.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+							 ELSE 0 END
 	END 
 
 	---UPDATE column show loginfo details
@@ -634,6 +659,28 @@ BEGIN
 		
 	END
 
+	--Get ticket of sitedb down 
+	BEGIN
+		DECLARE @tmpSiteDBDownInfo TABLE (
+			MatchId INT,
+			TransId BIGINT,
+			IsMixParlay BIT,
+			SiteDBGroupID SMALLINT,
+			isMarked BIT
+		);
+		DECLARE @SingleCountSiteDBDown INT
+		       ,@ParlayCountSiteDBDown INT
+
+		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
+		SELECT MatchId, SubTransid, IsMixParlay, SiteDBGroupID, CASE WHEN SubStatusId IN (0,1) THEN 1 ELSE 0 END AS isMarked
+		FROM #TVSTicketBets
+		WHERE IsSiteDBDown = 1;
+
+		SELECT @SingleCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 0 THEN 1 ELSE NULL END)
+		      ,@ParlayCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 1 THEN 1 ELSE NULL END)
+		FROM @tmpSiteDBDownInfo
+	END
+
 	UPDATE v 
 	SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
 	   ,v.IsHasSettledTicket = l.IsHasSettledTicket
@@ -645,7 +692,7 @@ BEGIN
 				 , MAX(CASE WHEN SettledType = 2 THEN 1 ELSE 0 END) AS IsHasSettledTicket
 				 , MAX(CASE WHEN SettledType IN (1,3) THEN 1 ELSE 0 END) AS IsHasInstantlySettledTicket
 			FROM #TVSTicketBets
-			WHERE MatchId = v.MatchId
+			WHERE MatchId = v.MatchId AND IsSiteDBDown = 0
 			GROUP BY MatchId
 		)l
 	
@@ -678,6 +725,7 @@ BEGIN
 		INSERT INTO @tmpLogInfoTickets (TransId)
 		SELECT SubTransid
 		FROM #TVSTicketBets
+		WHERE IsSiteDBDown = 0
 	END
 	ELSE --Edit request
 	BEGIN
@@ -748,7 +796,7 @@ BEGIN
 			,m.GroupName AS 'GroupName'
 			,CAST (CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS BIT) AS 'IsMarked'
 		FROM @tmpLogInfoTickets s
-			INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
+			INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid AND m.IsSiteDBDown = 0
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON s.TransId = mt.TransId
 			LEFT JOIN dbo.f_TVS_GetGroupId() f ON m.GroupName = f.GroupName
 		WHERE m.matchid = @MatchId
@@ -807,6 +855,7 @@ BEGIN
 		FROM #TVSTicketBets tp
 		WHERE tp.SubStatusId IN (0,1)
 			AND tp.Subbettype NOT IN (38) --Exclude Betbuilder
+			AND IsSiteDBDown = 0
 	END
 	ELSE IF @IsShowLogOnly = 0 AND @RequestId <> 0 
 	BEGIN
@@ -822,7 +871,7 @@ BEGIN
 					UNION ALL 
 					SELECT TransId FROM #CTE_Ticket_SubParlay p
 				)um
-				LEFT JOIN #TVSTicketBets tp ON um.TransId = tp.SubTransid 
+				LEFT JOIN #TVSTicketBets tp ON um.TransId = tp.SubTransid AND tp.IsSiteDBDown = 0
 			WHERE tp.TransId IS NULL 
 
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
@@ -831,6 +880,7 @@ BEGIN
 			FROM #TVSTicketBets tp
 			WHERE tp.SubStatusId IN (0,1)
 				AND tp.Subbettype NOT IN (38) --Exclude Betbuilder
+				AND tp.IsSiteDBDown = 0
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
@@ -840,6 +890,7 @@ BEGIN
 			FROM #TVSTicketBets tp
 			WHERE tp.SubStatusId IN (0,1)
 				AND tp.Subbettype NOT IN (38) --Exclude Betbuilder
+				AND tp.IsSiteDBDown = 0
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId -- Take note
 		BEGIN
@@ -904,11 +955,25 @@ BEGIN
 		,b.IsMixParlay AS 'isP'
 		,b.SiteDBGroupID AS 'sitedb'
 	FROM #TVSTicketBets b
+	WHERE b.IsSiteDBDown = 0
+	FOR JSON PATH))
+
+	--List ticket insert table TicketVoiding_PendingMarkTickets
+	SET @SiteDBDownInfoJson = COMPRESS((SELECT MatchId AS 'mid'
+		,transid AS 't'
+		,IsMixParlay AS 'isP'
+		,SiteDBGroupID AS 'sitedb'
+		,isMarked AS 'isMarked'
+	FROM @tmpSiteDBDownInfo 
+	WHERE isMarked = 1
 	FOR JSON PATH))
 	
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
+		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
+		  ,@SingleCountSiteDBDown AS SingleCount
+		  ,@ParlayCountSiteDBDown AS ParlayCount
 
 	DROP TABLE #FilterInfo
 	DROP TABLE #TVSTicketBets
