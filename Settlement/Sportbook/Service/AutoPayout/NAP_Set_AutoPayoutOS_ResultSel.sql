@@ -22,7 +22,6 @@ AS
 		- 20250120@Aries: Enhance the Validate Order for Auto Payout2 [Redmine:#209415]
 		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
 		- 20250625@Aries: Match completed, but the auto payout flow still logs a failure [Redmine:#231523]
-		- 20250731@Hughie: Support AutoPayout2 for MuayThai [Redmine:#234116]
 
 	Param's Explanation:
 
@@ -176,22 +175,6 @@ BEGIN
 		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId,rd.CreateDate
 		FROM CTE_Provider AS cte	
 			INNER JOIN ProviderExternalResultDetailES AS rd WITH(NOLOCK) ON rd.ProviderExternalId = cte.ProviderExternalId
-	END
-
-	IF @Sporttype = 44
-	BEGIN
-		UPDATE @Result 
-		SET HomeValue = CASE WHEN ISNULL(HomeValue,0) NOT IN (0,6) THEN 1 
-							WHEN ISNULL(HomeValue,0) = 6 THEN 5
-							ELSE ISNULL(HomeValue,0) 
-							END
-			,AwayValue = CASE WHEN ISNULL(AwayValue,0) NOT IN (0,6) THEN 1 
-							  WHEN ISNULL(AwayValue,0) = 6 THEN 5
-							  ELSE ISNULL(AwayValue,0) 
-							  END
-		WHERE MatchId = @matchid 
-			AND @Sporttype = 44 
-			AND SourceId = 1
 	END
 
 	SELECT m.matchId
