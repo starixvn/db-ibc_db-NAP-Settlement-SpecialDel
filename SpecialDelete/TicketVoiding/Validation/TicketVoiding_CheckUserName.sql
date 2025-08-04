@@ -532,6 +532,7 @@ BEGIN
 			  ,AdjustVoidLimit
 			  ,IsCreditCashService
 			  ,IsDeposit
+			  ,IsSiteDBDown
 			)
 		SELECT matchid
 			  ,transid 
@@ -578,6 +579,7 @@ BEGIN
 			  ,c.AdjustLimit
 			  ,CASE WHEN cs.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsCreditCashService
 			  ,0 AS IsDeposit
+			  ,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
 		FROM dbo.bettrans14 b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
 			LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK) ON c.custid = cs.CustID AND cs.ServiceType = 1
@@ -593,7 +595,9 @@ BEGIN
 		WHERE b.statusID NOT IN (101, 102, 103)
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
 			AND b.betfrom <> 'P'
-			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						 ELSE 0 END
 			AND b.winlostdate BETWEEN @FromWinlostDate_14 AND @ToWinlostDate_14 
 			AND 1 = CASE 
 						WHEN @IsSB = 1 
@@ -776,19 +780,12 @@ BEGIN
 			isMarked BIT
 		);
 
-		DECLARE @SingleCountSiteDBDown INT
-		       ,@ParlayCountSiteDBDown INT
 		DECLARE @tmpUserName AS TABLE (UserName NVARCHAR(50))
 
-
 		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
-		SELECT MatchId, transid , IsMixParlay, SiteDBGroupID, CASE WHEN TransId IN (0,1) THEN 1 ELSE 0 END AS isMarked
+		SELECT MatchId, transid, IsMixParlay, SiteDBGroupID, CASE WHEN statusID IN (0,1) THEN 1 ELSE 0 END AS isMarked
 		FROM #tmpTransInfo 
 		WHERE IsSiteDBDown = 1 AND IsVoid14 = 0
-
-		SELECT @SingleCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 0 THEN 1 ELSE NULL END)
-		      ,@ParlayCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 1 THEN 1 ELSE NULL END)
-		FROM @tmpSiteDBDownInfo
 
 		;WITH cteUserName AS (
 				SELECT DISTINCT t.username, c.roleid, t.custid, t.recommend, t.mrecommend, t.srecommend
@@ -910,9 +907,7 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 		  ,@UsernamesOfCreditCashService AS UsernamesOfCreditCashService
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
-		  ,@SingleCountSiteDBDown AS SingleCount
-		  ,@ParlayCountSiteDBDown AS ParlayCount
-		  ,@UserNameSiteDBDown AS UserNameSiteDBDown
+		  ,@UserNameSiteDBDown AS SiteDBDownUserNames
 
 	--2. List TransId for case auto void with policy
 	IF @ActionId = 10
