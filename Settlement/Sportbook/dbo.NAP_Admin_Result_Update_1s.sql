@@ -39,6 +39,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
         - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
         - 20240510@Aries: Enhance SOP-Refund for Soccer's Early results [Redmine:#201462]
+        - 20250708@Aries: SOP- Soccer- Phase 3.4- Confirm Refund for Refund Pop-up [Redmine:#226236]
 
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
@@ -196,6 +197,7 @@ BEGIN
                 ,ResultSetting      = ISNULL(ResultSetting,0) & (~6) 
                 ,LastModifyBy       = @Creator 
                 ,LastModifyDate     = GETDATE() 
+                
         WHERE   MatchID = @MatchID
                 AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
 
@@ -335,8 +337,15 @@ BEGIN
                 ,SettlementStatusID = 0     -- Initial
                 ,LastModifyBy       = @Creator 
                 ,LastModifyDate     = GETDATE() 
+                ,ResultSetting      = ISNULL(ResultSetting,0) & (~6)
         WHERE   MatchID = @MatchID
                 AND ResourceID IN ('00','01','08','09','14F','14L','127F','127L')
+        
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
+            AND SourceId = 99
 
     END
     /* END - @Command = 'NAP_Admin_Settlement_1-UNDO' */
@@ -377,6 +386,7 @@ BEGIN
                     ,TARGET.SettlementStatusID  = SOURCE.SettlementStatusID
                     ,TARGET.LastModifyBy        = @Creator 
                     ,TARGET.LastModifyDate      = GETDATE() 
+                    ,TARGET.ResultSetting       = IIF(TARGET.ResourceID IN ('00','01'), ISNULL(TARGET.ResultSetting,0) & (~6), TARGET.ResultSetting)  
         WHEN    NOT MATCHED BY TARGET THEN 
                 INSERT(
                      MatchID
@@ -404,6 +414,12 @@ BEGIN
                     ,@Creator
                     ,GETDATE()
                 );   
+
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND Resourceid IN ('00','01','GR')
+            AND SourceId = 99
     END 
     /* END - @Command = 'NAP_Admin_Settlement_Refund-All' */
     
@@ -431,6 +447,7 @@ BEGIN
                     ,TARGET.SettlementStatusID  = SOURCE.SettlementStatusID     
                     ,TARGET.LastModifyBy        = @Creator 
                     ,TARGET.LastModifyDate      = GETDATE() 
+                    ,TARGET.ResultSetting       = IIF(TARGET.ResourceID IN ('00','01'), ISNULL(TARGET.ResultSetting,0) & (~6), TARGET.ResultSetting)  
         WHEN    NOT MATCHED BY TARGET THEN 
                 INSERT(
                      MatchID
@@ -474,6 +491,12 @@ BEGIN
         SET OtherInfo       =  @OtherInfo
         WHERE matchid       = @matchid 
             AND ResourceID  = '01' -- ABANDONED 1H
+
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND Resourceid IN ('00','01','GR')
+            AND SourceId = 99
             
     END
     /* END - @Command = 'NAP_Admin_Settlement_Refund_All-ABANDONED' */
@@ -508,6 +531,7 @@ BEGIN
                     ,TARGET.SettlementStatusID  = SOURCE.SettlementStatusID -- Refund/RefundFT
                     ,TARGET.LastModifyBy        = @Creator 
                     ,TARGET.LastModifyDate      = GETDATE() 
+                    ,TARGET.ResultSetting       = IIF(TARGET.ResourceID IN ('00','01'), ISNULL(TARGET.ResultSetting,0) & (~6), TARGET.ResultSetting)
         WHEN    NOT MATCHED BY TARGET THEN 
                 INSERT(
                      MatchID
@@ -535,6 +559,12 @@ BEGIN
                     ,@Creator
                     ,GETDATE()
                 );   
+
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND Resourceid IN ('00','01','GR')
+            AND SourceId = 99
     END 
     /* END - @Command = ''NAP_Admin_Settlement_Refund-FT' */
     ELSE IF @Command ='NAP_Admin_Settlement_RefundFT-ABANDONED'
@@ -560,6 +590,7 @@ BEGIN
                     ,TARGET.SettlementStatusID  = SOURCE.SettlementStatusID     
                     ,TARGET.LastModifyBy        = @Creator 
                     ,TARGET.LastModifyDate      = GETDATE() 
+                    ,TARGET.ResultSetting = IIF(TARGET.ResourceID IN ('00','01'), ISNULL(TARGET.ResultSetting,0) & (~6), TARGET.ResultSetting)  
         WHEN    NOT MATCHED BY TARGET THEN 
                 INSERT(
                      MatchID
@@ -603,6 +634,12 @@ BEGIN
         SET OtherInfo       = @OtherInfo
         WHERE matchid       = @matchid 
             AND ResourceID  = '00' -- ABANDONED 2H
+
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND Resourceid IN ('00','01','GR')
+            AND SourceId = 99
             
     END
     /* END - @Command = 'NAP_Admin_Settlement_RefundFT-ABANDONED' */
@@ -633,6 +670,7 @@ BEGIN
                     ,TARGET.SettlementStatusID  = SOURCE.SettlementStatusID -- Refund/RefundHT
                     ,TARGET.LastModifyBy        = @Creator 
                     ,TARGET.LastModifyDate      = GETDATE() 
+                    ,TARGET.ResultSetting = IIF(TARGET.ResourceID = '01', ISNULL(TARGET.ResultSetting,0) & (~6), TARGET.ResultSetting) 
         WHEN    NOT MATCHED BY TARGET THEN 
                 INSERT(
                      MatchID
@@ -660,6 +698,12 @@ BEGIN
                     ,@Creator
                     ,GETDATE()
                 );   
+            
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND Resourceid = '01'
+            AND SourceId = 99
     END 
     /* END - @Command = 'NAP_Admin_Settlement_Refund-HT' */
 
@@ -719,10 +763,17 @@ BEGIN
                 ,SettlementStatusID = 0
                 ,LastModifyBy       = @Creator 
                 ,LastModifyDate     = GETDATE() 
+                ,ResultSetting      = ISNULL(ResultSetting,0) & (~6)
         FROM    dbo.ResultDetail r
             INNER JOIN @tmpResultDetail t 
                 ON  r.ResourceID = t.ResourceID
         WHERE   r.MatchID = @MatchID
+
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
+            AND SourceId = 99
     END
 	ELSE IF @Command = 'NAP_Admin_Settlement_1-Corner-UNDO'
     BEGIN
@@ -733,8 +784,15 @@ BEGIN
 					,SettlementStatusID = 0     -- Initial
 					,LastModifyBy       = @Creator 
 					,LastModifyDate     = GETDATE() 
+                    ,ResultSetting      = ISNULL(ResultSetting,0) & (~6)
         FROM    dbo.ResultDetail r
         WHERE   r.MatchID = @MatchID AND (r.ResourceID IN ('00','01','08','09','488','489','490') OR r.ResourceID LIKE '486%' OR r.ResourceID LIKE '487%')
+
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
+            AND SourceId = 99
     END
     ELSE IF @Command = 'NAP_Admin_Settlement_1-Corner-UNDO-FT'
     BEGIN
@@ -744,9 +802,16 @@ BEGIN
 					,ResultStatusID     = 0     -- Initial 
 					,SettlementStatusID = 0     -- Initial
 					,LastModifyBy       = @Creator 
-					,LastModifyDate     = GETDATE() 
+					,LastModifyDate     = GETDATE()
+                    ,ResultSetting      = ISNULL(ResultSetting,0) & (~6) 
         FROM    dbo.ResultDetail r
         WHERE   r.MatchID = @MatchID AND (r.ResourceID IN ('00','08','488','490') OR r.ResourceID LIKE '486%')
+
+        DELETE  
+        FROM  ProviderExternalResultDetail 
+        WHERE matchid = @matchid 
+            AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
+            AND SourceId = 99
     END
 END
 GO
