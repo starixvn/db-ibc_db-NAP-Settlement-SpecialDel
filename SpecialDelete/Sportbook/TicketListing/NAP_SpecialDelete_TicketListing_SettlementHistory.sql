@@ -55,7 +55,7 @@ BEGIN
 	INSERT INTO #tblResultAmendment (TransId)
 	SELECT DISTINCT TransId
 	FROM dbo.SettlementHistory WITH(NOLOCK)
-	WHERE SettlementType IN (2,3)
+	WHERE SettlementType IN (2,3,12,13)
 	  AND MatchId = 29 AND CreatedDate >= @CheckDate -- Special case for MatchId Sub
 
 	BEGIN
@@ -64,8 +64,8 @@ BEGIN
 		    , SettlementType
 		    , CreatedDate
 		    , BalanceChanged
-			, CASE WHEN SettlementType IN (0,5) THEN NULL 
-			       ELSE ROW_NUMBER() OVER (PARTITION BY TransId ORDER BY CASE WHEN SettlementType IN (0,5) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
+			, CASE WHEN SettlementType NOT IN (2,3,12,13) THEN NULL 
+			       ELSE ROW_NUMBER() OVER (PARTITION BY TransId ORDER BY CASE WHEN SettlementType NOT IN (12,13,2,3) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
 			  END AS RN_settle
 		FROM dbo.SettlementHistory WITH(NOLOCK) 
 		WHERE Matchid IN (SELECT MatchId FROM @tmpMatchId)
@@ -75,14 +75,14 @@ BEGIN
 		    , SettlementType
 		    , CreatedDate
 		    , BalanceChanged
-			, CASE WHEN SettlementType IN (0,5) THEN NULL 
-			       ELSE ROW_NUMBER() OVER (PARTITION BY h.TransId ORDER BY CASE WHEN SettlementType IN (0,5) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
+			, CASE WHEN SettlementType NOT IN (2,3,12,13) THEN NULL  
+			       ELSE ROW_NUMBER() OVER (PARTITION BY h.TransId ORDER BY CASE WHEN SettlementType NOT IN (12,13,2,3) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
 			  END AS RN_settle
 		FROM #tblResultAmendment r
 			INNER JOIN dbo.SettlementHistory h WITH(NOLOCK) ON r.TransId = h.TransId
 		WHERE h.MatchId = 29
 		
-		IF EXISTS (SELECT TOP 1 1 FROM #tblSettlementHistory WHERE SettlementType IN (2,3)) 
+		IF EXISTS (SELECT TOP 1 1 FROM #tblSettlementHistory WHERE SettlementType IN (2,3,12,13)) 
 		BEGIN
 			;WITH CTE_Repeat AS (
 				SELECT TransId, BalanceChanged
@@ -98,7 +98,7 @@ BEGIN
 			SELECT DISTINCT sh.TransId
 			FROM #tblSettlementHistory sh
 				INNER JOIN CTE_Sum c ON sh.TransId = c.TransId AND sh.RN_settle = c.Rownumber
-			WHERE sh.SettlementType IN (2,3)
+			WHERE sh.SettlementType IN (12,13,2,3)
 			  AND c.Sum_BalanceChanged <> 0
 		END
 	END
