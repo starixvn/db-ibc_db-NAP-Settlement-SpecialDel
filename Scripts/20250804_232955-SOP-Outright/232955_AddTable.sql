@@ -2,7 +2,7 @@
 
 /*
 	Created by: 20250804@Hughie
-	Task: SOP Outright  [Redmine:#221187]
+	Task: SOP Outright  [Redmine:#232955]
 	DB: DBPRO/bodb02
 */
 
@@ -10,7 +10,9 @@ USE bodb02
 GO
 
 CREATE TABLE [dbo].[ResultDetailOutright](
-	[orid] [int] NOT NULL
+	[Orid] [int] NOT NULL
+	,[Leagueid]	[int] NULL
+	,[Teamid] [int] NULL
 	,[ResultStatusID] [TINYINT] NULL
 	,[KeyResultUserId] [INT] NULL
 	,[ConfirmUserId] [INT] NULL
@@ -18,9 +20,9 @@ CREATE TABLE [dbo].[ResultDetailOutright](
 	,[LastModifyDate] [datetime] NULL
 	,[OtherInfo] [varchar](50) NULL
 	,[ResultSetting] [tinyint] NULL
-    CONSTRAINT [PK_ResultDetailOutright_orid] PRIMARY KEY CLUSTERED 
+    CONSTRAINT [PK_ResultDetailOutright_Orid] PRIMARY KEY CLUSTERED 
     (
-	    [orid] ASC
+	    [Orid] ASC
     )
 ) 
 GO
