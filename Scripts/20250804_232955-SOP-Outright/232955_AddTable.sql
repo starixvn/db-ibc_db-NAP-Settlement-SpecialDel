@@ -18,7 +18,7 @@ CREATE TABLE [dbo].[ResultDetailOutright](
 	,[LastModifyDate] [datetime] NULL
 	,[OtherInfo] [varchar](50) NULL
 	,[ResultSetting] [tinyint] NULL
-    CONSTRAINT [PK_ResultDetailOutright_orid] PRIMARY KEY NONCLUSTERED 
+    CONSTRAINT [PK_ResultDetailOutright_orid] PRIMARY KEY CLUSTERED 
     (
 	    [orid] ASC
     )
