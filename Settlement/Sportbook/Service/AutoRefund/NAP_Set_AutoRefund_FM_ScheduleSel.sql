@@ -28,7 +28,7 @@ BEGIN
 	)
 
 	INSERT INTO @tmpResourceIds(ResourceId) 
-	VALUES   ('221WB01'),('221WB02'),('221WB03'),('221WB04')--,('221SUS');
+	VALUES   ('221WB01'),('221WB02'),('221WB03'),('221WB04')
 
 	DECLARE @CurrTime DATETIME = GETDATE()
 
@@ -56,7 +56,7 @@ BEGIN
 				AND ss.AutoType = 11
 		) ss
 		
-	WHERE r.ResourceId LIKE '221WB__' --OR r.ResourceId = '221SUS')
+	WHERE r.ResourceId LIKE '221WB__'
 		AND r.ResultStatusID = 1
 		AND r.LastModifyDate <= DATEADD(SECOND, - COALESCE(ap.Waitingtime,ss.Waitingtime,300), @CurrTime)
 		AND m.eventdate BETWEEN @fromdate AND @todate 
