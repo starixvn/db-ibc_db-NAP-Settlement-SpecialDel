@@ -1519,7 +1519,7 @@ BEGIN
 			INNER JOIN #SpecialDeleteBets tmpmain  
 				ON	main.transid = tmpmain.transid 
 					AND main.transid = tmpmain.grouptransid
-					AND (main.matchid = tmpmain.matchid OR main.matchid= 29) --For case subparlay
+					AND (main.matchid = tmpmain.matchid)
 		WHERE main.SiteDBGroupID = @SiteDBGroupID 
 			AND main.statusID NOT IN (101,102,103)
 
@@ -1540,7 +1540,8 @@ BEGIN
 		--> capture Before Balance Update		
 		INSERT INTO #BeforeUpd (custid, balance)
 		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
-		FROM @tmpTrans_beforeUpd b
+		FROM dbo.bettrans b WITH (NOLOCK)
+		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets)
 		GROUP BY b.CustID
 		
 		/**********************************************   *************************************************************/
@@ -1878,10 +1879,13 @@ BEGIN
 					GROUP BY refno, transid
 					SET @refnos_29 = STUFF(@refnos_29,1,1,'')
 
-					EXEC dbo.NAP_Admin_Calculate_MP_broker  
-					@matchdate = @matchdate  
-					,@strXML = @refnos_29  
-					,@mode  = '29'  
+					IF ISNULL(@refnos_29,'') <> ''
+					BEGIN
+						EXEC dbo.NAP_Admin_Calculate_MP_broker  
+							@matchdate = @matchdate  
+							,@strXML = @refnos_29  
+							,@mode  = '29' 
+					END
 				END TRY  
 				BEGIN CATCH   
 					SELECT 100 AS ErrorCode
