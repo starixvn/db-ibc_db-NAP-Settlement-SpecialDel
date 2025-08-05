@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 	,@IsMainMatch	BIT = 1
 	,@IssueTypeId	TINYINT = NULL
 	,@Sporttype		SMALLINT = 1
+	,@SubIssueTypeId TINYINT = 0
 )
 AS
 /*	
@@ -19,6 +20,7 @@ AS
 		- 20240514@July: [TVS] EKO/WKOT - Add message template to the Add Request page [Redmine: #203776]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20250523@July: [TVS] Update validation to get Child Match, Linked Match [Redmine: #228290]
+		- 20250805@Lani: [TVS] Danger Accepted - Red Card/VAR Red Card, 2YC (Red card) - Auto add child match to the request - Apply for Corner, Booking, Goal Kick [Redmine: #235228]
 
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
@@ -57,6 +59,23 @@ BEGIN
 								OR (m.matchid = @MatchId AND m.ParentID IS NOT NULL))
 					   THEN 1
 				       ELSE 0 END
+
+		-- Remove invalid child match
+		IF @SubIssueTypeId IN (4,5,63,64)
+		BEGIN
+			DELETE r
+			FROM @tmpRelatedEventInfo AS r
+			OUTER APPLY (
+				SELECT mr.matchid
+				FROM dbo.match_remark AS mr WITH (NOLOCK)
+				WHERE mr.matchid = r.matchid 
+					AND (	 SubType LIKE '21__' OR SubType LIKE '26__' --Next corner
+					      OR SubType LIKE '29__' OR SubType LIKE '34__' --Next booking
+						  OR SubType LIKE '39__' OR SubType LIKE '43__' --Next goal kick
+						  )
+			) m
+			WHERE m.matchid IS NULL
+		END
 
 		-- Get all fantasy match
 		IF @IssueTypeId IN (4,5,6,7)
