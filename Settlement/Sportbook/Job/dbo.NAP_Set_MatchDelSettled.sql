@@ -25,6 +25,7 @@ AS
 		- 20230308@Louisa: backup data of 2 table single_calculate_queue & parlay_calculate_queue by service [Redmine:#184726]    
 		- 20240206@Aries: Enhance the archive process for Settlement [Redmine:#200890]    
 		- 20250725@Max: Support Daily Settlement Report for Vega project [Redmine: #233410]
+		- 20250805@Louisa: SiteDB_SettlementService_CalculationLog_3rd_History [Redmine:#235249]
 
 	 Param's Explanation:  
     
@@ -137,6 +138,18 @@ BEGIN
 		WHILE(1=1)
 		BEGIN
 			DELETE TOP(2000) FROM dbo.SiteDB_SettlementService_CalculationLog_History WITH(ROWLOCK)
+			WHERE LogDate <= @3DaysBefore
+
+			IF @@ROWCOUNT = 0
+				BREAK
+		END
+	END
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd_History','U') IS NOT NULL
+	BEGIN
+		WHILE(1=1)
+		BEGIN
+			DELETE TOP(2000) FROM dbo.SiteDB_SettlementService_CalculationLog_3rd_History WITH(ROWLOCK)
 			WHERE LogDate <= @3DaysBefore
 
 			IF @@ROWCOUNT = 0
