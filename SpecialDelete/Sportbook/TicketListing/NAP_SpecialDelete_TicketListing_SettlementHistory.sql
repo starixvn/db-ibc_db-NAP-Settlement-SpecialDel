@@ -23,6 +23,8 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @CheckDate		DATETIME
+		   ,@RowCount		INT = 0 
+
 	SET @CheckDate = DATEADD(DAY,-2,CAST(GETDATE() AS DATE))
 
 	DECLARE @tmpMatchId TABLE (MatchId INT, Sporttype SMALLINT)
@@ -55,7 +57,7 @@ BEGIN
 	INSERT INTO #tblResultAmendment (TransId)
 	SELECT DISTINCT TransId
 	FROM dbo.SettlementHistory WITH(NOLOCK)
-	WHERE SettlementType IN (2,3,12,13)
+	WHERE SettlementType IN (2,3,12)
 	  AND MatchId = 29 AND CreatedDate >= @CheckDate -- Special case for MatchId Sub
 
 	BEGIN
@@ -64,42 +66,45 @@ BEGIN
 		    , SettlementType
 		    , CreatedDate
 		    , BalanceChanged
-			, CASE WHEN SettlementType NOT IN (2,3,12,13) THEN NULL 
-			       ELSE ROW_NUMBER() OVER (PARTITION BY TransId ORDER BY CASE WHEN SettlementType NOT IN (12,13,2,3) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
+			, CASE WHEN SettlementType NOT IN (2,3,12) THEN NULL 
+			       ELSE ROW_NUMBER() OVER (PARTITION BY TransId ORDER BY CASE WHEN SettlementType NOT IN (2,3,12) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
 			  END AS RN_settle
 		FROM dbo.SettlementHistory WITH(NOLOCK) 
 		WHERE Matchid IN (SELECT MatchId FROM @tmpMatchId)
-		
+		SET @RowCount = @@ROWCOUNT
+
 		INSERT INTO #tblSettlementHistory (TransId, SettlementType, CreatedDate, BalanceChanged, RN_settle)
 		SELECT h.TransId
 		    , SettlementType
 		    , CreatedDate
 		    , BalanceChanged
-			, CASE WHEN SettlementType NOT IN (2,3,12,13) THEN NULL  
-			       ELSE ROW_NUMBER() OVER (PARTITION BY h.TransId ORDER BY CASE WHEN SettlementType NOT IN (12,13,2,3) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
+			, CASE WHEN SettlementType NOT IN (2,3,12) THEN NULL  
+			       ELSE ROW_NUMBER() OVER (PARTITION BY h.TransId ORDER BY CASE WHEN SettlementType NOT IN (2,3,12) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
 			  END AS RN_settle
 		FROM #tblResultAmendment r
 			INNER JOIN dbo.SettlementHistory h WITH(NOLOCK) ON r.TransId = h.TransId
 		WHERE h.MatchId = 29
+		SET @RowCount += @@ROWCOUNT
 		
-		IF EXISTS (SELECT TOP 1 1 FROM #tblSettlementHistory WHERE SettlementType IN (2,3,12,13)) 
-		BEGIN
+		IF @RowCount <> 0 
+		BEGIN 
 			;WITH CTE_Repeat AS (
 				SELECT TransId, BalanceChanged
-					  ,COUNT(RN_settle) OVER (PARTITION BY TransId ORDER BY CreatedDate DESC) AS Rownumber
+						,COUNT(RN_settle) OVER (PARTITION BY TransId ORDER BY CreatedDate DESC) AS Rownumber
 				FROM #tblSettlementHistory
 			)
 			,CTE_Sum AS (
 				SELECT TransId, Rownumber
-					  ,SUM(a.BalanceChanged) as Sum_BalanceChanged
+						,SUM(a.BalanceChanged) as Sum_BalanceChanged
 				FROM CTE_Repeat a
 				GROUP BY TransId, Rownumber
 			)
 			SELECT DISTINCT sh.TransId
 			FROM #tblSettlementHistory sh
 				INNER JOIN CTE_Sum c ON sh.TransId = c.TransId AND sh.RN_settle = c.Rownumber
-			WHERE sh.SettlementType IN (12,13,2,3)
-			  AND c.Sum_BalanceChanged <> 0
+			WHERE  1 = CASE WHEN sh.SettlementType = 3 THEN 1
+							WHEN sh.SettlementType IN (2,12) AND c.Sum_BalanceChanged <> 0 THEN 1 
+							ELSE 0 END 
 		END
 	END
 
