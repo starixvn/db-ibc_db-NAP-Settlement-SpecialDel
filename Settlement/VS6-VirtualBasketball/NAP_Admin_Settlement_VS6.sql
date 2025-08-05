@@ -103,7 +103,7 @@ BEGIN
 
 	EXEC sp_xml_removedocument @handle
 
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedResources WHERE ResourceID = '00' ) AND @GameSession <> 1
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedResources WHERE ResourceID = '00' ) AND (ISNULL(@GameSession,0) <> 1)
 	BEGIN
 		;WITH cte_TotalScore AS 
 		(
@@ -117,12 +117,14 @@ BEGIN
 			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = q.ResourceID
 		WHERE sp.SportType = @sporttype
 	END
-	ELSE
+	ELSE IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedResources WHERE ResourceID = '00' ) AND (ISNULL(@GameSession,0) = 1)
 	BEGIN
-		INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, OddsType )  
-		SELECT '0100' AS ResourceID, SUM(CAST(HomeValue AS INT) ) AS HomeValue, SUM(CAST(AwayValue AS INT)) AS AwayValue, BetType, BetID, pfID, OddsType
-		FROM @tmpSelectedResources
-		WHERE ResourceID = '00'
+		INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, OddsType)  
+		SELECT '0100' AS ResourceID, CAST(HomeValue AS INT) AS HomeValue, CAST(AwayValue AS INT) AS AwayValue, sp.BetType, sp.BetID, sp.pfID, sp.OddsType
+		FROM @tmpSelectedResources a
+			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = '0100'
+		WHERE a.ResourceID = '00'
+			AND sp.SportType = @sporttype
 	END
 
 	BEGIN TRY
