@@ -8,6 +8,7 @@ ALTER PROCEDURE  NAP_Admin_Settlement_VS6
 	,@SelectedResources		VARCHAR(MAX)
 	,@IsReSettledTickets	BIT
 	,@IP					VARCHAR(50)		= ''
+	,@GameSession           INT 			= 0
 	,@ErrCode				INT				= 0		OUTPUT
 	,@ErrMsg				NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -20,6 +21,7 @@ AS
 		- 20241023@Louisa: Initial [Redmine:#210733]
 		- 20250328@Louisa: extend data type of currency from tinyint to smallint [Redmine:#222173]
 		- 20250408@Aries: Remove the redundant information from the alert when exceeded Max Payout of Virtual Sport [Redmine:#223116]
+		- 20250805@Hughie: Integrate - Support "1 minute Basketball" event for VS6-Betby [Redmine:#235139] 
 
 	Param's explaination
 		@Action: Refund	   - @ActionId: 81056
