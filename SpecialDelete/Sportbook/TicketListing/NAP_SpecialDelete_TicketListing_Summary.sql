@@ -688,7 +688,15 @@ BEGIN
 		BEGIN
 			DELETE b
 			FROM #CTE_ParlayTickets b
-			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #tmpAffectTickets t WHERE b.ParentTransId=t.Transid)
+				CROSS APPLY ( --Change for case void sub => main parlay change winlost => not affect
+							SELECT TOP 1 1 AS IsInvalid
+							FROM dbo.bettransm bm WITH(NOLOCK) 
+							WHERE b.refno = bm.refno AND bm.statusID = 102
+						)a
+				LEFT JOIN #tmpAffectTickets t ON b.ParentTransId = t.Transid
+			WHERE 1 = CASE WHEN t.Transid IS NULL THEN 1 
+			               WHEN t.Transid IS NOT NULL AND a.IsInvalid = 1 THEN 1 
+						   ELSE 0 END
 		END
 
 		IF @BetTeams IS NOT NULL

@@ -592,7 +592,16 @@ BEGIN
 		BEGIN
 			DELETE b
 			FROM #SpecialDeleteBets b
-			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #tmpAffectTickets t WHERE b.transid=t.Transid)
+				CROSS APPLY ( --Change for case void sub => main parlay change winlost => not affect
+							SELECT TOP 1 1 AS IsInvalid
+							FROM dbo.bettransm bm WITH(NOLOCK) 
+							WHERE b.refno = bm.refno AND bm.statusID = 102
+						)a
+				LEFT JOIN #tmpAffectTickets t ON b.transid = t.Transid
+			WHERE 1 = CASE WHEN t.Transid IS NULL THEN 1 
+			               WHEN t.Transid IS NOT NULL AND a.IsInvalid = 1 THEN 1 
+						   ELSE 0 END
+				AND b.IsParlay = 1
 		END
 
 		IF (@BetTypes ='38' AND @Selectiontype <>'')

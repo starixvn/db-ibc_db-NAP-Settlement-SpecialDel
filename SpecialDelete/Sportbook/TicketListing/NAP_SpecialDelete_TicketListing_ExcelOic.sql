@@ -205,6 +205,7 @@ BEGIN
 	CREATE TABLE #SpecialDeleteBets 
 	(
 		transid				BIGINT,
+		refno				BIGINT,
 		CustId				INT,
 		ParentHdp2	        SMALLMONEY,
 		Recommend			INT,
@@ -527,7 +528,7 @@ BEGIN
 	-- System parlay - Sportsbook 29
     IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'SubParlay'
 	BEGIN
-		INSERT INTO #SpecialDeleteBets (transid, CustId, ParentHdp2, Recommend, LicenseeName
+		INSERT INTO #SpecialDeleteBets (transid, CustId, ParentHdp2, Recommend, LicenseeName, refno
 										, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, IsParlay
 										)
 		SELECT	b.transid,
@@ -535,6 +536,7 @@ BEGIN
 				b.hdp2 AS ParentHdp2,
 				b.recommend,
 				s.LicenseeName,
+				bm.refno,
 				bm.bettype AS FilterBetType,
 				bm.betteam AS FilterBetTeam,
 				bm.betcheck AS FilterSet,
@@ -571,8 +573,16 @@ BEGIN
 		BEGIN
 			DELETE b
 			FROM #SpecialDeleteBets b
-			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #tmpAffectTickets t WHERE b.transid=t.Transid)
-			AND b.IsParlay = 1
+				CROSS APPLY ( 
+							SELECT TOP 1 1 AS IsInvalid
+							FROM dbo.bettransm bm WITH(NOLOCK) 
+							WHERE b.refno = bm.refno AND bm.statusID = 102
+						)a
+				LEFT JOIN #tmpAffectTickets t ON b.transid = t.Transid
+			WHERE 1 = CASE WHEN t.Transid IS NULL THEN 1 
+			               WHEN t.Transid IS NOT NULL AND a.IsInvalid = 1 THEN 1 
+						   ELSE 0 END
+				AND b.IsParlay = 1
 		END
 
 		IF @SelectionSubParlays <> ''
