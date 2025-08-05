@@ -57,7 +57,7 @@ BEGIN
 	INSERT INTO #tblResultAmendment (TransId)
 	SELECT DISTINCT TransId
 	FROM dbo.SettlementHistory WITH(NOLOCK)
-	WHERE SettlementType IN (2,3,12)
+	WHERE SettlementType IN (2,3,12,13)
 	  AND MatchId = 29 AND CreatedDate >= @CheckDate -- Special case for MatchId Sub
 
 	BEGIN
@@ -66,8 +66,8 @@ BEGIN
 		    , SettlementType
 		    , CreatedDate
 		    , BalanceChanged
-			, CASE WHEN SettlementType NOT IN (2,3,12) THEN NULL 
-			       ELSE ROW_NUMBER() OVER (PARTITION BY TransId ORDER BY CASE WHEN SettlementType NOT IN (2,3,12) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
+			, CASE WHEN SettlementType NOT IN (2,3,12,13) THEN NULL 
+			       ELSE ROW_NUMBER() OVER (PARTITION BY TransId ORDER BY CASE WHEN SettlementType NOT IN (2,3,12,13) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
 			  END AS RN_settle
 		FROM dbo.SettlementHistory WITH(NOLOCK) 
 		WHERE Matchid IN (SELECT MatchId FROM @tmpMatchId)
@@ -78,8 +78,8 @@ BEGIN
 		    , SettlementType
 		    , CreatedDate
 		    , BalanceChanged
-			, CASE WHEN SettlementType NOT IN (2,3,12) THEN NULL  
-			       ELSE ROW_NUMBER() OVER (PARTITION BY h.TransId ORDER BY CASE WHEN SettlementType NOT IN (2,3,12) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
+			, CASE WHEN SettlementType NOT IN (2,3,12,13) THEN NULL  
+			       ELSE ROW_NUMBER() OVER (PARTITION BY h.TransId ORDER BY CASE WHEN SettlementType NOT IN (2,3,12,13) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
 			  END AS RN_settle
 		FROM #tblResultAmendment r
 			INNER JOIN dbo.SettlementHistory h WITH(NOLOCK) ON r.TransId = h.TransId
@@ -103,7 +103,7 @@ BEGIN
 			FROM #tblSettlementHistory sh
 				INNER JOIN CTE_Sum c ON sh.TransId = c.TransId AND sh.RN_settle = c.Rownumber
 			WHERE  1 = CASE WHEN sh.SettlementType = 3 THEN 1
-							WHEN sh.SettlementType IN (2,12) AND c.Sum_BalanceChanged <> 0 THEN 1 
+							WHEN sh.SettlementType IN (2,12,13) AND c.Sum_BalanceChanged <> 0 THEN 1 
 							ELSE 0 END 
 		END
 	END
