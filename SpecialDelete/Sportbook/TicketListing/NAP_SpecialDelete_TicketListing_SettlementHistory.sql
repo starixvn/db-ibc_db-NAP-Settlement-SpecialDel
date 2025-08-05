@@ -101,7 +101,7 @@ BEGIN
 			)
 			SELECT DISTINCT sh.TransId
 			FROM #tblSettlementHistory sh
-				INNER JOIN CTE_Sum c ON sh.TransId = c.TransId AND sh.RN_settle = c.Rownumber
+				INNER JOIN CTE_Sum c ON sh.TransId = c.TransId AND ISNULL(sh.RN_settle,0) = c.Rownumber --ISNULL for case SettlementType = 13
 			WHERE  1 = CASE WHEN sh.SettlementType = 3 THEN 1
 							WHEN sh.SettlementType IN (2,12,13) AND c.Sum_BalanceChanged <> 0 THEN 1 
 							ELSE 0 END 
