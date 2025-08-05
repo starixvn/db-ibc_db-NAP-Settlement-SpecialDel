@@ -20,6 +20,8 @@ CREATE TABLE [dbo].[ResultDetailOutright](
 	,[LastModifyDate] [datetime] NULL
 	,[OtherInfo] [varchar](50) NULL
 	,[ResultSetting] [tinyint] NULL
+	,[isDelete][bit] NULL
+	,[RepUpdateTime] [DATETIME] NULL
     CONSTRAINT [PK_ResultDetailOutright_Orid] PRIMARY KEY CLUSTERED 
     (
 	    [Orid] ASC
