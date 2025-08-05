@@ -66,8 +66,8 @@ BEGIN
 		    , SettlementType
 		    , CreatedDate
 		    , BalanceChanged
-			, CASE WHEN SettlementType NOT IN (2,3,12,13) THEN NULL 
-			       ELSE ROW_NUMBER() OVER (PARTITION BY TransId ORDER BY CASE WHEN SettlementType NOT IN (2,3,12,13) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
+			, CASE WHEN SettlementType NOT IN (2,3,12) THEN NULL 
+			       ELSE ROW_NUMBER() OVER (PARTITION BY TransId ORDER BY CASE WHEN SettlementType NOT IN (2,3,12) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
 			  END AS RN_settle
 		FROM dbo.SettlementHistory WITH(NOLOCK) 
 		WHERE Matchid IN (SELECT MatchId FROM @tmpMatchId)
@@ -78,8 +78,8 @@ BEGIN
 		    , SettlementType
 		    , CreatedDate
 		    , BalanceChanged
-			, CASE WHEN SettlementType NOT IN (2,3,12,13) THEN NULL  
-			       ELSE ROW_NUMBER() OVER (PARTITION BY h.TransId ORDER BY CASE WHEN SettlementType NOT IN (2,3,12,13) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
+			, CASE WHEN SettlementType NOT IN (2,3,12) THEN NULL  
+			       ELSE ROW_NUMBER() OVER (PARTITION BY h.TransId ORDER BY CASE WHEN SettlementType NOT IN (2,3,12) THEN 0 ELSE 1 END DESC, CreatedDate DESC) 
 			  END AS RN_settle
 		FROM #tblResultAmendment r
 			INNER JOIN dbo.SettlementHistory h WITH(NOLOCK) ON r.TransId = h.TransId

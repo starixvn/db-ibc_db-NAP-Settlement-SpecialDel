@@ -573,7 +573,7 @@ BEGIN
 		BEGIN
 			DELETE b
 			FROM #SpecialDeleteBets b
-				CROSS APPLY ( 
+				OUTER APPLY ( --Change for case void sub => main parlay change winlost => not affect
 							SELECT TOP 1 1 AS IsInvalid
 							FROM dbo.bettransm bm WITH(NOLOCK) 
 							WHERE b.refno = bm.refno AND bm.statusID = 102

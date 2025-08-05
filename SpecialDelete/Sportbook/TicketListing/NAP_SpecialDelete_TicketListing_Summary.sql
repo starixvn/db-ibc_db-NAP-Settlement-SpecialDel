@@ -688,7 +688,7 @@ BEGIN
 		BEGIN
 			DELETE b
 			FROM #CTE_ParlayTickets b
-				CROSS APPLY ( --Change for case void sub => main parlay change winlost => not affect
+				OUTER APPLY ( --Change for case void sub => main parlay change winlost => not affect
 							SELECT TOP 1 1 AS IsInvalid
 							FROM dbo.bettransm bm WITH(NOLOCK) 
 							WHERE b.refno = bm.refno AND bm.statusID = 102
