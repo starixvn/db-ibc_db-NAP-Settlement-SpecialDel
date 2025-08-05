@@ -11,6 +11,7 @@ DECLARE @StartRow INT
 		, @StopRow INT 
 		, @MaxRow INT  -- Keep the total row of your data
 		, @Threshold INT  -- the number of each batch
+		, @MaxTransId BIGINT
 
 
 CREATE TABLE #UpdatedTransIds (
@@ -39,6 +40,8 @@ FROM dbo.[match] m WITH (NOLOCK)
 WHERE m.eventstatus = 'running'
 	AND (m.sporttype <= 99 OR m.sporttype IN (164,178,179,180,186,188,190,191,192,193,194,195,196,197))
 
+SELECT @MaxTransId = MAX(TransId) FROM dbo.bettrans b WITH (NOLOCK)
+
 -- Get all qualifying TransIds upfront
 INSERT INTO #TransIdsToProcess (TransId, CustID, MatchId, EventTypeID, BetType, SiteType, PayoutAdjust, ExtraInfo)
 SELECT 
@@ -59,9 +62,10 @@ FROM #RunningMatch m
 	INNER JOIN dbo.bettrans bt WITH (NOLOCK) ON bt.matchid = m.matchid
 	INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = bt.custid
 	INNER JOIN CustDB.dbo.site s WITH (NOLOCK) ON s.site = c.site
-WHERE bt.StatusId = 0  -- Running bets
+WHERE bt.StatusId IN (0,1)  -- Running bets
+	AND bt.transid <= @MaxTransId
 	--list bettypes in function f_CustLimitBet_AccumPayout_Exclude
-	AND  bt.bettype IN (1,3,5,7,8,15,20,21,153,501,609,610,612,701,704,705,9400,9404,9405,9406,9407,9408,9409,9522,9604,8800,8801,8802,8803,8804,8805,8806,8807,8808,8809,8810,8811,8812,8814,8815,8816,8817,8818,8819,8820,8821,8823,8824,8827,8828,8829,8830,8832,8833)
+	AND bt.bettype IN (1,3,5,7,8,15,20,21,153,501,609,610,612,701,704,705,9400,9404,9405,9406,9407,9408,9409,9522,9604,8800,8801,8802,8803,8804,8805,8806,8807,8808,8809,8810,8811,8812,8814,8815,8816,8817,8818,8819,8820,8821,8823,8824,8827,8828,8829,8830,8832,8833)
 
 --Get missing payout value transid
 DECLARE @tmp_MissingPayoutTrans AS TABLE (TransIds BIGINT, ExtraInfo VARCHAR(1000))
@@ -72,15 +76,18 @@ WHERE PayoutAdjust = 0
 DELETE t
 FROM #TransIdsToProcess t
 WHERE EXISTS (
-    SELECT 1
+    SELECT TOP 1 1
     FROM dbo.CustLimitBetHistory_MBC m1 WITH (NOLOCK)
     WHERE m1.Matchid = t.MatchId 
         AND m1.CustID = t.CustID 
         AND m1.Transid = t.TransId
         AND m1.PayoutAdjust <> 0
 )
-OR EXISTS (
-    SELECT 1
+
+DELETE t
+FROM #TransIdsToProcess t
+WHERE EXISTS (
+    SELECT TOP 1 1
     FROM dbo.CustLimitBetHistory_789 m2 WITH (NOLOCK)
     WHERE m2.Matchid = t.MatchId 
         AND m2.CustID = t.CustID 
@@ -114,9 +121,12 @@ BEGIN
 			SET PayoutAdjust = batch.PayoutAdjust 
 			OUTPUT inserted.Transid, 1 INTO #UpdatedTransIds(TransId, sitetype)
 			FROM dbo.CustLimitBetHistory_MBC clbh WITH (ROWLOCK)
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = clbh.Transid
 				INNER JOIN #TransIdsToProcess batch ON clbh.Matchid = batch.MatchId AND clbh.CustID = batch.CustID AND clbh.Transid = batch.TransId
 			WHERE batch.Id BETWEEN @StartRow AND @StopRow
-			AND batch.SiteType = 1
+				AND batch.SiteType = 1
+				AND b.statusID IN (0,1)
+				AND clbh.PayoutAdjust = 0
 		END
 
 		--789y
@@ -126,9 +136,12 @@ BEGIN
 			SET PayoutAdjust = batch.PayoutAdjust
 			OUTPUT inserted.Transid, 2 INTO #UpdatedTransIds(TransId, sitetype)
 			FROM dbo.CustLimitBetHistory_789 clbh WITH (ROWLOCK)
-				INNER JOIN #TransIdsToProcess batch ON clbh.TransId = batch.TransId
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = clbh.Transid
+				INNER JOIN #TransIdsToProcess batch ON clbh.Matchid = batch.MatchId AND clbh.CustID = batch.CustID AND clbh.Transid = batch.TransId
 			WHERE batch.Id BETWEEN @StartRow AND @StopRow
-			AND batch.SiteType = 2
+				AND batch.SiteType = 2
+				AND b.statusID IN (0,1)
+				AND clbh.PayoutAdjust = 0
 		END
 
 		IF @StopRow = @MaxRow BREAK
@@ -175,7 +188,7 @@ BEGIN
 					WHERE t1.Id BETWEEN @StartRow AND @StopRow
 						AND t1.SiteType = 1
 						AND t.Matchid = t1.MatchId AND t.CustID = t1.CustId AND t.EventTypeID = t1.EventTypeID
-						AND b.statusID = 0 --running bet
+						AND b.statusID IN (0,1) --running bet
 					GROUP BY t1.MatchId, t1.CustId, t1.EventTypeID
 				)tmp
 		END
@@ -192,7 +205,7 @@ BEGIN
 					WHERE t1.Id BETWEEN @StartRow AND @StopRow
 						AND t1.SiteType = 2
 						AND t.Matchid = t1.MatchId AND t.CustID = t1.CustId AND t.EventTypeID = t1.EventTypeID
-						AND b.statusID = 0 --running bet
+						AND b.statusID IN (0,1) --running bet
 					GROUP BY t1.MatchId, t1.CustId, t1.EventTypeID
 				)tmp
 		END
@@ -212,71 +225,6 @@ BEGIN
 		RETURN
 	END CATCH
     
-END
-
--- Return list of updated TransIds
--- Check row count for each TransId - MBC
-DECLARE @tmp_AdjustVoidedTransId AS TABLE (TransId BIGINT, MatchId INT, CustId INT)
-INSERT INTO @tmp_AdjustVoidedTransId (TransId, MatchId, CustId)
-SELECT 
-    clbh.TransId, Matchid, CustID
-FROM dbo.CustLimitBetHistory_MBC clbh WITH (NOLOCK)
-	INNER JOIN #UpdatedTransIds ut ON clbh.TransId = ut.TransId AND ut.sitetype = 1
-GROUP BY clbh.TransId, Matchid, CustId
-HAVING COUNT(*) = 2
-ORDER BY clbh.TransId, matchid, custid
-
-IF @@ROWCOUNT > 0
-BEGIN
-	UPDATE t SET t.AccumPayout = (t.AccumPayout + tmp.AccumPayout)
-	FROM dbo.CustLimitBet_MBC t WITH (ROWLOCK)
-		CROSS APPLY (
-			SELECT -SUM(tmpsum.AccumPayout) AS AccumPayout
-				,tmpsum.MatchId, tmpsum.CustId
-			FROM
-			(
-				SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t1.MatchId, t1.CustId, t1.transid, t2.EventTypeID
-				FROM @tmp_AdjustVoidedTransId t1
-					INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = t1.CustId and t2.Transid = t1.transid
-				GROUP BY t1.Matchid, t1.CustId, t1.transid, t2.EventTypeID
-			)tmpsum
-			WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
-			GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
-		)tmp
-
-	DELETE @tmp_AdjustVoidedTransId
-END
-
--- Check row count for each TransId - 789
-DELETE @tmp_AdjustVoidedTransId
-INSERT INTO @tmp_AdjustVoidedTransId (TransId, MatchId, CustId)
-SELECT 
-    clbh.TransId, Matchid, CustID
-FROM dbo.CustLimitBetHistory_789 clbh WITH (NOLOCK)
-	INNER JOIN #UpdatedTransIds ut ON clbh.TransId = ut.TransId AND ut.sitetype = 2
-GROUP BY clbh.TransId, matchid, custid
-HAVING COUNT(*) = 2
-ORDER BY clbh.TransId, matchid, custid
-
-IF @@ROWCOUNT > 0
-BEGIN
-	UPDATE t SET t.AccumPayout = (t.AccumPayout + tmp.AccumPayout)
-	FROM dbo.CustLimitBet_789 t WITH (ROWLOCK)
-		CROSS APPLY (
-			SELECT -SUM(tmpsum.AccumPayout) AS AccumPayout
-				,tmpsum.MatchId, tmpsum.CustId
-			FROM
-			(
-				SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t1.MatchId, t1.CustId, t1.transid, t2.EventTypeID
-				FROM @tmp_AdjustVoidedTransId t1
-					INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = t1.CustId and t2.Transid = t1.transid
-				GROUP BY t1.Matchid, t1.CustId, t1.transid, t2.EventTypeID
-			)tmpsum
-			WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
-			GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
-		)tmp
-
-	DELETE @tmp_AdjustVoidedTransId
 END
 
 --Return transid payout = 0
