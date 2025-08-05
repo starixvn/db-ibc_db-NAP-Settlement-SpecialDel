@@ -21,7 +21,7 @@ BEGIN
 	BEGIN
 		WHILE (1=1)
 		BEGIN
-			DELETE TOP(1000) c
+			DELETE TOP(5000) c
 			FROM dbo.CustWinLimitBet_History_Del_InHouse c WITH (ROWLOCK)
 			WHERE c.RepUpdateTime < @Archive_Date
 
