@@ -61,7 +61,7 @@ BEGIN
 				       ELSE 0 END
 
 		-- Remove invalid child match
-		IF @SubIssueTypeId IN (4,5,63,64)
+		IF @SubIssueTypeId IN (4,5,63,64) AND @IssueTypeId = 1
 		BEGIN
 			DELETE r
 			FROM @tmpRelatedEventInfo AS r
