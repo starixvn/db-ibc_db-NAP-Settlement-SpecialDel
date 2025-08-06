@@ -759,7 +759,7 @@ BEGIN
 
 		SELECT @UsernamesOfCreditCashService  = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(t.username AS VARCHAR(50))
 												FROM #tmpTransInfo AS t
-												WHERE t.IsCreditCashService = 1
+												WHERE t.IsCreditCashService = 1 AND t.IsSiteDBDown = 0
 												FOR XML PATH('')), 1, 1, ''), '')
 		
 	END
@@ -788,23 +788,23 @@ BEGIN
 		WHERE IsSiteDBDown = 1 AND IsVoid14 = 0
 
 		;WITH cteUserName AS (
-				SELECT DISTINCT t.username, c.roleid, t.custid, t.recommend, t.mrecommend, t.srecommend
+				SELECT DISTINCT b.custid
 				FROM #tmpTransInfo AS t
-				INNER JOIN CustDB.dbo.custInfo AS c ON c.custid = t.custid
-				WHERE IsSiteDBDown = 1
+				CROSS APPLY
+				(
+					VALUES (custid)
+					,(recommend)
+					,(mrecommend)
+					,(srecommend)
+				) AS b (custid)
+				WHERE t.IsSiteDBDown = 1
 			)
 		INSERT INTO @tmpUserName (UserName)
 		SELECT DISTINCT i.UserName
 		FROM #InputUsernameList AS i
-		JOIN cteUserName AS t
-			ON (
-				(i.roleid = 1 AND i.custid = t.custid)
-			 OR (i.roleid = 2 AND i.custid = t.recommend)
-			 OR (i.roleid = 3 AND i.custid = t.mrecommend)
-			 OR	(i.roleid = 4 AND i.custid = t.srecommend)
-			)
+		INNER JOIN cteUserName AS t ON t.custid = i.custid
 
-		SELECT @UserNameSiteDBDown = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(t.username AS VARCHAR(50))
+		SELECT @UserNameSiteDBDown = ISNULL(STUFF((SELECT ',' + CAST(t.username AS VARCHAR(50))
 												   FROM @tmpUserName AS t
 												   FOR XML PATH('')), 1, 1, ''), '')
 	END
@@ -880,7 +880,7 @@ BEGIN
 							  FOR XML PATH ('')
 							),1,1,'')
 
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo) 
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsSiteDBDown = 0) 
 		SET @IsInValidTotalTicket = 0 
 	ELSE 
 		SET @IsInValidTotalTicket = 1 
