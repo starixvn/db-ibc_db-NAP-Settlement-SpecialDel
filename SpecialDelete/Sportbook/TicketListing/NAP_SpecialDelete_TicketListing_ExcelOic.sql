@@ -70,6 +70,7 @@ AS
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250428@Max: TVS- Search matchid got error on ticket listing [Redmine: #225671]
+		- 20250724@July: Get Result Amendment for main parlay ticket of matchid input [Redmine: #233478]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -204,6 +205,7 @@ BEGIN
 	CREATE TABLE #SpecialDeleteBets 
 	(
 		transid				BIGINT,
+		refno				BIGINT,
 		CustId				INT,
 		ParentHdp2	        SMALLMONEY,
 		Recommend			INT,
@@ -219,7 +221,8 @@ BEGIN
 		FilterHdp2	        SMALLMONEY,
 		FilterOddsSpread    MONEY,
 	    FilterOddsId		INT,
-		FilterTransdesc	    NVARCHAR(2000)
+		FilterTransdesc	    NVARCHAR(2000),
+		IsParlay			BIT DEFAULT(0)
 	)
 
 	CREATE TABLE #TmpBallSequence (Seq TINYINT)
@@ -339,11 +342,12 @@ BEGIN
 	BEGIN
 		IF @Type = 1 -- FOR Happy 5, Number Game Only
 		BEGIN
-			INSERT INTO #SpecialDeleteBets (transid, CustId, Recommend, LicenseeName)
+			INSERT INTO #SpecialDeleteBets (transid, CustId, Recommend, LicenseeName, IsParlay)
 			SELECT	b.transid,
 					b.custid,
 					b.recommend,
-					s.LicenseeName
+					s.LicenseeName, 
+					0 AS IsParlay
 			FROM	dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 				INNER JOIN dbo.Dep_CustSuper dc WITH (NOLOCK) ON b.srecommend = dc.custid
@@ -363,7 +367,7 @@ BEGIN
 		ELSE IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'Single'
 		BEGIN
 			INSERT INTO #SpecialDeleteBets (transid, CustId, Recommend, LicenseeName
-											, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc)
+											, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, IsParlay)
 			SELECT	 b.transid
 					,b.custid
 					,b.recommend
@@ -380,6 +384,7 @@ BEGIN
 					,b.oddsspread AS FilterOddsSpread
 					,b.oddsid AS FilterOddsId
 					,b.transdesc AS FilterTransdesc
+					,0 AS IsParlay
 			FROM	dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 				INNER JOIN dbo.Dep_CustSuper dc WITH (NOLOCK) ON b.srecommend = dc.custid
@@ -523,14 +528,15 @@ BEGIN
 	-- System parlay - Sportsbook 29
     IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'SubParlay'
 	BEGIN
-		INSERT INTO #SpecialDeleteBets (transid, CustId, ParentHdp2, Recommend, LicenseeName
-										, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc
+		INSERT INTO #SpecialDeleteBets (transid, CustId, ParentHdp2, Recommend, LicenseeName, refno
+										, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, IsParlay
 										)
 		SELECT	b.transid,
 				b.custid,
 				b.hdp2 AS ParentHdp2,
 				b.recommend,
 				s.LicenseeName,
+				bm.refno,
 				bm.bettype AS FilterBetType,
 				bm.betteam AS FilterBetTeam,
 				bm.betcheck AS FilterSet,
@@ -542,7 +548,8 @@ BEGIN
 				bm.hdp2 AS FilterHdp2,
 				bm.oddsspread AS FilterOddsSpread,
 				bm.oddsid AS FilterOddsId,
-				bm.transdesc AS FilterTransdesc
+				bm.transdesc AS FilterTransdesc,
+				1 AS IsParlay
 		FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
 			INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
 			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
@@ -561,6 +568,22 @@ BEGIN
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 			AND (b.betid = 0 OR b.betid IS NULL)
 		OPTION(OPTIMIZE FOR (@n = 1))
+
+		IF (@IsReSettled = 1 AND @Type IN (0,3))
+		BEGIN
+			DELETE b
+			FROM #SpecialDeleteBets b
+				OUTER APPLY ( --Change for case void sub => main parlay change winlost => not affect
+							SELECT TOP 1 1 AS IsInvalid
+							FROM dbo.bettransm bm WITH(NOLOCK) 
+							WHERE b.refno = bm.refno AND bm.statusID = 102
+						)a
+				LEFT JOIN #tmpAffectTickets t ON b.transid = t.Transid
+			WHERE 1 = CASE WHEN t.Transid IS NULL THEN 1 
+			               WHEN t.Transid IS NOT NULL AND a.IsInvalid = 1 THEN 1 
+						   ELSE 0 END
+				AND b.IsParlay = 1
+		END
 
 		IF @SelectionSubParlays <> ''
 		BEGIN
@@ -695,7 +718,7 @@ BEGIN
 	END
 
     -- System parlay Virtual Sports
-    IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)))
+    IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1)))
 	BEGIN
 		INSERT INTO #SpecialDeleteBets (transid, CustId, Recommend, LicenseeName)	
 		SELECT	b.transid,
@@ -709,8 +732,8 @@ BEGIN
 			INNER JOIN @tmpLicenseeName s ON dc.site = s.LicenseeName
 		WHERE b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
-			AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-			AND b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+			AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
+			AND b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
 			AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
