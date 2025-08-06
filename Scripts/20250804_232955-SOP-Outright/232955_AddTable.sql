@@ -11,17 +11,16 @@ GO
 
 CREATE TABLE [dbo].[ResultDetailOutright](
 	[Orid] [int] NOT NULL
-	,[Leagueid]	[int] NULL
 	,[Teamid] [int] NULL
+	,[ConfirmStatus][VARCHAR](10)NULL
 	,[ResultStatusID] [TINYINT] NULL
+	,[SettlementStatusID] [TINYINT] NULL
 	,[KeyResultUserId] [INT] NULL
 	,[ConfirmUserId] [INT] NULL
 	,[CreateDate] [datetime] NULL
 	,[LastModifyDate] [datetime] NULL
-	,[OtherInfo] [varchar](50) NULL
-	,[ResultSetting] [tinyint] NULL
 	,[isDelete][bit] NULL
-	,[RepUpdateTime] [DATETIME] NULL
+	,[RepUpdateTime] [DATETIME2] NULL
     CONSTRAINT [PK_ResultDetailOutright_Orid] PRIMARY KEY CLUSTERED 
     (
 	    [Orid] ASC
