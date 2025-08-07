@@ -8,6 +8,7 @@ ALTER PROCEDURE  NAP_Admin_Settlement_VS6
 	,@SelectedResources		VARCHAR(MAX)
 	,@IsReSettledTickets	BIT
 	,@IP					VARCHAR(50)		= ''
+	,@GameSession           INT 			= 0
 	,@ErrCode				INT				= 0		OUTPUT
 	,@ErrMsg				NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -20,6 +21,7 @@ AS
 		- 20241023@Louisa: Initial [Redmine:#210733]
 		- 20250328@Louisa: extend data type of currency from tinyint to smallint [Redmine:#222173]
 		- 20250408@Aries: Remove the redundant information from the alert when exceeded Max Payout of Virtual Sport [Redmine:#223116]
+		- 20250805@Hughie: Integrate - Support "1 minute Basketball" event for VS6-Betby [Redmine:#235139] 
 
 	Param's explaination
 		@Action: Refund	   - @ActionId: 81056
@@ -101,7 +103,7 @@ BEGIN
 
 	EXEC sp_xml_removedocument @handle
 
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedResources WHERE ResourceID = '00' )
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedResources WHERE ResourceID = '00' ) AND (ISNULL(@GameSession,0) <> 1)
 	BEGIN
 		;WITH cte_TotalScore AS 
 		(
@@ -114,6 +116,15 @@ BEGIN
 		FROM cte_TotalScore q
 			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = q.ResourceID
 		WHERE sp.SportType = @sporttype
+	END
+	ELSE IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedResources WHERE ResourceID = '00' ) AND (ISNULL(@GameSession,0) = 1)
+	BEGIN
+		INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, OddsType)  
+		SELECT DISTINCT '0100' AS ResourceID, CAST(HomeValue AS INT) AS HomeValue, CAST(AwayValue AS INT) AS AwayValue, sp.BetType, sp.BetID, sp.pfID, sp.OddsType
+		FROM @tmpSelectedResources a
+			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = '0100'
+		WHERE a.ResourceID = '00'
+			AND sp.SportType = @sporttype
 	END
 
 	BEGIN TRY
