@@ -113,7 +113,7 @@ BEGIN
 		FROM @tmpRelatedEventInfo m
 		WHERE m.matchid <> @MatchId
 		UNION ALL
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype, 0
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype, 0 AS IsSpecialChildMatch
 		FROM #LinkedMatch_tmp lm
 			INNER JOIN dbo.match m WITH(NOLOCK) ON lm.LinkedMatchID = m.matchid
 		ORDER BY matchcode ASC
