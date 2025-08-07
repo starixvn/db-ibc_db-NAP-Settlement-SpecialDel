@@ -6,7 +6,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 	,@IsMainMatch	BIT = 1
 	,@IssueTypeId	TINYINT = NULL
 	,@Sporttype		SMALLINT = 1
-	,@SubIssueTypeId TINYINT = 0
 )
 AS
 /*	
@@ -60,23 +59,6 @@ BEGIN
 					   THEN 1
 				       ELSE 0 END
 
-		-- Remove invalid child match
-		IF @SubIssueTypeId IN (4,5,63,64) AND @IssueTypeId = 1
-		BEGIN
-			DELETE r
-			FROM @tmpRelatedEventInfo AS r
-			OUTER APPLY (
-				SELECT mr.matchid
-				FROM dbo.match_remark AS mr WITH (NOLOCK)
-				WHERE mr.matchid = r.matchid 
-					AND (	 SubType LIKE '21__' OR SubType LIKE '26__' --Next corner
-					      OR SubType LIKE '29__' OR SubType LIKE '34__' --Next booking
-						  OR SubType LIKE '39__' OR SubType LIKE '43__' --Next goal kick
-						  )
-			) m
-			WHERE m.matchid IS NULL
-		END
-
 		-- Get all fantasy match
 		IF @IssueTypeId IN (4,5,6,7)
 		BEGIN
@@ -114,11 +96,12 @@ BEGIN
 			INNER JOIN #LinkedMatch_tmp link ON child.matchid = link.LinkedMatchID
 
 		-- Return result
-		SELECT matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, m.MatchType, m.IsNeutral, m.sporttype
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, m.MatchType, m.IsNeutral, m.sporttype, mr.SubType
 		FROM @tmpRelatedEventInfo m
-		WHERE matchid <> @MatchId
+			LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON m.matchid = mr.matchid
+		WHERE m.matchid <> @MatchId
 		UNION ALL
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral, m.sporttype, NULL
 		FROM #LinkedMatch_tmp lm
 			INNER JOIN dbo.match m WITH(NOLOCK) ON lm.LinkedMatchID = m.matchid
 		ORDER BY matchcode ASC
