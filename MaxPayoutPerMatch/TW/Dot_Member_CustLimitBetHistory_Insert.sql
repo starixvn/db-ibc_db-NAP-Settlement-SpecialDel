@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member,svc_tig" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="Dot_Member,svc_tig" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Dot_Member_CustLimitBetHistory_Insert]
 (
 	@MatchId		INT
@@ -15,7 +15,7 @@ AS
 /*	
 	Created: 20210726@Max
     Task: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
-    DB: DBTXN/bodb02
+    DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
@@ -28,6 +28,7 @@ AS
 		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]
 		- 20250609@July: Enhance MaxPayout Per Match for Virtual Sport [Redmine: #229870]
 		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
+		- 20250703@July: Max Payout Per Match for E-Sport/ Muay Thai [Redmine: #230454]
 	
 	Param's explanation:	
 		
@@ -45,8 +46,12 @@ BEGIN
 	BEGIN
 		RETURN
 	END
-	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) 
-		OR (@sporttype IN (43,44) AND @sitetype <> 3) 
+	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype
+								AND 1 = CASE WHEN @sporttype NOT IN (43,44) THEN 1
+											 WHEN @sporttype IN (43,44) AND  @sitetype = 3 THEN 1
+											 ELSE 0 END 
+	)) 
+		--OR (@sporttype IN (43,44) AND @sitetype <> 3)
 		OR (@sporttype IN (164
 			--,178,179,180,186,188,147,177,134,125,126,127 --VS Product
 		)) 
