@@ -1,7 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_CalculationLogIns]
 	@SiteDBGroupId SMALLINT
-	,@SiteDBCalculationLog TVP_SiteDB_CalculationLog READONLY
+	,@SiteDBCalculationLog TVP_SiteDB_SettlementService READONLY
 AS
 /*
 	Created by: 20221026@Kathy
@@ -10,6 +10,7 @@ AS
 	Revisions:
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 
 	Param's Explanation:  
 		   
@@ -25,11 +26,10 @@ BEGIN
 			,@SettlementAction	VARCHAR(20)
 			,@TicketType		VARCHAR(1)
 			,@SessionId			BIGINT
-
 			,@xmlCommand		VARCHAR(MAX)
 			,@MessageType		VARCHAR(200)
 			,@MessageTypeParlay	VARCHAR(200)
-
+			,@BroadcastSessionId	VARCHAR(50)
 			,@IsExistsParallel	BIT
 			,@MaxLogId			BIGINT
 			,@LogId				BIGINT
@@ -55,13 +55,14 @@ BEGIN
 	IF @IsExistsParallel = 1 -- run commands in parallel
 	BEGIN
 		-- single
-		INSERT INTO dbo.SiteDB_SettlementProcessing(SiteDBGroupId, SessionId, MessageType, TransInfo, SettlementAction, TicketType)
+		INSERT INTO dbo.SiteDB_SettlementProcessing(SiteDBGroupId, SessionId, MessageType, TransInfo, SettlementAction, TicketType, BroadcastSessionId)
 		SELECT	@SiteDBGroupId
 				,s.SessionId
 				,'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_bet_settle_msg_type_0' + CAST(s.LogId%@SiteDB_ExecDataQueueSize + CASE WHEN s.LogId%@SiteDB_ExecDataQueueSize = 0 THEN @SiteDB_ExecDataQueueSize ELSE 0 END AS VARCHAR)
 				,s.TransInfoJson
 				,s.SettlementAction
 				,s.TicketType
+				,s.BroadcastSessionId
 		FROM	@SiteDBCalculationLog s
 		WHERE	s.IsParallel = 1
 				AND s.TicketType = 's'
@@ -76,7 +77,7 @@ BEGIN
 				
 		-- parlay
 		BEGIN -- TransInfoBetParlayResult, TransInfoBettrans, 
-			INSERT INTO dbo.SiteDB_ParlaySettlementProcessing(SiteDBGroupId, SessionId, MatchId, TableName, MessageType, TransInfoBettransM, SettlementAction, TicketType, SiteDB_ParlaySettlementProcessingId)
+			INSERT INTO dbo.SiteDB_ParlaySettlementProcessing(SiteDBGroupId, SessionId, MatchId, TableName, MessageType, TransInfoBettransM, SettlementAction, TicketType, SiteDB_ParlaySettlementProcessingId, BroadcastSessionId)
 			SELECT	@SiteDBGroupId
 					,s.SessionId
 					,s.MatchId
@@ -86,6 +87,7 @@ BEGIN
 					,s.SettlementAction
 					,s.TicketType
 					,(SELECT TOP 1 T.C.value('./@pid', 'bigint') FROM TransInfo.nodes('/parlay/r') AS T(C)) AS SiteDB_ParlaySettlementProcessingId
+					,s.BroadcastSessionId
 			FROM	@SiteDBCalculationLog s
 			WHERE	s.IsParallel = 1
 					AND s.TicketType = 'p'
@@ -156,6 +158,7 @@ BEGIN
 					,@SettlementAction = s.SettlementAction
 					,@TicketType = s.TicketType	
 					,@SessionId = s.SessionId
+					,@BroadcastSessionId = s.BroadcastSessionId
 			FROM	@SiteDBCalculationLog s
 			WHERE	s.LogId > @LogId
 					AND s.IsParallel = 0
@@ -177,6 +180,7 @@ BEGIN
 							,@SiteDB_ExecDataQueueSize AS '@TotalQueue'
 							,@SiteDB_ExecParlayDataQueueSize AS '@TotalParlayQueue'
 							,CONVERT(nvarchar(max), @TransInfoJson, 1) AS '@TransInfoJson'	
+							,@BroadcastSessionId AS '@BroadcastSessionId'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE)
 				AS VARCHAR(MAX))
 				

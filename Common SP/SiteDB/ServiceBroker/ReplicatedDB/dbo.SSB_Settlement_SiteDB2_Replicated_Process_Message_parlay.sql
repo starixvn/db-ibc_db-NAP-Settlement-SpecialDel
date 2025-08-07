@@ -12,6 +12,7 @@ as
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20240410@Kathy: missing bettrans14 table [Redmine:#203737]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 
 	Param's Explanation:  
 		   
@@ -24,6 +25,7 @@ begin
 			,@__totalQueue int,@__totalParlayQueue int, @__runOnServer varchar(100), @__is3rd bit, @__AffectedTicket int
 			
 			,@__messageId varchar(200), @__errmsg varchar(1024),@__startTime datetime2, @__endtime datetime2, @__TableType SMALLINT
+			,@__BroadcastSessionId	VARCHAR(50)	= ''
 
 	while 1 = 1
 	begin
@@ -53,7 +55,8 @@ begin
 				,@__totalQueue = T.C.value('@TotalQueue','int')
 				,@__totalParlayQueue = T.C.value('@TotalParlayQueue','int')
 				,@__runOnServer = T.C.value('@RunOnServer','varchar(100)')
-				,@__is3rd = T.C.value('@Is3rd','bit')				
+				,@__is3rd = T.C.value('@Is3rd','bit')	
+				,@__BroadcastSessionId = T.C.value('@BroadcastSessionId','varchar(50)')
 			from @__params.nodes('/root/r') as T(C)
 
 			select @__messageId = newid(), @__errmsg = '', @__startTime = sysdatetime()
@@ -143,6 +146,7 @@ begin
 			, @AffectedTicket 		= @__AffectedTicket 
 			, @TableType			= @__TableType
 			, @EventTable			= 1
+			, @BroadcastSessionId = @__BroadcastSessionId
 
 	end
 end

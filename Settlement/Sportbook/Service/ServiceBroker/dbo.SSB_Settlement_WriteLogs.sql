@@ -15,6 +15,7 @@ ALTER procedure [dbo].[SSB_Settlement_WriteLogs] @MessageId varchar(128)
 	, @EventTable tinyint  = 0
 	, @TableType tinyint = 0
 	, @SiteDBGroupId smallint = 0
+	, @BroadcastSessionId	VARCHAR(50)	 = ''
 as
 /*  Created: Patrick@20210801
 	Task: Write logs
@@ -25,13 +26,14 @@ as
 		- 20221025@Patrick: Add more column SiteDBGroupId [Redmine:#178694]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 */
 begin
 	set nocount on
 	
 	IF OBJECT_ID('SSB_SettlementLogs','U') IS NOT NULL 
-		insert into dbo.SSB_SettlementLogs(MessageId, MessageType, MessageBody, StartTime, EndTime, SessionId, ErrorMessage, ConversationHandle, QueueNo, AffectedTicket, SiteDBGroupId, EventTable, MatchId, TableType)
-		values(@MessageId, @MessageType, @MessageBody, isnull(@StartTime, sysdatetime()), isnull(@EndTime, sysdatetime()), @SessionId, @ErrorMessage, @ConversationHandle, @QueueNo, @AffectedTicket, @SiteDBGroupId, @EventTable, @MatchId, @TableType)
+		insert into dbo.SSB_SettlementLogs(MessageId, MessageType, MessageBody, StartTime, EndTime, SessionId, ErrorMessage, ConversationHandle, QueueNo, AffectedTicket, SiteDBGroupId, EventTable, MatchId, TableType, BroadcastSessionId)
+		values(@MessageId, @MessageType, @MessageBody, isnull(@StartTime, sysdatetime()), isnull(@EndTime, sysdatetime()), @SessionId, @ErrorMessage, @ConversationHandle, @QueueNo, @AffectedTicket, @SiteDBGroupId, @EventTable, @MatchId, @TableType, @BroadcastSessionId	)
 
 	--send notification will be handled by another process
 end

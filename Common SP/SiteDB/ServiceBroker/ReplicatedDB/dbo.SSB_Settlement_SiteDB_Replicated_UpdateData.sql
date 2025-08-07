@@ -1,6 +1,6 @@
 USE [bodb02]
 GO
-/*<info serverAlias="SBSETTLE-bodb02,DBBAL-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
 CREATE PROC dbo.SSB_Settlement_SiteDB_Replicated_UpdateData
 	@ConversationHandle uniqueidentifier
 	, @MessageType varchar(200)
@@ -13,7 +13,8 @@ as
 	DB: SBSETTLE-bodb02, DBBAL-bodb02
 	Revisions:  
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
-		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]	
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 */
 begin
 	set nocount on
@@ -21,6 +22,7 @@ begin
 		, @__processingId bigint, @__delayTime varchar(50), @__siteDBGroupId smallint, @__matchid int, @__AffectedTicket int
 		, @__settlementAction varchar(20), @__ticketType varchar(1)
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2, @__runOnServer varchar(100)
+		, @__BroadcastSessionId	VARCHAR(50)	= ''
 
 	select @__siteDBGroupId = PARSENAME(REPLACE(@MessageBody, '^', '.'), 3)
 			,@__matchid = PARSENAME(REPLACE(@MessageBody, '^', '.'), 2)
@@ -38,6 +40,7 @@ begin
 			, @__processingId = s.Id
 			, @__settlementAction = s.SettlementAction
 			, @__ticketType = s.TicketType
+			, @__BroadcastSessionId = s.BroadcastSessionId
 		from dbo.SiteDB_SettlementProcessing s with(readpast)
 		where s.sessionId = @__sessionId
 			and s.MessageType = @MessageType
@@ -53,6 +56,7 @@ begin
 				, @__processingId = s.Id
 				, @__settlementAction = s.SettlementAction
 				, @__ticketType = s.TicketType
+				, @__BroadcastSessionId = s.BroadcastSessionId
 			from dbo.SiteDB_SettlementProcessing s with(readpast)
 			where s.sessionId = @__sessionId
 				and s.siteDBGroupId = @__siteDBGroupId
@@ -130,6 +134,7 @@ begin
 			, @AffectedTicket 		= @__AffectedTicket 
 			, @TableType			= 1 -- bettrans
 			, @EventTable			= 1 -- match
+			, @BroadcastSessionId	= @__BroadcastSessionId
 
 		--waitfor on each batch exec ==> default 001ms
 		select @__delayTime = dbo.f_Settlement_GetDelayTime('SiteDB_Wait_Exec_Each_Batch')

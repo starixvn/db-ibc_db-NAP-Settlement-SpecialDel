@@ -19,6 +19,7 @@ ALTER PROCEDURE [dbo].[NAP_SettlementService_Calculation]
 	,@Is3rd				BIT				= 0
 	,@SiteDB			SMALLINT		= 1
 	,@EventTable		TINYINT			= 0
+	,@BroadcastSessionId VARCHAR(50)	= ''	
 	,@AffectedTicket	INT 			= 0 OUTPUT
 	,@ErrCode			INT				= 0	 OUTPUT
 	,@ErrMsg			VARCHAR(300)	= '' OUTPUT
@@ -36,6 +37,7 @@ AS
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]	
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 
 	Param's Explanation:  
 		   
@@ -408,6 +410,7 @@ BEGIN
 					,@Is3rd = @Is3rd
 					,@SiteDB = @SiteDB
 					,@EventTable = @EventTable
+					,@BroadcastSessionId = @BroadcastSessionId
 					,@AffectedTicket = @AffectedTicket OUTPUT
 					,@ErrCode = @ErrCode OUTPUT
 					,@ErrMsg = @ErrMsg OUTPUT

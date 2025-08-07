@@ -4,6 +4,7 @@ alter procedure dbo.SSB_Settlement_UpdateData @ConversationHandle uniqueidentifi
 	, @MessageBody nvarchar(max)
 	, @MessageId varchar(128)
 	, @QueueNo tinyint = null
+	, @BroadcastSessionId	VARCHAR(50)	= ''
 as
 /*  Created: Patrick@20210801
 	Task: Update data @bettrans, @pending
@@ -11,6 +12,7 @@ as
 	Revisions:  
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 */
 begin
 	set nocount on
@@ -18,10 +20,14 @@ begin
 	declare @__startTime datetime2, @__sessionId bigint, @__strTransIds varchar(max)
 		, @__processingId bigint, @__modds money, @__IsMarked bit, @__oddsType smallint, @__actionId int, @__matchid int, @__AffectedTicket int 
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
+		, @__BroadcastSessionId	VARCHAR(50)	= ''
 
 	select	@__startTime = sysdatetime()	
+			,@__BroadcastSessionId = PARSENAME(REPLACE(@MessageBody, '^', '.'), 3)
 			,@__matchid = PARSENAME(REPLACE(@MessageBody, '^', '.'), 2)
 			,@__sessionId = PARSENAME(REPLACE(@MessageBody, '^', '.'), 1)
+
+	SET @BroadcastSessionId = CASE WHEN ISNULL(@BroadcastSessionId,'')='' THEN @__BroadcastSessionId ELSE @BroadcastSessionId END
 
 	while 1 = 1
 	begin
@@ -76,6 +82,7 @@ begin
 				, @OddsType					= @__oddsType
 				, @ActionId					= @__actionId
 				, @SessionId				= @__sessionId
+				, @BroadcastSessionId		= @BroadcastSessionId
 				, @AffectedTicket			= @__AffectedTicket OUTPUT
 				, @ErrMessage				= @__errmsg OUTPUT
 		end try
@@ -111,6 +118,7 @@ begin
 			, @AffectedTicket		= @__AffectedTicket
 			, @TableType			= 1
 			, @EventTable			= 1
+			, @BroadcastSessionId		= @BroadcastSessionId
 
 		--waitfor on each batch exec ==> default 001ms
 		select @__delayTime = dbo.f_Settlement_GetDelayTime('Wait_Exec_Each_Batch')

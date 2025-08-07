@@ -13,6 +13,8 @@ as
 	DB: DBCTG-bodb02
 	Revisions:  
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
+
 */
 begin
 	set nocount on
@@ -20,7 +22,8 @@ begin
 		, @__processingId bigint, @__delayTime varchar(50), @__siteDBGroupId smallint, @__matchid int, @__AffectedTicket int
 		, @__settlementAction varchar(20), @__ticketType varchar(1), @__errorCode INT
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
-		
+		, @__BroadcastSessionId	VARCHAR(50)	= ''
+
 	select @__siteDBGroupId = PARSENAME(REPLACE(@MessageBody, '^', '.'), 3)
 			,@__matchid = PARSENAME(REPLACE(@MessageBody, '^', '.'), 2)
 			,@__sessionId = PARSENAME(REPLACE(@MessageBody, '^', '.'), 1)
@@ -36,6 +39,7 @@ begin
 			, @__processingId = s.Id
 			, @__settlementAction = s.SettlementAction
 			, @__ticketType = s.TicketType
+			, @__BroadcastSessionId = s.BroadcastSessionId
 		from dbo.SiteDB_SettlementProcessing s with(readpast)
 		where s.sessionId = @__sessionId
 			and s.MessageType = @MessageType
@@ -51,6 +55,7 @@ begin
 				, @__processingId = s.Id
 				, @__settlementAction = s.SettlementAction
 				, @__ticketType = s.TicketType
+				, @__BroadcastSessionId = s.BroadcastSessionId
 			from dbo.SiteDB_SettlementProcessing s with(readpast)
 			where s.sessionId = @__sessionId
 				and s.siteDBGroupId = @__siteDBGroupId
@@ -93,6 +98,7 @@ begin
 				,@SettlementAction					= @__settlementAction
 				,@TicketType						= @__ticketType
 				,@SettlementProcessingId			= @__processingId
+				,@BroadcastSessionId				= @__BroadcastSessionId
 				,@AffectedTicket					= @__AffectedTicket OUTPUT
 				,@ErrCode							= @__errorCode OUTPUT
 				,@ErrMsg							= @__errmsg OUTPUT
@@ -131,6 +137,7 @@ begin
 			, @AffectedTicket 		= @__AffectedTicket 
 			, @TableType			= 1 -- bettrans
 			, @EventTable			= 1 -- match
+			, @BroadcastSessionId	= @__BroadcastSessionId
 
 		--waitfor on each batch exec ==> default 001ms
 		select @__delayTime = dbo.f_Settlement_GetDelayTime('SiteDB_Wait_Exec_Each_Batch')

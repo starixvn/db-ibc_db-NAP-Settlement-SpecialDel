@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/
 alter procedure dbo.SSB_Settlement_Execute_Message @ConversationHandle uniqueidentifier
 	, @MessageType varchar(200)
 	, @MessageBody nvarchar(max)
@@ -12,6 +12,7 @@ as
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 */
 begin
 	set nocount on
@@ -31,6 +32,7 @@ begin
 			,@__Log varchar(max)
 			,@__paramsXML XML
 			,@__affectedticket int
+			,@__BroadcastSessionId	VARCHAR(50)	= ''
 
 	select @__startTime = sysdatetime()
 			,@__messageBody = cast(@MessageBody as xml)
@@ -45,6 +47,7 @@ begin
 			,@__actionid = T.C.value('@ActionID','int')
 			,@__settlementprocessingid = T.C.value('@SettlementProcessingId','bigint')
 			,@__params = T.C.value('@Params','VARCHAR(MAX)')
+			,@__BroadcastSessionId =  T.C.value('@BroadcastSessionId','varchar(50)')
 	from	@__messageBody.nodes('/root/r') AS T(C)	
 
 	set @__paramsXML = CAST('<root><r ' + REPLACE(@__params,'''','"') + ' /></root>' AS XML)
@@ -61,6 +64,7 @@ begin
 			,@ActionId  = @__ActionID
 			,@SettlementProcessingId  = @__SettlementProcessingId
 			,@Params = @__paramsXML
+			,@BroadcastSessionId = @__BroadcastSessionId
 			,@ErrCode = @__errcode output
 			,@ErrMsg = @__errmsg output
 			,@AffectedTicket = @__affectedticket OUTPUT
@@ -94,5 +98,6 @@ begin
 		, @QueueNo = @QueueNo
 		, @SessionId = @__sessionid
 		, @AffectedTicket = @__affectedticket
+		, @BroadcastSessionId = @__BroadcastSessionId
 end
 go

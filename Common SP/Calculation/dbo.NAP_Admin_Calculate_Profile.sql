@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Profile]
     ,@OddsType SMALLINT
     ,@ActionId INT = 0
     ,@SessionId BIGINT = 0
+	,@BroadcastSessionId	VARCHAR(50)	= ''
 	,@AffectedTicket INT = 0 OUTPUT
     ,@ErrMessage VARCHAR(300) = '' OUTPUT
 AS
@@ -34,6 +35,7 @@ AS
         - 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230523@Kathy: scaleout - credit [Redmine:#188452]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 
     Param's Explanation:  
            
@@ -546,6 +548,7 @@ BEGIN
                     ,@SessionId     = @SessionId
                     ,@IsParallel    = 1
                     ,@transInfoJson     = @transInfo
+					,@BroadcastSessionId = @BroadcastSessionId
             END
 
             -- balance

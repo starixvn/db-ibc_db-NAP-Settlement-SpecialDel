@@ -14,6 +14,7 @@ as
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 */
 begin
 	set nocount on
@@ -22,7 +23,7 @@ begin
 		, @__action varchar(1), @__settlementAction varchar(20), @__ticketType varchar(1)
 		, @__startTime datetime2, @__endtime datetime2
 		, @__sessionId bigint, @__siteDBGroupId smallint, @__totalQueue int, @__AffectedTicket int , @__TableType SMALLINT,  @__totalParlayQueue int
-
+		, @__BroadcastSessionId	VARCHAR(50)	= ''
 
 	select @__startTime = sysdatetime(), @__params = cast(@MessageBody as xml)
 
@@ -40,6 +41,7 @@ begin
 			,@__totalQueue = T.C.value('@TotalQueue','int')			
 			,@__totalParlayQueue = T.C.value('@TotalParlayQueue','int')
 			,@__transinfoJson = convert( varbinary(max), T.C.value('@TransInfoJson','varchar(max)'),1)
+			,@__BroadcastSessionId =  T.C.value('@BroadcastSessionId','varchar(50)')
 		from @__params.nodes('/root/r') as T(C)
 
 		exec dbo.NAP_SettlementService_Calculation 
@@ -56,6 +58,7 @@ begin
 			
 			,@TotalQueue					= @__totalQueue	
 			,@TotalParlayQueue				= @__totalParlayQueue
+			,@BroadcastSessionId			= @__BroadcastSessionId
 			,@AffectedTicket				= @__AffectedTicket output
 			,@ErrCode						= @__errCode output
 			,@ErrMsg						= @__errmsg output
@@ -126,4 +129,5 @@ begin
 		, @AffectedTicket 		= @__AffectedTicket 
 		, @TableType			= @__TableType
 		, @EventTable			= 1
+		, @BroadcastSessionId	= @__BroadcastSessionId
 end

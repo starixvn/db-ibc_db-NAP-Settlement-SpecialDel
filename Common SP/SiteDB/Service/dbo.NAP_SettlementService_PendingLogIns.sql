@@ -1,7 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_PendingLogIns]
 	@SiteDBGroupId SMALLINT
-	,@SiteDBCalculationLog TVP_SiteDB_CalculationLog READONLY
+	,@SiteDBCalculationLog TVP_SiteDB_SettlementService READONLY
 AS
 /*
 	Created by: 20221026@Kathy
@@ -10,6 +10,7 @@ AS
 	Revisions:
 		- 20221101@Louisa: INsert Pending Log to central [Redmine#178694]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 
 	Param's Explanation:  
 		
@@ -25,7 +26,7 @@ BEGIN
 			,@SettlementAction	VARCHAR(20)
 			,@TicketType		VARCHAR(1)
 			,@SessionId			BIGINT
-
+			,@BroadcastSessionId	VARCHAR(50)
 			,@xmlCommand		VARCHAR(MAX)
 			,@MessageType		VARCHAR(200)
 			,@MessageTypeParlay	VARCHAR(200)
@@ -43,7 +44,7 @@ BEGIN
 			,@SiteDB_ExecParlayDataQueueSize SMALLINT
 			,@MessageTypePattern VARCHAR(200)
 	
-	DECLARE @SiteDBPendingLog TVP_SiteDB_CalculationLog
+	DECLARE @SiteDBPendingLog  TVP_SiteDB_SettlementService
 	INSERT INTO @SiteDBPendingLog 
 	(	LogId
 		,TransInfo
@@ -55,6 +56,7 @@ BEGIN
 		,TicketType
 		,SessionId
 		,IsParallel
+		,BroadcastSessionId
 	)
 	SELECT l.LogId
 		,l.TransInfo
@@ -66,6 +68,7 @@ BEGIN
 		,l.TicketType
 		,l.SessionId
 		,l.IsParallel
+		,l.BroadcastSessionId
 	FROM @SiteDBCalculationLog l
 		LEFT JOIN dbo.SiteDB_SettlementService_CalculationLog_History h WITH(NOLOCK)
 			ON l.LogId = h.LogId
@@ -89,13 +92,14 @@ BEGIN
 	BEGIN
 		SET @MessageTypePattern = 'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_bet_settle_msg_type_0'
 
-		INSERT INTO dbo.SiteDB_SettlementProcessing(SiteDBGroupId, SessionId, MessageType, TransInfo, SettlementAction, TicketType)
+		INSERT INTO dbo.SiteDB_SettlementProcessing(SiteDBGroupId, SessionId, MessageType, TransInfo, SettlementAction, TicketType, BroadcastSessionId)
 		SELECT	@SiteDBGroupId
 				,s.SessionId
 				,@MessageTypePattern + CAST(s.LogId%@SiteDB_ExecDataQueueSize + CASE WHEN s.LogId%@SiteDB_ExecDataQueueSize = 0 THEN @SiteDB_ExecDataQueueSize ELSE 0 END AS VARCHAR)
 				,s.TransInfoJson
 				,s.SettlementAction
 				,s.TicketType
+				,@BroadcastSessionId
 		FROM	@SiteDBPendingLog s
 		WHERE	s.IsParallel = 1
 				AND s.TicketType = 's'
@@ -109,7 +113,7 @@ BEGIN
 
 		-- parlay
 		BEGIN -- TransInfoBetParlayResult, TransInfoBettrans, 
-			INSERT INTO dbo.SiteDB_ParlaySettlementProcessing(SiteDBGroupId, SessionId, MatchId, TableName, MessageType, TransInfoBettransM, SettlementAction, TicketType, SiteDB_ParlaySettlementProcessingId)
+			INSERT INTO dbo.SiteDB_ParlaySettlementProcessing(SiteDBGroupId, SessionId, MatchId, TableName, MessageType, TransInfoBettransM, SettlementAction, TicketType, SiteDB_ParlaySettlementProcessingId, BroadcastSessionId)
 			SELECT	@SiteDBGroupId
 					,s.SessionId
 					,s.MatchId
@@ -119,6 +123,7 @@ BEGIN
 					,s.SettlementAction
 					,s.TicketType
 					,(SELECT TOP 1 T.C.value('./@pid', 'bigint') FROM TransInfo.nodes('/parlay/r') AS T(C)) AS SiteDB_ParlaySettlementProcessingId
+					,@BroadcastSessionId
 			FROM	@SiteDBPendingLog s
 			WHERE	s.IsParallel = 1
 					AND s.TicketType = 'p'
@@ -189,6 +194,7 @@ BEGIN
 					,@SettlementAction = s.SettlementAction
 					,@TicketType = s.TicketType	
 					,@SessionId = s.SessionId
+					,@BroadcastSessionId = s.BroadcastSessionId
 			FROM	@SiteDBPendingLog s
 			WHERE	s.LogId > @LogId
 					AND s.IsParallel = 0
@@ -209,6 +215,7 @@ BEGIN
 							,@SiteDB_ExecDataQueueSize AS '@TotalQueue'
 							,@SiteDB_ExecParlayDataQueueSize AS '@TotalParlayQueue'
 							,CONVERT(nvarchar(max), @TransInfoJson, 1) AS '@TransInfoJson'	
+							,@BroadcastSessionId AS '@BroadcastSessionId'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE)
 				AS VARCHAR(MAX))
 				

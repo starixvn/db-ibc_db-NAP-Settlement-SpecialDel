@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Queue]
 	,@QueueNo				INT
 	,@SettlementProcessingId BIGINT
 	,@Params				XML = ''
+	,@BroadcastSessionId	VARCHAR(50)	= ''
 	,@AffectedTicket		INT = 0 OUTPUT
 	,@ErrCode				INT = 0 OUTPUT
 	,@ErrMsg				VARCHAR(300) = '' OUTPUT
@@ -28,7 +29,8 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
-		
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
+
 	Param's Explanation:  
 		@Params: <Params><Params/>
 		   
@@ -504,7 +506,7 @@ BEGIN
 		
 		IF @TotalBatch > 0
 		BEGIN
-			SET @MessageBody = CAST(@matchid AS VARCHAR) + '^' + CAST(@SessionId AS VARCHAR)
+			SET @MessageBody =  CAST(ISNULL(@BroadcastSessionId,'') AS VARCHAR(50)) + '^' + CAST(@matchid AS VARCHAR) + '^' + CAST(@SessionId AS VARCHAR)
 			
 			IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT_' 
 				OR @RunExecDataBySSB = 0
@@ -515,6 +517,7 @@ BEGIN
 					,@MessageType = @MessageType
 					,@MessageBody = @MessageBody
 					,@MessageId = NULL
+					,@BroadcastSessionId	= @BroadcastSessionId
 			END
 			ELSE
 			BEGIN	

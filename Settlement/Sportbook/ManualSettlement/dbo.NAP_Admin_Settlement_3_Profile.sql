@@ -41,6 +41,7 @@ AS
 	   - 20230817@Kathy: Write log [Redmine:#192311]
 	   - 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 	   - 20250716@Louisa: CO Jacktime [Redmine:#217573] 
+	   - 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 */
 BEGIN
     SET NOCOUNT ON;
@@ -616,6 +617,7 @@ BEGIN
 			,@ActionId  = @ActionID
 			,@Params = @ParamsXML
 			,@SettlementProcessingId  = @SettlementProcessingId
+			,@BroadcastSessionId = @BroadcastSessionId
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT
 
@@ -649,6 +651,7 @@ BEGIN
 											,@ActionID AS '@ActionID'
 											,@SettlementProcessingId AS '@SettlementProcessingId'
 											,@Params AS '@Params'
+											,@BroadcastSessionId AS '@BroadcastSessionId'
 									FOR XML PATH('r'), ROOT('root')
 									) AS VARCHAR(MAX))
 

@@ -172,6 +172,7 @@ AS
 		- 20250108@Louisa: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
         - 20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
 		- 20250716@Louisa: CO Jacktime [Redmine:#217573] 
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 
     Param's Explanation:
         @action             @mode
@@ -371,6 +372,7 @@ BEGIN
 					,@SettlementProcessingId = @SettlementProcessingId
 					,@ActionId = @ActionId		
 					,@SessionId = @SessionId
+					,@BroadcastSessionId = @BroadcastSessionId
 					,@AffectedTicket = @AffectedTicket OUTPUT
 					,@ErrMessage = @ErrMessage OUTPUT 
 					

@@ -14,6 +14,7 @@ AS
 		- 20221101@Louisa: allow run parallell [Redmine#]
 		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
 		- 20240318@Kathy: Missing LogId [Redmine:#202516]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 
 	Param's Explanation:  
 		   
@@ -42,6 +43,7 @@ BEGIN
 			,@IsWaiting		BIT = 0
 			,@currentSysdatetime DATETIME2
 			,@maxLogId		BIGINT
+			,@BroadcastSessionId	VARCHAR(50)	
 
 	DECLARE @tmpInsertedLogIds TABLE ( LogId BIGINT )
 
@@ -63,6 +65,7 @@ BEGIN
 				,@TicketType AS TicketType
 				,@SessionId AS SessionId
 				,@IsParallel AS IsParallel
+				,@BroadcastSessionId AS BroadcastSessionId
 		WHERE 1 = 0
 		
 		RETURN
@@ -107,6 +110,7 @@ BEGIN
 				,l.TicketType
 				,l.SessionId
 				,ISNULL(l.IsParallel,0) AS IsParallel
+				,l.BroadcastSessionId
 		FROM	dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK, INDEX = CIX_SiteDB_SettlementService_CalculationLog)
 			INNER JOIN @tmpInsertedLogIds tmp ON l.LogId = tmp.LogId
 		ORDER BY LogId
@@ -124,6 +128,7 @@ BEGIN
 				,@TicketType AS TicketType
 				,@SessionId AS SessionId
 				,@IsParallel AS IsParallel
+				,@BroadcastSessionId AS BroadcastSessionId
 		WHERE 1 = 0
 	END
 END

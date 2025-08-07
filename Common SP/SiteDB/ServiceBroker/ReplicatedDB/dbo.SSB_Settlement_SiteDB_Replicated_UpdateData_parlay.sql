@@ -13,6 +13,7 @@ as
 	
 	Revisions:  
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 */
 begin
 	set nocount on
@@ -22,6 +23,8 @@ begin
 		, @__settlementAction varchar(20), @__ticketType varchar(1), @__errorCode INT
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2, @__runOnServer varchar(100)
 		, @__messageBodyTemp nvarchar(max), @__messageTypeTemp varchar(128)
+		, @__BroadcastSessionId	VARCHAR(50)	= ''
+
 	select @__siteDBGroupId = substring(@MessageBody, 0, charindex('^', @MessageBody, 0))
 	select @__sessionId = substring(@MessageBody, charindex('^', @MessageBody, 0) + 1, datalength(@MessageBody))
 	select @__runOnServer = @@SERVERNAME
@@ -49,6 +52,7 @@ begin
 				, @__settlementAction = s.SettlementAction
 				, @__ticketType = s.TicketType
 				, @__matchid = s.MatchId
+				, @__BroadcastSessionId	= s.BroadcastSessionId
 		from dbo.SiteDB_ParlaySettlementProcessing s with(readpast)
 		where s.sessionId = @__sessionId
 			and s.MessageType = @MessageType
@@ -81,6 +85,7 @@ begin
 					, @__settlementAction = s.SettlementAction
 					, @__ticketType = s.TicketType
 					, @__matchid = s.MatchId
+					, @__BroadcastSessionId	= s.BroadcastSessionId
 			from dbo.SiteDB_ParlaySettlementProcessing s with(readpast)
 			where s.sessionId = @__sessionId
 				and s.siteDBGroupId = @__siteDBGroupId
@@ -170,6 +175,7 @@ begin
 			, @MatchId 				= @__matchid
 			, @TableType 			= @__tabletype
 			, @EventTable 			= 1 -- match
+			, @BroadcastSessionId	= @__BroadcastSessionId
 		
 		if isnull(@__errmsg,'') = ''
 		begin

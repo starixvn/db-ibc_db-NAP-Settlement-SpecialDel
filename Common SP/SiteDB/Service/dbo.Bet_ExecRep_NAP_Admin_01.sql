@@ -20,6 +20,7 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01]
 	,@SiteDB	 SMALLINT = 1
 	,@EventTable TINYINT = 0 
 	,@CalledByBrokerService	BIT = 0
+	,@BroadcastSessionId VARCHAR(50) = ''	
 	,@AffectedTicket INT = 0 OUTPUT
 	,@ErrCode INT = 0	 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
@@ -49,6 +50,7 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20241113@Louisa: set priority of action MoveEvent higher than Settlement for WinlostDate value [Redmine:#213613]
 		- 20250401@Hughie: Extend data type of currency from tinyint to smallint [Redmine:#222173]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 
 	Param's Explanation:  
 		   
@@ -167,8 +169,9 @@ BEGIN
 
 				SET @MessageTypeNew = 'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_bet_settle_msg_type_0' + CAST(@QueueNoNew AS VARCHAR)
 			
-				INSERT INTO dbo.SiteDB_SettlementProcessing (SiteDBGroupId, SessionId, TransInfo, MessageType, SettlementAction, TicketType)
-				SELECT @SiteDBGroupId, @SessionId, @TransInfoJson, @MessageTypeNew, @SettlementAction, @TicketType
+				INSERT INTO dbo.SiteDB_SettlementProcessing (SiteDBGroupId, SessionId, TransInfo, MessageType, SettlementAction, TicketType, BroadcastSessionId)
+				SELECT @SiteDBGroupId, @SessionId, @TransInfoJson, @MessageTypeNew, @SettlementAction, @TicketType, @BroadcastSessionId
+
 			END
 		END
 		ELSE IF ISNULL(@ParlaySettlementProcessingId,0) <> 0
@@ -181,8 +184,8 @@ BEGIN
 				SET @MessageTypeNew = 'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_parlaybet_settle_msg_type_0' + CAST(@QueueNoNew AS VARCHAR)
 				
 				IF @TableName IN ('bettransm', 'bettransm/BetParlayDetail')
-					INSERT INTO dbo.SiteDB_ParlaySettlementProcessing (SiteDBGroupId, SessionId, MatchId, TableName, TransInfoBettransM, MessageType, SettlementAction, TicketType, SiteDB_ParlaySettlementProcessingId)
-					SELECT @SiteDBGroupId, @SessionId, @MatchId, @TableName, @TransInfoJson, @MessageTypeNew, @SettlementAction, @TicketType, @SiteDB_ParlaySettlementProcessingId
+					INSERT INTO dbo.SiteDB_ParlaySettlementProcessing (SiteDBGroupId, SessionId, MatchId, TableName, TransInfoBettransM, MessageType, SettlementAction, TicketType, SiteDB_ParlaySettlementProcessingId, BroadcastSessionId)
+					SELECT @SiteDBGroupId, @SessionId, @MatchId, @TableName, @TransInfoJson, @MessageTypeNew, @SettlementAction, @TicketType, @SiteDB_ParlaySettlementProcessingId, @BroadcastSessionId
 				ELSE IF @TableName = 'BetParlayResult'
 					UPDATE SiteDB_ParlaySettlementProcessing
 						SET TransInfoBetParlayResult = @TransInfoJson
@@ -214,10 +217,11 @@ BEGIN
 							,@Is3rd AS '@Is3rd'
 							,CONVERT(nvarchar(max), @TransInfoJson, 1) AS '@TransInfoJson'	
 							,CAST(@TransInfo AS VARCHAR(MAX)) AS '@TransInfo'
-							,@EventTable AS '@EventTable'							
+							,@EventTable AS '@EventTable'
+							,@BroadcastSessionId AS '@BroadcastSessionId'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE)
 				AS VARCHAR(MAX))
-		
+			
 			EXEC dbo.SSB_Send_Message 
 				@MessageContent = @sMessage
 				,@FunctionName = 'settlement'

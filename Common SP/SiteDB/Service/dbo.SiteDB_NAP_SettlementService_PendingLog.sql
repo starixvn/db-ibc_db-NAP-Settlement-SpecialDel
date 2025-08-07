@@ -8,6 +8,7 @@ AS
 	Revisions:
 		- 20221101@Louisa: Get Pending Log [Redmine#]
 		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
+		- 20250709@Louisa: Settlement Time Dashboard report  [Redmine:#232227]
 
 	Param's Explanation:  
 		   
@@ -25,6 +26,7 @@ BEGIN
 				,l.TicketType
 				,l.SessionId
 				,l.IsParallel
+				,l.BroadcastSessionId
 		FROM SiteDB_SettlementService_LastLog ll WITH(NOLOCK)
 			INNER JOIN SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
 				ON ll.LogId = l.LogId
