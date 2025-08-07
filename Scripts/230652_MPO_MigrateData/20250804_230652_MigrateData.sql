@@ -38,7 +38,8 @@ INSERT INTO #RunningMatch(matchid, sporttype)
 SELECT m.matchid, m.sporttype
 FROM dbo.[match] m WITH (NOLOCK)
 WHERE m.eventstatus = 'running'
-	AND (m.sporttype <= 99 OR m.sporttype IN (164,178,179,180,186,188,190,191,192,193,194,195,196,197))
+	AND m.sporttype <= 99
+	AND m.sporttype NOT IN (43, 44) --No need to process for Esports & MuayThai
 
 SELECT @MaxTransId = MAX(TransId) FROM dbo.bettrans b WITH (NOLOCK)
 
