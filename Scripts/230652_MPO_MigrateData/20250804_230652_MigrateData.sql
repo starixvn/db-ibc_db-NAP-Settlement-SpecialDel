@@ -43,6 +43,8 @@ WHERE m.eventstatus = 'running'
 
 SELECT @MaxTransId = MAX(TransId) FROM dbo.bettrans b WITH (NOLOCK)
 
+PRINT @MaxTransId
+
 -- Get all qualifying TransIds upfront
 INSERT INTO #TransIdsToProcess (TransId, CustID, MatchId, EventTypeID, BetType, SiteType, PayoutAdjust, ExtraInfo)
 SELECT 
@@ -176,6 +178,9 @@ IF @Threshold >= @MaxRow
 SELECT @StartRow = 1, @StopRow = @Threshold
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
+	PRINT @StartRow
+	PRINT @StopRow
+
     BEGIN TRY
 		--MBC
 		IF EXISTS (SELECT TOP 1 1 FROM #TransIdsToProcess WHERE sitetype = 1)
@@ -227,6 +232,10 @@ BEGIN
 	END CATCH
     
 END
+
+--Return output data updated
+SELECT MIN(TransId) AS Min_Upd, Max(TransId) AS Max_Upd
+FROM #UpdatedTransIds
 
 --Return transid payout = 0
 IF EXISTS (SELECT TOP 1 1 FROM @tmp_MissingPayoutTrans)
