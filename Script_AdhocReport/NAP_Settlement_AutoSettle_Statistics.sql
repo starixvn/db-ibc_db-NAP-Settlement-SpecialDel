@@ -16,7 +16,7 @@ AS
 	* Note: get data > '2024-05-09'
 
 */
-
+BEGIN
 	DECLARE  @MovebetDate DATE
 			,@BUDate DATE
 
@@ -477,7 +477,7 @@ AS
 		)s
 	ORDER BY EventDate, LeagueType
 
-
+	---soccer
 	SELECT EventDate, sportName, LeagueType
 			,ManualCalculated, AutoCal, ManualRefunded, AutoRefund
 			,CAST(CAST(AutoSettle  AS DECIMAL(5,2))/TotalSettledResourceId*100  AS DECIMAL(5,2)) AS [AutoRate(%)]
@@ -489,8 +489,26 @@ AS
 				,SUM( ManualCalculated + ManualRefunded) AS [ManualSettled]
 				,SUM( AutoCal + AutoRefund ) AS AutoSettle				
 			FROM #tmpStatistic m
-			WHERE sportName IN ('soccer', 'basketball')
+			WHERE sportName = 'soccer' 
 			GROUP BY m.EventDate, sportName, LeagueType, TotalSettledResourceId
 		)s
 	ORDER BY EventDate, sportName, LeagueType
 
+	---basketball
+	SELECT EventDate, sportName, LeagueType
+			,ManualCalculated, AutoCal, ManualRefunded, AutoRefund
+			,CAST(CAST(AutoSettle  AS DECIMAL(5,2))/TotalSettledResourceId*100  AS DECIMAL(5,2)) AS [AutoRate(%)]
+	FROM (	SELECT m.EventDate, sportName, LeagueType, TotalSettledResourceId
+				,SUM( ManualCalculated )	AS ManualCalculated
+				,SUM( AutoCal)				AS AutoCal
+				,SUM( ManualRefunded)		AS ManualRefunded
+				,SUM( AutoRefund)			AS AutoRefund
+				,SUM( ManualCalculated + ManualRefunded) AS [ManualSettled]
+				,SUM( AutoCal + AutoRefund ) AS AutoSettle				
+			FROM #tmpStatistic m
+			WHERE sportName =  'basketball' 
+			GROUP BY m.EventDate, sportName, LeagueType, TotalSettledResourceId
+		)s
+	ORDER BY EventDate, sportName, LeagueType
+
+END
