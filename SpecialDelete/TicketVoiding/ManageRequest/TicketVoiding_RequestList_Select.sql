@@ -536,39 +536,34 @@ BEGIN
 		) vh
 
 	BEGIN --Support WMO(12) issuetype
-		DECLARE @tmpTicketInfo TABLE (
-			RequestId		INT
-		   ,VoidingHistoryId INT 
-		   ,SingleTransIds  BIGINT
-		   ,ParlayTransIds  BIGINT
+		WITH CTE_TicketInfo AS (
+			SELECT 
+				vh.RequestId, 
+				vh.VoidingHistoryId, 
+				TRY_CAST(JSON_VALUE(vh.TransIds, '$.SingleTransIds') AS BIGINT) AS SingleTransIds,
+				TRY_CAST(JSON_VALUE(vh.TransIds, '$.ParlayTransIds') AS BIGINT) AS ParlayTransIds
+			FROM @tmpMatchVoidingHistory vh
+			WHERE vh.IssueTypeId = 12 
+			  AND vh.TransIds IS NOT NULL
 		)
-		INSERT INTO @tmpTicketInfo (RequestId, VoidingHistoryId, SingleTransIds, ParlayTransIds)
-		SELECT vh.RequestId, vh.VoidingHistoryId, tbl.SingleTransIds, tbl.ParlayTransIds
-		FROM @tmpMatchVoidingHistory vh
-		CROSS APPLY (
-			SELECT SingleTransIds,ParlayTransIds
-			FROM OPENJSON(vh.TransIds) 
-			WITH( SingleTransIds BIGINT
-				 ,ParlayTransIds BIGINT
-				))tbl
-		WHERE vh.IssueTypeId = 12 
-		
 		UPDATE vh
-		SET vh.RequestDetailId = ISNULL(s.RequestDetailId, sp.RequestDetailId)
+		SET vh.RequestDetailId = COALESCE(s.RequestDetailId, sp.RequestDetailId)
 		FROM @tmpMatchVoidingHistory vh
-			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
-			OUTER APPLY(
-					SELECT s.RequestDetailId
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-					WHERE s.TransId = t.SingleTransIds AND t.SingleTransIds <> 0 
-						AND t.RequestId = s.RequestId
-				)s	
-			OUTER APPLY(
-					SELECT sp.RequestDetailId
-					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
-					WHERE sp.TransId = t.ParlayTransIds AND t.ParlayTransIds <> 0 
-					AND t.RequestId = sp.RequestId
-				)sp
+		INNER JOIN CTE_TicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
+		OUTER APPLY (
+			SELECT TOP 1 s.RequestDetailId
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+			WHERE s.TransId = t.SingleTransIds 
+			  AND t.SingleTransIds > 0 
+			  AND s.RequestId = t.RequestId
+		) s	
+		OUTER APPLY (
+			SELECT TOP 1 sp.RequestDetailId
+			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
+			WHERE sp.TransId = t.ParlayTransIds 
+			  AND t.ParlayTransIds > 0 
+			  AND sp.RequestId = t.RequestId
+		) sp
 		WHERE vh.IssueTypeId = 12 --Support WMO(12) issuetype
 	END
 

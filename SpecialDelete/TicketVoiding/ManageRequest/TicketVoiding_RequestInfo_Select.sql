@@ -85,39 +85,34 @@ BEGIN
 
 	IF @IssuetypeId = 12 AND ISNULL(@RequestDetailId,0) <> 0 --Wrong Market Offered issuetype
 	BEGIN
-		DECLARE @tmpTicketInfo TABLE (
-			RequestId		INT
-		   ,VoidingHistoryId INT 
-		   ,SingleTransIds  BIGINT
-		   ,ParlayTransIds  BIGINT
+		WITH CTE_TicketInfo AS (
+			SELECT 
+				vh.RequestId, 
+				vh.VoidingHistoryId, 
+				TRY_CAST(JSON_VALUE(vh.TransIds, '$.SingleTransIds') AS BIGINT) AS SingleTransIds,
+				TRY_CAST(JSON_VALUE(vh.TransIds, '$.ParlayTransIds') AS BIGINT) AS ParlayTransIds
+			FROM #tmpResult vh
+			WHERE vh.TransIds IS NOT NULL
 		)
-		INSERT INTO @tmpTicketInfo (RequestId, VoidingHistoryId, SingleTransIds, ParlayTransIds)
-		SELECT vh.RequestId, vh.VoidingHistoryId, tbl.SingleTransIds, tbl.ParlayTransIds
-		FROM #tmpResult vh
-		CROSS APPLY (
-			SELECT SingleTransIds, ParlayTransIds
-			FROM OPENJSON(vh.TransIds) --Save 1 ticket represent for each type
-			WITH( SingleTransIds BIGINT
-				 ,ParlayTransIds BIGINT
-				))tbl
-
 		DELETE vh --Remove voidinghistory not follow RequestDetailId input
 		FROM #tmpResult vh
-			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
-			OUTER APPLY(
-				SELECT s.RequestDetailId
-				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-				WHERE s.TransId = t.SingleTransIds AND t.SingleTransIds <> 0 
-					AND t.RequestId = s.RequestId
-					AND s.RequestDetailId = @RequestDetailId
-			)s	
-			OUTER APPLY(
-					SELECT sp.RequestDetailId
-					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
-					WHERE sp.TransId = t.ParlayTransIds AND t.ParlayTransIds <> 0 
-						AND t.RequestId = sp.RequestId
-						AND sp.RequestDetailId = @RequestDetailId
-				)sp
+		INNER JOIN CTE_TicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
+		OUTER APPLY (
+			SELECT TOP 1 s.RequestDetailId
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+			WHERE s.TransId = t.SingleTransIds 
+			  AND t.SingleTransIds > 0 
+			  AND s.RequestId = t.RequestId
+			  AND s.RequestDetailId = @RequestDetailId
+		) s	
+		OUTER APPLY (
+			SELECT TOP 1 sp.RequestDetailId
+			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
+			WHERE sp.TransId = t.ParlayTransIds 
+			  AND t.ParlayTransIds > 0 
+			  AND sp.RequestId = t.RequestId
+			  AND sp.RequestDetailId = @RequestDetailId
+		) sp
 		WHERE s.RequestDetailId IS NULL AND sp.RequestDetailId IS NULL
 	END
 
