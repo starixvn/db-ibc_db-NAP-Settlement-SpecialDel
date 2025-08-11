@@ -35,7 +35,8 @@ AS
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
 		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services - [Redmine: #224490]
-		- 20250612@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay[Redmine: #227829]
+		- 20250612@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
+		- 20250811@July: Wrong Market Offered - Enhancement for processing void many tickets in a request [Redmine: #235789]
 
 	Param's explanation:
 		
@@ -87,34 +88,34 @@ BEGIN
 		DECLARE @tmpTicketInfo TABLE (
 			RequestId		INT
 		   ,VoidingHistoryId INT 
-		   ,SingleTransIds  VARCHAR(MAX)
-		   ,ParlayTransIds  VARCHAR(MAX)
+		   ,SingleTransIds  BIGINT
+		   ,ParlayTransIds  BIGINT
 		)
 		INSERT INTO @tmpTicketInfo (RequestId, VoidingHistoryId, SingleTransIds, ParlayTransIds)
 		SELECT vh.RequestId, vh.VoidingHistoryId, tbl.SingleTransIds, tbl.ParlayTransIds
 		FROM #tmpResult vh
 		CROSS APPLY (
-			SELECT SingleTransIds,ParlayTransIds
-			FROM OPENJSON(vh.TransIds) 
-			WITH( SingleTransIds VARCHAR(MAX)
-				 ,ParlayTransIds VARCHAR(MAX)
+			SELECT SingleTransIds, ParlayTransIds
+			FROM OPENJSON(vh.TransIds) --Save 1 ticket represent for each type
+			WITH( SingleTransIds BIGINT
+				 ,ParlayTransIds BIGINT
 				))tbl
 
 		DELETE vh --Remove voidinghistory not follow RequestDetailId input
 		FROM #tmpResult vh
 			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
 			OUTER APPLY(
-				SELECT TOP 1 s.RequestDetailId
+				SELECT s.RequestDetailId
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-				WHERE s.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.SingleTransIds,''), ',') )
+				WHERE s.TransId = t.SingleTransIds AND t.SingleTransIds <> 0 
 					AND t.RequestId = s.RequestId
 					AND s.RequestDetailId = @RequestDetailId
 			)s	
 			OUTER APPLY(
-					SELECT TOP 1 sp.RequestDetailId
+					SELECT sp.RequestDetailId
 					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
-					WHERE sp.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.ParlayTransIds,''), ',') )
-					AND t.RequestId = sp.RequestId
+					WHERE sp.TransId = t.ParlayTransIds AND t.ParlayTransIds <> 0 
+						AND t.RequestId = sp.RequestId
 						AND sp.RequestDetailId = @RequestDetailId
 				)sp
 		WHERE s.RequestDetailId IS NULL AND sp.RequestDetailId IS NULL
