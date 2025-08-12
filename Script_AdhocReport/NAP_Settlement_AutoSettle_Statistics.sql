@@ -450,24 +450,24 @@ BEGIN
 	FROM #TempResultDetail  r
 		INNER JOIN #TempMatchInfo m ON r.MatchId = m.matchid
 	GROUP BY m.eventdate,   m.sportName ,  m.LeagueGroupName 
-		,case
-			when m.LeagueGroupID = 42 THEN 'Virtual'
-			when m.LeagueGroupID IN (74, 108, 113, 252) and m.sporttype = 1 then 'Virtual'
-			when m.LeagueGroupID in (122) and m.sporttype = 2 then 'Virtual'
-			when m.LeagueGroupID in (151) and m.sporttype = 43 then 'Virtual'
-			else 'Real'
-		end
+		,CASE
+			WHEN m.LeagueGroupID = 42 THEN 'Virtual'
+			WHEN m.LeagueGroupID IN (74, 108, 113, 252) and m.sporttype = 1 THEN 'Virtual'
+			WHEN m.LeagueGroupID in (122) and m.sporttype = 2 THEN 'Virtual'
+			WHEN m.LeagueGroupID in (151) and m.sporttype = 43 THEN 'Virtual'
+			ELSE 'Real'
+		END
 	ORDER BY eventdate,  m.sportName ,  m.LeagueGroupName
 	
 
 	--Manual vs Auto
 	SELECT m.EventDate, LeagueType
-				,SUM( ManualCalculate )	AS ManualCalculate
-				,SUM( AutoCalculate)	AS AutoCalculate
-				,SUM( ManualRefunded)	AS ManualRefund
-				,SUM( AutoRefund)		AS AutoRefund		
-			FROM #tmpStatistic m
-			GROUP BY m.EventDate, LeagueType
+		,SUM( ManualCalculate )	AS ManualCalculate
+		,SUM( AutoCalculate)	AS AutoCalculate
+		,SUM( ManualRefunded)	AS ManualRefund
+		,SUM( AutoRefund)		AS AutoRefund		
+	FROM #tmpStatistic m
+	GROUP BY m.EventDate, LeagueType
 	ORDER BY EventDate, LeagueType
 
 	---soccer
@@ -487,9 +487,9 @@ BEGIN
 		,SUM( AutoCalculate)	AS AutoCalculate
 		,SUM( ManualRefunded)	AS ManualRefund
 		,SUM( AutoRefund)		AS AutoRefund			
-		FROM #tmpStatistic m
-		WHERE sportName =  'basketball' 
-		GROUP BY m.EventDate, sportName, LeagueType
+	FROM #tmpStatistic m
+	WHERE sportName =  'basketball' 
+	GROUP BY m.EventDate, sportName, LeagueType
 	ORDER BY EventDate, sportName, LeagueType
 
 END
