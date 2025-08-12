@@ -9,7 +9,7 @@ AS
 	DB: DBPRO-bodb02
 
 	Revision:
-		20250808@Louisa: Create [Redmine:#235409]
+		20250808@Louisa: Create [Redmine:#235224]
 
 	* @ProductId = 1: Sportbook
 
