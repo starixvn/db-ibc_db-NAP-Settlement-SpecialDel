@@ -22,7 +22,7 @@ BEGIN
 			ON m.leagueid = l.leagueid
 	WHERE m.sporttype IN (50, 8)
 		AND ( 
-				(l.sporttype = 50 AND l.SessionTime IN (1,8) ) OR (l.sporttype = 8 AND l.SessionTime = 1) 
+				(l.sporttype = 50 AND l.GameSession IN (1,8) ) OR (l.sporttype = 8 AND l.GameSession = 1) 
 			)
 		AND ISNULL(m.ParentID, 0) = 0
 		AND m.eventstatus <> 'completed'
