@@ -8,8 +8,14 @@ USE bodb02
 GO
 SELECT COUNT(1) FROM CustWinLimitBet_History WHERE actiontype = 100 AND bettype IS NULL
 
-UPDATE CustWinLimitBet_History WITH(ROWLOCK,UPDLOCK)
-SET sporttype = 0, bettype = 0 
-WHERE actiontype = 100
+WHILE (1 = 1) 
+BEGIN 
+	
+	UPDATE TOP(2000) CustWinLimitBet_History WITH(ROWLOCK,UPDLOCK)
+	SET sporttype = 0, bettype = 0 
+	WHERE actiontype = 100 AND bettype IS NULL
+
+	IF @@ROWCOUNT = 0 BREAK;
+END
 
 
