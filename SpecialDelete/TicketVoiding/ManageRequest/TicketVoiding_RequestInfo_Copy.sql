@@ -31,6 +31,7 @@ AS
 		- 20250318@Lani: [TVS] Copy request info - Support Wrong HDP - Home/Away Virtual Head Reverse sub types [Redmine: #222346]
 		- 20250421@Lani: [TVS] Copy request info - Update message templates of Wrong HDP, 1st HDP, OU, 1st OU, Odds [Redmine: #223867]
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
+		- 20250812@Lani: [TVS] Copy Request Info - Update message template - Wrong Odds [Redmine: #234719]
 		
 
 	Param's explanation:
@@ -206,21 +207,19 @@ BEGIN
 			   ,@AcceptType SMALLINT
 			   ,@MinAcceptTypeName NVARCHAR(50)
 		
-		SELECT @AcceptType = CAST(RequestExtraInfo AS XML).value('(/r/@MinType)[1]', 'SMALLINT')
-		FROM @tmpRequestInfo
+		SELECT @AcceptType = CAST(@RequestExtraInfo AS XML).value('(/r/@MinType)[1]', 'SMALLINT')
 
 		;WITH Cte AS (
-			SELECT CAST(RequestExtraInfo AS XML).value('(/r/@AA)[1]', 'VARCHAR(10)') AS AA
-				  ,CAST(RequestExtraInfo AS XML).value('(/r/@PA)[1]', 'VARCHAR(10)') AS PA
-				  ,CAST(RequestExtraInfo AS XML).value('(/r/@SA)[1]', 'VARCHAR(10)') AS SA
-			FROM @tmpRequestInfo
+			SELECT CAST(@RequestExtraInfo AS XML).value('(/r/@AA)[1]', 'VARCHAR(10)') AS AA
+				  ,CAST(@RequestExtraInfo AS XML).value('(/r/@PA)[1]', 'VARCHAR(10)') AS PA
+				  ,CAST(@RequestExtraInfo AS XML).value('(/r/@SA)[1]', 'VARCHAR(10)') AS SA
 		)
 		SELECT @MinAllowanceTime = CASE WHEN @AcceptType = 1 THEN AA
 										WHEN @AcceptType = 2 THEN SA
 										ELSE PA END
 			 , @MinAcceptTypeName = CASE WHEN @AcceptType = 1 THEN 'Auto Accept'
-											 WHEN @AcceptType = 2 THEN 'Second Accept'
-											 ELSE 'Pending Accept' END
+										 WHEN @AcceptType = 2 THEN 'Second Accept'
+									     ELSE 'Pending Accept' END
 		FROM Cte
 
 		SELECT @TvDetectionValue = IIF(CHARINDEX('TvDetectionValue:',@IssueDetail) > 0
@@ -379,13 +378,17 @@ BEGIN
 				,@ToOddsNotVoidAwayUnder   VARCHAR(10)
 				,@CorrectOddsHomeOver	   VARCHAR(10)
 				,@CorrectOddsAwayUnder	   VARCHAR(10)
+				,@WrongOU				   VARCHAR(10)
+				,@SubIssueTypeId		   TINYINT
 
+		SET @SubIssueTypeId = (SELECT TOP 1 SubIssueTypeId FROM @tmpRequestInfo)
 		SELECT @FromOddsNotVoidHomeOver = CAST(@RequestExtraInfo AS XML).value('(/r/@FromOddsNotVoidHomeOver)[1]', 'VARCHAR(10)'),
 			   @ToOddsNotVoidHomeOver = CAST(@RequestExtraInfo AS XML).value('(/r/@ToOddsNotVoidHomeOver)[1]', 'VARCHAR(10)'),
 			   @FromOddsNotVoidAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@FromOddsNotVoidAwayUnder)[1]', 'VARCHAR(10)'),
 			   @ToOddsNotVoidAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@ToOddsNotVoidAwayUnder)[1]', 'VARCHAR(10)'),
 			   @CorrectOddsHomeOver =  CAST(@RequestExtraInfo AS XML).value('(/r/@CorrectOddsHomeOver)[1]', 'VARCHAR(10)'),
 			   @CorrectOddsAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@CorrectOddsAwayUnder)[1]', 'VARCHAR(10)'),
+			   @WrongOU = CASE WHEN @SubIssueTypeId IN (120,121) THEN CAST(@RequestExtraInfo AS XML).value('(/r/@WrongOU)[1]', 'VARCHAR(10)') ELSE NULL END,
 			   @LiveScores = CASE WHEN @Sporttype IN (1) THEN IIF(CHARINDEX('Live:',@IssueDetail) > 0,SUBSTRING(@IssueDetail, CHARINDEX('Live:',@IssueDetail) + LEN('Live:'), CHARINDEX(';Act:',@IssueDetail) - (CHARINDEX('Live:',@IssueDetail) + LEN('Live:'))), '')
 								  ELSE NULL END --only get livescores for soccer
 
@@ -437,6 +440,7 @@ BEGIN
 		  ,@CorrectOddsHomeOver AS CorrectOddsHomeOver
 		  ,@CorrectOddsAwayUnder AS CorrectOddsAwayUnder
 		  ,@LiveScores AS LiveScores
+		  ,@WrongOU AS WrongOU
 	FROM @tmpRequestInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.UserId
 
