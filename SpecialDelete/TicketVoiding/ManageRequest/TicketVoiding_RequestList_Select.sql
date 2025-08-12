@@ -79,7 +79,6 @@ AS
 		- 20250422@July: Manage Request - Show requestid for case retry [Redmine: #224848]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
-		- 20250811@July: Wrong Market Offered - Enhancement for processing void many tickets in a request [Redmine: #235789]
 
 	Param's explanation:	
 		@Status: 
@@ -536,34 +535,41 @@ BEGIN
 		) vh
 
 	BEGIN --Support WMO(12) issuetype
-		WITH CTE_TicketInfo AS (
-			SELECT 
-				vh.RequestId, 
-				vh.VoidingHistoryId, 
-				TRY_CAST(JSON_VALUE(vh.TransIds, '$.SingleTransIds') AS BIGINT) AS SingleTransIds,
-				TRY_CAST(JSON_VALUE(vh.TransIds, '$.ParlayTransIds') AS BIGINT) AS ParlayTransIds
-			FROM @tmpMatchVoidingHistory vh
-			WHERE vh.IssueTypeId = 12 
-			  AND vh.TransIds IS NOT NULL
+		DECLARE @tmpTicketInfo TABLE (
+			RequestId		INT
+		   ,VoidingHistoryId INT 
+		   ,SingleTransIds  BIGINT
+		   ,ParlayTransIds  BIGINT
 		)
-		UPDATE vh
-		SET vh.RequestDetailId = COALESCE(s.RequestDetailId, sp.RequestDetailId)
+		INSERT INTO @tmpTicketInfo (RequestId, VoidingHistoryId, SingleTransIds, ParlayTransIds)
+		SELECT vh.RequestId, vh.VoidingHistoryId
+		, TRY_CAST(LEFT(tbl.SingleTransIds, CHARINDEX(',', tbl.SingleTransIds + ',') - 1) AS BIGINT) AS SingleTransIds
+		, TRY_CAST(LEFT(tbl.ParlayTransIds, CHARINDEX(',', tbl.ParlayTransIds + ',') - 1) AS BIGINT) AS ParlayTransIds
 		FROM @tmpMatchVoidingHistory vh
-		INNER JOIN CTE_TicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
-		OUTER APPLY (
-			SELECT TOP 1 s.RequestDetailId
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-			WHERE s.TransId = t.SingleTransIds 
-			  AND t.SingleTransIds > 0 
-			  AND s.RequestId = t.RequestId
-		) s	
-		OUTER APPLY (
-			SELECT TOP 1 sp.RequestDetailId
-			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
-			WHERE sp.TransId = t.ParlayTransIds 
-			  AND t.ParlayTransIds > 0 
-			  AND sp.RequestId = t.RequestId
-		) sp
+		CROSS APPLY (
+			SELECT SingleTransIds,ParlayTransIds
+			FROM OPENJSON(vh.TransIds) 
+			WITH( SingleTransIds VARCHAR(MAX)
+				 ,ParlayTransIds VARCHAR(MAX)
+				))tbl
+		WHERE vh.IssueTypeId = 12 
+		
+		UPDATE vh
+		SET vh.RequestDetailId = ISNULL(s.RequestDetailId, sp.RequestDetailId)
+		FROM @tmpMatchVoidingHistory vh
+			INNER JOIN @tmpTicketInfo t ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = t.VoidingHistoryId
+			OUTER APPLY(
+					SELECT TOP 1 s.RequestDetailId
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
+					WHERE s.TransId = t.SingleTransIds AND t.SingleTransIds > 0
+						AND t.RequestId = s.RequestId
+				)s	
+			OUTER APPLY(
+					SELECT TOP 1 sp.RequestDetailId
+					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
+					WHERE sp.TransId = t.ParlayTransIds AND t.ParlayTransIds > 0
+					AND t.RequestId = sp.RequestId
+				)sp
 		WHERE vh.IssueTypeId = 12 --Support WMO(12) issuetype
 	END
 
