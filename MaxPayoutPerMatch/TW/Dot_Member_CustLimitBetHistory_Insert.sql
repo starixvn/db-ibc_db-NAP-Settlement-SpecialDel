@@ -29,6 +29,7 @@ AS
 		- 20250609@July: Enhance MaxPayout Per Match for Virtual Sport [Redmine: #229870]
 		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
 		- 20250703@July: Max Payout Per Match for E-Sport/ Muay Thai [Redmine: #230454]
+		- 20250807@July: Max Payout Per Match for all bettypes of SportBook [Redmine: #234501]
 	
 	Param's explanation:	
 		
@@ -46,11 +47,7 @@ BEGIN
 	BEGIN
 		RETURN
 	END
-	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype
-								AND 1 = CASE WHEN @sporttype NOT IN (43,44) THEN 1
-											 WHEN @sporttype IN (43,44) AND  @sitetype = 3 THEN 1
-											 ELSE 0 END 
-	)) 
+	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype AND @sitetype = 3))
 		--OR (@sporttype IN (43,44) AND @sitetype <> 3)
 		OR (@sporttype IN (164
 			--,178,179,180,186,188,147,177,134,125,126,127 --VS Product
