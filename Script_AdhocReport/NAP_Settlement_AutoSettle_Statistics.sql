@@ -16,7 +16,8 @@ AS
 	* Note: get data > '2024-05-09'
 
 */
-BEGIN	DECLARE  @MovebetDate DATE
+BEGIN	
+	DECLARE  @MovebetDate DATE
 			,@BUDate DATE
 
 	SELECT @MovebetDate = CONVERT(DATE, VValue)
@@ -38,26 +39,29 @@ BEGIN	DECLARE  @MovebetDate DATE
 
 	CREATE TABLE #TempMatchInfo (
 		matchid INT, eventdate VARCHAR(10), sporttype TINYINT, SportName NVARCHAR(100)
-		 ,leagueid INT , LeagueGroupID SMALLINT , betstatus NVARCHAR(100), [range] tinyint, ParentId INT, ChildMatchType TINYINT
+		 ,leagueid INT, leaguename  NVARCHAR(1000), LeagueGroupID SMALLINT, LeagueGroupName NVARCHAR(400), betstatus NVARCHAR(100), [range] tinyint, ParentId INT, ChildMatchType TINYINT
 		 ,LeagueType VARCHAR(100), HasAuto BIT, ResultTable TINYINT
 		)
 
 	CREATE TABLE #TempResultDetail ( MatchId INT, ManualCalculate INT , ManualRefund INT, AutoCalculate INT, AutoRefund INT )
 	CREATE TABLE #ResultTableSetting ( sporttype SMALLINT, ResultTable TINYINT, HasAuto BIT  )
 	CREATE TABLE #tmpResourceTableTennis (MatchId INT, ResourceId VARCHAR(20), SettlementStatusId TINYINT, LastModifyBy INT, ParentId INT, ChildMatchType TINYINT)
-	CREATE TABLE #tmpStatistic ( eventdate DATE, sportName NVARCHAR(100), LeagueType NVARCHAR(100),  LeagueGroupName NVARCHAR(400), CountMatch  INT, ManualCalculate INT, ManualRefund INT, AutoCalculate INT, AutoRefund INT, TotalSettledResourceId INT)
+	CREATE TABLE #tmpStatistic ( EventDate DATE, SportName NVARCHAR(100), LeagueType NVARCHAR(100),  LeagueGroupName NVARCHAR(400), CountMatch  INT, ManualCalculate INT, ManualRefund INT, AutoCalculate INT, AutoRefund INT, TotalSettledResourceId INT)
 ------------------------------------------------------------------------------------------------------------------
 	INSERT INTO #ResultTableSetting ( sporttype, ResultTable, HasAuto)
-	SELECT r.sporttype, r.ResultTable, CASE WHEN ISNULL(r.AP_Group,0) between 1 and 999 THEN 1 ELSE 0 END
+	SELECT r.sporttype, r.ResultTable, CASE WHEN ISNULL(r.AP_Group,0) BETWEEN 1 AND 999 THEN 1 ELSE 0 END
 	FROM DBPRO.bodb02.dbo.SettlementResultTableSetting r WITH(NOLOCK)
 
 	-- match
 	IF @toDate > @MovebetDate
 	BEGIN
-		INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, leagueid  , LeagueGroupID , betstatus, [range], ParentId, ChildMatchType,LeagueType, HasAuto, ResultTable )
+		INSERT INTO #TempMatchInfo 
+		(	matchid , eventdate, sporttype , sportName, leagueid , leaguename , LeagueGroupID, LeagueGroupName,
+			 betstatus, [range], ParentId, ChildMatchType,LeagueType, HasAuto, ResultTable 
+		)
 		SELECT	m.matchid, CONVERT(  VARCHAR(10), m.eventdate, 120 ) AS eventdate
 				,m.sporttype, s.SportName
-				,m.leagueid , l.LeagueGroupID 
+				,m.leagueid, l.leaguename, l.LeagueGroupID, lg.GroupName AS LeagueGroupName
 				,m.betstatus
 				,1 -- match
 				,m.ParentID
@@ -71,6 +75,7 @@ BEGIN	DECLARE  @MovebetDate DATE
 		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.sports s WITH(NOLOCK) ON m.sporttype = s.SportType
 			INNER JOIN League l WITH(NOLOCK) ON m.leagueid = l.leagueid
+			INNER JOIN dbo.LeagueGroup lg WITH(NOLOCK) ON l.LeagueGroupID = lg.GroupID
 			INNER JOIN #ResultTableSetting ss ON s.sporttype = ss.sporttype
 		WHERE m.eventdate BETWEEN @fromDate AND @toDate
 			AND m.eventdate > @MovebetDate and m.eventdate <= @toDate
@@ -83,16 +88,18 @@ BEGIN	DECLARE  @MovebetDate DATE
 						WHEN m.sporttype = 43 AND l.LeagueGroupID IN (151,215) THEN 0 --exclude PinGoal, RedCat
 						ELSE 1 END
 			AND m.eventStatus = 'completed'
-			AND m.sporttype <= 99
 	END
 	
 	--match14
 	IF @fromDate <= @MovebetDate 
 	BEGIN
-		INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, leagueid   , LeagueGroupID , betstatus, [range], ParentId, ChildMatchType,LeagueType, HasAuto, ResultTable )
+		INSERT INTO #TempMatchInfo 
+		(	matchid , eventdate, sporttype , sportName, leagueid , leaguename , LeagueGroupID, LeagueGroupName,
+			 betstatus, [range], ParentId, ChildMatchType,LeagueType, HasAuto, ResultTable 
+		)
 		SELECT	m.matchid, CONVERT(  VARCHAR(10), m.eventdate, 120 ) AS eventdate
 				,m.sporttype, s.SportName
-				,m.leagueid , l.LeagueGroupID 
+				,m.leagueid, l.leaguename, l.LeagueGroupID, lg.GroupName AS LeagueGroupName
 				,m.betstatus
 				,2 -- match14
 				,m.ParentID
@@ -106,6 +113,7 @@ BEGIN	DECLARE  @MovebetDate DATE
 		FROM dbo.match14 m WITH(NOLOCK)
 			INNER JOIN dbo.sports s WITH(NOLOCK) ON m.sporttype = s.SportType
 			INNER JOIN League l WITH(NOLOCK) ON m.leagueid = l.leagueid
+			INNER JOIN dbo.LeagueGroup lg WITH(NOLOCK) ON l.LeagueGroupID = lg.GroupID
 			INNER JOIN #ResultTableSetting ss ON s.sporttype = ss.sporttype
 		WHERE m.eventdate BETWEEN @fromDate AND @toDate
 			AND m.eventdate >= @BUDate AND m.eventdate <= @MovebetDate
@@ -118,16 +126,18 @@ BEGIN	DECLARE  @MovebetDate DATE
 						 WHEN m.sporttype = 43 AND l.LeagueGroupID  IN (151,215) THEN 0 --exclude PinGoal, RedCat
 						ELSE 1 END
 			AND m.eventStatus = 'completed'
-			AND m.sporttype <= 99
 	END
 
 	--match_bk
 	IF @fromDate < @BUDate
 	BEGIN
-		INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, leagueid , LeagueGroupID , betstatus, [range], ParentId, ChildMatchType ,LeagueType, HasAuto, ResultTable)
+		INSERT INTO #TempMatchInfo 
+		(	matchid , eventdate, sporttype , sportName, leagueid , leaguename , LeagueGroupID, LeagueGroupName,
+			 betstatus, [range], ParentId, ChildMatchType,LeagueType, HasAuto, ResultTable 
+		)
 		SELECT	m.matchid, CONVERT(  VARCHAR(10), m.eventdate, 120 ) AS eventdate
 				,m.sporttype, s.SportName
-				,m.leagueid , l.LeagueGroupID 
+				,m.leagueid, l.leaguename, l.LeagueGroupID, lg.GroupName AS LeagueGroupName
 				,m.betstatus
 				,3 -- match_bk
 				,m.ParentID
@@ -141,6 +151,7 @@ BEGIN	DECLARE  @MovebetDate DATE
 		FROM bodb_archive.dbo.match_bk m WITH(NOLOCK)
 			INNER JOIN dbo.sports s WITH(NOLOCK) ON m.sporttype = s.SportType
 			INNER JOIN League l WITH(NOLOCK) ON m.leagueid = l.leagueid
+			INNER JOIN dbo.LeagueGroup lg WITH(NOLOCK) ON l.LeagueGroupID = lg.GroupID
 			INNER JOIN #ResultTableSetting ss ON s.sporttype = ss.sporttype
 		WHERE m.eventdate BETWEEN @fromDate AND @toDate
 			AND m.eventdate < @BUDate
@@ -153,7 +164,6 @@ BEGIN	DECLARE  @MovebetDate DATE
 						 WHEN m.sporttype = 43 AND l.LeagueGroupID  IN (151,215) THEN 0 --exclude PinGoal, RedCat
 						ELSE 1 END
 			AND m.eventStatus = 'completed'
-			AND m.sporttype <= 99
 
 	END
 
@@ -449,19 +459,28 @@ BEGIN	DECLARE  @MovebetDate DATE
 		, 0 AS AutoRefund
 	FROM #TempMatchInfo m
 	WHERE  m.ResultTable = 0 AND m.HasAuto = 0
-	
-	INSERT INTO #tmpStatistic( eventdate, sportName, LeagueType , ManualCalculate, ManualRefund, AutoCalculate, AutoRefund)
-	SELECT m.eventdate,   m.sportName 	,LeagueType
+
+----------Return data	
+	INSERT INTO #tmpStatistic( eventdate, sportName, LeagueType , LeagueGroupName, CountMatch, ManualCalculate, ManualRefund, AutoCalculate, AutoRefund, TotalSettledResourceId)
+	SELECT m.EventDate,   m.SportName, m.LeagueType, m.LeagueGroupName
+		 ,COUNT(DISTINCT r.matchid) AS Matches
 		 ,SUM(r.ManualCalculate ) AS ManualCalculate
 		 ,SUM(r.ManualRefund ) AS ManualRefund
 		 ,SUM(r.AutoCalculate) AS AutoCalculate
 		 ,SUM(r.AutoRefund) AS AutoRefund
+		 ,SUM( ManualCalculate + ManualRefund + AutoCalculate + AutoRefund) AS TotalSettledResourceId
 	FROM #TempResultDetail  r
 		INNER JOIN #TempMatchInfo m ON r.MatchId = m.matchid
-	GROUP BY m.eventdate,   m.sportName ,LeagueType
-	ORDER BY eventdate,  m.sportName ,  LeagueType
-	
+	GROUP BY m.eventdate,   m.sportName , m.LeagueType, m.LeagueGroupName
+	ORDER BY eventdate,  m.sportName , m.LeagueType, m.LeagueGroupName
 
+	--send email
+	---statistic by evendate-sporttype
+	SELECT EventDate, SportName, LeagueType , LeagueGroupName
+			, CountMatch, ManualCalculate, ManualRefund, AutoCalculate, AutoRefund, TotalSettledResourceId
+	FROM #tmpStatistic
+
+	---send letstalk
 	--Manual vs Auto
 	SELECT m.EventDate, LeagueType
 		,SUM( ManualCalculate )	AS ManualCalculate
@@ -472,24 +491,28 @@ BEGIN	DECLARE  @MovebetDate DATE
 	GROUP BY m.EventDate, LeagueType
 	ORDER BY EventDate, LeagueType
 
+	---send letstalk
 	---soccer
 	SELECT m.EventDate, SportName, LeagueType
-		,ManualCalculate
-		,AutoCalculate
-		,ManualRefund
-		,AutoRefund	
+		,SUM(ManualCalculate) AS ManualCalculate
+		,SUM(AutoCalculate	) AS AutoCalculate
+		,SUM(ManualRefund	) AS ManualRefund
+		,SUM(AutoRefund		) AS AutoRefund	
 	FROM #tmpStatistic m
 	WHERE sportName = 'soccer' 
+	GROUP BY EventDate, sportName, LeagueType
 	ORDER BY EventDate, sportName, LeagueType
 
+	---send letstalk
 	---basketball
 	SELECT m.EventDate, sportName, LeagueType
-		,ManualCalculate
-		,AutoCalculate
-		,ManualRefund
-		,AutoRefund			
+		,SUM(ManualCalculate) AS ManualCalculate
+		,SUM(AutoCalculate	) AS AutoCalculate
+		,SUM(ManualRefund	) AS ManualRefund
+		,SUM(AutoRefund		) AS AutoRefund		
 	FROM #tmpStatistic m
 	WHERE sportName =  'basketball' 
+	GROUP BY EventDate, sportName, LeagueType
 	ORDER BY EventDate, sportName, LeagueType
 
 END
