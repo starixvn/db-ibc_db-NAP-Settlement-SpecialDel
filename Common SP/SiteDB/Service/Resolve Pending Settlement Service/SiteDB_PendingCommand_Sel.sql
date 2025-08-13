@@ -45,6 +45,7 @@ BEGIN
 	FROM SiteDB_PendingCommand c WITH(NOLOCK)
 	WHERE SiteDBGroupID = @SiteDBGroupID 
 		AND StatusID = 0
+	ORDER BY pID ASC
 
 	SELECT @MaxTime = MAX(CreateDate) FROM @tmp_SettlePending
 
