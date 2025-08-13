@@ -30,6 +30,7 @@ AS
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
 		- 20250611@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay - Return subparlay ticket for issuetype 22[Redmine: #227829]
+		- 20250811@July: Wrong Market Offered - Enhancement for processing void many tickets in a request [Redmine: #235789]
 
 	Param's explanation:
 		
@@ -149,11 +150,13 @@ BEGIN
 		DECLARE @tmpTicketInfo TABLE (
 			RequestId		INT
 		   ,VoidingHistoryId INT 
-		   ,SingleTransIds  VARCHAR(MAX)
-		   ,ParlayTransIds  VARCHAR(MAX)
+		   ,SingleTransIds  BIGINT
+		   ,ParlayTransIds  BIGINT
 		)
 		INSERT INTO @tmpTicketInfo (RequestId, VoidingHistoryId, SingleTransIds, ParlayTransIds)
-		SELECT vh.RequestId, vh.VoidingHistoryId, tbl.SingleTransIds, tbl.ParlayTransIds
+		SELECT vh.RequestId, vh.VoidingHistoryId
+		    , TRY_CAST(LEFT(tbl.SingleTransIds, CHARINDEX(',', tbl.SingleTransIds + ',') - 1) AS BIGINT) AS SingleTransIds
+			, TRY_CAST(LEFT(tbl.ParlayTransIds, CHARINDEX(',', tbl.ParlayTransIds + ',') - 1) AS BIGINT) AS ParlayTransIds
 		FROM #tmpVoidingHistory vh
 		CROSS APPLY (
 			SELECT SingleTransIds,ParlayTransIds
@@ -169,13 +172,13 @@ BEGIN
 			OUTER APPLY(
 				SELECT TOP 1 s.RequestDetailId
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-				WHERE s.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.SingleTransIds,''), ',') )
+				WHERE s.TransId = t.SingleTransIds AND t.SingleTransIds > 0 
 					AND t.RequestId = s.RequestId
 			)s	
 			OUTER APPLY(
 					SELECT TOP 1 sp.RequestDetailId
 					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH(NOLOCK) 
-					WHERE sp.TransId IN (SELECT value AS TransId FROM STRING_SPLIT(ISNULL(t.ParlayTransIds,''), ',') )
+					WHERE sp.TransId = t.ParlayTransIds AND t.ParlayTransIds > 0
 					AND t.RequestId = sp.RequestId
 				)sp
 
