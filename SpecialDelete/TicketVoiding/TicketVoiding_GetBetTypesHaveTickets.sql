@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_GetBetTypesHaveTickets]
      @MatchId    INT 
 	,@TimeRangeJson VARCHAR(MAX) = NULL
 	,@IsGetCancelCashOut BIT = 0
+	,@OnlineServerId VARCHAR(10) = NULL
 )
 AS
 /*  
@@ -19,9 +20,9 @@ AS
 		- 20240823@July: WMKO/TE - Add Details of bet list for issue types [Redmine: #208628]
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
-
+		- 20250729@Lani: [TVS] ScaleOut DBTrans [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
     Param's Explanation:  
-
+	   - @OnlineServerId: '0,1,2,3'
 */
 BEGIN
     SET NOCOUNT ON
@@ -31,6 +32,7 @@ BEGIN
 
     CREATE TABLE #TmpBettype (bettype SMALLINT, transdesc NVARCHAR(2000))
 	DECLARE @tmpMatchId TABLE (MatchId INT)
+	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
 
 	DECLARE @tmpConsolidatedBettypes TABLE (
         parentid        INT
@@ -41,6 +43,15 @@ BEGIN
 		,FromDate        DATETIME
         ,ToDate         DATETIME
     )
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmpOnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
+
     INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
     SELECT f.GroupTypeId AS parentid
 		 , f.Bettype AS typeid
@@ -71,7 +82,9 @@ BEGIN
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
 		LEFT JOIN @tmpTimeRange t ON b.matchid = t.MatchId
-	WHERE SiteDBGroupID = @SiteDBGroupID
+	WHERE 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+				   WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+				   ELSE 0 END
 		AND bettype NOT IN (10,29,38,500)
 		AND bettype < 19000
 		AND 1 = CASE WHEN t.FromDate IS NULL AND t.ToDate IS NULL THEN 1 
@@ -85,7 +98,9 @@ BEGIN
     FROM dbo.bettransm bm WITH(NOLOCK)
 		INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId
 		LEFT JOIN @tmpTimeRange t ON bm.matchid = t.MatchId
-   WHERE bm.SiteDBGroupID = @SiteDBGroupID
+   WHERE 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+				  WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+				  ELSE 0 END
 		AND 1 = CASE WHEN t.FromDate IS NULL AND t.ToDate IS NULL THEN 1 
 					 WHEN bm.transdate BETWEEN t.FromDate AND t.ToDate THEN 1
 					 ELSE 0 END
@@ -104,7 +119,9 @@ BEGIN
 				INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON c.TransID = b.TransId
 				INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
 				INNER JOIN @tmpTimeRange t ON b.matchid = t.MatchId
-			WHERE b.SiteDBGroupID = @SiteDBGroupID
+			WHERE 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+						   WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						   ELSE 0 END
 				AND b.betdaqid = -2
 				AND c.CheckTime BETWEEN t.FromDate AND t.ToDate
 			GROUP BY b.bettype, transdesc

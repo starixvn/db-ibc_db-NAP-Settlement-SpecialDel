@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LastTime_Select]
 	,@FilterFromTransTime	DATETIME = NULL
 	,@ActionId				INT = 5
 	,@FilterBy				TINYINT = 0
+	,@OnlineServerId	  VARCHAR(10) = NULL
 )
 AS
 /*	
@@ -17,8 +18,10 @@ AS
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230713@July: Get time of last ticket (include time cancel CO) [Redmine: #190859]
+		- 20250721@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
 
 	Param's explanation:
+		+ OnlineServerId: '0,1,2,3'
 		
 */
 BEGIN
@@ -26,6 +29,16 @@ BEGIN
 	DECLARE @LastTime  DATETIME
 		   ,@SiteDBGroupID SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmpOnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	SELECT @LastTime = (
 					SELECT MAX(LastTime)
@@ -52,7 +65,9 @@ BEGIN
 								ELSE 0 END
 							AND b.betfrom <> 'P'
 							AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
-							AND b.SiteDBGroupID = @SiteDBGroupID
+							AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+										 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+										 ELSE 0 END
 
 						UNION ALL
 						SELECT MAX(CASE WHEN @FilterBy IN (1,4) THEN bm.transdate 
@@ -73,7 +88,10 @@ BEGIN
 							AND bm.betfrom <> 'P'
 							AND b.statusID NOT IN (102, 103)
 							AND 1 = CASE WHEN b.livehomescore = 0 AND bm.liveawayscore = 0 AND bm.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
-							AND bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID
+							AND bm.SiteDBGroupID = b.SiteDBGroupID
+							AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+										 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+										 ELSE 0 END
 					)b
 				)
 
