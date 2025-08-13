@@ -25,7 +25,7 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-	IF ISNULL(@ResourceInfo,'') =  ''
+	IF ISNULL(@ResourceInfo,'') <>  ''
 	BEGIN
 		INSERT INTO @tmpBettype(MatchID, Bettype, BetId )
 		SELECT	js.m, s.BetType, s.BetID 
