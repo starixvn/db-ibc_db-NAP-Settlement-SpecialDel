@@ -20,12 +20,6 @@ CREATE TABLE #Diff_Data_retry (ID INT IDENTITY (1,1) PRIMARY KEY, custid INT, Ac
 						, diff_ToWin MONEY, diff_WinLoss MONEY)
 
 CREATE TABLE #reset (CUSTID INT, LatestResetDate DATETIME)
-CREATE TABLE #tmp_batch (custid INT PRIMARY KEY)
-
-CREATE TABLE #Result(
-	id [int] IDENTITY (1,1) PRIMARY KEY,
-	custid INT
-)
 	
 INSERT INTO #CustList (custid)
 SELECT DISTINCT b.custid
