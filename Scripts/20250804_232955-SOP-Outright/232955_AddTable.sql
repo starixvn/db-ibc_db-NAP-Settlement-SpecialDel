@@ -23,9 +23,13 @@ CREATE TABLE [dbo].[ResultDetailOutright](
 	,[ModifiedDate] [DATETIME] NULL
 	,[RepUpdateTime] [DATETIME2] NULL
 	,[OtherInfo] [VARCHAR](MAX) NULL
-    CONSTRAINT [PK_ResultDetailOutright_Orid] PRIMARY KEY CLUSTERED 
-    (
-	    [Orid] ASC
-    )
-) 
+    ,CONSTRAINT [PK_ResultDetailOutright] PRIMARY KEY CLUSTERED ([Orid]) ON [DATA]
+	) ON [DATA]
+	
+	ALTER TABLE [dbo].[ResultDetailOutright] ADD CONSTRAINT [DF_ResultDetailOutright_RepUpdateTime]  DEFAULT (SYSDATETIME()) FOR [RepUpdateTime]
+
+	CREATE NONCLUSTERED INDEX [IX_ResultDetailOutright_RepUpdateTime] ON [dbo].[ResultDetailOutright] 
+	(
+	  [RepUpdateTime] ASC
+	) ON [DATA]
 GO
