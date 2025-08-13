@@ -6,7 +6,7 @@
 */
 USE bodb02
 GO
-SELECT COUNT(1) FROM CustWinLimitBet_History WHERE actiontype = 100 AND bettype IS NULL
+SELECT COUNT(1) FROM CustWinLimitBet_History WITH (NOLOCK) WHERE actiontype = 100 AND bettype IS NULL
 
 WHILE (1 = 1) 
 BEGIN 
