@@ -79,6 +79,7 @@ AS
 		- 20250422@July: Manage Request - Show requestid for case retry [Redmine: #224848]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
+		- 20250811@July: Wrong Market Offered - Enhancement for processing void many tickets in a request [Redmine: #235789]
 
 	Param's explanation:	
 		@Status: 

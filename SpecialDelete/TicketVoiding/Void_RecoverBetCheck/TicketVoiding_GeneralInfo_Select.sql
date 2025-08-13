@@ -30,6 +30,7 @@ AS
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250110@July: Set default NULL to 0 - [Redmine: #213398]
 		- 20250611@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay - Return subparlay ticket for issuetype 22[Redmine: #227829]
+		- 20250811@July: Wrong Market Offered - Enhancement for processing void many tickets in a request [Redmine: #235789]
 
 	Param's explanation:
 		

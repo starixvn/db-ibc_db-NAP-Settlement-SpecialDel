@@ -15,6 +15,7 @@ AS
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250527@Hyman: [TVS] Add column IsSentToMTS [Redmine: #227379]
 		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services [Redmine: #224490]
+		- 20250811@July: Wrong Market Offered - Enhancement for processing void many tickets in a request [Redmine: #235789]
 
 	Param's explanation:	
 */
