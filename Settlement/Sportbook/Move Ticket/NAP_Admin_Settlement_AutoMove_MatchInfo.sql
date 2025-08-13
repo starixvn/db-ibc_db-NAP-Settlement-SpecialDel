@@ -30,15 +30,18 @@ BEGIN
 		AND m.kickofftime < GETDATE()
 		AND m.IsDeleted = 0
 
-	SELECT m.MatchId, m.sporttype, m.SettlementStatus, c.MatchId AS ChildMatchId 
+	SELECT m.MatchId, m.sporttype, m.SettlementStatus, c.MatchId AS ChildMatchId, ResourceID
 	FROM @MainMatchInfo m
-	OUTER APPLY (	SELECT TOP 1 c.matchid
-					FROM match c WITH(NOLOCK)
-					WHERE ISNULL(ParentID,0) = m.MatchId
-						AND ISNULL(c.ChildMatchType,0) = 200
-						AND c.IsDeleted = 0
-						AND c.eventdate = m.eventdate
-				) c 
+		INNER JOIN dbo.ResultDetailOS r WITH(NOLOCK)
+			ON	m.matchid = r.MatchId
+				AND r.ResultStatusID IN ( 2, 5 )
+		OUTER APPLY (	SELECT TOP 1 c.matchid
+						FROM match c WITH(NOLOCK)
+						WHERE ISNULL(ParentID,0) = m.MatchId
+							AND ISNULL(c.ChildMatchType,0) = 200
+							AND c.IsDeleted = 0
+							AND c.eventdate = m.eventdate
+					) c 
  
 END
 GO
