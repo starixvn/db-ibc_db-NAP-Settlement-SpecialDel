@@ -131,7 +131,7 @@ BEGIN
 				SET AccumToWin = lm.AccumToWin + c.diff_ToWin
 					, AccumWinLoss = lm.AccumWinLoss + c.diff_WinLoss
 			FROM CustWinLimitBet lm WITH (ROWLOCK, UPDLOCK) 
-				INNER JOIN #Diff_Data_retry c ON c.CustID = lm.custid
+				INNER JOIN #Diff_Data_retry c ON c.CustID = lm.custid AND lm.Sporttype = 0 AND lm.Bettype = 29
 			WHERE c.ID BETWEEN @StartRow AND @StopRow
 
 			SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
@@ -150,9 +150,9 @@ BEGIN
 
 END
 
-*/
-
 DROP TABLE #CustList
 DROP TABLE #Diff_Data
 DROP TABLE #Diff_Data_retry
 DROP TABLE #reset
+
+*/
