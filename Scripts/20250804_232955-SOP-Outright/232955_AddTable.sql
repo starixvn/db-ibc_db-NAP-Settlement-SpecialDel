@@ -11,8 +11,6 @@ GO
 
 CREATE TABLE [dbo].[ResultDetailOutright](
 	[Orid] [INT] NOT NULL
-	,[leagueid][INT] NOT NULL
-	,[Teamid] [INT] NOT NULL
 	,[Result][VARCHAR](10)NULL
 	,[ResultStatusID] [TINYINT] NULL
 	,[SettlementStatusID] [TINYINT] NULL
