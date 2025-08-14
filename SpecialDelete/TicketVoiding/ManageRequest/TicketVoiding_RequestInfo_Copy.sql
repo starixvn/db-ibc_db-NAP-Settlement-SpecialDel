@@ -340,17 +340,25 @@ BEGIN
 					) AS p
 			WHERE rd.RequestId = @RequestId AND rd.MatchId = @MatchId
 		
-			
-			INSERT INTO @BettypeCountDetail (BetTypeId, InputtedRuns, PlayerAndOdds, BetId, PlayerId, PlayerName, TicketsCount)
-			SELECT DISTINCT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, r.PlayerId, PlayerName, TicketsCount
-			FROM @tmpBettypeCount AS b
-			INNER JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId
-			WHERE b.PlayerId = 0
-			UNION ALL 
-			SELECT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, b.PlayerId, PlayerName, TicketsCount
-			FROM @tmpBettypeCount AS b
-			LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId AND  b.PlayerId = r.PlayerId
-			WHERE b.PlayerId <> 0
+			IF @IssueTypeId IN (19, 23)
+			BEGIN 
+				INSERT INTO @BettypeCountDetail (BetTypeId, InputtedRuns, PlayerAndOdds, BetId, b.PlayerId, PlayerName, TicketsCount)
+				SELECT DISTINCT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, r.PlayerId, PlayerName, TicketsCount
+				FROM @tmpBettypeCount AS b
+				LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId
+				WHERE r.PlayerId = 0
+				UNION ALL 
+				SELECT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, r.PlayerId, PlayerName, TicketsCount
+				FROM @tmpBettypeCount AS b
+				LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId AND b.PlayerId = r.PlayerId
+				WHERE r.PlayerId <> 0
+			END
+			ELSE
+			BEGIN 
+				INSERT INTO @BettypeCountDetail (BetTypeId, PlayerAndOdds, BetId, PlayerId, PlayerName, TicketsCount)
+				SELECT BetTypeId, PlayerAndOdds, BetId, PlayerId, PlayerName, TicketsCount
+				FROM @tmpBettypeCount
+			END
 		END
 	END
 	
