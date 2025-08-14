@@ -342,7 +342,7 @@ BEGIN
 		
 			
 			INSERT INTO @BettypeCountDetail (BetTypeId, InputtedRuns, PlayerAndOdds, BetId, PlayerId, PlayerName, TicketsCount)
-			SELECT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, r.PlayerId, PlayerName, TicketsCount
+			SELECT DISTINCT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, r.PlayerId, PlayerName, TicketsCount
 			FROM @tmpBettypeCount AS b
 			INNER JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId
 			WHERE r.PlayerId = 0
@@ -474,7 +474,7 @@ BEGIN
 		  PlayerName,
 		  PlayerAndOdds,
 		  TicketsCount,
-		  ROW_NUMBER() OVER (PARTITION BY b.bettypeId, b.PlayerId ORDER BY b.bettypeId, b.PlayerId, b.InputtedRuns) AS RowId
+		  ROW_NUMBER() OVER (PARTITION BY b.bettypeId, b.PlayerId, b.betid ORDER BY b.bettypeId, b.PlayerId, b.betid, b.InputtedRuns) AS RowId
 	FROM @BettypeCountDetail b
 	)
 	SELECT BetTypeId, b.typenamee AS OriginalBetTypeName, InputtedRuns, BetId, PlayerName, PlayerAndOdds, TicketsCount 
