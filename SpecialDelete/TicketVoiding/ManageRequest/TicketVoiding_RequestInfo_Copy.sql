@@ -345,12 +345,12 @@ BEGIN
 			SELECT DISTINCT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, r.PlayerId, PlayerName, TicketsCount
 			FROM @tmpBettypeCount AS b
 			INNER JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId
-			WHERE r.PlayerId = 0
+			WHERE b.PlayerId = 0
 			UNION ALL 
-			SELECT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, r.PlayerId, PlayerName, TicketsCount
+			SELECT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, b.PlayerId, PlayerName, TicketsCount
 			FROM @tmpBettypeCount AS b
 			LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId AND  b.PlayerId = r.PlayerId
-			WHERE r.PlayerId <> 0
+			WHERE b.PlayerId <> 0
 		END
 	END
 	
