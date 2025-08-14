@@ -27,6 +27,7 @@ AS
 		- 20241211@Louisa: Enhance Winlimit - add matchid/transid for BalancePendingCreditGame [Redmine:#215066]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
+		- 20250807@Max: [TVS] Support the void function of the Move Bet flow for Betby [Redmine: #235445]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -282,7 +283,7 @@ BEGIN
 	END
 
 	-- UPDATE Sportype, Endtime for Bitcoin 
-	IF(EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13011))
+	IF(EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13019))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo
@@ -420,7 +421,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
-			OR b.bettype BETWEEN 13000 AND 13011 --VS6
+			OR b.bettype BETWEEN 13000 AND 13019 --VS6
 			OR b.bettype BETWEEN 15500 AND 15501 --VS7
 	END
 	--capture balance before
@@ -528,7 +529,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
-			OR b.bettype BETWEEN 13000 AND 13011 --VS6
+			OR b.bettype BETWEEN 13000 AND 13019 --VS6
 			OR b.bettype BETWEEN 15500 AND 15501 --VS7
 	END
 	--capture balance after
