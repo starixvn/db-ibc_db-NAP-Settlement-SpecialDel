@@ -19,6 +19,7 @@ AS
 		- 20250513@July: Create new SP [Redmine: #227029]
 		- 20250526@July: Fix issue: DA/RC/WS - Detect wrong start void time  [Redmine: #228555]
 		- 20250721@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
+		- 20250814@July: Red card - Detect insufficient tickets [Redmine: #236096]
 
 	Param's explanation:
 		+ OnlineServerId: '0,1,2,3'
@@ -139,6 +140,9 @@ BEGIN
 	  ,betdaqid BIGINT
 	  ,Subbettype SMALLINT
 	  ,IsSiteDBDown BIT DEFAULT(0)
+	  ,VoidTime DATETIME
+	  ,SubIssueTypeId INT
+	  ,IsCancelCashOut BIT
 	)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
@@ -184,6 +188,9 @@ BEGIN
 				,CheckTimeCashOut
 				,AcceptModeCashOut
 				,IsSiteDBDown
+				,VoidTime
+				,SubIssueTypeId
+				,IsCancelCashOut
 			)
 		SELECT DISTINCT d.MatchId
 			,b.TransId
@@ -206,6 +213,12 @@ BEGIN
 			,c.CheckTime AS CheckTimeCashOut
 			,c.AcceptMode AS AcceptModeCashOut
 			,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
+			,act.VoidTime
+			,d.SubIssueTypeId
+			,CASE WHEN act.VoidTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 0
+				  ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
+							ELSE 0 END
+				  END AS IsCancelCashOut
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 			INNER JOIN @bettype_tmp bt ON b.bettype = bt.bettype
@@ -263,6 +276,9 @@ BEGIN
 					,SubStatus 
 					,SiteDBGroupID
 					,IsSiteDBDown
+					,VoidTime
+					,SubIssueTypeId
+					,IsCancelCashOut
 				)
 			SELECT DISTINCT d.MatchId
 				,b.TransId
@@ -283,6 +299,12 @@ BEGIN
 				,sub.status AS SubStatus 
 				,sub.SiteDBGroupID
 				,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
+				,CASE WHEN d.FilterBy = 1 THEN sub.transdate
+					  WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
+					  WHEN d.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
+					END AS VoidTime
+				,d.SubIssueTypeId
+				,0 AS IsCancelCashOut
 			FROM #FilterInfo d
 				INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 				INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -311,6 +333,26 @@ BEGIN
 							FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
 							WHERE f.bettype = b.Subbettype AND f.SubIssueTypeId = d.SubIssueTypeId AND f.IssueTypeId = @IssueTypeId)
 
+		IF @IssueTypeId = 10 --Red Card issue type 
+		BEGIN
+			--User selects the "Replacement of Sent-Off player" subtype -> When the system searches ticket, it will get from a ticket that has "Handicap(1)/1H Handicap(7)/1H 1X2(5)/FT 1X2(15)" bet type.
+			DECLARE @MinTimeHDP DATETIME
+			SELECT @MinTimeHDP = MIN (b.VoidTime)
+			FROM #tmpTransInfo b
+			WHERE b.SubIssueTypeId = 21 AND b.Subbettype IN (1,7,5,15) AND b.IsCancelCashOut = 0
+			
+			IF @MinTimeHDP IS NULL
+			BEGIN
+				DELETE b FROM #tmpTransInfo b WHERE b.SubIssueTypeId = 21
+			END
+			ELSE 
+			BEGIN
+				DELETE b FROM #tmpTransInfo b 
+				WHERE b.SubIssueTypeId = 21 AND b.IsCancelCashOut = 0
+				AND b.VoidTime < @MinTimeHDP
+			END
+		END
+		
 		------Get Return VoidFromTime/VoidToTime
 		WHILE (1=1) 
 		BEGIN

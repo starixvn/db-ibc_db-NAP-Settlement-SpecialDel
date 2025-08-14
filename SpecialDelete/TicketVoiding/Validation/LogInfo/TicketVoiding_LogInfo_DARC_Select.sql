@@ -36,6 +36,7 @@ AS
 		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
 		- 20250513@July: DA/RC/WC - Update the validation to get tickets based on allowance setting [Redmine: #227029]
 		- 20250715@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
+		- 20250814@July: Red card - Detect insufficient tickets [Redmine: #236096]
 
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
@@ -453,27 +454,6 @@ BEGIN
 	WHERE EXISTS (SELECT TOP 1 1 
 						FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
 						WHERE f.bettype = b.Subbettype AND f.SubIssueTypeId = d.SubIssueTypeId AND f.IssueTypeId = @IssueTypeId) --1: DangerAccepted
-
-
-	IF @IssueTypeId = 10 --Red Card issue type 
-	BEGIN
-		--User selects the "Replacement of Sent-Off player" subtype -> When the system searches ticket, it will get from a ticket that has "Handicap(1)/1H Handicap(7)/1H 1X2(5)/FT 1X2(15)" bet type.
-		DECLARE @MinTimeHDP DATETIME
-		SELECT @MinTimeHDP = MIN (b.VoidTime)
-		FROM #TVSTicketBets b
-		WHERE b.SubIssueTypeId = 21 AND b.Subbettype IN (1,7,5,15) AND b.IsCancelCashOut = 0
-			
-		IF @MinTimeHDP IS NULL
-		BEGIN
-			DELETE b FROM #TVSTicketBets b WHERE b.SubIssueTypeId = 21
-		END
-		ELSE 
-		BEGIN
-			DELETE b FROM #TVSTicketBets b 
-			WHERE b.SubIssueTypeId = 21 AND b.IsCancelCashOut = 0
-			AND b.VoidTime < @MinTimeHDP
-		END
-	END
 
 	/*Get Transid in Request of range Transid*/
 	DECLARE @TransInfoJson_Request		VARBINARY(MAX)
