@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Set_OutrightResultDetailUpd]
+CREATE PROCEDURE [dbo].[NAP_Set_OutrightResultDetailSel]
 (
 	 @OridList INT   
 )
