@@ -1,7 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Set_OutrightResultDetailUpd]
 (
-	 @Orid INT   
+	 @Leagueid INT
 	,@UserId INT 
 	,@SelectedResources VARCHAR(MAX)
 	,@ErrCode			INT				= 0		OUTPUT
@@ -18,7 +18,7 @@ AS
 
 	Param's Explanation:
 		@SelectedResources: <Resources>
-						    	<Resource Leagueid="12334" Teamid="101" Result="WON" />					    	
+						    	<Resource Orid="123324" Teamid="101" Result="WON" />					    	
 						      </Resources>
 */
 
@@ -26,7 +26,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @tmpAllResult TABLE (
-									Leagueid INT
+									Orid INT
 									,Teamid	INT
 									,Result	VARCHAR(10)
 								)
@@ -36,7 +36,7 @@ BEGIN
 	SET @xmlResults = CAST(@SelectedResources AS XML)
 	
 
-	INSERT INTO @tmpAllResult(Leagueid, Teamid, Result)
+	INSERT INTO @tmpAllResult(Orid, Teamid, Result)
 	SELECT 
 			    T.c.value('@Leagueid', 'INT') as Leagueid
 			    ,T.c.value('@Teamid', 'INT') as Teamid
@@ -46,7 +46,7 @@ BEGIN
 	BEGIN TRY				
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.ResultDetailOutright r WITH(ROWLOCK)
 				INNER JOIN @tmpAllResult tmp 
-					ON r.Orid = @Orid
+					ON r.leagueid = @Leagueid AND r.Orid = tmp.Orid
 				WHERE r.ResultStatusId IN ( 2, 5 )
 				)
 	BEGIN
@@ -57,9 +57,9 @@ BEGIN
 
 	MERGE dbo.ResultDetailOutright TARGET
 	USING (
-			SELECT  r.Leagueid, r.Teamid, r.Result
+			SELECT  r.orid, r.Teamid, r.Result
 			FROM    @tmpAllResult r
-		) AS SOURCE ON TARGET.Orid = @Orid							
+		) AS SOURCE ON TARGET.Orid = SOURCE.Orid AND TARGET.leagueid = @leagueid						
 	WHEN MATCHED AND ResultStatusID NOT IN ( 2, 5 ) AND SettlementStatusID = 0 THEN 
 			UPDATE SET Result = SOURCE.Result
 						,ResultStatusId	= 3
@@ -67,7 +67,7 @@ BEGIN
 						,ModifiedBy   = @UserId
 	WHEN NOT MATCHED BY TARGET THEN
 		INSERT (Orid, Leagueid, Teamid, Result, ResultStatusID, SettlementStatusID, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate)               
-		VALUES (@Orid, SOURCE.Leagueid, SOURCE.Teamid, SOURCE.Result, 3, 0, @UserId, GETDATE(), @UserId, GETDATE());
+		VALUES (SOURCE.Orid, @Leagueid, SOURCE.Teamid, SOURCE.Result, 3, 0, @UserId, GETDATE(), @UserId, GETDATE());
 
 	END TRY
 
