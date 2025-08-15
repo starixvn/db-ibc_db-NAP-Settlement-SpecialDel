@@ -1,7 +1,8 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_OutrightSelInfoByLeagueID]
 	 @LeagueID	INT 
 	,@StatusID	INT = 0 
+	,@OridList VARCHAR(MAX) = NULL
 AS 
 /**
  * Created by	: Jamie
@@ -13,6 +14,7 @@ AS
 	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 	- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
+	- 20250815@Hughie: Apply SOP for Outright [Readmine:#232955]
 
  * Parameters: 
 	@StatusID: 0=ALL (N/A)| 1=Running | 2=Running AND Completed | 3=Completed (Already settled: WON/LOSE/REFUND) | 4 =Completed AND WON
@@ -43,4 +45,16 @@ BEGIN
 					 END 
 			AND ISNULL(o.IsDeleted,0) = 0
 	ORDER BY o.[teamid] ASC; 
+
+	IF ISNULL(@OridList,'') <> ''
+	BEGIN
+		DECLARE @tmpOrid TABLE (Orid INT)
+		INSERT INTO @tmpOrid(Orid)
+		SELECT f.value
+		FROM STRING_SPLIT(@OridList,',') f
+
+		SELECT r.Orid, r.Teamid, r.leagueid, r.Result
+		FROM ResultDetailOutright r WITH (NOLOCK)
+			INNER JOIN @tmpOrid f ON f.Orid = r.Orid
+	END
 END
