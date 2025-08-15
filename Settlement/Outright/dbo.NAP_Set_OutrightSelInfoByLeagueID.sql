@@ -32,7 +32,7 @@ BEGIN
 			,ISNULL(o.status, 'Running') AS status
 			,l.sporttype
 			,odds
-			,r.Result
+			,r.Result AS Screenshot
 	FROM	dbo.outright AS o WITH (NOLOCK)
 			INNER JOIN dbo.League AS l WITH (NOLOCK) ON l.leagueid = o.leagueid
 			LEFT JOIN dbo.ResultDetailOutright r WITH (NOLOCK) ON r.Orid = o.orid
