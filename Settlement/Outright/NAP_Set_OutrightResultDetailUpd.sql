@@ -38,7 +38,7 @@ BEGIN
 
 	INSERT INTO @tmpAllResult(Orid, Teamid, Result)
 	SELECT 
-			    T.c.value('@Leagueid', 'INT') as Leagueid
+			    T.c.value('@Orid', 'INT') as Orid
 			    ,T.c.value('@Teamid', 'INT') as Teamid
 			    ,T.c.value('@Result', 'VARCHAR(10)') as Result
 	        FROM @xmlResults.nodes('Resources/Resource') T(c)
