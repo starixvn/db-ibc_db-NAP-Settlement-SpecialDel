@@ -22,7 +22,7 @@ BEGIN
 	SELECT f.value
 	FROM STRING_SPLIT(@OridList,',') f
 
-	SELECT r.Orid, r.Teamid, r.leagueid, r.Result, t.username
+	SELECT r.Orid, r.Teamid, r.leagueid, r.Result, t.username AS ConfirmedBy
 	FROM ResultDetailOutright r WITH (NOLOCK)
 		INNER JOIN @tmpOrid f ON f.Orid = r.Orid
 		CROSS APPLY (SELECT TOP 1 username AS username
