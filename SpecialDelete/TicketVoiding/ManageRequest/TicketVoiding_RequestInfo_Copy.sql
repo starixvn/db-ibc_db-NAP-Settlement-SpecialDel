@@ -313,7 +313,7 @@ BEGIN
 
 		END
 			
-		IF @IssueTypeId IN (19, 23, 21)
+		IF @IssueTypeId IN (19, 23)
 		BEGIN
 			DECLARE @tmpInputtedRuns TABLE (BetTypeId SMALLINT, InputtedRuns VARCHAR(100), PlayerId INT)
 			
@@ -340,25 +340,22 @@ BEGIN
 					) AS p
 			WHERE rd.RequestId = @RequestId AND rd.MatchId = @MatchId
 		
-			IF @IssueTypeId IN (19, 23)
-			BEGIN 
-				INSERT INTO @BettypeCountDetail (BetTypeId, InputtedRuns, PlayerAndOdds, BetId, b.PlayerId, PlayerName, TicketsCount)
-				SELECT DISTINCT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, r.PlayerId, PlayerName, TicketsCount
-				FROM @tmpBettypeCount AS b
-				LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId
-				WHERE r.PlayerId = 0
-				UNION ALL 
-				SELECT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, r.PlayerId, PlayerName, TicketsCount
-				FROM @tmpBettypeCount AS b
-				LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId AND b.PlayerId = r.PlayerId
-				WHERE r.PlayerId <> 0
-			END
-			ELSE
-			BEGIN 
-				INSERT INTO @BettypeCountDetail (BetTypeId, PlayerAndOdds, BetId, PlayerId, PlayerName, TicketsCount)
-				SELECT BetTypeId, PlayerAndOdds, BetId, PlayerId, PlayerName, TicketsCount
-				FROM @tmpBettypeCount
-			END
+			INSERT INTO @BettypeCountDetail (BetTypeId, InputtedRuns, PlayerAndOdds, BetId, b.PlayerId, PlayerName, TicketsCount)
+			SELECT DISTINCT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, r.PlayerId, PlayerName, TicketsCount
+			FROM @tmpBettypeCount AS b
+			LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId
+			WHERE r.PlayerId = 0
+			UNION ALL 
+			SELECT b.BetTypeId, r.InputtedRuns, PlayerAndOdds, BetId, r.PlayerId, PlayerName, TicketsCount
+			FROM @tmpBettypeCount AS b
+			LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId AND b.PlayerId = r.PlayerId
+			WHERE r.PlayerId <> 0
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @BettypeCountDetail (BetTypeId, PlayerAndOdds, BetId, PlayerId, PlayerName, TicketsCount)
+			SELECT BetTypeId, PlayerAndOdds, BetId, PlayerId, PlayerName, TicketsCount
+			FROM @tmpBettypeCount
 		END
 	END
 	
