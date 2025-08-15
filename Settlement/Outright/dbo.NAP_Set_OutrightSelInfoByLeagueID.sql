@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[NAP_Set_OutrightSelInfoByLeagueID]
 	 @LeagueID	INT 
 	,@StatusID	INT = 0 
-	,@OridList VARCHAR(MAX) = NULL
 AS 
 /**
  * Created by	: Jamie
@@ -33,8 +32,10 @@ BEGIN
 			,ISNULL(o.status, 'Running') AS status
 			,l.sporttype
 			,odds
+			,r.Result
 	FROM	dbo.outright AS o WITH (NOLOCK)
 			INNER JOIN dbo.League AS l WITH (NOLOCK) ON l.leagueid = o.leagueid
+			LEFT JOIN dbo.ResultDetailOutright r WITH (NOLOCK) ON r.Orid = o.orid
 	WHERE	o.leagueID = @LeagueID 	
 			AND 1 = CASE WHEN @StatusID = 0 THEN 1
 						 WHEN @StatusID = 1 AND o.oddsstatus IN ('Running','Closed','Internal') THEN 1
@@ -45,16 +46,4 @@ BEGIN
 					 END 
 			AND ISNULL(o.IsDeleted,0) = 0
 	ORDER BY o.[teamid] ASC; 
-
-	IF ISNULL(@OridList,'') <> ''
-	BEGIN
-		DECLARE @tmpOrid TABLE (Orid INT)
-		INSERT INTO @tmpOrid(Orid)
-		SELECT f.value
-		FROM STRING_SPLIT(@OridList,',') f
-
-		SELECT r.Orid, r.Teamid, r.leagueid, r.Result
-		FROM ResultDetailOutright r WITH (NOLOCK)
-			INNER JOIN @tmpOrid f ON f.Orid = r.Orid
-	END
 END
