@@ -1,7 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Set_OutrightResultDetailSel]
+ALTER PROCEDURE [dbo].[NAP_Set_OutrightResultDetailSel]
 (
-	 @OridList INT   
+	 @OridList VARCHAR(MAX)   
 )
 AS 
 /*
@@ -17,7 +17,7 @@ AS
 
 BEGIN
 
-	DECLARE @tmpOrid TABLE (Orid SMALLINT)
+	DECLARE @tmpOrid TABLE (Orid INT)
 	INSERT INTO @tmpOrid(Orid)
 	SELECT f.value
 	FROM STRING_SPLIT(@OridList,',') f
