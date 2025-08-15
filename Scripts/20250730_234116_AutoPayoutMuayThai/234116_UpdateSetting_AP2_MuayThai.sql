@@ -21,9 +21,9 @@ SET Setting = 2
 
 	,AP_Main_NumberProvider = 1
 	,AP_Main_WaitingTime = 1800
-	,AP_Main_CheckList = '1,2,3,99'
+	,AP_Main_CheckList = '1,2,5,99'
 
 	,AP_EAR_NumberProvider = 2
 	,AP_EAR_WaitingTime = 1800
-	,AP_EAR_CheckList  = '1,2,3,99'
+	,AP_EAR_CheckList  = '1,2,5,99'
 WHERE Sporttype IN (44)
