@@ -71,6 +71,7 @@ AS
 		- 20250619@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance - Abnormal Bet [Redmine: #225390]
 		- 20250624@July: [TVS] Enhance TVS in case 1 or many siteDBs down - Scale out validate [Redmine: #228047]
 		- 20250715@Lani: [TVS] Abnormal Bet - Send ticket of the username in AB Exception List to CTS [Redmine: #231465]
+		- 20250815@Lani: [TVS] Return both running and settle tickets of sitedbdown [Redmine: #232580]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -911,7 +912,6 @@ BEGIN
 		,SiteDBGroupID AS 'sitedb'
 		,isMarked AS 'isMarked'
 	FROM @tmpSiteDBDownInfo 
-	WHERE isMarked = 1
 	FOR JSON PATH))
 
 	SELECT @UnmarkTransIds AS UnmarkTransIds

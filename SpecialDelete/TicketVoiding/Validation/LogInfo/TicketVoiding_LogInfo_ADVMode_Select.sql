@@ -27,6 +27,7 @@ AS
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
 		- 20250717@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
+		- 20250815@Lani: [TVS] Return both running and settle tickets of sitedbdown [Redmine: #232580]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime =""/></root>
@@ -1258,7 +1259,6 @@ BEGIN
 		,SiteDBGroupID AS 'sitedb'
 		,isMarked AS 'isMarked'
 	FROM @tmpSiteDBDownInfo 
-	WHERE isMarked = 1
 	FOR JSON PATH))
 
 	SELECT @UnmarkTransIds AS UnmarkTransIds
