@@ -30,7 +30,7 @@ BEGIN
 	BEGIN TRY
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
 		BEGIN	
-			SET @sqlCommand = 'EXEC dbo.TicketVoiding_LogInfo_Select '
+			SET @sqlCommand = 'EXEC dbo.TicketVoiding_PendingMarkTickets_Insert '
 					+ CASE WHEN @RequestId IS NULL THEN '' ELSE '@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId) END
 					+ CASE WHEN @ActionId IS NULL THEN '' ELSE ',@ActionId = ' + CONVERT(NVARCHAR(50), @ActionId) END
 					+ CASE WHEN @SiteDBDownInfoJson IS NULL THEN '' ELSE ',@SiteDBDownInfoJson = ''' + CONVERT(NVARCHAR(MAX), @SiteDBDownInfoJson) + '''' END
@@ -72,6 +72,17 @@ BEGIN
 					   WHERE s.TransId = p.TransId AND p.RequestId = @RequestId
 					)
 		AND isMarked = 1
+
+	-- Write useraction log	
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN	       
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, NULL, NULL, NULL, GETDATE(),@SubmittedDate)
+		END        
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 END
 GO
