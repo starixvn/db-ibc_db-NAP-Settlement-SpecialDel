@@ -13,10 +13,10 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
-	DECLARE @MainMatchInfo TABLE ( MatchId INT, sporttype SMALLINT, SettlementStatus TINYINT, eventdate DATETIME )
+	DECLARE @MainMatchInfo TABLE ( MatchId INT, sporttype SMALLINT, SettlementStatus TINYINT, eventdate DATETIME, leagueid INT )
 
-	INSERT INTO @MainMatchInfo ( MatchId, sporttype, SettlementStatus, eventdate )
-	SELECT m.matchid, m.sporttype, m.SettlementStatus, m.eventdate 
+	INSERT INTO @MainMatchInfo ( MatchId, sporttype, SettlementStatus, eventdate, leagueid )
+	SELECT m.matchid, m.sporttype, m.SettlementStatus, m.eventdate, l.leagueid 
 	FROM dbo.Match m WITH(NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 			ON m.leagueid = l.leagueid
@@ -30,7 +30,7 @@ BEGIN
 		AND m.kickofftime < GETDATE()
 		AND m.IsDeleted = 0
 
-	SELECT m.MatchId, m.sporttype, m.SettlementStatus, c.MatchId AS ChildMatchId, ResourceID
+	SELECT m.MatchId, m.sporttype, m.SettlementStatus, c.MatchId AS ChildMatchId, ResourceID, m.leagueid
 	FROM @MainMatchInfo m
 		INNER JOIN dbo.ResultDetailOS r WITH(NOLOCK)
 			ON	m.matchid = r.MatchId
