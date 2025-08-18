@@ -17,6 +17,7 @@ AS
 		- 20230331@July: TVS changes for new process of BU [Redmine: #184000]
 		- 20240111@July: [TVS] Negative Balance - Don't Send Notification to Single Wallet Licensee [Redmine: #199097]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
+		- 20250818@Max: [TVS] Excluding Credit cash members when getting balance net position in SiteDB03 [Redmine: #236330]
 
 */
 BEGIN
@@ -128,6 +129,15 @@ BEGIN
 	SELECT bal.CustId, SUM(Credit - Debit) AS Balance
 	FROM dbo.BalNetPosition bal WITH(NOLOCK)
 		INNER JOIN @CustList d ON bal.CustId = d.CustId
+		--no need calculate NP for credit cash service member
+		OUTER APPLY (
+			SELECT TOP 1 1 AS IsCashService
+			FROM CustDB.dbo.CustProductStatus cs WITH(NOLOCK)  
+			WHERE bal.custid = cs.CustId
+				AND cs.ServiceType = 1
+				AND @SiteDBGroupID = 3
+			)cs
+	WHERE cs.IsCashService IS NULL
 	GROUP BY bal.CustId
 	
 	SET @NegativeBalanceUsers = ''
