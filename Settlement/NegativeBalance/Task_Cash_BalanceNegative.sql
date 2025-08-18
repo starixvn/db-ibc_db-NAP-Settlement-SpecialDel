@@ -9,6 +9,7 @@ AS
 	
 	Revision: 
 		- 20250606@Aries: Integrate - Agency Cash Service [Redmine:#225377]
+		- 20250818@Max: [Settlement] - Enhance the Negative Balance flow of Member Cash Services for the project_Agency Cash Services [Redmine: #236326]
 	
 */
 BEGIN
@@ -118,12 +119,14 @@ BEGIN
 		GROUP BY aj.CustID, c.Site
 		
 		-- BalNetPosition
+		/*
 		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
 		SELECT	bn.CustID, SUM(bn.Credit - bn.Debit) AS Balance, c.Site
 		FROM	dbo.BalNetPosition bn WITH(NOLOCK)
 			INNER JOIN @tmpCustIdSendMail c
 				ON bn.CustID = c.CustId
 		GROUP BY	bn.CustID, c.Site
+		*/
 		
 		INSERT INTO #tmpMemberBalanceNegative (CustID, Balance, Site)
 		SELECT	c.custid, SUM(c.balance), c.Site
