@@ -129,16 +129,15 @@ BEGIN
 	SELECT bal.CustId, SUM(Credit - Debit) AS Balance
 	FROM dbo.BalNetPosition bal WITH(NOLOCK)
 		INNER JOIN @CustList d ON bal.CustId = d.CustId
-		--no need calculate NP for credit cash service member
-		OUTER APPLY (
-			SELECT TOP 1 1 AS IsCashService
-			FROM CustDB.dbo.CustProductStatus cs WITH(NOLOCK)  
-			WHERE bal.custid = cs.CustId
-				AND cs.ServiceType = 1
-				AND @SiteDBGroupID = 3
-			)cs
-	WHERE cs.IsCashService IS NULL
 	GROUP BY bal.CustId
+
+	--no need calculate NP for credit cash service member
+	IF @SiteDBGroupID = 3
+	BEGIN
+		UPDATE np SET np.Balance = 0
+		FROM @BalNetPositionTmp np
+			INNER JOIN CustDB.dbo.CustProductStatus cs WITH(NOLOCK)  ON np.custid = cs.CustID AND cs.ServiceType = 1
+	END
 	
 	SET @NegativeBalanceUsers = ''
 	SELECT @NegativeBalanceUsers = @NegativeBalanceUsers + 
