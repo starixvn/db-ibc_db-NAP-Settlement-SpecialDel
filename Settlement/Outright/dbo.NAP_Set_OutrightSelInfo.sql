@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_OutrightSelInfo]
 	 @FromDate			SMALLDATETIME
 	,@ToDate			SMALLDATETIME = NULL
@@ -17,6 +17,7 @@ AS
 	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 	- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 	- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
+	- 20250819@Hughie: Apply SOP for Outright [Redmine: #232955]
 
  * Parameters:
     @FromDate: From  date,
@@ -68,5 +69,13 @@ BEGIN
 	ORDER BY o.leagueid
 		,	 IIF(o.oddsstatus IN ('Running','Closed','Internal'),1,2)
 		,	 o.kickofftime  
+	
+	SELECT o.leagueid, COUNT(orid) AS DeadHeatTeam 
+	FROM outright o WITH (NOLOCK)
+		INNER JOIN @tmpLeague AS tl ON tl.LeagueID = o.leagueid
+	WHERE ((@ToDate IS NULL AND o.eventdate >= @FromDate) 
+            OR (@ToDate IS NOT NULL AND o.eventdate BETWEEN @FromDate AND @ToDate))
+			AND o.status = 'WON'
+	GROUP BY o.leagueid
 	
 END
