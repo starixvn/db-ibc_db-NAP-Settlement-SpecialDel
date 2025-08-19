@@ -191,7 +191,7 @@ BEGIN
 		,IsCreditCashService		BIT DEFAULT(0)
 		,CustomerClass				SMALLINT
 		)
-	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
+	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY, IsSiteDBDown BIT DEFAULT(0))
 	CREATE TABLE #ABWhiteListTransIds(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
 		TransId BIGINT PRIMARY KEY
@@ -515,6 +515,32 @@ BEGIN
 			HAVING COUNT(1) >= 2
 		)
 	
+	--Remove CC201 & CC4000, transid of credit cash service in list transids insert into request
+	DELETE v
+	FROM #tmpTransInfo v 
+	WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND v.CustomerClass = 201 THEN 1
+					WHEN @IsRemoveCustomerClass4K = 1 AND v.CustomerClass = 4000 THEN 1
+					WHEN @IsRemoveCreditCashService = 1 AND v.IsCreditCashService = 1 THEN 1
+			ELSE 0 END
+	
+	IF @FilterBy IS NULL
+	BEGIN
+		-- get unsuppored transid
+		DELETE FROM #tmpTransInfo
+			OUTPUT DELETED.transid, DELETED.IsSiteDBDown INTO #UnsupportedTransids (transid, IsSiteDBDown)
+		WHERE bettype NOT IN (SELECT bettype FROM @bettype_tmp)
+
+		SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+										FROM #UnsupportedTransids t
+										WHERE t.IsSiteDBDown = 0
+										FOR XML PATH('')), 1, 1, ''), '')
+	
+		UPDATE t
+		SET t.RemarkId = 5
+		FROM #tmpInputTransid_RemarkId t
+			INNER JOIN #UnsupportedTransids u ON t.Transid = u.transid AND u.IsSiteDBDown = 0
+	END
+
 	BEGIN
 		DECLARE @tmpSiteDBDownInfo TABLE (
 			MatchId INT,
@@ -589,24 +615,6 @@ BEGIN
 	FROM #tmpTransInfo b
 	WHERE IsSiteDBDown = 0
 
-	IF @FilterBy IS NULL
-	BEGIN
-		-- get unsuppored transid
-		DELETE FROM #validTransId
-			OUTPUT DELETED.transid INTO #UnsupportedTransids (transid)
-		WHERE bettype NOT IN (SELECT bettype FROM @bettype_tmp)
-
-		SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-										FROM #UnsupportedTransids t
-										FOR XML PATH('')), 1, 1, ''), '')
-	
-		UPDATE t
-		SET t.RemarkId = 5
-		FROM #tmpInputTransid_RemarkId t
-			INNER JOIN #UnsupportedTransids u ON t.Transid = u.transid
-		
-	END
-	
 	INSERT INTO #TransidInRequest (TransId)
 	SELECT DISTINCT tmp.transid
 	FROM DBCTG.bodb02.dbo.TicketVoiding_Request r WITH (NOLOCK)
@@ -789,13 +797,6 @@ BEGIN
 	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #ABWhiteListTransIds v ON t.Transid = v.transid  
 
-	--Remove CC201 & CC4000, transid of credit cash service in list transids insert into request
-	DELETE v
-	FROM #validTransId v 
-	WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND v.CustomerClass = 201 THEN 1
-					WHEN @IsRemoveCustomerClass4K = 1 AND v.CustomerClass = 4000 THEN 1
-					WHEN @IsRemoveCreditCashService = 1 AND v.IsCreditCashService = 1 THEN 1
-			ELSE 0 END
 	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
 
 	IF @FilterBy IS NULL
