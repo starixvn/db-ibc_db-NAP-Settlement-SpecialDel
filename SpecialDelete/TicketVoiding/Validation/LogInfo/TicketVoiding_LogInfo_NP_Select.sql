@@ -625,13 +625,19 @@ BEGIN
 	INSERT INTO #CTE_Ticket_Single (RequestId, MatchId, TransId, Bettype, IsCancelCO)
 	SELECT RequestId, MatchId, TransId, Bettype, IsCancelCO
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
-	WHERE RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID 
+	WHERE RequestId = @RequestId 
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END 
 	SET @cnt_s = @@ROWCOUNT
 
 	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId)
 	SELECT RequestId, MatchId, TransId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
-	WHERE RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID 
+	WHERE RequestId = @RequestId 
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END 
 	SET @cnt_p = @@ROWCOUNT
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
@@ -643,7 +649,7 @@ BEGIN
 			  ,COUNT(CASE WHEN i.bettype IS NOT NULL AND ISNULL(b.betdaqid, -1) <> -2 THEN s.TransId ELSE NULL END) AS InstantlySettleCount
 			  ,COUNT(CASE WHEN i.bettype IS NULL AND ISNULL(b.betdaqid, -1) <> -2 THEN s.TransId ELSE NULL END) AS SettleCount
 		FROM #CTE_Ticket_Single s WITH (NOLOCK)
-			LEFT JOIN #TVSTicketBets b ON s.TransId = b.transid AND b.IsMixParlay = 0 AND b.IsSiteDBDown = 0
+			LEFT JOIN #TVSTicketBets b ON s.TransId = b.transid AND b.IsMixParlay = 0
 			LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND s.MatchId = @MatchId
 		WHERE b.StatusId IN (111, 112, 113)
 		GROUP BY s.matchid
