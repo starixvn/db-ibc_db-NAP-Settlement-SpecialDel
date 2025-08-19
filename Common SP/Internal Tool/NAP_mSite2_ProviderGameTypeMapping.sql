@@ -3,8 +3,8 @@ ALTER PROCEDURE  NAP_mSite2_ProviderGameTypeMapping
 	@SourceId		SMALLINT
 	,@Sporttype		SMALLINT
 	,@Remark		NVARCHAR(1000)	= NULL
-	,@IsActive		BIT				= NULL
-	,@GameTypes		VARCHAR(MAX)	= NULL
+	,@IsActive		BIT	 
+	,@GameTypes		VARCHAR(MAX) 
 	,@ErrCode		INT				= 0		OUTPUT
 	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT	
 
