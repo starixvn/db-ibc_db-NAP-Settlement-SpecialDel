@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select]
     ,@RequestId			INT = NULL
     ,@IssueTypeId		INT = NULL
 	,@RequestDetailId   INT = NULL --Support WMO(12) issuetype
+	,@OnlineServerId	  VARCHAR(10) = NULL
 )
 AS
 /*	Created by: Kathy
@@ -71,6 +72,7 @@ AS
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
+		- 20250819@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
 
 	Param's explanation:	
 		
@@ -84,6 +86,15 @@ BEGIN
 
 	DECLARE @tmp_MissingTransId AS TABLE (TransId BIGINT PRIMARY KEY, MatchId INT)
 	DECLARE @tmpMatchId TABLE (MatchId INT)
+	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmpOnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	INSERT INTO @tmpMatchId (MatchId)
 	SELECT MatchId
@@ -183,14 +194,18 @@ BEGIN
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId 
 		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
-		AND s.SiteDBGroupID = @SiteDBGroupID
+		AND 1 = CASE WHEN s.SiteDBGroupID = @SiteDBGroupID AND s.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					 WHEN s.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END
 
 	UNION ALL 
 	SELECT DISTINCT s.TransId, MatchId, 2 --Parlay ticket
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId
 		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
-		AND s.SiteDBGroupID = @SiteDBGroupID
+		AND 1 = CASE WHEN s.SiteDBGroupID = @SiteDBGroupID AND s.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					 WHEN s.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END
 
 	IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid WHERE TicketType = 3)
 	BEGIN
@@ -198,7 +213,10 @@ BEGIN
 		DELETE t
 		FROM  #TmpTransid AS t
 			INNER JOIN dbo.zzzbettrans z WITH (NOLOCK) ON t.transid = z.transid AND z.comstatus ='CO'
-		WHERE TicketType = 3 AND z.SiteDBGroupID = @SiteDBGroupID
+		WHERE TicketType = 3 
+			AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND z.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+						 WHEN z.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						 ELSE 0 END
 	END
 
 	IF @IssueTypeId IN (11,20,13) --11: AbnormalBet, 20: Duplicate Tickets, 13: Abnormal account
@@ -307,7 +325,9 @@ BEGIN
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			LEFT JOIN @tmpMatchId tm ON tm.matchid = b.matchid
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
-			   AND b.SiteDBGroupID = @SiteDBGroupID
+			   AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+							WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+							ELSE 0 END
 			   AND d.TicketType <> 2
 			   AND 1 = CASE WHEN ISNULL(@MatchId,0) = 0  THEN 1 
 							WHEN tm.matchid IS NOT NULL THEN 1 --Abnormal bet
@@ -443,7 +463,9 @@ BEGIN
 			LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON b.bettype = f.BetType AND f.IssueTypeId = @IssueTypeId
 			LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = b.bettype
 		WHERE b.statusID NOT IN (101, 102, 103) -- reject, void, refund
-			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						 ELSE 0 END
 			AND d.TicketType <> 2
 			AND 1 = CASE WHEN TicketType = 3 AND b.betdaqid = - 1 THEN 0 ELSE 1 END--case cancel CO voided -> running - NO show betlist
 					
@@ -558,7 +580,9 @@ BEGIN
 					LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = bm.bettype
 			WHERE	bm.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND bm.betfrom <> 'P'
-					AND bm.SiteDBGroupID = @SiteDBGroupID
+					AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+								 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+								 ELSE 0 END
 					AND d.TicketType = 2
 					AND b.matchid = 29 AND b.bettype = 29
 		END 
@@ -662,7 +686,9 @@ BEGIN
 			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE b.statusID NOT IN (101, 102, 103) 
-			  AND b.SiteDBGroupID = @SiteDBGroupID
+			  AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+						   WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						   ELSE 0 END
 			  AND d.TicketType <> 2
 		
 		---get sub ticket of a mix parlay	
@@ -761,7 +787,9 @@ BEGIN
 					INNER JOIN @tmpMatchId tm ON tm.matchid = bm.matchid
 			WHERE	bm.statusID NOT IN (101, 102, 103)
 					AND bm.betfrom <> 'P'
-					AND bm.SiteDBGroupID = @SiteDBGroupID
+					AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+							     WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+							     ELSE 0 END
 					AND d.TicketType = 2
 					AND b.matchid = 29 AND b.bettype = 29
 		END 
@@ -775,7 +803,9 @@ BEGIN
 	WHERE bm.statusID NOT IN (101, 102, 103)
 		AND d.TicketType = 2
 		AND NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets t WHERE t.Subtransid = d.transid)
-		AND bm.SiteDBGroupID = @SiteDBGroupID
+		AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END
 
 	IF @@ROWCOUNT > 0
 	BEGIN
@@ -886,7 +916,9 @@ BEGIN
 				LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = bm.bettype
 		WHERE	bm.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND bm.betfrom <> 'P'
-				AND bm.SiteDBGroupID = @SiteDBGroupID
+				AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+						     WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						     ELSE 0 END
 				AND b.matchid = 29
 				AND b.bettype = 29
 				

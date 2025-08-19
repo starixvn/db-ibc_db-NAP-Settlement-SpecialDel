@@ -3,6 +3,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_CheckVoidBetPermission_TransInfo]
 (
 	@TransIds				VARCHAR(MAX) = NULL
    ,@CancelCashOutTransIds	VARCHAR(MAX) = NULL
+   ,@OnlineServerId	  VARCHAR(10) = NULL
 )
 AS
 /*	
@@ -17,6 +18,7 @@ AS
 		- 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20250819@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
 
 	Param's explanation:	
 		- @TransIds: '12343091763609600,12343108943478784'
@@ -26,7 +28,17 @@ BEGIN
 	SET NOCOUNT ON	
 
 	DECLARE @SiteDBGroupID SMALLINT = 0 
-		,@TransInfoJson VARBINARY(MAX)
+		   ,@TransInfoJson VARBINARY(MAX)
+
+	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmpOnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -94,11 +106,16 @@ BEGIN
 		,b.betid
 	FROM @TransIdTemp t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
-	WHERE b.SiteDBGroupID = @SiteDBGroupID
+	WHERE 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+				   WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+				   ELSE 0 END
 
 	--Search tickets parlay
 	IF EXISTS (SELECT TOP(1) 1 FROM @TransIdTemp t
-					INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = t.transid AND bm.SiteDBGroupID = @SiteDBGroupID
+					INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = t.transid 
+																AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+																			 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+																			 ELSE 0 END
 			)
 	BEGIN
 		INSERT INTO #TransInfo(
@@ -131,12 +148,17 @@ BEGIN
 			  ,NULL AS betid
 		FROM @TransIdTemp t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.transid
-		WHERE bm.SiteDBGroupID = @SiteDBGroupID
+		WHERE 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					   WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					   ELSE 0 END
 	END
 
 	--Search tickets 14
 	IF EXISTS (SELECT TOP(1) 1 FROM @TransIdTemp t
-					INNER JOIN dbo.bettrans14 b14 WITH (NOLOCK) ON b14.transid = t.transid AND b14.SiteDBGroupID = @SiteDBGroupID
+					INNER JOIN dbo.bettrans14 b14 WITH (NOLOCK) ON b14.transid = t.transid 
+																AND 1 = CASE WHEN b14.SiteDBGroupID = @SiteDBGroupID AND b14.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+																			 WHEN b14.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+																			 ELSE 0 END
 			)
 	BEGIN
 		INSERT INTO #TransInfo(
@@ -169,7 +191,9 @@ BEGIN
 			,b.betid
 		FROM @TransIdTemp t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
-		WHERE b.SiteDBGroupID = @SiteDBGroupID
+		WHERE 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					   WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					   ELSE 0 END
 	END
 
 	--RETURN DATA

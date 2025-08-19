@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void14_Select]
     @RequestId			INT = NULL
    ,@MatchId			INT = NULL
    ,@RequestDetailId	INT = NULL --Support WMO(12) issuetype
+   ,@OnlineServerId	  VARCHAR(10) = NULL
 )
 AS
 /*	Created by: July
@@ -24,6 +25,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250321@Lani: [TVS] Enhance out of memory issue [Redmine: #217771]
+		- 20250819@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
 		
 	Param's explanation:	
 		
@@ -32,8 +34,17 @@ BEGIN
 	SET NOCOUNT ON	
 
 	DECLARE @SiteDBGroupID TINYINT
+	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmpOnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	CREATE TABLE #TmpTransid (transid BIGINT PRIMARY KEY, TicketType TINYINT)
 
@@ -107,7 +118,9 @@ BEGIN
 	WHERE s.RequestId = @RequestId 
 		AND ISNULL(IsCancelCO,0) = 0 
 		AND (s.RequestDetailId = @RequestDetailId OR ISNULL(@RequestDetailId,0) = 0)
-		AND s.SiteDBGroupID = @SiteDBGroupID 
+		AND 1 = CASE WHEN s.SiteDBGroupID = @SiteDBGroupID AND s.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					 WHEN s.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END 
 
 	IF EXISTS (SELECT TOP 1 1 FROM #TmpTransid AS d INNER JOIN dbo.bettrans14 AS b WITH (NOLOCK) ON b.transid = d.transid)
 	BEGIN 
@@ -201,7 +214,9 @@ BEGIN
 		FROM	#TmpTransid AS d
 			INNER JOIN dbo.bettrans14 AS b WITH (NOLOCK) ON b.transid = d.transid
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
-			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						 ELSE 0 END
 			AND b.bettype NOT IN (805, 806)
 			AND b.bettype NOT BETWEEN 901 AND 920
 			AND b.betfrom <> 'P'
