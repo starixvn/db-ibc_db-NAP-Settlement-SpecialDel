@@ -28,23 +28,16 @@ BEGIN
 
 		INSERT INTO @tmpGameType(GameType) SELECT v.value FROM string_split(@GameTypes,',') v
 
-
-		IF @IsActive = 0
-		BEGIN
-			UPDATE p
-			SET p.isActive = 0
-			FROM ProviderGameTypeMapping p WITH(ROWLOCK,UPDLOCK)
-			INNER JOIN @tmpGameType g 
-				ON @SourceId		= @SourceId
-					AND @Sporttype  = @Sporttype	
-					AND g.GameType	= p.GameType
-		END
-		ELSE
-		BEGIN
-			INSERT INTO ProviderGameTypeMapping (SourceId, GameType, Remark, IsActive, Sporttype) 
-			SELECT @SourceId, g.GameType, @Remark, @IsActive, @Sporttype
-			FROM @tmpGameType g
-		END
+		MERGE dbo.ProviderGameTypeMapping AS Target
+		USING (	SELECT GameType FROM @tmpGameType) AS SOURCE
+					ON	TARGET.GameType = SOURCE.GameType
+						AND Target.SourceId  = @SourceId
+						AND Target.Sporttype = @Sporttype
+		WHEN MATCHED THEN
+			UPDATE SET Target.isActive	= @IsActive
+		WHEN NOT MATCHED BY TARGET THEN
+		INSERT(SourceId, GameType, Remark, IsActive, Sporttype) 
+		VALUES (@SourceId, SOURCE.GameType, @Remark, @IsActive, @Sporttype);
 
 	END TRY
 
