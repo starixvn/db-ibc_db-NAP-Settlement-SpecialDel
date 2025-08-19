@@ -62,7 +62,7 @@ BEGIN
 		FROM @tmp_TVSPending tvs 
 			INNER JOIN bettrans b WITH(NOLOCK) 
 				ON tvs.TransId = b.TransId
-			INNER JOIN bettransm bm
+			INNER JOIN bettransm bm  WITH(NOLOCK)
 				ON bm.refno = b.refno
 		WHERE tvs.MatchId =29
 
