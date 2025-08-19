@@ -395,8 +395,8 @@ BEGIN
 	--Cricket/Baseball - Get child match
 	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE Sporttype IN (50,8))
 	BEGIN
-		INSERT INTO #FilterInfo ( MatchId, FilterFromTransTime, FilterToTransTime, MatchId_tmp) 
-		SELECT d.MatchId, d.FilterFromTransTime, d.FilterToTransTime, m.MatchId AS MatchId_tmp
+		INSERT INTO #FilterInfo ( MatchId, FilterFromTransTime, FilterToTransTime, MatchId_tmp, LiveIndicator, FromOdds, ToOdds, OddsValue) 
+		SELECT d.MatchId, d.FilterFromTransTime, d.FilterToTransTime, m.MatchId AS MatchId_tmp, d.LiveIndicator, d.FromOdds, d.ToOdds, d.OddsValue
 		FROM #FilterInfo d
 			INNER JOIN dbo.match m WITH(NOLOCK) ON d.MatchId = m.ParentID
 		WHERE m.sporttype IN (50,8) AND m.ChildMatchType = 200
