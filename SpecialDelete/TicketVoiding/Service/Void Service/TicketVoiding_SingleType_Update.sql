@@ -65,6 +65,7 @@ AS
 		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
+		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 
 	Param's explanation:	
 		
@@ -264,7 +265,7 @@ BEGIN
 	END
 
 	-- UPDATE Sportype for VS5
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransId WHERE bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13011))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransId WHERE bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13199))
 	BEGIN
 		UPDATE d
 		SET  sporttype 	= m.SportType
@@ -511,7 +512,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
-			OR b.bettype BETWEEN 13000 AND 13011 --VS6
+			OR b.bettype BETWEEN 13000 AND 13199 --VS6
 			OR b.bettype BETWEEN 15500 AND 15501 --VS7
 			)AND b.statusID NOT IN (101,102,103)
 		GROUP BY b.custid, b.winlostdate, b.bettype
@@ -718,7 +719,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
-			OR b.bettype BETWEEN 13000 AND 13011 --VS6
+			OR b.bettype BETWEEN 13000 AND 13199 --VS6
 			OR b.bettype BETWEEN 15500 AND 15501 --VS7
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE

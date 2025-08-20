@@ -70,6 +70,8 @@ AS
 		- 20250321@Lani: [TVS] Enhance out of memory issue [Redmine: #217771]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
+		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
+
 	Param's explanation:	
 		
 */
@@ -976,7 +978,7 @@ BEGIN
 	END
 
 	-- UPDATE VS5, VS6
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13011))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13199))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo

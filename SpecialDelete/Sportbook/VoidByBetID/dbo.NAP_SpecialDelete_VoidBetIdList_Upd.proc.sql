@@ -118,6 +118,7 @@ AS
 	  - 20250606@Lani: [TVS] Remove unused code [Redmine: #225845]
 	  - 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 	  - 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
+	  - 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 
 	 Param's Explanation:   
 */
@@ -485,7 +486,7 @@ BEGIN
 	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets 
 					WHERE bettype BETWEEN 7901 AND 7999 
 							OR bettype BETWEEN 11050 AND 11099
-							OR bettype BETWEEN 13000 AND 13011))
+							OR bettype BETWEEN 13000 AND 13199))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo
@@ -813,7 +814,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
-			OR b.bettype BETWEEN 13000 AND 13011 --VS6
+			OR b.bettype BETWEEN 13000 AND 13199 --VS6
 			OR b.bettype BETWEEN 15500 AND 15501 --VS7
 			) AND b.SiteDBGroupID = @SiteDBGroupID
 			AND b.statusID NOT IN (101,102,103)
@@ -1036,7 +1037,7 @@ BEGIN
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 			OR b.bettype BETWEEN 11050 AND 11099 --VS5
-			OR b.bettype BETWEEN 13000 AND 13011 --VS6
+			OR b.bettype BETWEEN 13000 AND 13199 --VS6
 			OR b.bettype BETWEEN 15500 AND 15501 --VS7
 			) AND b.SiteDBGroupID = @SiteDBGroupID
 	END

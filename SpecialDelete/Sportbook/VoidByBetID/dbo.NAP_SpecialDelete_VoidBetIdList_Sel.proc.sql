@@ -76,6 +76,7 @@ AS;
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250606@Lani: [TVS] Remove unused code and return column SecAcceptFlag [Redmine: #225845]
+		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 
 	Param's Explanation:
 
@@ -364,7 +365,7 @@ BEGIN
 	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets 
 					WHERE bettype BETWEEN 7901 AND 7999 
 							OR bettype BETWEEN 11050 AND 11099
-							OR bettype BETWEEN 13000 AND 13011))
+							OR bettype BETWEEN 13000 AND 13199))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo

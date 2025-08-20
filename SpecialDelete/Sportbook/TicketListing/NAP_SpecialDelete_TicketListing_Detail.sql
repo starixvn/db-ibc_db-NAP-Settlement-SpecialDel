@@ -99,6 +99,7 @@ AS;
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250428@Max: TVS- Search matchid got error on ticket listing [Redmine: #225671]
 		- 20250724@July: Get Result Amendment for main parlay ticket of matchid input [Redmine: #233478]
+		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -1051,7 +1052,7 @@ BEGIN
 			,VendorMatchId = m.VendorMatchId
 	FROM #SpecialDeleteBets b
 		INNER JOIN #T_Match m WITH (NOLOCK) 
-			ON CASE WHEN (b.bettype IN (7901) OR bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13011) THEN 'match3rd' -- 7901: Bitcoin Over/Under
+			ON CASE WHEN (b.bettype IN (7901) OR bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13199) THEN 'match3rd' -- 7901: Bitcoin Over/Under
 					WHEN b.bettype IN (2770,2771,15500,15501) THEN 'VSRaceInfo'						
 				ELSE 'match' 
 			END = m.matchtype  
