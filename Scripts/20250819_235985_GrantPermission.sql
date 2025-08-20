@@ -8,11 +8,5 @@
 USE bodb02
 GO
 
-GRANT EXECUTE ON [dbo].[Dot_Member_CustLimitBet_Select] TO [oneseal_integration]
-GO
-
-GRANT EXECUTE ON [dbo].[Dot_Member_CustLimitBet_Insert] TO [oneseal_integration]
-GO
-
-GRANT EXECUTE ON [dbo].[Dot_Member_CustLimitBetHistory_Insert] TO [oneseal_integration]
+GRANT EXECUTE ON [dbo].[NAP_Set_NotificationIns] TO [oneseal_integration]
 GO
