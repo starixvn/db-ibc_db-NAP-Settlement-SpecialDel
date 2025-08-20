@@ -32,10 +32,15 @@ BEGIN
 			,ISNULL(o.status, 'Running') AS status
 			,l.sporttype
 			,odds
-			,r.Result AS Screenshot
+			,ps.Screenshot
 	FROM	dbo.outright AS o WITH (NOLOCK)
 			INNER JOIN dbo.League AS l WITH (NOLOCK) ON l.leagueid = o.leagueid
-			LEFT JOIN dbo.ResultDetailOutright r WITH (NOLOCK) ON r.Orid = o.orid
+			OUTER APPLY (	SELECT TOP 1 Result AS Screenshot
+							FROM ProviderResultDetailOutright p WITH (NOLOCK)
+							WHERE p.Orid = o.orid
+									AND p.Leagueid = @LeagueID
+							ORDER BY p.ProviderId DESC
+			) ps
 	WHERE	o.leagueID = @LeagueID 	
 			AND 1 = CASE WHEN @StatusID = 0 THEN 1
 						 WHEN @StatusID = 1 AND o.oddsstatus IN ('Running','Closed','Internal') THEN 1

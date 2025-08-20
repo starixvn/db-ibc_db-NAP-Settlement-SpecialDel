@@ -10,7 +10,7 @@ CREATE PROCEDURE [dbo].[NAP_Set_OutrightResultDetailUpd]
 AS 
 /*
     Created by: 20250814@Hughie
-    Task: Save Screenshot Score button 
+    Task: Confirm Score 
     DB: DBPRO/BODB02 
     
     Revisions:

@@ -16,7 +16,6 @@ CREATE TABLE [dbo].[ProviderResultDetailOutright](
 	,[Leagueid] [int] NOT NULL
 	,[Teamid] [int] NOT NULL
 	,[Result] [varchar](10) NULL
-	,[ResultStatusID] [tinyint] NULL
 	,[CreatedBy] [int] NULL
 	,[CreatedDate] [datetime] NULL
 	,[RepUpdateTime] [datetime2](7) NULL
