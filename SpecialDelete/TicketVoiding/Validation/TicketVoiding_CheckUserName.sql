@@ -785,7 +785,7 @@ BEGIN
 		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
 		SELECT MatchId, transid, IsMixParlay, SiteDBGroupID, CASE WHEN statusID IN (0,1) THEN 1 ELSE 0 END AS isMarked
 		FROM #tmpTransInfo 
-		WHERE IsSiteDBDown = 1 AND IsVoid14 = 0
+		WHERE IsSiteDBDown = 1 AND IsVoid14 = 0 AND bettype NOT IN (10, 38)
 
 		;WITH cteUserName AS (
 				SELECT DISTINCT b.custid
