@@ -33,6 +33,7 @@ AS
 		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]  
 		- 20250609@July: Enhance MaxPayout Per Match for Virtual Sport [Redmine: #229870]
 		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
+		- 20250821@July: Exclude sites for MBC [Redmine: #236702]
 
 	Param's explanation:		
 		
@@ -111,7 +112,10 @@ BEGIN
 						INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid
 						INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND ISNULL(s.SiteLabel,'') <> '789y'
 						INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
-					WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
+					WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime
+						AND ci.site NOT IN ('Special','BEST-ODDS','Hedging')
+				)
+						
 		BEGIN
 			SET @ErrorMessage =  @ErrorMessage + '1. CustLimitBet_MBC table is inserted data for excluded sporttype. ' + @CRLF 
 		END
@@ -202,6 +206,7 @@ BEGIN
 						INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND ISNULL(s.SiteLabel,'') <> '789y'
 						LEFT JOIN dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
 					WHERE b.matchid = m.matchid 
+						AND ci.site NOT IN ('Special','BEST-ODDS','Hedging')
 						AND h.Transid IS NULL
 						AND b.statusID NOT IN (101, 0)
 						AND b.bettype NOT IN (10,2799,10449,11099,38,801,802,803,804,805,806) 
@@ -363,6 +368,7 @@ BEGIN
 			INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND ISNULL(s.SiteLabel,'') <> '789y'
 			LEFT JOIN dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
 		WHERE b.bettype = 10
+			AND ci.site NOT IN ('Special','BEST-ODDS','Hedging')
 			AND h.Transid IS NULL
 			AND b.transdate BETWEEN @StartTime AND @EndTime
 			AND b.SiteDBGroupID = @SiteDBGroupID
