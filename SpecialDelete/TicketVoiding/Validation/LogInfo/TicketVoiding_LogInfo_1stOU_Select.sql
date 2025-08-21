@@ -955,7 +955,7 @@ BEGIN
 					ELSE bt.typenamee
 				END AS 'GroupName'
 		FROM @tmpLogInfoTickets s
-			INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid AND m.IsSiteDBDown = 0
+			INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
 			INNER JOIN bettype AS bt WITH (NOLOCK) ON bt.typeid = m.Subbettype
 		WHERE m.matchid = @MatchId
 		FOR JSON PATH))
