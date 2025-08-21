@@ -1032,7 +1032,7 @@ BEGIN
 				ELSE 'Single'
 			END AS 'GroupName'
 	FROM @tmpLogInfoTickets s
-		INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid AND m.IsSiteDBDown = 0
+		INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
 		LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = m.Subbettype
 	FOR JSON PATH))
 
