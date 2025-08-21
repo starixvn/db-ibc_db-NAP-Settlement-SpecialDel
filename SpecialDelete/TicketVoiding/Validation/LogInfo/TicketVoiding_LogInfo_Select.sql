@@ -84,6 +84,7 @@ AS
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 		- 20250514@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 		- 20250725@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
+		- 20250724@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
 
 	Param's explanation:
 		
@@ -123,6 +124,7 @@ BEGIN
 					+ CASE WHEN @WrongOfferedNameInfo IS NULL THEN '' ELSE ',@WrongOfferedNameInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOfferedNameInfo) + '''' END
 					+ CASE WHEN @OtherIssuesInfo IS NULL THEN '' ELSE ',@OtherIssuesInfo = ''' + CONVERT(NVARCHAR(MAX), @OtherIssuesInfo) + '''' END
 					+ CASE WHEN @MatchEarlyCompletedInfo IS NULL THEN '' ELSE ',@MatchEarlyCompletedInfo = ''' + CONVERT(NVARCHAR(MAX), @MatchEarlyCompletedInfo) + '''' END
+					+ CASE WHEN @OnlineServerId IS NULL THEN '' ELSE ',@OnlineServerId = ''' + CONVERT(NVARCHAR(10), @OnlineServerId) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserID, NULL, GETDATE(),@SubmittedDate)
@@ -150,6 +152,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongOddsInfo		   = @WrongOddsInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 3 --Wrong score
 	BEGIN
@@ -168,6 +171,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@WrongHDPInfo		   = @WrongHDPInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 5 --Wrong 1st HDP
 	BEGIN
@@ -176,6 +180,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@Wrong1stHDPInfo	   = @Wrong1stHDPInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 6 --Wrong OU
 	BEGIN
@@ -184,6 +189,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@WrongOUInfo		   = @WrongOUInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 7 --Wrong 1st OU
 	BEGIN
@@ -192,6 +198,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@Wrong1stOUInfo	   = @Wrong1stOUInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId IN (8,9) --EKO,WKO
 	BEGIN
@@ -257,6 +264,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongOddsSBInfo	   = @WrongOddsSBInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 26 --Wrong Offered Name
 	BEGIN
