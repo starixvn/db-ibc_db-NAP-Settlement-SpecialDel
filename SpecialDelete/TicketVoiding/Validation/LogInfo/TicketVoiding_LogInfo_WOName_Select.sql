@@ -734,13 +734,19 @@ BEGIN
 	INSERT INTO #CTE_Ticket_Single (RequestId, MatchId, TransId, Bettype)
 	SELECT RequestId, MatchId, TransId, Bettype
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
-	WHERE RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID 
+	WHERE RequestId = @RequestId 
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END 
 	SET @cnt_s = @@ROWCOUNT
 
 	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId)
 	SELECT RequestId, MatchId, TransId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
-	WHERE RequestId = @RequestId AND SiteDBGroupID = @SiteDBGroupID 
+	WHERE RequestId = @RequestId 
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END 
 	SET @cnt_p = @@ROWCOUNT
 
 	IF @IsShowLogOnly = 0
@@ -808,7 +814,7 @@ BEGIN
 			,m.sporttype AS 'sporttype'
 			,m.GroupName AS 'GroupName'
 	FROM @tmpLogInfoTickets s
-		INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid AND m.IsSiteDBDown = 0
+		INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
 	FOR JSON PATH))
 
 	UPDATE v
@@ -966,7 +972,6 @@ BEGIN
 		,SiteDBGroupID AS 'sitedb'
 		,isMarked AS 'isMarked'
 	FROM @tmpSiteDBDownInfo 
-	WHERE isMarked = 1
 	FOR JSON PATH))
 
 	-- 4. List ticket unmark/mark & Transinfo table (if any)
