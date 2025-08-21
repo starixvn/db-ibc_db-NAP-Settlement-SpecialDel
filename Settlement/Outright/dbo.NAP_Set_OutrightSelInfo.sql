@@ -70,12 +70,17 @@ BEGIN
 		,	 IIF(o.oddsstatus IN ('Running','Closed','Internal'),1,2)
 		,	 o.kickofftime  
 	
-	SELECT o.leagueid, COUNT(orid) AS DeadHeatTeam 
-	FROM outright o WITH (NOLOCK)
+	SELECT
+    o.leagueid
+    ,COUNT(DISTINCT CASE WHEN o.isdeadheat = 1 THEN o.orid END) AS DeadHeatTeam
+    ,CASE 
+        WHEN MAX(CASE WHEN LOWER(o.oddsstatus) = 'running' THEN 1 ELSE 0 END) = 1 THEN 0
+        ELSE 1
+    END AS IsCompleted
+	FROM dbo.outright AS o
 		INNER JOIN @tmpLeague AS tl ON tl.LeagueID = o.leagueid
 	WHERE ((@ToDate IS NULL AND o.eventdate >= @FromDate) 
-            OR (@ToDate IS NOT NULL AND o.eventdate BETWEEN @FromDate AND @ToDate))
-			AND o.status = 'WON'
-	GROUP BY o.leagueid
+           OR (@ToDate IS NOT NULL AND o.eventdate BETWEEN @FromDate AND @ToDate))
+	GROUP BY o.leagueid;
 	
 END
