@@ -1,9 +1,9 @@
-﻿﻿/*<info serverAlias="DBSIC-bodb02" executers="" isFunction="0"></info>*/
+﻿﻿/*<info serverAlias="DBCTG-bodb02" executers="" isFunction="0"></info>*/
 /*	
 	Created by: Max
 	Date: 20250822
 	Task: Fix data 2 tickets SABA.games wrong stake,actual_stake - [Redmine: #236796]
-	DB: DBSIC/bodb02
+	DB: DBCTG-bodb02
 	
 */ 
 USE bodb02
@@ -50,9 +50,6 @@ SELECT @AffectedList = CAST((
 EXEC dbo.TicketVoiding_Admin_Bet14_19999 
 	@AffectedList = @AffectedList
 
--- insert routine task
-EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
-	@AffectedList = @AffectedList
 
 
 
