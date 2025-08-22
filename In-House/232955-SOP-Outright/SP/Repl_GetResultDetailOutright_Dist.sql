@@ -47,6 +47,7 @@ BEGIN
 			,[ResultStatusID]
 			,[SettlementStatusID]
 			,[IsDeadHeat]
+			,[SumWon]
 			,[CreatedBy]
 			,[CreatedDate]
 			,[ModifiedBy]

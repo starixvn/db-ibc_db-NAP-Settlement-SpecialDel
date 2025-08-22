@@ -17,6 +17,7 @@ CREATE TYPE [dbo].[TVP_ReplResultDetailOutright] AS TABLE (
 	,[ResultStatusID] [TINYINT] NULL
 	,[SettlementStatusID] [TINYINT] NULL
 	,[IsDeadHeat] [BIT] NULL
+	,[SumWon] [INT] NULL
 	,[CreatedBy] [INT] NULL
 	,[CreatedDate] [DATETIME] NULL
 	,[ModifiedBy] [INT] NULL
