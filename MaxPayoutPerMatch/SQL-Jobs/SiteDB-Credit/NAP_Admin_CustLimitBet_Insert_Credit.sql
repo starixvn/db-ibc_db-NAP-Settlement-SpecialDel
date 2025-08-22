@@ -21,6 +21,7 @@ AS
 		- 20240325@Max: Max Payout - NAP_Admin_CustLimitBetQueue_Insert_Parlay Enhancement [Redmine: #202058]
 		- 20250225@Max: Enhance case duplicate rejected parlay ticket in queue [Redmine: #218599]
 		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
+		- 20240822@Max: [Synergy] Exlcuded site for MBC table for some special account members [Redmine: #236702]
 	
 	Param's explanation:	
 		
@@ -44,6 +45,7 @@ BEGIN
 			, transid BIGINT
 			, sporttype SMALLINT
 			, bettype	SMALLINT
+			, site	NVARCHAR(100)	
 		)
 
 	CREATE TABLE #CustLimitBet_789 (
@@ -111,7 +113,7 @@ BEGIN
 				FROM @xml.nodes('root/rejectTicket') t(c)
 				OPTION (OPTIMIZE FOR (@xml = NULL))
 
-				INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, sporttype, bettype)
+				INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, sporttype, bettype, site)
 				SELECT @MatchId
 					, b.custid
 					,CASE WHEN si.SiteLabel = '789y' THEN 2 --789y
@@ -119,6 +121,7 @@ BEGIN
 					,b.transid
 					,m.sporttype
 					,b.bettype
+					,si.site
 				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 					INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
@@ -140,12 +143,13 @@ BEGIN
 					FROM @xml.nodes('root/rejectTicket') t(c)
 					OPTION (OPTIMIZE FOR (@xml = NULL))
 
-					INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid)
+					INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, site)
 					SELECT @MatchId
 						, b.custid
 						,CASE WHEN si.SiteLabel = '789y' THEN 2 --789y
 							ELSE 1 END
 						,b.transid
+						,si.site
 					FROM dbo.bettrans b WITH (NOLOCK)
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 						INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
@@ -162,12 +166,13 @@ BEGIN
 					FROM @xml.nodes('root/r') t(c)
 					OPTION (OPTIMIZE FOR (@xml = NULL))
 
-					INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid)
+					INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, site)
 					SELECT @MatchId
 						, b.custid
 						,CASE WHEN  si.SiteLabel = '789y' THEN 2 --789y
 							ELSE 1 END
 						,b.transid
+						,si.site
 					FROM @tmpRejectTransId t
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.TransId				
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
@@ -176,6 +181,14 @@ BEGIN
 						AND b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 						AND b.statusID = 101
 				END
+
+			--Ignore special site not insert CustLimitBetHistory
+			IF EXISTS (SELECT TOP 1 1 FROM #CustLimitBet_tmp WHERE sitetype = 1 AND Site IN ('Special','BEST-ODDS','Hedging'))
+			BEGIN
+				DELETE #CustLimitBet_tmp
+				WHERE sitetype = 1 
+					AND Site IN ('Special','BEST-ODDS','Hedging')
+			END
 
 			--Delete invalid transid in case insert queue duplicate
 			DELETE t
