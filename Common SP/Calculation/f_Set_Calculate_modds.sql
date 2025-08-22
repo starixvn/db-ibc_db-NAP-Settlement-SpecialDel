@@ -39,6 +39,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#208026]   
 		- 20240808@Aries: VS5 - Virtually Sports [Redmine:#207309]
+		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
 */
 RETURN
 (
@@ -112,6 +113,16 @@ RETURN
 					
 			WHEN @pfID = 102 THEN --betteam = homevalue (yes/no)
 			   CASE WHEN @betteam IN ('y', 'n') AND  @betteam = @HomeValue THEN 1
+					WHEN @HomeValue = 'NONE' THEN 0
+					ELSE -1 END
+			
+			WHEN @pfID = 9663 THEN 
+			   CASE WHEN @HomeValue = 'Y' THEN 1
+					WHEN @HomeValue = 'N' THEN -1
+					WHEN @HomeValue = 'NONE' THEN 0
+
+			WHEN @pfID = 9664 THEN 
+			   CASE WHEN @betteam IN ('01', '02') AND  @betteam = @HomeValue THEN 1
 					WHEN @HomeValue = 'NONE' THEN 0
 					ELSE -1 END
 					
