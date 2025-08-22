@@ -1,9 +1,9 @@
-﻿﻿/*<info serverAlias="DBSIC-bodb02,DBBAH-bodb02" executers="" isFunction="0"></info>*/
+﻿﻿/*<info serverAlias="DBSIC-bodb02" executers="" isFunction="0"></info>*/
 /*	
 	Created by: Max
 	Date: 20250822
 	Task: Fix data 2 tickets SABA.games wrong stake,actual_stake - [Redmine: #236796]
-	DB: DBSIC/bodb02 + DBBAH/bodb02
+	DB: DBSIC/bodb02
 	
 */ 
 USE bodb02
@@ -38,7 +38,10 @@ INSERT INTO #BeforeTransId14(
 		,playercomm ,comm ,acomm ,scomm, refno
 	)
 SELECT b.matchid, b.TransId, b.betdaqid, b.SiteDBGroupID
-	,b.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.modds
+	,b.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime
+	, case when b.transid = 423594241957036040 THEN 1070
+			WHEN b.transid = 423600439594844165 THEN 570 END AS actual_stake
+	, b.modds
 	,b.srecommend, b.mrecommend, b.recommend, b.custid
 	,b.winlost, b.awinlost, b.mwinlost, b.swinlost
 	,b.playercomm, b.comm, b.acomm, b.scomm, b.refno
