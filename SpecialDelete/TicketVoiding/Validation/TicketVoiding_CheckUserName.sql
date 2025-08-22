@@ -893,6 +893,7 @@ BEGIN
 		,SiteDBGroupID AS 'sitedb'
 		,isMarked AS 'isMarked'
 	FROM @tmpSiteDBDownInfo 
+	WHERE isMarked = 1
 	FOR JSON PATH))
 
 	-- 1. Validate Table

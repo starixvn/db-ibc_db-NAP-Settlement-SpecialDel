@@ -40,16 +40,6 @@ BEGIN
 		WHERE value <> ''
 	END
 
-	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
-
-	IF ISNULL(@OnlineServerId, '') <> ''
-	BEGIN
-		INSERT INTO @tmpOnlineServerId (ServerId)
-		SELECT value AS ServerId
-		FROM STRING_SPLIT(@OnlineServerId, ',')
-		WHERE value <> ''
-	END
-
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @TransIdTemp TABLE (transid BIGINT PRIMARY KEY, IsCancelCashOut BIT DEFAULT(0))

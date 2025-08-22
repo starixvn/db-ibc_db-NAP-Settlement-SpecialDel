@@ -42,26 +42,6 @@ BEGIN
 	BEGIN CATCH
 	END CATCH 
 	
-	-- Write useraction log
-	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
-			, @SubmittedDate DATETIME = GETDATE()
-			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
-	SET @ID =  NEWID()
-	BEGIN TRY
-		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
-		BEGIN	
-			SET @sqlCommand = 'EXEC dbo.TicketVoiding_PendingMarkTickets_Insert '
-					+ CASE WHEN @RequestId IS NULL THEN '' ELSE '@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId) END
-					+ CASE WHEN @ActionId IS NULL THEN '' ELSE ',@ActionId = ' + CONVERT(NVARCHAR(50), @ActionId) END
-					+ CASE WHEN @SiteDBDownInfoJson IS NULL THEN '' ELSE ',@SiteDBDownInfoJson = ''' + CONVERT(NVARCHAR(MAX), @SiteDBDownInfoJson) + '''' END
-
-			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
-			VALUES (@ID, @spName, @sqlCommand, NULL, NULL, GETDATE(),@SubmittedDate)
-		END	
-	END TRY
-	BEGIN CATCH
-	END CATCH 
-
 	DECLARE @Decompress_SiteDBDownInfoJson NVARCHAR(MAX) = NULL
 	SET @Decompress_SiteDBDownInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @SiteDBDownInfoJson, 1)) AS NVARCHAR(MAX))
 
