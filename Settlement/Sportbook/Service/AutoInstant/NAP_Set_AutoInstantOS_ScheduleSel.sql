@@ -8,6 +8,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:	
 		- 20230801@Aries: Created [Redmine:#189662]
+		- 20250822@Louisa: Enhance code [Redmine:#236851]
 
 */
 
@@ -52,6 +53,8 @@ BEGIN
 			SELECT	pr.ResourceId, pr.HomeValue,pr.AwayValue
 			FROM	dbo.ProviderExternalResultDetail AS pr WITH (NOLOCK)
 			WHERE	pr.ProviderExternalId  = mpr.MaxProviderExternalID
+				AND pr.SourceID = 98
+				AND pr.ResourceId LIKE 'Q[1-4]'
 		) AS r
     WHERE m.SportType = @Sporttype
 	 AND m.EventStatus = 'running' 
