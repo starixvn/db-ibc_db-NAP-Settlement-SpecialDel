@@ -1,6 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_PlayerInfoSel
 	@MatchId INT
+	,@Sporttype SMALLINT = 50
 AS
 /*
     Created by: 20220207@Kathy
@@ -10,20 +11,37 @@ AS
     Revisions:            
 		- 20220207@Kathy: get player info [Redmine:#166335]
 		- 20220719@Louisa: Remove select via linked server [Redmine:#175251]
+		- 20250822@Max: [Settlement] - Integration - Player Props AIO for Basketball [Redmine: #233012]
 */
 BEGIN
-	SELECT	s.ResourceID, o.bettype, f.betChoice, f.OddsInfo
-	FROM	dbo.oddsOS o WITH(NOLOCK)
-		INNER JOIN dbo.oddsOS_flex f WITH(NOLOCK)
-			ON o.oddsid = f.oddsid
-		INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCk)
-				ON o.bettype = s.BetType
-	WHERE	s.SportType = 50
-			AND (s.betid = 0 OR s.ResourceID LIKE '%' + CAST(o.Resourceid AS VARCHAR))
-			AND	o.matchid = @matchId
-			AND ISNULL(o.IsDeleted,0) = 0
-			AND ISNULL(f.IsDeleted,0) = 0
-
+	IF @Sporttype = 50 --Cricket
+	BEGIN
+		SELECT	s.ResourceID, o.bettype, f.betChoice, f.OddsInfo
+		FROM	dbo.oddsOS o WITH(NOLOCK)
+			INNER JOIN dbo.oddsOS_flex f WITH(NOLOCK)
+				ON o.oddsid = f.oddsid
+			INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCk)
+					ON o.bettype = s.BetType
+		WHERE	s.SportType = 50
+				AND (s.betid = 0 OR s.ResourceID LIKE '%' + CAST(o.Resourceid AS VARCHAR))
+				AND	o.matchid = @matchId
+				AND ISNULL(o.IsDeleted,0) = 0
+				AND ISNULL(f.IsDeleted,0) = 0
+	END
+	ELSE IF @Sporttype = 2 --Basketball player props
+	BEGIN
+		SELECT	s.ResourceID, o.bettype, f.betChoice, f.OddsInfo
+		FROM	dbo.odds o WITH(NOLOCK)
+			INNER JOIN dbo.odds_flex f WITH(NOLOCK)
+				ON o.oddsid = f.oddsid
+			INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCk)
+					ON o.bettype = s.BetType
+		WHERE	s.SportType = 2
+				AND (s.betid = 0 OR s.ResourceID LIKE '%' + CAST(o.Resourceid AS VARCHAR))
+				AND	o.matchid = @matchId
+				AND ISNULL(o.IsDeleted,0) = 0
+				AND ISNULL(f.IsDeleted,0) = 0
+	END
 END
 GO
 
