@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Outright_Update]
 	 @MatchID		INT
 	,@Status		VARCHAR(10)     = ''
@@ -104,6 +104,16 @@ BEGIN
 			,eventdate = @EventDate
 			,isDeadheat = @IsDeadheat
 		WHERE orid = @MatchID
+	END
+
+	IF @Status <> 'UNDO'
+	BEGIN
+		UPDATE r WITH (UPDLOCK,ROWLOCK)
+		SET r.SumWon = (SELECT COUNT(1) 
+					  FROM outright o WITH (NOLOCK)
+					  WHERE o.orid = @MatchID AND Status = 'WON')
+		FROM ResultDetailOutright r WITH (NOLOCK)
+		WHERE r.Orid = @MatchID
 	END
 
 	--add log to outright_log to notify for Apollo
