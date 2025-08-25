@@ -33,6 +33,7 @@ AS
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 		- 20250812@Lani: [TVS] Copy Request Info - Update message template - Wrong Odds [Redmine: #234719]
 		- 20250813@Lani: [TVS] Copy Request Info - Update message template - Reduced Overs / Abandoned [Redmine: #235737]
+		- 20250825@Lani: [TVS] Copy Request Info - Update message template - Wrong HDP, 1st HDP, Wrong OU, Wrong 1st OU, Wrong Odds [Redmine: #235984]
 		
 
 	Param's explanation:
@@ -366,7 +367,6 @@ BEGIN
 				,@ActualMarket		VARCHAR(50)
 				,@WrongMarket		VARCHAR(50)
 				,@HdpValue			VARCHAR(50)
-				,@LiveScores		VARCHAR(50)	
 				
 		IF (@IssueTypeId IN (4,5))
 		BEGIN
@@ -390,9 +390,6 @@ BEGIN
 			SELECT @WrongMarket = CAST(@RequestExtraInfo AS XML).value('(/r/@WrongMarket)[1]', 'VARCHAR(50)'),
 				   @ActualMarket = CAST(@RequestExtraInfo AS XML).value('(/r/@ActualMarket)[1]', 'VARCHAR(50)')
 		END
-
-		SELECT @LiveScores = CASE WHEN @Sporttype IN (1) THEN IIF(CHARINDEX('Live:',@IssueDetail) > 0,SUBSTRING(@IssueDetail, CHARINDEX('Live:',@IssueDetail) + LEN('Live:'), CHARINDEX(';Act:',@IssueDetail) - (CHARINDEX('Live:',@IssueDetail) + LEN('Live:'))), '')
-								  ELSE NULL END --only get livescores for soccer
 	END
 
 
@@ -414,10 +411,31 @@ BEGIN
 			   @ToOddsNotVoidAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@ToOddsNotVoidAwayUnder)[1]', 'VARCHAR(10)'),
 			   @CorrectOddsHomeOver =  CAST(@RequestExtraInfo AS XML).value('(/r/@CorrectOddsHomeOver)[1]', 'VARCHAR(10)'),
 			   @CorrectOddsAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@CorrectOddsAwayUnder)[1]', 'VARCHAR(10)'),
-			   @WrongOU = CASE WHEN @SubIssueTypeId IN (120,121) THEN CAST(@RequestExtraInfo AS XML).value('(/r/@WrongOU)[1]', 'VARCHAR(10)') ELSE NULL END,
-			   @LiveScores = CASE WHEN @Sporttype IN (1) THEN IIF(CHARINDEX('Live:',@IssueDetail) > 0,SUBSTRING(@IssueDetail, CHARINDEX('Live:',@IssueDetail) + LEN('Live:'), CHARINDEX(';Act:',@IssueDetail) - (CHARINDEX('Live:',@IssueDetail) + LEN('Live:'))), '')
+			   @WrongOU = CASE WHEN @SubIssueTypeId IN (120,121) THEN CAST(@RequestExtraInfo AS XML).value('(/r/@WrongOU)[1]', 'VARCHAR(10)') ELSE NULL END
+
+	END
+
+	IF @IssueTypeId IN (2,4,5,6,7)
+	BEGIN
+		DECLARE  @LiveScores		       VARCHAR(50)
+				,@LiveGameEarlySingleCount INT
+				,@PoolHouseSingleCount	   INT
+				,@PoolHouseMainParlayCount INT
+
+		SELECT @LiveScores = CASE WHEN @Sporttype IN (1) THEN IIF(CHARINDEX('Live:',@IssueDetail) > 0,SUBSTRING(@IssueDetail, CHARINDEX('Live:',@IssueDetail) + LEN('Live:'), CHARINDEX(';Act:',@IssueDetail) - (CHARINDEX('Live:',@IssueDetail) + LEN('Live:'))), '')
 								  ELSE NULL END --only get livescores for soccer
 
+			  ,@LiveGameEarlySingleCount = IIF(CHARINDEX('SingleCount:',@IssueDetail) > 0
+											 , SUBSTRING(@IssueDetail, CHARINDEX('SingleCount:',@IssueDetail) + LEN('SingleCount:'), CHARINDEX(';PoolHouseSingleCount:',@IssueDetail) - (CHARINDEX('SingleCount:',@IssueDetail) + LEN('SingleCount:')))
+											 , '')
+
+			  ,@PoolHouseSingleCount = IIF(CHARINDEX('PoolHouseSingleCount:',@IssueDetail) > 0
+										 , SUBSTRING(@IssueDetail, CHARINDEX('PoolHouseSingleCount:',@IssueDetail) + LEN('PoolHouseSingleCount:'), CHARINDEX(';PoolHouseMainParlayCount:',@IssueDetail) - (CHARINDEX('PoolHouseSingleCount:',@IssueDetail) + LEN('PoolHouseSingleCount:')))
+										 , '')
+
+			  ,@PoolHouseMainParlayCount = IIF(CHARINDEX('PoolHouseMainParlayCount:',@IssueDetail) > 0
+											 , SUBSTRING(@IssueDetail, CHARINDEX('PoolHouseMainParlayCount:',@IssueDetail) + LEN('PoolHouseMainParlayCount:'), LEN(@IssueDetail))
+											 , '')
 	END
 	/*****************Return table **************************/
 	-- 1. Table infor request
@@ -467,6 +485,9 @@ BEGIN
 		  ,@CorrectOddsAwayUnder AS CorrectOddsAwayUnder
 		  ,@LiveScores AS LiveScores
 		  ,@WrongOU AS WrongOU
+		  ,@LiveGameEarlySingleCount AS LiveGameEarlySingleCount
+		  ,@PoolHouseSingleCount AS PoolHouseSingleCount
+		  ,@PoolHouseMainParlayCount AS PoolHouseMainParlayCount
 	FROM @tmpRequestInfo t
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.UserId
 
