@@ -35,7 +35,7 @@ BEGIN
 		2 AS SportType, -- Basketball
 		br.BetID,
 		CAST(bt.BetType AS VARCHAR) + RIGHT('0' + CAST(br.RowNum AS VARCHAR), 2) AS ResourceID,
-		'MNL' AS SettleType,
+		'EAR' AS SettleType,
 		'SP' AS GroupType,
 		99 AS OrdNo,
 		br.BetID AS RoundID,
