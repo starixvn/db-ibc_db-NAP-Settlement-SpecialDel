@@ -120,7 +120,7 @@ RETURN
 			   CASE WHEN @HomeValue = 'Y' THEN 1
 					WHEN @HomeValue = 'N' THEN -1
 					WHEN @HomeValue = 'NONE' THEN 0
-
+				END
 			WHEN @pfID = 9664 THEN 
 			   CASE WHEN @betteam IN ('01', '02') AND  @betteam = @HomeValue THEN 1
 					WHEN @HomeValue = 'NONE' THEN 0
