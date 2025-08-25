@@ -106,15 +106,15 @@ BEGIN
 		WHERE orid = @MatchID
 	END
 
-	IF @Status <> 'UNDO'
-	BEGIN
-		UPDATE r WITH (UPDLOCK,ROWLOCK)
-		SET r.SumWon = (SELECT COUNT(1) 
-					  FROM outright o WITH (NOLOCK)
-					  WHERE o.orid = @MatchID AND Status = 'WON')
-		FROM ResultDetailOutright r
-		WHERE r.Orid = @MatchID
-	END
+	--IF @Status <> 'UNDO'
+	--BEGIN
+	--	UPDATE r WITH (UPDLOCK,ROWLOCK)
+	--	SET r.SumWon = (SELECT COUNT(1) 
+	--				  FROM outright o WITH (NOLOCK)
+	--				  WHERE o.orid = @MatchID AND Status = 'WON')
+	--	FROM ResultDetailOutright r
+	--	WHERE r.Orid = @MatchID
+	--END
 
 	--add log to outright_log to notify for Apollo
 	EXEC DBTXN.bodb02.dbo.[Acc_Set_ConfirmedActionOutright]
