@@ -358,7 +358,7 @@ BEGIN
 	BEGIN
 		DELETE m
 		FROM #matchList m
-		WHERE m.AutoSetting & 2  = 1
+		WHERE m.AutoSetting & 2  = 2
 	END
 		
 	--check auto setting
