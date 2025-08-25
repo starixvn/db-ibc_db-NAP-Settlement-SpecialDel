@@ -112,7 +112,7 @@ BEGIN
 		SET r.SumWon = (SELECT COUNT(1) 
 					  FROM outright o WITH (NOLOCK)
 					  WHERE o.orid = @MatchID AND Status = 'WON')
-		FROM ResultDetailOutright r WITH (NOLOCK)
+		FROM ResultDetailOutright r
 		WHERE r.Orid = @MatchID
 	END
 
