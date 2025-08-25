@@ -60,20 +60,6 @@ SET NOCOUNT ON
 			,@UserId
 			,GETDATE()
 	FROM @tmpResource AS r
-		OUTER APPLY(
-			SELECT  TOP 1 
-					p.ProviderId
-				   ,P.Leagueid
-				   ,p.Teamid
-				   ,p.Result
-			FROM ProviderResultDetailOutright AS p WITH(NOLOCK)  
-			WHERE p.Leagueid = @Leagueid 
-				AND p.Teamid = Teamid 
-				AND p.SourceId =  @SourceId
-			ORDER BY ProviderId DESC
-		) AS pr
-	WHERE pr.ProviderId IS NULL
-		OR ISNULL(r.Result,'') != ISNULL(pr.Result,'') 
 END
 GO
 
