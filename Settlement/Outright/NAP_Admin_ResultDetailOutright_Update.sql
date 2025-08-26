@@ -5,8 +5,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_ResultDetailOutright_Update]
 	,@Status		VARCHAR(10)     = ''
 	,@IsDeadheat	BIT				= 0 
 	,@AdminID		INT				= 5838421
-	,@ErrCode		INT				= 0		OUTPUT
-	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT
 )
 AS
 /*
@@ -24,44 +22,53 @@ BEGIN
 
 SET NOCOUNT ON
 
-	BEGIN TRY				
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.ResultDetailOutright r WITH(ROWLOCK)
-				WHERE r.Orid = @Orid AND r.ResultStatusId IN (2, 5)
-				)
-	BEGIN
-		SELECT @ErrCode	 = 1001051
-				,@ErrMsg = 'WARNING! Cannot continue due to selected results are settled.'
-		RETURN
-	END	
-
 	MERGE dbo.ResultDetailOutright TARGET
 	USING (
 			SELECT	o.leagueid
 					,o.teamid
-					, COUNT(CASE WHEN o.status = 'WON' AND o.IsDeadheat = 1 THEN o.Orid END) AS DeadHeatTeam
+					,COUNT(CASE WHEN o.status = 'WON' AND o.IsDeadheat = 1 THEN o.Orid END) AS DeadHeatTeam
 					FROM outright o WITH (NOLOCK)
 					WHERE o.Orid = @Orid
 					GROUP BY o.leagueid, o.teamid
 		) AS SOURCE ON TARGET.Orid = @Orid					
-	WHEN MATCHED AND ResultStatusID NOT IN (2, 5) AND SettlementStatusID = 0 THEN 
-			UPDATE SET Result = @Status
-						,ResultStatusId	= 5
-						,SettlementStatusID = 4
-						,IsDeadheat = @IsDeadheat
-						,SumWon = SOURCE.DeadHeatTeam
-						,ModifiedDate = GETDATE()
-						,ModifiedBy   = @AdminID
+	WHEN MATCHED THEN 
+			UPDATE SET	TARGET.Result				= @Status
+						,TARGET.ResultStatusId		= 5
+						,TARGET.SettlementStatusID	= 4
+						,TARGET.IsDeadheat			= @IsDeadheat
+						,TARGET.SumWon				= SOURCE.DeadHeatTeam
+						,TARGET.ModifiedDate		= GETDATE()
+						,TARGET.ModifiedBy			= @AdminID
 	WHEN NOT MATCHED BY TARGET THEN
-		INSERT (Orid, Leagueid, Teamid, Result, ResultStatusID, SettlementStatusID, IsDeadheat, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate)               
-		VALUES (@Orid, SOURCE.Leagueid, SOURCE.Teamid, @Status, 5, 4, @IsDeadheat, @AdminID, GETDATE(), @AdminID, GETDATE());
+		INSERT(
+			Orid
+			,Leagueid
+			,Teamid
+			,Result
+			,ResultStatusID
+			,SettlementStatusID
+			,IsDeadheat
+			,SumWon
+			,CreatedBy
+			,CreatedDate
+			,ModifiedBy
+			,ModifiedDate
+		)               
+		VALUES(
+			@Orid
+			,SOURCE.Leagueid
+			,SOURCE.Teamid
+			,@Status
+			,5 -- Manual Settlement
+			,4 -- Completed
+			,@IsDeadheat
+			,SOURCE.DeadHeatTeam
+			,@AdminID
+			,GETDATE()
+			,@AdminID
+			,GETDATE()
+		);
 
-	END TRY
-
-	BEGIN CATCH
-		SELECT	@ErrMsg   = @ErrMsg + ISNULL(ERROR_MESSAGE(), '')
-				,@ErrCode = @@error
-         RETURN
-	END CATCH
 END
 GO
 

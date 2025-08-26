@@ -107,12 +107,19 @@ BEGIN
 		WHERE orid = @MatchID
 	END
 
-	--Update ResultDetailOutright
-	EXEC dbo.NAP_Admin_ResultDetailOutright_Update
-		@Orid = @MatchID
-		,@Status = @Status
-		,@IsDeadheat = @IsDeadheat
-		,@AdminID = @AdminID
+	IF @Action <> 'UNDO'
+	BEGIN
+		--Update ResultDetailOutright
+		EXEC dbo.NAP_Admin_ResultDetailOutright_Update
+			@Orid = @MatchID
+			,@Status = @Status
+			,@IsDeadheat = @IsDeadheat
+			,@AdminID = @AdminID
+	END
+	ELSE
+	BEGIN
+		DELETE FROM ProviderResultDetailOutright
+	END
 
 	--add log to outright_log to notify for Apollo
 	EXEC DBTXN.bodb02.dbo.[Acc_Set_ConfirmedActionOutright]
