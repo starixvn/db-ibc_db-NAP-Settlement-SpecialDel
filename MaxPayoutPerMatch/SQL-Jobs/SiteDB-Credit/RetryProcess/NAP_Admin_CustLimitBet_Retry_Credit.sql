@@ -13,6 +13,7 @@ AS
     Revisions:
 		- 20230712@Max: Clone from DBTRANS - [Redmine: #181595]
 		- 20250225@Max: Enhance case duplicate rejected parlay ticket in queue [Redmine: #218599]
+		- 20250826@Max: [Synergy] Exlcuded site for MBC table for some special account members [Redmine: #236702]
 	
 	Param's explanation:	
 		
@@ -35,9 +36,12 @@ BEGIN
 	INSERT #CustLimitBet_RetryTransId_MBC (TransId, TryCount)
 	SELECT q.TransId, @TryCount
 	FROM dbo.CustLimitBet_QueueRetry q WITH(NOLOCK)
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = q.TransId
+		INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON c.custid = b.custid
 	WHERE q.MainQueueId = @QueueId
 		AND q.sitetype = 1
 		AND q.StatusId = 0
+		AND c.site NOT IN ('Special','BEST-ODDS','Hedging')
 	
 	IF @@ROWCOUNT > 0 
 		SET @IsExistsMBC = 1
@@ -52,7 +56,16 @@ BEGIN
 
 	IF @@ROWCOUNT > 0 
 		SET @IsExists789 = 1
-	
+
+	--Mark queue cancel with no ticket found
+	IF @IsExistsMBC = 0 AND @IsExists789 = 0
+	BEGIN
+		UPDATE q SET
+			q.StatusId = 3 --cancel
+		FROM dbo.CustLimitBet_QueueRetry q WITH (ROWLOCK, UPDLOCK)
+		WHERE q.MainQueueId = @QueueId 
+	END
+
 	--Start Retry Process
 	WHILE (@Success = 0 AND @TryCount <= 5)
 	BEGIN
