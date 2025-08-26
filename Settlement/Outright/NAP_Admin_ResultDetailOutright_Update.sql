@@ -26,7 +26,6 @@ SET NOCOUNT ON
 	USING (
 			SELECT	o.leagueid
 					,o.teamid
-					,COUNT(CASE WHEN o.status = 'WON' AND o.IsDeadheat = 1 THEN o.Orid END) AS DeadHeatTeam
 					FROM outright o WITH (NOLOCK)
 					WHERE o.Orid = @Orid
 					GROUP BY o.leagueid, o.teamid
@@ -36,7 +35,6 @@ SET NOCOUNT ON
 						,TARGET.ResultStatusId		= 5
 						,TARGET.SettlementStatusID	= 4
 						,TARGET.IsDeadheat			= @IsDeadheat
-						,TARGET.SumWon				= SOURCE.DeadHeatTeam
 						,TARGET.ModifiedDate		= GETDATE()
 						,TARGET.ModifiedBy			= @AdminID
 	WHEN NOT MATCHED BY TARGET THEN
@@ -48,7 +46,6 @@ SET NOCOUNT ON
 			,ResultStatusID
 			,SettlementStatusID
 			,IsDeadheat
-			,SumWon
 			,CreatedBy
 			,CreatedDate
 			,ModifiedBy
@@ -62,12 +59,18 @@ SET NOCOUNT ON
 			,5 -- Manual Settlement
 			,4 -- Completed
 			,@IsDeadheat
-			,SOURCE.DeadHeatTeam
 			,@AdminID
 			,GETDATE()
 			,@AdminID
 			,GETDATE()
 		);
+
+		UPDATE r WITH (UPDLOCK,ROWLOCK)
+		SET r.SumWon = (SELECT COUNT(1) 
+					  FROM outright o WITH (NOLOCK)
+					  WHERE o.leagueid = r.leagueid AND o.status = 'WON' AND o.IsDeadheat = 1 )
+		FROM ResultDetailOutright r
+		WHERE r.Orid = @Orid
 
 END
 GO
