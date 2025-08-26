@@ -77,6 +77,7 @@ AS;
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250606@Lani: [TVS] Remove unused code and return column SecAcceptFlag [Redmine: #225845]
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
+		- 20250826@July: Integration - Saba Coins [Redmine: #236197]
 
 	Param's Explanation:
 
@@ -352,14 +353,14 @@ BEGIN
 			ON r.EventID = o.EventID
 		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
-	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)/ Saba Coins (productid = 81)
 	BEGIN
 		UPDATE d
 		SET sporttype = sb.SportType
 		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON d.bettype = sb.BetType
-		WHERE sb.ProductID = 37
+		WHERE sb.ProductID IN (37,81)
 	END
 	-- UPDATE Sportype, Endtime for Bitcoin, VS5
 	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets 
