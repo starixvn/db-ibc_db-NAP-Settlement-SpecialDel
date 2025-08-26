@@ -9,7 +9,8 @@ AS
 	Task: get list CO ticket [Redmine:#217573]
 
 	Revisions:
-		- 20250214@Louisa: get list CO ticket [Redmine:#217573] 
+		- 20250214@Louisa: get list CO ticket [Redmine:#217573]
+		- 20250814@Louisa: include livescore [Redmine:#235508]
 		
 	Param's Explanation:
 		@SelectedResources= '<Resources>
@@ -38,7 +39,7 @@ BEGIN
 		,@fta INT	 
 	 
 	DECLARE @tmpResources TABLE( ResourceID VARCHAR(20),HomeValue VARCHAR(50), AwayValue VARCHAR(50))
-	DECLARE @tmpMarketDetail TABLE ( MatchId INT, BetType  SMALLINT, betteam VARCHAR(50), way INT, GoalLine  SMALLMONEY, hdp1 SMALLMONEY, hdp2 SMALLMONEY, SDTRecord TINYINT, pfId SMALLINT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
+	DECLARE @tmpMarketDetail TABLE ( MatchId INT, BetType  SMALLINT, betteam VARCHAR(50), way INT, GoalLine  SMALLMONEY, hdp1 SMALLMONEY, hdp2 SMALLMONEY, SDTRecord TINYINT, pfId SMALLINT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), LiveHomeScore INT, LiveAwayScore INT )
 	DECLARE @tmp_Settled TABLE ( bettype SMALLINT, ResourceID VARCHAR(20), hdp  SMALLMONEY, betteam VARCHAR(50), way INT, outcome TINYINT)
 
 	---not support UNDO
@@ -79,16 +80,17 @@ BEGIN
 		FROM ( VALUES (5),(15)) AS b(bettype)
 			CROSS APPLY ( SELECT * FROM ( VALUES ('1' ,5),('2' ,6), ('x' ,7) ) AS T(betteam, way) )bt
 	)
-	,cte_Market (MatchId, Bettype, GoalLine, SDTRecord) AS
+	,cte_Market (MatchId, Bettype, GoalLine, SDTRecord, LiveHomeScore, LiveAwayScore) AS
 	(	SELECT js.MatchId, js.BetType, js.GoalLine, CASE WHEN @Action IN ( 'REFUND', 'REFUND-FT') AND ISNULL(EventStatusReason,0) = 4 THEN 4 ELSE 0 END
-		FROM OPENJSON(@Markets) WITH (MatchId INT, BetType  SMALLINT, GoalLine  SMALLMONEY ) js
+				,js.LiveHomeScore, js.LiveAwayScore
+		FROM OPENJSON(@Markets) WITH (MatchId INT, BetType  SMALLINT, GoalLine  SMALLMONEY, LiveHomeScore INT, LiveAwayScore INT ) js
 			INNER JOIN match m WITH(NOLOCK) 
 				ON js.Matchid = m.matchid
 			INNER JOIN cte_BetOption o 
 				ON js.BetType = o.BetType
 	)
 
-	INSERT INTO @tmpMarketDetail ( MatchId, BetType , betteam, way, GoalLine, hdp1, hdp2, SDTRecord, pfId, ResourceId, HomeValue, AwayValue )
+	INSERT INTO @tmpMarketDetail ( MatchId, BetType , betteam, way, GoalLine, hdp1, hdp2, SDTRecord, pfId, ResourceId, HomeValue, AwayValue, LiveHomeScore, LiveAwayScore )
 	SELECT mk.MatchId, mk.BetType , o.betteam, o.way, mk.GoalLine
 			,CASE WHEN mk.bettype IN (1,7) AND mk.GoalLine < 0  THEN ABS(mk.GoalLine)
 				WHEN mk.bettype IN (3,8) THEN mk.GoalLine
@@ -98,6 +100,7 @@ BEGIN
 				ELSE 0 
 				END AS hdp2
 			, mk.SDTRecord, sp.pfId, sp.ResourceId, r.HomeValue, r.AwayValue
+			, mk.LiveHomeScore, mk.LiveAwayScore
 	FROM cte_BetOption o
 		INNER JOIN cte_Market mk ON o.BetType = mk.Bettype
 		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK) ON mk.bettype = sp.bettype AND sp.SportType = 1
@@ -120,7 +123,7 @@ BEGIN
 					  WHEN o.modds < -0.25  THEN 1 ---'LOSE'
 					END AS outcome
 		FROM	@tmpMarketDetail mk
-			CROSS APPLY dbo.f_Set_Calculate_modds_major(mk.pfID, mk.betteam, mk.hdp1, mk.hdp2, mk.HomeValue, mk.AwayValue, 0, 0, NULL, NULL) o
+			CROSS APPLY dbo.f_Set_Calculate_modds_major(mk.pfID, mk.betteam, mk.hdp1, mk.hdp2, mk.HomeValue, mk.AwayValue, mk.LiveHomeScore, mk.LiveAwayScore, NULL, NULL) o
 				
 
 	END
