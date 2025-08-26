@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="1"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_Calculate_modds] (
 		@pfID			SMALLINT
 		,@betteam 		NVARCHAR(10)
@@ -125,7 +125,26 @@ RETURN
 			   CASE WHEN @betteam IN ('01', '02') AND  @betteam = @HomeValue THEN 1
 					WHEN @HomeValue = 'NONE' THEN 0
 					ELSE -1 END
-					
+			WHEN @pfID = 9665 THEN --Basketball player props group bettypes at least/exact
+				CASE WHEN @betteam LIKE N'≤%' THEN
+						CASE 
+							WHEN @HomeValue < CAST(REPLACE(@betteam, N'≤', '') AS INT) THEN 1
+							WHEN @HomeValue = CAST(REPLACE(@betteam, N'≤', '') AS INT) THEN 1
+							WHEN @HomeValue > CAST(REPLACE(@betteam, N'≤', '') AS INT) THEN -1
+						END
+					WHEN ISNUMERIC(@betteam) = 1 THEN
+						CASE 
+							WHEN @HomeValue < @betteam THEN -1
+							WHEN @HomeValue = @betteam THEN 1
+							WHEN @HomeValue > @betteam THEN -1
+						END 
+					WHEN @betteam LIKE '%+' THEN
+						CASE 
+							WHEN @HomeValue < CAST(REPLACE(@betteam, '+', '') AS INT) THEN -1
+							WHEN @HomeValue = CAST(REPLACE(@betteam, '+', '') AS INT) THEN 1
+							WHEN @HomeValue > CAST(REPLACE(@betteam, '+', '') AS INT) THEN 1
+						END
+				END
 			WHEN @pfID IN (424, 385, 384) THEN --betteam = homevalue
 			   CASE WHEN @betteam = @HomeValue THEN 1
 					ELSE -1 END
