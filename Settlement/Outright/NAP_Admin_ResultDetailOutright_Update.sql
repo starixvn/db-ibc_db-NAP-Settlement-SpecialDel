@@ -41,6 +41,7 @@ SET NOCOUNT ON
 					, COUNT(CASE WHEN o.status = 'WON' AND o.IsDeadheat = 1 THEN o.Orid END) AS DeadHeatTeam
 					FROM outright o WITH (NOLOCK)
 					WHERE o.Orid = @Orid
+					GROUP BY o.leagueid, o.teamid
 		) AS SOURCE ON TARGET.Orid = @Orid					
 	WHEN MATCHED AND ResultStatusID NOT IN (2, 5) AND SettlementStatusID = 0 THEN 
 			UPDATE SET Result = @Status
