@@ -114,6 +114,7 @@ BEGIN
 			,@IsHTOverOnly = 0
 			,@IsOverOnly   = 0
 			,@AutoSetting = ''
+			,@IsInstant = NULL
 			,@StatusId = 0
 			,@IsMarkedTicket =0
 
