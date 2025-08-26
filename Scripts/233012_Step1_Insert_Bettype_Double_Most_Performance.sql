@@ -35,14 +35,14 @@ ORDER BY p.number
  
 /*
 	Bettype: Player Double Double/Player Triple Double, Most X
-	pfid = 102, Resource = bettype + [01~99]
+	pfid = 102, Resource = bettype + [01~50]
 	EX: 67701
 */
 	;WITH cte_PlayerDouble_Most ( pfID, bettype, betid, ResourceID, Num) AS 
 	(
 		 SELECT 102, b.Bettype, 800+ num, CAST(b.bettype AS VARCHAR(3) ) + n.Suffix,  Num
-		 FROM (VALUES(677),(679),(680),(681), (682),(683),(683),(684) ) b (Bettype)
-			CROSS APPLY (SELECT Num, Suffix FROM #Number )n
+		 FROM (VALUES(677),(679),(680),(681), (682),(683),(684) ) b (Bettype)
+			CROSS APPLY (SELECT Num, Suffix FROM #Number WHERE Num <= 50 )n
 	)
 
 	INSERT INTO dbo.SettlementSpecialBettypeProfile 
@@ -66,7 +66,7 @@ ORDER BY p.number
 
 /*
 	Bettype: Player Performance
-	pfid = 9963, Resource = bettype + [01~99] + [01~40]
+	pfid = 9963, Resource = bettype + [01~50] + [01~99]
 	EX: 6750199
 */
 
@@ -74,8 +74,8 @@ ORDER BY p.number
 	(
 		 SELECT 9963, b.Bettype, 800 + XX.num, CAST(b.bettype AS VARCHAR(3) ) + XX.Suffix + YY.Suffix, XX.num
 		 FROM (VALUES(675), (676), (678) ) b (Bettype)
-			CROSS APPLY (SELECT Num, Suffix FROM #Number )XX
-			CROSS APPLY (SELECT Num, Suffix FROM #Number WHERE num <= 40 )YY
+			CROSS APPLY (SELECT Num, Suffix FROM #Number WHERE Num <=50 )XX
+			CROSS APPLY (SELECT Num, Suffix FROM #Number )YY
 	)
 
 		INSERT INTO dbo.SettlementSpecialBettypeProfile 
