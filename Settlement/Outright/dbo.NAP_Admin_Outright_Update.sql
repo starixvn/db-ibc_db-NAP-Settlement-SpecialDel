@@ -21,6 +21,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393] 
 		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 		- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
+		- 20250805@Hughie: Apply SOP for Outright [Redmine:#232955]
 
 	Param's Explanation:
 		+ @Action	= CAL | UNDO
@@ -106,15 +107,12 @@ BEGIN
 		WHERE orid = @MatchID
 	END
 
-	--IF @Status <> 'UNDO'
-	--BEGIN
-	--	UPDATE r WITH (UPDLOCK,ROWLOCK)
-	--	SET r.SumWon = (SELECT COUNT(1) 
-	--				  FROM outright o WITH (NOLOCK)
-	--				  WHERE o.orid = @MatchID AND Status = 'WON')
-	--	FROM ResultDetailOutright r
-	--	WHERE r.Orid = @MatchID
-	--END
+	--Update ResultDetailOutright
+	EXEC dbo.NAP_Admin_ResultDetailOutright_Update
+		@Orid = @MatchID
+		,@Status = @Status
+		,@IsDeadheat = @IsDeadheat
+		,@AdminID = @AdminID
 
 	--add log to outright_log to notify for Apollo
 	EXEC DBTXN.bodb02.dbo.[Acc_Set_ConfirmedActionOutright]
