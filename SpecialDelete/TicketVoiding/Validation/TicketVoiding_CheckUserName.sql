@@ -759,7 +759,7 @@ BEGIN
 
 		SELECT @UsernamesOfCreditCashService  = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(t.username AS VARCHAR(50))
 												FROM #tmpTransInfo AS t
-												WHERE t.IsCreditCashService = 1 AND t.IsSiteDBDown = 0
+												WHERE t.IsCreditCashService = 1
 												FOR XML PATH('')), 1, 1, ''), '')
 		
 	END
@@ -785,7 +785,7 @@ BEGIN
 		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
 		SELECT MatchId, transid, IsMixParlay, SiteDBGroupID, CASE WHEN statusID IN (0,1) THEN 1 ELSE 0 END AS isMarked
 		FROM #tmpTransInfo 
-		WHERE IsSiteDBDown = 1 AND IsVoid14 = 0 AND bettype NOT IN (10, 38)
+		WHERE IsSiteDBDown = 1 AND IsVoid14 = 0 AND bettype NOT IN (10, 29)
 
 		;WITH cteUserName AS (
 				SELECT DISTINCT b.custid
@@ -893,7 +893,6 @@ BEGIN
 		,SiteDBGroupID AS 'sitedb'
 		,isMarked AS 'isMarked'
 	FROM @tmpSiteDBDownInfo 
-	WHERE isMarked = 1
 	FOR JSON PATH))
 
 	-- 1. Validate Table
