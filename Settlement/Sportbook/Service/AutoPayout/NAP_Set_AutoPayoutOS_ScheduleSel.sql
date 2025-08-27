@@ -21,6 +21,7 @@ AS
 		- 20250605@Aries: Settlement - The Table Tennis could not auto payout [Redmine:#229681]
 		- 20250625@Aries: Match completed, but the auto payout flow still logs a failure [Redmine:#231523]
 		- 20250709@Max: Auto Payout 2- Support Template with FT only for Golf [Redmine: #231388]
+		- 20250826@Louisa: Enhance code [Redmine: #237088]
 
 */
 BEGIN
@@ -94,7 +95,7 @@ BEGIN
 	SELECT	 @CurrentDateTime	= GETDATE()
 			,@CurrentDate		= CAST(@CurrentDateTime AS DATE)
 	SELECT	 @FromDate			= DATEADD(DAY,-1,@CurrentDate)
-			,@ToDate			= DATEADD(DAY,1,@CurrentDate)
+			,@ToDate			= @CurrentDate
 			,@Result_FromDate   = DATEADD(HOUR,-5,@CurrentDateTime)
 
 	INSERT INTO @tblLeagueID(LeagueId)
@@ -196,6 +197,11 @@ BEGIN
 					 WHEN AP_Check_M_Setting = 1 AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 33 = 0 THEN 0
 					 ELSE 1 END
 		AND lf.leagueid IS NULL
+		AND 1 = CASE  WHEN m.eventstatus = 'running' AND  m.GlobalShowTime <= GETDATE() THEN 1 
+                      WHEN m.eventstatus = 'completed' AND m.sporttype NOT IN (50, 8) AND m.GlobalShowTime >= DATEADD (HH, -12, GETDATE()) THEN 1
+                      WHEN m.eventstatus = 'completed' AND  m.sporttype  IN (50, 8) THEN 1
+					ELSE 0
+					END
 
 	IF EXISTS(SELECT 1 FROM @ResultTableSetting WHERE ExternalResultTable = 1)
 	BEGIN 
