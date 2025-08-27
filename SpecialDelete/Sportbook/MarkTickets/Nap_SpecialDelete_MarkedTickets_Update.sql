@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.Nap_SpecialDelete_MarkedTickets_Update 
 (
 	@TransIds			VARCHAR(MAX)	= NULL,
@@ -364,7 +364,7 @@ BEGIN
 	SELECT DISTINCT CASE WHEN sporttype IN (50,8) AND ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
 		, SportType
 	FROM #Tickets t
-		INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.MatchId
+		LEFT JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.MatchId
 
 	IF EXISTS ( SELECT TOP 1 1 FROM #Match WHERE SportType IN (50,8))
 	BEGIN

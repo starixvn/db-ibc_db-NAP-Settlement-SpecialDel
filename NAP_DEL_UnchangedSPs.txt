@@ -1,1 +1,3 @@
-SpecialDelete\TicketVoiding\Validation\LogInfo\TicketVoiding_LogInfo_Select.sql
+SpecialDelete\Sportbook\MarkTickets\ConfirmAutoUnmark\TicketVoiding_AutoUnmark_Update.sql
+SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Update.sql
+SpecialDelete\TicketVoiding\Service\Void Service\TicketVoiding_Auto_Unmark_ReCalculate.sql

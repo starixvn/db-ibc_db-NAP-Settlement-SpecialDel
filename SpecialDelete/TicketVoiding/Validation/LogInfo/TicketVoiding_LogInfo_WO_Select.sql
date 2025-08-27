@@ -835,6 +835,7 @@ BEGIN
 						   ELSE 0 END
 				AND b.FilterBetteam = @Betteam
 				AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds
+				AND b.IsSiteDBDown = 0
 
 			DELETE @tmp_Odds
 			--Range 1: possitive
@@ -863,6 +864,7 @@ BEGIN
 						   ELSE 0 END
 				AND b.FilterBetteam = @Betteam
 				AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds
+				AND b.IsSiteDBDown = 0
 		END
 		ELSE
 		BEGIN 
@@ -888,6 +890,7 @@ BEGIN
 						   ELSE 0 END
 				AND b.FilterBetteam = @Betteam
 				AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds
+				AND b.IsSiteDBDown = 0
 		END
 	END
 
@@ -1167,7 +1170,7 @@ BEGIN
 			   ,ISNULL(s.IsOtherTicket,0) AS 'IsOtherTicket'
 			   ,CASE WHEN m.IsMixParlay = 1 THEN 'Parlay' ELSE bt.typenamee END AS 'GroupName' --Feature: [#213960]
 		FROM @tmpLogInfoTickets s
-			INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid AND m.IsSiteDBDown = 0
+			INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
 			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = m.Subbettype 
 		WHERE m.matchid = @MatchId
 		FOR JSON PATH))
