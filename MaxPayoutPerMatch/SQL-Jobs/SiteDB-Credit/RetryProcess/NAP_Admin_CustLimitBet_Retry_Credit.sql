@@ -27,21 +27,20 @@ BEGIN
 		, @IsExistsMBC BIT = 0
 		, @IsExists789	BIT = 0
 
-	CREATE TABLE #CustLimitBet_RetryTransId_MBC (TransId BIGINT, TryCount TINYINT)
+	CREATE TABLE #CustLimitBet_RetryTransId_MBC (TransId BIGINT, TryCount TINYINT, site VARCHAR(10))
 	CREATE TABLE #CustLimitBet_RetryTransId_789 (TransId BIGINT, TryCount TINYINT)
 
 	DECLARE @CustLimitBet_RetryTransId_Batch AS TABLE (TransId BIGINT, MatchId INT, CustId INT, IsProcessed BIT DEFAULT (0))
 
 	--Prepare data for MBC
-	INSERT #CustLimitBet_RetryTransId_MBC (TransId, TryCount)
-	SELECT q.TransId, @TryCount
+	INSERT #CustLimitBet_RetryTransId_MBC (TransId, TryCount, site)
+	SELECT q.TransId, @TryCount, c.site
 	FROM dbo.CustLimitBet_QueueRetry q WITH(NOLOCK)
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = q.TransId
 		INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON c.custid = b.custid
 	WHERE q.MainQueueId = @QueueId
 		AND q.sitetype = 1
 		AND q.StatusId = 0
-		AND c.site NOT IN ('Special','BEST-ODDS','Hedging')
 	
 	IF @@ROWCOUNT > 0 
 		SET @IsExistsMBC = 1
@@ -57,13 +56,15 @@ BEGIN
 	IF @@ROWCOUNT > 0 
 		SET @IsExists789 = 1
 
-	--Mark queue cancel with no ticket found
-	IF @IsExistsMBC = 0 AND @IsExists789 = 0
+	--Mark queue ignore alert with ticket of special site
+	IF EXISTS (SELECT TOP 1 1 FROM #CustLimitBet_RetryTransId_MBC WHERE site IN ('Special','BEST-ODDS','Hedging'))
 	BEGIN
 		UPDATE q SET
-			q.StatusId = 3 --cancel
+			q.StatusId = 3
 		FROM dbo.CustLimitBet_QueueRetry q WITH (ROWLOCK, UPDLOCK)
+			INNER JOIN #CustLimitBet_RetryTransId_MBC c ON c.TransId = q.TransId
 		WHERE q.MainQueueId = @QueueId 
+			AND c.site IN ('Special','BEST-ODDS','Hedging')
 	END
 
 	--Start Retry Process
