@@ -9,6 +9,7 @@ AS
 	Revisions:	
 		- 20230801@Aries: Created [Redmine:#189662]
 		- 20250822@Louisa: Enhance code [Redmine:#236851]
+		- 20250826@Louisa: Enhance code [Redmine: #237088]
 
 */
 
@@ -35,27 +36,20 @@ BEGIN
 
 	SELECT	 @CurrentDate	= CAST(GETDATE() AS DATE)
 	SELECT	 @FromDate		= DATEADD(DAY,-1,@CurrentDate)
-			,@ToDate		= DATEADD(DAY,1,@CurrentDate)
+			,@ToDate		= @CurrentDate
 			,@Checktime		= DATEADD(HOUR, 3, GETDATE())
 
     SELECT m.MatchID,m.LeagueID, r.HomeValue, r.AwayValue, r.ResourceId
     FROM dbo.Match m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH (NOLOCK) ON m.LeagueID = l.LeagueID      
 		CROSS APPLY (
-			SELECT	MAX(pr.ProviderExternalID) AS MaxProviderExternalID
-			FROM	dbo.ProviderExternalResultDetail AS pr WITH (NOLOCK)
-			WHERE	pr.MatchID  = m.MatchID 
-					AND pr.SourceID = 98
+				SELECT	pr.ResourceId, pr.HomeValue,pr.AwayValue
+						, ROW_NUMBER() OVER(PARTITION BY ResourceId ORDER BY ProviderExternalID DESC) AS rownum
+				FROM dbo.ProviderExternalResultDetail AS pr WITH (NOLOCK)
+				WHERE pr.SourceID = 98
 					AND pr.ResourceId LIKE 'Q[1-4]'
-            GROUP BY pr.ResourceId
-		) AS mpr
-		CROSS APPLY (
-			SELECT	pr.ResourceId, pr.HomeValue,pr.AwayValue
-			FROM	dbo.ProviderExternalResultDetail AS pr WITH (NOLOCK)
-			WHERE	pr.ProviderExternalId  = mpr.MaxProviderExternalID
-				AND pr.SourceID = 98
-				AND pr.ResourceId LIKE 'Q[1-4]'
-		) AS r
+					AND m.matchid = pr.MatchId
+				) AS r
     WHERE m.SportType = @Sporttype
 	 AND m.EventStatus = 'running' 
 	 AND m.eventdate BETWEEN @FromDate AND @ToDate
@@ -76,6 +70,6 @@ BEGIN
 	 					AND a.AwayValue = r.AwayValue
 	 					AND a.SourceID = 98)
 	AND  1 = IIF(@Sporttype = 2 AND CAST(ISNULL(r.HomeValue, 0) AS INT) + CAST(ISNULL(r.AwayValue, 0) AS INT) < 6,0,1)
-
+	AND r.rownum = 1
 END
 GO
