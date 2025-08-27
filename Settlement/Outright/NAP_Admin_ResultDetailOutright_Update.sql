@@ -70,7 +70,7 @@ SET NOCOUNT ON
 					  FROM outright o WITH (NOLOCK)
 					  WHERE o.leagueid = r.leagueid AND o.status = 'WON' AND o.IsDeadheat = 1 )
 		FROM ResultDetailOutright r
-		WHERE r.Orid = @Orid
+		WHERE r.Orid = @Orid and r.Result = 'WON'
 
 END
 GO
