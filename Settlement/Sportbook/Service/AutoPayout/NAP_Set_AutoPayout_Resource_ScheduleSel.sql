@@ -11,6 +11,7 @@ AS
 		- 20250226@Aries: Support to apply Direct Payout for All Early Result of Soccer (Phase 2) [Redmine:#218482]
 		- 20250402@Hughie: Direct Payout- Soccer- Early PEN- Enhancement [Redmine:#222688]
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+		- 20250826@Louisa: Enhance code [Redmine: #237088]
 
 	Param's Explanation:
  
@@ -25,7 +26,7 @@ BEGIN
 
 	SET @currentdate = CAST(GETDATE() AS DATE)
 	SELECT	@fromdate = DATEADD(DAY,-1,@currentdate)
-			,@todate = DATEADD(DAY,1,@currentdate)
+			,@todate = @currentdate
 			,@checktime = DATEADD(HOUR, 3, GETDATE())
 
 
