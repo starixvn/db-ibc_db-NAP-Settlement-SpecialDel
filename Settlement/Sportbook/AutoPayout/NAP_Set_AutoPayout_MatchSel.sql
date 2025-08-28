@@ -12,7 +12,7 @@ ALTER PROCEDURE dbo.NAP_Set_AutoPayout_MatchSel
 	, @IsOverOnly 			BIT = 0
 	, @AutoSetting 			VARCHAR(10) = ''
 	, @IsMarkedTicket		BIT = 0
-	, @IsInstant			BIT = 0
+	, @IsInstant			BIT = NULL
 AS
 /*  
  Created by: 20160311@Patrick
@@ -71,6 +71,7 @@ AS
 	- 20241205@Louisa: fix issue convert matchcode [Redmine:#214853]
 	- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 	- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
+	- 20250825@Hughie: Support to add filter "NO instant Calculation" in NAP Site [Redmine:#236715]
 
  Param explanation:  
 	@MatchCode: match code
@@ -113,7 +114,7 @@ BEGIN
 			,@IsHTOverOnly = 0
 			,@IsOverOnly   = 0
 			,@AutoSetting = ''
-			,@IsInstant =0
+			,@IsInstant = NULL
 			,@StatusId = 0
 			,@IsMarkedTicket =0
 
@@ -353,6 +354,12 @@ BEGIN
 		DELETE m
 		FROM #matchList m
 		WHERE m.AutoSetting & 2  = 0
+	END
+	ELSE IF (@IsInstant = 0)
+	BEGIN
+		DELETE m
+		FROM #matchList m
+		WHERE m.AutoSetting & 2  = 2
 	END
 		
 	--check auto setting
