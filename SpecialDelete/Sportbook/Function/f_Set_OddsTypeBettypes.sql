@@ -27,6 +27,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20250303@Lani: Add new decimal bettype of Basketball [Redmine:#217848]
 		- 20250507@Lani: [TVS] Adjust function f_Set_OddsTypeBettypes to prevent duplicate bet type error [Redmine: #226451]
+		- 20250828@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 
     Parameters Explanation:    
 		- oddsType
@@ -576,5 +577,27 @@ RETURN (
 	UNION ALL SELECT 8833, 1
 	UNION ALL SELECT 8834, 1
 	UNION ALL SELECT 8835, 1
+
+	--New bet types for Basketball Player Props [Redmine: #234941]
+	UNION ALL SELECT 653, 1
+	UNION ALL SELECT 655, 1
+	UNION ALL SELECT 656, 1
+	UNION ALL SELECT 658, 1
+	UNION ALL SELECT 659, 1
+	UNION ALL SELECT 661, 1
+	UNION ALL SELECT 662, 1
+	UNION ALL SELECT 664, 1
+	UNION ALL SELECT 665, 1
+	UNION ALL SELECT 667, 1
+	UNION ALL SELECT 669, 1
+	UNION ALL SELECT 671, 1
+	UNION ALL SELECT 675, 1
+	UNION ALL SELECT 676, 1
+	UNION ALL SELECT 678, 1
+	UNION ALL SELECT 685, 1
+	UNION ALL SELECT 686, 1
+	UNION ALL SELECT 687, 1
+	UNION ALL SELECT 688, 1
+
 	)
 GO
