@@ -23,7 +23,6 @@ BEGIN
 SET NOCOUNT ON
 
 	DECLARE @LeagueId INT
-			,@WonCount INT
 
 	SELECT @LeagueId = leagueid 
 	FROM outright 
@@ -72,17 +71,11 @@ SET NOCOUNT ON
 			,GETDATE()
 		);
 
-	IF EXISTS (SELECT 1 FROM ResultDetailOutright WHERE leagueid = @LeagueId AND Result = 'WON')
-	BEGIN
-		SELECT @WonCount = COUNT(1) 
-		FROM ResultDetailOutright 
-		WHERE leagueid = @LeagueId AND Result = 'WON'
-    
-		UPDATE r WITH (UPDLOCK,ROWLOCK)
-		SET r.SumWon = @WonCount
-		FROM ResultDetailOutright r
-		WHERE r.leagueid = @LeagueId AND r.Result = 'WON'
-	END
+	UPDATE r WITH (UPDLOCK,ROWLOCK)
+	SET r.SumWon = (SELECT COUNT(1) FROM ResultDetailOutright WHERE leagueid = @LeagueId AND Result = 'WON')
+	FROM ResultDetailOutright r
+	WHERE r.leagueid = @LeagueId AND r.Result = 'WON'
+	AND EXISTS (SELECT 1 FROM ResultDetailOutright WHERE leagueid = @LeagueId AND Result = 'WON')
 
 END
 GO
