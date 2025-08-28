@@ -81,7 +81,7 @@ SET NOCOUNT ON
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
 		SET r.SumWon = @WonCount
 		FROM ResultDetailOutright r
-		WHERE r.leagueid = @LeagueId
+		WHERE r.leagueid = @LeagueId AND r.Result = 'WON'
 	END
 
 END
