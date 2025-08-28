@@ -64,20 +64,6 @@ BEGIN
 		,IsMixParlay	BIT
 	)
 
-	CREATE TABLE #tmpTransInfo(
-	   matchid INT
-	  ,transid BIGINT PRIMARY KEY
-      ,custid	INT	
-	  ,bettype SMALLINT
-      ,betid BIGINT
-	  ,betdaqid BIGINT
-      ,statusID TINYINT
-      ,betfrom NVARCHAR(4)
-	  ,winlostdate SMALLDATETIME
-	  ,IsMixParlay BIT
-	  ,SiteDBGroupID SMALLINT
-	)
-
 	INSERT INTO #transIdTemp (transid)
 	SELECT DISTINCT value
 	FROM STRING_SPLIT(@TransIds, ',')

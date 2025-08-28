@@ -36,8 +36,6 @@ BEGIN
 			,@LogDataContent	 NVARCHAR(MAX)
 			,@OldTransIds 		 VARCHAR(MAX) = NULL
 
-
-
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
 	CREATE TABLE #tmpTransInfo(
@@ -63,7 +61,7 @@ BEGIN
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
 			SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb
-			OPENJSON(t.Decompress_TransInfoJson) 
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
 			WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT)
 		) tbl
 	WHERE f.value <> ''
