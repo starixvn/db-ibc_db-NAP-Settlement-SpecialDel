@@ -68,7 +68,7 @@ SET NOCOUNT ON
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
 		SET r.SumWon = (SELECT COUNT(1) 
 					  FROM outright o WITH (NOLOCK)
-					  WHERE o.leagueid = r.leagueid AND o.status = 'WON' AND o.IsDeadheat = 1 )
+					  WHERE o.leagueid = r.leagueid AND o.status = 'WON' )
 		FROM ResultDetailOutright r
 		WHERE r.Orid = @Orid and r.Result = 'WON'
 

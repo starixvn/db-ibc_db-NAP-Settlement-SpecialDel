@@ -29,7 +29,8 @@ AS
 BEGIN   
 	SET NOCOUNT ON  
 
-	DECLARE @tmpLeague AS TABLE (LeagueID INT  PRIMARY KEY, sporttype TINYINT, isTest BIT)  
+	DECLARE @tmpLeague AS TABLE (LeagueID INT  PRIMARY KEY, sporttype TINYINT, isTest BIT)
+	DECLARE @CURRENTWON INT
 
 	INSERT INTO @tmpLeague(LeagueID,sporttype,isTest)
 	SELECT tl.value , l.sporttype, l.isTest
@@ -70,6 +71,10 @@ BEGIN
 		,	 IIF(o.oddsstatus IN ('Running','Closed','Internal'),1,2)
 		,	 o.kickofftime  
 	
+	SELECT @CURRENTWON = (SELECT COUNT(r.orid) AS COUNTWON FROM ResultDetailOutright AS r WITH (NOLOCK)
+	INNER JOIN @tmpLeague AS tl ON tl.LeagueID = r.leagueid
+			WHERE r.leagueid = tl.LeagueID AND R.Result = 'WON')
+
 	SELECT
     o.leagueid
     ,COUNT(DISTINCT CASE WHEN o.isdeadheat = 1 THEN o.orid END) AS DeadHeatTeam
@@ -77,8 +82,12 @@ BEGIN
         WHEN MAX(CASE WHEN LOWER(o.oddsstatus) = 'running' THEN 1 ELSE 0 END) = 1 THEN 0
         ELSE 1
     END AS IsCompleted
-	FROM dbo.outright AS o
+	,CASE 
+		WHEN @CURRENTWON <> MAX(r.SumWon) THEN 1 ELSE 0
+	END AS Highlight
+	FROM dbo.outright AS o WITH (NOLOCK)
 		INNER JOIN @tmpLeague AS tl ON tl.LeagueID = o.leagueid
+		LEFT JOIN ResultDetailOutright r WITH (NOLOCK) ON o.orid = r.Orid
 	WHERE ((@ToDate IS NULL AND o.eventdate >= @FromDate) 
            OR (@ToDate IS NOT NULL AND o.eventdate BETWEEN @FromDate AND @ToDate))
 	GROUP BY o.leagueid;
