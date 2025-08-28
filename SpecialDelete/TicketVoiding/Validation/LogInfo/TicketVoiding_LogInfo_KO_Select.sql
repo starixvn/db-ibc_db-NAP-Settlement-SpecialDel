@@ -672,7 +672,7 @@ BEGIN
 		       ,@ParlayCountSiteDBDown INT
 
 		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
-		SELECT MatchId, SubTransid, IsMixParlay, SiteDBGroupID, CASE WHEN SubStatusId IN (0,1) THEN 1 ELSE 0 END AS isMarked
+		SELECT MatchId, SubTransid, IsMixParlay, SiteDBGroupID, CASE WHEN SubStatusId IN (0,1) AND Subbettype NOT IN (38) THEN 1 ELSE 0 END AS isMarked
 		FROM #TVSTicketBets
 		WHERE IsSiteDBDown = 1;
 
