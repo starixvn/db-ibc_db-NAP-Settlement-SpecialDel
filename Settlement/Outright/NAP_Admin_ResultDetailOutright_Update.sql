@@ -22,6 +22,13 @@ BEGIN
 
 SET NOCOUNT ON
 
+	DECLARE @LeagueId INT
+			,@WonCount INT
+
+	SELECT @LeagueId = leagueid 
+	FROM outright 
+	WHERE orid = @Orid
+
 	MERGE dbo.ResultDetailOutright TARGET
 	USING (
 			SELECT	o.leagueid
@@ -65,12 +72,17 @@ SET NOCOUNT ON
 			,GETDATE()
 		);
 
+	IF EXISTS (SELECT 1 FROM ResultDetailOutright WHERE leagueid = @LeagueId AND Result = 'WON')
+	BEGIN
+		SELECT @WonCount = COUNT(1) 
+		FROM ResultDetailOutright 
+		WHERE leagueid = @LeagueId AND Result = 'WON'
+    
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
-		SET r.SumWon = (SELECT COUNT(1) 
-					  FROM outright o WITH (NOLOCK)
-					  WHERE o.leagueid = r.leagueid AND o.status = 'WON' )
+		SET r.SumWon = @WonCount
 		FROM ResultDetailOutright r
-		WHERE r.Orid = @Orid and r.Result = 'WON'
+		WHERE r.leagueid = @LeagueId
+	END
 
 END
 GO
