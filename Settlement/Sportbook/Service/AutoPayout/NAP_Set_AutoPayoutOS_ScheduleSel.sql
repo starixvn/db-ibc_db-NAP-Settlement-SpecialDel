@@ -95,7 +95,7 @@ BEGIN
 	SELECT	 @CurrentDateTime	= GETDATE()
 			,@CurrentDate		= CAST(@CurrentDateTime AS DATE)
 	SELECT	 @FromDate			= DATEADD(DAY,-1,@CurrentDate)
-			,@ToDate			= @CurrentDate
+			,@ToDate			= DATEADD(DAY,1,@CurrentDate)
 			,@Result_FromDate   = DATEADD(HOUR,-5,@CurrentDateTime)
 
 	INSERT INTO @tblLeagueID(LeagueId)
