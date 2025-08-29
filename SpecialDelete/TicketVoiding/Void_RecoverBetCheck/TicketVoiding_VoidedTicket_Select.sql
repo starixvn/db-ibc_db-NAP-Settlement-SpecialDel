@@ -159,9 +159,9 @@ BEGIN
 	FROM	@tmpVoidingHistory vh 
 		INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON z.VoidingHistoryId = vh.VoidingHistoryId
 	WHERE (z.MatchId = @MatchId OR @MatchId = 0)
-		AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND z.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN z.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					 ELSE 0 END
+			AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1
+						 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
+						 ELSE 0 END
 		
 	-- parlay ticket
 	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay, oddsid, winlostdate, IsCancelCashOut, SiteDBGroupID)
@@ -179,9 +179,9 @@ BEGIN
 	FROM	@tmpVoidingHistory vh
 		INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK) ON zm.VoidingHistoryId = vh.VoidingHistoryId 
 	WHERE (zm.MatchId = @MatchId OR @MatchId = 0)
-		AND 1 = CASE WHEN zm.SiteDBGroupID = @SiteDBGroupID AND zm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN zm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					 ELSE 0 END
+			AND 1 = CASE WHEN zm.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = zm.SiteDBGroupID) THEN 1
+						 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = zm.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
+						 ELSE 0 END
 
 	--Child match cricket
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH (NOLOCK) WHERE m.ParentID = @MatchId AND m.sporttype IN (50,8))
@@ -233,8 +233,8 @@ BEGIN
 				FROM dbo.zzzbettrans z WITH(NOLOCK)
 					INNER JOIN @tmpVoidingHistory vh ON vh.VoidingHistoryId = z.VoidingHistoryId
 				WHERE (z.MatchId = cm.ChildMatchId OR @MatchId = 0)
-					AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND z.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-							     WHEN z.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1
+								 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 								 ELSE 0 END
 			) z
 		
@@ -266,8 +266,8 @@ BEGIN
 				FROM dbo.zzzbettransm zm WITH(NOLOCK)
 					INNER JOIN @tmpVoidingHistory vh ON vh.VoidingHistoryId = zm.VoidingHistoryId
 				WHERE (zm.MatchId = cm.ChildMatchId OR @MatchId = 0)
-					AND 1 = CASE WHEN zm.SiteDBGroupID = @SiteDBGroupID AND zm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-							     WHEN zm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					AND 1 = CASE WHEN zm.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = zm.SiteDBGroupID) THEN 1
+								 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = zm.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 								 ELSE 0 END
 			) zm
 	END
@@ -969,8 +969,8 @@ BEGIN
 				WHEN s.GroupName = 'Deposit (CO)' THEN 7
 				WHEN s.GroupName = 'Credit (Cancel CO)' THEN 8
 				WHEN s.GroupName = 'Deposit (Cancel CO)' THEN 9
-			 END
-		   , ISNULL(s.MainTransId, s.transid)
+			 END ASC 
+		   , ISNULL(s.MainTransId, s.transid) ASC
 		   , CASE 
 				WHEN s.BonusID IS NOT NULL
 						THEN CASE 
@@ -978,7 +978,7 @@ BEGIN
 								ELSE 2 
 							 END
 				ELSE s.transid
-			 END
+			 END ASC
 
 	DROP TABLE #tmpTicket
 	DROP TABLE #TmpMatch

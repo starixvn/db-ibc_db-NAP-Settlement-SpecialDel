@@ -135,8 +135,8 @@ BEGIN
 					,z.SiteDBGroupID
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
-				AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND z.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-							 WHEN z.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+				AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1
+							 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 							 ELSE 0 END
 		) z
 		
@@ -233,20 +233,6 @@ BEGIN
 		FROM #tmpTicket t
 		WHERE t.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
-
-	-- Update maintransid for bonus ticket
-	IF EXISTS (SELECT * FROM #tmpTicket WHERE WalletType = 1)
-	BEGIN
-		UPDATE sub 
-			SET maintransid = main.transid
-		FROM	#tmpTicket sub  
-			INNER JOIN #tmpTicket main 
-				ON 	main.refcode = sub.refcode
-					AND main.transid <> sub.transid
-					AND main.custid = sub.custid
-					AND main.bettype = sub.bettype
-		WHERE	main.wallettype = 1
-	END	
 
 	-- update Isdeposit
 	UPDATE al SET IsDeposit = 1
@@ -365,7 +351,7 @@ BEGIN
 			   ,s.modds
 		       ,s.IsDeposit
 		FROM	#tmpTicket s 
-			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON	s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
+			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON	s.betid = b.transid AND b.SiteDBGroupID = s.SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
 		--3. For Deposit
@@ -539,8 +525,8 @@ BEGIN
 				WHEN s.GroupName = '8RM/BARM' THEN 3
 				WHEN s.GroupName = 'Deposit' THEN 4
 				WHEN s.GroupName = 'Betfair' THEN 5
-			 END
-		   , ISNULL(s.MainTransId, s.transid)
+			 END ASC 
+		   , ISNULL(s.MainTransId, s.transid) ASC
 		   , CASE 
 				WHEN s.BonusID IS NOT NULL
 						THEN CASE 
@@ -548,7 +534,7 @@ BEGIN
 								ELSE 2 
 							 END
 				ELSE s.transid
-			 END
+			 END ASC
 
 	DROP TABLE #tmpTicket
 END
