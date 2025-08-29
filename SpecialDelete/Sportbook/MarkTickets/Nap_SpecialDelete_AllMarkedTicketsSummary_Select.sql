@@ -48,16 +48,17 @@ BEGIN
             Total       INT,
 			ChildMatchId INT
      );
-	CREATE TABLE #tmp_TransId (transid BIGINT, matchid INT, userid INT, createddate DATETIME, refno BIGINT,statusID TINYINT)
+	CREATE TABLE #tmp_TransId (transid BIGINT, matchid INT, userid INT, createddate DATETIME, refno BIGINT,statusID TINYINT, SiteDBGroupID SMALLINT)
 
 	 -- get all tickets 
-	INSERT INTO #tmp_TransId (transid, matchid, userid, createddate, refno, statusID)
+	INSERT INTO #tmp_TransId (transid, matchid, userid, createddate, refno, statusID, SiteDBGroupID)
 	SELECT mt.TransId
 		,mt.MatchId
 		,mt.UserId
 		,mt.CreatedDate
-		,CASE WHEN b.matchid = 29 THEN b.refno ELSE NULL end as refno
+		,CASE WHEN b.matchid = 29 THEN b.refno ELSE NULL END AS refno
 		,b.statusID
+		,b.SiteDBGroupID
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON mt.TransId = b.transid
 	WHERE ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
@@ -68,13 +69,14 @@ BEGIN
 					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = b.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END
 	OPTION (MAXDOP 1)
-     
+	
     ;WITH CTE_FilterByTicketStatus
 	AS(
 		SELECT t.TransId
 			,t.MatchId
 			,t.UserId
 			,t.CreatedDate
+			,t.SiteDBGroupID
 		FROM #tmp_TransId AS t
 		WHERE t.refno IS NULL
 
@@ -84,12 +86,12 @@ BEGIN
 			,f.MatchId
 			,f.UserId
 			,f.CreatedDate
+			,f.SiteDBGroupID
 		FROM #tmp_TransId AS f
-			INNER JOIN bettransm AS bm WITH (NOLOCK, INDEX = IX_refno) ON f.MatchId = bm.matchid AND f.refno = bm.refno
-		WHERE bm.statusID IN (0, 1)		
-			AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1
-					 	 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
-					     ELSE 0 END									
+			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK, INDEX = IX_refno) ON f.refno = bm.refno
+		WHERE bm.statusID IN (0, 1)	
+			AND f.MatchId = bm.matchid
+			AND f.SiteDBGroupID = bm.SiteDBGroupID
 	)
 	INSERT INTO #Tickets
             (MatchId,
