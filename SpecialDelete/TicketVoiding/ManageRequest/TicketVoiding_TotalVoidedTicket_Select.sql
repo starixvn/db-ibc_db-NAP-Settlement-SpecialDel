@@ -36,6 +36,7 @@ AS;
 */
 BEGIN
 	SET NOCOUNT ON
+	
 	DECLARE  @SiteDBGroupID SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -93,19 +94,19 @@ BEGIN
 	;WITH CTE_Single AS(
 			SELECT	vh.RequestId, vh.MatchId, vh.RequestDetailId
 					,SUM( CASE 
-							WHEN vh.IssueTypeId NOT IN (1,10,3,12,24,25,18) AND f.bettype IS NULL THEN 1
-							WHEN vh.IssueTypeId IN (1,10,3,12,24,25,18) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+							WHEN vh.IssueTypeId NOT IN (1,10,3,12,24) AND f.bettype IS NULL THEN 1
+							WHEN vh.IssueTypeId IN (1,10,3,12,24) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 						ELSE 0 END
 					) AS TotalSingleProcessed
 					,SUM(CASE WHEN f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalParlayProcessed
-					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,12,24) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed -- Apply for DA,RC,WC
+					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,12,24) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed -- Apply for DA,RC,WC, Wrong Market Offered,Technical Error 
 			FROM #tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId AND z.VoidingHistoryId IS NOT NULL
 				LEFT JOIN f_TVS_SpeciallyBettypes() f ON f.TypeId IN (0,1) AND f.Bettype = z.bettype
 			WHERE vh.IssueTypeId NOT IN (22) --Recover Ticket
-				AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND z.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-							 WHEN z.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+				AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1
+							 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 							 ELSE 0 END
 			GROUP BY vh.RequestId, vh.MatchId, vh.RequestDetailId
 	)
@@ -125,8 +126,8 @@ BEGIN
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId AND zm.VoidingHistoryId IS NOT NULL
 			WHERE vh.IssueTypeId NOT IN (11,13,17,22) --Except AB,AC,ARC,RT
-				AND 1 = CASE WHEN zm.SiteDBGroupID = @SiteDBGroupID AND zm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-							 WHEN zm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+				AND 1 = CASE WHEN zm.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = zm.SiteDBGroupID) THEN 1
+							 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = zm.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 							 ELSE 0 END
 			GROUP BY vh.RequestId, vh.MatchId, vh.RequestDetailId
 	)
@@ -138,32 +139,30 @@ BEGIN
 									
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchVoidingHistory WHERE IssueTypeId = 22)
 	BEGIN
-		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT, MainTransId BIGINT)
+		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT, MainTransId BIGINT, SiteDBGroupID SMALLINT)
 
-		INSERT INTO @tmp_TransId(RequestId, TransId, MatchId, IsProcessed, MainTransId)
-		SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed, NULL
+		INSERT INTO @tmp_TransId(RequestId, TransId, MatchId, IsProcessed, MainTransId, SiteDBGroupID)
+		SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed, NULL, s.SiteDBGroupID 
 		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN #tmpResult t ON t.RequestId = s.Requestid
 		WHERE s.IsProcessed IS NOT NULL AND s.IssueTypeId = 22
-			AND 1 = CASE WHEN s.SiteDBGroupID = @SiteDBGroupID AND s.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-						 WHEN s.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+			AND 1 = CASE WHEN s.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = s.SiteDBGroupID) THEN 1
+						 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = s.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 						 ELSE 0 END
 		UNION 
-		SELECT t.RequestId, sp.TransId, sp.MatchId, sp.IsProcessed, MainTransId
+		SELECT t.RequestId, sp.TransId, sp.MatchId, sp.IsProcessed, MainTransId, sp.SiteDBGroupID
 		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay sp WITH (NOLOCK)
 			INNER JOIN #tmpResult t ON t.RequestId =  sp.RequestId
 		WHERE sp.IsProcessed IS NOT NULL
 			AND sp.IssueTypeId IN (22)
-			AND 1 = CASE WHEN sp.SiteDBGroupID = @SiteDBGroupID AND sp.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-						 WHEN sp.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+			AND 1 = CASE WHEN sp.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sp.SiteDBGroupID) THEN 1
+						 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sp.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 						 ELSE 0 END
 
 		DELETE t
 		FROM @tmp_TransId t
 			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON t.TransId = z.transid AND z.comstatus <> 'CO'
-		WHERE 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND z.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					   WHEN z.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					   ELSE 0 END
+		WHERE t.SiteDBGroupID = z.SiteDBGroupID
 
 		UPDATE t 
 		SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)

@@ -30,12 +30,10 @@ BEGIN
 		,matchid		INT
 		,custid			INT
 		,Srecommend		INT
-		,MainTransId 	BIGINT
 		,IsCashOut		BIT DEFAULT(0)
 		,IsDeposit      BIT DEFAULT(0) --1: Deposit/ 0: Credit
 		,SiteDBGroupID	SMALLINT
 		,IsCancelCashOut BIT DEFAULT(0)
-		,LeagueGroupID  SMALLINT
 		,site			NVARCHAR(100)
 		,IsChinaView	BIT DEFAULT(0)
 	)
@@ -54,8 +52,8 @@ BEGIN
 	END
 
 	INSERT INTO @tmp_VoidingHistory (VoidingHistoryId)
-	SELECT value
-	FROM string_split(@VoidingHistoryIds, ',')
+	SELECT value AS VoidingHistoryId
+	FROM STRING_SPLIT(@VoidingHistoryIds, ',')
 	WHERE value <> ''
 
 	-- single ticket
@@ -66,10 +64,10 @@ BEGIN
 			,z.SiteDBGroupID
 			,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCancelCashOut
 	FROM	dbo.zzzbettrans z WITH(NOLOCK)
-	WHERE	z.VoidingHistoryId IN (SELECT VoidingHistoryId FROM @tmp_VoidingHistory)
-		AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND z.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN z.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					 ELSE 0 END
+	WHERE	EXISTS(SELECT 1 FROM @tmp_VoidingHistory WHERE VoidingHistoryId = z.VoidingHistoryId) 
+			AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1
+						 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
+						 ELSE 0 END
 
 	-- parlay ticket
 	INSERT INTO #tmpTicket (subTransId, matchid, custid, SiteDBGroupID)
@@ -78,21 +76,17 @@ BEGIN
 			,zm.custid
 			,zm.SiteDBGroupID
 	FROM	dbo.zzzbettransm zm WITH(NOLOCK)
-	WHERE	zm.VoidingHistoryId IN (SELECT VoidingHistoryId FROM @tmp_VoidingHistory)
-		AND 1 = CASE WHEN zm.SiteDBGroupID = @SiteDBGroupID AND zm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN zm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					 ELSE 0 END
+	WHERE	EXISTS(SELECT 1 FROM @tmp_VoidingHistory WHERE VoidingHistoryId = zm.VoidingHistoryId) 
+			AND 1 = CASE WHEN zm.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = zm.SiteDBGroupID) THEN 1
+						 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = zm.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
+						 ELSE 0 END
 
 	UPDATE t 
 		SET srecommend = b.srecommend
 			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
-			,site = c.site
-			,IsChinaView = ISNULL(s.IsChinaView, 0)
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid AND t.SiteDBGroupID = b.SiteDBGroupID
-		INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON c.custid = b.srecommend
-		INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON c.site = s.site
 			
 	--For void14 abnormal account only (only single + main parlay)
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket t
@@ -101,26 +95,25 @@ BEGIN
 		UPDATE t 
 			SET srecommend = b.srecommend
 				,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
-				,site = c.site
-				,IsChinaView = ISNULL(s.IsChinaView, 0)
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON t.TransId = b.transid AND t.SiteDBGroupID = b.SiteDBGroupID
-			INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON c.custid = b.srecommend
-			INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON c.site = s.site
 	END
 
 	UPDATE	t
 		SET transid = b.transid
 			,srecommend = b.srecommend
-			,site = c.site
-			,IsChinaView = ISNULL(s.IsChinaView, 0)
 	FROM	#tmpTicket t
 		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON t.subTransId = bm.transid AND t.SiteDBGroupID = bm.SiteDBGroupID
 		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND t.SiteDBGroupID = b.SiteDBGroupID
-		INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON c.custid = b.srecommend
+	WHERE EXISTS(SELECT 1 FROM f_TVS_SpeciallyBettypes() f WHERE f.TypeId IN (0,1) AND bettype = b.matchid)
+
+	UPDATE	t
+		SET site = c.site
+			,IsChinaView = ISNULL(s.IsChinaView, 0)
+	FROM	#tmpTicket t
+		INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON c.custid = t.srecommend
 		INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON c.site = s.site
-	WHERE b.matchid IN (9,29,2799,10449,11099)
 
 	-- update Isdeposit
 	UPDATE al SET IsDeposit = 1
