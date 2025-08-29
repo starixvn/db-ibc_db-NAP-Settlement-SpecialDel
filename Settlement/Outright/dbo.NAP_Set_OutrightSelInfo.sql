@@ -81,10 +81,6 @@ BEGIN
 	SELECT
     o.leagueid
     ,COUNT(DISTINCT CASE WHEN o.isdeadheat = 1 THEN o.orid END) AS DeadHeatTeam
-    ,CASE 
-        WHEN MAX(CASE WHEN LOWER(o.oddsstatus) = 'running' THEN 1 ELSE 0 END) = 1 THEN 0
-        ELSE 1
-    END AS IsCompleted
 	,CASE 
     	WHEN ISNULL(lwc.WonCount, 0) <> ISNULL(MAX(r.SumWon), 0) THEN 1 
 		ELSE 0
