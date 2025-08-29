@@ -15,6 +15,7 @@ AS
 		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
+		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -110,7 +111,10 @@ BEGIN
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
 				ON	bt.transid = mt.TransId
 		WHERE bt.matchid = @matchid
-    		AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
+    		AND (sp.Betid = 0 
+					OR (sp.BetID = bt.BetID AND bt.bettype NOT IN (675,676,678 )) 
+					OR (bt.bettype IN (675,676,678 ) AND sp.BetID = bt.BetID*100 + CAST(bt.betteam AS INT)) 
+				)
 			AND bt.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupId END
 			AND bt.statusID NOT IN (101, 102) --void/reject
 			AND sp.sporttype = @SportType
@@ -224,7 +228,10 @@ BEGIN
 				AND b.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupId END
 				AND bm.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupId END
 	    		AND bm.statusId NOT IN (101, 102)
-	    		AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)
+	    		AND (sp.Betid = 0
+						OR (sp.BetID = bm.Betcheck AND bm.bettype NOT IN (675,676,678 )) 
+						OR (bm.bettype IN (675,676,678 ) AND sp.BetID = bm.Betcheck*100 + CAST(bm.betteam AS INT)) 
+					)
 				AND sp.sporttype = @sporttype
 				AND sp.Settletype = @Settletype
 		GROUP BY CASE WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId

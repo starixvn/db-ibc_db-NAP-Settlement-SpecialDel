@@ -26,11 +26,11 @@ CREATE TABLE #tmpBettype ( pfID SMALLINT, BetType SMALLINT, BetID BIGINT, Resour
 
 ---------------------------------------------	
 INSERT INTO  #Number  ( Num, Suffix)
-SELECT p.number ,RIGHT('0' + CAST(number AS VARCHAR(3) ), 3) 
+SELECT p.number ,RIGHT('0' + CAST(number AS VARCHAR(2) ), 2) 
 FROM master.dbo.spt_values p 
 WHERE p.type  = 'p' and p.number BETWEEN 1 AND 99
 ORDER BY p.number	
---select * from #Number
+ ---select * from #Number
 
  
 /*

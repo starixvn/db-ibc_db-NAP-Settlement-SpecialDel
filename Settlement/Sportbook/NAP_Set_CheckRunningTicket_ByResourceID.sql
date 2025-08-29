@@ -12,6 +12,7 @@ AS
     
     Revisions:
         - 20240605@Louisa: Checking running ticket [Redmine:#204909]   
+		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -46,7 +47,11 @@ BEGIN
 											FROM dbo.bettrans b WITH(NOLOCK)
 												INNER JOIN @tmp_Bettype tmp 
 													ON b.bettype  = tmp.bettype
-														AND ( tmp.BetID = 0 OR b.betid = tmp.BetID )
+														AND ( tmp.BetID = 0 
+																OR (tmp.BetID = b.BetID AND b.bettype NOT IN (675,676,678 )) 
+																OR (b.bettype IN (675,676,678 ) AND tmp.BetID = b.BetID*100 + CAST(b.betteam AS INT)) 
+															)
+
 											WHERE b.matchid = @MatchID
 											),0)
 	IF @IsExistsTicket = 0
@@ -55,7 +60,10 @@ BEGIN
 											FROM dbo.bettransm b WITH(NOLOCK)
 												INNER JOIN @tmp_Bettype tmp 
 													ON b.bettype  = tmp.bettype
-														AND ( tmp.BetID = 0 OR b.betcheck = tmp.BetID )
+														AND ( tmp.BetID = 0
+																OR (tmp.BetID = b.betcheck AND b.bettype NOT IN (675,676,678 )) 
+																OR (b.bettype IN (675,676,678 ) AND tmp.BetID = b.betcheck*100 + CAST(b.betteam AS INT)) 
+															)
 											WHERE b.matchid = @MatchID
 											),0)
 	END
