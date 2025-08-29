@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_BriefInfo_Select] 
 (
 	@VoidingHistoryIds VARCHAR(MAX) = ''
+   ,@OnlineServerId	   VARCHAR(10) = NULL
 )
 AS
 /*	
@@ -11,6 +12,7 @@ AS
 	
 	Revisions:	
 		- 20240814@Max: Create SP [Redmine: #208623]
+		- 20250828@July: [TVS] ScaleOut DBTrans [Phase 7] Manage Request page [Redmine: #236438]
 
 	Param's Explanation:
 
@@ -41,6 +43,15 @@ BEGIN
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
 
 	DECLARE @tmp_VoidingHistory AS TABLE (VoidingHistoryId INT)
+	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmpOnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	INSERT INTO @tmp_VoidingHistory (VoidingHistoryId)
 	SELECT value
@@ -56,7 +67,9 @@ BEGIN
 			,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCancelCashOut
 	FROM	dbo.zzzbettrans z WITH(NOLOCK)
 	WHERE	z.VoidingHistoryId IN (SELECT VoidingHistoryId FROM @tmp_VoidingHistory)
-		AND z.SiteDBGroupID = @SiteDBGroupID
+		AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND z.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					 WHEN z.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END
 
 	-- parlay ticket
 	INSERT INTO #tmpTicket (subTransId, matchid, custid, SiteDBGroupID)
@@ -66,7 +79,9 @@ BEGIN
 			,zm.SiteDBGroupID
 	FROM	dbo.zzzbettransm zm WITH(NOLOCK)
 	WHERE	zm.VoidingHistoryId IN (SELECT VoidingHistoryId FROM @tmp_VoidingHistory)
-		AND zm.SiteDBGroupID = @SiteDBGroupID
+		AND 1 = CASE WHEN zm.SiteDBGroupID = @SiteDBGroupID AND zm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+					 WHEN zm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END
 
 	UPDATE t 
 		SET srecommend = b.srecommend
