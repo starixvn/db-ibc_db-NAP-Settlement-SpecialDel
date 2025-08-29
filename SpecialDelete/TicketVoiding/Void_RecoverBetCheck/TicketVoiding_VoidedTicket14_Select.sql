@@ -105,7 +105,7 @@ BEGIN
 	WHERE value <> ''
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, VoidingHistoryId, oddsid, winlostdate, SiteDBGroupID)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, VoidingHistoryId, oddsid, winlostdate, SiteDBGroupID, IsMixParlay)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -119,6 +119,7 @@ BEGIN
 			,z.oddsid
 			,z.winlostdate
 			,z.SiteDBGroupID
+			,z.IsMixParlay
 	FROM	@tmpVoidingHistory vh 
 		CROSS APPLY (
 			SELECT	z.transid
@@ -133,6 +134,7 @@ BEGIN
 					,z.oddsid
 					,z.winlostdate
 					,z.SiteDBGroupID
+					,CASE WHEN EXISTS (SELECT 1 FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1) AND bettype = z.bettype) THEN 1 ELSE 0 END IsMixParlay
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
 				AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1
@@ -176,7 +178,7 @@ BEGIN
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid AND b.SiteDBGroupID = t.SiteDBGroupID
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE IsMixParlay = 0 AND bettype NOT IN (10)))
 	BEGIN
 		UPDATE t
 		SET  matchcode 	= m.matchcode
@@ -189,8 +191,9 @@ BEGIN
 		FROM #tmpTicket t
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
 			ON	t.matchid = m.matchid
-		WHERE t.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+		WHERE t.IsMixParlay = 0 AND bettype NOT IN (10)
 	END
+	
 	-- UPDATE eventtype = 2 [Outright bettype]
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (10)))
 	BEGIN
@@ -224,14 +227,6 @@ BEGIN
 			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
 		WHERE t.bettype IN (1231,1232,1233,1237,1238)
-	END
-	-- UPDATE IsMixParlay
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
-	BEGIN
-		UPDATE t
-		SET IsMixParlay = 1
-		FROM #tmpTicket t
-		WHERE t.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 
 	-- update Isdeposit

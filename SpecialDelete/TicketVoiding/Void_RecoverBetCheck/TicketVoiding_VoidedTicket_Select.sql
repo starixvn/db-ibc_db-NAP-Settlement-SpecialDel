@@ -1,9 +1,9 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket_Select]
 ( 
-	@VoidingHistoryIds VARCHAR(MAX) =''
-	,@MatchId   INT = 0
-    ,@OnlineServerId	   VARCHAR(10) = NULL
+	@VoidingHistoryIds 		VARCHAR(MAX) =''
+	,@MatchId   			INT = 0
+    ,@OnlineServerId	    VARCHAR(10) = NULL
 )
 AS;
 /*	Created by: 20181212@Kathy
@@ -46,6 +46,7 @@ AS;
 */
 BEGIN
 	SET NOCOUNT ON
+	
 	DECLARE  @SiteDBGroupID SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -142,7 +143,7 @@ BEGIN
 	WHERE value <> ''
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, oddsid, winlostdate, IsCancelCashOut, SiteDBGroupID)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, oddsid, winlostdate, IsCancelCashOut, SiteDBGroupID, IsMixParlay)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -156,6 +157,7 @@ BEGIN
 			,z.winlostdate
 			,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCancelCashOut
 			,z.SiteDBGroupID
+			,CASE WHEN EXISTS (SELECT 1 FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1) AND bettype = z.bettype) THEN 1 ELSE 0 END IsMixParlay
 	FROM	@tmpVoidingHistory vh 
 		INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON z.VoidingHistoryId = vh.VoidingHistoryId
 	WHERE (z.MatchId = @MatchId OR @MatchId = 0)
@@ -201,7 +203,7 @@ BEGIN
 	END
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpChildMatchCricket)
 	BEGIN
-		INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, oddsid, winlostdate, IsCancelCashOut, SiteDBGroupID)
+		INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, oddsid, winlostdate, IsCancelCashOut, SiteDBGroupID, IsMixParlay)
 		SELECT	z.transid			
 				,z.matchid
 				,z.status
@@ -215,6 +217,7 @@ BEGIN
 				,z.winlostdate
 				,z.IsCancelCashOut
 				,z.SiteDBGroupID
+				,z.IsMixParlay
 		FROM	@tmpChildMatchCricket cm 
 			CROSS APPLY (
 				SELECT	z.transid
@@ -230,6 +233,7 @@ BEGIN
 						,z.winlostdate
 						,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCancelCashOut
 						,z.SiteDBGroupID
+						,CASE WHEN EXISTS (SELECT 1 FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1) AND bettype = z.bettype) THEN 1 ELSE 0 END IsMixParlay
 				FROM dbo.zzzbettrans z WITH(NOLOCK)
 					INNER JOIN @tmpVoidingHistory vh ON vh.VoidingHistoryId = z.VoidingHistoryId
 				WHERE (z.MatchId = cm.ChildMatchId OR @MatchId = 0)
@@ -509,7 +513,7 @@ BEGIN
 	END
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE IsMixParlay = 0 AND bettype NOT IN (10)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -524,7 +528,7 @@ BEGIN
 		FROM #tmpTicket d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+		WHERE d.IsMixParlay = 0 AND bettype NOT IN (10)
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -581,15 +585,6 @@ BEGIN
 			ON d.matchid = m.Match3rdId
 	END
 	
-	-- UPDATE IsMixParlay
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
-	BEGIN
-		UPDATE t
-			SET IsMixParlay = 1
-		FROM #tmpTicket t
-		WHERE t.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-	END
-
 	-- Update IsMarked
 	UPDATE t
 	SET t.IsMarked = CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END 
