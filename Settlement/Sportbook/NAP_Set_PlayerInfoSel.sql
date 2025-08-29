@@ -37,7 +37,10 @@ BEGIN
 			INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCk)
 					ON o.bettype = s.BetType
 		WHERE	s.SportType = 2
-				AND (s.betid = 0 OR s.ResourceID LIKE '%' + CAST(o.Resourceid AS VARCHAR))
+				AND (s.betid = 0 
+						OR ( s.bettype NOT IN (675,676,678 ) AND s.ResourceID LIKE '%' + CAST(o.Resourceid AS VARCHAR)) 
+						OR ( s.bettype IN (675,676,678 ) AND s.ResourceID LIKE '%' + RIGHT(s.betid,2)  + CAST(o.Resourceid AS VARCHAR))
+					)
 				AND	o.matchid = @matchId
 				AND ISNULL(o.IsDeleted,0) = 0
 				AND ISNULL(f.IsDeleted,0) = 0
