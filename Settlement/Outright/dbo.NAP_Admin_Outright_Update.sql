@@ -122,6 +122,8 @@ BEGIN
 		SET Result = NULL
 			,ResultStatusID = 0 -- Initial
 			,SettlementStatusID = 0 -- Initial
+			,IsDeadheat = 0
+			,SumWon = NULL
 			,ModifiedDate = GETDATE()
 			,ModifiedBy = @AdminID
 		WHERE Orid = @MatchID
