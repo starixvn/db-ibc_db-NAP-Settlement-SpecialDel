@@ -69,30 +69,13 @@ BEGIN
 					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = b.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END
 	OPTION (MAXDOP 1)
-	
-    ;WITH CTE_FilterByTicketStatus
-	AS(
-		SELECT t.TransId
-			,t.MatchId
-			,t.UserId
-			,t.CreatedDate
-			,t.SiteDBGroupID
-		FROM #tmp_TransId AS t
-		WHERE t.refno IS NULL
 
-		UNION ALL
-			
-		SELECT f.TransId
-			,f.MatchId
-			,f.UserId
-			,f.CreatedDate
-			,f.SiteDBGroupID
-		FROM #tmp_TransId AS f
-			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK, INDEX = IX_refno) ON f.refno = bm.refno
-		WHERE bm.statusID IN (0, 1)	
-			AND f.MatchId = bm.matchid
-			AND f.SiteDBGroupID = bm.SiteDBGroupID
-	)
+	--Remove invalid tickets
+	DELETE m
+	FROM #tmp_TransId AS m
+		LEFT JOIN dbo.bettransm AS bm WITH (NOLOCK, INDEX = IX_refno) ON m.refno = bm.refno AND m.matchid = bm.matchid
+	WHERE m.refno IS NOT NULL AND (bm.matchid IS NULL OR bm.statusID NOT IN (0,1))
+	
 	INSERT INTO #Tickets
             (MatchId,
              UserId,
@@ -103,7 +86,7 @@ BEGIN
            m.UserId,
            m.CreatedDate,
            COUNT(m.TransId)
-    FROM CTE_FilterByTicketStatus m        
+    FROM #tmp_TransId m        
     GROUP BY m.MatchId,
              m.UserId,
              m.CreatedDate
