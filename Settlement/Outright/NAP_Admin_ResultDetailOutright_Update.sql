@@ -76,14 +76,14 @@ SET NOCOUNT ON
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
 		SET r.SumWon = (SELECT COUNT(1) FROM ResultDetailOutright WHERE leagueid = @LeagueId AND Result = 'WON')
 		FROM ResultDetailOutright r
-		WHERE r.leagueid = @LeagueId AND r.Result = 'WON'
+		WHERE r.leagueid = @LeagueId AND r.Orid = @Orid AND r.Result = 'WON'
 	END
 	ELSE
 	BEGIN
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
 		SET r.SumWon = 0
 		FROM ResultDetailOutright r
-		WHERE r.leagueid = @LeagueId AND r.Result <> 'WON'
+		WHERE r.leagueid = @LeagueId AND r.Orid = @Orid AND r.Result <> 'WON'
 	END
 
 END
