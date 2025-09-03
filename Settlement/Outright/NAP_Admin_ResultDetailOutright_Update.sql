@@ -71,11 +71,20 @@ SET NOCOUNT ON
 			,GETDATE()
 		);
 
-	UPDATE r WITH (UPDLOCK,ROWLOCK)
-	SET r.SumWon = (SELECT COUNT(1) FROM ResultDetailOutright WHERE leagueid = @LeagueId AND Result = 'WON')
-	FROM ResultDetailOutright r
-	WHERE r.leagueid = @LeagueId AND r.Result = 'WON'
-	AND EXISTS (SELECT 1 FROM ResultDetailOutright WHERE leagueid = @LeagueId AND Result = 'WON')
+	IF EXISTS (SELECT 1 FROM ResultDetailOutright WHERE leagueid = @LeagueId AND Result = 'WON')
+	BEGIN
+		UPDATE r WITH (UPDLOCK,ROWLOCK)
+		SET r.SumWon = (SELECT COUNT(1) FROM ResultDetailOutright WHERE leagueid = @LeagueId AND Result = 'WON')
+		FROM ResultDetailOutright r
+		WHERE r.leagueid = @LeagueId AND r.Result = 'WON'
+	END
+	ELSE
+	BEGIN
+		UPDATE r WITH (UPDLOCK,ROWLOCK)
+		SET r.SumWon = 0
+		FROM ResultDetailOutright r
+		WHERE r.leagueid = @LeagueId AND r.Result <> 'WON'
+	END
 
 END
 GO

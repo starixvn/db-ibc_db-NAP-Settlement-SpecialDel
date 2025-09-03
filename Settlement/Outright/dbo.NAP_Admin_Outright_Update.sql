@@ -116,6 +116,16 @@ BEGIN
 			,@IsDeadheat = @IsDeadheat
 			,@AdminID = @AdminID
 	END
+	ELSE
+	BEGIN
+		UPDATE ResultDetailOutright WITH (UPDLOCK,ROWLOCK)
+		SET Result = NULL
+			,ResultStatusID = 0 -- Initial
+			,SettlementStatusID = 0 -- Initial
+			,ModifiedDate = GETDATE()
+			,ModifiedBy = @AdminID
+		WHERE Orid = @MatchID
+	END
 
 	--add log to outright_log to notify for Apollo
 	EXEC DBTXN.bodb02.dbo.[Acc_Set_ConfirmedActionOutright]
