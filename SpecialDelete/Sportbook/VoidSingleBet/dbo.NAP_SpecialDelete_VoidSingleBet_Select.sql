@@ -105,6 +105,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, serverAlias [Redmine: #213451]
+		- 20250309@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -507,7 +508,9 @@ BEGIN
 				CASE WHEN bt.id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
 				CASE WHEN bt.id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread,-- 229:SABA HDP Time Machine
 				b.oddsid AS FilterOddsId,
-				b.transdesc AS FilterTransdesc,
+				CASE 
+					WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc, '$.pid')
+					ELSE b.transdesc END AS FilterTransdesc,
 				CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
 				b.actual_stake AS ActualStake,
 				b.oddsid
@@ -637,7 +640,9 @@ BEGIN
 				CASE WHEN bt.id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
 				CASE WHEN bt.id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread,-- 229:SABA HDP Time Machine
 				b.oddsid AS FilterOddsId,
-				b.transdesc AS FilterTransdesc,
+				CASE 
+					WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc, '$.pid')
+					ELSE b.transdesc END AS FilterTransdesc,
 				CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
 				b.actual_stake AS ActualStake,
 				b.oddsid
@@ -898,7 +903,9 @@ BEGIN
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal,
 				CASE WHEN b.bettype = 229 THEN ABS (bm.SubOddsSpread) ELSE bm.SubOddsSpread END AS FilterOddsSpread, -- 229:SABA HDP Time Machine
 				bm.SubOddsId AS FilterOddsId,
-				bm.SubTransDesc AS FilterTransdesc,
+				CASE 
+					WHEN (bm.SubBetType BETWEEN 653 AND 688) AND (bm.SubBetType NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.SubTransDesc, '$.pid')
+					ELSE bm.SubTransDesc END AS FilterTransdesc,
 				b.ExtraInfo,
 				b.actual_stake AS ActualStake,
 				bm.SubOddsId
