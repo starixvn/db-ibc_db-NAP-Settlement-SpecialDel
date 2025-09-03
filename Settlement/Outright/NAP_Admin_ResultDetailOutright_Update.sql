@@ -78,7 +78,7 @@ SET NOCOUNT ON
 		FROM ResultDetailOutright r
 		WHERE r.leagueid = @LeagueId AND r.Orid = @Orid AND r.Result = 'WON'
 	END
-	ELSE
+	ELSE IF EXISTS (SELECT 1 FROM ResultDetailOutright WHERE leagueid = @LeagueId AND Orid = @Orid AND Result <> 'WON')
 	BEGIN
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
 		SET r.SumWon = 0
