@@ -46,7 +46,8 @@ BEGIN
             UserId      INT,
             CreatedDate DATETIME,
             Total       INT,
-			ChildMatchId INT
+			ChildMatchId INT,
+			SiteDBGroupID SMALLINT
      );
 	CREATE TABLE #tmp_TransId (transid BIGINT, matchid INT, userid INT, createddate DATETIME, refno BIGINT,statusID TINYINT, SiteDBGroupID SMALLINT)
 
@@ -80,16 +81,19 @@ BEGIN
             (MatchId,
              UserId,
              CreatedDate,
-             Total
+             SiteDBGroupID,
+			 Total
             )
 	SELECT m.MatchId,
            m.UserId,
            m.CreatedDate,
-           COUNT(m.TransId)
+           m.SiteDBGroupID,
+		   COUNT(m.TransId)
     FROM #tmp_TransId m        
     GROUP BY m.MatchId,
              m.UserId,
-             m.CreatedDate
+             m.CreatedDate,
+			 m.SiteDBGroupID
 	OPTION (MAXDOP 1)
 	
 	UPDATE t
@@ -113,7 +117,7 @@ BEGIN
             m.kickofftime,
             mr.HTScore,
             mr.FTScore,
-			@SiteDBGroupID AS SiteDBGroupID
+			t.SiteDBGroupID AS SiteDBGroupID
 	 FROM #Tickets t
 		  INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON t.UserId = c.CustId
 		  INNER JOIN dbo.match m WITH (NOLOCK) ON m.MatchId = t.MatchId
