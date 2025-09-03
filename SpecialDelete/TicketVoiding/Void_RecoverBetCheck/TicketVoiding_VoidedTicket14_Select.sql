@@ -211,8 +211,9 @@ BEGIN
 			ON	odds.leagueid = l.leagueid
 		WHERE t.bettype IN (10)
 	END
+	
 	-- UPDATE eventtype = 3 [VS range  bettypes]
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)))
 	BEGIN
 		UPDATE t
 			SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
@@ -221,12 +222,14 @@ BEGIN
 				,leagueid 	= r.leagueid
 				,sporttype 	= r.sporttype
 				,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
+				,SettlementStatus = 0
+				,VendorMatchId = CASE WHEN d.bettype IN (2770,2771,15500,15501) THEN r.VendorMatchId ELSE NULL END
 		FROM #tmpTicket t
 			INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) 
 			ON t.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE t.bettype IN (1231,1232,1233,1237,1238)
+		WHERE t.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
 
 	-- update Isdeposit

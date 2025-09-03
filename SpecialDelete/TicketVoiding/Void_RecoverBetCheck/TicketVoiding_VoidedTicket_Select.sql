@@ -551,7 +551,7 @@ BEGIN
 		WHERE d.bettype IN (10)
 	END
 	-- UPDATE eventtype = 3 [VS range  bettypes]
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)))
 	BEGIN
 		UPDATE d
 			SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
@@ -562,17 +562,17 @@ BEGIN
 				,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
 				,eventstatus = ISNULL(o.eventstatus,'')
 				,SettlementStatus = 0
-				,VendorMatchId = CASE WHEN d.Bettype IN (2770,2771) THEN r.VendorMatchId ELSE NULL END
+				,VendorMatchId = CASE WHEN d.bettype IN (2770,2771,15500,15501) THEN r.VendorMatchId ELSE NULL END
 		FROM #tmpTicket d
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON d.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771)
+		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
 
-	-- UPDATE VS5
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype BETWEEN 11050 AND 11099))
+	-- UPDATE VS5, VS6
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13199))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo
@@ -583,6 +583,7 @@ BEGIN
 		FROM #tmpTicket d
 			INNER JOIN dbo.Match3rd m WITH (NOLOCK) 
 			ON d.matchid = m.Match3rdId
+		WHERE d.bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13199
 	END
 	
 	-- Update IsMarked
