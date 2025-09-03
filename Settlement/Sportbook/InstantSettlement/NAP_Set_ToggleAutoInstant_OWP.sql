@@ -41,4 +41,10 @@ BEGIN
 	INNER JOIN League l WITH (NOLOCK) ON m.leagueid = l.leagueid
     INNER JOIN @MatchTable mt ON m.matchid = mt.matchId;
 
+	DELETE a
+	FROM 	dbo.ProviderResultDetail a
+		INNER JOIN @MatchTable mt ON a.matchid = mt.matchid
+	WHERE 	 a.IsConfirmed = 0
+			AND a.SourceId = 100
+			AND mt.enable = 0
 END
