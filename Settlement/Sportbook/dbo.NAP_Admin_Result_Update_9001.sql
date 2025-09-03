@@ -48,6 +48,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241021@Aries: AutoPayout2 for Baseball AiO (Regular and Series Matches) [Redmine:#211632]
 		- 20241228@Aries: Support Refund Settle Determined and Mercy Rule for Baseball [Redmine:#212365]
+		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
 		
     Param's Explanation: 
     
@@ -346,7 +347,7 @@ BEGIN
     BEGIN
 	    MERGE dbo.ResultDetail TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.OtherInfo
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
@@ -358,10 +359,13 @@ BEGIN
 	            ,LastModifyBy        = @creator
 				,ResultSetting		 = CASE WHEN @IsApplyRefundSOP = 1 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ISNULL(ResultSetting,0) & (~6) --- Turn off bit[2] bit[3]
 											ELSE ResultSetting END
+				,OtherInfo			 = CASE WHEN @Sporttype = 2 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ''
+											ELSE ISNULL(SOURCE.OtherInfo, TARGET.OtherInfo)																		
+											END
 	
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
-	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
-	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
+	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy, OtherInfo)               
+	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator, SOURCE.OtherInfo);
 		
 		IF @IsDirectly = 1
 		BEGIN
