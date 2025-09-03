@@ -34,14 +34,14 @@ ORDER BY p.number
 
  
 /*
-	Bettype: Player Double Double/Player Triple Double, Most X
+	Bettype: Player Double Double/Player Triple Double
 	pfid = 102, Resource = bettype + [01~50]
 	EX: 67701
 */
-	;WITH cte_PlayerDouble_Most ( pfID, bettype, betid, ResourceID, Num) AS 
+	;WITH cte_PlayerDouble ( pfID, bettype, betid, ResourceID, Num) AS 
 	(
 		 SELECT 102, b.Bettype, 800+ num, CAST(b.bettype AS VARCHAR(3) ) + n.Suffix,  Num
-		 FROM (VALUES(677),(679),(680),(681), (682),(683),(684) ) b (Bettype)
+		 FROM (VALUES(677),(679)) b (Bettype)
 			CROSS APPLY (SELECT Num, Suffix FROM #Number WHERE Num <= 50 )n
 	)
 
@@ -56,23 +56,22 @@ ORDER BY p.number
 					  ,OddsType
 					)
 	SELECT tmp.pfID, 2, tmp.BetType, tmp.BetID, tmp.ResourceID, 'EAR', 'SP', NULL
-	FROM cte_PlayerDouble_Most tmp 
+	FROM cte_PlayerDouble tmp 
 		LEFT JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK) 
 			ON sp.SportType = 2
 				AND sp.BetType  = tmp.BetType
 				AND sp.pfID		= tmp.pfID
 	WHERE sp.BetType IS NULL
 
-
 /*
 	Bettype: Player Performance
-	pfid = 9963, Resource = bettype + [01~50] + [01~99]
+	pfid = 9663, Resource = bettype + [01~50] + [01~99]
 	EX: 6750199
 */
 
 	;WITH cte_PlayerPerformance ( pfID, bettype, betid, ResourceID, num ) AS 
 	(
-		 SELECT 9963, b.Bettype, 800 + XX.num, CAST(b.bettype AS VARCHAR(3) ) + XX.Suffix + YY.Suffix, XX.num
+		 SELECT 9663, b.Bettype, 800 + XX.num, CAST(b.bettype AS VARCHAR(3) ) + XX.Suffix + YY.Suffix, XX.num
 		 FROM (VALUES(675), (676), (678) ) b (Bettype)
 			CROSS APPLY (SELECT Num, Suffix FROM #Number WHERE Num <=50 )XX
 			CROSS APPLY (SELECT Num, Suffix FROM #Number )YY
@@ -96,3 +95,31 @@ ORDER BY p.number
 				AND sp.pfID		= tmp.pfID
 	WHERE sp.BetType IS NULL
 
+/*
+	Bettype: Player Most X
+	pfid = 9664, Resource = bettype + [01~50]
+*/
+;WITH cte_PlayerDouble_Most ( pfID, bettype, betid, ResourceID, Num) AS 
+	(
+		 SELECT 9664, b.Bettype, 800+ num, CAST(b.bettype AS VARCHAR(3) ) + n.Suffix,  Num
+		 FROM (VALUES(680),(681), (682),(683),(684) ) b (Bettype)
+			CROSS APPLY (SELECT Num, Suffix FROM #Number WHERE Num <= 50 )n
+	)
+
+	INSERT INTO dbo.SettlementSpecialBettypeProfile 
+					( pfID
+					  ,SportType
+					  ,BetType
+					  ,BetID
+					  ,ResourceID
+					  ,SettleType
+					  ,GroupType
+					  ,OddsType
+					)
+	SELECT tmp.pfID, 2, tmp.BetType, tmp.BetID, tmp.ResourceID, 'EAR', 'SP', NULL
+	FROM cte_PlayerDouble_Most tmp 
+		LEFT JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK) 
+			ON sp.SportType = 2
+				AND sp.BetType  = tmp.BetType
+				AND sp.pfID		= tmp.pfID
+	WHERE sp.BetType IS NULL

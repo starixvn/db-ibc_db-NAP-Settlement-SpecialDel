@@ -111,10 +111,11 @@ BEGIN
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
 				ON	bt.transid = mt.TransId
 		WHERE bt.matchid = @matchid
-    		AND (sp.Betid = 0 
-					OR (sp.BetID = bt.BetID AND bt.bettype NOT IN (675,676,678 )) 
-					OR (bt.bettype IN (675,676,678 ) AND sp.BetID = bt.BetID*100 + CAST(bt.betteam AS INT)) 
-				)
+    		AND 1 =  CASE WHEN sp.Betid = 0 THEN 1
+							  WHEN sp.BetID = bt.Betid AND bt.bettype NOT IN (675,676,678 ) THEN 1
+							  WHEN bt.bettype IN (675,676,678 ) AND sp.BetID = bt.Betid*100 + CAST(bt.betteam AS INT) THEN 1 
+							 ELSE 0 
+						END
 			AND bt.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupId END
 			AND bt.statusID NOT IN (101, 102) --void/reject
 			AND sp.sporttype = @SportType
@@ -228,10 +229,11 @@ BEGIN
 				AND b.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupId END
 				AND bm.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupId END
 	    		AND bm.statusId NOT IN (101, 102)
-	    		AND (sp.Betid = 0
-						OR (sp.BetID = bm.Betcheck AND bm.bettype NOT IN (675,676,678 )) 
-						OR (bm.bettype IN (675,676,678 ) AND sp.BetID = bm.Betcheck*100 + CAST(bm.betteam AS INT)) 
-					)
+	    		AND 1 =  CASE WHEN sp.Betid = 0 THEN 1
+							  WHEN sp.BetID = bm.Betcheck AND bm.bettype NOT IN (675,676,678 ) THEN 1
+							  WHEN bm.bettype IN (675,676,678 ) AND sp.BetID = bm.Betcheck*100 + CAST(bm.betteam AS INT) THEN 1 
+							 ELSE 0 
+						END
 				AND sp.sporttype = @sporttype
 				AND sp.Settletype = @Settletype
 		GROUP BY CASE WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
