@@ -132,7 +132,7 @@ BEGIN
             mr.FTScore,
 			@SiteDBGroupID AS SiteDBGroupID
 	 FROM #Tickets t
-		  INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON t.UserId = c.CustId
+		  INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON t.UserId = c.CustId
 		  INNER JOIN dbo.match m WITH (NOLOCK) ON m.MatchId = t.MatchId
 		  OUTER APPLY (
 						SELECT CASE WHEN mr.IsHTCal = 1 THEN CAST(m.hthomescore AS CHAR(10)) + '-' + CAST(m.htawayscore AS CHAR(10)) ELSE '-' END AS HTScore
