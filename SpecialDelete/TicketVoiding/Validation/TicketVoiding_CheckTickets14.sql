@@ -1,15 +1,14 @@
-/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
 	 @TransIds			VARCHAR(MAX) = NULL
-	,@TransInfoJson		VARCHAR(MAX) = NULL
 	,@IsVoidAllArchivedTickets	BIT = 0
 )
 AS
 /*  
 	Created by: 20211123@July
 	Task: TVS - Void Archived Tickets
-	DB: DBCTG/bodb02   
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions:  
 		- 20211123@July: Create new SP [Redmine: #140180]
@@ -21,6 +20,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20240102@July: [TVS] Recover Ticket - Combine table result return [Redmine: #196020]
 		- 20240304@Max: [TVS] Archived Ticket - Void full range of archived tickets [Redmine: #201448]
+		- 20250828@July: ScaleOut DBTrans [Phase 6] - Archived Ticket [Redmine: #236118]
 		
 	Param's Explanation:
 */
@@ -31,7 +31,10 @@ BEGIN
 		   ,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
 		   ,@before_movebetday				DATETIME
 	       ,@MovebetDate					DATETIME
-		   ,@TransInfoJson_Output			VARBINARY(MAX) = NULL
+		   ,@TransInfoJson					VARBINARY(MAX) = NULL
+		   ,@SiteDBGroupID					SMALLINT
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -55,56 +58,11 @@ BEGIN
 		,betfrom		NVARCHAR(4)
 		,winlostdate	DATETIME
 		,betdaqid		BIGINT
+		,custid			INT	
+		,betid			BIGINT
+		,SiteDBGroupID  SMALLINT
+		,IsMixParlay	BIT
 	)
-
-	CREATE TABLE #tmpTransInfo(
-	   matchid INT
-	  ,transid BIGINT PRIMARY KEY
-      ,custid	INT	
-	  ,bettype SMALLINT
-      ,betid BIGINT
-	  ,betdaqid BIGINT
-      ,statusID TINYINT
-      ,betfrom NVARCHAR(4)
-	  ,winlostdate SMALLDATETIME
-	  ,IsMixParlay BIT
-	  ,SiteDBGroupID SMALLINT
-	)
-
-	INSERT INTO #tmpTransInfo( 
-		   matchid
-		  ,transid 
-		  ,custid
-		  ,bettype
-		  ,betid
-		  ,betdaqid 
-		  ,betfrom
-		  ,statusID
-		  ,winlostdate
-		  ,IsMixParlay
-		  ,SiteDBGroupID
-		)
-	SELECT mid, t, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
-	FROM STRING_SPLIT(@TransInfoJson, ',') f
-		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
-		CROSS APPLY (
-				SELECT mid, t, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
-				FROM OPENJSON(t.Decompress_TransInfoJson) 
-					WITH( mid INT, t BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(4)
-						, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT)
-		) tbl
-	WHERE f.value <> ''
-
-	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
-
-	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
-	BEGIN
-
-		SET @InvalidTransIds = @TransIds
-		SELECT  @InvalidTransIds AS InvalidTransIds
-
-		RETURN;
-	END
 
 	INSERT INTO #transIdTemp (transid)
 	SELECT DISTINCT value
@@ -120,24 +78,33 @@ BEGIN
 		,betfrom
 		,winlostdate
 		,betdaqid
+		,custid
+		,SiteDBGroupID
+		,betid
+		,IsMixParlay
 		)
-	SELECT b14.transid
+	SELECT b.transid
 		,statusID
 		,bettype
 		,matchid
 		,betfrom
 		,winlostdate
 		,betdaqid
-	FROM #tmpTransInfo b14
-		INNER JOIN #transIdTemp tmp ON b14.transid = tmp.transid
+		,custid
+		,SiteDBGroupID
+		,betid
+		,0 AS IsMixParlay
+	FROM #transIdTemp t
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
+	WHERE b.statusID NOT IN (101, 102, 103)
+		AND b.betfrom <> 'P'
+		AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	--final valid transid
 	DELETE t
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE StatusId IN (101, 102, 103)
-		OR bt.bettype IS NULL
-		OR t.betfrom ='p'
+	WHERE bt.bettype IS NULL
 		OR t.betdaqid = 0 --old main cashout
 		
 	-- invalid transId
@@ -162,23 +129,20 @@ BEGIN
 
 	/*****************Return table **************************/
 	-- 1. Return validation/Transinfo table
-	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
+	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
-		,b.custid AS  'c' 
-		,b.bettype AS 'btype'
-		,b.betid AS 'bid'
-		,b.IsMixParlay AS 'isP'
-		,b.SiteDBGroupID AS 'sitedb'
+		,t.custid AS  'c' 
+		,t.bettype AS 'btype'
+		,t.betid AS 'bid'
+		,t.IsMixParlay AS 'isP'
+		,t.SiteDBGroupID AS 'sitedb'
 	FROM #validTransId t
-		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
 	
 	SELECT @InvalidTransIds AS InvalidTransIds
 		 , @UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
-		 , CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
-
+		 , CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId
-	DROP TABLE #tmpTransInfo
 END

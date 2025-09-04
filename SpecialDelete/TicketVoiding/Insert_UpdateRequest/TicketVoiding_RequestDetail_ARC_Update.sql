@@ -22,6 +22,7 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
+		- 20250828@July: Change way get list info json - [Redmine: #236118]
 
 	Param's explanation:
 */
@@ -34,10 +35,6 @@ BEGIN
 			,@SB_Error			 BIT = 0
 			,@LogDataContent	 NVARCHAR(MAX)
 			,@OldTransIds 		 VARCHAR(MAX) = NULL
-
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
-
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
@@ -60,9 +57,14 @@ BEGIN
 		  ,SiteDBGroupID
 		)
 	SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
-	) tbl
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+			SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb
+			FROM OPENJSON(t.Decompress_TransInfoJson) 
+			WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT)
+		) tbl
+	WHERE f.value <> ''
 
 	INSERT INTO #TempMatch(MatchId, IsOutright)
 	SELECT  DISTINCT matchid,
