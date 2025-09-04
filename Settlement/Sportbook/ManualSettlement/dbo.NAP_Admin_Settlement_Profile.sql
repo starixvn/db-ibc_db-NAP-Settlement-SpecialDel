@@ -98,6 +98,7 @@ AS
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 		- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
 		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
+		- 20250829@Max: Basketball Player Prop [Redmine:#233012]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -343,7 +344,8 @@ BEGIN
 				SELECT DISTINCT s.BetType, s.BetID,s.ResourceId,s.RefResourceId, s.SDTResourceId,s.SDTpfId,IIF(RefResourceId = '00' AND @IsMercy = 1,1,0),s.OddsType
 				FROM	dbo.SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
 				WHERE	s.SportType = @SportType
-					AND 1 = CASE WHEN @IsMercy = 0 AND ISNULL(s.SDTRefund,0) & @DeterminedType > 0 THEN 1
+					AND 1 = CASE WHEN @IsMercy = 0 AND ((ISNULL(s.SDTRefund,0) & @DeterminedType > 0)
+														OR (ISNULL(s.SDTpfId,0) > 0 AND s.SettleType = 'EAR')) THEN 1
 								 WHEN @IsMercy = 1 AND ISNULL(s.DeterminedType,0) & @DeterminedType > 8 THEN 1
 								 ELSE 0
 							 END

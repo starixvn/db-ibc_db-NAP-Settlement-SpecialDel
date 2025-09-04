@@ -128,8 +128,7 @@ RETURN
 			WHEN @pfID = 9665 THEN --Basketball player props group bettypes at least/exact
 				CASE WHEN @betteam LIKE '<=%' THEN
 						CASE 
-							WHEN @HomeValue < CAST(REPLACE(@betteam, '<=', '') AS INT) THEN 1
-							WHEN @HomeValue = CAST(REPLACE(@betteam, '<=', '') AS INT) THEN 1
+							WHEN @HomeValue <= CAST(REPLACE(@betteam, '<=', '') AS INT) THEN 1
 							WHEN @HomeValue > CAST(REPLACE(@betteam, '<=', '') AS INT) THEN -1
 						END
 					WHEN ISNUMERIC(@betteam) = 1 THEN
@@ -141,8 +140,7 @@ RETURN
 					WHEN @betteam LIKE '%+' THEN
 						CASE 
 							WHEN @HomeValue < CAST(REPLACE(@betteam, '+', '') AS INT) THEN -1
-							WHEN @HomeValue = CAST(REPLACE(@betteam, '+', '') AS INT) THEN 1
-							WHEN @HomeValue > CAST(REPLACE(@betteam, '+', '') AS INT) THEN 1
+							WHEN @HomeValue >= CAST(REPLACE(@betteam, '+', '') AS INT) THEN 1
 						END
 				END
 			WHEN @pfID = 9666 THEN --Basketball player props group bettypes band
