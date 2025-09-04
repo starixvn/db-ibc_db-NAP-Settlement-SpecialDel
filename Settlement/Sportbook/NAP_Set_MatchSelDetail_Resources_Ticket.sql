@@ -113,7 +113,7 @@ BEGIN
 		WHERE bt.matchid = @matchid
     		AND 1 =  CASE WHEN sp.Betid = 0 THEN 1
 							  WHEN sp.BetID = bt.Betid AND bt.bettype NOT IN (675,676,678 ) THEN 1
-							  WHEN bt.bettype IN (675,676,678 ) AND sp.BetID = bt.Betid*100 + CAST(bt.betteam AS INT) THEN 1 
+							  WHEN bt.bettype IN (675,676,678 ) AND sp.BetID = bt.Betid  AND bt.betteam = RIGHT(sp.ResourceID, 2) THEN 1
 							 ELSE 0 
 						END
 			AND bt.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupId END
@@ -231,7 +231,7 @@ BEGIN
 	    		AND bm.statusId NOT IN (101, 102)
 	    		AND 1 =  CASE WHEN sp.Betid = 0 THEN 1
 							  WHEN sp.BetID = bm.Betcheck AND bm.bettype NOT IN (675,676,678 ) THEN 1
-							  WHEN bm.bettype IN (675,676,678 ) AND sp.BetID = bm.Betcheck*100 + CAST(bm.betteam AS INT) THEN 1 
+							  WHEN bm.bettype IN (675,676,678 ) AND sp.BetID = bm.Betcheck  AND bm.betteam = RIGHT(sp.ResourceID, 2) THEN 1
 							 ELSE 0 
 						END
 				AND sp.sporttype = @sporttype

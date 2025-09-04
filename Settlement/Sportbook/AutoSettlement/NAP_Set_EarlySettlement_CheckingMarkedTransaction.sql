@@ -90,7 +90,7 @@ BEGIN
 								WHERE t.bettype = b.bettype 
 									AND (t.BetId = 0 
 											OR (t.BetId = b.betid AND b.bettype NOT IN (675,676,678 )) 
-											OR (b.bettype IN (675,676,678 ) AND t.BetId = b.betid*100 + CAST(b.betteam AS INT)) 
+											OR (b.bettype IN (675,676,678 ) AND t.BetID = b.Betid  AND b.betteam = RIGHT(t.ResourceID, 2)) 
 									)
 							)
 	)
@@ -118,7 +118,7 @@ BEGIN
 													WHERE t.bettype = bm.bettype 
 														AND (t.BetId = 0 
 																OR (t.BetId = bm.betcheck AND bm.bettype NOT IN (675,676,678 )) 
-																OR (bm.bettype IN (675,676,678 ) AND t.BetId = bm.betcheck*100 + CAST(bm.betteam AS INT)) 
+																OR (bm.bettype IN (675,676,678 ) AND t.BetID = bm.betcheck  AND bm.betteam = RIGHT(t.ResourceID, 2)) 
 															)
 												)
 			   			)bm

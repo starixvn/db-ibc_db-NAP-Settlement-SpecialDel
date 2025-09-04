@@ -19,7 +19,7 @@ BEGIN
 
 	DECLARE @IsCentral	BIT = 0
 	
-	DECLARE @tmp_Bettype TABLE ( Bettype SMALLINT, BetID BIGINT )
+	DECLARE @tmp_Bettype TABLE ( Bettype SMALLINT, BetID BIGINT, ResourceID VARCHAR(50) )
 	DECLARE @tmp_ResourceID TABLE ( ResourceID VARCHAR(20) )
 	
 	EXEC dbo.NAP_Set_ServerInfo
@@ -28,16 +28,18 @@ BEGIN
 	INSERT INTO @tmp_ResourceID ( ResourceID  )
 	SELECT value FROM STRING_SPLIT(@ResourceIDs, ',')
 
-	INSERT INTO @tmp_Bettype ( Bettype, BetID )
+	INSERT INTO @tmp_Bettype ( Bettype, BetID, ResourceID )
 	SELECT sp.Bettype
 			,sp.BetID
+			,sp.ResourceID
 	FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 	INNER JOIN @tmp_ResourceID r ON sp.ResourceID = r.ResourceID
 		AND sp.SportType = @Sporttype
 
-	INSERT INTO @tmp_Bettype ( Bettype, BetID )
+	INSERT INTO @tmp_Bettype ( Bettype, BetID, ResourceID )
 	SELECT sp.Bettype
 			,sp.BetID
+			,sp.ResourceID
 	FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 	INNER JOIN @tmp_ResourceID r ON sp.RefResourceId = r.ResourceID
 		AND sp.SportType = @Sporttype
@@ -49,7 +51,7 @@ BEGIN
 													ON b.bettype  = tmp.bettype
 														AND ( tmp.BetID = 0 
 																OR (tmp.BetID = b.BetID AND b.bettype NOT IN (675,676,678 )) 
-																OR (b.bettype IN (675,676,678 ) AND tmp.BetID = b.BetID*100 + CAST(b.betteam AS INT)) 
+																OR ( b.bettype IN (675,676,678 ) AND tmp.BetID = b.Betid  AND b.betteam = RIGHT(tmp.ResourceID, 2)) 
 															)
 
 											WHERE b.matchid = @MatchID
@@ -62,7 +64,7 @@ BEGIN
 													ON b.bettype  = tmp.bettype
 														AND ( tmp.BetID = 0
 																OR (tmp.BetID = b.betcheck AND b.bettype NOT IN (675,676,678 )) 
-																OR (b.bettype IN (675,676,678 ) AND tmp.BetID = b.betcheck*100 + CAST(b.betteam AS INT)) 
+																OR ( b.bettype IN (675,676,678 ) AND tmp.BetID = b.betcheck  AND b.betteam = RIGHT(tmp.ResourceID, 2) ) 
 															)
 											WHERE b.matchid = @MatchID
 											),0)
