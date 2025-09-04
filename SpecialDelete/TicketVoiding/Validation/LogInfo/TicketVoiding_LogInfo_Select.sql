@@ -207,6 +207,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@KickOffInfo		   = @KickOffInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 10 --Red card
 	BEGIN
@@ -276,6 +277,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongOfferedNameInfo = @WrongOfferedNameInfo
+			,@OnlineServerId	   = @OnlineServerId
 	END
 	ELSE IF @IssueTypeId = 18 --Other Issues
 	BEGIN
