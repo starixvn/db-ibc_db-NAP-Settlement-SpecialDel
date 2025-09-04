@@ -145,6 +145,7 @@ AS
 		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
 		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
+		- 20250309@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -176,6 +177,7 @@ AS
 					 OddsId="8518"			-- Default : "All" ; Format : 8518,8519,...
 					 Transdesc = '100001'	-- Default : "All" ; Format : 100001,100002,... (PlayerId - [Team].[TeamID])
 					 VirtualHead ="1"		-- Default : "All" ; Format : Single Number
+					 Performance = 'points' -- Default : "All" ; Format : points, assists, rebounds, three_points, points+assists, points+rebounds
 			/>
 		 <BetTypes/>'
 		 - @SelectionSubParlays: 
@@ -276,6 +278,7 @@ BEGIN
 		OddsSpread		VARCHAR(500),
 		OddsId			VARCHAR(1000),
 		Transdesc		NVARCHAR(2000),
+		Performance		VARCHAR(50),  -- Use only for bettype 675, 676 basketball
 		VirtualHead		VARCHAR(500)
 	)
 
@@ -294,6 +297,7 @@ BEGIN
 		OddsId			INT,
 		Transdesc		NVARCHAR(2000),
 		VirtualHead		SMALLMONEY,
+		Performance		VARCHAR(50),
 		Hdp1_tmp		SMALLMONEY
 	)	
 	
@@ -497,7 +501,7 @@ BEGIN
 	END CATCH	
 
 	-- Parse xml @BetTypes
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead, Performance)
 	SELECT t.c.value('@Id','SMALLINT') AS Id
 			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
 			, t.c.value('@Set','VARCHAR(500)') AS [Set]				-- check columns : betid		 ; single-choice + multi-choice
@@ -511,10 +515,11 @@ BEGIN
 			, t.c.value('@OddsId','VARCHAR(1000)') AS OddsId		-- check columns : OddsId		 ; single-choice + multi-choice
 			, t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice + multi-choice
 			, t.c.value('@VirtualHead','NVARCHAR(500)') AS VirtualHead	-- check columns : hdp1 OR hdp2	 ; single-choice
+			, t.c.value('@Performance','VARCHAR(50)') AS Performance -- check columns: transdesc	 ; single-choice + multi-choice
 	FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
 	
-	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead)
+	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, Performance, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -525,6 +530,7 @@ BEGIN
 		 , cte.[Set]
 		 , cte.Game
 		 , cte.BetOption
+		 , cte.Performance
 		 , cte.[Value]
 		 , cte.ValueHdp1
 		 , cte.ValueHdp2
@@ -539,6 +545,7 @@ BEGIN
 			 , se.value AS [Set]
 			 , ga.value AS Game
 			 , bop.value AS BetOption
+			 , p.value AS Performance
 			 , CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault 
 						ELSE v.value END AS SMALLMONEY) AS [Value]
 			 , CAST(CASE WHEN vhdp1.value = 'ALL' THEN @ValueDefault
@@ -565,6 +572,7 @@ BEGIN
 			 CROSS APPLY STRING_SPLIT(cte.OddsSpread, ',') os
 			 CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
 			 CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
+			 CROSS APPLY STRING_SPLIT(cte.Performance, ',') p
 	) cte	
 	WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 			WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
@@ -821,7 +829,9 @@ BEGIN
 				,CASE WHEN b.bettype = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2 --646: Match Handicap & Total
 				,CASE WHEN b.bettype = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread -- 229:SABA HDP Time Machine
 				,b.oddsid AS FilterOddsId
-				,b.transdesc AS FilterTransdesc
+				,CASE 
+					WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc, '$.pid')
+					ELSE b.transdesc END AS FilterTransdesc
 				,b.actual_stake AS ActualStake
 				,b.oddsid
 				,b.SiteDBGroupID
@@ -953,7 +963,9 @@ BEGIN
 				,CASE WHEN b.bettype = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2 --646: Match Handicap & Total
 				,CASE WHEN b.bettype = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread -- 229:SABA HDP Time Machine
 				,b.oddsid AS FilterOddsId
-				,b.transdesc AS FilterTransdesc
+				,CASE 
+					WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc, '$.pid')
+					ELSE b.transdesc END AS FilterTransdesc
 				,b.actual_stake AS ActualStake
 				,b.oddsid
 				,b.SiteDBGroupID
@@ -1214,7 +1226,9 @@ BEGIN
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal,
 				CASE WHEN b.bettype = 229 THEN ABS(bm.SubOddsSpread) ELSE bm.SubOddsSpread END AS FilterOddsSpread, -- 229:SABA HDP Time Machine
 				bm.SubOddsId AS FilterOddsId,
-				bm.SubTransDesc AS FilterTransdesc,
+				CASE 
+					WHEN (bm.SubBetType BETWEEN 653 AND 688) AND (bm.SubBetType NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.SubTransDesc, '$.pid')
+					ELSE bm.SubTransDesc END AS FilterTransdesc,
 				b.ExtraInfo,
 				b.actual_stake AS ActualStake,
 				b.ruben,
@@ -1257,6 +1271,7 @@ BEGIN
 		filter for ValuaHdp1
 		filter for ValuaHdp2		 
 		filter for Goal
+		filter for Performance
 	*/
 	BEGIN
 		DELETE b
@@ -1279,6 +1294,25 @@ BEGIN
 							 ELSE 0
 						END
 				END = 1
+		)
+
+		DELETE b
+		FROM #SpecialDeleteBets b
+		WHERE NOT EXISTS
+		(
+			SELECT TOP 1 1 
+			FROM #tblBetType_Detail AS tp
+			WHERE tp.Id = b.FilterBettype AND 1 =
+				CASE 
+					WHEN tp.Performance = 'All' THEN 1
+					WHEN tp.Performance = 'points' AND b.FilterBettype = 675 AND CHARINDEX('"points"', b.transdesc ) > 0 THEN 1
+					WHEN tp.Performance = 'three_points' AND b.FilterBettype = 675 AND CHARINDEX('"three_points"', b.transdesc ) > 0 THEN 1
+					WHEN tp.Performance = 'assists' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
+					WHEN tp.Performance = 'rebounds' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
+					WHEN tp.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
+					WHEN tp.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+					ELSE 0
+				END
 		)
 
 		DELETE b
