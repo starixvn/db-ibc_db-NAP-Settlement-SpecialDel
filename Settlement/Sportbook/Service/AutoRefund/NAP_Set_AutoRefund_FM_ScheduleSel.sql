@@ -42,7 +42,12 @@ BEGIN
 			,r.SettlementStatusID
 	FROM match m WITH (NOLOCK) 
 		INNER JOIN ResultDetail r WITH (NOLOCK) ON r.MatchId = m.matchid 
-		INNER JOIN @tmpResourceIds t ON t.ResourceId = r.ResourceId
+		--INNER JOIN @tmpResourceIds t ON t.ResourceId = r.ResourceId
+		CROSS APPLY (
+			SELECT TOP 1 t.ResourceId
+			FROM @tmpResourceIds t 
+			WHERE t.ResourceId = r.ResourceId
+		) t
 		OUTER APPLY (
 			SELECT TOP 1 ap.WaitingTime, ap.[Enable]
 			FROM AutoPayoutSetting ap WITH (NOLOCK)
