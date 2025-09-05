@@ -5,10 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
 	@TransIds		 VARCHAR(MAX),
 	@UserId          INT           = 0,
     @IP              VARCHAR(15)   = NULL,
-	@IsLockMatch	 BIT				= 1,
-	@ErrMsg					NVARCHAR(200) = '' OUTPUT,
-	@ErrCode					INT           = 0 OUTPUT,
-	@NegativeBalanceUsers		VARCHAR(MAX) = NULL OUTPUT
+	@IsLockMatch	 BIT		   = 1
 )
 AS
 /*	Created by: 20200212@Max
@@ -26,6 +23,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240422@Max: [TVS] Abnormal Bet - Add single tickets of many matches to a request [Redmine: #196027]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20250828@July: Return output table [Redmine: #236438]
 
 	Param's explanation:	
 		
@@ -53,7 +51,10 @@ BEGIN
 			,@isExistCricket			BIT = 0
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
-	
+			,@ErrMsg					NVARCHAR(200) = ''
+			,@ErrCode					INT = 0
+			,@NegativeBalanceUsers		VARCHAR(MAX) = NULL
+
 	DECLARE @LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@xmlTransId		VARCHAR(MAX)
@@ -142,16 +143,7 @@ BEGIN
 		WHERE b.bettype IN (1231,1232,1233,1237,1238)
 	END
 
-
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
-	BEGIN
-		UPDATE b
-		SET sporttype = sb.SportType
-		FROM #tmpTransId b
-			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
-			ON b.bettype = sb.BetType
-		WHERE sb.ProductID = 37
-	END
 	BEGIN
 		UPDATE b
 		SET sporttype = sb.SportType
@@ -169,7 +161,6 @@ BEGIN
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
 		)
-
 
 	IF EXISTS (SELECT TOP 1 1  FROM #tmpTransId)
 	BEGIN
@@ -253,6 +244,7 @@ BEGIN
 
 					IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 					BEGIN	
+						SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg, @NegativeBalanceUsers AS NegativeBalanceUsers
 						RETURN;		
 					END
 	
@@ -267,6 +259,7 @@ BEGIN
 
 					IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 					BEGIN	
+						SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg, @NegativeBalanceUsers AS NegativeBalanceUsers
 						RETURN;		
 					END
 				END
@@ -289,9 +282,10 @@ BEGIN
 					, @ErrMsg					= @ErrMsg OUTPUT
 			
 				IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-					BEGIN	
-						RETURN;		
-					END
+				BEGIN	
+					SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg, @NegativeBalanceUsers AS NegativeBalanceUsers
+					RETURN;		
+				END
 			END
 		END
 
@@ -397,9 +391,10 @@ BEGIN
 					, @BalanceWalletAfter	= @afterUpd
 					, @ActionId				= 0
 			
-			SELECT @ErrCode = 100
-				, @ErrMsg = 'Called TicketVoiding_ReCalculate_Single_Update with error.'
-		
+			SELECT 100 AS ErrorCode
+				 , 'Called TicketVoiding_ReCalculate_Single_Update with error.' AS ErrorMsg
+				 , @NegativeBalanceUsers AS NegativeBalanceUsers
+
 			RETURN	
 			
 		END CATCH
