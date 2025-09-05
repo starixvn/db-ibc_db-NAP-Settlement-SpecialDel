@@ -13,6 +13,7 @@ AS
     Revisions:
 		- 20230712@Max: Clone from DBTRANS - [Redmine: #181595]
 		- 20250225@Max: Enhance case duplicate rejected parlay ticket in queue [Redmine: #218599]
+		- 20250826@Max: [Synergy] Exlcuded site for MBC table for some special account members [Redmine: #236702]
 	
 	Param's explanation:	
 		
@@ -26,15 +27,17 @@ BEGIN
 		, @IsExistsMBC BIT = 0
 		, @IsExists789	BIT = 0
 
-	CREATE TABLE #CustLimitBet_RetryTransId_MBC (TransId BIGINT, TryCount TINYINT)
+	CREATE TABLE #CustLimitBet_RetryTransId_MBC (TransId BIGINT, TryCount TINYINT, site VARCHAR(10))
 	CREATE TABLE #CustLimitBet_RetryTransId_789 (TransId BIGINT, TryCount TINYINT)
 
 	DECLARE @CustLimitBet_RetryTransId_Batch AS TABLE (TransId BIGINT, MatchId INT, CustId INT, IsProcessed BIT DEFAULT (0))
 
 	--Prepare data for MBC
-	INSERT #CustLimitBet_RetryTransId_MBC (TransId, TryCount)
-	SELECT q.TransId, @TryCount
+	INSERT #CustLimitBet_RetryTransId_MBC (TransId, TryCount, site)
+	SELECT q.TransId, @TryCount, c.site
 	FROM dbo.CustLimitBet_QueueRetry q WITH(NOLOCK)
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = q.TransId
+		INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON c.custid = b.custid
 	WHERE q.MainQueueId = @QueueId
 		AND q.sitetype = 1
 		AND q.StatusId = 0
@@ -52,7 +55,18 @@ BEGIN
 
 	IF @@ROWCOUNT > 0 
 		SET @IsExists789 = 1
-	
+
+	--Mark queue ignore alert with ticket of special site
+	IF EXISTS (SELECT TOP 1 1 FROM #CustLimitBet_RetryTransId_MBC WHERE site IN ('Special','BEST-ODDS','Hedging'))
+	BEGIN
+		UPDATE q SET
+			q.StatusId = 3
+		FROM dbo.CustLimitBet_QueueRetry q WITH (ROWLOCK, UPDLOCK)
+			INNER JOIN #CustLimitBet_RetryTransId_MBC c ON c.TransId = q.TransId
+		WHERE q.MainQueueId = @QueueId 
+			AND c.site IN ('Special','BEST-ODDS','Hedging')
+	END
+
 	--Start Retry Process
 	WHILE (@Success = 0 AND @TryCount <= 5)
 	BEGIN
