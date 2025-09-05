@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="svc_tig" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="svc_tig,oneseal_integration" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Dot_Member_CustLimitBet_Select]
 (
 	@MatchId		INT = NULL
