@@ -7,9 +7,6 @@
 USE bodb02
 
 BEGIN
-	DECLARE @StartRow INT
-			,@StopRow INT
-			
 
 	DECLARE @tmp_Outright TABLE (
 		[Orid]			INT
@@ -22,141 +19,83 @@ BEGIN
 		
 	)
 	INSERT INTO @tmp_Outright (
-	[Orid]			
-	,[leagueid]		
-	,[Teamid]		
-	,[status]		
-	,[IsDeadHeat]	
-	,[creator]		
-	,[eventdate]	
+		[Orid]			
+		,[leagueid]		
+		,[Teamid]		
+		,[status]		
+		,[IsDeadHeat]	
+		,[creator]		
+		,[eventdate]	
 	)
 	SELECT 
-	o.[orid]
-	,o.[leagueid]		
-	,o.[Teamid]		
-	,o.[status]		
-	,o.[IsDeadHeat]	
-	,o.[creator]		
-	,o.[eventdate]	
+		o.[orid]
+		,o.[leagueid]		
+		,o.[Teamid]		
+		,o.[status]		
+		,o.[IsDeadHeat]	
+		,o.[creator]		
+		,o.[eventdate]	
 	FROM outright o WITH (NOLOCK)
-		LEFT JOIN ResultDetailOutright r WITH (NOLOCK) ON r.Orid = o.orid
-		LEFT JOIN ProviderResultDetailOutright p WITH (NOLOCK) ON p.Orid = o.orid
-	WHERE r.Orid is null or p.Orid is null
+	WHERE NOT EXISTS (SELECT 1 FROM ResultDetailOutright r WITH (NOLOCK) WHERE r.Orid = o.orid)
+		 OR NOT EXISTS (SELECT 1 FROM ProviderResultDetailOutright p WITH (NOLOCK) WHERE p.Orid = o.orid)
 ----------------------------------------------------------------------------------------------ResultDetailOutright
-
+	IF EXISTS (SELECT TOP 1 1 FROM @tmp_Outright)
+	BEGIN
 	
-	MERGE dbo.ResultDetailOutright TARGET
-	USING (
-			SELECT	
-			[Orid]
-			,[leagueid]
-			,[Teamid]
-			,[status]
-			,0 AS [ResultStatusID]
-			,0 AS [SettlementStatusID]
-			,[IsDeadHeat]
-			,NULL AS [SumWon]
-			,[creator]
-			,[eventdate]
-			,NULL AS [ModifiedBy]
-			,NULL AS [ModifiedDate]
-			,GETDATE() AS [RepUpdateTime]
-			,NULL AS [OtherInfo]
-		FROM @tmp_Outright o
-		) AS SOURCE ON TARGET.Orid = SOURCE.Orid			
-	WHEN MATCHED THEN 
-			UPDATE SET	TARGET.Result				= TARGET.Result
-						,TARGET.ResultStatusId		= TARGET.ResultStatusId
-						,TARGET.SettlementStatusID	= TARGET.SettlementStatusID
-						,TARGET.IsDeadheat			= TARGET.IsDeadheat	
-						,TARGET.ModifiedDate		= TARGET.ModifiedDate
-						,TARGET.ModifiedBy			= TARGET.ModifiedBy	
-	WHEN NOT MATCHED BY TARGET THEN
-		INSERT(
-			Orid
-			,Leagueid
-			,Teamid
-			,Result
-			,ResultStatusID
-			,SettlementStatusID
-			,IsDeadheat
-			,CreatedBy
-			,CreatedDate
-			,ModifiedBy
-			,ModifiedDate
-		)               
-		VALUES(
-			 SOURCE.[Orid]
-			,SOURCE.[leagueid]
-			,SOURCE.[Teamid]
-			,SOURCE.[status]
-			,0
-			,0
-			,SOURCE.[IsDeadHeat]
-			,NULL
-			,SOURCE.[creator]
-			,SOURCE.[eventdate]
-			,NULL
-			,NULL
-			,GETDATE() 
-			,NULL
-		);
+			-- For ResultDetailOutright
+			INSERT INTO dbo.ResultDetailOutright (
+				Orid
+				,Leagueid
+				,Teamid
+				,Result
+				,ResultStatusID
+				,SettlementStatusID
+				,IsDeadheat
+				,CreatedBy
+				,CreatedDate
+				,ModifiedBy
+				,ModifiedDate
+				,RepUpdateTime
+				,OtherInfo
+			)
+			SELECT 
+				[Orid]
+				,[leagueid]
+				,[Teamid]
+				,[status]
+				,0
+				,0
+				,[IsDeadHeat]
+				,[creator]
+				,[eventdate]
+				,NULL
+				,NULL
+				,GETDATE()
+				,NULL
+			FROM @tmp_Outright o;
 
-------------------------------------------------------ProviderResultDetailOutright
-		MERGE dbo.ProviderResultDetailOutright TARGET
-	USING (
-			SELECT	
-			[Orid]
-			,[leagueid]
-			,[Teamid]
-			,[status]
-			,0 AS [ResultStatusID]
-			,0 AS [SettlementStatusID]
-			,[IsDeadHeat]
-			,NULL AS [SumWon]
-			,[creator]
-			,[eventdate]
-			,NULL AS [ModifiedBy]
-			,NULL AS [ModifiedDate]
-			,GETDATE() AS [RepUpdateTime]
-			,NULL AS [OtherInfo]
-		FROM @tmp_Outright o
-		) AS SOURCE ON TARGET.Orid = SOURCE.Orid			
-	WHEN MATCHED THEN 
-			UPDATE SET	TARGET.Result				= TARGET.Result
-						,TARGET.ResultStatusId		= TARGET.ResultStatusId
-						,TARGET.SettlementStatusID	= TARGET.SettlementStatusID
-						,TARGET.IsDeadheat			= TARGET.IsDeadheat	
-						,TARGET.ModifiedDate		= TARGET.ModifiedDate
-						,TARGET.ModifiedBy			= TARGET.ModifiedBy	
-	WHEN NOT MATCHED BY TARGET THEN
-		INSERT(
-			Orid
-			,Leagueid
-			,Teamid
-			,Result
-			,ResultStatusID
-			,SettlementStatusID
-			,IsDeadheat
-			,CreatedBy
-			,CreatedDate
-			,ModifiedBy
-			,ModifiedDate
-		)               
-		VALUES(
-			 SOURCE.[Orid]
-			,SOURCE.[leagueid]
-			,SOURCE.[Teamid]
-			,SOURCE.[status]
-			,0
-			,0
-			,SOURCE.[IsDeadHeat]
-			,NULL
-			,SOURCE.[creator]
-			,SOURCE.[eventdate]
-			,NULL
-			,NULL
-			,GETDATE() 
-			,NULL
-		);
+			-- For ProviderResultDetailOutright
+			INSERT INTO dbo.ProviderResultDetailOutright (
+				Orid
+				,SourceId
+				,Leagueid
+				,Teamid
+				,Result
+				,CreatedBy
+				,CreatedDate 
+				,RepUpdateTime
+				,OtherInfo
+			)
+			SELECT 
+				[Orid]
+				,1001
+				,[leagueid]
+				,[Teamid]
+				,[status]
+				,[creator]
+				,[eventdate]
+				,GETDATE()
+				,NULL
+			FROM @tmp_Outright o;
+	END
 END
