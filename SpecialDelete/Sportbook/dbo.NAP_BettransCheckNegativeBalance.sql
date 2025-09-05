@@ -34,6 +34,7 @@ AS
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 		- 20250710@July: Fix bug recover cancel CO not show negative [Redmine: #225390]
 		- 20250728@July: Fix bug recover for case cancel CO -> cashout-> void ticket (2 rows in zzzbettrans) [Redmine: #217851]
+		- 20250818@Max: [TVS] Excluding Credit cash members when getting balance net position in SiteDB03 [Redmine: #236330]
 
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
@@ -304,6 +305,14 @@ BEGIN
 	FROM dbo.BalNetPosition bal WITH(NOLOCK)
 		INNER JOIN #BetDelete d ON bal.CustId = d.CustId AND bal.MatchId = d.MatchId AND bal.Bettype = d.bettype
 	GROUP BY bal.CustId
+
+	--no need calculate NP for credit cash service member
+	IF @SiteDBGroupID = 3
+	BEGIN
+		UPDATE np SET np.Balance = 0
+		FROM @BalNetPositionTmp np
+			INNER JOIN CustDB.dbo.CustProductStatus cs WITH(NOLOCK)  ON np.custid = cs.CustID AND cs.ServiceType = 1
+	END
 	
 	SELECT	bal.custid
 			,bal.username
