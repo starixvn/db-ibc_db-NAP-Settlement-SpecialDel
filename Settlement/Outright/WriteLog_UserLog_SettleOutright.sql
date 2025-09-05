@@ -40,7 +40,6 @@ VALUES
     @Remark
 )
 
-GO
 GRANT EXECUTE ON [dbo].[WriteLog_UserLog_SettleOutright] TO [bodbAdminNet]
 GO
 DENY EXECUTE ON [dbo].[WriteLog_UserLog_SettleOutright] TO [bodbDownlineNet]
