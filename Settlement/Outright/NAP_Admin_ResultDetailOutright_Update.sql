@@ -25,7 +25,7 @@ SET NOCOUNT ON
 	DECLARE @LeagueId INT
 
 	SELECT @LeagueId = leagueid 
-	FROM outright 
+	FROM outright WITH (NOLOCK)
 	WHERE orid = @Orid
 
 	MERGE dbo.ResultDetailOutright TARGET
