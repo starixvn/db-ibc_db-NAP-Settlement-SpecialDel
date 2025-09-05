@@ -145,7 +145,7 @@ AS
 		- 20250117@July: Enhance gap time between voiding by function and TVS [Redmine: #216667]
 		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
-		- 20250309@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20250903@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 

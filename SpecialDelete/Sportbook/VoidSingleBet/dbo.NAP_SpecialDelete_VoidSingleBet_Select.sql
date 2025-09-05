@@ -105,7 +105,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, serverAlias [Redmine: #213451]
-		- 20250309@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20250903@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 

@@ -38,6 +38,8 @@ BEGIN
 		Oddsid INT,
 		BettypeId SMALLINT,
 		BetChoice VARCHAR(20),
+		Oddsinfo VARCHAR(500),
+		Performance	VARCHAR(50),
 		PlayerId INT,
 		PlayerName NVARCHAR(200),
 		PlayNamesChineseTraditional NVARCHAR(200),
@@ -60,15 +62,63 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		INSERT INTO #tblOddsOSInfo (Oddsid, BettypeId, BetChoice, PlayerId, PlayerName)
+		INSERT INTO #tblOddsOSInfo (Oddsid, BettypeId, BetChoice, PlayerId, PlayerName, Oddsinfo, Performance)
         SELECT DISTINCT o.oddsid
             , o.bettype AS BettypeId
             , os.betChoice
             , JSON_VALUE(os.OddsInfo, '$.pid') AS PlayerId
             , JSON_VALUE(os.OddsInfo, '$.pname') AS PLayerName
+			, CASE WHEN o.bettype IN (675, 676, 678) THEN
+						'have ' 
+					   + SUBSTRING(pp.Point,0,IIF(CHARINDEX(',',pp.Point) > 0,CHARINDEX(',',pp.Point),LEN(pp.Point)+1))
+					   + CASE WHEN pp.Performance = 'points' 
+								THEN CASE WHEN tt.ExtraInfo = 'winner' THEN ' points and ' + t.teamname + ' to Win'
+										  WHEN tt.ExtraInfo = 'over' THEN ' points and ' + t.teamname + ' Total Points Over ' + tt.ExtraValue
+										  WHEN tt.ExtraInfo = 'handicap' THEN ' points and ' + t.teamname + tt.ExtraValue
+										  WHEN tt.ExtraValue = 'winner,over' THEN ' points, ' + t.teamname + ' to Win and ' + t.teamname + ' Total Points Over ' + SUBSTRING(tt.ExtraValue,CHARINDEX(',',tt.ExtraValue)+1,LEN(tt.ExtraValue))
+										  ELSE '' END
+							  WHEN pp.Performance = 'three_points' 
+								THEN CASE WHEN tt.ExtraInfo = 'winner' THEN ' three points field goals and ' + t.teamname + ' to Win'
+										  WHEN tt.ExtraInfo = 'winner,over' THEN ' three points field goals, ' + t.teamname + ' to Win and ' + t.teamname + ' Total Points Over ' + SUBSTRING(tt.ExtraValue,CHARINDEX(',',tt.ExtraValue)+1,LEN(tt.ExtraValue))
+									      ELSE '' END
+							  WHEN pp.Performance = 'rebounds' THEN ' total rebounds and ' + t.teamname + ' to Win'
+							  WHEN pp.Performance = 'assists' THEN ' assists and ' + t.teamname + ' to Win'
+							  WHEN pp.Performance = 'points+assists' 
+								THEN CASE WHEN tt.ExtraInfo = 'winner' THEN ' points and ' + SUBSTRING(pp.Point,CHARINDEX(',',pp.Point)+1,LEN(pp.Point)) + ' assists and ' + t.teamname + ' to Win'
+										  WHEN tt.ExtraInfo = 'handicap' THEN ' points and ' + SUBSTRING(pp.Point,CHARINDEX(',',pp.Point)+1,LEN(pp.Point)) + ' assists and ' + t.teamname + ' ' + tt.ExtraValue
+										  ELSE ' points and ' + SUBSTRING(pp.Point,CHARINDEX(',',pp.Point)+1,LEN(pp.Point)) + ' assists' END
+							  WHEN pp.Performance = 'points+rebounds'
+								THEN CASE WHEN tt.ExtraInfo = 'winner' THEN ' points and ' + SUBSTRING(pp.Point,CHARINDEX(',',pp.Point)+1,LEN(pp.Point)) + ' rebounds and ' + t.teamname + ' to Win'
+										  WHEN tt.ExtraInfo = 'handicap' THEN ' points and ' + SUBSTRING(pp.Point,CHARINDEX(',',pp.Point)+1,LEN(pp.Point)) + ' rebounds and ' + t.teamname + ' ' + tt.ExtraValue
+										  ELSE ' points and ' + SUBSTRING(pp.Point,CHARINDEX(',',pp.Point)+1,LEN(pp.Point)) + ' rebounds' END
+							  WHEN pp.Performance = 'points+assists+rebounds'
+								THEN CASE WHEN tt.ExtraInfo = 'winner' THEN ' points, ' + SUBSTRING(pp.Point, CHARINDEX(',', pp.Point) + 1, CHARINDEX(',', pp.Point, CHARINDEX(',', pp.Point) + 1) - CHARINDEX(',', pp.Point) - 1)
+																			+ ' assists, ' + SUBSTRING(pp.Point, CHARINDEX(',', pp.Point, CHARINDEX(',', pp.Point) + 1) + 1, LEN(pp.Point)) + ' rebounds and ' + t.teamname + ' to Win'
+										  WHEN tt.ExtraInfo = 'handicap' THEN ' points, ' + SUBSTRING(pp.Point, CHARINDEX(',', pp.Point) + 1, CHARINDEX(',', pp.Point, CHARINDEX(',', pp.Point) + 1) - CHARINDEX(',', pp.Point) - 1)
+																			+ ' assists, ' + SUBSTRING(pp.Point, CHARINDEX(',', pp.Point, CHARINDEX(',', pp.Point) + 1) + 1, LEN(pp.Point)) + ' rebounds and ' + t.teamname + ' ' + tt.ExtraValue
+										  ELSE ' points, ' + SUBSTRING(pp.Point, CHARINDEX(',', pp.Point) + 1, CHARINDEX(',', pp.Point, CHARINDEX(',', pp.Point) + 1) - CHARINDEX(',', pp.Point) - 1)
+											 + ' assists and ' + SUBSTRING(pp.Point, CHARINDEX(',', pp.Point, CHARINDEX(',', pp.Point) + 1) + 1, LEN(pp.Point)) + ' rebounds' END
+						ELSE NULL END
+				   ELSE NULL
+			  END
+			, pp.Performance
         FROM dbo.odds AS o WITH (NOLOCK)
             INNER JOIN dbo.odds_flex AS os WITH (NOLOCK) ON o.oddsid = os.oddsid
-            INNER JOIN @tmpBettype AS t ON t.bettype = o.bettype
+            INNER JOIN @tmpBettype AS bt ON bt.bettype = o.bettype
+			CROSS APPLY (
+				SELECT JSON_VALUE(os.OddsInfo,'$.tid') AS TeamId
+			) AS tm
+			INNER JOIN dbo.team AS t ON tm.TeamId = t.teamid
+			OUTER APPLY (
+				SELECT STRING_AGG(JSON_VALUE(s.value,'$.t'),'+') AS Performance
+					 , STRING_AGG(JSON_VALUE(s.value,'$.value'),',') AS Point
+				FROM OPENJSON(os.OddsInfo,'$.s') AS s
+			) AS pp
+			OUTER APPLY (
+				SELECT STRING_AGG(JSON_VALUE(r.value,'$.t'),',') AS ExtraInfo
+					 , STRING_AGG(JSON_VALUE(r.value,'$.value'),',') AS ExtraValue
+				FROM OPENJSON(os.OddsInfo,'$.r') AS r
+			) AS tt
         WHERE o.matchid = @MatchId AND os.OddsInfo <> ''
 	END
 
@@ -78,7 +128,7 @@ BEGIN
 	FROM #tblOddsOSInfo os
 		INNER JOIN dbo.team t WITH(NOLOCK) ON os.PlayerId = t.teamid
 
-	SELECT Oddsid, BettypeId, BetChoice, PlayerId, PlayerName, PlayNamesChineseTraditional, PlayNamesChineseSimplified
+	SELECT Oddsid, BettypeId, BetChoice, Oddsinfo, Performance, PlayerId, PlayerName, PlayNamesChineseTraditional, PlayNamesChineseSimplified
 	FROM #tblOddsOSInfo
 
 	DROP TABLE #tblOddsOSInfo
