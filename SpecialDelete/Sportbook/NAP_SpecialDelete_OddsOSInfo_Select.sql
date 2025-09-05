@@ -101,7 +101,7 @@ BEGIN
 						ELSE NULL END
 				   ELSE NULL
 			  END
-			, pp.Performance
+			, CASE WHEN o.bettype IN (675, 676) THEN pp.Performance ELSE NULL END AS Performance
         FROM dbo.odds AS o WITH (NOLOCK)
             INNER JOIN dbo.odds_flex AS os WITH (NOLOCK) ON o.oddsid = os.oddsid
             INNER JOIN @tmpBettype AS bt ON bt.bettype = o.bettype
