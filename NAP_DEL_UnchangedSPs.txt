@@ -27,3 +27,4 @@ SpecialDelete\TicketVoiding\Service\Void Service\TicketVoiding_Auto_Unmark_ReCal
 SpecialDelete\Sportbook\MarkTickets\ConfirmAutoUnmark\TicketVoiding_AutoUnmark_Update.sql
 SpecialDelete\TicketVoiding\Service\Void Service\TicketVoiding_Ticket_Update.sql
 SpecialDelete\TicketVoiding\Service\Void Service\TicketVoiding_Queue_Job.sql
+SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Select.sql
