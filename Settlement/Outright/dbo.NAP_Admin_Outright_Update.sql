@@ -126,6 +126,7 @@ BEGIN
 			,SumWon = NULL
 			,ModifiedDate = GETDATE()
 			,ModifiedBy = @AdminID
+			,RepUpdateTime = GETDATE()
 		WHERE Orid = @MatchID
 	END
 

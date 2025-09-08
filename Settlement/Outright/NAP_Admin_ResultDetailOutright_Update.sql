@@ -43,6 +43,7 @@ SET NOCOUNT ON
 						,TARGET.IsDeadheat			= @IsDeadheat
 						,TARGET.ModifiedDate		= GETDATE()
 						,TARGET.ModifiedBy			= @AdminID
+						,TARGET.RepUpdateTime		= GETDATE()
 	WHEN NOT MATCHED BY TARGET THEN
 		INSERT(
 			Orid
@@ -56,6 +57,7 @@ SET NOCOUNT ON
 			,CreatedDate
 			,ModifiedBy
 			,ModifiedDate
+			,RepUpdateTime
 		)               
 		VALUES(
 			@Orid
@@ -69,12 +71,14 @@ SET NOCOUNT ON
 			,GETDATE()
 			,@AdminID
 			,GETDATE()
+			,GETDATE()
 		);
 
 	IF EXISTS (SELECT 1 FROM ResultDetailOutright r WITH (NOLOCK) WHERE leagueid = @LeagueId AND r.Orid = @Orid AND Result = 'WON')
 	BEGIN
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
 		SET r.SumWon = (SELECT COUNT(1) FROM ResultDetailOutright WITH (NOLOCK) WHERE leagueid = @LeagueId AND Result = 'WON')
+			,r.RepUpdateTime = GETDATE()
 		FROM ResultDetailOutright r
 		WHERE r.leagueid = @LeagueId AND r.Result = 'WON'
 	END
@@ -82,6 +86,7 @@ SET NOCOUNT ON
 	BEGIN
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
 		SET r.SumWon = 0
+			,r.RepUpdateTime = GETDATE()
 		FROM ResultDetailOutright r
 		WHERE r.leagueid = @LeagueId AND r.Orid = @Orid AND r.Result <> 'WON'
 	END

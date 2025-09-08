@@ -65,9 +65,10 @@ BEGIN
 						,ResultStatusId	= 3
 						,ModifiedDate = GETDATE()
 						,ModifiedBy   = @UserId
+						,RepUpdateTime = GETDATE()
 	WHEN NOT MATCHED BY TARGET THEN
-		INSERT (Orid, Leagueid, Teamid, Result, ResultStatusID, SettlementStatusID, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate)               
-		VALUES (SOURCE.Orid, @Leagueid, SOURCE.Teamid, SOURCE.Result, 3, 0, @UserId, GETDATE(), @UserId, GETDATE());
+		INSERT (Orid, Leagueid, Teamid, Result, ResultStatusID, SettlementStatusID, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate, RepUpdateTime)               
+		VALUES (SOURCE.Orid, @Leagueid, SOURCE.Teamid, SOURCE.Result, 3, 0, @UserId, GETDATE(), @UserId, GETDATE(), GETDATE());
 
 	END TRY
 
