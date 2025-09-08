@@ -1,7 +1,6 @@
-/*<info serverAlias="DBSIC-bodb02" executers="" isFunction="0"></info>*/
 /*	
 	Created by: 20250905@July
-	Task: Update table TicketVoiding_RoutineTasks - [Redmine: #237997]
+	Task: Update table TicketVoiding_RoutineTasks - [Redmine: 237997]
 	DB: DBSIC/bodb02
 */
 --Only sitedb03

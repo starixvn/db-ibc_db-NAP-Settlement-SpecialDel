@@ -139,7 +139,6 @@ BEGIN
 			OR bettype = 500 /*charge comm*/
 		)
 
-
 	IF EXISTS (SELECT TOP 1 1  FROM #tmp_TransId)
 	BEGIN
 		IF @MatchId = 29
