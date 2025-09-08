@@ -44,6 +44,7 @@ BEGIN
 				AND	o.matchid = @matchId
 				AND ISNULL(o.IsDeleted,0) = 0
 				AND ISNULL(f.IsDeleted,0) = 0
+				AND s.SettleType = 'EAR'
 	END
 END
 GO
