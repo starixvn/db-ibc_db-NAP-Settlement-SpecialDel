@@ -71,7 +71,7 @@ SET NOCOUNT ON
 			,GETDATE()
 			,@AdminID
 			,GETDATE()
-			,GETDATE()
+			,dbo.f_GetDateTime2()
 		);
 
 	IF EXISTS (SELECT 1 FROM ResultDetailOutright r WITH (NOLOCK) WHERE leagueid = @LeagueId AND r.Orid = @Orid AND Result = 'WON')
