@@ -92,6 +92,7 @@ AS
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250428@Max: TVS- Search matchid got error on ticket listing [Redmine: #225671]
 		- 20250724@July: Get Result Amendment for main parlay ticket of matchid input [Redmine: #233478]
+		- 20250903@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -133,6 +134,7 @@ AS
 					OddsId="8518"			-- Default : "All" ; Format : 8518,8519,...
 					Transdesc = '100001'	-- Default : "All" ; Format : 100001,100002,... (PlayerId - [Team].[TeamID])
 					VirtualHead ="1"		-- Default : "All" ; Format : Single Number
+					Performance = 'points'  -- Default : "All" ; Format : points, assists, rebounds, three_points, points+assists, points+rebounds (only for bettype 675, 676)
 		/>
 	<BetTypes/>'
     - @SingleOrSubParlay: 
@@ -209,6 +211,7 @@ BEGIN
 		,matchid			INT	
 		,custid				INT
 		,RefCode			BIGINT	
+		,Transdesc			NVARCHAR(2000)
 		,FilterBettype		SMALLINT
 		,FilterBetTeam		NVARCHAR(10)
 		,FilterSet			VARCHAR(50)
@@ -275,7 +278,8 @@ BEGIN
 		OddsSpread		VARCHAR(500),
 		OddsId			VARCHAR(1000),
 		Transdesc		NVARCHAR(2000),
-		VirtualHead		VARCHAR(500)
+		VirtualHead		VARCHAR(500),
+		Performance		VARCHAR(500) --Use only for bettype 675, 676 basketball player prop
 	)
 	CREATE TABLE #tblBetType_Detail
 	(
@@ -292,6 +296,7 @@ BEGIN
 		OddsId			INT,
 		Transdesc		NVARCHAR(2000),
 		VirtualHead		SMALLMONEY,
+		Performance		VARCHAR(500),
 		Hdp1_tmp		SMALLMONEY
 	)
 
@@ -300,6 +305,7 @@ BEGIN
 		,ParentBettype		SMALLINT
 		,mLiveIndicator		BIT
 		,Refno				BIGINT
+		,Transdesc			NVARCHAR(2000)
 		,FilterBettype		SMALLINT
 		,FilterBetTeam		NVARCHAR(10)
 		,FilterSet			VARCHAR(50)
@@ -325,7 +331,7 @@ BEGIN
 	) 
 
 	-- Parse xml @BetTeams
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead, Performance)
 	SELECT t.c.value('@Id','SMALLINT') AS Id
 			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam			-- check columns : betteam		 ; multi-choice	 
 			, t.c.value('@Set','VARCHAR(500)') AS [Set]					-- check columns : betid		 ; single-choice + multi-choice
@@ -339,10 +345,11 @@ BEGIN
 			, t.c.value('@OddsId','VARCHAR(1000)') AS OddsId			-- check columns : OddsId		 ; single-choice + multi-choice
 			, t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc		-- check columns : Transdesc	 ; single-choice + multi-choice
 			, t.c.value('@VirtualHead','NVARCHAR(500)') AS VirtualHead	-- check columns : hdp1 OR hdp2	 ; single-choice
+			, t.c.value('@Performance','VARCHAR(500)') AS Performance   -- check columns: transdesc	     ; single-choice + multi-choice
 	FROM @BetTeams.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTeams = NULL))
 
-	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead)
+	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead, Performance)
 	SELECT cte.Id
 			, CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -361,12 +368,14 @@ BEGIN
 			, cte.OddsId
 			, cte.Transdesc
 			, cte.VirtualHead
+			, cte.Performance
 	FROM (
 		SELECT cte.Id
 				, bt.value AS BetTeam 
 				, se.value AS [Set]
 				, ga.value AS Game
 				, bop.value AS BetOption
+				, p.value AS Performance
 				, CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault
 						ELSE v.value END AS SMALLMONEY) AS [Value]
 				, CAST(CASE WHEN vhdp1.value = 'ALL' THEN @ValueDefault
@@ -393,6 +402,7 @@ BEGIN
 				CROSS APPLY STRING_SPLIT(cte.OddsSpread, ',') os
 				CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
 				CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
+				CROSS APPLY STRING_SPLIT(cte.Performance, ',') p
 	) cte
 	WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 			   WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
@@ -439,7 +449,7 @@ BEGIN
 	END
 	ELSE -- For Others
 	BEGIN
-		INSERT INTO #SpecialDeleteBets (transid, srecommend, bettype, liveindicator, statusID, matchid, custid, RefCode,
+		INSERT INTO #SpecialDeleteBets (transid, srecommend, bettype, liveindicator, statusID, matchid, custid, RefCode, Transdesc,
 			FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc)
 		SELECT transid 
 			,srecommend
@@ -449,6 +459,7 @@ BEGIN
 			,matchid
 			,custid
 			,RefCode
+			,b.transdesc
 			,b.bettype AS FilterBetType
 			,b.betteam AS FilterBetTeam
 			,b.betid AS FilterSet
@@ -460,7 +471,9 @@ BEGIN
 			,b.hdp2 AS FilterHdp2
 			,b.oddsspread AS FilterOddsSpread
 			,b.oddsid AS FilterOddsId
-			,b.transdesc AS FilterTransdesc
+			,CASE 
+					WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc, '$.pid')
+					ELSE b.transdesc END AS FilterTransdesc
 		FROM bettrans b WITH (NOLOCK)
 			INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 		WHERE matchid IN (SELECT MatchId FROM @tmpMatchId)
@@ -508,6 +521,25 @@ BEGIN
 								 ELSE 0
 							END
 					END = 1
+			)
+
+			DELETE b
+			FROM #SpecialDeleteBets b
+			WHERE NOT EXISTS
+			(
+				SELECT TOP 1 1 
+				FROM #tblBetType_Detail AS tp
+				WHERE tp.Id = b.FilterBettype AND 1 =
+					CASE 
+						WHEN tp.Performance = 'All' THEN 1
+						WHEN tp.Performance = 'points' AND b.FilterBettype = 675 AND CHARINDEX('"points"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'three_points' AND b.FilterBettype = 675 AND CHARINDEX('"three_points"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'assists' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'rebounds' AND b.FilterBettype = 675 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+						ELSE 0
+					END
 			)
 
 			DELETE b
@@ -620,6 +652,7 @@ BEGIN
 				,ParentBettype
 				,mLiveIndicator
 				,Refno
+				,Transdesc
 				,FilterBettype
 				,FilterBetTeam
 				,FilterSet
@@ -639,6 +672,7 @@ BEGIN
 				,b.bettype
 				,bm.liveIndicator
 				,b.refno
+				,bm.transdesc
 				,bm.bettype AS FilterBetType
 				,bm.betteam AS FilterBetTeam
 				,bm.betcheck AS FilterSet
@@ -650,7 +684,9 @@ BEGIN
 				,bm.hdp2 AS FilterHdp2
 				,bm.oddsspread AS FilterOddsSpread
 				,bm.oddsid AS FilterOddsId
-				,bm.transdesc AS FilterTransdesc
+				,CASE 
+					WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.bettype, '$.pid')
+					ELSE bm.transdesc END AS FilterTransdesc
 				,b.srecommend
 				,b.hdp2 AS ParentHdp2
 		FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
@@ -722,6 +758,25 @@ BEGIN
 								END
 						END = 1
 				)
+			
+			DELETE b
+			FROM #CTE_ParlayTickets b
+			WHERE NOT EXISTS
+			(
+				SELECT TOP 1 1 
+				FROM #tblBetType_Detail AS tp
+				WHERE tp.Id = b.FilterBettype AND 1 =
+					CASE 
+						WHEN tp.Performance = 'All' THEN 1
+						WHEN tp.Performance = 'points' AND b.FilterBettype = 675 AND CHARINDEX('"points"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'three_points' AND b.FilterBettype = 675 AND CHARINDEX('"three_points"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'assists' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'rebounds' AND b.FilterBettype = 675 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+						ELSE 0
+					END
+			)
 
 			DELETE b
 			FROM  #CTE_ParlayTickets b
