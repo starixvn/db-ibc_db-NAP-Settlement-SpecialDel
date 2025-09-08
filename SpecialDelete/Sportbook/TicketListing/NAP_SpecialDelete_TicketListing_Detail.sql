@@ -816,7 +816,7 @@ BEGIN
 					bm.oddsspread AS FilterOddsSpread,
 					bm.oddsid AS FilterOddsId,
 					CASE 
-						WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.bettype, '$.pid')
+						WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.transdesc, '$.pid')
 						ELSE bm.transdesc END AS FilterTransdesc
 			FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
 				INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
