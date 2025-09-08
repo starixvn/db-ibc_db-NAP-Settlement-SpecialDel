@@ -44,19 +44,19 @@ BEGIN
 	
 			-- For ResultDetailOutright
 			INSERT INTO dbo.ResultDetailOutright (
-				Orid
-				,Leagueid
-				,Teamid
-				,Result
-				,ResultStatusID
-				,SettlementStatusID
-				,IsDeadheat
-				,CreatedBy
-				,CreatedDate
-				,ModifiedBy
-				,ModifiedDate
-				,RepUpdateTime
-				,OtherInfo
+				[Orid]
+				,[Leagueid]
+				,[Teamid]
+				,[Result]
+				,[ResultStatusID]
+				,[SettlementStatusID]
+				,[IsDeadheat]
+				,[CreatedBy]
+				,[CreatedDate]
+				,[ModifiedBy]
+				,[ModifiedDate]
+				,[RepUpdateTime]
+				,[OtherInfo]
 			)
 			SELECT 
 				[Orid]
@@ -76,15 +76,15 @@ BEGIN
 
 			-- For ProviderResultDetailOutright
 			INSERT INTO dbo.ProviderResultDetailOutright (
-				Orid
-				,SourceId
-				,Leagueid
-				,Teamid
-				,Result
-				,CreatedBy
-				,CreatedDate 
-				,RepUpdateTime
-				,OtherInfo
+				[Orid]
+				,[SourceId]
+				,[Leagueid]
+				,[Teamid]
+				,[Result]
+				,[CreatedBy]
+				,[CreatedDate]
+				,[RepUpdateTime]
+				,[OtherInfo]
 			)
 			SELECT 
 				[Orid]
