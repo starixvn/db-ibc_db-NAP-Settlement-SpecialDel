@@ -74,7 +74,7 @@ BEGIN
 					   + CASE WHEN pp.Performance = 'points' 
 								THEN CASE WHEN tt.ExtraInfo = 'winner' THEN ' points and ' + t.teamname + ' to Win'
 										  WHEN tt.ExtraInfo = 'over' THEN ' points and ' + t.teamname + ' Total Points Over ' + tt.ExtraValue
-										  WHEN tt.ExtraInfo = 'handicap' THEN ' points and ' + t.teamname + tt.ExtraValue
+										  WHEN tt.ExtraInfo = 'handicap' THEN ' points and ' + t.teamname + ' ' + tt.ExtraValue
 										  WHEN tt.ExtraInfo = 'winner,over' THEN ' points, ' + t.teamname + ' to Win and ' + t.teamname + ' Total Points Over ' + SUBSTRING(tt.ExtraValue,CHARINDEX(',',tt.ExtraValue)+1,LEN(tt.ExtraValue))
 										  ELSE '' END
 							  WHEN pp.Performance = 'three_points' 
