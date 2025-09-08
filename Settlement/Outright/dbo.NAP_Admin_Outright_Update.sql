@@ -126,7 +126,7 @@ BEGIN
 			,SumWon = NULL
 			,ModifiedDate = GETDATE()
 			,ModifiedBy = @AdminID
-			,RepUpdateTime = GETDATE()
+			,RepUpdateTime = dbo.f_GetDateTime2()
 		WHERE Orid = @MatchID
 	END
 

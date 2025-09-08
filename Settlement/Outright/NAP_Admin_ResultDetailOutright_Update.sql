@@ -43,7 +43,7 @@ SET NOCOUNT ON
 						,TARGET.IsDeadheat			= @IsDeadheat
 						,TARGET.ModifiedDate		= GETDATE()
 						,TARGET.ModifiedBy			= @AdminID
-						,TARGET.RepUpdateTime		= GETDATE()
+						,TARGET.RepUpdateTime		= dbo.f_GetDateTime2()
 	WHEN NOT MATCHED BY TARGET THEN
 		INSERT(
 			Orid
@@ -78,7 +78,7 @@ SET NOCOUNT ON
 	BEGIN
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
 		SET r.SumWon = (SELECT COUNT(1) FROM ResultDetailOutright WITH (NOLOCK) WHERE leagueid = @LeagueId AND Result = 'WON')
-			,r.RepUpdateTime = GETDATE()
+			,r.RepUpdateTime = dbo.f_GetDateTime2()
 		FROM ResultDetailOutright r
 		WHERE r.leagueid = @LeagueId AND r.Result = 'WON'
 	END
@@ -86,7 +86,7 @@ SET NOCOUNT ON
 	BEGIN
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
 		SET r.SumWon = 0
-			,r.RepUpdateTime = GETDATE()
+			,r.RepUpdateTime = dbo.f_GetDateTime2()
 		FROM ResultDetailOutright r
 		WHERE r.leagueid = @LeagueId AND r.Orid = @Orid AND r.Result <> 'WON'
 	END
