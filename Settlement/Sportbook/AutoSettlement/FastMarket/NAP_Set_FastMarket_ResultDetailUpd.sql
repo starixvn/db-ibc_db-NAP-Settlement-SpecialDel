@@ -155,9 +155,10 @@ BEGIN
 					SET HomeValue = SOURCE.HomeValue
 						,AwayValue = SOURCE.AwayValue
 						,OtherInfo = SOURCE.OtherInfo
-						,ResultStatusID = CASE WHEN SOURCE.StatusId IS NULL THEN
-							5 ELSE SOURCE.StatusId
-						END
+						,ResultStatusID = CASE 
+											WHEN SOURCE.StatusId IS NULL THEN 5 
+											ELSE SOURCE.StatusId
+											END
 						,LastModifyBy = @AdminId
 						,LastModifyDate = GETDATE()
 			WHEN MATCHED AND SOURCE.IsSave = 0 THEN DELETE
