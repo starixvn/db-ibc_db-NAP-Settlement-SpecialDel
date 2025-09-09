@@ -17,6 +17,7 @@ AS
 	Revisions: 
 		- 20250514@Lani: [TVS] New Issue Type - Match Early Completed - Create new SP [Redmine: #226438]
 		- 20250728@Lani: [TVS] ScaleOut DBTrans [Phase 4] - Reduced Over/Abandoned/Not Participate/Match Early Completed/Other Issues [Redmine: #232581]
+		- 20250909@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 
 	Param's explanation:
 		- @OnlineServerId = '0,1,3'
@@ -198,6 +199,7 @@ BEGIN
 		,FilterXY			NVARCHAR(50)
 		,FilterBetOption	NVARCHAR(250)
 		,FilterOddsSpread	MONEY --Support bettype 228,229
+		,Performance		VARCHAR(500) -- Support bettype 675, 676
 	)
 
 	IF ISNULL(@OnlineServerId, '') <> ''
@@ -307,6 +309,7 @@ BEGIN
 		,FilterHDP2
 		,FilterBetOption
 		,FilterOddsSpread
+		,Performance
 	)
 	SELECT tmp.bettype
 		, t.value AS betteam
@@ -324,6 +327,7 @@ BEGIN
 						ELSE vhdp2.value END AS SMALLMONEY) AS ValueHdp2
 		,bop.value AS FilterBetOption
 		,os.value AS FilterOddsSpread
+		,p.value AS Performance
 	FROM (
 		SELECT Id AS bettype
 			,ISNULL(Team, 'All') AS betteam
@@ -336,10 +340,11 @@ BEGIN
 			,ISNULL(Hdp2, '') AS HDP2s
 			,ISNULL(BetOption, '') AS BetOption
 			,ISNULL(OddsSpread, '') AS OddsSpread
+			,ISNULL(Performance, '') AS Performance
 		FROM OPENJSON(@AdvancedExtraInfo) 
 		WITH( Id SMALLINT, Team NVARCHAR(2000), Hdp VARCHAR(MAX), Player VARCHAR(1000)
 			, FilterBetIdX VARCHAR(1000), FilterBetIdY VARCHAR(1000), PlayerAndOdds VARCHAR(2000)
-			, Hdp1 VARCHAR(500), Hdp2 VARCHAR(500), BetOption NVARCHAR(500), OddsSpread VARCHAR(500))
+			, Hdp1 VARCHAR(500), Hdp2 VARCHAR(500), BetOption NVARCHAR(500), OddsSpread VARCHAR(500), Performance VARCHAR(500))
 	)tmp
 	CROSS APPLY STRING_SPLIT(tmp.betteam, ',') t
 	CROSS APPLY STRING_SPLIT(tmp.HDPs, ',') vhdp
@@ -351,6 +356,7 @@ BEGIN
 	CROSS APPLY STRING_SPLIT(tmp.HDP2s, '&') vhdp2
 	CROSS APPLY STRING_SPLIT(tmp.BetOption, ',') bop
 	CROSS APPLY STRING_SPLIT(tmp.OddsSpread, '&') os
+	CROSS APPLY STRING_SPLIT(tmp.Performance, ',') p
 
 	UPDATE d SET d.IsFancy = 1
 	FROM @bettype_detail d
@@ -520,7 +526,7 @@ BEGIN
 		,CONVERT(NVARCHAR(50), b.betid) AS FilterX  
 		,RIGHT(b.betid, 2) AS FilterY
 		,CONVERT(NVARCHAR(50), b.betid) AS FilterXY 
-		,b.transdesc AS FilterTransdesc 
+		,CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid') ELSE b.transdesc END AS FilterTransdesc 
 		,b.oddsid AS FilterPlayerAndOdds 
 		,b.hdp1 + b.hdp2 AS FilterHdp
 		,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
@@ -528,7 +534,7 @@ BEGIN
 		,ISNULL(tb.parentid, b.bettype) AS GroupDisplay
 		,b.bettype AS GroupBettype
 		,b.betteam AS GroupBetteam
-		,b.transdesc AS GroupTransdesc
+		,CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid') ELSE b.transdesc END AS GroupTransdesc
 		,CONVERT(NVARCHAR(50), b.betid) AS Groupbetid
 		,b.oddsid AS GroupOddsId
 		,d.Id AS GroupId
@@ -705,7 +711,7 @@ BEGIN
 			,sub.betcheck AS FilterX 
 			,RIGHT(sub.betcheck, 2) AS FilterY
 			,sub.betcheck AS FilterXY
-			,sub.transdesc AS FilterTransdesc 
+			,CASE WHEN (sub.bettype BETWEEN 653 AND 688) AND (sub.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(sub.transdesc,'$.pid') ELSE sub.transdesc END AS FilterTransdesc 
 			,sub.oddsid AS FilterPlayerAndOdds 
 			,sub.hdp1 + sub.hdp2 AS FilterHdp
 			,CAST(CAST(sub.hdp2 AS INT) AS VARCHAR(50)) + '-' + sub.betteam AS FilterBetOption
@@ -713,7 +719,7 @@ BEGIN
 			,ISNULL(tb.parentid, sub.bettype) AS GroupDisplay
 			,sub.bettype AS GroupBettype
 			,sub.betteam AS GroupBetteam
-			,sub.Transdesc AS GroupTransdesc
+			,CASE WHEN (sub.bettype BETWEEN 653 AND 688) AND (sub.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(sub.transdesc,'$.pid') ELSE sub.transdesc END AS GroupTransdesc
 			,sub.betcheck AS Groupbetid
 			,b.OddsId AS GroupOddsId
 			,d.Id AS GroupId
@@ -780,6 +786,14 @@ BEGIN
 					ELSE 0 END
 				AND (f.FilterBetOption = '' OR b.FilterBetOption = f.FilterBetOption)
 				AND (f.FilterOddsSpread = '' OR b.FilterOddsSpread = f.FilterOddsSpread)
+				AND (1 = CASE WHEN f.Performance = '' THEN 1
+							 WHEN f.Performance = 'points' AND b.FilterBettype = 675 AND CHARINDEX('"points"', b.subtransdesc ) > 0 THEN 1
+							 WHEN f.Performance = 'three_points' AND b.FilterBettype = 675 AND CHARINDEX('"three_points"', b.subtransdesc ) > 0 THEN 1
+							 WHEN f.Performance = 'assists' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.subtransdesc ) > 0 THEN 1
+							 WHEN f.Performance = 'rebounds' AND b.FilterBettype = 675 AND CHARINDEX('"rebounds"', b.subtransdesc ) > 0 THEN 1
+							 WHEN f.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.subtransdesc ) > 0 AND CHARINDEX('"assists"', b.subtransdesc ) > 0 THEN 1
+							 WHEN f.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.subtransdesc ) > 0 AND CHARINDEX('"rebounds"', b.subtransdesc ) > 0 THEN 1
+						ELSE 0 END)
 		)t
 	WHERE t.Bettype IS NULL
 
