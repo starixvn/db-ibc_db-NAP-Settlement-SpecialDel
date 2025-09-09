@@ -12,6 +12,7 @@ AS
 		- 20250402@Hughie: Direct Payout- Soccer- Early PEN- Enhancement [Redmine:#222688]
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 		- 20250826@Louisa: Enhance code [Redmine: #237088]
+		- 20250904@Louisa: Enhance code [Redmine: #237289]
 
 	Param's Explanation:
  
@@ -23,12 +24,16 @@ BEGIN
 			,@fromdate		DATETIME
 			,@todate		DATETIME
 			,@checktime		DATETIME
+			,@Result_FromDate DATETIME
 
 	SET @currentdate = CAST(GETDATE() AS DATE)
 	SELECT	@fromdate = DATEADD(DAY,-1,@currentdate)
 			,@todate = @currentdate
 			,@checktime = DATEADD(HOUR, 3, GETDATE())
+			,@Result_FromDate = DATEADD(HOUR,-5,@CurrentDate)
 
+	IF OBJECT_ID('tempdb..#match_pre') IS NOT NULL DROP TABLE #match_pre
+	CREATE TABLE #match_pre (matchid int primary key WITH (IGNORE_DUP_KEY = ON))
 
 	DECLARE @tmpResourceIds TABLE(
 		ResourceId VARCHAR(20)
@@ -42,6 +47,12 @@ BEGIN
 
 	DECLARE @CurrTime DATETIME = GETDATE()
 
+	INSERT INTO #match_pre (matchid)
+	SELECT DISTINCT rd.matchid
+	FROM ResultDetail rd WITH(NOLOCK)
+	WHERE rd.CreateDate > @Result_FromDate		
+		AND rd.ResultStatusID = 3 -- confirmed
+
 	SELECT m.matchid 
 		, m.leagueid
 		, m.sporttype
@@ -53,6 +64,8 @@ BEGIN
 		, ssp.relatedSettResources
 		, m.ChildMatchType
 	FROM dbo.match m WITH(NOLOCK)	
+		INNER JOIN #match_pre mp 
+			ON m.matchid = mp.matchid
 		INNER JOIN dbo.League l WITH(NOLOCK)
 			ON m.leagueid = l.leagueid
 		INNER JOIN dbo.ResultDetail rd WITH(NOLOCK)

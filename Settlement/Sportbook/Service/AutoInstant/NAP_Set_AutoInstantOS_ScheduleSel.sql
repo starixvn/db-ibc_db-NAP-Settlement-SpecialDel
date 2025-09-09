@@ -10,7 +10,7 @@ AS
 		- 20230801@Aries: Created [Redmine:#189662]
 		- 20250822@Louisa: Enhance code [Redmine:#236851]
 		- 20250826@Louisa: Enhance code [Redmine: #237088]
-
+		- 20250904@Louisa: Enhance code [Redmine: #237289]
 */
 
 BEGIN
@@ -23,7 +23,11 @@ BEGIN
 			,@ProcName		SYSNAME	= OBJECT_NAME(@@procid)
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting		BIT = 0
+			,@Result_FromDate DATETIME
 	
+	IF OBJECT_ID('tempdb..#match_pre') IS NOT NULL DROP TABLE #match_pre
+	CREATE TABLE #match_pre (matchid int primary key WITH (IGNORE_DUP_KEY = ON))
+
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		 @SPName		= @procName
 		,@WaitingTime	= @WaitingTime	OUTPUT
@@ -38,10 +42,20 @@ BEGIN
 	SELECT	 @FromDate		= DATEADD(DAY,-1,@CurrentDate)
 			,@ToDate		= @CurrentDate
 			,@Checktime		= DATEADD(HOUR, 3, GETDATE())
+			,@Result_FromDate = DATEADD(HOUR,-5,@CurrentDate)
+	
+	INSERT INTO #match_pre (matchid)
+	SELECT DISTINCT pr.matchid
+	FROM dbo.ProviderExternalResultDetail AS pr WITH (NOLOCK)
+	WHERE pr.SourceID = 98
+		AND pr.ResourceId LIKE 'Q[1-4]'
+		AND pr.CreateDate > @Result_FromDate
+
 
     SELECT m.MatchID,m.LeagueID, r.HomeValue, r.AwayValue, r.ResourceId
     FROM dbo.Match m WITH (NOLOCK)
-		INNER JOIN dbo.League l WITH (NOLOCK) ON m.LeagueID = l.LeagueID      
+		INNER JOIN dbo.League l WITH (NOLOCK) ON m.LeagueID = l.LeagueID    
+		INNER JOIN #match_pre mp ON m.matchid = mp.matchid
 		CROSS APPLY (
 				SELECT	pr.ResourceId, pr.HomeValue,pr.AwayValue
 						, ROW_NUMBER() OVER(PARTITION BY ResourceId ORDER BY ProviderExternalID DESC) AS rownum
