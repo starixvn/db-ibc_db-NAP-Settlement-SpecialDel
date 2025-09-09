@@ -51,7 +51,7 @@ BEGIN
 		rd.ResourceID,
 		rd.HomeValue,
 		rd.AwayValue,
-		CASE WHEN ad.RecordCount >= 2 AND ad.DistinctResultCount > 1 THEN 1 ELSE 0 END as IsMultipleOrChanged
+		CASE WHEN ad.RecordCount >= 2 AND ad.DistinctResultCount > 1 THEN 1 ELSE 0 END AS IsChangedInTime
 	FROM RawDataInRange rd
 		INNER JOIN DetailData ad ON rd.MatchID = ad.MatchID AND rd.ResourceID = ad.ResourceID
 	WHERE rd.rn = 1
@@ -82,7 +82,7 @@ BEGIN
 	)
 	-- Step 5: Insert result
 	INSERT INTO @tmpResult (MatchId)
-	SELECT MatchID, ResourceID
+	SELECT MatchID
 	FROM PreviousResultsCTE
 	WHERE (CurrentHomeValue != PrevHomeValue OR CurrentAwayValue != PrevAwayValue)
 
