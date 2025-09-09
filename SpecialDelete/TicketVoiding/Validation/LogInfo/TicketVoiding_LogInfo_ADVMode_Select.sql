@@ -780,12 +780,12 @@ BEGIN
 				AND (f.FilterBetOption = '' OR b.FilterBetOption = f.FilterBetOption)
 				AND (f.FilterOddsSpread = '' OR b.FilterOddsSpread = f.FilterOddsSpread)
 				AND 1 = CASE WHEN f.Performance = '' THEN 1
-							 WHEN f.Performance = 'points' AND b.FilterBettype = 675 AND CHARINDEX('"points"', b.transdesc ) > 0 THEN 1
-							 WHEN f.Performance = 'three_points' AND b.FilterBettype = 675 AND CHARINDEX('"three_points"', b.transdesc ) > 0 THEN 1
-							 WHEN f.Performance = 'assists' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
-							 WHEN f.Performance = 'rebounds' AND b.FilterBettype = 675 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
-							 WHEN f.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
-							 WHEN f.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+							 WHEN f.Performance = 'points' AND b.FilterBettype = 675 AND CHARINDEX('"points"', b.subtransdesc ) > 0 THEN 1
+							 WHEN f.Performance = 'three_points' AND b.FilterBettype = 675 AND CHARINDEX('"three_points"', b.subtransdesc ) > 0 THEN 1
+							 WHEN f.Performance = 'assists' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.subtransdesc ) > 0 THEN 1
+							 WHEN f.Performance = 'rebounds' AND b.FilterBettype = 675 AND CHARINDEX('"rebounds"', b.subtransdesc ) > 0 THEN 1
+							 WHEN f.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.subtransdesc ) > 0 AND CHARINDEX('"assists"', b.subtransdesc ) > 0 THEN 1
+							 WHEN f.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.subtransdesc ) > 0 AND CHARINDEX('"rebounds"', b.subtransdesc ) > 0 THEN 1
 						ELSE 0 END
 		)t
 	WHERE t.Bettype IS NULL
