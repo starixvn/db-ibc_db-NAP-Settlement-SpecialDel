@@ -31,43 +31,55 @@ BEGIN
 	VALUES   ('221WB01'),('221WB02'),('221WB03'),('221WB04')
 
 	DECLARE @CurrTime DATETIME = GETDATE()
-
-	SELECT  m.MatchId
-			,m.LeagueId
-			,r.ResourceId
-			,r.HomeValue
-			,r.AwayValue
-			,r.OtherInfo
-			,r.ResultStatusID
-			,r.SettlementStatusID
-	FROM match m WITH (NOLOCK) 
-		INNER JOIN ResultDetail r WITH (NOLOCK) ON r.MatchId = m.matchid 
-		--INNER JOIN @tmpResourceIds t ON t.ResourceId = r.ResourceId
-		CROSS APPLY (
-			SELECT TOP 1 t.ResourceId
-			FROM @tmpResourceIds t 
-			WHERE t.ResourceId = r.ResourceId
-		) t
-		OUTER APPLY (
-			SELECT TOP 1 ap.WaitingTime, ap.[Enable]
-			FROM AutoPayoutSetting ap WITH (NOLOCK)
-			WHERE r.MatchId = ap.MatchId 
-				AND ap.AutoType = 11
-		) ap
-		OUTER APPLY(
-			SELECT TOP 1 ss.WaitingTime, ss.[Enable]
-			FROM SettlementSetting ss WITH (NOLOCK) 
-			WHERE ss.LeagueId = m.leagueid
-				AND ss.AutoType = 11
-		) ss
-		
-	WHERE r.ResourceId LIKE '221WB__'
-		AND r.ResultStatusID = 1
-		AND r.LastModifyDate <= DATEADD(SECOND, - COALESCE(ap.Waitingtime,ss.Waitingtime,300), @CurrTime)
-		AND m.eventdate BETWEEN @fromdate AND @todate 
-		AND GlobalShowTime <= @checktime
-		AND (ISNULL(ap.[Enable],0) = 1 OR ISNULL(ss.[Enable],0) = 1)
-		AND ISNULL(m.SettlementStatus,0) & 87 = 0
-
+	
+    ;WITH MatchResources AS (
+        SELECT  
+               m.MatchId
+              ,m.LeagueId
+              ,r.ResourceId
+              ,r.HomeValue
+              ,r.AwayValue
+              ,r.OtherInfo
+              ,r.ResultStatusID
+              ,r.SettlementStatusID
+              ,ROW_NUMBER() OVER (PARTITION BY m.MatchId ORDER BY r.ResourceId) AS RowNum
+        FROM match m WITH (NOLOCK) 
+            INNER JOIN ResultDetail r WITH (NOLOCK) ON r.MatchId = m.matchid 
+            CROSS APPLY (
+                SELECT TOP 1 t.ResourceId
+                FROM @tmpResourceIds t 
+                WHERE t.ResourceId = r.ResourceId
+            ) t
+            OUTER APPLY (
+                SELECT TOP 1 ap.WaitingTime, ap.[Enable]
+                FROM AutoPayoutSetting ap WITH (NOLOCK)
+                WHERE r.MatchId = ap.MatchId 
+                    AND ap.AutoType = 11
+            ) ap
+            OUTER APPLY(
+                SELECT TOP 1 ss.WaitingTime, ss.[Enable]
+                FROM SettlementSetting ss WITH (NOLOCK) 
+                WHERE ss.LeagueId = m.leagueid
+                    AND ss.AutoType = 11
+            ) ss
+        WHERE r.ResourceId LIKE '221WB__'
+            AND r.ResultStatusID = 1
+            AND r.LastModifyDate <= DATEADD(SECOND, - COALESCE(ap.Waitingtime,ss.Waitingtime,300), @CurrTime)
+            AND m.eventdate BETWEEN @fromdate AND @todate 
+            AND GlobalShowTime <= @checktime
+            AND (ISNULL(ap.[Enable],0) = 1 OR ISNULL(ss.[Enable],0) = 1)
+            AND ISNULL(m.SettlementStatus,0) & 87 = 0
+    )
+    SELECT 
+        MatchId,
+        LeagueId,
+        ResourceId,
+        HomeValue,
+        AwayValue,
+        OtherInfo,
+        ResultStatusID,
+        SettlementStatusID
+    FROM MatchResources
+    WHERE RowNum = 1
 END
 GO
