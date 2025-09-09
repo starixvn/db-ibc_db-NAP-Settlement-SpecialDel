@@ -120,6 +120,7 @@ AS
 	  - 20250701@Max: Support MaxPayout Per match for MixParlay of Virtual Sports [Redmine: #231837]
 	  - 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 	  - 20250826@July: Integration - Saba Coins [Redmine: #236197]
+	  - 20250909@July: Support Void Streamer Tips bets [Redmine: #237271]
 	
 	 Param's Explanation:   
 */
@@ -474,15 +475,17 @@ BEGIN
 			ON r.EventID = o.EventID
 		WHERE b.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
-	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)/ Saba Coins (productid = 81)
+	
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)/ Saba Coins (productid = 81)/Player Tips(productid = 74)
 	BEGIN
 		UPDATE d
 		SET sporttype = sb.SportType
 		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON d.bettype = sb.BetType
-		WHERE sb.ProductID IN (37,81)
+		WHERE sb.ProductID IN (37,81,74)
 	END
+	
 	-- UPDATE Sportype, Endtime for Bitcoin 
 	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets 
 					WHERE bettype BETWEEN 7901 AND 7999 

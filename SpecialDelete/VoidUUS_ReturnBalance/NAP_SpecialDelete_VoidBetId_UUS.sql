@@ -30,6 +30,7 @@ AS
 		- 20250807@Max: [TVS] Support the void function of the Move Bet flow for Betby [Redmine: #235445]
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 		- 20250826@July: Integration - Saba Coins [Redmine: #236197]
+		- 20250909@July: Support Void Streamer Tips bets [Redmine: #237271]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -274,14 +275,15 @@ BEGIN
 			ON r.EventID = o.EventID
 		WHERE b.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
-	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)/ Saba Coins (productid = 81)
+	
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)/ Saba Coins (productid = 81)/Player Tips(productid = 74)
 	BEGIN
 		UPDATE b
 		SET sporttype = sb.SportType
 		FROM #BetDelete b
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON b.bettype = sb.BetType
-		WHERE sb.ProductID IN (37,81)
+		WHERE sb.ProductID IN (37,81,74)
 	END
 
 	-- UPDATE Sportype, Endtime for Bitcoin 
