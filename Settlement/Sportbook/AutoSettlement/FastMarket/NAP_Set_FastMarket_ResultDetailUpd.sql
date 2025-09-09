@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_FastMarket_ResultDetailUpd @MatchId INT
 	,@Results		VARCHAR(MAX)	= NULL
 	,@EventCounters	VARCHAR(MAX)	= NULL
@@ -83,6 +83,7 @@ BEGIN
 		,AwayValue	VARCHAR(50)
 		,OtherInfo	VARCHAR(50)
 		,IsSave		BIT	
+		,StatusId	INT
 	)
 	
 	DECLARE @tblPosition TABLE(
@@ -133,17 +134,18 @@ BEGIN
 	BEGIN TRY
 		IF @SpecialSession IS NOT NULL
 		BEGIN
-			INSERT INTO @tblDataSpecialSession (ResourceId, HomeValue, AwayValue, OtherInfo, IsSave)
+			INSERT INTO @tblDataSpecialSession (ResourceId, HomeValue, AwayValue, OtherInfo, IsSave, StatusId)
 			SELECT	T.C.value('@Id', 'VARCHAR(20)') AS ResourceId
 					,T.C.value('@h','VARCHAR(50)') AS HomeValue
 					,T.C.value('@a','VARCHAR(50)') AS AwayValue
 					,T.C.value('@o','VARCHAR(50)') AS OtherInfo
 					,T.C.value('@s','BIT') AS IsSave
+					,T.C.value('@st','INT') AS StatusId
 			FROM	@xmlSpecialSession.nodes('r/w') AS T(C)
 
 			MERGE dbo.ResultDetail TARGET
 			USING (
-				SELECT	t.ResourceId, t.HomeValue, t.AwayValue, t.OtherInfo, t.IsSave
+				SELECT	t.ResourceId, t.HomeValue, t.AwayValue, t.OtherInfo, t.IsSave, t.StatusId
 				FROM	@tblDataSpecialSession t
 			) AS SOURCE
 				ON	TARGET.ResourceId = SOURCE.ResourceId
@@ -153,7 +155,9 @@ BEGIN
 					SET HomeValue = SOURCE.HomeValue
 						,AwayValue = SOURCE.AwayValue
 						,OtherInfo = SOURCE.OtherInfo
-						,ResultStatusID = 5
+						,ResultStatusID = CASE WHEN SOURCE.StatusId IS NULL THEN
+							5 ELSE SOURCE.StatusId
+						END
 						,LastModifyBy = @AdminId
 						,LastModifyDate = GETDATE()
 			WHEN MATCHED AND SOURCE.IsSave = 0 THEN DELETE
