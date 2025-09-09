@@ -495,7 +495,7 @@ BEGIN
 		,ISNULL(tb.parentid, b.bettype)
 		,b.bettype
 		,b.betteam
-		,b.Transdesc
+		,CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid') ELSE b.transdesc END AS GroupTransdesc
 		,CONVERT(NVARCHAR(50), b.betid)
 		,b.OddsId
 		,d.Id
@@ -706,7 +706,7 @@ BEGIN
 			,ISNULL(tb.parentid, sub.bettype)
 			,sub.bettype
 			,sub.betteam
-			,sub.Transdesc
+			,CASE WHEN (sub.bettype BETWEEN 653 AND 688) AND (sub.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(sub.transdesc,'$.pid') ELSE sub.transdesc END AS GroupTransdesc
 			,sub.betcheck
 			,b.OddsId
 			,d.Id
