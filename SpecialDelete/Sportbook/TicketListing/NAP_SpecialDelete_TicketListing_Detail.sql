@@ -525,7 +525,7 @@ BEGIN
 			BEGIN
 				INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,OddsType,CurrencyName,winlost,betid,IsParlay
-											,SecAcceptFlag,refno,TransDesc,MOdds,WalletType,RefCode,BonusID,MainTransId, custid, srecommend
+											,SecAcceptFlag,refno,TransDesc,SubTransdesc,MOdds,WalletType,RefCode,BonusID,MainTransId, custid, srecommend
 											,FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, IsMarked, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc)
 				SELECT	b.username,
 						b.bettype,					
@@ -554,6 +554,7 @@ BEGIN
 						ISNULL(SecAcceptFlag,0) SecAcceptFlag,
 						b.refno,
 						b.TransDesc,
+						b.TransDesc AS SubTransdesc,
 						b.MOdds,
 						b.WalletType,
 						b.RefCode,
