@@ -33,7 +33,7 @@ BEGIN
 		FROM [dbo].[SettlementLog] WITH (NOLOCK)
 		WHERE LogDate BETWEEN @FromDate AND @ToDate
 		  AND ResourceID IN ('00', '01')
-		  AND SportType < 99
+		  AND SportType <= 99
 	),
 	-- Step 2: Get detail data
 	DetailData AS (
