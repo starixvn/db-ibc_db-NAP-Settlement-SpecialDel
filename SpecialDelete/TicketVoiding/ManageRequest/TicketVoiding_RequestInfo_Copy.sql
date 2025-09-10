@@ -34,6 +34,7 @@ AS
 		- 20250812@Lani: [TVS] Copy Request Info - Update message template - Wrong Odds [Redmine: #234719]
 		- 20250813@Lani: [TVS] Copy Request Info - Update message template - Reduced Overs / Abandoned [Redmine: #235737]
 		- 20250825@Lani: [TVS] Copy Request Info - Update message template - Wrong HDP, 1st HDP, Wrong OU, Wrong 1st OU, Wrong Odds [Redmine: #235984]
+		- 20250910@July: [TVS] Copy Request Info - Update message template - Wrong Odds - Handicap [Redmine: #236306]
 		
 
 	Param's explanation:
@@ -55,6 +56,22 @@ BEGIN
 		  ,	@IssueDetail		NVARCHAR(MAX)
 		  , @RequestExtraInfo	VARCHAR(MAX)
 		  ,	@Sporttype			SMALLINT
+
+
+	DECLARE  @FilterFavoriteType		VARCHAR(10)
+			,@FavoriteValue				VARCHAR(50)
+			,@ActualMarket				VARCHAR(50)
+			,@WrongMarket				VARCHAR(50)
+			,@HdpValue					VARCHAR(50)
+			,@FromOddsNotVoidHomeOver   VARCHAR(10)
+			,@ToOddsNotVoidHomeOver     VARCHAR(10)
+			,@FromOddsNotVoidAwayUnder  VARCHAR(10)
+			,@ToOddsNotVoidAwayUnder    VARCHAR(10)
+			,@CorrectOddsHomeOver	    VARCHAR(10)
+			,@CorrectOddsAwayUnder	    VARCHAR(10)
+			,@WrongOU				    VARCHAR(10)
+			,@SubIssueTypeId		    TINYINT	
+			,@xml						XML
 
 	DECLARE @tmpRequestInfo TABLE (
 		 RequestId			INT
@@ -362,12 +379,6 @@ BEGIN
 	
 	IF @IssueTypeId IN (4,5,6,7) --Wrong HDP/1stHDP, WrongOU/1stOU
 	BEGIN
-		DECLARE  @FilterFavoriteType VARCHAR(50)
-				,@FavoriteValue     VARCHAR(50)
-				,@ActualMarket		VARCHAR(50)
-				,@WrongMarket		VARCHAR(50)
-				,@HdpValue			VARCHAR(50)
-				
 		IF (@IssueTypeId IN (4,5))
 		BEGIN
 			SELECT @FilterFavoriteType = CASE WHEN CHARINDEX('HomeFavorite=',@RequestExtraInfo) > 0 THEN 'h'
@@ -395,23 +406,22 @@ BEGIN
 
 	IF @IssueTypeId IN (2) --WrongOdds
 	BEGIN
-		DECLARE @FromOddsNotVoidHomeOver   VARCHAR(10)
-				,@ToOddsNotVoidHomeOver    VARCHAR(10)
-				,@FromOddsNotVoidAwayUnder VARCHAR(10)
-				,@ToOddsNotVoidAwayUnder   VARCHAR(10)
-				,@CorrectOddsHomeOver	   VARCHAR(10)
-				,@CorrectOddsAwayUnder	   VARCHAR(10)
-				,@WrongOU				   VARCHAR(10)
-				,@SubIssueTypeId		   TINYINT
-
 		SET @SubIssueTypeId = (SELECT TOP 1 SubIssueTypeId FROM @tmpRequestInfo)
-		SELECT @FromOddsNotVoidHomeOver = CAST(@RequestExtraInfo AS XML).value('(/r/@FromOddsNotVoidHomeOver)[1]', 'VARCHAR(10)'),
-			   @ToOddsNotVoidHomeOver = CAST(@RequestExtraInfo AS XML).value('(/r/@ToOddsNotVoidHomeOver)[1]', 'VARCHAR(10)'),
-			   @FromOddsNotVoidAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@FromOddsNotVoidAwayUnder)[1]', 'VARCHAR(10)'),
-			   @ToOddsNotVoidAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@ToOddsNotVoidAwayUnder)[1]', 'VARCHAR(10)'),
-			   @CorrectOddsHomeOver =  CAST(@RequestExtraInfo AS XML).value('(/r/@CorrectOddsHomeOver)[1]', 'VARCHAR(10)'),
-			   @CorrectOddsAwayUnder = CAST(@RequestExtraInfo AS XML).value('(/r/@CorrectOddsAwayUnder)[1]', 'VARCHAR(10)'),
-			   @WrongOU = CASE WHEN @SubIssueTypeId IN (120,121) THEN CAST(@RequestExtraInfo AS XML).value('(/r/@WrongOU)[1]', 'VARCHAR(10)') ELSE NULL END
+		SET @xml = CAST(@RequestExtraInfo AS XML)
+
+		SELECT 
+			@FromOddsNotVoidHomeOver  = t.c.value('@FromOddsNotVoidHomeOver','VARCHAR(10)'),
+			@ToOddsNotVoidHomeOver    = t.c.value('@ToOddsNotVoidHomeOver','VARCHAR(10)'),
+			@FromOddsNotVoidAwayUnder = t.c.value('@FromOddsNotVoidAwayUnder','VARCHAR(10)'),
+			@ToOddsNotVoidAwayUnder   = t.c.value('@ToOddsNotVoidAwayUnder','VARCHAR(10)'),
+			@CorrectOddsHomeOver      = t.c.value('@CorrectOddsHomeOver','VARCHAR(10)'),
+			@CorrectOddsAwayUnder     = t.c.value('@CorrectOddsAwayUnder','VARCHAR(10)'),
+			--Sub Type = Over/Under, 1H Over/Under
+			@WrongOU                  = t.c.value('@WrongOU','VARCHAR(10)'), 
+			--Sub Type = Handicap, 1H Handicap
+			@FilterFavoriteType       = t.c.value('@FilterFavoriteType','VARCHAR(10)'),
+			@FavoriteValue			  = t.c.value('@FavoriteValue','VARCHAR(50)') 
+		FROM @xml.nodes('/r') t(c);
 
 	END
 
