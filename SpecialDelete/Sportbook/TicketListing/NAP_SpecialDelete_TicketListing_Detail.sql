@@ -898,8 +898,8 @@ BEGIN
 						WHEN tp.Performance = 'three_points' AND b.FilterBettype = 675 AND CHARINDEX('"three_points"', b.SubTransDesc ) > 0 THEN 1
 						WHEN tp.Performance = 'assists' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.SubTransDesc ) > 0 THEN 1
 						WHEN tp.Performance = 'rebounds' AND b.FilterBettype = 675 AND CHARINDEX('"rebounds"', b.SubTransDesc ) > 0 THEN 1
-						WHEN tp.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.SubTransDesc ) > 0 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
-						WHEN tp.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.SubTransDesc ) > 0 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.SubTransDesc ) > 0 AND CHARINDEX('"assists"', b.SubTransDesc ) > 0 THEN 1
+						WHEN tp.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.SubTransDesc ) > 0 AND CHARINDEX('"rebounds"', b.SubTransDesc ) > 0 THEN 1
 						ELSE 0
 					END
 			)

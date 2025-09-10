@@ -278,7 +278,7 @@ BEGIN
 		OddsSpread		VARCHAR(500),
 		OddsId			VARCHAR(1000),
 		Transdesc		NVARCHAR(2000),
-		Performance		VARCHAR(50),  -- Use only for bettype 675, 676 basketball
+		Performance		VARCHAR(500),  -- Use only for bettype 675, 676 basketball
 		VirtualHead		VARCHAR(500)
 	)
 
@@ -297,7 +297,7 @@ BEGIN
 		OddsId			INT,
 		Transdesc		NVARCHAR(2000),
 		VirtualHead		SMALLMONEY,
-		Performance		VARCHAR(50),
+		Performance		VARCHAR(500),
 		Hdp1_tmp		SMALLMONEY
 	)	
 	
@@ -515,7 +515,7 @@ BEGIN
 			, t.c.value('@OddsId','VARCHAR(1000)') AS OddsId		-- check columns : OddsId		 ; single-choice + multi-choice
 			, t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice + multi-choice
 			, t.c.value('@VirtualHead','NVARCHAR(500)') AS VirtualHead	-- check columns : hdp1 OR hdp2	 ; single-choice
-			, t.c.value('@Performance','VARCHAR(50)') AS Performance -- check columns: transdesc	 ; single-choice + multi-choice
+			, t.c.value('@Performance','VARCHAR(500)') AS Performance -- check columns: transdesc	 ; single-choice + multi-choice
 	FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
 	
@@ -754,6 +754,7 @@ BEGIN
 				,betdaqid
 				,refno
 				,TransDesc
+				,SubTransDesc
 				,ExtraInfo
 				,awinlost
 				,IsCashOut
@@ -811,6 +812,7 @@ BEGIN
 				,b.betdaqid
 				,b.refno
 				,b.TransDesc
+				,b.transdesc AS SubTransdesc
 				,b.ExtraInfo
 				,b.awinlost
 				,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
@@ -888,6 +890,7 @@ BEGIN
 				,betdaqid
 				,refno
 				,TransDesc
+				,SubTransDesc
 				,ExtraInfo
 				,awinlost
 				,IsCashOut
@@ -945,6 +948,7 @@ BEGIN
 				,b.betdaqid
 				,b.refno
 				,b.TransDesc
+				,b.transdesc AS SubTransdesc
 				,b.ExtraInfo
 				,b.awinlost
 				,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
@@ -1305,12 +1309,12 @@ BEGIN
 			WHERE tp.Id = b.FilterBettype AND 1 =
 				CASE 
 					WHEN tp.Performance = 'All' THEN 1
-					WHEN tp.Performance = 'points' AND b.FilterBettype = 675 AND CHARINDEX('"points"', b.transdesc ) > 0 THEN 1
-					WHEN tp.Performance = 'three_points' AND b.FilterBettype = 675 AND CHARINDEX('"three_points"', b.transdesc ) > 0 THEN 1
-					WHEN tp.Performance = 'assists' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
-					WHEN tp.Performance = 'rebounds' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
-					WHEN tp.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
-					WHEN tp.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+					WHEN tp.Performance = 'points' AND b.FilterBettype = 675 AND CHARINDEX('"points"', b.SubTransDesc ) > 0 THEN 1
+					WHEN tp.Performance = 'three_points' AND b.FilterBettype = 675 AND CHARINDEX('"three_points"', b.SubTransDesc ) > 0 THEN 1
+					WHEN tp.Performance = 'assists' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.SubTransDesc ) > 0 THEN 1
+					WHEN tp.Performance = 'rebounds' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.SubTransDesc ) > 0 THEN 1
+					WHEN tp.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.SubTransDesc ) > 0 AND CHARINDEX('"assists"', b.SubTransDesc ) > 0 THEN 1
+					WHEN tp.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.SubTransDesc ) > 0 AND CHARINDEX('"rebounds"', b.SubTransDesc ) > 0 THEN 1
 					ELSE 0
 				END
 		)
