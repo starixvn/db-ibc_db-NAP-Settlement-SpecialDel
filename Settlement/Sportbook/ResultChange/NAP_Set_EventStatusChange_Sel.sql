@@ -26,7 +26,8 @@ BEGIN
 	INSERT INTO #MatchList (MatchId)
 	SELECT DISTINCT mt.matchid
 	FROM [dbo].[Match_Tracking] mt WITH (NOLOCK)
-		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = mt.matchid AND m.sporttype <= 99
+		INNER JOIN dbo.match m with (NOLOCK) ON m.MatchId = mt.Matchid AND m.SportType <= 99
+		INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid AND l.isTest = 0
 	WHERE mt.UpdateTime BETWEEN @FromDate AND @ToDate
 
 	-- Step 2: Get all records of MatchID and filter LAG
@@ -63,7 +64,7 @@ BEGIN
 	GROUP BY matchid
 
 	-- Step 5: Return data
-	SELECT MatchId
+	SELECT DISTINCT MatchId
 	FROM #PivotData
 	WHERE (status_1 = 'running' AND status_2 IN ('completed','Refund'))
 	   OR (status_1 IN ('completed','Refund') AND status_2 = 'running' AND status_3 IN ('completed','Refund'))
