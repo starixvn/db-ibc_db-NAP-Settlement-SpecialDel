@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] @MatchId INT
 	,@Results				VARCHAR(MAX)
 	,@OldResults			VARCHAR(MAX)	= NULL
 	,@EventCounters			VARCHAR(MAX)	= NULL
-
+	,@IsAutoRefundFM		BIT				= NULL
 	,@IsAuto				BIT				= 0
 	,@AdminId				INT				= 0
 	,@Ip					VARCHAR(20)		= ''
@@ -40,6 +40,7 @@ AS
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
+		- 20250910@Hughie: Auto Refund- Fast Market & Time Machine- Support Special Session [Redmine:#225889]
 
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -620,7 +621,7 @@ BEGIN
 		
 		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
 		SELECT @Remark = '<distinct>'
-							+ '<r n="IsAuto" v="' + CAST(@IsAuto AS VARCHAR(1)) + '"/>'
+							+ '<r n="IsAuto" v="' + CAST((CASE WHEN @IsAutoRefundFM = 1 THEN 1 ELSE @IsAuto END) AS VARCHAR(1)) + '"/>'
 							+ '<r n="Recalc" v="' + CAST(@IsReSettledTickets AS VARCHAR(1)) + '"/>'
 							+  CASE WHEN @IsSettleDetermined = 1 THEN  '<r n="SDT" v="1"/>' ELSE '' END
 						+ '</distinct>'
