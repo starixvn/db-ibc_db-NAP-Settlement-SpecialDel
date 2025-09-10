@@ -29,9 +29,9 @@ BEGIN
 			HomeValue,
 			AwayValue,
 			LogDate,
-			ROW_NUMBER() OVER (PARTITION BY MatchID, ResourceID ORDER BY LogDate ASC) as rn
+			ROW_NUMBER() OVER (PARTITION BY s.MatchID, ResourceID ORDER BY LogDate ASC) as rn
 		FROM [dbo].[SettlementLog] s WITH (NOLOCK)
-			INNER JOIN bodb02.dbo.match m with (NOLOCK) ON m.MatchId = s.Matchid AND m.SportType <= 99
+			INNER JOIN bodb02.dbo.match m with (NOLOCK) ON m.matchid = s.MatchID AND m.SportType <= 99
 			INNER JOIN bodb02.dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid AND l.isTest = 0
 		WHERE LogDate BETWEEN @FromDate AND @ToDate
 		  AND ResourceID IN ('00', '01')		 
