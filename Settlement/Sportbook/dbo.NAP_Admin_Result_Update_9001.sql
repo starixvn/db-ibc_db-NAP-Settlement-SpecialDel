@@ -296,13 +296,13 @@ BEGIN
 		IF @sporttype = 8 AND @action = 'REFUND'  
 		BEGIN
 
-			IF EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID AS r WHERE r.ResourceID  IN (SELECT sd.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) AS sd))
+			IF EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID AS r WHERE EXISTS (SELECT 1 FROM dbo.f_Set_MajorRound(@sporttype) AS sd WHERE sd.ResourceID = r.ResourceID))
 			BEGIN
 				UPDATE  r
 				SET r.OtherInfo = ''
 				FROM dbo.ResultDetailOS AS r
 				WHERE MatchId = @MatchID
-					AND  r.ResourceId IN (SELECT sd.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) AS sd)
+					AND EXISTS (SELECT 1 FROM dbo.f_Set_MajorRound(@sporttype) AS sd WHERE sd.ResourceID = r.ResourceId)
 			END
 
 			IF EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
@@ -327,7 +327,7 @@ BEGIN
 					   ,@ftawayscore = SUM(CAST(AwayValue AS INT)) 
 				FROM	ResultDetailOS AS r WITH(NOLOCK)
 				WHERE r.MatchId = @MatchID
-					AND r.ResourceId IN (SELECT sd.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) AS sd WHERE sd.ResourceID != '00')
+					AND EXISTS (SELECT 1 FROM dbo.f_Set_MajorRound(@sporttype) AS sd WHERE sd.ResourceID != '00' AND  sd.ResourceID = r.ResourceId )
 					AND r.ResultStatusID  IN (2,5)
 					AND r.HomeValue != '' 
 					AND r.AwayValue != ''
@@ -515,7 +515,7 @@ BEGIN
 		FROM dbo.ProviderExternalResultDetail AS p
 		WHERE p.MatchId = @MatchId 
 			AND p.SourceId = 99
-			AND p.ResourceId IN (SELECT s.ResourceId FROM  @tblSelectedRID AS s)
+			AND EXISTS (SELECT 1 FROM  @tblSelectedRID AS s WHERE s.ResourceId = p.ResourceId)
 	END
 	ELSE IF (@action = 'UNDO' OR (@action = 'REFUND' AND  @DeterminedType > 0)) AND  @ExternalResultTable = 2 
 	BEGIN
@@ -523,7 +523,7 @@ BEGIN
 		FROM dbo.ProviderExternalResultDetailOS  AS p
 		WHERE p.MatchId = @MatchId 
 			AND p.SourceId = 99
-			AND p.ResourceId IN (SELECT s.ResourceId FROM  @tblSelectedRID AS s)
+			AND EXISTS (SELECT 1 FROM  @tblSelectedRID AS s WHERE s.ResourceId = p.ResourceId)
 	END
     
 END 
