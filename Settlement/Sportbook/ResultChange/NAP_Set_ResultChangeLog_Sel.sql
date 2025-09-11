@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_ResultChangeLog_Sel]
 (
 	@FromDate DATETIME
 	,@ToDate DATETIME
+	,@IsTest BIT = 0
 )
 AS
 /*	
@@ -34,7 +35,7 @@ BEGIN
 				INNER JOIN bodb02.dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 			WHERE m.matchid = s.MatchID
 				AND m.sporttype <= 99
-				AND l.isTest = 0
+				AND l.isTest = @IsTest
 		)m		
 	WHERE LogDate BETWEEN @FromDate AND @ToDate
 		AND ResourceID IN ('00','01')

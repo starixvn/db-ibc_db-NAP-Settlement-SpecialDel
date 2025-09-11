@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_EventStatusChange_Sel]
 (
 	@FromDate DATETIME
 	,@ToDate DATETIME
+	,@IsTest BIT = 0
 )
 AS
 /*	
@@ -32,7 +33,7 @@ BEGIN
 				INNER JOIN bodb02.dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 			WHERE m.matchid = mt.MatchID
 				AND m.sporttype <= 99
-				AND l.isTest = 0
+				AND l.isTest = @IsTest
 		)m	
 	WHERE mt.UpdateTime BETWEEN @FromDate AND @ToDate
 
