@@ -40,9 +40,9 @@ BEGIN
 	;WITH StatusChanges AS (
 		SELECT 
 			mt.matchid,
-			CASE WHEN mt.betstatus = 'Refund;' THEN 'Refund' ELSE mt.eventstatus END AS eventstatus,
+			CASE WHEN mt.betstatus LIKE 'Refund%' THEN 'Refund' ELSE mt.eventstatus END AS eventstatus,
 			mt.UpdateTime,
-			LAG(CASE WHEN mt.betstatus = 'Refund;' THEN 'Refund' ELSE mt.eventstatus END) OVER (PARTITION BY mt.matchid ORDER BY mt.UpdateTime ASC) as prev_eventstatus
+			LAG(CASE WHEN mt.betstatus LIKE 'Refund%' THEN 'Refund' ELSE mt.eventstatus END) OVER (PARTITION BY mt.matchid ORDER BY mt.UpdateTime ASC) as prev_eventstatus
 		FROM [dbo].[Match_Tracking] mt WITH (NOLOCK)
 			INNER JOIN #MatchList ml ON mt.matchid = ml.matchid
 		WHERE mt.eventstatus IS NOT NULL
