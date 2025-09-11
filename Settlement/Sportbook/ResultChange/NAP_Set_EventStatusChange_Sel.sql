@@ -26,8 +26,14 @@ BEGIN
 	INSERT INTO #MatchList (MatchId)
 	SELECT DISTINCT mt.matchid
 	FROM [dbo].[Match_Tracking] mt WITH (NOLOCK)
-		INNER JOIN dbo.match m with (NOLOCK) ON m.MatchId = mt.Matchid AND m.SportType <= 99
-		INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid AND l.isTest = 0
+		CROSS APPLY (
+			SELECT TOP 1 l.leagueid AS leagueid 
+			FROM bodb02.dbo.match m with (NOLOCK)	
+				INNER JOIN bodb02.dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+			WHERE m.matchid = mt.MatchID
+				AND m.sporttype <= 99
+				AND l.isTest = 0
+		)m	
 	WHERE mt.UpdateTime BETWEEN @FromDate AND @ToDate
 
 	-- Step 2: Get all records of MatchID and filter LAG
