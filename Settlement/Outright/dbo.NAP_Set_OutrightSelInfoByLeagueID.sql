@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_OutrightSelInfoByLeagueID]
 	 @LeagueID	INT 
 	,@StatusID	INT = 0 
@@ -13,6 +13,7 @@ AS
 	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 	- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
+	- 20250815@Hughie: Apply SOP for Outright [Readmine:#232955]
 
  * Parameters: 
 	@StatusID: 0=ALL (N/A)| 1=Running | 2=Running AND Completed | 3=Completed (Already settled: WON/LOSE/REFUND) | 4 =Completed AND WON
@@ -31,8 +32,15 @@ BEGIN
 			,ISNULL(o.status, 'Running') AS status
 			,l.sporttype
 			,odds
+			,ps.Screenshot
 	FROM	dbo.outright AS o WITH (NOLOCK)
 			INNER JOIN dbo.League AS l WITH (NOLOCK) ON l.leagueid = o.leagueid
+			OUTER APPLY (	SELECT TOP 1 Result AS Screenshot
+							FROM ProviderResultDetailOutright p WITH (NOLOCK)
+							WHERE p.Orid = o.orid
+									AND p.Leagueid = @LeagueID
+							ORDER BY p.ProviderId DESC
+			) ps
 	WHERE	o.leagueID = @LeagueID 	
 			AND 1 = CASE WHEN @StatusID = 0 THEN 1
 						 WHEN @StatusID = 1 AND o.oddsstatus IN ('Running','Closed','Internal') THEN 1

@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Outright_Update]
 	 @MatchID		INT
 	,@Status		VARCHAR(10)     = ''
@@ -21,6 +21,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393] 
 		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 		- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
+		- 20250805@Hughie: Apply SOP for Outright [Redmine:#232955]
 
 	Param's Explanation:
 		+ @Action	= CAL | UNDO
@@ -104,6 +105,29 @@ BEGIN
 			,eventdate = @EventDate
 			,isDeadheat = @IsDeadheat
 		WHERE orid = @MatchID
+	END
+
+	IF @Action <> 'UNDO'
+	BEGIN
+		--Update ResultDetailOutright
+		EXEC dbo.NAP_Admin_ResultDetailOutright_Update
+			@Orid = @MatchID
+			,@Status = @Status
+			,@IsDeadheat = @IsDeadheat
+			,@AdminID = @AdminID
+	END
+	ELSE
+	BEGIN
+		UPDATE ResultDetailOutright WITH (UPDLOCK,ROWLOCK)
+		SET Result = NULL
+			,ResultStatusID = 0 -- Initial
+			,SettlementStatusID = 0 -- Initial
+			,IsDeadheat = 0
+			,SumWon = NULL
+			,ModifiedDate = GETDATE()
+			,ModifiedBy = @AdminID
+			,RepUpdateTime = dbo.f_GetDateTime2()
+		WHERE Orid = @MatchID
 	END
 
 	--add log to outright_log to notify for Apollo

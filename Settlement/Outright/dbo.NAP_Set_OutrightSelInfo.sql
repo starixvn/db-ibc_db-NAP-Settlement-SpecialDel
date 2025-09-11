@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_OutrightSelInfo]
 	 @FromDate			SMALLDATETIME
 	,@ToDate			SMALLDATETIME = NULL
@@ -17,6 +17,7 @@ AS
 	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 	- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 	- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
+	- 20250819@Hughie: Apply SOP for Outright [Redmine: #232955]
 
  * Parameters:
     @FromDate: From  date,
@@ -28,7 +29,8 @@ AS
 BEGIN   
 	SET NOCOUNT ON  
 
-	DECLARE @tmpLeague AS TABLE (LeagueID INT  PRIMARY KEY, sporttype TINYINT, isTest BIT)  
+	DECLARE @tmpLeague AS TABLE (LeagueID INT  PRIMARY KEY, sporttype TINYINT, isTest BIT)
+	DECLARE @LeagueWonCount TABLE (LeagueID INT, WonCount INT)
 
 	INSERT INTO @tmpLeague(LeagueID,sporttype,isTest)
 	SELECT tl.value , l.sporttype, l.isTest
@@ -68,5 +70,27 @@ BEGIN
 	ORDER BY o.leagueid
 		,	 IIF(o.oddsstatus IN ('Running','Closed','Internal'),1,2)
 		,	 o.kickofftime  
+	
+	INSERT INTO @LeagueWonCount (LeagueID, WonCount)
+	SELECT r.leagueid, COUNT(r.orid) AS COUNTWON 
+	FROM ResultDetailOutright AS r WITH (NOLOCK)
+	INNER JOIN @tmpLeague AS tl ON tl.LeagueID = r.leagueid
+	WHERE r.Result = 'WON'
+	GROUP BY r.leagueid
+
+	SELECT
+    o.leagueid
+    ,COUNT(DISTINCT CASE WHEN o.isdeadheat = 1 THEN o.orid END) AS DeadHeatTeam
+	,CASE 
+    	WHEN ISNULL(lwc.WonCount, 0) <> ISNULL(MAX(r.SumWon), 0) THEN 1 
+		ELSE 0
+	END AS Highlight
+	FROM dbo.outright AS o WITH (NOLOCK)
+		INNER JOIN @tmpLeague AS tl ON tl.LeagueID = o.leagueid
+		LEFT JOIN ResultDetailOutright r WITH (NOLOCK) ON o.orid = r.Orid
+		LEFT JOIN @LeagueWonCount lwc ON o.leagueid = lwc.LeagueID
+	WHERE ((@ToDate IS NULL AND o.eventdate >= @FromDate) 
+           OR (@ToDate IS NOT NULL AND o.eventdate BETWEEN @FromDate AND @ToDate))
+	GROUP BY o.leagueid, lwc.WonCount;
 	
 END
