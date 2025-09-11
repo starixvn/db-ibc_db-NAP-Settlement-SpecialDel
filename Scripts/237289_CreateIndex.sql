@@ -15,34 +15,40 @@ GO
 	ON ProviderExternalResultDetail(CreateDate)
 	INCLUDE (MatchId)
 	WITH ( ONLINE = ON )
+	ON [Event_index]
 	GO
 	----------------------------------------
 	CREATE NONCLUSTERED INDEX IX_ProviderExternalResultDetailOS_CreateDate 
 	ON ProviderExternalResultDetailOS(CreateDate)
 	INCLUDE (matchid)
 	WITH ( ONLINE = ON )
+	ON [Event_index]
 	GO
 	-----------------------------------------
 	CREATE NONCLUSTERED INDEX IX_ProviderExternalResultDetailES_CreateDate 
 	ON ProviderExternalResultDetailES(CreateDate)
 	INCLUDE (matchid)
 	WITH ( ONLINE = ON )
+	ON [Event_index]
 	GO
 	-----------------------------------------
 	CREATE NONCLUSTERED INDEX IX_ResultDetail_LastModifyDate 
 	ON ResultDetail	(LastModifyDate)
 	INCLUDE (MatchId, ResultStatusId)
 	WITH ( ONLINE = ON )
+	ON [Event_index]
 	GO
 	-----------------------------------------
 	CREATE NONCLUSTERED INDEX IX_ResultDetailOS_LastModifyDate 
 	ON ResultDetailOS(LastModifyDate)
 	INCLUDE (MatchId, ResultStatusId)
 	WITH ( ONLINE = ON )
+	ON [Event_index]
 	GO
 	-----------------------------------------
 	CREATE NONCLUSTERED INDEX IX_ResultDetailES_LastModifyDate 
 	ON ResultDetailES(LastModifyDate)
 	INCLUDE (MatchId, ResultStatusId)
 	WITH ( ONLINE = ON )
+	ON [Event_index]
 	GO
