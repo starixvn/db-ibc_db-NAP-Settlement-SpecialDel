@@ -480,10 +480,26 @@ BEGIN
 	BEGIN
 		UPDATE d
 		SET sporttype = sb.SportType
+		   ,matchid = CASE WHEN ProductID IN (74) THEN SUBSTRING(d.ExtraInfo,CHARINDEX('m="', d.ExtraInfo) + 3,CHARINDEX('"', d.ExtraInfo, CHARINDEX('m="', d.ExtraInfo) + 3) -(CHARINDEX('m="', d.ExtraInfo) + 3)) ELSE d.matchid END
 		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON d.bettype = sb.BetType
 		WHERE sb.ProductID IN (37,81,74)
+	END
+
+	-- UPDATE Sportype for Player Tips(productid = 74)
+	IF EXISTS ( SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE sporttype = 157)
+	BEGIN
+		--ExtraInfo: <p74 m="111534281" ss="30-(VN)" ai="203" gl="1" h="231" a="175" l="160795" et="2025-09-08T14:45:00" lt="87908251"/>
+		UPDATE d
+		SET homeid 	= m.homeid
+		   ,awayid 	= m.awayid
+		   ,leagueid = m.leagueid
+		   ,eventdate  = m.GlobalShowTime
+		FROM #SpecialDeleteBets d
+			INNER JOIN dbo.match m WITH (NOLOCK) 
+			ON m.matchid = d.matchid                       
+		WHERE d.sporttype = 157
 	END
 	
 	-- UPDATE Sportype, Endtime for Bitcoin 
