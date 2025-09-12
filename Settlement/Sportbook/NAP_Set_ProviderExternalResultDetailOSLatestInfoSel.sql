@@ -18,6 +18,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 		- 20252705@Aries: SOP- Soccer- Phase 3.2- Outside Score for Calculate Popup [Redmine:#226229]
+		- 20250829@Max: Basketball Player Prop [Redmine:#233012]
 
 	Param's Explanation:
 		
@@ -133,6 +134,11 @@ BEGIN
 			)
 		AND pi.isActive	 = 1
 		AND pgm.isActive = 1
+
+	/*Get more source 99 for refund SDT basketball early*/
+	UNION ALL
+	SELECT 99, 'ConfirmReundSDT', 'n/a', 0
+	WHERE @SportType = 2 AND @SettleType = 'EAR'
 	
 	IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpSourceId s WHERE s.SourceId = 100)
 		BEGIN
