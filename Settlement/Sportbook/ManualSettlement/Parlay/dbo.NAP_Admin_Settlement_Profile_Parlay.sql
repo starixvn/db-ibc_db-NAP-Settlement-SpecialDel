@@ -17,7 +17,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@IsReSettledTickets	BIT			= 1
 	,@LockedByRefno			BIT			= 0
 	,@IsCentral				BIT			= 0
-	,@DeterminedType		INT		= 0
+	,@DeterminedType		INT			= 0
+	,@IsSDTEarly			BIT			= 0
 	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@ParlayKeyId			INT			= 0
 	,@ErrCode				INT				= 0	OUTPUT
@@ -53,7 +54,8 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240729@Kathy: get eventdate before settlement [Redmine:#208293]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
-		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026] 
+		- 20250829@Max: Basketball Player Prop [Redmine:#233012]
 
 		
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
@@ -242,7 +244,7 @@ BEGIN
 			ON	ISNULL(sp.RefResourceId,sp.ResourceID) = sd.ResourceID
 	WHERE	sp.SportType = @Sporttype
 	
-	IF @SportType != 1 AND @DeterminedType > 0
+	IF @SportType != 1 AND (@DeterminedType > 0 OR @IsSDTEarly = 1)
 	BEGIN
 		SELECT  @RemarkSDT = RemarkSDT
 		FROM OPENXML(@handle,'/Resources',1) WITH(RemarkSDT	VARCHAR(500)) as tbl
@@ -505,7 +507,7 @@ BEGIN
 	END 
 	ELSE IF @action LIKE 'REFUND%' 
 	BEGIN
-		IF @DeterminedType = 0
+		IF @DeterminedType = 0 AND @IsSDTEarly = 0
 		BEGIN
 			INSERT INTO #tmpsubTransID (TransID, refno, modds)
 			SELECT	bm.transid, bm.refno, 0
@@ -523,7 +525,7 @@ BEGIN
 		
 			SET @totalSubParlay = @@ROWCOUNT
 		END
-		ELSE IF @sportType != 1 AND @DeterminedType > 0
+		ELSE IF @sportType != 1 AND (@DeterminedType > 0 OR @IsSDTEarly = 1)
 		BEGIN
 			INSERT INTO #tmpsubTransID (TransID, refno, modds,moddsSDT)
 			SELECT	bm.transid, bm.refno, ISNULL(m.modds,0), m.modds
@@ -815,7 +817,7 @@ BEGIN
 					SET isFinish = 1
 				WHERE	modds IS NULL
 			END
-			ELSE IF @Action LIKE 'REFUND%' AND @sportType != 1 AND @DeterminedType > 0 
+			ELSE IF @Action LIKE 'REFUND%' AND @sportType != 1 AND (@DeterminedType > 0 OR @IsSDTEarly = 1) 
 			BEGIN
 				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, BroadcastSessionId)
 				SELECT	@SessionId
@@ -983,6 +985,7 @@ BEGIN
 				,(SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' AND ResourceID = '00' AND HomeValue <> AwayValue) AS '@IsAutoRefund'
 				,@matchLog AS '@matchLog'
 				,@IsReSettledTickets AS '@IsReSettledTickets'
+				,@IsSDTEarly AS '@IsSDTEarly'
 				,@totalSubParlay AS '@totalSubParlay'
 				,@creator AS '@creator'
 				,@ActionID AS '@ActionID'

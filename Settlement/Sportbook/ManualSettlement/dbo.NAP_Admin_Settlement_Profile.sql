@@ -20,6 +20,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 	,@IsPingoal			BIT				= 0
 	,@IsSettleRelated	BIT				= 0
+	,@IsSDTEarly		BIT				= 0
 	,@RemarkInfo		VARCHAR(MAX)	= NULL
 AS    
 /*  Creator: 20180821@Vicky
@@ -333,7 +334,7 @@ BEGIN
 				RETURN
 			END
 
-			IF @DeterminedType > 0 
+			IF @DeterminedType > 0 OR @IsSDTEarly = 1
 			BEGIN
 				IF @SportType = 8 AND EXISTS (SELECT TOP 1 1 FROM @tmpResourcesWeb WHERE OtherInfo = 'Mercy')
 				BEGIN
@@ -344,8 +345,8 @@ BEGIN
 				SELECT DISTINCT s.BetType, s.BetID,s.ResourceId,s.RefResourceId, s.SDTResourceId,s.SDTpfId,IIF(RefResourceId = '00' AND @IsMercy = 1,1,0),s.OddsType
 				FROM	dbo.SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
 				WHERE	s.SportType = @SportType
-					AND 1 = CASE WHEN @IsMercy = 0 AND ((ISNULL(s.SDTRefund,0) & @DeterminedType > 0)
-														OR (ISNULL(s.SDTpfId,0) > 0 AND s.SettleType = 'EAR')) THEN 1
+					AND 1 = CASE WHEN @IsMercy = 0 AND (ISNULL(s.SDTRefund,0) & @DeterminedType > 0) THEN 1
+								 WHEN @IsMercy = 0 AND ISNULL(s.SDTpfId,0) > 0 AND @IsSDTEarly = 1 AND s.SettleType = 'EAR' THEN 1
 								 WHEN @IsMercy = 1 AND ISNULL(s.DeterminedType,0) & @DeterminedType > 8 THEN 1
 								 ELSE 0
 							 END
@@ -647,7 +648,7 @@ BEGIN
 		END 
 		ELSE IF @action LIKE 'REFUND%'
 		BEGIN
-			IF @DeterminedType > 0 
+			IF @DeterminedType > 0 OR @IsSDTEarly = 1
 			BEGIN
 				UPDATE sr
 				SET  sr.SDTpfId = bt.SDTpfId
@@ -794,7 +795,7 @@ BEGIN
 											   ,IsMarked AS '@im'
 											   ,DeadHeat AS '@dh'
 									   FROM @tmpTransIDBatch
-									   WHERE 1 = IIF(@DeterminedType > 0 AND modds IS NOT NULL AND @action LIKE 'REFUND%', 0,1)
+									   WHERE 1 = IIF((@DeterminedType > 0 OR @IsSDTEarly = 1) AND modds IS NOT NULL AND @action LIKE 'REFUND%', 0,1)
 									   FOR XML PATH('r'), ROOT( 'root' ))
 			
 			IF ISNULL(@strTransIds, '') != '' 
@@ -811,7 +812,7 @@ BEGIN
 				   ,@ErrMessage			 = @ErrMsg OUTPUT
 			END
 
-			IF @DeterminedType > 0 AND @action LIKE 'REFUND%'
+			IF (@DeterminedType > 0 OR @IsSDTEarly = 1) AND @action LIKE 'REFUND%'
 			BEGIN
 				SET @strSDTTransIds  = (SELECT  transid		AS '@t'
 											   ,modds		AS '@m'
@@ -885,7 +886,7 @@ BEGIN
 													   ,winlost	AS '@w'	
 													   ,statuswinlost AS '@s'
 											   FROM @tmpTransIDBatch
-											   WHERE 1 = IIF(@DeterminedType > 0 AND modds IS NOT NULL  AND @action LIKE 'REFUND%', 0,1) 
+											   WHERE 1 = IIF((@DeterminedType > 0 OR @IsSDTEarly = 1) AND modds IS NOT NULL  AND @action LIKE 'REFUND%', 0,1) 
 											   FOR XML PATH('r'), ROOT( 'root' ))
 					IF ISNULL(@strTransIds, '') != ''
 					BEGIN
@@ -904,7 +905,7 @@ BEGIN
 						   ,@ErrMessage			 = @ErrMsg OUTPUT
 					END
 
-					IF @DeterminedType > 0 AND @action LIKE 'REFUND%'
+					IF (@DeterminedType > 0 OR @IsSDTEarly = 1) AND @action LIKE 'REFUND%'
 					BEGIN
 						SET @strSDTTransIds = (SELECT transid	AS '@t'
 													   ,winlost	AS '@w'	
@@ -1117,6 +1118,7 @@ BEGIN
 								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets)
 								+ ', @DeterminedType = ' + CONVERT(VARCHAR(50), @DeterminedRefundType)
 								+ ', @IsAuto = ''' + CONVERT(CHAR(1), @IsAuto ) + ''''	
+								+ ', @IsSDTEarly = ''' + CONVERT(CHAR(1), @IsSDTEarly ) + ''''
 								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 								+ ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
 								
@@ -1140,6 +1142,7 @@ BEGIN
 				,@IsAuto			= @IsAuto
 				,@DeterminedType    = @DeterminedRefundType
 				,@IsCentral			= @IsCentral
+				,@IsSDTEarly		= @IsSDTEarly
 				,@BroadcastSessionId = @BroadcastSessionId
 				
 				,@ErrCode			= @ErrCode OUTPUT
