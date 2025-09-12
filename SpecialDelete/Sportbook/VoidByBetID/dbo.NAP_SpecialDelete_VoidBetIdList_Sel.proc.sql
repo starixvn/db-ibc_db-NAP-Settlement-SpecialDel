@@ -78,6 +78,7 @@ AS;
 		- 20250606@Lani: [TVS] Remove unused code and return column SecAcceptFlag [Redmine: #225845]
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 		- 20250826@July: Integration - Saba Coins [Redmine: #236197]
+		- 20250909@July: Support Void Streamer Tips bets [Redmine: #237271]
 
 	Param's Explanation:
 
@@ -353,15 +354,33 @@ BEGIN
 			ON r.EventID = o.EventID
 		WHERE d.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
-	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)/ Saba Coins (productid = 81)
+
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)/ Saba Coins (productid = 81)/Player Tips(productid = 74)
 	BEGIN
 		UPDATE d
 		SET sporttype = sb.SportType
+		   ,matchid = CASE WHEN ProductID IN (74) THEN SUBSTRING(d.ExtraInfo,CHARINDEX('m="', d.ExtraInfo) + 3,CHARINDEX('"', d.ExtraInfo, CHARINDEX('m="', d.ExtraInfo) + 3) -(CHARINDEX('m="', d.ExtraInfo) + 3)) ELSE d.matchid END
 		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON d.bettype = sb.BetType
-		WHERE sb.ProductID IN (37,81)
+		WHERE sb.ProductID IN (37,81,74)
 	END
+
+	-- UPDATE Sportype for Player Tips(productid = 74)
+	IF EXISTS ( SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE sporttype = 157)
+	BEGIN
+		--ExtraInfo: <p74 m="111534281" ss="30-(VN)" ai="203" gl="1" h="231" a="175" l="160795" et="2025-09-08T14:45:00" lt="87908251"/>
+		UPDATE d
+		SET homeid 	= m.homeid
+		   ,awayid 	= m.awayid
+		   ,leagueid = m.leagueid
+		   ,eventdate  = m.GlobalShowTime
+		FROM #SpecialDeleteBets d
+			INNER JOIN dbo.match m WITH (NOLOCK) 
+			ON m.matchid = d.matchid                       
+		WHERE d.sporttype = 157
+	END
+	
 	-- UPDATE Sportype, Endtime for Bitcoin, VS5
 	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets 
 					WHERE bettype BETWEEN 7901 AND 7999 
@@ -387,6 +406,7 @@ BEGIN
 		SET eventdate = winlostdate
 		WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
+	
 	--- Remove invalid sporttype
 	DELETE 
 	FROM #SpecialDeleteBets

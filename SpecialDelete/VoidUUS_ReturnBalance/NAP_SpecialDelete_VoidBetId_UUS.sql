@@ -30,6 +30,7 @@ AS
 		- 20250807@Max: [TVS] Support the void function of the Move Bet flow for Betby [Redmine: #235445]
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 		- 20250826@July: Integration - Saba Coins [Redmine: #236197]
+		- 20250909@July: Support Void Streamer Tips bets [Redmine: #237271]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -274,14 +275,31 @@ BEGIN
 			ON r.EventID = o.EventID
 		WHERE b.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
-	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)/ Saba Coins (productid = 81)
+	
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)/ Saba Coins (productid = 81)/Player Tips(productid = 74)
 	BEGIN
-		UPDATE b
+		UPDATE d
 		SET sporttype = sb.SportType
-		FROM #BetDelete b
+		   ,matchid = CASE WHEN ProductID IN (74) THEN SUBSTRING(d.ExtraInfo,CHARINDEX('m="', d.ExtraInfo) + 3,CHARINDEX('"', d.ExtraInfo, CHARINDEX('m="', d.ExtraInfo) + 3) -(CHARINDEX('m="', d.ExtraInfo) + 3)) ELSE d.matchid END
+		FROM #BetDelete d
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
-			ON b.bettype = sb.BetType
-		WHERE sb.ProductID IN (37,81)
+			ON d.bettype = sb.BetType
+		WHERE sb.ProductID IN (37,81,74)
+	END
+
+	-- UPDATE Sportype for Player Tips(productid = 74)
+	IF EXISTS ( SELECT TOP 1 1 FROM #BetDelete WHERE sporttype = 157)
+	BEGIN
+		--ExtraInfo: <p74 m="111534281" ss="30-(VN)" ai="203" gl="1" h="231" a="175" l="160795" et="2025-09-08T14:45:00" lt="87908251"/>
+		UPDATE d
+		SET homeid 	= m.homeid
+		   ,awayid 	= m.awayid
+		   ,leagueid = m.leagueid
+		   ,eventdate  = m.GlobalShowTime
+		FROM #BetDelete d
+			INNER JOIN dbo.match m WITH (NOLOCK) 
+			ON m.matchid = d.matchid                       
+		WHERE d.sporttype = 157
 	END
 
 	-- UPDATE Sportype, Endtime for Bitcoin 
