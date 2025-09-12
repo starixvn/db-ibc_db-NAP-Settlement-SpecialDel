@@ -178,6 +178,7 @@ AS
 					 Transdesc = '100001'	-- Default : "All" ; Format : 100001,100002,... (PlayerId - [Team].[TeamID])
 					 VirtualHead ="1"		-- Default : "All" ; Format : Single Number
 					 Performance = 'points' -- Default : "All" ; Format : points, assists, rebounds, three_points, points+assists, points+rebounds
+					 PlayerAndOdds = '01$404680660,02$404680660' -- Default : "All" ; Format: betteam$oddsid (Apply only for bettype Most 680 - 684 (basketball) and bettype Man Out 9662 -> 9667 (Cricket)
 			/>
 		 <BetTypes/>'
 		 - @SelectionSubParlays: 
@@ -279,6 +280,7 @@ BEGIN
 		OddsId			VARCHAR(1000),
 		Transdesc		NVARCHAR(2000),
 		Performance		VARCHAR(500),  -- Use only for bettype 675, 676 basketball
+		PlayerAndOdds	NVARCHAR(2000), -- Use only for bettype most 680 -> 684  basketball, bettype Man Out 9662 -> 9667 cricket
 		VirtualHead		VARCHAR(500)
 	)
 
@@ -298,6 +300,7 @@ BEGIN
 		Transdesc		NVARCHAR(2000),
 		VirtualHead		SMALLMONEY,
 		Performance		VARCHAR(500),
+		PlayerAndOdds	NVARCHAR(2000), 
 		Hdp1_tmp		SMALLMONEY
 	)	
 	
@@ -501,7 +504,7 @@ BEGIN
 	END CATCH	
 
 	-- Parse xml @BetTypes
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead, Performance)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead, Performance, PlayerAndOdds)
 	SELECT t.c.value('@Id','SMALLINT') AS Id
 			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
 			, t.c.value('@Set','VARCHAR(500)') AS [Set]				-- check columns : betid		 ; single-choice + multi-choice
@@ -516,10 +519,11 @@ BEGIN
 			, t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice + multi-choice
 			, t.c.value('@VirtualHead','NVARCHAR(500)') AS VirtualHead	-- check columns : hdp1 OR hdp2	 ; single-choice
 			, t.c.value('@Performance','VARCHAR(500)') AS Performance -- check columns: transdesc	 ; single-choice + multi-choice
+			, t.c.value('@PlayerAndOdds','NVARCHAR(2000)') AS PlayerAndOdds --check columns: betteam and oddsid ; single choice +  multi-choice
 	FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
 	
-	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, Performance, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead)
+	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, Performance, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead, PlayerAndOdds)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -539,6 +543,7 @@ BEGIN
 		 , cte.OddsId
 		 , cte.Transdesc
 		 , cte.VirtualHead
+		 , cte.PlayerAndOdds
 	FROM (
 		SELECT cte.Id
 			 , bt.value AS BetTeam 
@@ -546,6 +551,7 @@ BEGIN
 			 , ga.value AS Game
 			 , bop.value AS BetOption
 			 , p.value AS Performance
+			 , plo.value AS PlayerAndOdds
 			 , CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault 
 						ELSE v.value END AS SMALLMONEY) AS [Value]
 			 , CAST(CASE WHEN vhdp1.value = 'ALL' THEN @ValueDefault
@@ -573,6 +579,7 @@ BEGIN
 			 CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
 			 CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
 			 CROSS APPLY STRING_SPLIT(cte.Performance, ',') p
+			 CROSS APPLY STRING_SPLIT(cte.PlayerAndOdds, ',') plo
 	) cte	
 	WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 			WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
@@ -600,7 +607,7 @@ BEGIN
 		SELECT bm.matchid, bm.refno
 		FROM #tblTransIds t 
 			INNER LOOP JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid 
-		WHERE bm.matchid  IN (SELECT matchid FROM @tmpMatchId) 
+		WHERE EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = bm.matchid)
 			AND bm.statusID NOT IN (101, 102, 103)
 
 		SET @totalSubParlay = @@ROWCOUNT
@@ -615,7 +622,7 @@ BEGIN
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT DISTINCT b.matchid
 			, CASE 
-				WHEN Bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes()) 
+				WHEN NOT EXISTS (SELECT 1 FROM f_TVS_SpeciallyBettypes() AS sb WHERE sb.Bettype = bettype)
 						AND Bettype NOT BETWEEN 801 AND 899
 						AND f.GroupId IS NULL
 						AND Bettype NOT IN (1231,1232,1233)
@@ -842,7 +849,7 @@ BEGIN
 				,b.modds
 			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
-			WHERE	b.matchid IN (SELECT matchid FROM @tmpMatchId)
+			WHERE EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = b.matchid)	
 				AND CASE
 						WHEN @TimeType = 0 THEN b.transdate
 						WHEN @TimeType = 1 AND b.checktime IS NOT NULL THEN b.checktime
@@ -978,7 +985,7 @@ BEGIN
 				,b.modds
 			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
-			WHERE	b.matchid IN (SELECT matchid FROM @tmpMatchId)
+			WHERE	EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = b.matchid)
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveindicator END = @LiveIndicator
 				AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END 
 				AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END 			
@@ -1044,7 +1051,7 @@ BEGIN
 				,bm.matchid
 			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
-			WHERE bm.matchid IN (SELECT matchid FROM @tmpMatchId)
+			WHERE EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = bm.matchid)
 				AND	CASE
 						WHEN @TimeType = 0 THEN bm.transdate
 						WHEN @TimeType = 1 AND bm.checktime IS NOT NULL THEN bm.checktime
@@ -1108,7 +1115,7 @@ BEGIN
 				,bm.matchid
 			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
-			WHERE bm.matchid IN (SELECT matchid FROM @tmpMatchId)
+			WHERE EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = bm.matchid)
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -1276,6 +1283,7 @@ BEGIN
 		filter for ValuaHdp2		 
 		filter for Goal
 		filter for Performance
+		filter for PlayerAndOdds: Handle for bettype 680 - 684 (Basketball) and bettype Man Out 9662 -> 9667 (Cricket)
 	*/
 	BEGIN
 		DELETE b
@@ -1404,6 +1412,15 @@ BEGIN
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc IS NULL OR b.FilterTransdesc = tp.Transdesc))
 
+		DELETE b
+		FROM #SpecialDeleteBets b
+		WHERE NOT EXISTS (
+			SELECT TOP 1 1 
+			FROM #tblBetType_Detail tp
+			WHERE tp.Id = b.FilterBettype 
+				AND (tp.PlayerAndOdds = 'All' OR (b.BetTeam = LEFT(tp.PlayerAndOdds,2) AND b.FilterOddsId = SUBSTRING(tp.PlayerAndOdds,4,LEN(tp.PlayerAndOdds))))
+		)
+
 		IF @OddsFilter IS NOT NULL
 		BEGIN
 			DELETE b
@@ -1421,7 +1438,14 @@ BEGIN
 	END	
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
+	IF(EXISTS
+		(SELECT TOP 1 1 
+		 FROM #SpecialDeleteBets AS d
+		 WHERE NOT EXISTS (
+			SELECT 1
+			FROM f_TVS_SpeciallyBettypes() AS sb
+			WHERE TypeId IN (0,1) AND sb.Bettype = d.bettype
+		 )))
 	BEGIN
 		UPDATE d
 		SET eventstatus = ISNULL(m.eventstatus,'')
@@ -1429,7 +1453,7 @@ BEGIN
 		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+		WHERE NOT EXISTS ( SELECT 1 FROM f_TVS_SpeciallyBettypes() AS sb WHERE TypeId IN (0,1) AND d.bettype = sb.bettype)
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -1579,7 +1603,7 @@ BEGIN
 		INSERT INTO #BeforeUpd (custid, balance)
 		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
 		FROM dbo.bettrans b WITH (NOLOCK)
-		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets)
+		WHERE EXISTS (SELECT 1 FROM #SpecialDeleteBets AS sd WHERE sd.transid = b.TransId)
 		GROUP BY b.CustID
 		
 		/**********************************************   *************************************************************/
@@ -1958,7 +1982,7 @@ BEGIN
 		INSERT INTO #AfterUpd(custid, balance)
 		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
 		FROM dbo.bettrans b WITH (NOLOCK)
-		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets)
+		WHERE EXISTS (SELECT 1 FROM #SpecialDeleteBets AS sd WHERE sd.transid = b.transid)
 		GROUP BY b.CustID
 
 		INSERT INTO #Balance (custid, balance, Increased)
@@ -2057,7 +2081,7 @@ BEGIN
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 						INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = c.site
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
-					WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+					WHERE NOT EXISTS (SELECT 1 FROM f_TVS_SpeciallyBettypes() AS sb WHERE TypeId IN (0,1) AND sb.Bettype = b.bettype)
 					FOR XML PATH('r'), ROOT('root')
 				)
 
@@ -2150,7 +2174,7 @@ BEGIN
 							FROM dbo.f_TVS_GetInstantBettypes()
 							WHERE InstantType IS NULL
 							AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
-										 WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal) THEN 1
+										 WHEN c.ResourceId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM #CTE_isCal AS cc WHERE cc.ResourceId = ResourceId) THEN 1
 										 ELSE 0 END
 					)f	 	
 			END
@@ -2252,12 +2276,12 @@ BEGIN
 			INNER JOIN #CTE_CustInfo su WITH(NOLOCK) ON al.srecommend = su.custid
 			LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH(NOLOCK) ON al.srecommend = s.custid
 			LEFT JOIN CustDB.dbo.Site si WITH(NOLOCK) ON su.site = si.site
-		ORDER BY ISNULL(al.MainTransId, al.transid)
+		ORDER BY ISNULL(al.MainTransId, al.transid) ASC
 			   , CASE WHEN al.BonusID IS NOT NULL
 					THEN CASE WHEN al.MainTransId IS NULL THEN 1
 						ELSE 2 END
 					ELSE al.transid
-				 END
+				 END ASC
 		DROP TABLE #CTE_CustInfo
 	END	
 	
