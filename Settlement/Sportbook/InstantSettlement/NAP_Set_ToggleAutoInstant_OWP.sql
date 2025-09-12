@@ -11,7 +11,9 @@ AS
 		- 20250828@Hughie: Created [Redmine:#236714]
 
 	Param's Explanation:
-
+	@MatchList = '
+	[{"matchId": 123, "enable": true}, {"matchId": 456, "enable": false}]
+	'
 */
 BEGIN
     SET NOCOUNT ON;
@@ -99,9 +101,8 @@ BEGIN
     END
 
     SELECT matchid
-			,oldAutoSetting
-			,newAutoSetting 
 	FROM #MatchChange 
+	WHERE oldAutoSetting <> newAutoSetting
 
 	DROP TABLE #MatchTable
 	DROP TABLE #MatchChange
