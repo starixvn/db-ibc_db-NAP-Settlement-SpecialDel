@@ -285,7 +285,7 @@ BEGIN
 						FROM dbo.f_TVS_GetInstantBettypes()
 						WHERE InstantType IS NULL
 						AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
-									 WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal) THEN 1
+									 WHEN c.ResourceId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM #CTE_isCal AS cc WHERE c.ResourceId = ResourceId) THEN 1
 									 ELSE 0 END
 				)f	 	
 		END
@@ -542,8 +542,8 @@ BEGIN
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.bettype
 	WHERE b.betfrom <> 'P'  
-		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END
 		AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
@@ -558,8 +558,8 @@ BEGIN
 				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   				   ELSE 0 END
 						AND bm.betfrom <> 'P' 
-						AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-									 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1
+									 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 									 ELSE 0 END
 					)
 	BEGIN			
@@ -732,8 +732,8 @@ BEGIN
 						ELSE 0 END
 				AND sub.betfrom <> 'P'
 			    AND b.SiteDBGroupID = sub.SiteDBGroupID
-				AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-							 WHEN sub.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+				AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sub.SiteDBGroupID) THEN 1
+							 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sub.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 							 ELSE 0 END
 
 	END  
@@ -965,8 +965,8 @@ BEGIN
 	SELECT RequestId, MatchId, TransId, Bettype, RequestDetailId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END 
 	SET @cnt_s = @@ROWCOUNT
 
@@ -974,8 +974,8 @@ BEGIN
 	SELECT RequestId, MatchId, TransId, RequestDetailId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END 
 	SET @cnt_p = @@ROWCOUNT
 
@@ -1069,7 +1069,7 @@ BEGIN
 			   STUFF((SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 				FROM #TransidInRequest
 				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-				ORDER BY TransId
+				ORDER BY TransId ASC
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,'') AS TransIds
 		FROM #TransidInRequest r
 		GROUP BY r.RequestId, r.MatchId
@@ -1163,7 +1163,7 @@ BEGIN
 				)bt
 				INNER JOIN dbo.bettype t WITH (NOLOCK) ON t.typeid = bt.bettypeid
 			WHERE rd.RequestId = @RequestId
-			ORDER BY DENSE_RANK() OVER (ORDER BY rd.Id ASC), t.typenamee
+			ORDER BY DENSE_RANK() OVER (ORDER BY rd.Id ASC), t.typenamee ASC
 		END
 
 		RETURN;
@@ -1253,7 +1253,7 @@ BEGIN
 			SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 			FROM #TransidInRequest
 			WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-			ORDER BY TransId
+			ORDER BY TransId ASC
 			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 			,1,2,'') AS TransIds
 			,MatchId
@@ -1329,7 +1329,7 @@ BEGIN
 			,NULL AS PlayerAndOdds
 		FROM #TVSTicketBets b
 			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
-		WHERE b.GroupBettype NOT IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc()) AND b.IsSiteDBDown = 0
+		WHERE NOT EXISTS (SELECT 1 FROM f_TVS_BettypesUsingTransdesc() WHERE bettype = b.GroupBettype) AND b.IsSiteDBDown = 0
 		GROUP BY b.GroupId, b.GroupDisplay, bt.typenamee, CASE WHEN ISNULL(b.Groupbetid,'') = '' OR b.GroupDisplay = 501 THEN '0' ELSE b.Groupbetid END 
 	
 		UNION ALL
@@ -1342,7 +1342,7 @@ BEGIN
 			,b.GroupBetteam +'$'+ CONVERT(NVARCHAR(1000),b.GroupOddsId) AS PlayerAndOdds
 		FROM #TVSTicketBets b
 			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
-		WHERE b.GroupBettype IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc() WHERE TypeId = 1) AND b.IsSiteDBDown = 0
+		WHERE EXISTS (SELECT 1 FROM f_TVS_BettypesUsingTransdesc() WHERE TypeId = 1 AND bettype = b.GroupBettype) AND b.IsSiteDBDown = 0
 		GROUP BY b.GroupId, b.GroupDisplay, bt.typenamee, b.GroupBetteam +'$'+ CONVERT(NVARCHAR(1000),b.GroupOddsId)
 
 		UNION ALL
@@ -1362,14 +1362,14 @@ BEGIN
 				,CONVERT(BIGINT, b.GroupTransdesc) AS PlayerId
 			FROM #TVSTicketBets b
 				INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = b.GroupDisplay 
-			WHERE b.GroupBettype IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc() WHERE TypeId = 0) AND b.IsSiteDBDown = 0
+			WHERE EXISTS (SELECT 1 FROM f_TVS_BettypesUsingTransdesc() WHERE TypeId = 0 AND bettype = b.GroupBettype) AND b.IsSiteDBDown = 0
 			GROUP BY b.GroupId, b.GroupDisplay, bt.typenamee,CONVERT(BIGINT, b.GroupTransdesc) 
 		)t1
 		LEFT JOIN dbo.Team t WITH (NOLOCK) ON t.teamid = t1.PlayerId
 		)bt
-		ORDER BY bt.Id
-				,bt.originalBetTypeName
-				,bt.bettypeid 
+		ORDER BY bt.Id ASC
+				,bt.originalBetTypeName ASC
+				,bt.bettypeid ASC
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
