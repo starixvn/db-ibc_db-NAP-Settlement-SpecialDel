@@ -24,6 +24,12 @@ BEGIN
 
     CREATE NONCLUSTERED INDEX IX_MatchTable_matchId ON #MatchTable(matchId);
 
+    CREATE TABLE #MatchChange(
+        matchId BIGINT PRIMARY KEY,
+        oldAutoSetting INT,
+        newAutoSetting INT
+    )
+
     INSERT INTO #MatchTable (matchId, enable)
     SELECT
         matchId,
@@ -49,6 +55,11 @@ BEGIN
                            WHEN mt.enable = 0 THEN COALESCE(m.AutoSetting, l.AutoSetting, 0) & ~2
                            ELSE m.AutoSetting
                          END
+        OUTPUT 
+        deleted.matchid,
+        deleted.AutoSetting AS OldSetting,
+        inserted.AutoSetting AS NewSetting
+        INTO #MatchChange(matchId, oldAutoSetting, newAutoSetting)
         FROM match m WITH (ROWLOCK, UPDLOCK)
         INNER JOIN League l WITH (NOLOCK) ON m.leagueid = l.leagueid
         INNER JOIN #MatchTable mt ON m.matchid = mt.matchId
@@ -86,4 +97,12 @@ BEGIN
         
         WAITFOR DELAY '00:00:00.100';
     END
+
+    SELECT matchid
+			,oldAutoSetting
+			,newAutoSetting 
+	FROM #MatchChange 
+
+	DROP TABLE #MatchTable
+	DROP TABLE #MatchChange
 END
