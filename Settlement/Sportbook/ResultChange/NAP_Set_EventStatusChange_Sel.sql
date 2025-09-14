@@ -19,69 +19,83 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #MatchList (MatchId INT) 
-	CREATE TABLE #StatusChangePoints (MatchId INT, Eventstatus NVARCHAR(500), rn INT)
-	CREATE TABLE #PivotData (MatchId INT, status_1 NVARCHAR(500), status_2 NVARCHAR(500), status_3 NVARCHAR(500))
+	CREATE TABLE #ResultData (
+        MatchId INT,
+		PreviousStatus NVARCHAR(100),
+        FinalStatusInRange NVARCHAR(100),     
+        NextStatus NVARCHAR(100)
+    )
 
-	-- Step 1: Get list distinct MatchID in range time
-	INSERT INTO #MatchList (MatchId)
-	SELECT DISTINCT mt.matchid
-	FROM [dbo].[Match_Tracking] mt WITH (NOLOCK)
-		CROSS APPLY (
-			SELECT TOP 1 l.leagueid AS leagueid 
-			FROM bodb02.dbo.match m with (NOLOCK)	
+    --Get EventStatus lastest in range time
+   ;WITH LastestStatusInTime AS (
+        SELECT 
+            mt.matchid,
+            CASE WHEN mt.betstatus LIKE 'Refund%' THEN 'Refund' ELSE mt.eventstatus END AS FinalStatusInRange,
+            mt.UpdateTime AS LastUpdateTimeInRange,
+			MatchStatus,
+            ROW_NUMBER() OVER(PARTITION BY mt.matchid ORDER BY mt.UpdateTime DESC, CASE WHEN mt.betstatus LIKE 'Refund%' THEN 'Refund' ELSE mt.eventstatus END DESC) as rn
+        FROM [dbo].[Match_Tracking] mt WITH (NOLOCK)
+			 CROSS APPLY (
+				SELECT TOP 1 l.leagueid AS leagueid, eventstatus AS MatchStatus 
+				FROM bodb02.dbo.match m WITH (NOLOCK)	
 				INNER JOIN bodb02.dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
-			WHERE m.matchid = mt.MatchID
-				AND m.sporttype <= 99
-				AND l.isTest = @IsTest
-		)m	
-	WHERE mt.UpdateTime BETWEEN @FromDate AND @ToDate
+				WHERE m.matchid = mt.MatchID
+				  AND m.sporttype <= 99
+				  AND l.isTest = @IsTest
+			) m
+        WHERE mt.UpdateTime BETWEEN @FromDate AND @ToDate
+    ),   
+    --Get prev & next status
+    AllEventStatus AS (
+        SELECT 
+            mt.matchid,
+            CASE WHEN mt.betstatus LIKE 'Refund%' THEN 'Refund' ELSE mt.eventstatus END AS eventstatus,
+            mt.UpdateTime,
+            es1.FinalStatusInRange,
+            es1.LastUpdateTimeInRange,
+            CASE WHEN mt.UpdateTime <= es1.LastUpdateTimeInRange THEN
+                ROW_NUMBER() OVER(PARTITION BY mt.matchid ORDER BY mt.UpdateTime DESC, CASE WHEN mt.betstatus LIKE 'Refund%' THEN 'Refund' ELSE mt.eventstatus END DESC)
+            END AS rn_before,
+            CASE WHEN mt.UpdateTime > es1.LastUpdateTimeInRange THEN
+                ROW_NUMBER() OVER(PARTITION BY mt.matchid ORDER BY mt.UpdateTime ASC, CASE WHEN mt.betstatus LIKE 'Refund%' THEN 'Refund' ELSE mt.eventstatus END ASC)
+            END AS rn_after
+        FROM [dbo].[Match_Tracking] mt WITH (NOLOCK)
+			INNER JOIN LastestStatusInTime es1 ON mt.matchid = es1.matchid AND es1.rn = 1
+        WHERE CASE WHEN mt.betstatus LIKE 'Refund%' THEN 'Refund' ELSE mt.eventstatus END != es1.FinalStatusInRange
+    ),   
+    EventStatusPivot AS (
+        SELECT 
+            es1.matchid,
+			es1.MatchStatus,
+            es1.FinalStatusInRange,
+            MAX(CASE WHEN aes.rn_before = 1 THEN aes.eventstatus END) AS PreviousStatus,
+            MAX(CASE WHEN aes.rn_after = 1 THEN aes.eventstatus END) AS NextStatus
+        FROM LastestStatusInTime es1
+			LEFT JOIN AllEventStatus aes ON es1.matchid = aes.matchid
+        WHERE es1.rn = 1
+        GROUP BY es1.matchid, es1.FinalStatusInRange, es1.MatchStatus
+    )
+    --Insert #ResultData
+    INSERT INTO #ResultData (MatchId, PreviousStatus, FinalStatusInRange, NextStatus)
+    SELECT 
+        esp.matchid,
+		ISNULL(esp.PreviousStatus, ''),
+        esp.FinalStatusInRange,       
+        CASE 
+            WHEN esp.NextStatus IS NOT NULL THEN esp.NextStatus
+            ELSE esp.MatchStatus
+        END
+    FROM EventStatusPivot esp
 
-	-- Step 2: Get all records of MatchID and filter LAG
-	;WITH StatusChanges AS (
-		SELECT 
-			mt.matchid,
-			CASE WHEN mt.betstatus LIKE 'Refund%' THEN 'Refund' ELSE mt.eventstatus END AS eventstatus,
-			mt.UpdateTime,
-			LAG(CASE WHEN mt.betstatus LIKE 'Refund%' THEN 'Refund' ELSE mt.eventstatus END) OVER (PARTITION BY mt.matchid ORDER BY mt.UpdateTime ASC) as prev_eventstatus
-		FROM [dbo].[Match_Tracking] mt WITH (NOLOCK)
-			INNER JOIN #MatchList ml ON mt.matchid = ml.matchid
-		WHERE mt.eventstatus IS NOT NULL
-	)
-	INSERT INTO #StatusChangePoints (MatchId, Eventstatus, rn)
-	SELECT 
-		matchid,
-		eventstatus,
-		ROW_NUMBER() OVER (PARTITION BY matchid ORDER BY UpdateTime DESC) as rn
-	FROM StatusChanges
-	WHERE prev_eventstatus IS NULL  -- First record
-	   OR prev_eventstatus != eventstatus  -- Status changed
+    --Return data
+    SELECT MatchId
+    FROM #ResultData
+    WHERE (NextStatus = 'running' AND FinalStatusInRange IN ('completed','Refund'))
+       OR (NextStatus IN ('completed','Refund') AND FinalStatusInRange = 'running' AND PreviousStatus IN ('completed','Refund'))
+       OR (NextStatus = 'completed' AND FinalStatusInRange = 'Refund')
+       OR (NextStatus = 'Refund' AND FinalStatusInRange = 'completed')
 
-	-- Step 3: Just keep 3 lastest records
-	DELETE FROM #StatusChangePoints WHERE rn > 3
-
-	-- Step 4: Pivot data
-	INSERT INTO #PivotData (MatchId, status_1, status_2, status_3)
-	SELECT 
-		matchid,
-		MAX(CASE WHEN rn = 1 THEN eventstatus END) AS status_1,
-		MAX(CASE WHEN rn = 2 THEN eventstatus END) AS status_2,
-		MAX(CASE WHEN rn = 3 THEN eventstatus END) AS status_3
-	FROM #StatusChangePoints
-	GROUP BY matchid
-
-	-- Step 5: Return data
-	SELECT DISTINCT MatchId
-	FROM #PivotData
-	WHERE (status_1 = 'running' AND status_2 IN ('completed','Refund'))
-	   OR (status_1 IN ('completed','Refund') AND status_2 = 'running' AND status_3 IN ('completed','Refund'))
-	   OR (status_1 = 'completed' AND status_2 = 'Refund')
-	   OR (status_1 = 'Refund' AND status_2 = 'completed')
-
-	DROP TABLE #MatchList
-	DROP TABLE #PivotData
-	DROP TABLE #StatusChangePoints
-
+    DROP TABLE #ResultData
 END
 GO
 	
