@@ -44,16 +44,25 @@ BEGIN
 		CONCAT(ISNULL(HomeValue,''), '-', ISNULL(AwayValue,''))
 	
 	--Step 2: Return data
+	SELECT DISTINCT MatchId
+	FROM (
+		SELECT MatchId, ResourceId
+		FROM @tmpMatch t
+		GROUP BY MatchId, ResourceId
+		HAVING COUNT(1) > 1
+	)t1
+	UNION ALL
 	SELECT DISTINCT m.MatchId 
 	FROM @tmpMatch m
 		CROSS APPLY (
-			SELECT TOP 1 1 AS valid
+			SELECT TOP 1 CONCAT(ISNULL(s.HomeValue,''), '-', ISNULL(s.AwayValue,'')) AS prevResult
 			FROM [dbo].[SettlementLog] s WITH (NOLOCK)
 			WHERE s.MatchID = m.MatchId
 				AND s.ResourceID = m.ResourceId
 				AND s.LogDate < m.LastLogDate
-				AND CONCAT(ISNULL(s.HomeValue,''), '-', ISNULL(s.AwayValue,'')) != m.ResultValue
+			ORDER BY s.LogDate DESC
 		)tmp
+	WHERE m.ResultValue <> tmp.prevResult
 
 END
 GO
