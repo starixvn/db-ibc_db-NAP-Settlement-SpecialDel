@@ -280,7 +280,7 @@ BEGIN
 			WHERE batch.Id BETWEEN @StartRow AND @StopRow
 				AND batch.SiteType = 1
 				AND b.statusID IN (0,1)
-				AND clbh.PayoutAdjust = 0
+				AND clbh.PayoutAdjust > 0
 		END
 
 		--789y
@@ -295,7 +295,7 @@ BEGIN
 			WHERE batch.Id BETWEEN @StartRow AND @StopRow
 				AND batch.SiteType = 2
 				AND b.statusID IN (0,1)
-				AND clbh.PayoutAdjust = 0
+				AND clbh.PayoutAdjust > 0
 		END
 
 		IF @StopRow = @MaxRow BREAK
