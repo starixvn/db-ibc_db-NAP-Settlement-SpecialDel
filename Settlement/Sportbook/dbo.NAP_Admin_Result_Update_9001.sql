@@ -11,7 +11,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_9001]
  ,@Sporttype		SMALLINT
  ,@IsDirectly		BIT				   = 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
  ,@IsAuto			BIT				   = 0
- ,@DeterminedType	INT			   = 0
+ ,@DeterminedType	INT				   = 0
+ ,@IsSDTEarly		BIT				   = 0
 
 AS 
 /*
@@ -139,7 +140,7 @@ BEGIN
         
     EXEC sp_xml_removedocument @handle
 
-	IF @Sporttype = 2 AND @DeterminedType = 0
+	IF @Sporttype = 2 AND @DeterminedType = 0 AND @IsSDTEarly = 0
 	BEGIN
 		UPDATE @tblSelectedRID
 		SET	HomeValue = CASE WHEN HomeValue + AwayValue = 0 THEN NULL ELSE HomeValue END
@@ -159,7 +160,7 @@ BEGIN
 	   SET @ResultStatusID      = 4
        SET @SettlementStatusID  = 0  -- Initial
     END 
-    ELSE IF @action = 'REFUND' AND @DeterminedType = 0
+    ELSE IF @action = 'REFUND' AND @DeterminedType = 0 AND @IsSDTEarly = 0
     BEGIN
 	   SET @SettlementStatusID 	= 1
        SET @ResultStatusID 		= CASE WHEN @IsAuto = 1 THEN 2 
@@ -172,7 +173,7 @@ BEGIN
        FROM @tblSelectedRID sr
        		INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sr.ResourceID = sd.ResourceID
     END 
-	ELSE IF @action = 'REFUND' AND @DeterminedType > 0
+	ELSE IF @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1)
     BEGIN
 		SET @SettlementStatusID  = 1
 		SET @ResultStatusID  = 5
@@ -421,7 +422,7 @@ BEGIN
 					AND (ISNULL(HomeValue,'') = '' OR @DeterminedType = 0)
 			END
 
-			IF @action = 'REFUND' AND @DeterminedType > 0
+			IF @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1)
 			BEGIN
 				UPDATE dbo.ResultDetail
 				SET  HomeValue = @q1homescore + @q2homescore
@@ -468,11 +469,11 @@ BEGIN
 				) AS SOURCE ON  TARGET.ResourceId = '02' AND TARGET.MatchId = @matchid
 			WHEN MATCHED THEN
 				UPDATE SET HomeValue     = CASE WHEN @action = 'CAL' THEN SOURCE.HomeValue - @hthomescore
-												WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.HomeValue = '',NULL,SOURCE.HomeValue - @hthomescore )
+												WHEN @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1) THEN IIF(SOURCE.HomeValue = '',NULL,SOURCE.HomeValue - @hthomescore )
 												ELSE NULL 
 										   END
 					,AwayValue           = CASE WHEN @action = 'CAL'  THEN SOURCE.AwayValue - @htawayscore
-												WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.AwayValue = '',NULL,SOURCE.AwayValue - @htawayscore)
+												WHEN @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1) THEN IIF(SOURCE.AwayValue = '',NULL,SOURCE.AwayValue - @htawayscore)
 												ELSE NULL 
 											END
 					,ResultStatusID      = @ResultStatusID
@@ -484,16 +485,16 @@ BEGIN
 				INSERT (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 				VALUES(@matchid, '02'
 					, CASE WHEN @action = 'CAL' THEN SOURCE.HomeValue - @hthomescore
-						   WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.HomeValue = '',NULL,SOURCE.HomeValue - @hthomescore)
+						   WHEN @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1) THEN IIF(SOURCE.HomeValue = '',NULL,SOURCE.HomeValue - @hthomescore)
 						   ELSE NULL 
 					  END
 					, CASE  WHEN @action = 'CAL'  THEN SOURCE.AwayValue - @htawayscore
-							WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.AwayValue = '',NULL,SOURCE.AwayValue - @htawayscore)
+							WHEN @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1) THEN IIF(SOURCE.AwayValue = '',NULL,SOURCE.AwayValue - @htawayscore)
 							ELSE NULL 
 					  END
 					, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(), @creator, @creator);
 
-			IF @action = 'REFUND' AND @DeterminedType > 0
+			IF @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1)
 			BEGIN
 				UPDATE r
 				SET  r.SettlementStatusID = 7
@@ -509,7 +510,7 @@ BEGIN
 		END
     END 
 
-	IF (@action = 'UNDO' OR (@action = 'REFUND' AND  @DeterminedType > 0)) AND @ExternalResultTable = 1  
+	IF (@action = 'UNDO' OR (@action = 'REFUND' AND  (@DeterminedType > 0 OR @IsSDTEarly = 1))) AND @ExternalResultTable = 1  
 	BEGIN
 		DELETE  p
 		FROM dbo.ProviderExternalResultDetail AS p
@@ -517,7 +518,7 @@ BEGIN
 			AND p.SourceId = 99
 			AND EXISTS (SELECT 1 FROM  @tblSelectedRID AS s WHERE s.ResourceId = p.ResourceId)
 	END
-	ELSE IF (@action = 'UNDO' OR (@action = 'REFUND' AND  @DeterminedType > 0)) AND  @ExternalResultTable = 2 
+	ELSE IF (@action = 'UNDO' OR (@action = 'REFUND' AND  (@DeterminedType > 0 OR @IsSDTEarly = 1))) AND  @ExternalResultTable = 2 
 	BEGIN
 		DELETE  p
 		FROM dbo.ProviderExternalResultDetailOS  AS p
