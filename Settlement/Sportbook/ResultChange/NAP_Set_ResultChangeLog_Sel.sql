@@ -19,14 +19,15 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @tmpMatch TABLE (MatchId INT, ResourceId VARCHAR(20), ResultValue VARCHAR(200), LastLogDate DATETIME)
+	DECLARE @tmpMatch TABLE (MatchId INT, ResourceId VARCHAR(20), HomeValue VARCHAR(100), AwayValue VARCHAR(100), LastLogDate DATETIME)
 
 	-- Step 1: Get raw data
-	INSERT INTO @tmpMatch (MatchId, ResourceId, ResultValue, LastLogDate)
+	INSERT INTO @tmpMatch (MatchId, ResourceId, HomeValue, AwayValue, LastLogDate)
 	SELECT 
 		s.MatchID,
 		ResourceID,
-		CONCAT(ISNULL(HomeValue,''), '-', ISNULL(AwayValue,'')),
+		HomeValue,
+		AwayValue,
 		MAX(LogDate)
 	FROM [dbo].[SettlementLog] s WITH (NOLOCK)
 		CROSS APPLY (
@@ -41,28 +42,29 @@ BEGIN
 		AND ResourceID IN ('00','01')
 	GROUP BY s.MatchID,
 		ResourceID,
-		CONCAT(ISNULL(HomeValue,''), '-', ISNULL(AwayValue,''))
+		HomeValue, 
+		AwayValue
 	
 	--Step 2: Return data
 	SELECT DISTINCT MatchId
 	FROM (
-		SELECT MatchId, ResourceId
+		SELECT MatchId, ResourceId, HomeValue, AwayValue
 		FROM @tmpMatch t
 		GROUP BY MatchId, ResourceId
 		HAVING COUNT(1) > 1
 	)t1
-	UNION ALL
+	UNION
 	SELECT DISTINCT m.MatchId 
 	FROM @tmpMatch m
 		CROSS APPLY (
-			SELECT TOP 1 CONCAT(ISNULL(s.HomeValue,''), '-', ISNULL(s.AwayValue,'')) AS prevResult
+			SELECT TOP 1 HomeValue, AwayValue
 			FROM [dbo].[SettlementLog] s WITH (NOLOCK)
 			WHERE s.MatchID = m.MatchId
 				AND s.ResourceID = m.ResourceId
 				AND s.LogDate < m.LastLogDate
 			ORDER BY s.LogDate DESC
 		)tmp
-	WHERE m.ResultValue <> tmp.prevResult
+	WHERE (m.HomeValue <> tmp.HomeValue) OR (m.AwayValue <> tmp.AwayValue)
 
 END
 GO
