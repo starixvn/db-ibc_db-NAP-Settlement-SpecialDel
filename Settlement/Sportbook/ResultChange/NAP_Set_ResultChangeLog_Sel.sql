@@ -50,7 +50,7 @@ BEGIN
 	FROM (
 		SELECT MatchId, ResourceId, HomeValue, AwayValue
 		FROM @tmpMatch t
-		GROUP BY MatchId, ResourceId
+		GROUP BY MatchId, ResourceId, HomeValue, AwayValue
 		HAVING COUNT(1) > 1
 	)t1
 	UNION
