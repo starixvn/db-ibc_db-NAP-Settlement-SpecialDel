@@ -91,14 +91,14 @@ BEGIN
 	END
 
 	SELECT	r.SourceId 
-			,p.SourceName
+			,ISNULL(r.SourceName,p.SourceName) AS SourceName
 			,r.Remark
 			,r.ResourceId 
 			,r.HomeValue
 			,r.AwayValue
 			,r.OrderNo
 	FROM @tmpProviderExternalResult r
-	INNER JOIN dbo.ProviderInfo p WITH(NOLOCK)
+	LEFT JOIN dbo.ProviderInfo p WITH(NOLOCK)
 			ON r.SourceId = p.SourceId
 	
 
