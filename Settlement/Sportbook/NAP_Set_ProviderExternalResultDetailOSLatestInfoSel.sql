@@ -137,7 +137,7 @@ BEGIN
 
 	/*Get more source 99 for refund SDT basketball early*/
 	UNION ALL
-	SELECT 99, 'ConfirmReundSDT', 'n/a', 0
+	SELECT 99, 'ConfirmRefundSDT', 'n/a', 0
 	WHERE @SportType = 2 AND @SettleType = 'EAR'
 	
 	IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpSourceId s WHERE s.SourceId = 100)
