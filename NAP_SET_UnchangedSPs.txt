@@ -1,3 +1,2 @@
 Common SP\Validation\NAP_Admin_Settlement_Validation_Ticket.sql
 Settlement\Sportbook\dbo.NAP_Admin_MatchInfoUpd.sql
-Settlement\Sportbook\NAP_Set_ProviderExternalResultDetailLatestInfoSel.sql
