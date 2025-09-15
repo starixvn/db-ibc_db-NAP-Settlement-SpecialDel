@@ -1380,6 +1380,7 @@ BEGIN
 	DROP TABLE #CTE_Ticket_Single
 	DROP TABLE #CTE_Ticket_SubParlay
 	DROP TABLE #CTE_RequestDetail
+
 END
 GO
 
