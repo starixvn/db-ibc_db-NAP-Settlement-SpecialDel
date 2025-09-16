@@ -2,6 +2,7 @@
 ALTER PROCEDURE dbo.NAP_Set_PlayerInfoSel
 	@MatchId INT
 	,@Sporttype SMALLINT = 50
+	,@ListResourceIDs VARCHAR(MAX) = ''
 AS
 /*
     Created by: 20220207@Kathy
@@ -12,6 +13,9 @@ AS
 		- 20220207@Kathy: get player info [Redmine:#166335]
 		- 20220719@Louisa: Remove select via linked server [Redmine:#175251]
 		- 20250822@Max: [Settlement] - Integration - Player Props AIO for Basketball [Redmine: #233012]
+
+	@ListResourceIDs = '6750102,66901' --use for Basketball early
+
 */
 BEGIN
 	IF @Sporttype = 50 --Cricket
@@ -45,6 +49,7 @@ BEGIN
 				AND ISNULL(o.IsDeleted,0) = 0
 				AND ISNULL(f.IsDeleted,0) = 0
 				AND s.SettleType = 'EAR'
+				AND (ISNULL(@ListResourceIDs,'') = '' OR EXISTS(SELECT 1 FROM STRING_SPLIT(@ListResourceIDs,',') tmp WHERE tmp.value = s.ResourceID) )
 	END
 END
 GO
