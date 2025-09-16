@@ -652,8 +652,8 @@ BEGIN
 			BEGIN
 				UPDATE sr
 				SET  sr.SDTpfId = bt.SDTpfId
-					,sr.HomeValue = bt.HomeValue
-					,sr.AwayValue = bt.AwayValue
+					,sr.HomeValue = CASE WHEN @IsSDTEarly = 1 THEN sr.HomeValue ELSE bt.HomeValue END
+					,sr.AwayValue = CASE WHEN @IsSDTEarly = 1 THEN sr.AwayValue ELSE bt.AwayValue END
 					,sr.AbandonedStatus = bt.AbandonedStatus
 					,sr.onlySDTCal = bt.onlySDTCal
 				FROM @tmpSelectedRID AS sr
