@@ -62,7 +62,7 @@ SELECT
     bt.TransId,
     bt.CustID,
     bt.MatchId,
-    1 AS EventTypeID,
+    CASE WHEN bettype = 38 THEN 5 ELSE 1 END AS EventTypeID,
     bt.BetType,
 	IIF(s.sitelabel = '789y', 2, 1) AS SiteType,
 	ISNULL(
@@ -84,7 +84,8 @@ WHERE bt.StatusId IN (0,1)  -- Running bets
 	AND bt.transid <= @MaxTransId
 
 --Insert data of minor bettypes to other table
-DELETE t OUTPUT deleted.TransId, deleted.MatchId, deleted.CustId, deleted.SiteType, deleted.Actual_stake, 1 INTO #MinorBettypeTransIds (TransId, MatchId, CustID, SiteType, Actual_stake, EventTypeID)
+DELETE t OUTPUT deleted.TransId, deleted.MatchId, deleted.CustId, deleted.SiteType, deleted.Actual_stake, deleted.EventTypeID 
+	INTO #MinorBettypeTransIds (TransId, MatchId, CustID, SiteType, Actual_stake, EventTypeID)
 FROM #TransIdsToProcess t
 WHERE t.IsMajorBettype = 0
 
@@ -141,7 +142,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #TransIdsToProcess WHERE sitetype = 1)
 		BEGIN			
 			UPDATE clbh
-			SET PayoutAdjust = batch.PayoutAdjust 
+			SET PayoutAdjust = batch.PayoutAdjust - batch.Actual_stake
 			OUTPUT inserted.Transid, 1 INTO #UpdatedTransIds(TransId, sitetype)
 			FROM dbo.CustLimitBetHistory_MBC clbh WITH (ROWLOCK)
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = clbh.Transid
@@ -156,7 +157,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #TransIdsToProcess WHERE sitetype = 2)
 		BEGIN
 			UPDATE clbh
-			SET PayoutAdjust = batch.PayoutAdjust
+			SET PayoutAdjust = batch.PayoutAdjust - batch.Actual_stake
 			OUTPUT inserted.Transid, 2 INTO #UpdatedTransIds(TransId, sitetype)
 			FROM dbo.CustLimitBetHistory_789 clbh WITH (ROWLOCK)
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = clbh.Transid
@@ -205,10 +206,10 @@ BEGIN
 		--MBC
 		IF EXISTS (SELECT TOP 1 1 FROM #TransIdsToProcess WHERE sitetype = 1)
 		BEGIN
-			UPDATE t SET t.AccumPayout = (t.AccumPayout + tmp.AccumPayout)
+			UPDATE t SET t.AccumPayout = (t.AccumPayout + tmp.AccumPayout - tmp.AccumActualStake)
 			FROM dbo.CustLimitBet_MBC t WITH (ROWLOCK)
 				CROSS APPLY (
-					SELECT SUM(t1.PayoutAdjust) AS AccumPayout
+					SELECT SUM(t1.PayoutAdjust) AS AccumPayout, SUM(t1.Actual_stake) AS AccumActualStake
 					FROM #TransIdsToProcess t1
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t1.TransId
 					WHERE t1.Id BETWEEN @StartRow AND @StopRow
@@ -222,10 +223,10 @@ BEGIN
 		--789y
 		IF EXISTS (SELECT TOP 1 1 FROM #TransIdsToProcess WHERE sitetype = 2)
 		BEGIN
-			UPDATE t SET t.AccumPayout = (t.AccumPayout + tmp.AccumPayout)
+			UPDATE t SET t.AccumPayout = (t.AccumPayout + tmp.AccumPayout - tmp.AccumActualStake)
 			FROM dbo.CustLimitBet_789 t WITH (ROWLOCK)
 				CROSS APPLY (
-					SELECT SUM(t1.PayoutAdjust) AS AccumPayout
+					SELECT SUM(t1.PayoutAdjust) AS AccumPayout, SUM(t1.Actual_stake) AS AccumActualStake
 					FROM #TransIdsToProcess t1
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t1.TransId
 					WHERE t1.Id BETWEEN @StartRow AND @StopRow
