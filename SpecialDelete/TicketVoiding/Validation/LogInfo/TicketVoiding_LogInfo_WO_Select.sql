@@ -623,7 +623,7 @@ BEGIN
 				,GroupName
 				,IsSiteDBDown
 			)
-		SELECT d.MatchId
+		SELECT DISTINCT d.MatchId
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
