@@ -175,7 +175,7 @@ RETURN
 						END
 					WHEN ISNUMERIC(@betteam) = 1 THEN
 						CASE 
-							WHEN @HomeValue > @betteam THEN -1
+							WHEN @HomeValue > CAST(@betteam AS INT) THEN -1
 						END 
 					WHEN @betteam LIKE '%+' THEN
 						CASE 
