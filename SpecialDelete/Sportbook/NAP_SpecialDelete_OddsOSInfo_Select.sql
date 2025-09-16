@@ -79,8 +79,8 @@ BEGIN
 								THEN CASE WHEN tt.ExtraInfo = 'winner' THEN 'have ' + pp.ThreePointsValue + ' three points field goals and ' + t.teamname + ' to Win'
 										  WHEN tt.ExtraInfo = 'winner,over' THEN 'have ' + pp.ThreePointsValue + ' three points field goals, ' + t.teamname + ' to Win and ' + t.teamname + ' Total Points Over ' + SUBSTRING(tt.ExtraValue,CHARINDEX(',',tt.ExtraValue)+1,LEN(tt.ExtraValue))
 									      ELSE '' END
-							  WHEN pp.Performance = 'rebounds' THEN 'have ' + pp.PointsValue + ' total rebounds and ' + t.teamname + ' to Win'
-							  WHEN pp.Performance = 'assists' THEN 'have ' + pp.PointsValue + ' assists and ' + t.teamname + ' to Win'
+							  WHEN pp.Performance = 'rebounds' THEN 'have ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' to Win'
+							  WHEN pp.Performance = 'assists' THEN 'have ' + pp.AssistsValue + ' assists and ' + t.teamname + ' to Win'
 							  WHEN pp.Performance = 'points+assists'
 								THEN 'have ' + pp.PointsValue + ' points and ' + pp.AssistsValue + ' assists' + 
 									CASE WHEN tt.ExtraInfo = 'winner' THEN ' and ' + t.teamname + ' to Win'
