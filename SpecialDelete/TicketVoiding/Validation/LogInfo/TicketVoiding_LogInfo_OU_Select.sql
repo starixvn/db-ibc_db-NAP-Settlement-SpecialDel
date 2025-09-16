@@ -35,6 +35,7 @@ AS
 		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
 		- 20250626@Lani: [TVS] Vega Project - Migration data from KBT to KL on the TVS Site [Redmine: #227162]
 		- 20250723@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
+		- 20250916@July: Remove check validate no bettype affect poolhouse [Redmine: #]
 
 	Param's explanation:
 		+ @OnlineServerId = '0,1,2,3'
@@ -42,7 +43,6 @@ AS
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" WrongMarket ="" SubIssueTypeId="" PoolHouseCheckedBetTypes ="1,2,3,4" IsMainMatch="true" IsLinkGroup1X2 ="" IsLinkGroupAIO = "" LiveIndicator =""/></root>
 			(*) PoolHouseCheckedBetTypes   : ALL - (all bettype của ticket)
 											 '1,2,3' - (bettype selected)
-											 -1 - (no bettype affected)
 											 '' - (uncheck all bettype PH)
 */
 BEGIN
@@ -1033,7 +1033,7 @@ BEGIN
 		FROM @Validation v
 			INNER JOIN #CTE_RequestDetail rd WITH (NOLOCK) ON v.MatchId = rd.MatchId
 		WHERE rd.RequestId = @RequestId AND rd.Sporttype = 1
-			AND rd.TransIds LIKE '%IsMainMatch="true"%' AND rd.TransIds NOT LIKE '%PoolHouseCheckedBetTypes="-1"%'
+			AND rd.TransIds LIKE '%IsMainMatch="true"%'
 
 		-- 1. Validate table
 		SELECT MatchId
