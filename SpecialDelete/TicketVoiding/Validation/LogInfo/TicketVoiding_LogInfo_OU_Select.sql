@@ -35,6 +35,7 @@ AS
 		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
 		- 20250626@Lani: [TVS] Vega Project - Migration data from KBT to KL on the TVS Site [Redmine: #227162]
 		- 20250723@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
+		- 20250916@July: HotFix - Remove check validate no bettype affect poolhouse [Redmine: #238982]
 
 	Param's explanation:
 		+ @OnlineServerId = '0,1,2,3'
@@ -42,7 +43,6 @@ AS
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" WrongMarket ="" SubIssueTypeId="" PoolHouseCheckedBetTypes ="1,2,3,4" IsMainMatch="true" IsLinkGroup1X2 ="" IsLinkGroupAIO = "" LiveIndicator =""/></root>
 			(*) PoolHouseCheckedBetTypes   : ALL - (all bettype của ticket)
 											 '1,2,3' - (bettype selected)
-											 -1 - (no bettype affected)
 											 '' - (uncheck all bettype PH)
 */
 BEGIN
@@ -200,7 +200,6 @@ BEGIN
 			 IsInValidTotalTickets   BIT DEFAULT(0) 
 			,IsExistedInOtherRequest BIT DEFAULT(0) 
 			,MatchId                 INT
-			,IsPoolHouseAffected	 BIT DEFAULT(0)
 			,LogInfoTicketsJson VARCHAR(MAX)
 		    ,IsFinish				 BIT
 		)
@@ -250,8 +249,8 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@WrongOUInfoXML = NULL ))
 
 	--Init Validation
-	INSERT INTO @Validation (MatchId, IsPoolHouseAffected)
-	SELECT MatchId, CASE WHEN d.IsLinkGroup1X2 = 0 AND d.IsLinkGroupAIO = 0 THEN 0 ELSE 1 END
+	INSERT INTO @Validation (MatchId)
+	SELECT MatchId
 	FROM #FilterInfo d
 
 	INSERT INTO #FilterBetTypeTbl (Matchid, BetTypeId)
@@ -310,7 +309,7 @@ BEGIN
 						FROM dbo.f_TVS_GetInstantBettypes()
 						WHERE InstantType IS NULL
 						AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
-									 WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal) THEN 1
+									 WHEN c.ResourceId IS NOT NULL AND NOT EXISTS(SELECT 1 FROM #CTE_isCal WHERE ResourceId = c.ResourceId) THEN 1
 									 ELSE 0 END
 				)f	 	
 		END
@@ -495,8 +494,8 @@ BEGIN
 		)xHDPou
 		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = 6 AND b.bettype = f.BetType
 	WHERE b.betfrom <> 'P'
-		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = b.SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = b.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END
 		AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 		AND b.liveindicator = d.LiveIndicator 
@@ -508,7 +507,6 @@ BEGIN
 					 WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1 --Only support soccer 
 					 ELSE 0 END
 
-
 	---get sub ticket of a mix parlay	
 	IF EXISTS (
 				SELECT TOP(1) 1
@@ -518,8 +516,8 @@ BEGIN
 				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   				   ELSE 0 END
 					AND bm.betfrom <> 'P' 
-					AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-								 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+					AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1
+								 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 								 ELSE 0 END
 			 )
 	BEGIN		
@@ -672,8 +670,8 @@ BEGIN
 							 WHEN d.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1
 						ELSE 0 END
 				AND b.SiteDBGroupID = sub.SiteDBGroupID 
-				AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-							 WHEN sub.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+				AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sub.SiteDBGroupID) THEN 1
+							 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sub.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 							 ELSE 0 END
 	END 
 
@@ -827,14 +825,6 @@ BEGIN
 					WHEN ISNULL(@PoolHouseCheckedBetTypes,'') = '' THEN 1
 					ELSE 0 END
 		
-	IF @@ROWCOUNT <> 0
-	BEGIN
-		UPDATE v SET v.IsPoolHouseAffected = 1
-		FROM @Validation v
-			INNER JOIN #FilterInfo d ON v.matchid = d.MatchId
-		WHERE d.IsMainMatch = 'true'
-	END
-
 	--Get ticket of sitedb down 
 	BEGIN
 		DECLARE @tmpSiteDBDownInfo TABLE (
@@ -879,12 +869,10 @@ BEGIN
 	ORDER BY CAST(b.Sublivehomescore AS VARCHAR(2)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(2)) ASC
 
 	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
-		,v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE l.IsPoolHouseAffected END
 	FROM @Validation v
 		OUTER APPLY( 
 			SELECT ISNULL(SUM(SingleCount),0) + ISNULL(SUM(PoolHouseSingleCount),0) AS SingleCount
 				  ,ISNULL(SUM(MainParlayCount),0) + ISNULL(SUM(PoolHouseMainParlayCount),0) AS MainParlayCount
-				  ,MAX(CASE WHEN PoolHouseMainParlayCount <> 0 THEN 1 ELSE 0 END) AS IsPoolHouseAffected
 			FROM #logInfo
 			WHERE MatchId = v.MatchId
 			GROUP BY MatchId
@@ -913,8 +901,8 @@ BEGIN
 	SELECT RequestId, MatchId, TransId, Bettype
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID)  THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END
 	SET @cnt_s = @@ROWCOUNT
 
@@ -922,11 +910,10 @@ BEGIN
 	SELECT RequestId, MatchId, TransId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID)  THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END 
 	SET @cnt_p = @@ROWCOUNT
-
 
 	IF @IsShowLogOnly = 0
 	BEGIN
@@ -1026,20 +1013,10 @@ BEGIN
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
-		
-		/*Support case uncheck bettype PH -> still show PH count = 0 & case voided*/
-		UPDATE v
-		SET v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE 1 END
-		FROM @Validation v
-			INNER JOIN #CTE_RequestDetail rd WITH (NOLOCK) ON v.MatchId = rd.MatchId
-		WHERE rd.RequestId = @RequestId AND rd.Sporttype = 1
-			AND rd.TransIds LIKE '%IsMainMatch="true"%' AND rd.TransIds NOT LIKE '%PoolHouseCheckedBetTypes="-1"%'
-
 		-- 1. Validate table
 		SELECT MatchId
 			,IsInValidTotalTickets
 			,IsExistedInOtherRequest
-			,IsPoolHouseAffected 
 		FROM @Validation
 
 		-- 2. TransId in request table
@@ -1047,7 +1024,7 @@ BEGIN
 			   STUFF((SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 				FROM #TransidInRequest
 				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-				ORDER BY TransId
+				ORDER BY TransId ASC
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,'') AS TransIds
 		FROM #TransidInRequest r
 		GROUP BY r.RequestId, r.MatchId
@@ -1195,7 +1172,6 @@ BEGIN
 			SELECT TransId FROM #CTE_Ticket_SubParlay p
 			
 		END
-
 	END
 
 	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
@@ -1211,7 +1187,6 @@ BEGIN
 	SELECT MatchId
 		,IsInValidTotalTickets
 		,IsExistedInOtherRequest
-		,IsPoolHouseAffected
 	FROM @Validation
 
 	-- 2. TransId exists in other request table
@@ -1222,7 +1197,7 @@ BEGIN
 			SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 			FROM #TransidInRequest
 			WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-			ORDER BY TransId
+			ORDER BY TransId ASC
 			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 			,1,2,'') AS TransIds
 			,MatchId
