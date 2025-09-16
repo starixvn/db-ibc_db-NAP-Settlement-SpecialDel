@@ -191,7 +191,6 @@ BEGIN
 			 IsInValidTotalTickets   BIT DEFAULT(0) 
 			,IsExistedInOtherRequest BIT DEFAULT(0) 
 			,MatchId                 INT
-			,IsPoolHouseAffected	 BIT DEFAULT(0)
 			,LogInfoTicketsJson		 VARCHAR(MAX)
 		    ,IsFinish BIT
 		)
@@ -239,8 +238,8 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
 
 	--Init Validation
-	INSERT INTO @Validation (MatchId, IsPoolHouseAffected)
-	SELECT MatchId, CASE WHEN d.IsLinkGroup1X2 = 0 AND d.IsLinkGroupAIO = 0 THEN 0 ELSE 1 END
+	INSERT INTO @Validation (MatchId)
+	SELECT MatchId
 	FROM #FilterInfo d
 
 	BEGIN -- Instant Settlement declaration
@@ -850,14 +849,6 @@ BEGIN
 					WHEN ISNULL(@PoolHouseCheckedBetTypes,'') = '' THEN 1
 					ELSE 0 END
 		
-	IF @@ROWCOUNT <> 0
-	BEGIN
-		UPDATE v SET v.IsPoolHouseAffected = 1
-		FROM @Validation v
-			INNER JOIN #FilterInfo d ON v.matchid = d.MatchId
-		WHERE d.IsMainMatch = 'true'
-	END
-
 	--Get ticket of sitedb down 
 	BEGIN
 		DECLARE @tmpSiteDBDownInfo TABLE (
@@ -902,12 +893,10 @@ BEGIN
 	ORDER BY CAST(b.Sublivehomescore AS VARCHAR(2)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(2)) ASC
 
 	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
-		,v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE l.IsPoolHouseAffected END
 	FROM @Validation v
 		OUTER APPLY( 
 			SELECT ISNULL(SUM(SingleCount),0) + ISNULL(SUM(PoolHouseSingleCount),0) AS SingleCount
 				  ,ISNULL(SUM(MainParlayCount),0) + ISNULL(SUM(PoolHouseMainParlayCount),0) AS MainParlayCount
-				  ,MAX(CASE WHEN PoolHouseMainParlayCount <> 0 THEN 1 ELSE 0 END) AS IsPoolHouseAffected
 			FROM #logInfo
 			WHERE MatchId = v.MatchId
 			GROUP BY MatchId
@@ -1046,19 +1035,10 @@ BEGIN
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
-		/*Support case uncheck bettype PH -> still show PH count = 0 & case voided*/
-		UPDATE v
-		SET v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE 1 END
-		FROM @Validation v
-		INNER JOIN #CTE_RequestDetail rd WITH (NOLOCK) ON v.MatchId = rd.MatchId
-		WHERE rd.Sporttype = 1
-			AND rd.TransIds LIKE '%IsMainMatch="true"%'
-
 		-- 1. Validate table
 		SELECT MatchId
 			, IsInValidTotalTickets
 			, IsExistedInOtherRequest
-			, IsPoolHouseAffected 
 		FROM @Validation
 
 		-- 2. TransId in request table
@@ -1228,7 +1208,6 @@ BEGIN
 	SELECT MatchId
 		,IsInValidTotalTickets
 		,IsExistedInOtherRequest
-		,IsPoolHouseAffected
 	FROM @Validation
 
 	-- 2. TransId exists in other request table
