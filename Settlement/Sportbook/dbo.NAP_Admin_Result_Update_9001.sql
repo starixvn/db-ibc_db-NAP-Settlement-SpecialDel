@@ -381,7 +381,7 @@ BEGIN
 				AND sd.AllowDirectly = 0
 		END
 
-		IF @Sporttype = 2 AND EXISTS (SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
+		IF @Sporttype = 2 AND (EXISTS (SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00') OR @IsSDTEarly = 1)
 		BEGIN
 			SELECT	@hthomescore = ISNULL(SUM(CASE WHEN rd.ResourceId = '01' THEN rd.HomeValue ELSE 0 END), 0)
 					,@htawayscore = ISNULL(SUM(CASE WHEN rd.ResourceId = '01' THEN rd.AwayValue ELSE 0 END), 0)
@@ -469,11 +469,11 @@ BEGIN
 				) AS SOURCE ON  TARGET.ResourceId = '02' AND TARGET.MatchId = @matchid
 			WHEN MATCHED THEN
 				UPDATE SET HomeValue     = CASE WHEN @action = 'CAL' THEN SOURCE.HomeValue - @hthomescore
-												WHEN @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1) THEN IIF(SOURCE.HomeValue = '',NULL,SOURCE.HomeValue - @hthomescore )
+												WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.HomeValue = '',NULL,SOURCE.HomeValue - @hthomescore )
 												ELSE NULL 
 										   END
 					,AwayValue           = CASE WHEN @action = 'CAL'  THEN SOURCE.AwayValue - @htawayscore
-												WHEN @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1) THEN IIF(SOURCE.AwayValue = '',NULL,SOURCE.AwayValue - @htawayscore)
+												WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.AwayValue = '',NULL,SOURCE.AwayValue - @htawayscore)
 												ELSE NULL 
 											END
 					,ResultStatusID      = @ResultStatusID
@@ -485,16 +485,16 @@ BEGIN
 				INSERT (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 				VALUES(@matchid, '02'
 					, CASE WHEN @action = 'CAL' THEN SOURCE.HomeValue - @hthomescore
-						   WHEN @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1) THEN IIF(SOURCE.HomeValue = '',NULL,SOURCE.HomeValue - @hthomescore)
+						   WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.HomeValue = '',NULL,SOURCE.HomeValue - @hthomescore)
 						   ELSE NULL 
 					  END
 					, CASE  WHEN @action = 'CAL'  THEN SOURCE.AwayValue - @htawayscore
-							WHEN @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1) THEN IIF(SOURCE.AwayValue = '',NULL,SOURCE.AwayValue - @htawayscore)
+							WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.AwayValue = '',NULL,SOURCE.AwayValue - @htawayscore)
 							ELSE NULL 
 					  END
 					, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(), @creator, @creator);
 
-			IF @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1)
+			IF @action = 'REFUND' AND @DeterminedType > 0
 			BEGIN
 				UPDATE r
 				SET  r.SettlementStatusID = 7
@@ -506,6 +506,14 @@ BEGIN
 								  WHEN @SDTResourceID IN ('Q3','Q4','OT','00') AND r.ResourceId IN ('02') AND @has2H = 1 THEN 1
 								  ELSE 0
 							 END
+			END
+			IF @action = 'REFUND' AND @IsSDTEarly = 1
+			BEGIN
+				UPDATE r
+				SET  r.SettlementStatusID = 7
+				FROM dbo.ResultDetail AS r
+					INNER JOIN @tblSelectedRID rs ON rs.ResourceID = r.ResourceId
+				WHERE r.MatchId = @matchid
 			END
 		END
     END 
