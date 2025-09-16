@@ -34,7 +34,7 @@ AS
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
 		- 20250721@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
-		- 20250916@July: Remove check validate no bettype affect poolhouse [Redmine: #]
+		- 20250916@July: HotFix - Remove check validate no bettype affect poolhouse [Redmine: #238982]
 
 	Param's explanation:
 		+ @WrongHDPInfo:
@@ -305,7 +305,7 @@ BEGIN
 						FROM dbo.f_TVS_GetInstantBettypes()
 						WHERE InstantType IS NULL
 						AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
-									 WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal) THEN 1
+									 WHEN c.ResourceId IS NOT NULL AND NOT EXISTS(SELECT 1 FROM #CTE_isCal WHERE ResourceId = c.ResourceId) THEN 1
 									 ELSE 0 END
 				)f	 	
 		END
@@ -507,9 +507,9 @@ BEGIN
 		)xHDPvalue
 		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = 4 AND b.bettype = f.BetType
 	WHERE b.betfrom <> 'P'  
-		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					 ELSE 0 END
+		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = b.SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = b.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
+			         ELSE 0 END
 		AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 		AND b.liveindicator = d.LiveIndicator
 		AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
@@ -552,10 +552,9 @@ BEGIN
 				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   				   ELSE 0 END
 				AND bm.betfrom <> 'P' 
-				AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-							 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+				AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1
+							 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 							 ELSE 0 END
-				
 			)
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
@@ -706,8 +705,8 @@ BEGIN
 						ELSE 0 END
 				AND sub.betfrom <> 'P'
 				AND b.SiteDBGroupID = sub.SiteDBGroupID
-				AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-							 WHEN sub.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+				AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sub.SiteDBGroupID) THEN 1
+							 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sub.SiteDBGroupID)  THEN 1  -- Get ticket sitedb down
 							 ELSE 0 END
 				AND sub.liveindicator = d.LiveIndicator
 				AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
@@ -969,8 +968,8 @@ BEGIN
 	SELECT RequestId, MatchId, TransId, Bettype
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
 	WHERE RequestId = @RequestId
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID)  THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END 
 	SET @cnt_s = @@ROWCOUNT
 
@@ -978,8 +977,8 @@ BEGIN
 	SELECT RequestId, MatchId, TransId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID)  THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END 
 	SET @cnt_p = @@ROWCOUNT
 
@@ -1092,7 +1091,7 @@ BEGIN
 			   STUFF((SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 				FROM #TransidInRequest
 				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-				ORDER BY TransId
+				ORDER BY TransId ASC
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,'') AS TransIds
 		FROM #TransidInRequest r
 		GROUP BY r.RequestId, r.MatchId
@@ -1238,9 +1237,7 @@ BEGIN
 			SELECT TransId FROM #CTE_Ticket_Single s
 			UNION ALL 
 			SELECT TransId FROM #CTE_Ticket_SubParlay p
-			
 		END
-
 	END
 
 	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
@@ -1266,7 +1263,7 @@ BEGIN
 			SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 			FROM #TransidInRequest
 			WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-			ORDER BY TransId
+			ORDER BY TransId ASC 
 			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 			,1,2,'') AS TransIds
 		FROM #TransidInRequest r
@@ -1327,7 +1324,6 @@ BEGIN
 	FROM @tmpSiteDBDownInfo 
 	FOR JSON PATH))
 
-	
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 		  ,CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
