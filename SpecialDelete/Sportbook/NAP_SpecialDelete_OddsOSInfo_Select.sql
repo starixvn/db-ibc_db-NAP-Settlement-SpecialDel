@@ -82,20 +82,20 @@ BEGIN
 							  WHEN pp.Performance = 'rebounds' THEN 'have ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' to Win'
 							  WHEN pp.Performance = 'assists' THEN 'have ' + pp.AssistsValue + ' assists and ' + t.teamname + ' to Win'
 							  WHEN pp.Performance = 'points+assists'
-								THEN 'have ' + pp.PointsValue + ' points and ' + pp.AssistsValue + ' assists' + 
-									CASE WHEN tt.ExtraInfo = 'winner' THEN ' and ' + t.teamname + ' to Win'
-										 WHEN tt.ExtraInfo = 'handicap' THEN ' and ' + t.teamname + ' ' + CASE WHEN CAST(tt.ExtraValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.ExtraValue + ')' ELSE tt.ExtraValue END
-										 ELSE '' END
+								THEN 'have ' + pp.PointsValue + ' points' + 
+									CASE WHEN tt.ExtraInfo = 'winner' THEN ', ' + pp.AssistsValue + ' assists and ' + t.teamname + ' to Win'
+										 WHEN tt.ExtraInfo = 'handicap' THEN ', ' + pp.AssistsValue + ' assists and ' + t.teamname + ' ' + CASE WHEN CAST(tt.ExtraValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.ExtraValue + ')' ELSE tt.ExtraValue END
+										 ELSE ' and ' + pp.AssistsValue + ' assists' END
 							  WHEN pp.Performance = 'points+rebounds'
-								THEN 'have ' + pp.PointsValue + ' points and ' + pp.ReboundsValue + ' rebounds' +
-									CASE WHEN tt.ExtraInfo = 'winner' THEN ' and ' + t.teamname + ' to Win'
-										 WHEN tt.ExtraInfo = 'handicap' THEN ' and ' + t.teamname + ' ' + CASE WHEN CAST(tt.ExtraValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.ExtraValue + ')' ELSE tt.ExtraValue END
-										 ELSE '' END
+								THEN 'have ' + pp.PointsValue + ' points' + 
+									CASE WHEN tt.ExtraInfo = 'winner' THEN ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' to Win'
+										 WHEN tt.ExtraInfo = 'handicap' THEN ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' ' + CASE WHEN CAST(tt.ExtraValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.ExtraValue + ')' ELSE tt.ExtraValue END
+										 ELSE ' and ' + pp.ReboundsValue + ' total rebounds' END
 							  WHEN pp.Performance = 'points+assists+rebounds'
-								THEN 'have ' + pp.PointsValue + ' points, ' + pp.AssistsValue + ' assists, ' + pp.ReboundsValue + ' rebounds' + 
-									CASE WHEN tt.ExtraInfo = 'winner' THEN ' and ' + t.teamname + ' to Win'
-										 WHEN tt.ExtraInfo = 'handicap' THEN ' and ' + t.teamname + ' ' + CASE WHEN CAST(tt.ExtraValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.ExtraValue + ')' ELSE tt.ExtraValue END
-										 ELSE '' END
+								THEN 'have ' + pp.PointsValue + ' points, ' + pp.AssistsValue + ' assists' + 
+									CASE WHEN tt.ExtraInfo = 'winner' THEN + ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' to Win'
+										 WHEN tt.ExtraInfo = 'handicap' THEN + ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' ' + CASE WHEN CAST(tt.ExtraValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.ExtraValue + ')' ELSE tt.ExtraValue END
+										 ELSE ' and ' + pp.ReboundsValue + ' total rebounds' END
 						ELSE NULL END
 				   ELSE NULL
 			  END
