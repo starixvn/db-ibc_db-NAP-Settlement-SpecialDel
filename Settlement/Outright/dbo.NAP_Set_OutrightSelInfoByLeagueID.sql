@@ -34,7 +34,7 @@ BEGIN
 			,l.sporttype
 			,odds
 			,ps.Screenshot
-			,r.Result
+			,r.Result as TraderScore
 	FROM	dbo.outright AS o WITH (NOLOCK)
 			INNER JOIN dbo.League AS l WITH (NOLOCK) ON l.leagueid = o.leagueid
 			OUTER APPLY (	SELECT TOP 1 Result AS Screenshot
