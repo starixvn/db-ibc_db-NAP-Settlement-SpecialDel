@@ -47,7 +47,8 @@ BEGIN
 					SELECT TOP 1 r.Result
 					FROM ResultDetailOutright r WITH (NOLOCK)
 					WHERE r.Orid = o.orid
-						AND r.Leagueid = @LeagueID						
+						AND r.Leagueid = @LeagueID
+						AND r.ResultStatusID = 3  -- Trader Confirmed					
 			) r
 	WHERE	o.leagueID = @LeagueID 	
 			AND 1 = CASE WHEN @StatusID = 0 THEN 1
