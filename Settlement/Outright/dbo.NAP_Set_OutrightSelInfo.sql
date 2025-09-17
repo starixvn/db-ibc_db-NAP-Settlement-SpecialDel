@@ -18,13 +18,14 @@ AS
 	- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 	- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
 	- 20250819@Hughie: Apply SOP for Outright [Redmine: #232955]
+	- 20250917@Hughie: SOP Outright Phase 2 [Redmine: #233004]
 
  * Parameters:
     @FromDate: From  date,
 	@ToDate: To date ,
 	@LeagueID: = 0: show info of all leagues     
 	@LeagueIDs: '86,97,181,184'
-	@StatusID: 0=ALL | 1=Running | 2=Completed
+	@StatusID: 0=ALL | 1=Running | 2=Completed | 3=TraderConfirmed
  */
 BEGIN   
 	SET NOCOUNT ON  
@@ -63,13 +64,17 @@ BEGIN
 		AND 1 = CASE WHEN @StatusID = 0 THEN 1
 					 WHEN @StatusID = 1 AND o.oddsstatus IN ('Running','Closed','Internal') THEN 1
 					 WHEN @StatusID = 2 AND o.oddsstatus IN ('Completed') THEN 1
+					 WHEN @StatusID = 3 AND EXISTS (SELECT TOP 1 1 
+					 								FROM ResultDetailOutright r WITH (NOLOCK) 
+													WHERE r.Orid = o.orid 
+														AND r.ResultStatusID = 3) THEN 1
 					 ELSE 0  
 				END 
 		AND ISNULL(o.IsDeleted,0) = 0	
 		AND tl.isTest = IIF(@IsIncludeTest = 0,0,tl.isTest)			 
 	ORDER BY o.leagueid
 		,	 IIF(o.oddsstatus IN ('Running','Closed','Internal'),1,2)
-		,	 o.kickofftime  
+		,	 o.kickofftime  ASC
 	
 	INSERT INTO @LeagueWonCount (LeagueID, WonCount)
 	SELECT r.leagueid, COUNT(r.orid) AS COUNTWON 
