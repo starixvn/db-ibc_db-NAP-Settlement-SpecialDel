@@ -184,6 +184,7 @@ BEGIN
 	--Bitcoin
 	IF NOT EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = @MatchId)
 	BEGIN
+		INSERT INTO @tmpMatchId (MatchId)
 		SELECT match3rdId
 		FROM dbo.match3rd WITH (NOLOCK)
 		WHERE match3rdId = @MatchID
@@ -192,6 +193,7 @@ BEGIN
 	--Virtual Horse Racing & Virtual Dog Racing, VS7
 	IF NOT EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = @MatchId)
 	BEGIN
+		INSERT INTO @tmpMatchId (MatchId)
 		SELECT EventID
 		FROM dbo.VSRaceInfo WITH (NOLOCK)
 		WHERE EventID = @MatchID
