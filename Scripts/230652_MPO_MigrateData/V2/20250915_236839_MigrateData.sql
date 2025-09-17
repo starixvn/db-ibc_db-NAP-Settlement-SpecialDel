@@ -201,11 +201,9 @@ BEGIN
 				CROSS APPLY (
 					SELECT SUM(t1.DiffAmount) AS AccumDiffAmount
 					FROM #UpdatedTransIds t1
-						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t1.TransId
 					WHERE t1.Id BETWEEN @StartRow AND @StopRow
 						AND t1.SiteType = 1
 						AND t.Matchid = t1.MatchId AND t.CustID = t1.CustId AND t.EventTypeID = t1.EventTypeID
-						AND b.statusID IN (0,1) --running bet
 					GROUP BY t1.MatchId, t1.CustId, t1.EventTypeID
 				)tmp
 		END
@@ -218,11 +216,9 @@ BEGIN
 				CROSS APPLY (
 					SELECT SUM(t1.DiffAmount) AS AccumDiffAmount
 					FROM #UpdatedTransIds t1
-						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t1.TransId
 					WHERE t1.Id BETWEEN @StartRow AND @StopRow
 						AND t1.SiteType = 2
 						AND t.Matchid = t1.MatchId AND t.CustID = t1.CustId AND t.EventTypeID = t1.EventTypeID
-						AND b.statusID IN (0,1) --running bet
 					GROUP BY t1.MatchId, t1.CustId, t1.EventTypeID
 				)tmp
 		END
