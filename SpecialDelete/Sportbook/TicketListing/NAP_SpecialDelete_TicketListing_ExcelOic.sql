@@ -148,16 +148,23 @@ BEGIN
 	WHERE  1 = CASE WHEN sporttype NOT IN (50,8) AND matchid = @MatchId THEN 1
 					WHEN sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
-	UNION 
-	SELECT match3rdId, sporttype
-	FROM dbo.match3rd WITH (NOLOCK)
-	WHERE match3rdId = @MatchID
+	
+	--Bitcoin
+	IF NOT EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = @MatchId)
+	BEGIN
+		SELECT match3rdId, sporttype
+		FROM dbo.match3rd WITH (NOLOCK)
+		WHERE match3rdId = @MatchID
+	END
 
-	UNION --Virtual Horse Racing & Virtual Dog Racing
-	SELECT EventID, sporttype
-	FROM dbo.VSRaceInfo WITH (NOLOCK)
-	WHERE EventID = @MatchID
-		AND SportType IN (177,198,125,126,127)
+	--Virtual Horse Racing & Virtual Dog Racing
+	IF NOT EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = @MatchId)
+	BEGIN
+		SELECT EventID, sporttype
+		FROM dbo.VSRaceInfo WITH (NOLOCK)
+		WHERE EventID = @MatchID
+			AND SportType IN (177,198,125,126,127)
+	END
 
 	SELECT @SportType = sporttype FROM @tmpMatchId
 

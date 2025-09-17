@@ -66,47 +66,55 @@ BEGIN
         SELECT DISTINCT o.oddsid
             , o.bettype AS BettypeId
             , os.betChoice
-            , JSON_VALUE(os.OddsInfo, '$.pid') AS PlayerId
-            , JSON_VALUE(os.OddsInfo, '$.pname') AS PLayerName
+            , tm.PlayerId
+            , tm.PLayerName
 			, CASE WHEN o.bettype IN (675, 676, 678) THEN
-					   + CASE WHEN pp.Performance = 'points' 
-								THEN CASE WHEN tt.ExtraInfo = 'winner' THEN 'have ' + pp.PointsValue + ' points and ' + t.teamname + ' to Win'
-										  WHEN tt.ExtraInfo = 'over' THEN 'have ' + pp.PointsValue + ' points and ' + t.teamname + ' Total Points Over ' + tt.ExtraValue
-										  WHEN tt.ExtraInfo = 'handicap' THEN 'have ' + pp.PointsValue + ' points and ' + t.teamname + ' ' + CASE WHEN CAST(tt.ExtraValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.ExtraValue + ')' ELSE tt.ExtraValue END
-										  WHEN tt.ExtraInfo = 'winner,over' THEN 'have ' + pp.PointsValue + ' points, ' + t.teamname + ' to Win and ' + t.teamname + ' Total Points Over ' + SUBSTRING(tt.ExtraValue,CHARINDEX(',',tt.ExtraValue)+1,LEN(tt.ExtraValue))
+					   + CASE pp.Performance 
+							  WHEN 'points' 
+								THEN CASE tt.ExtraInfo
+										  WHEN 'winner' THEN 'have ' + pp.PointsValue + ' points and ' + t.teamname + ' to Win'
+										  WHEN 'over' THEN 'have ' + pp.PointsValue + ' points and ' + t.teamname + ' Total Points Over ' + tt.OverValue
+										  WHEN 'handicap' THEN 'have ' + pp.PointsValue + ' points and ' + t.teamname + ' ' + CASE WHEN CAST(tt.HandicapValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.HandicapValue + ')' ELSE tt.HandicapValue END
+										  WHEN 'winner,over' THEN 'have ' + pp.PointsValue + ' points, ' + t.teamname + ' to Win and ' + t.teamname + ' Total Points Over ' + tt.OverValue
 										  ELSE '' END
-							  WHEN pp.Performance = 'three_points' 
-								THEN CASE WHEN tt.ExtraInfo = 'winner' THEN 'have ' + pp.ThreePointsValue + ' three points field goals and ' + t.teamname + ' to Win'
-										  WHEN tt.ExtraInfo = 'winner,over' THEN 'have ' + pp.ThreePointsValue + ' three points field goals, ' + t.teamname + ' to Win and ' + t.teamname + ' Total Points Over ' + SUBSTRING(tt.ExtraValue,CHARINDEX(',',tt.ExtraValue)+1,LEN(tt.ExtraValue))
+							  WHEN 'three_points' 
+								THEN CASE tt.ExtraInfo
+										  WHEN 'winner' THEN 'have ' + pp.ThreePointsValue + ' three points field goals and ' + t.teamname + ' to Win'
+										  WHEN 'winner,over' THEN 'have ' + pp.ThreePointsValue + ' three points field goals, ' + t.teamname + ' to Win and ' + t.teamname + ' Total Points Over ' + tt.OverValue
 									      ELSE '' END
-							  WHEN pp.Performance = 'rebounds' THEN 'have ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' to Win'
-							  WHEN pp.Performance = 'assists' THEN 'have ' + pp.AssistsValue + ' assists and ' + t.teamname + ' to Win'
-							  WHEN pp.Performance = 'points+assists'
+							  WHEN 'rebounds' THEN 'have ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' to Win'
+							  WHEN 'assists' THEN 'have ' + pp.AssistsValue + ' assists and ' + t.teamname + ' to Win'
+							  WHEN 'points+assists'
 								THEN 'have ' + pp.PointsValue + ' points' + 
-									CASE WHEN tt.ExtraInfo = 'winner' THEN ', ' + pp.AssistsValue + ' assists and ' + t.teamname + ' to Win'
-										 WHEN tt.ExtraInfo = 'handicap' THEN ', ' + pp.AssistsValue + ' assists and ' + t.teamname + ' ' + CASE WHEN CAST(tt.ExtraValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.ExtraValue + ')' ELSE tt.ExtraValue END
+									CASE tt.ExtraInfo
+										 WHEN 'winner' THEN ', ' + pp.AssistsValue + ' assists and ' + t.teamname + ' to Win'
+										 WHEN 'handicap' THEN ', ' + pp.AssistsValue + ' assists and ' + t.teamname + ' ' + CASE WHEN CAST(tt.HandicapValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.HandicapValue + ')' ELSE tt.HandicapValue END
 										 ELSE ' and ' + pp.AssistsValue + ' assists' END
-							  WHEN pp.Performance = 'points+rebounds'
+							  WHEN 'points+rebounds'
 								THEN 'have ' + pp.PointsValue + ' points' + 
-									CASE WHEN tt.ExtraInfo = 'winner' THEN ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' to Win'
-										 WHEN tt.ExtraInfo = 'handicap' THEN ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' ' + CASE WHEN CAST(tt.ExtraValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.ExtraValue + ')' ELSE tt.ExtraValue END
+									CASE tt.ExtraInfo
+										 WHEN 'winner' THEN ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' to Win'
+										 WHEN 'handicap' THEN ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' ' + CASE WHEN CAST(tt.HandicapValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.HandicapValue + ')' ELSE tt.HandicapValue END
 										 ELSE ' and ' + pp.ReboundsValue + ' total rebounds' END
-							  WHEN pp.Performance = 'points+assists+rebounds'
+							  WHEN 'points+assists+rebounds'
 								THEN 'have ' + pp.PointsValue + ' points, ' + pp.AssistsValue + ' assists' + 
-									CASE WHEN tt.ExtraInfo = 'winner' THEN + ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' to Win'
-										 WHEN tt.ExtraInfo = 'handicap' THEN + ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' ' + CASE WHEN CAST(tt.ExtraValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.ExtraValue + ')' ELSE tt.ExtraValue END
+									CASE tt.ExtraInfo
+										 WHEN 'winner' THEN + ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' to Win'
+										 WHEN 'handicap' THEN + ', ' + pp.ReboundsValue + ' total rebounds and ' + t.teamname + ' ' + CASE WHEN CAST(tt.HandicapValue AS DECIMAL(10,2)) < 0 THEN '(' + tt.HandicapValue + ')' ELSE tt.HandicapValue END
 										 ELSE ' and ' + pp.ReboundsValue + ' total rebounds' END
 						ELSE NULL END
-				   ELSE NULL
-			  END
+				   ELSE NULL 
+			  END AS OddsInfo
 			, CASE WHEN o.bettype IN (675, 676) THEN pp.Performance ELSE NULL END AS Performance
         FROM dbo.odds AS o WITH (NOLOCK)
             INNER JOIN dbo.odds_flex AS os WITH (NOLOCK) ON o.oddsid = os.oddsid
             INNER JOIN @tmpBettype AS bt ON bt.bettype = o.bettype
 			CROSS APPLY (
 				SELECT JSON_VALUE(os.OddsInfo,'$.tid') AS TeamId
+					 , JSON_VALUE(os.OddsInfo, '$.pid') AS PlayerId
+					 , JSON_VALUE(os.OddsInfo, '$.pname') AS PLayerName
 			) AS tm
-			INNER JOIN dbo.team AS t ON tm.TeamId = t.teamid
+			INNER JOIN dbo.team AS t WITH (NOLOCK) ON tm.TeamId = t.teamid
 			OUTER APPLY (
 				SELECT STRING_AGG(t,'+') AS Performance
 					 , MAX(CASE WHEN t = 'points' THEN value END) AS PointsValue
@@ -117,9 +125,11 @@ BEGIN
 				WITH (t NVARCHAR(50) '$.t', value NVARCHAR(50) '$.value')
 			) AS pp
 			OUTER APPLY (
-				SELECT STRING_AGG(JSON_VALUE(r.value,'$.t'),',') AS ExtraInfo
-					 , STRING_AGG(JSON_VALUE(r.value,'$.value'),',') AS ExtraValue
-				FROM OPENJSON(os.OddsInfo,'$.r') AS r
+				SELECT STRING_AGG(t,',') AS ExtraInfo
+					 , MAX(CASE WHEN t = 'over' THEN value END) AS OverValue
+					 , MAX(CASE WHEN t = 'handicap' THEN value END) AS HandicapValue
+				FROM OPENJSON(os.OddsInfo,'$.r')
+				WITH (t NVARCHAR(50) '$.t', value NVARCHAR(50) '$.value')
 			) AS tt
         WHERE o.matchid = @MatchId AND os.OddsInfo <> ''
 	END
