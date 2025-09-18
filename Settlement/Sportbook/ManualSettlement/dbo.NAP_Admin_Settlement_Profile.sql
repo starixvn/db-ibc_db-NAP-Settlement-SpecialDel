@@ -456,7 +456,11 @@ BEGIN
 		SELECT DISTINCT tbl.ResourceID, 
 				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE IIF(@SportType != 10,ISNULL(HomeValue,''),ISNULL(AwayValue,'')) END,  --  @SportType = 10  Golf, using Stroke count, so swap the score to make it become normal stype
 				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointAwayValue, '') ELSE IIF(@SportType != 10,ISNULL(AwayValue,''),ISNULL(HomeValue,'')) END, 
-				sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, 
+				sp.BetType
+				, CASE WHEN sp.BetType IN (675, 676, 678) THEN sp.BetID*100 + RIGHT(sp.ResourceID,2)
+						ELSE sp.BetID
+						END AS BetID
+				, sp.pfID, sp.RoundID, sp.OrdNo, 
 				sd.isFinal, 
 				sd.RoundName, 
 				sp.GroupType, sp.OddsType,
@@ -505,9 +509,15 @@ BEGIN
 									WHERE	mt.TransId = b.transId
 					) mt
 					CROSS APPLY(
+									SELECT CASE WHEN b.BetType IN (675, 676, 678) THEN b.BetID*100 + CAST(b.betteam AS BIGINT)
+												ELSE b.BetID
+												END AS BetID
+					)bid
+					CROSS APPLY(
 									SELECT TOP 1 pfID, HomeValue, AwayValue, t.OddsType
 									FROM @tmpSelectedRID t
-									WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
+									WHERE b.BetType = t.BetType 
+										AND (t.BetID = 0 OR bid.BetID = t.BetID) 
 								) sr
 					CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betid) m
 				WHERE b.matchid = @MatchId
@@ -583,6 +593,11 @@ BEGIN
 		
 			SELECT @TotalSubParlay = COUNT(1)			
 			FROM	dbo.bettransm bm WITH(NOLOCK)
+			CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+										ELSE bm.betcheck
+										END AS BetCheck
+						)bid
+
 			WHERE	bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 					AND bm.statusID NOT IN (101)
@@ -602,7 +617,11 @@ BEGIN
 			INSERT INTO #tmpTransID(TransID, CustID, BetdaqId, currentStatuswinlost)
 			SELECT b.transid,b.CustID, ISNULL(b.betdaqid,0), b.statuswinlost
 			FROM bettrans b WITH (NOLOCK)
-				INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)
+				CROSS APPLY (	SELECT CASE WHEN b.BetType IN (675, 676, 678) THEN b.BetID*100 + CAST(b.betteam AS BIGINT)
+											ELSE b.BetID
+											END AS BetID
+				)bid
+				INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR bid.BetID = t.BetID)
 				OUTER APPLY (
 					SELECT	TOP (1) mt.TransId
 					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
@@ -624,6 +643,10 @@ BEGIN
 				
 			SELECT @TotalSubParlay = COUNT(1)			
 			FROM	dbo.bettransm bm WITH(NOLOCK)
+				CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+											ELSE bm.betcheck
+											END AS betcheck
+							)bid
 				LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK) 
 					ON	b.matchid = 29
 						AND b.bettype = 29
@@ -644,7 +667,7 @@ BEGIN
 					AND EXISTS (SELECT	TOP 1 1
 								FROM	@tmpSelectedRID t
 								WHERE	t.BetType = bm.bettype
-										AND (t.BetID = 0 OR t.BetID = bm.betcheck))
+										AND (t.BetID = 0 OR t.BetID = bid.betcheck))
 		END 
 		ELSE IF @action LIKE 'REFUND%'
 		BEGIN
@@ -736,7 +759,11 @@ BEGIN
 				INSERT INTO #tmpTransID(TransID, CustID, BetdaqId, currentStatuswinlost)
 				SELECT transid,b.CustID, ISNULL(b.betdaqid,0), b.statuswinlost
 				FROM bettrans b WITH (NOLOCK)
-					INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)
+					CROSS APPLY (	SELECT CASE WHEN b.BetType IN (675, 676, 678) THEN b.BetID*100 + CAST(b.betteam AS BIGINT)
+												ELSE b.BetID
+												END AS BetID
+								)bid
+					INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR bid.BetID = t.BetID)
 				WHERE b.matchid = @MatchId
 					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND	b.statusID NOT IN (103, 101)
@@ -748,13 +775,17 @@ BEGIN
 
 				SELECT @TotalSubParlay = COUNT(1)			
 				FROM	dbo.bettransm bm WITH(NOLOCK)
+					CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+												ELSE bm.betcheck
+												END AS betcheck
+								)bid
 				WHERE	bm.matchid = @MatchID
 						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 						AND bm.statusID NOT IN (101, 103)
 						AND EXISTS (SELECT	TOP 1 1
 									FROM	@tmpSelectedRID t
 									WHERE	t.BetType = bm.bettype
-											AND (t.BetID = 0 OR t.BetID = bm.betcheck))
+											AND (t.BetID = 0 OR t.BetID = bid.betcheck))
 			END
 		END 
 

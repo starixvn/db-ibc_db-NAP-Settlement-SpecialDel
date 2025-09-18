@@ -186,6 +186,7 @@ BEGIN
 		  ,m.AwayValue
 		  ,m.CreateDate
 		  ,ss.HasAwayValue
+		  ,m.OtherInfo
 	FROM @Result AS m
 		OUTER APPLY (
 			SELECT TOP 1 tbl.ResourceId

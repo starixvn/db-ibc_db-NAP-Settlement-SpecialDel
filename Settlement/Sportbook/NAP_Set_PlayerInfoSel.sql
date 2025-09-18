@@ -43,7 +43,7 @@ BEGIN
 		WHERE	s.SportType = 2
 				AND (s.betid = 0 
 						OR ( s.bettype NOT IN (675,676,678 ) AND s.ResourceID LIKE '%' + CAST(o.Resourceid AS VARCHAR)) 
-						OR ( s.bettype IN (675,676,678 ) AND s.ResourceID LIKE '%' + RIGHT(s.betid,2)  + CAST(o.Resourceid AS VARCHAR))
+						OR ( s.bettype IN (675,676,678 ) AND s.ResourceID = CAST(o.bettype AS VARCHAR(3)) + o.ResourceID + f.betChoice )
 					)
 				AND	o.matchid = @matchId
 				AND ISNULL(o.IsDeleted,0) = 0

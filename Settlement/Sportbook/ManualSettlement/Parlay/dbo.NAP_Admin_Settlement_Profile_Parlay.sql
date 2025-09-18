@@ -218,7 +218,9 @@ BEGIN
 	SELECT	 c.Id
 			,c.SDTResourceId
 			,sp.Bettype
-			,sp.BetId
+			, CASE WHEN sp.BetType IN (675, 676, 678) THEN sp.BetID*100 + RIGHT(sp.ResourceID,2)
+						ELSE sp.BetID
+						END AS BetID
 			,sp.pfId
 			,IIF(@sportType = 1,sp.SDTpfId,c.SDTpfId)
 			,sp.OddsType
@@ -340,16 +342,20 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			IF @DeterminedType = 0
+			IF @DeterminedType = 0 AND ISNULL(@IsSDTEarly,0) = 0
 			BEGIN
 				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
 				FROM	dbo.bettransm bm WITH(NOLOCK)
+					CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+											ELSE bm.betcheck
+											END AS betcheck
+							)bid
 					CROSS APPLY (
 						SELECT	TOP 1 pfID, HomeValue, AwayValue
 						FROM	@tmpSelectedRID t
 						WHERE	t.BetType = bm.bettype
-								AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+								AND (t.BetID = 0 OR t.BetID = bid.betcheck)
 					)sr
 					CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, bm.betteam, bm.hdp1, bm.hdp2, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck) m
 					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
@@ -373,7 +379,7 @@ BEGIN
 
 				SET @totalSubParlay = @@ROWCOUNT
 			END
-			ELSE IF @sportType != 1 AND  @DeterminedType > 0
+			ELSE IF @sportType != 1 AND  ( @DeterminedType > 0 OR ISNULL(@IsSDTEarly,0) = 1)
 			BEGIN
 				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsInstHTFT, bettype, hdp1, hdp2, betteam)
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked, sr.IsInstHTFT, bm.bettype, bm.hdp1, bm.hdp2, bm.betteam
@@ -434,11 +440,15 @@ BEGIN
 		INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
 		SELECT	bm.transid, bm.refno , CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked 
 		FROM	dbo.bettransm bm WITH(NOLOCK)
+			CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+											ELSE bm.betcheck
+											END AS betcheck
+							)bid
 			CROSS APPLY (
 				SELECT	TOP 1 pfID, HomeValue, AwayValue
 				FROM	@tmpSelectedRID t
 				WHERE	t.BetType = bm.bettype
-						AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+						AND (t.BetID = 0 OR t.BetID = bid.betcheck)
 						AND t.DeterminedType = 0
 			)sr
 			LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK) 
@@ -461,7 +471,7 @@ BEGIN
 
 		SET @totalSubParlay = @@ROWCOUNT
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0)
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0 OR ISNULL(@IsSDTEarly,0)  = 1)
 		BEGIN
 			INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
 			SELECT	bm.transid, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked 
@@ -507,16 +517,20 @@ BEGIN
 	END 
 	ELSE IF @action LIKE 'REFUND%' 
 	BEGIN
-		IF @DeterminedType = 0 AND @IsSDTEarly = 0
+		IF @DeterminedType = 0 AND ISNULL(@IsSDTEarly,0) = 0
 		BEGIN
 			INSERT INTO #tmpsubTransID (TransID, refno, modds)
 			SELECT	bm.transid, bm.refno, 0
 			FROM	dbo.bettransm bm WITH(NOLOCK)
+				CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+											ELSE bm.betcheck
+											END AS betcheck
+							)bid
 				CROSS APPLY (
 					SELECT	TOP 1 bettype
 					FROM	@tmpSelectedRID t
 					WHERE	t.BetType = bm.bettype
-							AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+							AND (t.BetID = 0 OR t.BetID = bid.betcheck)
 							AND t.IsSDT = 0
 				)sr
 			WHERE	bm.matchid = @MatchID
@@ -525,7 +539,7 @@ BEGIN
 		
 			SET @totalSubParlay = @@ROWCOUNT
 		END
-		ELSE IF @sportType != 1 AND (@DeterminedType > 0 OR @IsSDTEarly = 1)
+		ELSE IF @sportType != 1 AND (@DeterminedType > 0 OR ISNULL(@IsSDTEarly,0) = 1)
 		BEGIN
 			INSERT INTO #tmpsubTransID (TransID, refno, modds,moddsSDT)
 			SELECT	bm.transid, bm.refno, ISNULL(m.modds,0), m.modds
