@@ -22,7 +22,6 @@ AS
 					{
 						"BetType": 1,
 						"GoalLine": 0.5
-
 					 }
 				  ]
 
@@ -40,7 +39,7 @@ BEGIN
 	 
 	DECLARE @tmpResources TABLE( ResourceID VARCHAR(20),HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	DECLARE @tmpMarketDetail TABLE ( MatchId INT, BetType  SMALLINT, betteam VARCHAR(50), way INT, GoalLine  SMALLMONEY, hdp1 SMALLMONEY, hdp2 SMALLMONEY, SDTRecord TINYINT, pfId SMALLINT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), LiveHomeScore INT, LiveAwayScore INT )
-	DECLARE @tmp_Settled TABLE ( bettype SMALLINT, ResourceID VARCHAR(20), hdp  SMALLMONEY, betteam VARCHAR(50), way INT, outcome TINYINT)
+	DECLARE @tmp_Settled TABLE ( bettype SMALLINT, ResourceID VARCHAR(20), hdp  SMALLMONEY, betteam VARCHAR(50), way INT, outcome TINYINT, LiveHomeScore INT, LiveAwayScore INT)
 
 	---not support UNDO
 	IF @Action = 'UNDO'
@@ -114,7 +113,7 @@ BEGIN
 	
 	IF @Action IN ( 'CAL','CAL-HT','CAL-FT')
 	BEGIN
-		INSERT INTO @tmp_Settled  (bettype, ResourceID, hdp , betteam, way, outcome )
+		INSERT INTO @tmp_Settled  (bettype, ResourceID, hdp , betteam, way, outcome, LiveHomeScore, LiveAwayScore )
 		SELECT mk.bettype, mk.ResourceID, mk.GoalLine as hpd , mk.betteam, mk.way
 				,CASE WHEN o.modds = 0.25  THEN 2 ---'HAFT_WON'
 					  WHEN o.modds > 0.25  THEN 0 ---'WON'
@@ -122,6 +121,7 @@ BEGIN
 					  WHEN o.modds = -0.25  THEN 3 ---'HAFT_LOSE'
 					  WHEN o.modds < -0.25  THEN 1 ---'LOSE'
 					END AS outcome
+				,mk.LiveHomeScore, mk.LiveAwayScore
 		FROM	@tmpMarketDetail mk
 			CROSS APPLY dbo.f_Set_Calculate_modds_major(mk.pfID, mk.betteam, mk.hdp1, mk.hdp2, mk.HomeValue, mk.AwayValue, mk.LiveHomeScore, mk.LiveAwayScore, NULL, NULL) o
 				
@@ -129,7 +129,7 @@ BEGIN
 	END
 	IF @Action LIKE 'REFUND%'
 	BEGIN
-		INSERT INTO @tmp_Settled  ( bettype, ResourceID, hdp , betteam, way, outcome )
+		INSERT INTO @tmp_Settled  ( bettype, ResourceID, hdp , betteam, way, outcome, LiveHomeScore, LiveAwayScore )
 		SELECT mk.bettype, mk.ResourceID, mk.GoalLine as hpd , mk.betteam, mk.way
 			,CASE 
 				WHEN mk.SDTRecord & 4 > 0 THEN CASE 
@@ -142,11 +142,12 @@ BEGIN
 											END
 				ELSE 5 ---'CASH_BACK'
 				END
+			, mk.LiveHomeScore, mk.LiveAwayScore
 		FROM	@tmpMarketDetail mk
 			OUTER APPLY dbo.f_Set_SDT_modds(mk.pfId, mk.betteam, mk.hdp1, mk.hdp2, @hth, @hta, @fth, @fta, NULL, NULL, NULL, NULL, NULL, NULL, NULL) m
 	END
  
-	SELECT DISTINCT tmp.bettype, tmp.ResourceID, tmp.hdp, tmp.betteam, tmp.way ,tmp.outcome
+	SELECT DISTINCT tmp.bettype, tmp.ResourceID, tmp.hdp, tmp.betteam, tmp.way ,tmp.outcome, LiveHomeScore, LiveAwayScore
 	FROM @tmp_Settled tmp
 	ORDER BY bettype
 
