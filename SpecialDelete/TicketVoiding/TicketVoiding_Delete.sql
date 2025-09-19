@@ -10,9 +10,12 @@ AS
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230316@Max: Change time archive data TicketVoiding_AutoVoidQueue [Redmine: #00000]
 		- 20250415@July: [TVS] Notification [Redmine:#219112] 
+		- 20250919@July: [TVS] ScaleOut DBTrans [Phase 7] Manage Request page [Redmine:#236438] 
 
 	Param's explanation:	
 		- Note table: TicketVoiding_Notification - Only support data within 14 days	
+			   table: TicketVoiding_PendingMarkTickets - Only support data within 2 months
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -73,6 +76,17 @@ BEGIN
 		END	
 	END
 
+	IF OBJECT_ID('TicketVoiding_PendingMarkTickets','U') IS NOT NULL
+	BEGIN
+		WHILE (1=1)
+		BEGIN
+			DELETE TOP(2000) n
+			FROM dbo.TicketVoiding_PendingMarkTickets n WITH (ROWLOCK)
+			WHERE n.CreatedDate <= @Archive_Date
+			
+			IF @@ROWCOUNT = 0 BREAK
+		END	
+	END
 END
 GO
 	
