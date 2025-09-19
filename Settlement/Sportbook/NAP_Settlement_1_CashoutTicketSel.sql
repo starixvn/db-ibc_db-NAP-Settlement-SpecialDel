@@ -1,6 +1,7 @@
 /*<info serverAlias="DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Settlement_1_CashoutTicketSel
-	 @ErrCode		INT				= 0	 OUTPUT
+	@IsTest			BIT = 0
+	,@ErrCode		INT				= 0	 OUTPUT
 	,@ErrMsg		VARCHAR(300)	= '' OUTPUT
 AS
 /*
@@ -22,15 +23,25 @@ BEGIN
 
 	DECLARE @tmp_TicketInfo TABLE (TransId BIGINT, CustID INT , ExtraInfo VARCHAR(1000), bef_sid TINYINT, sid TINYINT, LogId BIGINT )
 
-	SELECT @MaxValue = ( SELECT ISNULL(VValue,0) FROM  dbo.SystemSettings WITH(NOLOCK) WHERE  VName = 'SiteDB_CO_LastLogId')
+	SELECT @MaxValue = (	SELECT ISNULL(VValue,0) 
+							FROM  dbo.SystemSettings WITH(NOLOCK) 
+							WHERE  VName = CASE WHEN ISNULL(@IsTest,0) = 0 THEN 'SiteDB_CO_LastLogId'
+												ELSE 'SiteDB_CO_LastLogId_UAT'
+												END
+						)
 	
 	SELECT TOP 1
 		  @MatchID = l.Matchid
 		 ,@BroadcastSessionId  = l.BroadcastSessionId
 	FROM dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
+		INNER JOIN match m WITH(NOLOCK) ON l.matchid = m.matchid
+		INNER JOIN league le WITH(NOLOCK) ON m.leagueid = le.leagueid
 	WHERE l.LogId > @MaxValue
 		AND l.FunctionName= 'CalculateCashout'
 		AND l.BroadcastSessionId IS NOT NULL
+		AND (	ISNULL(@IsTest,0) = 0 
+				OR (ISNULL(@IsTest,0)= 1 AND le.isTest = 1) 
+			)
 	ORDER BY l.LogId
 
 	IF @BroadcastSessionId IS NULL
