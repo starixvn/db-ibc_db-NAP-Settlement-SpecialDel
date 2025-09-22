@@ -47,13 +47,22 @@ BEGIN
 		AwayValue
 	
 	--Step 2: Return data
-	SELECT DISTINCT MatchId, LastLogDate AS changetime
-	FROM (
-		SELECT MatchId, ResourceId, HomeValue, AwayValue, t.LastLogDate
+	;WITH cteChangeInTime AS (
+		SELECT MatchId, ResourceId
 		FROM @tmpMatch t
-		GROUP BY MatchId, ResourceId, HomeValue, AwayValue, t.LastLogDate
+		GROUP BY MatchId, ResourceId
 		HAVING COUNT(1) > 1
-	)t1
+	)
+	,cteDataDetail AS (
+		SELECT DISTINCT c.MatchId, LogDate AS changetime
+		FROM [dbo].[SettlementLog] s WITH (NOLOCK)
+			INNER JOIN cteChangeInTime c ON c.MatchId = s.MatchID AND c.ResourceId = s.ResourceID
+		WHERE s.LogDate BETWEEN @FromDate AND @ToDate
+			AND s.ResourceID IN ('00','01')
+	)
+	SELECT DISTINCT MatchId, changetime
+	FROM cteDataDetail
+
 	UNION
 	SELECT DISTINCT m.MatchId, LastLogDate AS changetime
 	FROM @tmpMatch m
@@ -66,6 +75,7 @@ BEGIN
 			ORDER BY s.LogDate DESC
 		)tmp
 	WHERE (m.HomeValue <> tmp.HomeValue) OR (m.AwayValue <> tmp.AwayValue)
+	ORDER BY matchId ASC, changetime ASC
 
 END
 GO
