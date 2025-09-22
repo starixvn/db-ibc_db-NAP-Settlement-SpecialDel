@@ -12,6 +12,7 @@ AS
     DB: DBLOG-bodb_CustomerLog
     Revisions:
 		- 20250908@Max: Create SP - [Redmine: #236783]
+		- 20250922@Max: Adding change time [Redmine: #239413]
 	
 	Param's explanation:	
 		
@@ -31,7 +32,7 @@ BEGIN
 		MAX(LogDate)
 	FROM [dbo].[SettlementLog] s WITH (NOLOCK)
 		CROSS APPLY (
-			SELECT TOP 1 l.leagueid AS leagueid 
+			SELECT TOP 1 1 AS valid
 			FROM bodb02.dbo.match m with (NOLOCK)	
 				INNER JOIN bodb02.dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 			WHERE m.matchid = s.MatchID
@@ -46,15 +47,15 @@ BEGIN
 		AwayValue
 	
 	--Step 2: Return data
-	SELECT DISTINCT MatchId
+	SELECT DISTINCT MatchId, LastLogDate AS changetime
 	FROM (
-		SELECT MatchId, ResourceId, HomeValue, AwayValue
+		SELECT MatchId, ResourceId, HomeValue, AwayValue, t.LastLogDate
 		FROM @tmpMatch t
-		GROUP BY MatchId, ResourceId, HomeValue, AwayValue
+		GROUP BY MatchId, ResourceId, HomeValue, AwayValue, t.LastLogDate
 		HAVING COUNT(1) > 1
 	)t1
 	UNION
-	SELECT DISTINCT m.MatchId 
+	SELECT DISTINCT m.MatchId, LastLogDate AS changetime
 	FROM @tmpMatch m
 		CROSS APPLY (
 			SELECT TOP 1 HomeValue, AwayValue
