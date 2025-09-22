@@ -75,7 +75,7 @@ FROM #RunningMatch m
 	INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = bt.custid
 	INNER JOIN CustDB.dbo.site s WITH (NOLOCK) ON s.site = c.site
 WHERE bt.StatusId IN (0,1)  -- Running bets
-	AND bt.transid > @MaxTransId AND bt.TransId < @MaxBettransId
+	AND bt.transid > @MaxTransId AND bt.TransId <= @MaxBettransId
 
 IF @@ROWCOUNT = 0
 BEGIN
