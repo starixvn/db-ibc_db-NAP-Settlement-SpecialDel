@@ -7,16 +7,15 @@
 
 USE bodb02
 
-SELECT @MaxTransId = XXX --Max TransId of script run on step 1
-
-PRINT @MaxTransId
-
 DECLARE @StartRow INT 
 		, @StopRow INT 
 		, @MaxRow INT  -- Keep the total row of your data
 		, @Threshold INT  -- the number of each batch
 		, @MaxTransId BIGINT
+		, @MaxBettransId BIGINT
 
+SELECT @MaxTransId = XXX --Max TransId of script run on step 1
+PRINT @MaxTransId
 
 CREATE TABLE #UpdatedTransIds (
 	Id INT IDENTITY(1,1) PRIMARY KEY
@@ -50,6 +49,10 @@ FROM dbo.[match] m WITH (NOLOCK)
 WHERE m.eventstatus = 'running'
 	AND m.sporttype <= 99
 
+SELECT @MaxBettransId = MAX(TransId) FROM dbo.bettrans b WITH (NOLOCK)
+
+PRINT @MaxBettransId
+
 -- Get all qualifying TransIds upfront
 INSERT INTO #TransIdsToProcess (TransId, CustID, MatchId, EventTypeID, BetType, SiteType, PayoutAdjust, ExtraInfo, Actual_stake)
 SELECT 
@@ -72,7 +75,7 @@ FROM #RunningMatch m
 	INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = bt.custid
 	INNER JOIN CustDB.dbo.site s WITH (NOLOCK) ON s.site = c.site
 WHERE bt.StatusId IN (0,1)  -- Running bets
-	AND bt.transid > @MaxTransId
+	AND bt.transid > @MaxTransId AND bt.TransId < @MaxBettransId
 
 IF @@ROWCOUNT = 0
 BEGIN
