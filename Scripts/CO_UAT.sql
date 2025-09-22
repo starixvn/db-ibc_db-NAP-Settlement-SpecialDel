@@ -5,7 +5,7 @@
 	DB: DBSIG/bodb02
 	
 	Revisions:
-		- 20250716@Louisa: CO Jacktime UAT [Redmine:#217573] 
+		- 20250716@Louisa: CO Jacktime UAT [Redmine:#236226] 
 
 */
 

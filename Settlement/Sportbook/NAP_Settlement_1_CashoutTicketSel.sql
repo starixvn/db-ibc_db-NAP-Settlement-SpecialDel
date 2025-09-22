@@ -9,7 +9,7 @@ AS
 	Task: get list CO ticket [Redmine:#217573]
 
 	Revisions:
-		- 20250214@Louisa: get list CO ticket [Redmine:#217573] 
+		- 20250214@Louisa: get list CO ticket [Redmine:#236226] 
 		
 */
 BEGIN
