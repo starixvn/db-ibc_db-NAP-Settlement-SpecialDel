@@ -57,17 +57,17 @@ BEGIN
 		,	ISNULL(o.status, 'Running') AS status
 		,	tl.sporttype 
 		,	o.odds
+		,	r.ResultStatusID
+		,	r.ModifiedBy
 	FROM dbo.outright AS o WITH (NOLOCK)
 		INNER JOIN @tmpLeague AS tl  ON tl.leagueid = o.leagueid
+		LEFT JOIN ResultDetailOutright r WITH (NOLOCK) ON r.Orid = o.orid AND r.leagueid = tl.LeagueID
 	WHERE ((@ToDate IS NULL AND o.eventdate >= @FromDate) 
             OR (@ToDate IS NOT NULL AND o.eventdate BETWEEN @FromDate AND @ToDate))
 		AND 1 = CASE WHEN @StatusID = 0 THEN 1
 					 WHEN @StatusID = 1 AND o.oddsstatus IN ('Running','Closed','Internal') THEN 1
 					 WHEN @StatusID = 2 AND o.oddsstatus IN ('Completed') THEN 1
-					 WHEN @StatusID = 3 AND EXISTS (SELECT TOP 1 1 
-					 								FROM ResultDetailOutright r WITH (NOLOCK) 
-													WHERE r.Orid = o.orid 
-														AND r.ResultStatusID = 3) THEN 1
+					 WHEN @StatusID = 3 AND r.Orid IS NOT NULL AND r.ResultStatusID = 3 THEN 1
 					 ELSE 0  
 				END 
 		AND ISNULL(o.IsDeleted,0) = 0	
