@@ -42,10 +42,9 @@ BEGIN
 		CROSS APPLY (
 			SELECT TOP 1 1 AS valid
 			FROM bodb02.dbo.match m with (NOLOCK)	
-				INNER JOIN bodb02.dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 			WHERE m.matchid = s.MatchID
 				AND m.sporttype <= 99
-				AND l.isTest = @IsTest
+				AND m.isTestMatch = @IsTest
 		)m		
 	WHERE LogDate BETWEEN @FromDate AND @ToDate
 		AND ResourceID IN ('00','01')
