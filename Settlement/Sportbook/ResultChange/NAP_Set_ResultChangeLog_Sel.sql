@@ -20,14 +20,13 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @tmpMatch TABLE (MatchId INT, ResourceId VARCHAR(20), HomeValue VARCHAR(100), AwayValue VARCHAR(100), LastLogDate DATETIME, ActionId INT)
+	DECLARE @tmpMatch TABLE (MatchId INT, ResourceId VARCHAR(20), HomeValue VARCHAR(100), AwayValue VARCHAR(100), LastLogDate DATETIME)
 
 	-- Step 1: Get raw data
-	INSERT INTO @tmpMatch (MatchId, ResourceId, ActionId, HomeValue, AwayValue, LastLogDate)
+	INSERT INTO @tmpMatch (MatchId, ResourceId, HomeValue, AwayValue, LastLogDate)
 	SELECT 
 		s.MatchID,
 		ResourceID,
-		ActionID,
 		HomeValue,
 		AwayValue,
 		MAX(LogDate)
@@ -44,7 +43,6 @@ BEGIN
 		AND ResourceID IN ('00','01')
 	GROUP BY s.MatchID,
 		ResourceID,
-		ActionID,
 		HomeValue, 
 		AwayValue
 	
@@ -76,7 +74,7 @@ BEGIN
 				AND s.LogDate < m.LastLogDate
 			ORDER BY s.LogDate DESC
 		)tmp
-	WHERE (m.HomeValue <> tmp.HomeValue) OR (m.AwayValue <> tmp.AwayValue) OR (m.ActionId <> tmp.ActionID)
+	WHERE (m.HomeValue <> tmp.HomeValue) OR (m.AwayValue <> tmp.AwayValue)
 	ORDER BY matchId ASC, changetime ASC
 
 END
