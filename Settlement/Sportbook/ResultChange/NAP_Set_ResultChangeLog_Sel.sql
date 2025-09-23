@@ -1,8 +1,8 @@
 /*<info serverAlias="DBLOG-bodb_CustomerLog" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_ResultChangeLog_Sel]
 (
-	@FromDate DATETIME
-	,@ToDate DATETIME
+	@FromDate DATETIME = NULL
+	,@ToDate DATETIME = NULL
 	,@IsTest BIT = 0
 )
 AS
@@ -20,6 +20,14 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	SELECT @ToDate = ISNULL(@ToDate, GETDATE())
+		,@FromDate = ISNULL(@FromDate, DATEADD(DAY, -3, @ToDate)) 
+
+	IF DATEDIFF(DAY, @FromDate, @ToDate) > 3
+	BEGIN
+		RETURN
+	END
+	
 	DECLARE @tmpMatch TABLE (MatchId INT, ResourceId VARCHAR(20), HomeValue VARCHAR(100), AwayValue VARCHAR(100), LastLogDate DATETIME)
 
 	-- Step 1: Get raw data
@@ -62,19 +70,6 @@ BEGIN
 	)
 	SELECT DISTINCT MatchId, changetime
 	FROM cteDataDetail
-
-	UNION
-	SELECT DISTINCT m.MatchId, LastLogDate AS changetime
-	FROM @tmpMatch m
-		CROSS APPLY (
-			SELECT TOP 1 HomeValue, AwayValue, s.ActionID
-			FROM [dbo].[SettlementLog] s WITH (NOLOCK)
-			WHERE s.MatchID = m.MatchId
-				AND s.ResourceID = m.ResourceId
-				AND s.LogDate < m.LastLogDate
-			ORDER BY s.LogDate DESC
-		)tmp
-	WHERE (m.HomeValue <> tmp.HomeValue) OR (m.AwayValue <> tmp.AwayValue)
 	ORDER BY matchId ASC, changetime ASC
 
 END
