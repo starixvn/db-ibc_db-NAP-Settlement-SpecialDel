@@ -20,13 +20,14 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @tmpMatch TABLE (MatchId INT, ResourceId VARCHAR(20), HomeValue VARCHAR(100), AwayValue VARCHAR(100), LastLogDate DATETIME)
+	DECLARE @tmpMatch TABLE (MatchId INT, ResourceId VARCHAR(20), HomeValue VARCHAR(100), AwayValue VARCHAR(100), LastLogDate DATETIME, ActionId INT)
 
 	-- Step 1: Get raw data
-	INSERT INTO @tmpMatch (MatchId, ResourceId, HomeValue, AwayValue, LastLogDate)
+	INSERT INTO @tmpMatch (MatchId, ResourceId, ActionId, HomeValue, AwayValue, LastLogDate)
 	SELECT 
 		s.MatchID,
 		ResourceID,
+		ActionID,
 		HomeValue,
 		AwayValue,
 		MAX(LogDate)
@@ -43,6 +44,7 @@ BEGIN
 		AND ResourceID IN ('00','01')
 	GROUP BY s.MatchID,
 		ResourceID,
+		ActionID,
 		HomeValue, 
 		AwayValue
 	
@@ -67,14 +69,14 @@ BEGIN
 	SELECT DISTINCT m.MatchId, LastLogDate AS changetime
 	FROM @tmpMatch m
 		CROSS APPLY (
-			SELECT TOP 1 HomeValue, AwayValue
+			SELECT TOP 1 HomeValue, AwayValue, s.ActionID
 			FROM [dbo].[SettlementLog] s WITH (NOLOCK)
 			WHERE s.MatchID = m.MatchId
 				AND s.ResourceID = m.ResourceId
 				AND s.LogDate < m.LastLogDate
 			ORDER BY s.LogDate DESC
 		)tmp
-	WHERE (m.HomeValue <> tmp.HomeValue) OR (m.AwayValue <> tmp.AwayValue)
+	WHERE (m.HomeValue <> tmp.HomeValue) OR (m.AwayValue <> tmp.AwayValue) OR (m.ActionId <> tmp.ActionID)
 	ORDER BY matchId ASC, changetime ASC
 
 END
