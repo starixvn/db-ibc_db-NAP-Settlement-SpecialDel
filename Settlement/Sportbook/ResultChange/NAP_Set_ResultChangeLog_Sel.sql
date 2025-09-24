@@ -1,9 +1,11 @@
 /*<info serverAlias="DBLOG-bodb_CustomerLog" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_ResultChangeLog_Sel]
 (
-	@FromDate DATETIME = NULL
-	,@ToDate DATETIME = NULL
-	,@IsTest BIT = 0
+	@FromDate	DATETIME		= NULL
+	,@ToDate	DATETIME		= NULL
+	,@IsTest	BIT				= 0
+	,@ErrCode	INT				= 0		OUTPUT
+	,@ErrMsg	NVARCHAR(200)	= ''	OUTPUT
 )
 AS
 /*	
@@ -25,6 +27,9 @@ BEGIN
 
 	IF DATEDIFF(DAY, @FromDate, @ToDate) > 3
 	BEGIN
+		SELECT @ErrCode = 99
+			,@ErrMsg = 'The entered time cannot exceed 3 days. Please try again.'
+
 		RETURN
 	END
 	
