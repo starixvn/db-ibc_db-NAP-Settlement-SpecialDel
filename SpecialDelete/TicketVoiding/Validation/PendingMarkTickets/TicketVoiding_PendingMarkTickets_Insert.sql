@@ -14,6 +14,7 @@ AS
 	Revisions: 
 		- 20250610@July: Create new SP [Redmine: #228047]
 		- 20250815@Lani: [TVS] Return both running and settle tickets of sitedbdown [Redmine: #232580]
+		- 20250818@July: Save request for case edit request [Redmine: #236438]
 
 	Param's explanation:
 	  Notes: Call after save request done
@@ -47,31 +48,41 @@ BEGIN
 
 	DECLARE @tmpSiteDBDownInfo TABLE (MatchId INT, TransId BIGINT, IsMixParlay BIT, SiteDBGroupID SMALLINT, isMarked BIT)
 
-	IF @ActionId = 2 --Change other action to take note
-	BEGIN
-		DELETE p
-		FROM dbo.TicketVoiding_PendingMarkTickets p
-		WHERE RequestId = @RequestId
-	END
-
 	INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
 	SELECT mid ,t ,isP ,sitedb, isMarked
 	FROM OPENJSON(@Decompress_SiteDBDownInfoJson) 
 	WITH( mid INT, t BIGINT, isP BIT ,sitedb SMALLINT, isMarked BIT
 	) tbl
 
-	INSERT INTO dbo.TicketVoiding_PendingMarkTickets (TransId, MatchId, StatusId, SiteDBGroupID, RequestId)
-	SELECT TransId
-		  ,MatchId
-		  ,1 -- StatusId = 1 for Running
-		  ,SiteDBGroupID
-		  ,@RequestId
-	FROM @tmpSiteDBDownInfo s
-	WHERE NOT EXISTS ( SELECT TOP 1 1 
-					   FROM dbo.TicketVoiding_PendingMarkTickets p WITH (NOLOCK)
-					   WHERE s.TransId = p.TransId AND p.RequestId = @RequestId
-					)
-		AND isMarked = 1
+	IF NOT EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_PendingMarkTickets WITH (NOLOCK) WHERE RequestId = @RequestId)
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_PendingMarkTickets (TransId, MatchId, StatusId, SiteDBGroupID, RequestId)
+		SELECT TransId
+			  ,MatchId
+			  ,1 -- StatusId = 1 for Running
+			  ,SiteDBGroupID
+			  ,@RequestId
+		FROM @tmpSiteDBDownInfo s
+		WHERE isMarked = 1
+	END
+	ELSE --Edit Request
+	BEGIN
+		DELETE p
+		FROM dbo.TicketVoiding_PendingMarkTickets p
+		WHERE RequestId = @RequestId
+		
+		IF @ActionId <> 2
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_PendingMarkTickets (TransId, MatchId, StatusId, SiteDBGroupID, RequestId)
+			SELECT TransId
+				  ,MatchId
+				  ,1 -- StatusId = 1 for Running
+				  ,SiteDBGroupID
+				  ,@RequestId
+			FROM @tmpSiteDBDownInfo s
+			WHERE isMarked = 1
+		END
+	END
 
 	-- Write useraction log	
 	BEGIN TRY

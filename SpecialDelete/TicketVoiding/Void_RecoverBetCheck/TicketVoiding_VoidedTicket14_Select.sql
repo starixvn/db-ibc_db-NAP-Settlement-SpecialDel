@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket14_Select]
 ( 
 	@VoidingHistoryIds VARCHAR(MAX) =''
+   ,@OnlineServerId	   VARCHAR(10) = NULL
 )
 AS;
 /*	Created by: 20211126@July
@@ -18,6 +19,7 @@ AS;
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
+		- 20250828@July: [TVS] ScaleOut DBTrans [Phase 7] Manage Request page [Redmine: #236438]
 
 	Param's explanation:	
 		
@@ -28,6 +30,15 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
+	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
+
+	IF ISNULL(@OnlineServerId, '') <> ''
+	BEGIN
+		INSERT INTO @tmpOnlineServerId (ServerId)
+		SELECT value AS ServerId
+		FROM STRING_SPLIT(@OnlineServerId, ',')
+		WHERE value <> ''
+	END
 
 	CREATE TABLE #tmpTicket
              (TransId         BIGINT,
@@ -82,7 +93,8 @@ BEGIN
 			  matchcode		  NVARCHAR(50),
 			  showtime        NVARCHAR(50),
 			  modds           SMALLMONEY,
-			  winlostdate	  DATETIME
+			  winlostdate	  DATETIME,
+			  SiteDBGroupID	  SMALLINT
              );
 
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -93,7 +105,7 @@ BEGIN
 	WHERE value <> ''
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, VoidingHistoryId, oddsid, winlostdate)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, VoidingHistoryId, oddsid, winlostdate, SiteDBGroupID, IsMixParlay)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -106,6 +118,8 @@ BEGIN
 			,vh.VoidingHistoryId
 			,z.oddsid
 			,z.winlostdate
+			,z.SiteDBGroupID
+			,z.IsMixParlay
 	FROM	@tmpVoidingHistory vh 
 		CROSS APPLY (
 			SELECT	z.transid
@@ -119,9 +133,13 @@ BEGIN
 					,z.odds
 					,z.oddsid
 					,z.winlostdate
+					,z.SiteDBGroupID
+					,CASE WHEN EXISTS (SELECT 1 FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1) AND bettype = z.bettype) THEN 1 ELSE 0 END IsMixParlay
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
-				AND z.SiteDBGroupID = @SiteDBGroupID
+				AND 1 = CASE WHEN z.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1
+							 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = z.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
+							 ELSE 0 END
 		) z
 		
 	UPDATE t 
@@ -157,10 +175,10 @@ BEGIN
 			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
 			,modds = b.modds
 	FROM	#tmpTicket t
-		INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
+		INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid AND b.SiteDBGroupID = t.SiteDBGroupID
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE IsMixParlay = 0 AND bettype NOT IN (10)))
 	BEGIN
 		UPDATE t
 		SET  matchcode 	= m.matchcode
@@ -173,8 +191,9 @@ BEGIN
 		FROM #tmpTicket t
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
 			ON	t.matchid = m.matchid
-		WHERE t.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+		WHERE t.IsMixParlay = 0 AND bettype NOT IN (10)
 	END
+	
 	-- UPDATE eventtype = 2 [Outright bettype]
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (10)))
 	BEGIN
@@ -192,8 +211,9 @@ BEGIN
 			ON	odds.leagueid = l.leagueid
 		WHERE t.bettype IN (10)
 	END
+	
 	-- UPDATE eventtype = 3 [VS range  bettypes]
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)))
 	BEGIN
 		UPDATE t
 			SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
@@ -202,44 +222,15 @@ BEGIN
 				,leagueid 	= r.leagueid
 				,sporttype 	= r.sporttype
 				,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
+				,SettlementStatus = 0
+				,VendorMatchId = CASE WHEN d.bettype IN (2770,2771,15500,15501) THEN r.VendorMatchId ELSE NULL END
 		FROM #tmpTicket t
 			INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) 
 			ON t.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-		WHERE t.bettype IN (1231,1232,1233,1237,1238)
+		WHERE t.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
-	-- UPDATE IsMixParlay
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
-	BEGIN
-		UPDATE t
-		SET IsMixParlay = 1
-		FROM #tmpTicket t
-		WHERE t.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-	END
-	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
-	BEGIN
-		UPDATE t
-		SET sporttype = sb.SportType
-		FROM #tmpTicket t
-			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
-			ON t.bettype = sb.BetType
-		WHERE sb.ProductID = 37
-	END
-
-	-- Update maintransid for bonus ticket
-	IF EXISTS (SELECT * FROM #tmpTicket WHERE WalletType = 1)
-	BEGIN
-		UPDATE sub 
-			SET maintransid = main.transid
-		FROM	#tmpTicket sub  
-			INNER JOIN #tmpTicket main 
-				ON 	main.refcode = sub.refcode
-					AND main.transid <> sub.transid
-					AND main.custid = sub.custid
-					AND main.bettype = sub.bettype
-		WHERE	main.wallettype = 1
-	END	
 
 	-- update Isdeposit
 	UPDATE al SET IsDeposit = 1
@@ -358,7 +349,7 @@ BEGIN
 			   ,s.modds
 		       ,s.IsDeposit
 		FROM	#tmpTicket s 
-			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON	s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
+			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON	s.betid = b.transid AND b.SiteDBGroupID = s.SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
 		--3. For Deposit
@@ -532,8 +523,8 @@ BEGIN
 				WHEN s.GroupName = '8RM/BARM' THEN 3
 				WHEN s.GroupName = 'Deposit' THEN 4
 				WHEN s.GroupName = 'Betfair' THEN 5
-			 END
-		   , ISNULL(s.MainTransId, s.transid)
+			 END ASC 
+		   , ISNULL(s.MainTransId, s.transid) ASC
 		   , CASE 
 				WHEN s.BonusID IS NOT NULL
 						THEN CASE 
@@ -541,7 +532,7 @@ BEGIN
 								ELSE 2 
 							 END
 				ELSE s.transid
-			 END
+			 END ASC
 
 	DROP TABLE #tmpTicket
 END

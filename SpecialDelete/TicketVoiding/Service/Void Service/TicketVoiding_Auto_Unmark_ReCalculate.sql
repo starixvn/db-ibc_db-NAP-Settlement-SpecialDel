@@ -17,6 +17,7 @@ AS
 		- 20230707@July: Remove unnecessary code [Redmine: #190859]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20250828@July: Return output table [Redmine: #236438]
 
 	Param's explanation:	
 		
@@ -52,7 +53,12 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
-	
+	DECLARE @Result TABLE (
+        ErrorCode INT,
+        ErrorMsg NVARCHAR(300),
+        NegativeBalanceUsers VARCHAR(MAX)
+    );
+
 	CREATE TABLE #tmp_TransId (
 		TransId				BIGINT
 		,custid				INT
@@ -124,16 +130,6 @@ BEGIN
 		WHERE b.bettype IN (1231,1232,1233,1237,1238)
 	END
 
-	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
-	BEGIN
-		UPDATE b
-		SET sporttype = sb.SportType
-		FROM #tmp_TransId b
-			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
-			ON b.bettype = sb.BetType
-		WHERE sb.ProductID = 37
-	END
-
 	-- remove un-supported sports & bettype
 	DELETE bd
 	FROM #tmp_TransId bd
@@ -142,7 +138,6 @@ BEGIN
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
 		)
-
 
 	IF EXISTS (SELECT TOP 1 1  FROM #tmp_TransId)
 	BEGIN
@@ -220,7 +215,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			SELECT @ErrCode = 0
-				,@ErrMsg = ''
+				  ,@ErrMsg = ''
 
 			IF DATEDIFF(SECOND, @StartTime_Retry, GETDATE()) > @limitsecond
 			BEGIN
@@ -314,25 +309,22 @@ BEGIN
 				@IsLockMatch		= 0
 
 			-- ReCalculate
+			INSERT INTO @Result (ErrorCode, ErrorMsg, NegativeBalanceUsers)
 			EXEC [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
 					@MatchId		 = @MatchId,	
 					@TransIds		 = @TransIds,
 					@UserId          = @UserId,
 					@IP              = @IP,
-					@IsLockMatch	 = 0,
-					@ErrMsg = @ErrMsg OUTPUT,
-					@ErrCode = @ErrCode OUTPUT,
-					@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+					@IsLockMatch	 = 0
 
-			IF @ErrCode <> 0 OR ISNULL(@NegativeBalanceUsers,'') <> ''
-			BEGIN
-				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg, @NegativeBalanceUsers AS NegativeBalanceUsers
-			END
+			SELECT ErrorCode, ErrorMsg, NegativeBalanceUsers
+			FROM @Result;
+
 		END TRY	
 		BEGIN CATCH		
 			SELECT ERROR_NUMBER() AS ErrorCode
-					,SUBSTRING(ERROR_MESSAGE(), 1, 300) AS ErrorMsg
-
+				  ,SUBSTRING(ERROR_MESSAGE(), 1, 300) AS ErrorMsg
+			
 			RETURN			
 		END CATCH
 			 
