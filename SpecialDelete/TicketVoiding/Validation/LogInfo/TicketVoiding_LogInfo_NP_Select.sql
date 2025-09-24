@@ -20,6 +20,7 @@ AS
 		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
 		- 20250619@July: Not show table loginfo when invalid ticket [Redmine: #227162]
 		- 20250728@Lani: [TVS] ScaleOut DBTrans [Phase 4] - Reduced Over/Abandoned/Not Participate/Match Early Completed/Other Issues [Redmine: #232581]
+		- 20250923@Lani: [TVS] Log Info - Add Details for some issue types [Redmine: #238132]
 
 	Param's explanation:	
 		- @OnlineServerId = '0,1,3'
@@ -42,6 +43,7 @@ BEGIN
 			,@MatchId				  INT = 0
 			,@SiteDBGroupID			  SMALLINT
 			,@SiteDBDownInfoJson	  VARBINARY(MAX) = NULL
+			,@LogInfoTicketsJson	  VARBINARY(MAX) = NULL
 	
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -133,17 +135,28 @@ BEGIN
 	  ,FilterTransdesc NVARCHAR(1000)
 	  ,FilterBettype	SMALLINT
 	  ,IsSiteDBDown BIT DEFAULT(0)
+	  --For count ticket follow bettype
+	  ,GroupDisplay INT
+	  ,GroupBettype SMALLINT
+	  ,GroupTransdesc NVARCHAR(1000)
 	  ,ID INT IDENTITY (1,1) PRIMARY KEY
 	)
 
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
+	DECLARE @tmpLogInfoTickets AS TABLE (TransId BIGINT)
+	DECLARE @tmpConsolidatedBettypes AS TABLE
+	(
+		ParentId	INT
+		,TypeId		INT PRIMARY KEY
+	)
 
 	DECLARE @Validation AS TABLE (
 			 IsInValidTotalTickets   BIT DEFAULT(0)
 			,IsExistedInOtherRequest BIT DEFAULT(0)
 			,MatchId                 INT
+			,LogInfoTicketsJson		 NVARCHAR(MAX)
 		)
 
 	IF ISNULL(@OnlineServerId, '') <> ''
@@ -153,6 +166,11 @@ BEGIN
 		FROM STRING_SPLIT(@OnlineServerId, ',')
 		WHERE value <> ''
 	END
+
+	INSERT INTO @tmpConsolidatedBettypes (ParentId, TypeId)
+	SELECT f.GroupTypeId AS ParentId
+		  ,f.Bettype AS TypeId
+	FROM [dbo].[f_SD_GroupDisplayBettype] () AS f
 	
 	SET @NotParticipateInfoXML = CONVERT(XML, @NotParticipateInfo)
 	INSERT INTO #FilterInfo (MatchId, FilterTransdesc, Bettype)
@@ -273,6 +291,9 @@ BEGIN
 			,FilterTransdesc
 			,FilterBettype
 			,IsSiteDBDown
+			,GroupDisplay
+			,GroupBettype
+			,GroupTransdesc
 		)
 	SELECT @MatchId AS matchid
 		,b.TransId
@@ -334,15 +355,19 @@ BEGIN
 		,b.transdesc AS FilterTransdesc
 		,b.bettype AS FilterBettype
 		,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
+		,ISNULL(tb.ParentId,b.bettype) AS GroupDisplay
+		,b.bettype AS GroupBettype
+		,b.transdesc AS GroupTransdesc
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN @tmpMatchId m ON m.MatchId = b.matchid
 		INNER JOIN @bettype_tmp d ON b.bettype = d.bettype
+		LEFT JOIN @tmpConsolidatedBettypes AS tb ON tb.TypeId = b.bettype
 	WHERE  1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 				   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 				   ELSE 0 END
 		AND b.betfrom <> 'P'
-		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND EXISTS (SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = b.SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS (SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = b.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END
 
 	--Search sub-parlay
@@ -354,8 +379,8 @@ BEGIN
 				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   				   ELSE 0 END
 						AND bm.betfrom <> 'P' 
-						AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-									 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+						AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND EXISTS (SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1
+									 WHEN NOT EXISTS (SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 									 ELSE 0 END
 					)
 	BEGIN		
@@ -424,6 +449,9 @@ BEGIN
 				,FilterTransdesc
 				,FilterBettype
 				,IsSiteDBDown
+				,GroupDisplay
+				,GroupBettype
+				,GroupTransdesc
 			)
 		SELECT @MatchId AS matchid
 			,b.TransId
@@ -489,10 +517,14 @@ BEGIN
 			,sub.transdesc AS FilterTransdesc
 			,sub.bettype AS FilterBettype
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
+			,ISNULL(tb.ParentId, sub.bettype) AS GroupDisplay
+			,sub.bettype AS GroupBettype
+			,sub.transdesc AS GroupTransdesc
 		FROM @tmpMatchId d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			INNER JOIN @bettype_tmp t ON t.bettype = sub.bettype
+			LEFT JOIN @tmpConsolidatedBettypes AS tb ON tb.TypeId = sub.bettype
 		WHERE  1= CASE WHEN @ActionId <> 2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 					   WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END
@@ -501,8 +533,8 @@ BEGIN
 			AND b.liveindicator = 0
 			AND b.statusID NOT IN (102, 103)
 			AND b.SiteDBGroupID = sub.SiteDBGroupID
-			AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-						 WHEN sub.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
+			AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND EXISTS (SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sub.SiteDBGroupID) THEN 1
+						 WHEN NOT EXISTS (SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sub.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 						 ELSE 0 END
 
 	END
@@ -626,8 +658,8 @@ BEGIN
 	SELECT RequestId, MatchId, TransId, Bettype, IsCancelCO
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS (SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS (SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END 
 	SET @cnt_s = @@ROWCOUNT
 
@@ -635,10 +667,76 @@ BEGIN
 	SELECT RequestId, MatchId, TransId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
+		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS (SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS (SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END 
 	SET @cnt_p = @@ROWCOUNT
+
+	-- Get info for affected ticket popup
+	IF @IsShowLogOnly = 0 -- Add request 
+	BEGIN
+		INSERT INTO @tmpLoginfoTickets (TransId)
+		SELECT Subtransid
+		FROM #TVSTicketBets 
+		WHERE IsSiteDBDown = 0
+	END
+	ELSE -- Edit request
+	BEGIN
+		INSERT INTO @tmpLoginfoTickets (TransId)
+		SELECT Transid
+		FROM #CTE_Ticket_Single AS s
+		UNION ALL
+		SELECT s.TransId
+		FROM #CTE_Ticket_SubParlay AS s
+	END
+
+	SET @LogInfoTicketsJson = COMPRESS((
+		SELECT b.transid AS 'TransId'
+			 , b.refno AS 'Refno'
+			 , b.subtransid AS 'SubTransId'
+			 , b.transdate AS 'Transdate'
+			 , b.stake AS 'Stake' 
+			 , b.odds AS 'Odds'
+			 , b.Subodds AS 'SubOdds'
+			 , b.oddsspread AS 'Oddsspread'
+			 , b.oddstype AS 'OddsType'
+			 , b.bettype AS 'Bettype'
+			 , b.Subbettype AS 'SubBettype'
+			 , b.status AS 'Status'
+			 , b.SubStatus AS 'Substatus'
+			 , b.CurrencyName AS 'CurrencyName'
+			 , b.betteam AS 'Betteam'
+			 , b.Subbetteam AS 'SubBetteam'
+			 , b.Subhdp1 AS 'SubHdp1'
+			 , b.Subhdp2 AS 'SubHdp2'
+			 , b.hdp1 AS 'Hdp1'
+			 , b.hdp2 AS 'Hdp2'
+			 , b.livehomescore AS 'LiveHomeScore'
+			 , b.liveawayscore AS 'LiveAwayScore'
+			 , b.betid AS 'BetId'
+			 , b.betcheck AS 'BetCheck'
+			 , b.Subchecktime AS 'SubCheckTime'
+			 , b.IsMixParlay AS 'IsMixParlay'
+			 , b.Transdesc AS 'Transdesc'
+			 , b.betdaqid AS 'Betdaqid'
+			 , b.WalletType AS 'WalletType'
+			 , b.refcode AS 'RefCode'
+			 , CAST(b.winlost AS VARCHAR) AS 'WinLost'
+			 , b.liveindicator AS 'LiveIndicator' 
+			 , b.actual_stake AS 'ActualStake'
+			 , b.ExtraInfo AS 'ExtraInfo'
+			 , b.winlostdate AS 'WinLostDate'
+			 , b.matchid AS 'MatchId'
+			 , ISNULL(tb.ParentId, b.Subbettype) AS 'GroupBettypeId'
+			 , CASE WHEN b.IsMixParlay = 1 THEN 'Parlay' ELSE 'Single' END AS 'GroupName'
+		FROM @tmpLogInfoTickets AS s
+			INNER JOIN #TVSTicketBets AS b ON s.transId = b.Subtransid
+			LEFT JOIN @tmpConsolidatedBettypes AS tb ON tb.TypeId = b.Subbettype
+	FOR JSON PATH))
+
+	UPDATE v
+	SET v.LogInfoTicketsJson = CONVERT(VARCHAR(MAX), @LogInfoTicketsJson, 1)
+	FROM @Validation AS v
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
@@ -672,11 +770,43 @@ BEGIN
 			,CASE WHEN @SiteDBGroupID = 0 THEN rd.MainParlayCount ELSE NULL END AS MainParlayCount
 			,tmp.InstantlySettleCount
 			,tmp.SettleCount
-		FROM #CTE_RequestDetail rd WITH (NOLOCK)
-			LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId
+			,v.LogInfoTicketsJson
+		FROM #CTE_RequestDetail AS rd
+			LEFT JOIN #logInfoVoidPage AS tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId
+			INNER JOIN @Validation AS v ON rd.MatchId = v.MatchId
 			
 		-- 4. Unmark/Transinfo table (No need -> return table)
 		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpUnmarkTransId
+
+		-- 5. Count ticket follow bettype, playerid
+		IF @SiteDBGroupID = 0
+		BEGIN
+			;WITH cte AS
+			(
+				SELECT s.transid, s.requestid, b.transdesc AS PlayerId, s.Bettype
+				FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK)
+				INNER JOIN bettrans AS b WITH (NOLOCK) ON b.transid = s.transid
+				WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
+
+				UNION ALL 
+
+				SELECT sub.transid, sub.requestid, bm.transdesc AS PlayerId, bm.bettype
+				FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS sub WITH (NOLOCK)
+				INNER JOIN bettransm AS bm WITH (NOLOCK) ON bm.transid = sub.TransId
+				INNER JOIN bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno 
+				WHERE sub.RequestId =  @RequestId AND sub.MatchId = @MatchId
+			)
+			SELECT b.typeid AS Bettype
+				 , tm.teamname AS PlayerName
+				 , tm.teamid AS PlayerId
+				 , b.typenamee AS OriginalBettypeName
+				 , NULL AS BetId
+				 , COUNT(1) AS TicketCount
+			FROM cte AS c
+				INNER JOIN dbo.bettype AS b WITH (NOLOCK) ON c.Bettype = b.typeid
+				INNER JOIN dbo.team AS tm WITH (NOLOCK) ON tm.teamid = TRY_CAST(c.PlayerId AS BIGINT)
+			GROUP BY b.typeid, b.typenamee, tm.teamid, tm.teamname
+		END	
 
 		RETURN;
 	END
@@ -778,15 +908,17 @@ BEGIN
 	END
 
 	-- 3. Loginfo table
-	SELECT MatchId
+	SELECT l.MatchId
 		,MIN(VoidFromTime) AS VoidFromTime
 		,MAX(VoidToTime) AS VoidToTime
 		,SUM(SingleCount) AS SingleCount
 		,SUM(InstantlySettleCount) AS InstantlySettleCount
 		,SUM(SettleCount) AS SettleCount
 		,SUM(MainParlayCount) AS MainParlayCount
-	FROM #logInfo l
-	GROUP BY MatchId
+		,v.LogInfoTicketsJson
+	FROM #logInfo AS l
+	INNER JOIN @Validation AS v ON l.MatchId = v.MatchId
+	GROUP BY l.MatchId, v.LogInfoTicketsJson
 
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
 		,transid AS 't'
@@ -816,6 +948,22 @@ BEGIN
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
 		  ,@SingleCountSiteDBDown AS SingleCount
 		  ,@ParlayCountSiteDBDown AS ParlayCount
+
+	--5. Count ticket follow bettype
+	--Added
+	SELECT b.GroupDisplay AS BetttypeId
+		  ,bt.typenamee AS OriginalBettypeName
+		  ,CONVERT(BIGINT,b.GroupTransdesc) AS PlayerId
+		  ,t.teamname AS PlayerName
+		  ,NULL AS BetId
+		  ,NULL AS PlayerAndOdds
+		  ,COUNT(b.transid) AS BettypeCount
+	FROM #TVSTicketBets AS b
+	INNER JOIN dbo.bettype AS bt WITH (NOLOCK) ON b.GroupDisplay = bt.typeid
+	INNER JOIN dbo.Team AS t WITH (NOLOCK) ON t.teamid = TRY_CAST(b.GroupTransdesc AS BIGINT)
+	WHERE EXISTS (SELECT 1 FROM f_TVS_BettypesUsingTransdesc() t1 WHERE t1.bettype = b.GroupBettype AND t1.TypeId = 0) AND b.IsSiteDBDown = 0
+	GROUP BY b.GroupDisplay, bt.typenamee, CONVERT(BIGINT, b.grouptransdesc), t.teamname
+	ORDER BY b.GroupDisplay ASC, bt.typenamee ASC
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
