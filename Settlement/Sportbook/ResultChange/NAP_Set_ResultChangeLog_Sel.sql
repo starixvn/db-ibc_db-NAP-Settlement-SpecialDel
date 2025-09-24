@@ -45,13 +45,6 @@ BEGIN
 		AwayValue,
 		LogDate
 	FROM [dbo].[SettlementLog] s WITH (NOLOCK)
-		CROSS APPLY (
-			SELECT TOP 1 1 AS valid
-			FROM bodb02.dbo.match m with (NOLOCK)	
-			WHERE m.matchid = s.MatchID
-				AND m.sporttype <= 99
-				AND m.isTestMatch = @IsTest
-		)m		
 	WHERE LogDate BETWEEN @FromDate AND @ToDate
 		AND ResourceID IN ('00','01')
 	
@@ -64,9 +57,16 @@ BEGIN
 		FROM @tmpMatch t
 	)
 	SELECT MatchId, changetime
-	FROM cte
+	FROM cte s
 	WHERE rn <> 1
 		AND (HomeValue <> PreHome OR AwayValue <> PreAway)
+		AND EXISTS (
+			SELECT TOP 1 1 AS valid
+			FROM bodb02.dbo.match m with (NOLOCK)	
+			WHERE m.matchid = s.MatchID
+				AND m.sporttype <= 99
+				AND m.isTestMatch = @IsTest
+		)		
 	ORDER BY MatchId ASC, changetime ASC
 
 END
