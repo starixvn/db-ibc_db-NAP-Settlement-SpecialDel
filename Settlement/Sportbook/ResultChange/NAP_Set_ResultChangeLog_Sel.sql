@@ -30,19 +30,20 @@ BEGIN
 		SELECT @ErrCode = 99
 			,@ErrMsg = 'The entered time cannot exceed 3 days. Please try again.'
 
+		SELECT NULL AS MatchId, NULL AS changetime
 		RETURN
 	END
 	
-	DECLARE @tmpMatch TABLE (MatchId INT, ResourceId VARCHAR(20), HomeValue VARCHAR(100), AwayValue VARCHAR(100), LastLogDate DATETIME)
+	DECLARE @tmpMatch TABLE (MatchId INT, ResourceId VARCHAR(20), HomeValue VARCHAR(100), AwayValue VARCHAR(100), changetime DATETIME)
 
 	-- Step 1: Get raw data
-	INSERT INTO @tmpMatch (MatchId, ResourceId, HomeValue, AwayValue, LastLogDate)
+	INSERT INTO @tmpMatch (MatchId, ResourceId, HomeValue, AwayValue, changetime)
 	SELECT 
 		s.MatchID,
 		ResourceID,
 		HomeValue,
 		AwayValue,
-		MAX(LogDate)
+		LogDate
 	FROM [dbo].[SettlementLog] s WITH (NOLOCK)
 		CROSS APPLY (
 			SELECT TOP 1 1 AS valid
@@ -53,28 +54,20 @@ BEGIN
 		)m		
 	WHERE LogDate BETWEEN @FromDate AND @ToDate
 		AND ResourceID IN ('00','01')
-	GROUP BY s.MatchID,
-		ResourceID,
-		HomeValue, 
-		AwayValue
 	
 	--Step 2: Return data
-	;WITH cteChangeInTime AS (
-		SELECT MatchId, ResourceId
+	;WITH cte AS(	
+		SELECT MatchId, ResourceId, HomeValue, AwayValue, changetime
+			,LAG(t.HomeValue,1) OVER(PARTITION BY t.MatchId, t.ResourceID ORDER BY t.changetime ASC) AS PreHome
+			,LAG(t.AwayValue,1) OVER(PARTITION BY t.MatchId, t.ResourceID ORDER BY t.changetime ASC) AS PreAway
+			,ROW_NUMBER() OVER (PARTITION BY t.Matchid, t.ResourceID ORDER BY t.changetime ASC) AS rn
 		FROM @tmpMatch t
-		GROUP BY MatchId, ResourceId
-		HAVING COUNT(1) > 1
 	)
-	,cteDataDetail AS (
-		SELECT DISTINCT c.MatchId, LogDate AS changetime
-		FROM [dbo].[SettlementLog] s WITH (NOLOCK)
-			INNER JOIN cteChangeInTime c ON c.MatchId = s.MatchID AND c.ResourceId = s.ResourceID
-		WHERE s.LogDate BETWEEN @FromDate AND @ToDate
-			AND s.ResourceID IN ('00','01')
-	)
-	SELECT DISTINCT MatchId, changetime
-	FROM cteDataDetail
-	ORDER BY matchId ASC, changetime ASC
+	SELECT MatchId, changetime
+	FROM cte
+	WHERE rn <> 1
+		AND (HomeValue <> PreHome OR AwayValue <> PreAway)
+	ORDER BY MatchId ASC, changetime ASC
 
 END
 GO
