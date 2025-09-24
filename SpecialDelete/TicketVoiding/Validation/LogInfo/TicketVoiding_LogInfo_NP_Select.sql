@@ -796,12 +796,12 @@ BEGIN
 				INNER JOIN bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno 
 				WHERE sub.RequestId =  @RequestId AND sub.MatchId = @MatchId
 			)
-			SELECT b.typeid AS Bettype
+			SELECT b.typeid AS BetTypeId
 				 , tm.teamname AS PlayerName
 				 , tm.teamid AS PlayerId
-				 , b.typenamee AS OriginalBettypeName
+				 , b.typenamee AS OriginalBetTypeName
 				 , NULL AS BetId
-				 , COUNT(1) AS TicketCount
+				 , COUNT(1) AS TicketsCount
 			FROM cte AS c
 				INNER JOIN dbo.bettype AS b WITH (NOLOCK) ON c.Bettype = b.typeid
 				INNER JOIN dbo.team AS tm WITH (NOLOCK) ON tm.teamid = TRY_CAST(c.PlayerId AS BIGINT)
@@ -951,13 +951,13 @@ BEGIN
 
 	--5. Count ticket follow bettype
 	--Added
-	SELECT b.GroupDisplay AS BetttypeId
-		  ,bt.typenamee AS OriginalBettypeName
+	SELECT b.GroupDisplay AS BetTypeId
+		  ,bt.typenamee AS OriginalBetTypeName
 		  ,CONVERT(BIGINT,b.GroupTransdesc) AS PlayerId
 		  ,t.teamname AS PlayerName
 		  ,NULL AS BetId
 		  ,NULL AS PlayerAndOdds
-		  ,COUNT(b.transid) AS BettypeCount
+		  ,COUNT(b.transid) AS TicketsCount
 	FROM #TVSTicketBets AS b
 	INNER JOIN dbo.bettype AS bt WITH (NOLOCK) ON b.GroupDisplay = bt.typeid
 	INNER JOIN dbo.Team AS t WITH (NOLOCK) ON t.teamid = TRY_CAST(b.GroupTransdesc AS BIGINT)
