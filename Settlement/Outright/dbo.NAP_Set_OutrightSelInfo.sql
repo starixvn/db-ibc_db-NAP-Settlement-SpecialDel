@@ -59,7 +59,7 @@ BEGIN
 		,	o.odds
 		,	r.ResultStatusID
 		,	r.ModifiedBy
-		,	c.username AS TraderName
+		,	c.username AS ConfirmedBy
 	FROM dbo.outright AS o WITH (NOLOCK)
 		INNER JOIN @tmpLeague AS tl  ON tl.leagueid = o.leagueid
 		LEFT JOIN ResultDetailOutright r WITH (NOLOCK) ON r.Orid = o.orid AND r.leagueid = tl.LeagueID
