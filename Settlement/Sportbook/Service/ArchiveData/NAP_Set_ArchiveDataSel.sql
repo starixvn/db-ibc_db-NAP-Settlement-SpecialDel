@@ -14,6 +14,7 @@ AS
 	 Revisions:  
 		- 20230308@Kathy: create SP [Redmine:#184726]   
 		- 20250718@Max: Support Daily Settlement Report for Vega project [Redmine: #233410]
+		- 20250918@Max: Fix the issue where the daily KPI report for Soccer sent incorrect data on Sep 17 [Redmine: #239282]
 		
 	 Param's Explanation:  
     
@@ -80,6 +81,7 @@ BEGIN
 				ON s.matchid = m.matchid
 		WHERE s.keyid <= @maxValue AND s.keyid > @LastRow
 			AND CONVERT(DATE, Starttime) = @ArchiveDate
+		ORDER BY s.keyid ASC
 
 		SET @JsonInfo = COMPRESS((
 			SELECT	TOP (@BatchNo)
@@ -135,6 +137,7 @@ BEGIN
 				ON p.matchid = m.matchid
 		WHERE p.keyid <= @maxValue AND p.keyid > @LastRow
 			AND CONVERT(DATE, Starttime) = @ArchiveDate
+		ORDER BY p.keyid ASC
 
 		SET @JsonInfo = COMPRESS((
 			SELECT	TOP (@BatchNo)
