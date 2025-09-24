@@ -59,9 +59,11 @@ BEGIN
 		,	o.odds
 		,	r.ResultStatusID
 		,	r.ModifiedBy
+		,	c.username AS TraderName
 	FROM dbo.outright AS o WITH (NOLOCK)
 		INNER JOIN @tmpLeague AS tl  ON tl.leagueid = o.leagueid
 		LEFT JOIN ResultDetailOutright r WITH (NOLOCK) ON r.Orid = o.orid AND r.leagueid = tl.LeagueID
+		LEFT JOIN custInfo c WITH (NOLOCK) ON c.custid = r.ModifiedBy
 	WHERE ((@ToDate IS NULL AND o.eventdate >= @FromDate) 
             OR (@ToDate IS NOT NULL AND o.eventdate BETWEEN @FromDate AND @ToDate))
 		AND 1 = CASE WHEN @StatusID = 0 THEN 1
@@ -80,7 +82,7 @@ BEGIN
 	SELECT r.leagueid, COUNT(r.orid) AS COUNTWON 
 	FROM ResultDetailOutright AS r WITH (NOLOCK)
 	INNER JOIN @tmpLeague AS tl ON tl.LeagueID = r.leagueid
-	WHERE r.Result = 'WON'
+	WHERE r.Result = 'WON' AND r.ResultStatusID <> 3
 	GROUP BY r.leagueid
 
 	SELECT
