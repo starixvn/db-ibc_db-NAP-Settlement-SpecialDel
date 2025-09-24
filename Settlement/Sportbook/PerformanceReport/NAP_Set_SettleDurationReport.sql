@@ -11,6 +11,7 @@ AS
 	Revision:
 		- 20250729@Max: created SP [Redmine:#234353]
 		- 20250812@Max: Letstalk and automail reports for Synergy metrics [Redmine: #235409]
+		- 20250924@Max: Enhance Daily KPI report for Soccer [Redmine: #239653]
 
 	Param's explaination:
 		- @FromDate/ @ToDate: yesterday
@@ -240,7 +241,7 @@ BEGIN
         , AVG(
             CAST(
                 CASE WHEN sporttype IN (1,4,5,6,8,9,18,50) THEN Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration
-					WHEN sporttype = 2 AND IsHold = 0 THEN Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration
+					WHEN sporttype IN (1,2) AND IsHold = 0 THEN Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration
 				END
             AS BIGINT)) 'SettleDuration'
     FROM #tmpData
@@ -248,7 +249,7 @@ BEGIN
                     WHEN sporttype = 1
                                     AND GroupName NOT LIKE 'Special%'
                                     AND Action in('CAL-HT', 'CAL-FT')
-                                    AND IsHold = 0
+                                    --AND IsHold = 0
                                     AND ConfirmStatus =  'Confirm'
                                     THEN 1
                     ELSE 0
@@ -285,7 +286,7 @@ BEGIN
                     WHEN sporttype = 1
                                     AND GroupName NOT LIKE 'Special%'
                                     AND Action in('CAL-HT', 'CAL-FT')
-                                    AND IsHold = 0
+                                    --AND IsHold = 0
                                     AND ConfirmStatus =  'Confirm'
                                     THEN 1
                     ELSE 0
@@ -308,4 +309,5 @@ BEGIN
 		,[SettlementStatus] DESC
 
 	DROP TABLE #tmpData
+	DROP TABLE #MatchLive
 END
