@@ -173,7 +173,6 @@ BEGIN
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
 	DECLARE @tmpLogInfoTickets AS TABLE (TransId BIGINT)
-	DECLARE @tmpInputtedRuns TABLE (BetTypeId SMALLINT, InputtedRuns INT, PlayerId INT)
 	DECLARE @tmpConsolidatedBettypes AS TABLE
 	(
 		ParentId	INT
@@ -191,15 +190,6 @@ BEGIN
 	DECLARE @tmpBettypeCount TABLE
 	(
 		BetTypeId			SMALLINT
-		,BetId				VARCHAR(100)
-		,PlayerId			VARCHAR(MAX)
-		,PlayerName         VARCHAR(100)
-	    ,TicketsCount       INT
-	)
-
-	DECLARE @BettypeCountDetail TABLE(
-		 BetTypeId			SMALLINT
-	    ,InputtedRuns       VARCHAR(100)
 		,BetId				VARCHAR(100)
 		,PlayerId			VARCHAR(MAX)
 		,PlayerName         VARCHAR(100)
@@ -952,55 +942,14 @@ BEGIN
 				LEFT JOIN dbo.team AS t ON b.PlayerId = t.teamid				
 			END
 
-			INSERT INTO @tmpInputtedRuns (BetTypeId, InputtedRuns, PlayerId)
-			SELECT b.BetTypeId, infor.Runs, p.PlayerId
-			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-					CROSS APPLY (
-							SELECT CONVERT(XML, rd.TransIds)
-						) AS t1(xDATA)
-					CROSS APPLY (
-							SELECT ISNULL(t.c.value('@BetTypeIds','VARCHAR(MAX)'),0) AS BetTypeIds
-								  ,ISNULL(t.c.value('@Runs','VARCHAR(20)'),NULL) AS Runs
-								  ,t.c.value('@PlayerIds','VARCHAR(MAX)') AS PlayerIds
-							FROM t1.xDATA.nodes('/r') t(c)
-						) AS infor
-					CROSS APPLY (
-							SELECT DISTINCT value AS BetTypeId
-							FROM STRING_SPLIT(infor.BetTypeIds, ',')
-							WHERE value <> ''
-						) b
-					CROSS APPLY (
-							SELECT DISTINCT value AS PlayerId
-							FROM STRING_SPLIT(infor.PlayerIds,',')
-					) AS p
-			WHERE rd.RequestId = @RequestId
+			SELECT t.BetTypeId
+				  ,bt.typenamee AS OriginalBetTypeName
+				  ,t.BetId
+				  ,t.PlayerName
+				  ,t.TicketsCount
+			FROM @tmpBettypeCount AS t
+			INNER JOIN dbo.bettype AS bt WITH (NOLOCK) ON t.BetTypeId = bt.typeid
 
-			INSERT INTO @BettypeCountDetail (BetTypeId, InputtedRuns, BetId, b.PlayerId, PlayerName, TicketsCount)
-			SELECT DISTINCT b.BetTypeId, r.InputtedRuns, BetId, r.PlayerId, PlayerName, TicketsCount
-			FROM @tmpBettypeCount AS b
-			LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId
-			WHERE r.PlayerId = 0
-			UNION ALL 
-			SELECT b.BetTypeId, r.InputtedRuns, BetId, r.PlayerId, PlayerName, TicketsCount
-			FROM @tmpBettypeCount AS b
-			LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId AND b.PlayerId = r.PlayerId
-			WHERE r.PlayerId <> 0
-			
-			;WITH CTE AS (
-			SELECT 
-					BetTypeId,
-					InputtedRuns,
-					BetId,
-					PlayerName,
-					TicketsCount,
-					ROW_NUMBER() OVER (PARTITION BY b.bettypeId, b.PlayerId, b.betid ORDER BY b.bettypeId, b.PlayerId, b.betid, b.InputtedRuns) AS RowId
-			FROM @BettypeCountDetail b
-			)
-			SELECT BetTypeId, b.typenamee AS OriginalBetTypeName, InputtedRuns, BetId, PlayerName, TicketsCount 
-			FROM CTE AS c
-			INNER JOIN bettype AS b WITH (NOLOCK) ON c.BetTypeId = b.typeid
-			WHERE RowId < 2
-			ORDER BY BetTypeId ASC, InputtedRuns ASC, BetId ASC
 		END
 
 		RETURN;
@@ -1027,24 +976,6 @@ BEGIN
 		FROM @tmpBettypeCount AS b
 		LEFT JOIN dbo.team AS t ON b.PlayerId = t.teamid				
 	END
-
-	INSERT INTO @tmpInputtedRuns (BetTypeId, PlayerId, InputtedRuns)
-	SELECT DISTINCT b.GroupDisplay, CASE WHEN ISNULL(b.GroupTransdesc,'') = '' THEN 0 ELSE b.GroupTransdesc END AS PlayerId, CAST(f.FilterRuns AS INT) AS InputtedRuns
-	FROM #TVSTicketBets AS b
-	INNER JOIN #FilterInfo AS f ON b.GroupBettype = f.Bettype
-	WHERE b.IsSiteDBDown = 0
-
-	INSERT INTO @BettypeCountDetail (BetTypeId, InputtedRuns, BetId, b.PlayerId, PlayerName, TicketsCount)
-	SELECT DISTINCT b.BetTypeId, r.InputtedRuns, BetId, r.PlayerId, PlayerName, TicketsCount
-	FROM @tmpBettypeCount AS b
-	LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId
-	WHERE r.PlayerId = 0
-	UNION ALL 
-	SELECT b.BetTypeId, r.InputtedRuns, BetId, r.PlayerId, PlayerName, TicketsCount
-	FROM @tmpBettypeCount AS b
-	LEFT JOIN @tmpInputtedRuns AS r ON b.BetTypeId = r.BetTypeId AND b.PlayerId = r.PlayerId
-	WHERE r.PlayerId <> 0
-
 
 	UPDATE v 
 	SET  v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
@@ -1185,20 +1116,14 @@ BEGIN
 		  ,@ParlayCountSiteDBDown AS ParlayCount
 
 	-- 5. Count ticket follow bettype
-	;WITH CTE AS (
-		SELECT 
-				BetTypeId,
-				InputtedRuns,
-				BetId,
-				PlayerName,
-				TicketsCount,
-				ROW_NUMBER() OVER (PARTITION BY b.bettypeId, b.PlayerId, b.betid ORDER BY b.bettypeId, b.PlayerId, b.betid, b.InputtedRuns) AS RowId
-		FROM @BettypeCountDetail b)
-	SELECT BetTypeId, b.typenamee AS OriginalBetTypeName, InputtedRuns, BetId, PlayerName, NULL AS PlayerAndOdds, TicketsCount 
-	FROM CTE AS c
-	INNER JOIN bettype AS b WITH (NOLOCK) ON c.BetTypeId = b.typeid
-	WHERE RowId < 2
-	ORDER BY BetTypeId ASC, InputtedRuns ASC, BetId ASC
+	SELECT t.BetTypeId
+		  ,bt.typenamee AS OriginalBetTypeName
+		  ,t.BetId
+		  ,NULL AS PlayerAndOdds
+		  ,t.PlayerName
+		  ,t.TicketsCount
+	FROM @tmpBettypeCount AS t
+	INNER JOIN dbo.bettype AS bt WITH (NOLOCK) ON t.BetTypeId = bt.typeid
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
