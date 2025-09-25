@@ -930,16 +930,12 @@ BEGIN
 					   FROM @tmpTicketInfo AS t 
 					   WHERE EXISTS (SELECT TOP 1 1 FROM f_TVS_BettypesUsingTransdesc() AS b WHERE b.bettype = t.Bettype AND TypeId = 0))
 			BEGIN
-				INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, TicketsCount)
-				SELECT s.Bettype, s.Transdesc, COUNT(1) AS TicketCounts
+				INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, TicketsCount, PlayerName)
+				SELECT s.Bettype AS BetTypeId, s.Transdesc AS PlayerId, COUNT(1) AS TicketCounts, t.teamname AS PlayerName
 				FROM @tmpTicketInfo AS s
+				LEFT JOIN dbo.team AS t WITH (NOLOCK) ON t.teamid = s.Transdesc
 				WHERE EXISTS (SELECT 1 FROM f_TVS_BettypesUsingTransdesc() AS b WHERE b.Bettype = s.Bettype AND b.TypeId = 0)
-				GROUP BY s.Bettype, s.Transdesc
-
-				UPDATE b
-				SET b.PlayerName = t.teamname
-				FROM @tmpBettypeCount AS b
-				LEFT JOIN dbo.team AS t ON b.PlayerId = t.teamid				
+				GROUP BY s.Bettype, s.Transdesc, t.teamname
 			END
 
 			SELECT t.BetTypeId
@@ -965,16 +961,12 @@ BEGIN
 					   FROM #TVSTicketBets AS t 
 					   WHERE EXISTS (SELECT TOP 1 1 FROM f_TVS_BettypesUsingTransdesc() AS b WHERE b.bettype = t.Bettype AND TypeId = 0))
 	BEGIN
-		INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, TicketsCount)
-		SELECT s.GroupDisplay AS BetTypeId, s.SubTransdesc, COUNT(1) AS TicketCounts
+		INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, TicketsCount, PlayerName)
+		SELECT s.GroupDisplay AS BetTypeId, s.GroupTransdesc AS PlayerId, COUNT(1) AS TicketCounts, t.teamname AS PlayerName
 		FROM #TVSTicketBets AS s
+		LEFT JOIN dbo.team AS t WITH (NOLOCK) ON t.teamid = s.GroupTransdesc
 		WHERE EXISTS (SELECT 1 FROM f_TVS_BettypesUsingTransdesc() AS b WHERE b.Bettype = s.GroupBettype AND b.TypeId = 0) AND s.IsSiteDBDown = 0
-		GROUP BY s.GroupDisplay, s.SubTransdesc
-
-		UPDATE b
-		SET b.PlayerName = t.teamname
-		FROM @tmpBettypeCount AS b
-		LEFT JOIN dbo.team AS t ON b.PlayerId = t.teamid				
+		GROUP BY s.GroupDisplay, s.GroupTransdesc, t.teamname				
 	END
 
 	UPDATE v 
