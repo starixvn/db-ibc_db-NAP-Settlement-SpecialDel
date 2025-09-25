@@ -828,7 +828,7 @@ BEGIN
 				SELECT s.transid, s.requestid, b.transdesc AS PlayerId, s.Bettype
 				FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK)
 				INNER JOIN bettrans AS b WITH (NOLOCK) ON b.transid = s.transid
-				WHERE s.RequestId = @RequestId AND s.MatchId = @MatchId
+				WHERE s.RequestId = @RequestId
 
 				UNION ALL 
 
@@ -836,7 +836,7 @@ BEGIN
 				FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS sub WITH (NOLOCK)
 				INNER JOIN bettransm AS bm WITH (NOLOCK) ON bm.transid = sub.TransId
 				INNER JOIN bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno 
-				WHERE sub.RequestId =  @RequestId AND sub.MatchId = @MatchId
+				WHERE sub.RequestId =  @RequestId
 			)
 			SELECT b.typeid AS BetTypeId
 				 , tm.teamname AS PlayerName
