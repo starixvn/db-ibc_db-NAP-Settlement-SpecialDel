@@ -41,8 +41,7 @@ SET NOCOUNT ON
 						,TARGET.ResultStatusId		= 5
 						,TARGET.SettlementStatusID	= 4
 						,TARGET.IsDeadheat			= @IsDeadheat
-						,TARGET.ModifiedDate		= GETDATE()
-						,TARGET.ModifiedBy			= @AdminID
+						,TARGET.SettledBy			= @AdminID
 						,TARGET.RepUpdateTime		= dbo.f_GetDateTime2()
 	WHEN NOT MATCHED BY TARGET THEN
 		INSERT(
@@ -53,10 +52,7 @@ SET NOCOUNT ON
 			,ResultStatusID
 			,SettlementStatusID
 			,IsDeadheat
-			,CreatedBy
-			,CreatedDate
-			,ModifiedBy
-			,ModifiedDate
+			,SettledBy
 			,RepUpdateTime
 		)               
 		VALUES(
@@ -68,9 +64,6 @@ SET NOCOUNT ON
 			,4 -- Completed
 			,@IsDeadheat
 			,@AdminID
-			,GETDATE()
-			,@AdminID
-			,GETDATE()
 			,dbo.f_GetDateTime2()
 		);
 

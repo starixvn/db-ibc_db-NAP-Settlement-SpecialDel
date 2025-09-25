@@ -6,26 +6,26 @@ ALTER PROCEDURE [dbo].[NAP_Set_OutrightSelInfo]
 	,@StatusID			INT = 0 
 	,@IsIncludeTest		BIT = 0 
 AS 
-/**
- * Created by	: Jamie   
- * Date			: 20130808
- * Task			: Outright results 
- * DB			: DBPRO/bodb02  
+/*
+	  Created by	: Jamie   
+	  Date			: 20130808
+	  Task			: Outright results 
+	  DB			: DBPRO/bodb02  
 
- * Revisions	:
-	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
-	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
-	- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
-	- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
-	- 20250819@Hughie: Apply SOP for Outright [Redmine: #232955]
-	- 20250917@Hughie: SOP Outright Phase 2 [Redmine: #233004]
+	  Revisions	:
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
+		- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
+		- 20250819@Hughie: Apply SOP for Outright [Redmine: #232955]
+		- 20250917@Hughie: SOP Outright Phase 2 [Redmine: #233004]
 
- * Parameters:
-    @FromDate: From  date,
-	@ToDate: To date ,
-	@LeagueID: = 0: show info of all leagues     
-	@LeagueIDs: '86,97,181,184'
-	@StatusID: 0=ALL | 1=Running | 2=Completed | 3=TraderConfirmed
+	  Parameters:
+		@FromDate: From  date,
+		@ToDate: To date ,
+		@LeagueID: = 0: show info of all leagues     
+		@LeagueIDs: '86,97,181,184'
+		@StatusID: 0=ALL | 1=Running | 2=Completed | 3=TraderConfirmed
  */
 BEGIN   
 	SET NOCOUNT ON  
@@ -74,8 +74,8 @@ BEGIN
 				END 
 		AND ISNULL(o.IsDeleted,0) = 0	
 		AND tl.isTest = IIF(@IsIncludeTest = 0,0,tl.isTest)			 
-	ORDER BY o.leagueid
-		,	 IIF(o.oddsstatus IN ('Running','Closed','Internal'),1,2)
+	ORDER BY o.leagueid ASC
+		,	 IIF(o.oddsstatus IN ('Running','Closed','Internal'),1,2) ASC
 		,	 o.kickofftime  ASC
 	
 	INSERT INTO @LeagueWonCount (LeagueID, WonCount)
