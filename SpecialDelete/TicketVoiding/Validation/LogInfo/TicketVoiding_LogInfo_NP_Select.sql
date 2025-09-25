@@ -74,11 +74,21 @@ BEGIN
 	  ,Subtransid BIGINT
 	  ,refno BIGINT
 	  ,custid INT	
+	  ,username NVARCHAR(50)
+	  ,isDeposit BIT
       ,hdp1 SMALLMONEY
       ,hdp2 SMALLMONEY
       ,livehomescore SMALLINT
       ,liveawayscore SMALLINT
       ,liveindicator BIT
+	  ,homeid INT
+	  ,awayid INT
+	  ,leagueid INT
+	  ,isNeutral BIT
+	  ,matchcode NVARCHAR(50)
+	  ,settlementstatus TINYINT
+	  ,eventstatus NVARCHAR(50)
+	  ,sporttype SMALLINT
 	  ,odds SMALLMONEY
 	  ,oddsspread MONEY
       ,betfrom NVARCHAR(4)
@@ -550,6 +560,29 @@ BEGIN
 		)t
 	WHERE t.Bettype IS NULL
 
+	---UPDATE column show loginfo details
+	BEGIN
+		UPDATE s
+		SET matchcode 	= m.matchcode
+			,homeid 	= m.homeid
+			,awayid 	= m.awayid
+			,leagueid 	= m.leagueid
+			,sporttype 	= m.sporttype
+			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+			,eventstatus = ISNULL(m.eventstatus,'')
+			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
+			,username = ci.username
+		FROM #TVSTicketBets s
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	s.matchid = m.matchid
+			INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK) ON s.custid = ci.custid
+	
+		-- update Isdeposit
+		UPDATE s 
+			SET IsDeposit = 1
+		FROM	#TVSTicketBets s
+		WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = s.srecommend)
+	END
+
 	/*Get Transid in Request of range Transid*/
 	DECLARE @TransInfoJson_Request		VARBINARY(MAX)
 	DECLARE @StartRow INT 
@@ -694,6 +727,7 @@ BEGIN
 		SELECT b.transid AS 'TransId'
 			 , b.refno AS 'Refno'
 			 , b.subtransid AS 'SubTransId'
+			 , b.username AS 'UserName'
 			 , b.transdate AS 'Transdate'
 			 , b.stake AS 'Stake' 
 			 , b.odds AS 'Odds'
@@ -727,6 +761,14 @@ BEGIN
 			 , b.ExtraInfo AS 'ExtraInfo'
 			 , b.winlostdate AS 'WinLostDate'
 			 , b.matchid AS 'MatchId'
+			 , b.homeid AS 'HomeId'
+			 , b.awayid AS 'AwayId'
+			 , b.leagueid AS 'LeagueId'
+			 , b.isNeutral AS 'IsNeutral'
+			 , b.matchcode AS 'MatchCode'
+			 , b.settlementstatus AS 'SettlementStatus'
+			 , b.sporttype AS 'Sporttype'
+			 , b.isDeposit AS 'IsDeposit' 
 			 , ISNULL(tb.ParentId, b.Subbettype) AS 'GroupBettypeId'
 			 , CASE WHEN b.IsMixParlay = 1 THEN 'Parlay' ELSE 'Single' END AS 'GroupName'
 		FROM @tmpLogInfoTickets AS s

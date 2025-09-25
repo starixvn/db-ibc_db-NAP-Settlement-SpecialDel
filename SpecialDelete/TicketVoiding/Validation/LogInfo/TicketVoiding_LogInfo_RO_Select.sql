@@ -84,12 +84,22 @@ BEGIN
 	  ,transid BIGINT
 	  ,Subtransid BIGINT
 	  ,refno BIGINT
-	  ,custid INT	
+	  ,custid INT
+	  ,username NVARCHAR(50)
+	  ,isDeposit BIT
       ,hdp1 SMALLMONEY
       ,hdp2 SMALLMONEY
       ,livehomescore SMALLINT
       ,liveawayscore SMALLINT
       ,liveindicator BIT
+	  ,homeid INT
+	  ,awayid INT
+	  ,leagueid INT
+	  ,isNeutral BIT
+	  ,matchcode NVARCHAR(50)
+	  ,settlementstatus TINYINT
+	  ,eventstatus NVARCHAR(50)
+	  ,sporttype SMALLINT
 	  ,odds SMALLMONEY
 	  ,oddsspread MONEY
       ,betfrom NVARCHAR(4)
@@ -644,6 +654,29 @@ BEGIN
 		)t
 	WHERE t.Bettype IS NULL
 
+	---UPDATE column show loginfo details
+	BEGIN
+		UPDATE s
+		SET matchcode 	= m.matchcode
+			,homeid 	= m.homeid
+			,awayid 	= m.awayid
+			,leagueid 	= m.leagueid
+			,sporttype 	= m.sporttype
+			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+			,eventstatus = ISNULL(m.eventstatus,'')
+			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
+			,username = ci.username
+		FROM #TVSTicketBets s
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	s.matchid = m.matchid
+			INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK) ON s.custid = ci.custid
+	
+		-- update Isdeposit
+		UPDATE s 
+			SET IsDeposit = 1
+		FROM	#TVSTicketBets s
+		WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = s.srecommend)
+	END
+
 	/*Get Transid in Request of range Transid*/
 	DECLARE @TransInfoJson_Request		VARBINARY(MAX)
 	DECLARE @StartRow INT 
@@ -788,6 +821,7 @@ BEGIN
 		SELECT b.transid AS 'TransId'
 			  ,b.refno AS 'Refno'
 			  ,b.Subtransid AS 'SubTransId'
+			  ,b.username AS 'UserName'
 			  ,b.transdate AS 'Transdate'
 			  ,b.stake AS 'Stake'
 			  ,b.odds AS 'Odds'
@@ -821,6 +855,14 @@ BEGIN
 			  ,b.ExtraInfo AS 'ExtraInfo'
 			  ,b.winlostdate AS 'WinLostDate'
 			  ,b.matchid AS 'matchid'
+			  ,b.homeid AS 'HomeId'
+			  ,b.awayid AS 'AwayId'
+			  ,b.leagueid AS 'LeagueId'
+			  ,b.isNeutral AS 'IsNeutral'
+			  ,b.matchcode AS 'MatchCode'
+			  ,b.settlementstatus AS 'SettlementStatus'
+			  ,b.sporttype AS 'Sporttype'
+			  ,b.isDeposit AS 'IsDeposit'
 			  ,ISNULL(tb.parentid, b.Subbettype) AS 'GroupBettypeId' --Return for web filter bettype
 			  ,CASE WHEN b.IsMixParlay = 1 THEN 'Parlay' ELSE 'Single' END AS 'GroupName'
 		FROM @tmpLogInfoTickets AS s
@@ -882,7 +924,7 @@ BEGIN
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON s.TransId = b.TransId
 			WHERE s.RequestId = @RequestId
 			UNION ALL 
-			SELECT sub.TransId, bm.transdesc, CASE WHEN ISNULL(bm.betcheck,'') = '' THEN 0 ELSE b.betcheck END AS BetId,  bm.bettype
+			SELECT sub.TransId, bm.transdesc, CASE WHEN ISNULL(bm.betcheck,'') = '' THEN 0 ELSE bm.betcheck END AS BetId,  bm.bettype
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS sub WITH (NOLOCK)
 				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON sub.TransId = bm.transid
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
