@@ -147,13 +147,13 @@ BEGIN
 			AND sp.bettype =  b.bettype 
 			AND (	sp.BetID = 0 
 					OR (b.bettype NOT IN (675,676,678 ) AND b.BetID = sp.BetID )
-					OR (b.bettype IN (675,676,678 ) AND  CHARINDEX( RIGHT(CAST(b.BetID AS VARCHAR(3)),2) +  b.betteam, sp.ResourceID) > 0   )
+					OR (b.bettype IN (675,676,678 ) AND  CHARINDEX( RIGHT(CAST(b.BetID AS VARCHAR(10)),2) +  b.betteam, sp.ResourceID) > 0   )
 				) 
 		LEFT JOIN @__tmpMarkedTransaction AS mt ON mt.TransId = b.transid
 	WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN @SitedbGroupID_Central ELSE b.SiteDBGroupID END
 	GROUP BY m.matchid,m.eventstatus, sp.ResourceID, sp.SettleType,m.ParentId,m.ChildMatchType,m.sporttype
 	OPTION (FORCE ORDER)
-
+	
 	INSERT INTO #tmpMatchCount(matchid, ParentId, ChildMatchType, eventstatus,sporttype, ResourceID, settleType, TotalTicket, TotalValidTicket, TotalRunningTicket, TotalWaitingTicket, TotalMarkedTicket)
 	SELECT m.matchid
 		  ,m.ParentId
