@@ -28,6 +28,9 @@ BEGIN
 
 	DECLARE @tmpTransIdList AS TABLE (TransId BIGINT)
 	
+	DECLARE @BeforeUpd 	TVP_BalanceWalletChange
+		  , @AfterUpd 	TVP_BalanceWalletChange
+		
 	CREATE TABLE #Result_19999 (custid INT
 							, winlostdate SMALLDATETIME
 							, stake MONEY
@@ -122,12 +125,103 @@ BEGIN
 		@AffectedList = @AffectedList
 		,@IsSiteDB = 1
 
-	--Step 2: Insert routine task
+	--Step 2: Update balance correction
+	BEGIN
+		--capture balance before
+		INSERT INTO @BeforeUpd (
+			 matchid
+			,custid
+			,balanceType
+			,BonusID
+			,WalletType
+			,balance
+		)
+		SELECT matchid
+			 , custid
+			 , CASE 
+					WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154)  OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN tmp.sporttype = 162 THEN 3 -- Casino
+					ELSE 4  -- Others
+			   END AS balanceType
+			 , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END AS BonusID
+			 , ISNULL(WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
+			 , SUM(winlost - actual_stake + playercomm) AS balance
+		FROM
+		(
+			-- normal ticket
+			SELECT c.custid
+				 , b.BonusID
+				 , b.WalletType
+				 , c.winlost, c.actual_stake , c.playercomm
+				 , b.bettype, b.matchid, c.sporttype
+			FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
+				INNER JOIN dbo.bettrans14 b ON c.transid = b.transid
+			WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
+		) tmp
+		GROUP BY matchid
+			   , CustID
+			   , CASE 
+					WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN tmp.sporttype = 162 THEN 3 -- Casino
+					ELSE 4  -- Others
+				 END
+			   , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
+			   , ISNULL(WalletType, 2) -- normal tickets are treated as cash tickets
+
+		
+		--capture balance after
+		INSERT INTO @AfterUpd (
+				 matchid
+				,custid
+				,balanceType
+				,BonusID
+				,WalletType
+				,balance
+			)
+		SELECT matchid	
+			 , custid
+			 , CASE 
+					WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN tmp.sporttype = 162 THEN 3 -- Casino
+					ELSE 4  -- Others
+			   END AS balanceType
+			 , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END AS BonusID
+			 , ISNULL(WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
+			 , SUM(winlost - actual_stake + playercomm) balance
+		FROM
+		(
+			-- normal ticket
+			SELECT b.custid
+				 , b.BonusID
+				 , b.WalletType
+				 , b.winlost, b.actual_stake ,b.playercomm, b.bettype, b.matchid, b.sporttype
+			FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
+			WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
+		) tmp
+		GROUP BY matchid
+			   , CustID
+			   , CASE 
+					WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN tmp.sporttype = 162 THEN 3 -- Casino
+					ELSE 4  -- Others
+				 END
+			   , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
+			   , ISNULL(WalletType, 2) -- normal tickets are treated as cash tickets
+	
+		---INSERT data into pending balance table   
+		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+			  @BalanceWalletBefore	= @BeforeUpd
+			, @BalanceWalletAfter	= @AfterUpd
+			, @ActionId				= 0
+	END
+
+	--Step 3: Insert routine task
 	EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
 		@AffectedList = @AffectedList
 		,@IsSiteDB = 1
 
-	--Step 3: Insert Balance Trigger
+	--Step 4: Insert Balance Trigger
 	BEGIN
 		--capture before for balance trigger
 		INSERT INTO #BeforeTransId14( 
@@ -292,7 +386,7 @@ BEGIN
 		DROP TABLE #BeforeTransId14
 	END
 
-	--Step 4: Delete list ticket input into table (TVS_BetTicket14)
+	--Step 5: Delete list ticket input into table (TVS_BetTicket14)
 	DELETE FROM TVS_BetTicket14
 	WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = transid)
 
