@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20250819@Hughie.Pham: Created [RedmineID: #232955]
+		- 20250925@Hughie: Apply SOP for Outright phase 2 [Redmine:#233004]
 
 	Example:			
 */
@@ -33,6 +34,7 @@ BEGIN
 				,[t].[CreatedDate] = [tvp].[CreatedDate]
 				,[t].[ModifiedBy] = [tvp].[ModifiedBy]
 				,[t].[ModifiedDate] = [tvp].[ModifiedDate]
+				,[t].[SettledBy] = [tvp].[SettledBy]
 				,[t].[OtherInfo] = [tvp].[OtherInfo]
 				,[t].[RepUpdateTime] = CASE WHEN [tvp].[RepUpdateTime] > ISNULL([t].[RepUpdateTime],'') THEN [tvp].[RepUpdateTime] ELSE [t].[RepUpdateTime] END
 		WHEN MATCHED AND [tvp].isDeleted = 1 THEN
@@ -50,6 +52,7 @@ BEGIN
 				,[CreatedDate]
 				,[ModifiedBy]
 				,[ModifiedDate]
+				,[SettledBy]
 				,[OtherInfo]
 				,[RepUpdateTime])
 			VALUES ([tvp].[Orid]
@@ -64,6 +67,7 @@ BEGIN
 				,[tvp].[CreatedDate]
 				,[tvp].[ModifiedBy]
 				,[tvp].[ModifiedDate]
+				,[tvp].[SettledBy]
 				,[tvp].[OtherInfo]
 				,[tvp].[RepUpdateTime])
 		OUTPUT $action, [deleted].[Orid], [tvp].[RepUpdateTime]

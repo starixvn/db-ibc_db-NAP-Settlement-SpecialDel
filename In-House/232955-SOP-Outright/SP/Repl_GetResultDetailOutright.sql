@@ -11,6 +11,7 @@ AS
 	
 	Revisions:
 		- 20250819@Hughie.Pham: Scale out DBCUST [RedmineID: #232955]
+		- 20250925@Hughie: Apply SOP for Outright phase 2 [Redmine:#233004]
 
 	Example:
 */
@@ -35,7 +36,7 @@ BEGIN
 			FROM [dbo].[ResultDetailOutright_Del_InHouse] WITH (NOLOCK)
 			WHERE [RepUpdateTime] > @start AND [RepUpdateTime] < @__time_upperbound	
 		) t
-		ORDER BY [RepUpdateTime]
+		ORDER BY [RepUpdateTime] ASC
     )
     SELECT @__time_end = ISNULL(MAX([RepUpdateTime]), @start) FROM CTE_Timestamp;
 	
@@ -57,6 +58,7 @@ BEGIN
 			,[CreatedDate]
 			,[ModifiedBy]
 			,[ModifiedDate]
+			,[SettledBy]
 			,[OtherInfo]
 			,[RepUpdateTime]
 			,0 AS [isDeleted]
@@ -76,6 +78,7 @@ BEGIN
 			,[CreatedDate]
 			,[ModifiedBy]
 			,[ModifiedDate]
+			,[SettledBy]
 			,[OtherInfo]
 			,[RepUpdateTime]
 			,0 AS [isDeleted]
@@ -95,6 +98,7 @@ BEGIN
 			,'' AS [CreatedDate]
 			,0 AS [ModifiedBy]
 			,'' AS [ModifiedDate]
+			,0 AS [SettledBy]
 			,'' AS [OtherInfo]
 			,MAX(RepUpdateTime) AS [RepUpdateTime]
 			,1 AS [isDeleted]
@@ -106,6 +110,6 @@ BEGIN
 							WHERE [c].[Orid] = [del].[Orid]
 								)
 		GROUP BY [Orid] 	
-		ORDER BY [RepUpdateTime]	
+		ORDER BY [RepUpdateTime] ASC
 	END
 END
