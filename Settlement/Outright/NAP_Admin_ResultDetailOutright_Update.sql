@@ -74,7 +74,7 @@ SET NOCOUNT ON
 		SET r.SumWon = (SELECT COUNT(1) FROM ResultDetailOutright WITH (NOLOCK) WHERE leagueid = @LeagueId AND Result = 'WON' AND ResultStatusID <> 3)
 			,r.RepUpdateTime = dbo.f_GetDateTime2()
 		FROM ResultDetailOutright r
-		WHERE r.leagueid = @LeagueId AND r.Result = 'WON'
+		WHERE r.leagueid = @LeagueId AND r.Result = 'WON' AND ResultStatusID <> 3
 	END
 	ELSE IF EXISTS (SELECT 1 FROM ResultDetailOutright r WITH (NOLOCK) WHERE leagueid = @LeagueId AND r.Orid = @Orid AND Result <> 'WON')
 	BEGIN
