@@ -1195,7 +1195,7 @@ BEGIN
 			,m.betcheck AS 'betcheck'
 			,m.Subchecktime AS 'Subchecktime'
 			,m.IsMixParlay AS 'IsMixParlay'
-			,m.Transdesc AS 'Transdesc'
+			,m.SubTransdesc AS 'Transdesc'
 			,m.betdaqid AS 'betdaqid'
 			,m.WalletType AS 'WalletType'
 			,m.RefCode AS 'RefCode'

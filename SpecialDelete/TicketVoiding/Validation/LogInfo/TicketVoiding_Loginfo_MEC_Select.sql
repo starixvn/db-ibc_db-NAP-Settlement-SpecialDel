@@ -514,7 +514,7 @@ BEGIN
 		,b.status AS SubStatus 
 		,b.betteam AS Subbetteam  
 		,b.oddsspread AS Suboddsspread 
-		,b.transdesc SubTransdesc  
+		,b.transdesc AS SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
 		,d.SubIssueTypeId
@@ -699,7 +699,7 @@ BEGIN
 			,sub.status AS SubStatus 
 			,sub.betteam AS Subbetteam  
 			,sub.oddsspread AS Suboddsspread 
-			,sub.transdesc SubTransdesc  
+			,sub.transdesc AS SubTransdesc  
 			,b.modds
 			,sub.SiteDBGroupID
 			,d.SubIssueTypeId
@@ -1022,7 +1022,7 @@ BEGIN
 			,m.betcheck AS 'betcheck'
 			,m.Subchecktime AS 'Subchecktime'
 			,m.IsMixParlay AS 'IsMixParlay'
-			,m.Transdesc AS 'Transdesc'
+			,m.SubTransdesc AS 'Transdesc'
 			,m.betdaqid AS 'betdaqid'
 			,m.WalletType AS 'WalletType'
 			,m.RefCode AS 'RefCode'
