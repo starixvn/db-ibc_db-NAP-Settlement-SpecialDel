@@ -34,6 +34,7 @@ AS
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230103@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20250926@July: Define logaction for confirm auto unmark [Redmine: #240106]
 
 	Param's explanation:	
 		
@@ -85,7 +86,7 @@ BEGIN
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
 		AND mt.MarkType <> 2
-		AND mt.TransId NOT IN (SELECT transid FROM #ValidRequestTransId)
+		AND NOT EXISTS (SELECT TOP 1 1 FROM #ValidRequestTransId WHERE TransId = mt.TransId )
 		AND b.statusID IN (0, 1)
 		AND (
 			@Betid IS NULL
@@ -159,7 +160,7 @@ BEGIN
 				 @TransIds = @UnmarkTransids
 				,@UserId = @UserId
 				,@IP = @IP
-				,@LogActionId = 90501
+				,@LogActionId = 90504 -- Unmark - By confirm auto unmark
 
 			--Step 4: resettle ticket
 			IF @ResettleTransids <> '' AND @UnmarkTransids <> ''
