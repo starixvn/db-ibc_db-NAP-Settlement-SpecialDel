@@ -18,6 +18,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250828@July: Return output table [Redmine: #236438]
+		- 20250926@July: Some error with mark/unmark ticket [Redmine: #240106]
 
 	Param's explanation:	
 		
@@ -53,11 +54,7 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
-	DECLARE @Result TABLE (
-        ErrorCode INT,
-        ErrorMsg NVARCHAR(300),
-        NegativeBalanceUsers VARCHAR(MAX)
-    );
+	DECLARE @tmpError TABLE (ErrorCode INT, ErrorMsg NVARCHAR(200), NegativeBalanceUsers VARCHAR(MAX))
 
 	CREATE TABLE #tmp_TransId (
 		TransId				BIGINT
@@ -215,7 +212,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			SELECT @ErrCode = 0
-				  ,@ErrMsg = ''
+				,@ErrMsg = ''
 
 			IF DATEDIFF(SECOND, @StartTime_Retry, GETDATE()) > @limitsecond
 			BEGIN
@@ -309,23 +306,25 @@ BEGIN
 				@IsLockMatch		= 0
 
 			-- ReCalculate
-			INSERT INTO @Result (ErrorCode, ErrorMsg, NegativeBalanceUsers)
 			EXEC [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
 					@MatchId		 = @MatchId,	
 					@TransIds		 = @TransIds,
 					@UserId          = @UserId,
 					@IP              = @IP,
-					@IsLockMatch	 = 0
+					@IsLockMatch	 = 0,
+					@ErrMsg = @ErrMsg OUTPUT,
+					@ErrCode = @ErrCode OUTPUT,
+					@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
-			SELECT ErrorCode, ErrorMsg, NegativeBalanceUsers
-			FROM @Result;
-
+			IF @ErrCode <> 0 OR ISNULL(@NegativeBalanceUsers,'') <> ''
+			BEGIN
+				INSERT INTO @tmpError (ErrorCode, ErrorMsg, NegativeBalanceUsers)
+				SELECT @ErrCode, @ErrMsg, @NegativeBalanceUsers
+			END
 		END TRY	
 		BEGIN CATCH		
-			SELECT ERROR_NUMBER() AS ErrorCode
-				  ,SUBSTRING(ERROR_MESSAGE(), 1, 300) AS ErrorMsg
-			
-			RETURN			
+			INSERT INTO @tmpError (ErrorCode, ErrorMsg)
+			SELECT ERROR_NUMBER(), SUBSTRING(ERROR_MESSAGE(), 1, 300)
 		END CATCH
 			 
 		IF @isExistParlay = 1 OR @IsExistParlayVS4 = 1
@@ -362,6 +361,15 @@ BEGIN
 		END
 
 	END
+	------------------------------------------------------------------------------
+	--1. Table error code/msg transid
+	SELECT TOP 1 ErrorCode, ErrorMsg, NegativeBalanceUsers
+	FROM @tmpError
+	ORDER BY 
+		CASE WHEN ErrorCode <> 0 THEN '1'
+			 WHEN ISNULL(NegativeBalanceUsers,'') <> ''  THEN '2'
+			 ELSE '3'
+		END
 
 	DROP TABLE #tmp_TransId
 	DROP TABLE #tblMatchProcess

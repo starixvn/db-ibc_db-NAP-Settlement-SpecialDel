@@ -33,6 +33,8 @@ BEGIN
 
 	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
 
+	IF @OnlineServerId IS NULL SET @OnlineServerId = '0,1,2,3' -- Not get sitedb down for function
+
 	IF ISNULL(@OnlineServerId, '') <> ''
 	BEGIN
 		INSERT INTO @tmpOnlineServerId (ServerId)
