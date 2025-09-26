@@ -31,19 +31,20 @@ BEGIN
 	DECLARE @BeforeUpd 	TVP_BalanceWalletChange
 		  , @AfterUpd 	TVP_BalanceWalletChange
 		
-	CREATE TABLE #Result_19999 (custid INT
-							, winlostdate SMALLDATETIME
-							, stake MONEY
-							, actual_stake MONEY
-							, winlost_dif MONEY
-							, awinlost_dif MONEY
-							, mwinlost_dif MONEY
-							, swinlost_dif MONEY
-							, playercomm_dif MONEY
-							, comm_dif MONEY
-							, acomm_dif MONEY
-							, scomm_dif MONEY
-						)
+	CREATE TABLE #Result_19999 (
+			custid INT
+		  , winlostdate SMALLDATETIME
+		  , stake MONEY
+		  , actual_stake MONEY
+		  , winlost_dif MONEY
+		  , awinlost_dif MONEY
+		  , mwinlost_dif MONEY
+		  , swinlost_dif MONEY
+		  , playercomm_dif MONEY
+		  , comm_dif MONEY
+		  , acomm_dif MONEY
+		  , scomm_dif MONEY
+	)
 
 	CREATE TABLE #BeforeTransId14(
 		   matchid INT ,transid BIGINT PRIMARY KEY,betdaqid BIGINT ,sitedbgroupid SMALLINT
@@ -53,7 +54,7 @@ BEGIN
 		  ,winlost MONEY ,awinLost MONEY ,mwinLost MONEY ,swinLost MONEY
 		  ,playercomm MONEY ,comm MONEY ,acomm MONEY ,scomm MONEY, refno BIGINT
 		  ,sporttype SMALLINT, oddsid INT, ExtraInfo VARCHAR(1000), BonusID INT, WalletType TINYINT
-		)
+	)
 
 	CREATE TABLE #AfterTransId14(
 		   matchid INT ,transid BIGINT PRIMARY KEY,betdaqid BIGINT ,sitedbgroupid SMALLINT
@@ -91,7 +92,7 @@ BEGIN
 								, stake 
 								, actual_stake 
 								, winlost_dif, awinlost_dif, mwinlost_dif, swinlost_dif
-								, playercomm_dif, comm_dif, acomm_dif, scomm_dif )
+								, playercomm_dif, comm_dif, acomm_dif, scomm_dif)
 	SELECT s.CustID
 		,s.winlostdate
 		, s.stake - b.Stake AS stake
@@ -137,7 +138,7 @@ BEGIN
 			,playercomm ,comm ,acomm ,scomm, refno
 			,oddsid, ExtraInfo, BonusID, WalletType
 		)
-	SELECT b.matchid, c.TransId, b.betdaqid, @SiteDBGroupID
+	SELECT b.matchid, c.TransId, c.betdaqid, @SiteDBGroupID
 		,b.bettype, c.statusID, c.status, c.winlostdate, c.SettlementTime, c.actual_stake, b.modds
 		,b.srecommend, b.mrecommend, b.recommend, b.custid
 		,c.winlost, c.awinlost, c.mwinlost, c.swinlost
@@ -176,13 +177,6 @@ BEGIN
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
 		WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
-
-		UPDATE	b
-		SET sporttype 	= m.sporttype
-		FROM	#AfterTransId14 b
-			INNER JOIN dbo.match m WITH(NOLOCK)
-				ON	b.matchid = m.matchid
-		WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
 	
 	-- UPDATE eventtype = 2 [Outright ticket]
@@ -196,32 +190,14 @@ BEGIN
 			INNER JOIN dbo.league l WITH (NOLOCK) 
 				ON	o.leagueid = l.leagueid
 		WHERE bettype = 10
-
-		UPDATE b
-		SET sporttype	= l.sporttype
-		FROM #AfterTransId14 b
-			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
-				ON	b.matchid = o.orid
-			INNER JOIN dbo.league l WITH (NOLOCK) 
-				ON	o.leagueid = l.leagueid
-		WHERE bettype = 10
 	END
 	
-	-- -- UPDATE eventtype = 3 [VS range bettypes]
+	-- UPDATE eventtype = 3 [VS range bettypes]
 	IF(EXISTS (SELECT 1 FROM #BeforeTransId14 WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)))
 	BEGIN
 		UPDATE b
 		SET sporttype 	= r.sporttype
 		FROM #BeforeTransId14 b
-			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
-				ON b.oddsid = o.Orid
-			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
-				ON r.EventID = o.EventID
-		WHERE b.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
-
-		UPDATE b
-		SET sporttype 	= r.sporttype
-		FROM #AfterTransId14 b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 				ON b.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
@@ -238,15 +214,13 @@ BEGIN
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON d.bettype = sb.BetType
 		WHERE sb.ProductID IN (37,81,74)
-
-		UPDATE d
-		SET sporttype = sb.SportType
-		   ,matchid = CASE WHEN ProductID IN (74) THEN SUBSTRING(d.ExtraInfo,CHARINDEX('m="', d.ExtraInfo) + 3,CHARINDEX('"', d.ExtraInfo, CHARINDEX('m="', d.ExtraInfo) + 3) -(CHARINDEX('m="', d.ExtraInfo) + 3)) ELSE d.matchid END
-		FROM #AfterTransId14 d
-			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
-			ON d.bettype = sb.BetType
-		WHERE sb.ProductID IN (37,81,74)
 	END
+
+	UPDATE a
+	SET sporttype = b.sporttype
+	   ,matchid = b.matchid
+	FROM	#AfterTransId14 a
+		INNER JOIN #BeforeTransId14 b ON a.transid = b.transid
 
 	--Step 2: Update balance correction
 	BEGIN
@@ -447,8 +421,6 @@ BEGIN
 				AND d.custid <> d.mrecommend 
 				AND d.custid <> d.srecommend		
 		END	
-		DROP TABLE #AfterTransId14
-		DROP TABLE #BeforeTransId14
 	END
 
 	--Step 5: Delete list ticket input into table (TVS_BetTicket14)
@@ -456,6 +428,8 @@ BEGIN
 	WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = transid)
 
 	DROP TABLE #Result_19999
+	DROP TABLE #AfterTransId14
+	DROP TABLE #BeforeTransId14
 END		
 GO
 

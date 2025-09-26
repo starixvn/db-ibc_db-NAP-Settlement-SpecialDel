@@ -33,5 +33,3 @@ CREATE TABLE dbo.TVS_BetTicket14 (
 		,betdaqid			VARCHAR(1000)
 ) ON [DATA]
 GO
-
-SELECT * FROM TVS_BetTicket14 WITH (NOLOCK) 
