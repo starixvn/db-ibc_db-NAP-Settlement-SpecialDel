@@ -360,7 +360,7 @@ BEGIN
 	            ,LastModifyBy        = @creator
 				,ResultSetting		 = CASE WHEN @IsApplyRefundSOP = 1 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ISNULL(ResultSetting,0) & (~6) --- Turn off bit[2] bit[3]
 											ELSE ResultSetting END
-				,OtherInfo			 = CASE WHEN @Sporttype = 2 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) AND @IsSDTEarly = 0 THEN ''
+				,OtherInfo			 = CASE WHEN @Sporttype = 2 AND @Action LIKE 'UNDO%' THEN ''
 											ELSE ISNULL(SOURCE.OtherInfo, TARGET.OtherInfo)																		
 											END
 	
