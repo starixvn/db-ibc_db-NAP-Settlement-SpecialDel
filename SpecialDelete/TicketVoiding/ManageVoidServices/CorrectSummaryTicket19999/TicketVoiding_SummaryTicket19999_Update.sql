@@ -52,6 +52,7 @@ BEGIN
 		  ,srecommend INT ,mrecommend INT,recommend INT ,custid INT	
 		  ,winlost MONEY ,awinLost MONEY ,mwinLost MONEY ,swinLost MONEY
 		  ,playercomm MONEY ,comm MONEY ,acomm MONEY ,scomm MONEY, refno BIGINT
+		  ,sporttype SMALLINT, oddsid INT, ExtraInfo VARCHAR(1000), BonusID INT, WalletType TINYINT
 		)
 
 	CREATE TABLE #AfterTransId14(
@@ -61,6 +62,7 @@ BEGIN
 		  ,srecommend INT ,mrecommend INT,recommend INT ,custid INT	
 		  ,winlost MONEY ,awinLost MONEY ,mwinLost MONEY ,swinLost MONEY
 		  ,playercomm MONEY ,comm MONEY ,acomm MONEY ,scomm MONEY, refno BIGINT
+		  ,sporttype SMALLINT, oddsid INT, ExtraInfo VARCHAR(1000), BonusID INT, WalletType TINYINT
 	)
 
 	INSERT INTO @tmpTransIdList (TransId)
@@ -125,6 +127,127 @@ BEGIN
 		@AffectedList = @AffectedList
 		,@IsSiteDB = 1
 
+	--capture before for balance trigger
+	INSERT INTO #BeforeTransId14( 
+			matchid ,transid ,betdaqid ,sitedbgroupid
+			,bettype ,statusID ,Status 
+			,winlostdate ,SettlementTime ,actual_stake ,modds 
+			,srecommend ,mrecommend ,recommend ,custid	
+			,winlost ,awinLost ,mwinLost ,swinLost
+			,playercomm ,comm ,acomm ,scomm, refno
+			,oddsid, ExtraInfo, BonusID, WalletType
+		)
+	SELECT b.matchid, c.TransId, b.betdaqid, @SiteDBGroupID
+		,b.bettype, c.statusID, c.status, c.winlostdate, c.SettlementTime, c.actual_stake, b.modds
+		,b.srecommend, b.mrecommend, b.recommend, b.custid
+		,c.winlost, c.awinlost, c.mwinlost, c.swinlost
+		,c.playercomm, c.comm, c.acomm, c.scomm, b.refno
+		,b.oddsid, b.ExtraInfo, b.BonusID, b.WalletType
+	FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
+	WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
+		
+	--capture after for balance trigger
+	INSERT INTO #AfterTransId14( 
+			matchid ,transid ,betdaqid ,sitedbgroupid
+			,bettype ,statusID ,Status 
+			,winlostdate ,SettlementTime ,actual_stake ,modds 
+			,srecommend ,mrecommend ,recommend ,custid	
+			,winlost ,awinLost ,mwinLost ,swinLost
+			,playercomm ,comm ,acomm ,scomm, refno
+			,oddsid, ExtraInfo, BonusID, WalletType
+		)
+	SELECT b.matchid, b.TransId, b.betdaqid, @SiteDBGroupID
+		,b.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.modds
+		,b.srecommend, b.mrecommend, b.recommend, b.custid
+		,b.winlost, b.awinlost, b.mwinlost, b.swinlost
+		,b.playercomm, b.comm, b.acomm, b.scomm, b.refno
+		,b.oddsid, b.ExtraInfo, b.BonusID, b.WalletType
+	FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
+	WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
+
+	-- UPDATE eventtype = 1
+	IF(EXISTS (SELECT 1 FROM #BeforeTransId14 WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
+	BEGIN
+		UPDATE	b
+		SET sporttype 	= m.sporttype
+		FROM	#BeforeTransId14 b
+			INNER JOIN dbo.match m WITH(NOLOCK)
+				ON	b.matchid = m.matchid
+		WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+
+		UPDATE	b
+		SET sporttype 	= m.sporttype
+		FROM	#AfterTransId14 b
+			INNER JOIN dbo.match m WITH(NOLOCK)
+				ON	b.matchid = m.matchid
+		WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+	END
+	
+	-- UPDATE eventtype = 2 [Outright ticket]
+	IF(EXISTS (SELECT 1 FROM #BeforeTransId14 WHERE bettype = 10))
+	BEGIN
+		UPDATE b
+		SET sporttype	= l.sporttype
+		FROM #BeforeTransId14 b
+			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
+				ON	b.matchid = o.orid
+			INNER JOIN dbo.league l WITH (NOLOCK) 
+				ON	o.leagueid = l.leagueid
+		WHERE bettype = 10
+
+		UPDATE b
+		SET sporttype	= l.sporttype
+		FROM #AfterTransId14 b
+			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
+				ON	b.matchid = o.orid
+			INNER JOIN dbo.league l WITH (NOLOCK) 
+				ON	o.leagueid = l.leagueid
+		WHERE bettype = 10
+	END
+	
+	-- -- UPDATE eventtype = 3 [VS range bettypes]
+	IF(EXISTS (SELECT 1 FROM #BeforeTransId14 WHERE bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)))
+	BEGIN
+		UPDATE b
+		SET sporttype 	= r.sporttype
+		FROM #BeforeTransId14 b
+			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+				ON b.oddsid = o.Orid
+			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+				ON r.EventID = o.EventID
+		WHERE b.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
+
+		UPDATE b
+		SET sporttype 	= r.sporttype
+		FROM #AfterTransId14 b
+			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+				ON b.oddsid = o.Orid
+			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+				ON r.EventID = o.EventID
+		WHERE b.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
+	END
+	
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)/ Saba Coins (productid = 81)/Player Tips(productid = 74)
+	BEGIN
+		UPDATE d
+		SET sporttype = sb.SportType
+		   ,matchid = CASE WHEN ProductID IN (74) THEN SUBSTRING(d.ExtraInfo,CHARINDEX('m="', d.ExtraInfo) + 3,CHARINDEX('"', d.ExtraInfo, CHARINDEX('m="', d.ExtraInfo) + 3) -(CHARINDEX('m="', d.ExtraInfo) + 3)) ELSE d.matchid END
+		FROM #BeforeTransId14 d
+			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
+			ON d.bettype = sb.BetType
+		WHERE sb.ProductID IN (37,81,74)
+
+		UPDATE d
+		SET sporttype = sb.SportType
+		   ,matchid = CASE WHEN ProductID IN (74) THEN SUBSTRING(d.ExtraInfo,CHARINDEX('m="', d.ExtraInfo) + 3,CHARINDEX('"', d.ExtraInfo, CHARINDEX('m="', d.ExtraInfo) + 3) -(CHARINDEX('m="', d.ExtraInfo) + 3)) ELSE d.matchid END
+		FROM #AfterTransId14 d
+			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
+			ON d.bettype = sb.BetType
+		WHERE sb.ProductID IN (37,81,74)
+	END
+
 	--Step 2: Update balance correction
 	BEGIN
 		--capture balance before
@@ -139,71 +262,49 @@ BEGIN
 		SELECT matchid
 			 , custid
 			 , CASE 
-					WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154)  OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-					WHEN tmp.sporttype = 162 THEN 3 -- Casino
+					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154) OR bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN sporttype = 162 THEN 3 -- Casino
 					ELSE 4  -- Others
 			   END AS balanceType
 			 , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END AS BonusID
 			 , ISNULL(WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
 			 , SUM(winlost - actual_stake + playercomm) AS balance
-		FROM
-		(
-			-- normal ticket
-			SELECT c.custid
-				 , b.BonusID
-				 , b.WalletType
-				 , c.winlost, c.actual_stake , c.playercomm
-				 , b.bettype, b.matchid, c.sporttype
-			FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
-				INNER JOIN dbo.bettrans14 b ON c.transid = b.transid
-			WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
-		) tmp
+		FROM #BeforeTransId14 b
 		GROUP BY matchid
 			   , CustID
 			   , CASE 
-					WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-					WHEN tmp.sporttype = 162 THEN 3 -- Casino
+					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154) OR bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN sporttype = 162 THEN 3 -- Casino
 					ELSE 4  -- Others
 				 END
 			   , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
 			   , ISNULL(WalletType, 2) -- normal tickets are treated as cash tickets
 
-		
 		--capture balance after
 		INSERT INTO @AfterUpd (
-				 matchid
-				,custid
-				,balanceType
-				,BonusID
-				,WalletType
-				,balance
-			)
-		SELECT matchid	
+			 matchid
+			,custid
+			,balanceType
+			,BonusID
+			,WalletType
+			,balance
+		)
+		SELECT matchid
 			 , custid
 			 , CASE 
-					WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-					WHEN tmp.sporttype = 162 THEN 3 -- Casino
+					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154)  OR bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN sporttype = 162 THEN 3 -- Casino
 					ELSE 4  -- Others
 			   END AS balanceType
 			 , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END AS BonusID
 			 , ISNULL(WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
-			 , SUM(winlost - actual_stake + playercomm) balance
-		FROM
-		(
-			-- normal ticket
-			SELECT b.custid
-				 , b.BonusID
-				 , b.WalletType
-				 , b.winlost, b.actual_stake ,b.playercomm, b.bettype, b.matchid, b.sporttype
-			FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
-				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
-			WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
-		) tmp
+			 , SUM(winlost - actual_stake + playercomm) AS balance
+		FROM #AfterTransId14 b
 		GROUP BY matchid
 			   , CustID
 			   , CASE 
-					WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-					WHEN tmp.sporttype = 162 THEN 3 -- Casino
+					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154) OR bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN sporttype = 162 THEN 3 -- Casino
 					ELSE 4  -- Others
 				 END
 			   , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
@@ -223,42 +324,6 @@ BEGIN
 
 	--Step 4: Insert Balance Trigger
 	BEGIN
-		--capture before for balance trigger
-		INSERT INTO #BeforeTransId14( 
-			   matchid ,transid ,betdaqid ,sitedbgroupid
-			  ,bettype ,statusID ,Status 
-			  ,winlostdate ,SettlementTime ,actual_stake ,modds 
-			  ,srecommend ,mrecommend ,recommend ,custid	
-			  ,winlost ,awinLost ,mwinLost ,swinLost
-			  ,playercomm ,comm ,acomm ,scomm, refno
-			)
-		SELECT b.matchid, c.TransId, b.betdaqid, @SiteDBGroupID
-			,b.bettype, c.statusID, c.status, c.winlostdate, c.SettlementTime, c.actual_stake, b.modds
-			,b.srecommend, b.mrecommend, b.recommend, b.custid
-			,c.winlost, c.awinlost, c.mwinlost, c.swinlost
-			,c.playercomm, c.comm, c.acomm, c.scomm, b.refno
-		FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
-			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
-		WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
-		
-		--capture after for balance trigger
-		INSERT INTO #AfterTransId14( 
-			   matchid ,transid ,betdaqid ,sitedbgroupid
-			  ,bettype ,statusID ,Status 
-			  ,winlostdate ,SettlementTime ,actual_stake ,modds 
-			  ,srecommend ,mrecommend ,recommend ,custid	
-			  ,winlost ,awinLost ,mwinLost ,swinLost
-			  ,playercomm ,comm ,acomm ,scomm, refno
-			)
-		SELECT b.matchid, b.TransId, b.betdaqid, @SiteDBGroupID
-			,b.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.modds
-			,b.srecommend, b.mrecommend, b.recommend, b.custid
-			,b.winlost, b.awinlost, b.mwinlost, b.swinlost
-			,b.playercomm, b.comm, b.acomm, b.scomm, b.refno
-		FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
-			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
-		WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
-
 		IF @IsSiteDB = 1
 		BEGIN
 			-- Insert statements for trigger here
