@@ -769,11 +769,10 @@ BEGIN
 			 , b.settlementstatus AS 'SettlementStatus'
 			 , b.sporttype AS 'Sporttype'
 			 , b.isDeposit AS 'IsDeposit' 
-			 , ISNULL(tb.ParentId, b.Subbettype) AS 'GroupBettypeId'
+			 , b.GroupDisplay AS 'GroupBettypeId'
 			 , CASE WHEN b.IsMixParlay = 1 THEN 'Parlay' ELSE 'Single' END AS 'GroupName'
 		FROM @tmpLogInfoTickets AS s
 			INNER JOIN #TVSTicketBets AS b ON s.transId = b.Subtransid
-			LEFT JOIN @tmpConsolidatedBettypes AS tb ON tb.TypeId = b.Subbettype
 	FOR JSON PATH))
 
 	UPDATE v
