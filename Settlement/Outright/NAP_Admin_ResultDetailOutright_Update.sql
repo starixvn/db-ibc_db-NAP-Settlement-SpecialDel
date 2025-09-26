@@ -14,6 +14,7 @@ AS
     
     Revisions:   
 		- 20250805@Hughie: Created [Redmine:#232955]
+		- 20250805@Hughie: Apply SOP for Outright phase 2 [Redmine:#233004]
 
 	Param's Explanation:
 
