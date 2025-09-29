@@ -10,10 +10,9 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Update]
     @IP              VARCHAR(15)   = NULL
 )
 AS
-/*	Created by: Max
-	Date 20200212
+/*	Created by: 20200212@Max
 	Task: Abnormal Void Bets Automation [Redmine: #128359]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20200212@Max: Create new SP [Redmine: #128359]
@@ -48,8 +47,7 @@ BEGIN
           , @ErrCode			INT   = 0
 	      , @NegativeBalanceUsers VARCHAR(MAX) = ''	
 
-	DECLARE @IsCalQueue	BIT = 0
-		   ,@SiteDBGroupID	SMALLINT = 0
+	DECLARE @SiteDBGroupID	SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT,statuswinlost TINYINT,IsMixParlay BIT)
