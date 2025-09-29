@@ -20,9 +20,9 @@ BEGIN
 
 	DECLARE	@SiteDBGroupID			SMALLINT
 		   ,@BeingBalanceUpDate		VARCHAR(255)
-		   ,@IsBeingBalanceUpDate	BIT
-		   ,@InvalidTransIds		VARCHAR(MAX) = ''
 		   ,@BalanceUpDate			DATETIME
+		   ,@InvalidTransIds		VARCHAR(MAX) = ''
+		   ,@BalanceUpTransIds		VARCHAR(MAX) = ''
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	
@@ -85,10 +85,10 @@ BEGIN
 	IF @BeingBalanceUpDate IS NOT NULL 
 		AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate = @BalanceUpDate)
 	BEGIN
-		SET @IsBeingBalanceUpDate = 1 --Show tooltip: Being BalanceUp Date
-		
-		SELECT @IsBeingBalanceUpDate AS IsBeingBalanceUpDate
-		RETURN;
+		SELECT @BalanceUpTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+										FROM #validTransId t
+										WHERE winlostdate = @BalanceUpDate
+										FOR XML PATH('')), 1, 1, ''), '')
 	END
 
 	-- Invalid transId
@@ -96,11 +96,17 @@ BEGIN
 										FROM @tmpTransIdList t
 										WHERE NOT EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE transid = t.transid)
 										FOR XML PATH('')), 1, 1, ''), '')
-	IF @InvalidTransIds IS NOT NULL 
+	
+	IF ISNULL(@InvalidTransIds,'') <> '' OR ISNULL(@BalanceUpTransIds,'') <> ''
 	BEGIN
 		SELECT @InvalidTransIds AS InvalidTransIds
+		      ,@BalanceUpTransIds AS BalanceUpTransIds
+
 		RETURN;
 	END
+
+	SELECT @InvalidTransIds AS InvalidTransIds
+		  ,@BalanceUpTransIds AS BalanceUpTransIds
 
 	INSERT INTO TVS_BetTicket14 (TransId, CustId, Winlostdate, statusID, status, SettlementTime, 
 								stake, actual_stake, winlost, awinlost, mwinlost, swinlost,
