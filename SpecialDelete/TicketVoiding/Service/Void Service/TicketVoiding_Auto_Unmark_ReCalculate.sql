@@ -232,11 +232,11 @@ BEGIN
 					EXEC dbo.NAP_Admin_CheckingProcess
 						@IsLockingByRefno		= @isExistParlay
 						,@IsLockingByRefnoVS	= @IsExistParlayVS4
-						,@spName			= @spName
-						,@Session			= @Session
-						,@avaiableProcess 	= @avaiableProcess OUTPUT
-						,@ErrCode			= @ErrCode OUTPUT
-						,@ErrMsg			= @ErrMsg OUTPUT
+						,@spName				= @spName
+						,@Session				= @Session
+						,@avaiableProcess 		= @avaiableProcess OUTPUT
+						,@ErrCode				= @ErrCode OUTPUT
+						,@ErrMsg				= @ErrMsg OUTPUT
 
 					IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 					BEGIN	
@@ -253,6 +253,7 @@ BEGIN
 					EXEC dbo.NAP_Admin_CheckingProcess
 						@isExistParlay 			= @isExistParlay
 						,@IsLockingByRefnoVS	= @IsExistParlayVS4
+						,@spName				= @spName
 						,@avaiableProcess 		= @avaiableProcess OUTPUT
 						,@ErrCode				= @ErrCode OUTPUT
 						,@ErrMsg				= @ErrMsg OUTPUT
