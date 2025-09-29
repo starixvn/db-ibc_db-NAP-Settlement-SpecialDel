@@ -92,6 +92,7 @@ AS
 		- 20241022@July: [TVS] New Issue Type "Other Issues" [Redmine: #211913]
 		- 20250108@Lani: [TVS] Separate SP of updating request detail for wrong HDP/OU and 1st HDP/OU issue types [Redmine: #215545]
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
+		- 20250929@Lani: [TVS] Second Team Batting - New Issue Type [Redmine: #236104]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -359,7 +360,7 @@ BEGIN
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest
 		END
-		ELSE IF @IssueTypeId IN (24)
+		ELSE IF @IssueTypeId IN (24, 28) --Technical Error, Second Team Batting
 		BEGIN
 			EXEC dbo.TicketVoiding_RequestDetail_TE_Update
 					 @RequestId		 = @RequestId		

@@ -85,6 +85,7 @@ AS
 		- 20250514@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 		- 20250725@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
 		- 20250724@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
+		- 20250929@Lani: [TVS] Second Team Batting - New Issue Type [Redmine: #236104]
 
 	Param's explanation:
 		
@@ -249,7 +250,7 @@ BEGIN
 			,@NotParticipateInfo   = @NotParticipateInfo
 			,@OnlineServerId	   = @OnlineServerId
 	END
-	ELSE IF @IssueTypeId = 24 --Technical Error
+	ELSE IF @IssueTypeId IN (24,28) --Technical Error, Second Team Batting
 	BEGIN
 		EXEC dbo.TicketVoiding_LogInfo_ADVMode_Select
 			 @RequestId			   = @RequestId
