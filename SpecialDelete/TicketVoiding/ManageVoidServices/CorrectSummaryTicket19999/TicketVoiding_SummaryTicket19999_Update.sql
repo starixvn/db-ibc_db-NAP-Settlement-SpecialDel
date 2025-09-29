@@ -138,7 +138,7 @@ BEGIN
 			,playercomm ,comm ,acomm ,scomm, refno
 			,oddsid, ExtraInfo, BonusID, WalletType
 		)
-	SELECT b.matchid, c.TransId, c.betdaqid, @SiteDBGroupID
+	SELECT b.matchid, c.TransId, c.betdaqid, b.SiteDBGroupID
 		,b.bettype, c.statusID, c.status, c.winlostdate, c.SettlementTime, c.actual_stake, b.modds
 		,b.srecommend, b.mrecommend, b.recommend, b.custid
 		,c.winlost, c.awinlost, c.mwinlost, c.swinlost
@@ -147,6 +147,7 @@ BEGIN
 	FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
 	WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
+		AND b.SiteDBGroupID = @SiteDBGroupID
 		
 	--capture after for balance trigger
 	INSERT INTO #AfterTransId14( 
@@ -158,7 +159,7 @@ BEGIN
 			,playercomm ,comm ,acomm ,scomm, refno
 			,oddsid, ExtraInfo, BonusID, WalletType
 		)
-	SELECT b.matchid, b.TransId, b.betdaqid, @SiteDBGroupID
+	SELECT b.matchid, b.TransId, b.betdaqid, b.SiteDBGroupID
 		,b.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.modds
 		,b.srecommend, b.mrecommend, b.recommend, b.custid
 		,b.winlost, b.awinlost, b.mwinlost, b.swinlost
@@ -167,16 +168,17 @@ BEGIN
 	FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
 	WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
+		AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS (SELECT 1 FROM #BeforeTransId14 WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
+	IF(EXISTS (SELECT 1 FROM #BeforeTransId14 b WHERE NOT EXISTS (SELECT TOP 1 1 FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1) AND b.bettype = bettype)))
 	BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
 		FROM	#BeforeTransId14 b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
-		WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1) AND b.bettype = bettype)
 	END
 	
 	-- UPDATE eventtype = 2 [Outright ticket]
@@ -236,7 +238,7 @@ BEGIN
 		SELECT matchid
 			 , custid
 			 , CASE 
-					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154) OR bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154) OR bettype IN (29,10) THEN 1 -- Sports
 					WHEN sporttype = 162 THEN 3 -- Casino
 					ELSE 4  -- Others
 			   END AS balanceType
@@ -247,7 +249,7 @@ BEGIN
 		GROUP BY matchid
 			   , CustID
 			   , CASE 
-					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154) OR bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154) OR bettype IN (29,10) THEN 1 -- Sports
 					WHEN sporttype = 162 THEN 3 -- Casino
 					ELSE 4  -- Others
 				 END
@@ -266,7 +268,7 @@ BEGIN
 		SELECT matchid
 			 , custid
 			 , CASE 
-					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154)  OR bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154)  OR bettype IN (29,10) THEN 1 -- Sports
 					WHEN sporttype = 162 THEN 3 -- Casino
 					ELSE 4  -- Others
 			   END AS balanceType
@@ -277,7 +279,7 @@ BEGIN
 		GROUP BY matchid
 			   , CustID
 			   , CASE 
-					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154) OR bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN (sporttype BETWEEN 1 AND 99 OR sporttype = 154) OR bettype IN (29,10) THEN 1 -- Sports
 					WHEN sporttype = 162 THEN 3 -- Casino
 					ELSE 4  -- Others
 				 END
@@ -425,7 +427,7 @@ BEGIN
 
 	--Step 5: Delete list ticket input into table (TVS_BetTicket14)
 	DELETE FROM TVS_BetTicket14
-	WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = transid)
+	WHERE EXISTS( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = transid)
 
 	DROP TABLE #Result_19999
 	DROP TABLE #AfterTransId14
