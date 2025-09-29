@@ -1096,7 +1096,7 @@ BEGIN
 			SELECT TOP 1 1 
 			FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype 
-				AND (tp.PlayerAndOdds = 'All' OR (b.BetTeam = LEFT(tp.PlayerAndOdds,2) AND b.FilterOddsId = SUBSTRING(tp.PlayerAndOdds,4,LEN(tp.PlayerAndOdds))))
+				AND (tp.PlayerAndOdds = 'All' OR (b.FilterBetTeam = LEFT(tp.PlayerAndOdds,2) AND b.FilterOddsId = SUBSTRING(tp.PlayerAndOdds,4,LEN(tp.PlayerAndOdds))))
 		)
 
 		IF @OddsFilter IS NOT NULL
