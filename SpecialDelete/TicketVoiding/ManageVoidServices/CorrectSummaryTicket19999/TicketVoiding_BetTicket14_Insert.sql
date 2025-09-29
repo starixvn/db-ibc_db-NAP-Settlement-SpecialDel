@@ -116,6 +116,7 @@ BEGIN
 		playercomm, comm, acomm, scomm, betdaqid
 	FROM dbo.bettrans14 b WITH (NOLOCK)
 	WHERE EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE TransId = b.TransId)
+		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.TVS_BetTicket14 tvs WITH (NOLOCK) WHERE tvs.transid = transid) 
 
 	DROP TABLE #validTransId
 END		
