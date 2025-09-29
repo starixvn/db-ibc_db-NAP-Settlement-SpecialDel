@@ -71,10 +71,10 @@ SET NOCOUNT ON
 	IF EXISTS (SELECT 1 FROM ResultDetailOutright r WITH (NOLOCK) WHERE leagueid = @LeagueId AND r.Orid = @Orid AND Result = 'WON')
 	BEGIN
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
-		SET r.SumWon = (SELECT COUNT(1) FROM ResultDetailOutright WITH (NOLOCK) WHERE leagueid = @LeagueId AND Result = 'WON' AND ResultStatusID <> 3)
+		SET r.SumWon = (SELECT COUNT(1) FROM ResultDetailOutright WITH (NOLOCK) WHERE leagueid = @LeagueId AND Result = 'WON' AND ResultStatusID = 5)
 			,r.RepUpdateTime = dbo.f_GetDateTime2()
 		FROM ResultDetailOutright r
-		WHERE r.leagueid = @LeagueId AND r.Result = 'WON' AND ResultStatusID <> 3
+		WHERE r.leagueid = @LeagueId AND r.Result = 'WON' AND ResultStatusID = 5
 	END
 	ELSE IF EXISTS (SELECT 1 FROM ResultDetailOutright r WITH (NOLOCK) WHERE leagueid = @LeagueId AND r.Orid = @Orid AND Result <> 'WON')
 	BEGIN

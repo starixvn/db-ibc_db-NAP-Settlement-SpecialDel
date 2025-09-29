@@ -82,7 +82,7 @@ BEGIN
 	SELECT r.leagueid, COUNT(r.orid) AS COUNTWON 
 	FROM ResultDetailOutright AS r WITH (NOLOCK)
 	INNER JOIN @tmpLeague AS tl ON tl.LeagueID = r.leagueid
-	WHERE r.Result = 'WON' AND r.ResultStatusID <> 3
+	WHERE r.Result = 'WON' AND r.ResultStatusID = 5
 	GROUP BY r.leagueid
 
 	SELECT
