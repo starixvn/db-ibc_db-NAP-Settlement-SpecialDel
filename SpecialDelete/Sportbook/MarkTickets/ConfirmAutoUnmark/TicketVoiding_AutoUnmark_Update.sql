@@ -192,7 +192,7 @@ BEGIN
 		CASE WHEN ErrorCode <> 0 THEN '1'
 			 WHEN ISNULL(NegativeBalanceUsers,'') <> ''  THEN '2'
 			 ELSE '3'
-		END
+		END ASC
 
 	DROP TABLE #inputRequestTransId
 	DROP TABLE #ValidRequestTransId

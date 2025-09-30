@@ -20,7 +20,7 @@ AS
 		- 20250828@July: Return output table [Redmine: #236438]
 		- 20250926@July: Some error with mark/unmark ticket [Redmine: #240106]
 
-	Param's explanation:	
+	Param's explanation:	  
 		
 */
 BEGIN
