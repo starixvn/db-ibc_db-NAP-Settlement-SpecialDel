@@ -28,13 +28,13 @@ BEGIN
 	INSERT INTO #__matchList (matchid)
 	SELECT DISTINCT m.matchid
 	FROM dbo.match m WITH(NOLOCK)
-	WHERE leagueid IN (SELECT l.leagueid FROM dbo.League l WITH(NOLOCK) WHERE l.isTest = 1)
+	WHERE EXISTS (SELECT TOP 1 1 FROM dbo.League l WITH(NOLOCK) WHERE l.isTest = 1 AND m.leagueid = l.leagueid)
 	
 	CREATE TABLE #__autoVoid_TransList (TransId BIGINT)
 	INSERT INTO #__autoVoid_TransList (TransId)
 	SELECT b.TransId
 	FROM dbo.bettrans b WITH(NOLOCK)
-	WHERE b.matchid IN (SELECT t.matchid FROM #__matchList t)
+	WHERE EXISTS (SELECT TOP 1 1 FROM #__matchList t WHERE t.matchid = b.matchid)
 		AND b.currency = 20 AND b.transdate < @__checkTime
 		AND b.bettype <= 19000 AND b.statusID = 1 --waiting
 
