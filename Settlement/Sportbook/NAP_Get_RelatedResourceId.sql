@@ -20,7 +20,7 @@ BEGIN
 
 	;WITH cte_related AS
 	(	SELECT  r.value AS ResourceID 
-			,JSON_VALUE(sp.APSetting,'$."relatedCalResources"')  AS  RelatedCalResourceIds
+			,JSON_VALUE(sp.APSetting,'$."relatedBettype"')  AS  RelatedBettype
 			FROM string_split(@ResourceIDs,',') r
 				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 					ON r.value = sp.ResourceID
