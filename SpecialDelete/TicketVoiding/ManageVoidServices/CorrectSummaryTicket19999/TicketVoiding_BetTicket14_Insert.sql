@@ -43,44 +43,30 @@ BEGIN
 
 	CREATE TABLE #validTransId (
 		transid			BIGINT PRIMARY KEY
-		,StatusId		INT
 		,bettype		SMALLINT
 		,matchid		INT
-		,betfrom		NVARCHAR(4)
 		,winlostdate	DATETIME
-		,betdaqid		BIGINT
 		,custid			INT	
-		,betid			BIGINT
 		,SiteDBGroupID  SMALLINT
 	)
 
 	INSERT INTO #validTransId (
 		transid
-		,StatusId
 		,bettype
 		,matchid
-		,betfrom
 		,winlostdate
-		,betdaqid
 		,custid
 		,SiteDBGroupID
-		,betid
 		)
 	SELECT b.transid
-		,statusID
 		,bettype
 		,matchid
-		,betfrom
 		,winlostdate
-		,betdaqid
 		,custid
 		,SiteDBGroupID
-		,betid
 	FROM @tmpTransIdList t
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
-	WHERE b.statusID NOT IN (101, 102, 103)
-		AND b.betfrom <> 'P'
-		AND b.SiteDBGroupID = @SiteDBGroupID
+	WHERE b.SiteDBGroupID = @SiteDBGroupID
 	
 	IF @BeingBalanceUpDate IS NOT NULL 
 		AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate = @BalanceUpDate)
@@ -108,15 +94,16 @@ BEGIN
 	SELECT @InvalidTransIds AS InvalidTransIds
 		  ,@BalanceUpTransIds AS BalanceUpTransIds
 
+	TRUNCATE TABLE TVS_BetTicket14
+
 	INSERT INTO TVS_BetTicket14 (TransId, CustId, Winlostdate, statusID, status, SettlementTime, 
 								stake, actual_stake, winlost, awinlost, mwinlost, swinlost,
 								playercomm, comm, acomm, scomm, betdaqid)
-	SELECT TransId, CustId, Winlostdate, statusID, status, SettlementTime, 
+	SELECT b.TransId, b.CustId, b.Winlostdate, statusID, status, SettlementTime, 
 		stake, actual_stake, winlost, awinlost, mwinlost, swinlost,
 		playercomm, comm, acomm, scomm, betdaqid
-	FROM dbo.bettrans14 b WITH (NOLOCK)
-	WHERE EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE TransId = b.TransId)
-		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.TVS_BetTicket14 tvs WITH (NOLOCK) WHERE tvs.transid = transid) 
+	FROM #validTransId v
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON v.transid = b.transid
 
 	DROP TABLE #validTransId
 END		

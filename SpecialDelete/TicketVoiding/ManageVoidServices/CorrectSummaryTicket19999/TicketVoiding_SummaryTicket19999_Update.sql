@@ -1,8 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_SummaryTicket19999_Update]
-(
-	  @TransIds          VARCHAR(MAX) = NULL	
-)
 AS
 /*	
 	Created by: 20250919@July
@@ -19,15 +16,13 @@ BEGIN
 
 	DECLARE @SiteDBGroupID			  SMALLINT
 	      , @AffectedList			  VARCHAR(MAX) = NULL
-		  ,	@IsSiteDB				  BIT 
+		  ,	@IsSiteDB				  BIT
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 			SET @IsSiteDB = 1
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	DECLARE @tmpTransIdList AS TABLE (TransId BIGINT)
-	
 	DECLARE @BeforeUpd 	TVP_BalanceWalletChange
 		  , @AfterUpd 	TVP_BalanceWalletChange
 		
@@ -66,11 +61,6 @@ BEGIN
 		  ,sporttype SMALLINT, oddsid INT, ExtraInfo VARCHAR(1000), BonusID INT, WalletType TINYINT
 	)
 
-	INSERT INTO @tmpTransIdList (TransId)
-	SELECT DISTINCT value 
-	FROM STRING_SPLIT(@TransIds, ',')
-	WHERE value <> ''
-
 	;WITH CTE_SumBettrans14 AS (
 		SELECT b14.CustID, b14.winlostdate
 			 , SUM(stake) AS stake
@@ -85,7 +75,6 @@ BEGIN
 			 , SUM(scomm) AS scomm
 		FROM dbo.bettrans14 b14 WITH (NOLOCK) 
 		WHERE b14.SiteDBGroupID = @SiteDBGroupID
-			AND	EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = b14.transid)
 		GROUP BY b14.CustID, b14.winlostdate
 	)
 	INSERT INTO #Result_19999 (custid, winlostdate
@@ -126,7 +115,7 @@ BEGIN
 	--Step 1: Update 19999	
 	EXEC dbo.TicketVoiding_Admin_Bet14_19999 
 		@AffectedList = @AffectedList
-		,@IsSiteDB = 1
+		,@IsSiteDB = @IsSiteDB
 
 	--capture before for balance trigger
 	INSERT INTO #BeforeTransId14( 
@@ -146,8 +135,7 @@ BEGIN
 		,b.oddsid, b.ExtraInfo, b.BonusID, b.WalletType
 	FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
-	WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
-		AND b.SiteDBGroupID = @SiteDBGroupID
+	WHERE b.SiteDBGroupID = @SiteDBGroupID
 		
 	--capture after for balance trigger
 	INSERT INTO #AfterTransId14( 
@@ -167,8 +155,7 @@ BEGIN
 		,b.oddsid, b.ExtraInfo, b.BonusID, b.WalletType
 	FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
-	WHERE EXISTS ( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = c.transid)
-		AND b.SiteDBGroupID = @SiteDBGroupID
+	WHERE b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS (SELECT 1 FROM #BeforeTransId14 b WHERE NOT EXISTS (SELECT TOP 1 1 FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1) AND b.bettype = bettype)))
@@ -296,7 +283,7 @@ BEGIN
 	--Step 3: Insert routine task
 	EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
 		@AffectedList = @AffectedList
-		,@IsSiteDB = 1
+		,@IsSiteDB = @IsSiteDB
 
 	--Step 4: Insert Balance Trigger
 	BEGIN
@@ -425,9 +412,8 @@ BEGIN
 		END	
 	END
 
-	--Step 5: Delete list ticket input into table (TVS_BetTicket14)
-	DELETE FROM TVS_BetTicket14
-	WHERE EXISTS( SELECT TOP 1 1 FROM @tmpTransIdList t WHERE t.TransId = transid)
+	--Step 5: Truncate table (TVS_BetTicket14)
+	TRUNCATE TABLE TVS_BetTicket14
 
 	DROP TABLE #Result_19999
 	DROP TABLE #AfterTransId14
