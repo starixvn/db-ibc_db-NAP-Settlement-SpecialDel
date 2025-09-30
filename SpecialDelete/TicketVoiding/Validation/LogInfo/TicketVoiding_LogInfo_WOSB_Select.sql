@@ -751,7 +751,7 @@ BEGIN
 			,sub.betteam
 			,CASE WHEN (sub.bettype BETWEEN 653 AND 688) AND (sub.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(sub.transdesc,'$.pid') ELSE sub.transdesc END AS GroupTransdesc
 			,sub.betcheck
-			,b.OddsId
+			,sub.OddsId
 			,d.SubIssueTypeId
 			,b.odds
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown

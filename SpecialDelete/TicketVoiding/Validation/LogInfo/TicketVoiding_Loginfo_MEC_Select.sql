@@ -721,7 +721,7 @@ BEGIN
 			,sub.betteam AS GroupBetteam
 			,CASE WHEN (sub.bettype BETWEEN 653 AND 688) AND (sub.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(sub.transdesc,'$.pid') ELSE sub.transdesc END AS GroupTransdesc
 			,sub.betcheck AS Groupbetid
-			,b.OddsId AS GroupOddsId
+			,sub.OddsId AS GroupOddsId
 			,d.Id AS GroupId
 		FROM #FilterInfo d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
