@@ -63,17 +63,18 @@ BEGIN
 
 	;WITH CTE_SumBettrans14 AS (
 		SELECT b14.CustID, b14.winlostdate
-			 , SUM(stake) AS stake
-			 , SUM(actual_stake) AS actual_stake
-			 , SUM(winlost) AS winlost
-			 , SUM(awinlost) AS awinlost
-			 , SUM(mwinlost) AS mwinlost
-			 , SUM(swinlost) AS swinlost
-			 , SUM(playercomm) AS playercomm
-			 , SUM(comm) AS comm
-			 , SUM(acomm) AS acomm
-			 , SUM(scomm) AS scomm
-		FROM dbo.bettrans14 b14 WITH (NOLOCK) 
+			 , SUM(b14.stake) AS stake
+			 , SUM(b14.actual_stake) AS actual_stake
+			 , SUM(b14.winlost) AS winlost
+			 , SUM(b14.awinlost) AS awinlost
+			 , SUM(b14.mwinlost) AS mwinlost
+			 , SUM(b14.swinlost) AS swinlost
+			 , SUM(b14.playercomm) AS playercomm
+			 , SUM(b14.comm) AS comm
+			 , SUM(b14.acomm) AS acomm
+			 , SUM(b14.scomm) AS scomm
+		FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
+			INNER JOIN dbo.bettrans14 b14 WITH (NOLOCK) ON b14.transid = c.TransId
 		WHERE b14.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY b14.CustID, b14.winlostdate
 	)
