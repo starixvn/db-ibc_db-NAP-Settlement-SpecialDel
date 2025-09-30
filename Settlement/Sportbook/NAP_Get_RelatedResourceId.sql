@@ -16,7 +16,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @tmp_ResourceId TABLE (ResourceID VARCHAR(20), RelatedCalResourceID VARCHAR(20), OrdNo BIGINT, SettleType VARCHAR(3))
+	DECLARE @tmp_ResourceId TABLE (ResourceID VARCHAR(20), RelatedBettype VARCHAR(20))
 
 	;WITH cte_related AS
 	(	SELECT  r.value AS ResourceID 
@@ -26,18 +26,11 @@ BEGIN
 					ON r.value = sp.ResourceID
 			WHERE sp.sporttype = @SportType
 	)
-	INSERT INTO @tmp_ResourceId ( ResourceID, RelatedCalResourceID, OrdNo, SettleType)
-	SELECT r.ResourceID, l.RelatedResourceId, sp.OrdNo, sp.SettleType
+	INSERT INTO @tmp_ResourceId ( ResourceID, RelatedBettype)
+	SELECT r.ResourceID, l.RelatedBettype
 	FROM cte_related r
-	CROSS APPLY( SELECt v.value AS RelatedResourceId FROM string_split(r.RelatedCalResourceIds,',') v )l
-	CROSS APPLY (	SELECT MAX(sp.OrdNo) AS OrdNo, MAX(SettleType) AS SettleType
-					 FROM dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
-					 WHERE sp.ResourceID = l.RelatedResourceId
-						AND sp.SportType = @SportType
-				)sp
+	CROSS APPLY( SELECt v.value AS RelatedBettype FROM string_split(r.RelatedBettype,',') v )l
 
-	SELECT ResourceID, RelatedCalResourceID, OrdNo, SettleType
-	FROM @tmp_ResourceId
 
 END
 GO
