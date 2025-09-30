@@ -73,6 +73,7 @@ AS
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 		- 20250819@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
+		- 20250929@Lani: [TVS] Second Team Batting - New Issue Type [Redmine: #236104]
 
 	Param's explanation:	
 		
@@ -347,7 +348,7 @@ BEGIN
 		END
 		
 	END
-	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7, 2, 19, 21, 23, 12, 24, 25, 18, 27) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU, WrongOdds, ReducedOver, Not Participate, Abandoned
+	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7, 2, 19, 21, 23, 12, 24, 25, 18, 27, 28) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU, WrongOdds, ReducedOver, Not Participate, Abandoned, Second Team Batting
 	BEGIN
 		INSERT INTO #TVSTicketBets(
 				GroupID			
