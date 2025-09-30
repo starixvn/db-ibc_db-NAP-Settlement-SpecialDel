@@ -24,6 +24,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@WrongOfferedNameInfo  	VARCHAR(MAX) = NULL
 	,@OtherIssuesInfo  			VARCHAR(MAX) = NULL
 	,@MatchEarlyCompletedInfo   VARCHAR(MAX) = NULL
+	,@SecondTeamBattingInfo		VARCHAR(MAX) =  NULL
 	,@OnlineServerId	  		VARCHAR(10) = NULL
 )
 AS
@@ -125,6 +126,7 @@ BEGIN
 					+ CASE WHEN @WrongOfferedNameInfo IS NULL THEN '' ELSE ',@WrongOfferedNameInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOfferedNameInfo) + '''' END
 					+ CASE WHEN @OtherIssuesInfo IS NULL THEN '' ELSE ',@OtherIssuesInfo = ''' + CONVERT(NVARCHAR(MAX), @OtherIssuesInfo) + '''' END
 					+ CASE WHEN @MatchEarlyCompletedInfo IS NULL THEN '' ELSE ',@MatchEarlyCompletedInfo = ''' + CONVERT(NVARCHAR(MAX), @MatchEarlyCompletedInfo) + '''' END
+					+ CASE WHEN @SecondTeamBattingInfo IS NULL THEN '' ELSE ',@SecondTeamBattingInfo = ''' + CONVERT(NVARCHAR(MAX), @SecondTeamBattingInfo) + '''' END
 					+ CASE WHEN @OnlineServerId IS NULL THEN '' ELSE ',@OnlineServerId = ''' + CONVERT(NVARCHAR(10), @OnlineServerId) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
@@ -250,7 +252,7 @@ BEGIN
 			,@NotParticipateInfo   = @NotParticipateInfo
 			,@OnlineServerId	   = @OnlineServerId
 	END
-	ELSE IF @IssueTypeId IN (24,28) --Technical Error, Second Team Batting
+	ELSE IF @IssueTypeId = 24 --Technical Error
 	BEGIN
 		EXEC dbo.TicketVoiding_LogInfo_ADVMode_Select
 			 @RequestId			   = @RequestId
@@ -300,6 +302,16 @@ BEGIN
             ,@MatchEarlyCompletedInfo = @MatchEarlyCompletedInfo
 			,@OnlineServerId	      = @OnlineServerId
     END
+	ELSE IF @IssueTypeId = 28 --Second Team Batting (use same SP of issuetype Technical Error)
+	BEGIN 
+		EXEC dbo.TicketVoiding_LogInfo_ADVMode_Select
+			 @RequestId			   = @RequestId
+			,@ActionId			   = @ActionId
+			,@IsShowLogOnly		   = @IsShowLogOnly
+			,@IssueTypeId		   = @IssueTypeId
+			,@AdvancedModeInfo	   = @SecondTeamBattingInfo
+			,@OnlineServerId	   = @OnlineServerId
+	END
 	
 	-- Write useraction log	
 	BEGIN TRY

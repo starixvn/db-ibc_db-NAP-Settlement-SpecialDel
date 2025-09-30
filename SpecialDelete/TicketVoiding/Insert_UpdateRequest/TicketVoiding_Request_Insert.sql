@@ -36,6 +36,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@WrongOddsSBInfo		VARCHAR(MAX)  = NULL
 	,@WrongOfferedNameInfo  NVARCHAR(MAX) = NULL
 	,@OtherIssuesInfo		VARCHAR(MAX) = NULL
+	,@SecondTeamBattingInfo	VARCHAR(MAX) = NULL
 	,@SessionTime			INT = 0
 	,@RequestId				INT			  = 0 OUTPUT
 AS
@@ -314,7 +315,7 @@ BEGIN
 				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END
-	ELSE IF @IssueTypeId IN (24, 28) --Technical error, Second Team Batting
+	ELSE IF @IssueTypeId IN (24) --Technical error
 	BEGIN
 		EXEC dbo.TicketVoiding_RequestDetail_TE_Update
 				 @RequestId		 = @RequestId		
@@ -358,6 +359,17 @@ BEGIN
 				,@MatchEarlyCompletedInfo = @MatchEarlyCompletedInfo
 				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
+	END
+	ELSE IF @IssueTypeId IN (28) -- Second Team Batting
+	BEGIN
+		EXEC dbo.TicketVoiding_RequestDetail_TE_Update
+					 @RequestId		 = @RequestId		
+					,@IssueTypeId	 = @IssueTypeId	
+					,@UserId		 = @UserId		
+					,@IP			 = @IP			
+					,@TechnicalErrorInfo = @SecondTeamBattingInfo
+					,@TransInfoJson	 = @TransInfoJson			
+					,@IsEditRequest	 = @IsEditRequest
 	END
 
 	IF @Operators IS NOT NULL
