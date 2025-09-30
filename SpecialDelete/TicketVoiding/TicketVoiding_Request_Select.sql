@@ -58,7 +58,6 @@ AS
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 		- 20250612@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay[Redmine: #227829]
 		- 20250707@Lani: Abnormal Bet - Send ticket of the username in AB Exception List to CTS [Redmine: #231465]
-		- 20250929@Lani: [TVS] Second Team Batting - New Issue Type [Redmine: #236104]
 
 	Param's explanation:	
 	
@@ -251,7 +250,7 @@ BEGIN
 				,@OrgTransIds AS OrgTransIds
 				,rd.ProductIds -- Apply for issuetype Recover Ticket (22)
 				,rd.AdvancedExtraInfo
-				,CASE WHEN @IssueTypeId IN (12,24,25,18,27,28) THEN rd.IssueDetail ELSE NULL END AS AllBetTypesSelectionJson -- Apply for issuetype WMO(12), TE(24),Wrong Odds(SB)(25), Other Issues(18), Match Early Completed(27), Second Team Batting(28)
+				,CASE WHEN @IssueTypeId IN (12,24,25,18,27) THEN rd.IssueDetail ELSE NULL END AS AllBetTypesSelectionJson -- Apply for issuetype WMO(12), TE(24),Wrong Odds(SB)(25), Other Issues(18)
 				,CASE WHEN @IssueTypeId IN (3) THEN 
 								  IIF(CHARINDEX('TvDetectionValue:',rd.IssueDetail) > 0
 								  , SUBSTRING(rd.IssueDetail, CHARINDEX('Act:',rd.IssueDetail) + LEN('Act:'), CHARINDEX(';TvDetectionValue:',rd.IssueDetail) - (CHARINDEX('Act:',rd.IssueDetail) + LEN('Act:')))

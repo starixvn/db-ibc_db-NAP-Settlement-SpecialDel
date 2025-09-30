@@ -35,7 +35,7 @@ AS
 		- 20250813@Lani: [TVS] Copy Request Info - Update message template - Reduced Overs / Abandoned [Redmine: #235737]
 		- 20250825@Lani: [TVS] Copy Request Info - Update message template - Wrong HDP, 1st HDP, Wrong OU, Wrong 1st OU, Wrong Odds [Redmine: #235984]
 		- 20250910@July: [TVS] Copy Request Info - Update message template - Wrong Odds - Handicap [Redmine: #236306]
-		- 20250929@Lani: [TVS] Second Team Batting - New Issue Type [Redmine: #236104]
+		
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -265,7 +265,7 @@ BEGIN
 								 , '')
 	END
 	
-	IF @IssueTypeId IN (19,21,23,12,24,25,2,4,5,6,7,27,28) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB, Wrong HDP/1stHDP, WrongOU/1stOU, Wrong Odds, Second Team Batting
+	IF @IssueTypeId IN (19,21,23,12,24,25,2,4,5,6,7,27) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB, Wrong HDP/1stHDP, WrongOU/1stOU, Wrong Odds
 	BEGIN
 		INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, BetId, Betteam, OddsId)
 		SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
