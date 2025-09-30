@@ -20,7 +20,7 @@ AS
 BEGIN
 	IF @Sporttype = 50 --Cricket
 	BEGIN
-		SELECT	s.ResourceID, o.bettype, f.betChoice, f.OddsInfo
+		SELECT	s.ResourceID, o.bettype, f.betChoice, f.OddsInfo, '' AS RelatedBettype
 		FROM	dbo.oddsOS o WITH(NOLOCK)
 			INNER JOIN dbo.oddsOS_flex f WITH(NOLOCK)
 				ON o.oddsid = f.oddsid
@@ -34,7 +34,7 @@ BEGIN
 	END
 	ELSE IF @Sporttype = 2 --Basketball player props
 	BEGIN
-		SELECT	DISTINCT s.ResourceID, o.bettype, f.betChoice, f.OddsInfo
+		SELECT	DISTINCT s.ResourceID, o.bettype, f.betChoice, f.OddsInfo, JSON_VALUE(s.APSetting,'$."relatedBettype"') AS RelatedBettype
 		FROM	dbo.odds o WITH(NOLOCK)
 			INNER JOIN dbo.odds_flex f WITH(NOLOCK)
 				ON o.oddsid = f.oddsid
