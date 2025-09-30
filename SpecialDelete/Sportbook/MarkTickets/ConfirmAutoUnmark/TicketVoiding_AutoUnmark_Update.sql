@@ -10,10 +10,9 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Update]
     @IP              VARCHAR(15)   = NULL
 )
 AS
-/*	Created by: Max
-	Date 20200212
+/*	Created by: 20200212@Max
 	Task: Abnormal Void Bets Automation [Redmine: #128359]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20200212@Max: Create new SP [Redmine: #128359]
@@ -34,6 +33,7 @@ AS
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230103@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20250926@July: Define logaction for confirm auto unmark [Redmine: #240106]
 
 	Param's explanation:	
 		
@@ -47,8 +47,7 @@ BEGIN
           , @ErrCode			INT   = 0
 	      , @NegativeBalanceUsers VARCHAR(MAX) = ''	
 
-	DECLARE @IsCalQueue	BIT = 0
-		   ,@SiteDBGroupID	SMALLINT = 0
+	DECLARE @SiteDBGroupID	SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT,statuswinlost TINYINT,IsMixParlay BIT)
@@ -85,7 +84,7 @@ BEGIN
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
 		AND mt.MarkType <> 2
-		AND mt.TransId NOT IN (SELECT transid FROM #ValidRequestTransId)
+		AND NOT EXISTS (SELECT TOP 1 1 FROM #ValidRequestTransId WHERE TransId = mt.TransId )
 		AND b.statusID IN (0, 1)
 		AND (
 			@Betid IS NULL
@@ -159,7 +158,7 @@ BEGIN
 				 @TransIds = @UnmarkTransids
 				,@UserId = @UserId
 				,@IP = @IP
-				,@LogActionId = 90501
+				,@LogActionId = 90504 -- Unmark - By confirm auto unmark
 
 			--Step 4: resettle ticket
 			IF @ResettleTransids <> '' AND @UnmarkTransids <> ''
@@ -193,7 +192,7 @@ BEGIN
 		CASE WHEN ErrorCode <> 0 THEN '1'
 			 WHEN ISNULL(NegativeBalanceUsers,'') <> ''  THEN '2'
 			 ELSE '3'
-		END
+		END ASC
 
 	DROP TABLE #inputRequestTransId
 	DROP TABLE #ValidRequestTransId
