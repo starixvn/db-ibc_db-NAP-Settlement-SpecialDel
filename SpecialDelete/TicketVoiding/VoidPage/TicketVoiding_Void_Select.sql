@@ -1469,7 +1469,75 @@ BEGIN
 										 and bettype in list of FT instant settlement bettypes are in group 'Instant Settlement'
 				4. After match is completed : No ticketes in group 'Instant Settlement'.
 		*/
-		SELECT  s.*
+		SELECT  s.transid
+			   ,s.SubTransid
+			   ,s.refno
+			   ,s.custid
+			   ,s.username
+			   ,s.transdate
+			   ,s.creator
+			   ,s.Stake
+			   ,s.odds
+			   ,s.SubOdds
+			   ,s.oddsspread
+			   ,s.OddsType
+			   ,s.bettype
+			   ,s.status
+			   ,s.SubStatus
+			   ,s.currencyname
+			   ,s.betteam
+			   ,s.SubBetTeam
+			   ,s.SubLeagueId
+			   ,s.Subhdp1
+			   ,s.Subhdp2
+			   ,s.hdp1
+			   ,s.hdp2
+			   ,s.livehomescore
+			   ,s.liveawayscore
+			   ,s.betid
+			   ,s.betcheck
+			   ,s.SubBetcheck
+			   ,s.IsMixParlay
+			   ,s.ParlayType
+			   ,s.followedId
+			   ,s.followedUsername
+			   ,s.Transdesc
+			   ,s.sporttype
+			   ,s.modds
+			   ,s.IsCricket
+			   ,s.betdaqid
+			   ,s.ExtraInfo
+			   ,s.IsCashOut
+			   ,s.GroupId
+			   ,s.OriginGroupName
+			   ,s.WalletType		   
+			   ,s.MainTransId
+			   ,s.BonusID
+			   ,s.RefCode
+			   ,s.WinLost
+			   ,s.IsMarked
+			   ,s.recommend
+			   ,s.LiveIndicator
+			   ,s.mainstatusid
+			   ,s.ActualStake
+			   ,s.matchid
+			   ,s.homeid    
+			   ,s.awayid    
+			   ,s.leagueid  
+			   ,s.isNeutral 
+			   ,s.matchcode
+			   ,s.winlostdate
+			   ,s.statusID
+			   ,s.IsDeposit
+			   ,s.eventstatus
+			   ,s.SettlementStatus
+			   ,s.SiteDBGroupID
+			   ,s.IsCancelCashOut
+			   ,s.statuswinlost
+			   ,s.CheckTimeCashOut
+			   ,s.GroupPHaffected
+			   ,s.VendorMatchId
+			   ,s.GroupBettypeId
 			   ,CASE WHEN s.eventstatus <> @eventstatus_completed AND s.mainstatusid IN (111, 112, 113) AND ISNULL(s.betdaqid,0) <> -2
 						THEN CASE WHEN s.SportType = 1 AND
 													EXISTS (SELECT TOP 1 1
