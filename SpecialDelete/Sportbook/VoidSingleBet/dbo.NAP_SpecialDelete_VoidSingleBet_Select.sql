@@ -1509,7 +1509,62 @@ BEGIN
 										 and bettype in list of FT instant settlement bettypes are in group 'Instant Settlement'
 				4. After match is completed : No ticketes in group 'Instant Settlement'.
 		*/
-		SELECT  s.*
+		SELECT  s.GroupID
+			   ,s.transid		
+			   ,s.custid		
+			   ,s.username	
+			   ,s.odds		
+			   ,s.oddsspread
+			   ,s.OddsType	
+			   ,s.transdate
+			   ,s.checktime
+			   ,s.bettype
+			   ,s.betteam		
+			   ,s.betcheck
+			   ,s.hdp1		
+			   ,s.hdp2		
+			   ,s.IsLiveIndicator
+			   ,s.livehomescore
+			   ,s.liveawayscore	
+			   ,s.Stake		
+			   ,s.CurrencyName
+			   ,s.IsDeposit	
+			   ,s.status		
+			   ,s.mrecommend	
+			   ,s.recommend	
+			   ,s.SecAcceptFlag	
+			   ,s.betid	
+			   ,s.SportType	
+			   ,s.followedId
+			   ,s.followedUsername
+			   ,s.TransDesc
+			   ,s.IsCricket
+			   ,s.refno
+			   ,s.mainstatusid
+			   ,s.OriginGroupName
+			   ,s.betdaqid
+			   ,s.ExtraInfo
+			   ,s.IsCashOut
+			   ,s.WalletType
+			   ,s.RefCode
+			   ,s.BonusID
+			   ,s.MainTransId
+			   ,s.WinLost
+			   ,s.IsMixParlay
+			   ,s.SubTransid
+			   ,s.SubStatus
+			   ,s.SubBetcheck
+			   ,s.SubBetteam
+			   ,s.SubBettype
+			   ,s.SubHdp1
+			   ,s.SubHdp2
+			   ,s.SubOdds
+			   ,s.IsMarked
+			   ,s.ActualStake
+			   ,s.SiteDBGroupId
+			   ,s.eventstatus
+			   ,s.SettlementStatus
+			   ,s.modds
 			   ,CASE WHEN s.eventstatus <> @eventstatus_completed AND s.mainstatusid IN (111, 112, 113) AND ISNULL(s.betdaqid,0) <> -2
 						THEN CASE WHEN s.SportType = 1 AND
 													EXISTS (SELECT TOP 1 1
@@ -1525,7 +1580,63 @@ BEGIN
 		FROM CTE_OriginResult s
 	)
 	, CTE_SettledTypeFiltering AS (
-		SELECT s.*
+		SELECT s.GroupID
+			   ,s.transid		
+			   ,s.custid		
+			   ,s.username	
+			   ,s.odds		
+			   ,s.oddsspread
+			   ,s.OddsType	
+			   ,s.transdate
+			   ,s.checktime
+			   ,s.bettype
+			   ,s.betteam		
+			   ,s.betcheck
+			   ,s.hdp1		
+			   ,s.hdp2		
+			   ,s.IsLiveIndicator
+			   ,s.livehomescore
+			   ,s.liveawayscore	
+			   ,s.Stake		
+			   ,s.CurrencyName
+			   ,s.IsDeposit	
+			   ,s.status		
+			   ,s.mrecommend	
+			   ,s.recommend	
+			   ,s.SecAcceptFlag	
+			   ,s.betid	
+			   ,s.SportType	
+			   ,s.followedId
+			   ,s.followedUsername
+			   ,s.TransDesc
+			   ,s.IsCricket
+			   ,s.refno
+			   ,s.mainstatusid
+			   ,s.OriginGroupName
+			   ,s.betdaqid
+			   ,s.ExtraInfo
+			   ,s.IsCashOut
+			   ,s.WalletType
+			   ,s.RefCode
+			   ,s.BonusID
+			   ,s.MainTransId
+			   ,s.WinLost
+			   ,s.IsMixParlay
+			   ,s.SubTransid
+			   ,s.SubStatus
+			   ,s.SubBetcheck
+			   ,s.SubBetteam
+			   ,s.SubBettype
+			   ,s.SubHdp1
+			   ,s.SubHdp2
+			   ,s.SubOdds
+			   ,s.IsMarked
+			   ,s.ActualStake
+			   ,s.SiteDBGroupId
+			   ,s.eventstatus
+			   ,s.SettlementStatus
+			   ,s.modds
+			   ,s.SubGroupName
 		FROM CTE_InstantSettlementSubgrouping s
 		WHERE CASE
 					WHEN @SettledType = 'All' THEN 1

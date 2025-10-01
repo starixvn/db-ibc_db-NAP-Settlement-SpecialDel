@@ -426,7 +426,7 @@ BEGIN
 			   WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
 			   ELSE 1 END = 1
 
-	INSERT INTO @tmpConsolidatedBettypes
+	INSERT INTO @tmpConsolidatedBettypes(parentid, typeid)
 	SELECT f.GroupTypeId AS parentid
 		 , f.Bettype AS typeid
     FROM [dbo].[f_SD_GroupDisplayBettype] () f
@@ -656,13 +656,13 @@ BEGIN
 			)
 		END
 
-		INSERT INTO #TmpBettrans
+		INSERT INTO #TmpBettrans (srecommend, bettype, liveindicator, statusID, matchid, cnt)
 		SELECT srecommend
 			,bettype
 			,liveindicator
 			,statusID
 			,matchid
-			,COUNT(transid) cnt
+			,COUNT(transid) AS cnt
 		FROM #SpecialDeleteBets tmp	
 		GROUP BY srecommend
 			,matchid

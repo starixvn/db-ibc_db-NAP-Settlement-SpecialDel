@@ -243,7 +243,7 @@ BEGIN
     END;
 
 	CREATE TABLE #t_LicenseeNames(LicenseeName VARCHAR(100), GroupName VARCHAR(100))
-	CREATE CLUSTERED INDEX t_IDX_LicenseeNames_LicenseeName ON #t_LicenseeNames(LicenseeName)
+	CREATE CLUSTERED INDEX IX_LicenseeNames_LicenseeName ON #t_LicenseeNames(LicenseeName)
 	
 	CREATE TABLE #t_UIRepresentativeLicenseeGroupNames(GroupName VARCHAR(100))
 
