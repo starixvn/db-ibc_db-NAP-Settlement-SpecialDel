@@ -71,8 +71,12 @@ BEGIN
 			FROM @tmp_MainResource m
 	
 			INSERT INTO ResultDetail (MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,CreateDate,LastModifyDate,CreateBy,LastModifyBy,OtherInfo	)
-			SELECT @MatchId,ResourceId,NULL,NULL,0,0,GETDATE(),GETDATE(),0,0,OtherInfo
-			FROM @tmp_Generate
+			SELECT @MatchId,tmp.ResourceId,NULL,NULL,0,0,GETDATE(),GETDATE(),0,0,tmp.OtherInfo
+			FROM @tmp_Generate tmp
+				LEFT JOIN dbo.ResultDetail r WITH(NOLOCK) 
+					ON  r.MatchId = @matchid AND r.ResourceId = tmp.ResourceId
+			WHERE r.ResourceId IS NULL
+
 		COMMIT TRANSACTION
 	END TRY
 
