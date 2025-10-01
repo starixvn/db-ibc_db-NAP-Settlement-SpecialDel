@@ -958,7 +958,7 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1 
 					   FROM #TVSTicketBets AS t 
-					   WHERE EXISTS (SELECT TOP 1 1 FROM f_TVS_BettypesUsingTransdesc() AS b WHERE b.bettype = t.Bettype AND TypeId = 0))
+					   WHERE EXISTS (SELECT TOP 1 1 FROM f_TVS_BettypesUsingTransdesc() AS b WHERE b.bettype = t.GroupBettype AND TypeId = 0))
 	BEGIN
 		INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, TicketsCount, PlayerName)
 		SELECT s.GroupDisplay AS BetTypeId, s.GroupTransdesc AS PlayerId, COUNT(1) AS TicketCounts, t.teamname AS PlayerName
