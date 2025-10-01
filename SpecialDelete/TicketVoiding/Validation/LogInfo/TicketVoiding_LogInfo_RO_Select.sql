@@ -951,10 +951,10 @@ BEGIN
 	END
 
 	INSERT INTO @tmpBettypeCount (BetTypeId, BetId, TicketsCount, PlayerId)
-	SELECT b.GroupDisplay AS BetTypeId, GroupBetId AS BetId, COUNT(1) AS TicketsCount, 0
+	SELECT b.GroupDisplay AS BetTypeId, CASE WHEN ISNULL(b.GroupBetId,'') = '' THEN 0 ELSE GroupBetId END AS BetId, COUNT(1) AS TicketsCount, 0
 	FROM #TVSTicketBets AS b
 	WHERE b.IsSiteDBDown = 0 AND NOT EXISTS (SELECT 1 FROM f_TVS_BettypesUsingTransdesc() AS t WHERE t.Bettype = b.GroupBettype)
-	GROUP BY b.GroupDisplay, b.GroupBetId
+	GROUP BY b.GroupDisplay, CASE WHEN ISNULL(b.GroupBetId,'') = '' THEN 0 ELSE GroupBetId END
 
 	IF EXISTS (SELECT TOP 1 1 
 					   FROM #TVSTicketBets AS t 
