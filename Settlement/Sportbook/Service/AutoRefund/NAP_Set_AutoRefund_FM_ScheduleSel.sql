@@ -42,7 +42,7 @@ BEGIN
               ,r.OtherInfo
               ,r.ResultStatusID
               ,r.SettlementStatusID
-              ,ROW_NUMBER() OVER (PARTITION BY m.MatchId ORDER BY r.ResourceId) AS RowNum
+              ,ROW_NUMBER() OVER (PARTITION BY m.MatchId ORDER BY r.ResourceId ASC) AS RowNum
         FROM match m WITH (NOLOCK) 
             INNER JOIN ResultDetail r WITH (NOLOCK) ON r.MatchId = m.matchid 
             CROSS APPLY (
