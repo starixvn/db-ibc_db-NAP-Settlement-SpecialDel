@@ -609,7 +609,7 @@ BEGIN
 				WHEN EXISTS (SELECT 1 FROM @tmpStatusIds WHERE StatusId = 4) AND (t.IsStored = 1) THEN 1
 				ELSE 0
 			END	
-	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
+	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END ASC
 	
 	-- 2. Support get calculate time for Issuetype Abnormal Bet (Single ticket)
 	SET @RequestInfoGetCalcTimes = COMPRESS((SELECT RequestId AS 'req'
