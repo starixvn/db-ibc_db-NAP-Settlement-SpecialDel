@@ -21,7 +21,7 @@ AS
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
 		- 20250724@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
-		- 20250909@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20250909@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props WOSB [Redmine: #234941]
 
 	Param's explanation:
 		+ @OnlineServerId = '0,1,2,3'
