@@ -62,6 +62,11 @@ BEGIN
                 WHERE ss.LeagueId = m.leagueid
                     AND ss.AutoType = 11
             ) ss
+			OUTER APPLY (
+				SELECT TOP 1 1 AS IsExistAR
+				FROM AutoRefundResult ar WITH (NOLOCK)
+				WHERE ar.MatchId = m.matchid
+			) ar
         WHERE r.ResourceId LIKE '221WB__'
             AND r.ResultStatusID = 1
             AND r.LastModifyDate <= DATEADD(SECOND, - COALESCE(ap.Waitingtime,ss.Waitingtime,300), @CurrTime)
@@ -69,6 +74,7 @@ BEGIN
             AND GlobalShowTime <= @checktime
             AND (ISNULL(ap.[Enable],0) = 1 OR ISNULL(ss.[Enable],0) = 1)
             AND ISNULL(m.SettlementStatus,0) & 87 = 0
+			AND ar.IsExistAR IS NULL
     )
     SELECT 
         MatchId,
