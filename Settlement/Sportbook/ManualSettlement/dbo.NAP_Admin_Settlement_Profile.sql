@@ -609,7 +609,7 @@ BEGIN
 					AND EXISTS (SELECT	TOP 1 1
 								FROM	@tmpSelectedRID t
 								WHERE	t.BetType = bm.bettype
-										AND (t.BetID = 0 OR t.BetID = bm.betcheck))
+										AND (t.BetID = 0 OR t.BetID = bid.betcheck))
 		END
 		ELSE IF @action LIKE 'UNDO%'
 		BEGIN
