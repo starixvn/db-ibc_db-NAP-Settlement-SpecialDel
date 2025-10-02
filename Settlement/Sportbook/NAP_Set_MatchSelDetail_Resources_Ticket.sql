@@ -15,7 +15,7 @@ AS
 		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
-		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
+		- 20250822@Louisa: New bettype Basketball Player Prop [Redmine:#233012]
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -231,7 +231,9 @@ BEGIN
 	    		AND bm.statusId NOT IN (101, 102)
 	    		AND 1 =  CASE WHEN sp.Betid = 0 THEN 1
 							  WHEN sp.BetID = bm.Betcheck AND bm.bettype NOT IN (675,676,678 ) THEN 1
-							  WHEN bm.bettype IN (675,676,678 ) AND sp.BetID = bm.Betcheck  AND bm.betteam = RIGHT(sp.ResourceID, 2) THEN 1
+							  WHEN bm.bettype IN (675,676,678 ) 
+									AND sp.BetID = bm.Betcheck  
+									AND bm.betteam = RIGHT(sp.ResourceID, 2) THEN 1
 							 ELSE 0 
 						END
 				AND sp.sporttype = @sporttype
@@ -300,7 +302,7 @@ BEGIN
 			,BetRefundedCount
 			,OrdNo
 	 FROM @tblReturnTable
-	 ORDER BY OrdNo
+	 ORDER BY OrdNo ASC
 
 	SELECT	SUM(betRunningCount)	AS betRunningCount
 			,SUM(betSettledCount)	AS betSettledCount
