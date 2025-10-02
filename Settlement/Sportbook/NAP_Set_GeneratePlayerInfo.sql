@@ -38,8 +38,6 @@ BEGIN
 					ON o.oddsid = f.oddsid
 				INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCk)
 						ON o.bettype = s.BetType
-				INNER JOIN @tmp_ResourceWeb w
-					ON s.ResourceID =w.ResourceID
 			WHERE	s.SportType = 2
 					AND s.SettleType = 'EAR'
 					AND (s.betid = 0 
@@ -53,8 +51,14 @@ BEGIN
 
 		INSERT INTO @tmp_Offer ( ResourceID, RelatedBettype, PlayerId, TeamId, PlayerRank)
 		SELECT ResourceID, RelatedBettype, PlayerId, TeamId
-			  ,DENSE_RANK() OVER(ORDER BY cte.PlayerId )
+			  ,DENSE_RANK() OVER(ORDER BY cte.PlayerId ASC)
 		FROM cte_offer cte
+
+		DELETE o
+		FROM @tmp_Offer o 
+			RIGHT JOIN @tmp_ResourceWeb w
+				ON o.ResourceID =w.ResourceID
+		WHERE o.ResourceID IS NULL
 	
 		--bettype has related			
 		INSERT INTO @tmp_MainResource ( MainResourceID, RelatedBettype, PlayerId, TeamId, PlayerRank )	
