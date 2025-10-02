@@ -1,8 +1,9 @@
 /*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_GeneratePlayerInfo
-	@MatchId	INT
-	,@ErrCode	INT				= 0		OUTPUT
-	,@ErrMsg	NVARCHAR(200)	= ''	OUTPUT
+	@MatchId	  INT
+	,@ResourceIds VARCHAR(MAX) =''
+	,@ErrCode	  INT				= 0		OUTPUT
+	,@ErrMsg	  NVARCHAR(200)	= ''	OUTPUT
 AS
 /*
     Created by: 20250822@Louisa
@@ -17,9 +18,13 @@ BEGIN
 
 	SET NOCOUNT ON 
 
+	DECLARE @tmp_ResourceWeb TABLE(ResourceID VARCHAR(50))
 	DECLARE @tmp_Offer TABLE ( ResourceID VARCHAR(50), RelatedBettype VARCHAR(200), PlayerId VARCHAR(20), TeamId VARCHAR(20), PlayerRank TINYINT )
 	DECLARE @tmp_MainResource TABLE ( MainResourceID VARCHAR(50), RelatedBettype VARCHAR(3), PlayerId VARCHAR(20), TeamId VARCHAR(20), PlayerRank TINYINT )
 	DECLARE @tmp_Generate TABLE ( ResourceID VARCHAR(50), OtherInfo VARCHAR(50) )
+
+	INSERT INTO  @tmp_ResourceWeb (ResourceID )
+	SELECT DISTINCT v.value FROM string_split(@ResourceIds,',')v
 
 	BEGIN TRY
 		---Offer
@@ -33,6 +38,8 @@ BEGIN
 					ON o.oddsid = f.oddsid
 				INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCk)
 						ON o.bettype = s.BetType
+				INNER JOIN @tmp_ResourceWeb w
+					ON s.ResourceID =w.ResourceID
 			WHERE	s.SportType = 2
 					AND s.SettleType = 'EAR'
 					AND (s.betid = 0 
