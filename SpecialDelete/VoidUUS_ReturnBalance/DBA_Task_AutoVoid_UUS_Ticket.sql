@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[DBA_Task_AutoVoid_UUS_Ticket]
 	@CheckTime DATETIME = NULL
 AS
@@ -6,10 +6,12 @@ AS
 /*
 	Created: 20190118@Patrick
 	Task: Auto void UUS ticket which exceed 24 hour from place bet
-	DB: DBTrans.bodb02
+	DB:DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	Revision:
 		- 20211216@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20220926@Max: Change code for scale out dbtrans [Redmine: #175412]
+		- 20250930@July: Remove update transdesc  [Redmine: #238091]
+		
 */
 BEGIN
 	SET NOCOUNT ON
@@ -55,7 +57,7 @@ BEGIN
 			UPDATE b
 			SET winlost = actual_stake, ruben = 1, statuswinlost = 6, status = 'VOID', statusid = 102
 				, awinlost = 0, mwinlost = 0, swinlost = 0, playercomm = 0, comm  = 0, acomm = 0
-				, scomm = 0, transdesc = '[Waiting-AutoVoid]' + transdesc
+				, scomm = 0
 				, FcUpdateTime = SYSDATETIME()
 			FROM @__transIdsTmp t
 				INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) ON t.TransId = b.transid
