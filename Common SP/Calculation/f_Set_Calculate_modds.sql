@@ -685,7 +685,7 @@ RETURN
 
 	OUTER APPLY -- bettype 376: input betcheck into @AwayValue
 	(
-		SELECT	ROW_NUMBER () OVER (ORDER BY(SELECT NULL)) AS rn
+		SELECT	ROW_NUMBER () OVER (ORDER BY(SELECT NULL)ASC) AS rn
 				,CAST(CASE WHEN f.[value] = '' THEN CAST(1 AS SMALLMONEY) ELSE f.[value] END AS SMALLMONEY) AS odds
 		FROM	STRING_SPLIT(@AwayValue, ',') f
 		WHERE	@pfID = 376

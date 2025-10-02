@@ -29,7 +29,7 @@ INSERT INTO  #Number  ( Num, Suffix)
 SELECT p.number ,RIGHT('0' + CAST(number AS VARCHAR(2) ), 2) 
 FROM master.dbo.spt_values p 
 WHERE p.type  = 'p' and p.number BETWEEN 1 AND 99
-ORDER BY p.number	
+ORDER BY p.number ASC
  ---select * from #Number
 
  
