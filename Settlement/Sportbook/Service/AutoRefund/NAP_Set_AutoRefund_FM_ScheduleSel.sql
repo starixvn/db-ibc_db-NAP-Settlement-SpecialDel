@@ -65,14 +65,15 @@ BEGIN
 			OUTER APPLY (
 				SELECT TOP 1 1 AS IsExistAR
 				FROM AutoRefundResult ar WITH (NOLOCK)
-				WHERE ar.MatchId = m.matchid
+				WHERE ar.MatchId = m.matchid AND ar.ResourceId = r.ResourceId
 			) ar
         WHERE r.ResourceId LIKE '221WB__'
             AND r.ResultStatusID = 1
-            AND r.LastModifyDate <= DATEADD(SECOND, - COALESCE(ap.Waitingtime,ss.Waitingtime,300), @CurrTime)
+            AND r.LastModifyDate <= DATEADD(SECOND, - COALESCE(ap.Waitingtime,ss.Waitingtime,600), @CurrTime)
             AND m.eventdate BETWEEN @fromdate AND @todate 
             AND GlobalShowTime <= @checktime
-            AND (ISNULL(ap.[Enable],0) = 1 OR ISNULL(ss.[Enable],0) = 1)
+            --AND (ISNULL(ap.[Enable],0) = 1 OR ISNULL(ss.[Enable],0) = 1) 
+            AND COALESCE(ap.[Enable],ss.[Enable],0) = 1
             AND ISNULL(m.SettlementStatus,0) & 87 = 0
 			AND ar.IsExistAR IS NULL
     )
