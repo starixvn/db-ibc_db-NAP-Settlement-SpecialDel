@@ -840,7 +840,7 @@ BEGIN
 				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 				FROM #TransidInRequest
 				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-				ORDER BY TransId
+				ORDER BY TransId ASC
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
 			FROM #TransidInRequest r
@@ -937,7 +937,7 @@ BEGIN
 			SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 			FROM #TransidInRequest
 			WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-			ORDER BY TransId
+			ORDER BY TransId ASC
 			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 			,1,2,'') AS TransIds
 			
