@@ -558,7 +558,7 @@ BEGIN
 								AND a.BetOption > 0
 						) t
 					 WHERE BetType = r.BetType 
-					 ORDER BY t.Position
+					 ORDER BY t.Position ASC
 					 FOR XML PATH ('')),1,1,''
 				) AS 'Item/@Position'
 			, CASE WHEN @Action = 'CAL' THEN STUFF((SELECT ',' + CAST(t.BetOption AS VARCHAR(3)) 
@@ -577,7 +577,7 @@ BEGIN
 																AND a.bettype = r.BetType
 																AND a.BetOption > 0
 													) t WHERE	t.BetType = r.BetType 
-														ORDER BY t.Position
+														ORDER BY t.Position ASC
 														FOR XML PATH ('')),1,1,''
 												) END AS 'Item/@Result'
 		FROM #tblResultDetail r
@@ -615,7 +615,7 @@ BEGIN
 																	FOR XML PATH ('')) AS '@Result'
 														FROM #tblEventCounter t
 														GROUP BY Position
-														ORDER BY Position
+														ORDER BY Position ASC
 														FOR XML PATH('Item'), Root('eventcounter'), TYPE)
 													) ,'')
 		
