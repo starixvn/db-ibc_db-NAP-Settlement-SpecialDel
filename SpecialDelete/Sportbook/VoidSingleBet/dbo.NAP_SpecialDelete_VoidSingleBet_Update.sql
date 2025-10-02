@@ -847,7 +847,7 @@ BEGIN
 				,b.odds AS FilterOdds
 				,b.matchid
 				,b.modds
-			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
+			FROM (SELECT TOP (@CountTransId) transid FROM #tblTransIds) t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 			WHERE EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = b.matchid)	
 				AND CASE
@@ -983,7 +983,7 @@ BEGIN
 				,b.odds AS FilterOdds
 				,b.matchid
 				,b.modds
-			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
+			FROM (SELECT TOP (@CountTransId) transid FROM #tblTransIds) t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 			WHERE	EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = b.matchid)
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveindicator END = @LiveIndicator
@@ -1049,7 +1049,7 @@ BEGIN
 				,bm.oddsid
 				,bm.SiteDBGroupID
 				,bm.matchid
-			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
+			FROM (SELECT TOP (@CountTransId) transid FROM #tblTransIds) t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 			WHERE EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = bm.matchid)
 				AND	CASE
@@ -1113,7 +1113,7 @@ BEGIN
 				,bm.oddsid
 				,bm.SiteDBGroupID
 				,bm.matchid
-			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
+			FROM (SELECT TOP (@CountTransId) transid FROM #tblTransIds) t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 			WHERE EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = bm.matchid)
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
