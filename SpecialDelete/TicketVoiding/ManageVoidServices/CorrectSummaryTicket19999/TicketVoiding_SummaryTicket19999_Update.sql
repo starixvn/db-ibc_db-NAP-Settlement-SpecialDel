@@ -97,6 +97,7 @@ BEGIN
 		, s.scomm - b.scomm  AS scomm_dif
 	FROM CTE_SumBettrans14 s
 		INNER JOIN dbo.Transfer b WITH (ROWLOCK) ON b.custid = s.custid AND b.winlostdate = s.winlostdate 
+	WHERE b.bettype = 19999
 
 	SET @AffectedList = (SELECT CustID				AS '@c'
 							   ,winlostdate			AS '@w'
