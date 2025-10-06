@@ -73,9 +73,9 @@ BEGIN
 			 , SUM(b14.comm) AS comm
 			 , SUM(b14.acomm) AS acomm
 			 , SUM(b14.scomm) AS scomm
-		FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
-			INNER JOIN dbo.bettrans14 b14 WITH (NOLOCK) ON b14.transid = c.TransId
+		FROM dbo.bettrans14 b14 WITH (NOLOCK)
 		WHERE b14.SiteDBGroupID = @SiteDBGroupID
+			AND EXISTS ( SELECT TOP 1 1 FROM dbo.TVS_BetTicket14 c WITH (NOLOCK) WHERE c.CustId = b14.custid AND c.Winlostdate = b14.winlostdate)
 		GROUP BY b14.CustID, b14.winlostdate
 	)
 	INSERT INTO #Result_19999 (custid, winlostdate
