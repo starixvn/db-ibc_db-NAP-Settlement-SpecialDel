@@ -69,7 +69,7 @@ BEGIN
 			) ar
         WHERE r.ResourceId LIKE '221WB__'
             AND r.ResultStatusID = 1
-            AND r.LastModifyDate <= DATEADD(SECOND, - COALESCE(ap.Waitingtime,ss.Waitingtime,600), @CurrTime)
+            AND r.LastModifyDate <= DATEADD(SECOND, - COALESCE(ap.Waitingtime,ss.Waitingtime,300), @CurrTime)
             AND m.eventdate BETWEEN @fromdate AND @todate 
             AND GlobalShowTime <= @checktime
             --AND (ISNULL(ap.[Enable],0) = 1 OR ISNULL(ss.[Enable],0) = 1) 
