@@ -2,7 +2,6 @@
 ALTER PROCEDURE dbo.NAP_Set_PlayerInfoSel
 	@MatchId INT
 	,@Sporttype SMALLINT = 50
-	,@ListResourceIDs VARCHAR(MAX) = ''
 AS
 /*
     Created by: 20220207@Kathy
@@ -49,7 +48,19 @@ BEGIN
 				AND ISNULL(o.IsDeleted,0) = 0
 				AND ISNULL(f.IsDeleted,0) = 0
 				AND s.SettleType = 'EAR'
-				AND (ISNULL(@ListResourceIDs,'') = '' OR EXISTS(SELECT 1 FROM STRING_SPLIT(@ListResourceIDs,',') tmp WHERE tmp.value = s.ResourceID) )
+		UNION ALL
+		SELECT r.ResourceID, NULL AS bettype, NULL AS betChoice
+				, CONCAT(
+						'{"pid":', PARSENAME(REPLACE(r.OtherInfo, ',', '.'), 2),
+						',"tid":', PARSENAME(REPLACE(r.OtherInfo, ',', '.'), 1),
+						'}'
+					) AS OddsInfo
+				, '' AS RelatedBettype
+		FROM ResultDetail r WITH(NOLOCK)
+		WHERE r.MatchId = @MatchId
+			AND SUBSTRING(ResourceID,4,2) > 10
+			AND ISNULL(r.OtherInfo,'') <> ''
+
 	END
 END
 GO

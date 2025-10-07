@@ -18,6 +18,17 @@ BEGIN
 
 	SET NOCOUNT ON 
 
+	DECLARE @sporttype SMALLINT 
+
+	SELECT @sporttype = m.sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+	
+	IF @Sporttype <> 2
+	BEGIN
+		SELECT @ErrCode = 100
+				,@ErrMsg = 'Invalid sporttype!'
+	RETURN
+	END
+
 	DECLARE @tmp_ResourceWeb TABLE(ResourceID VARCHAR(50))
 	DECLARE @tmp_Offer TABLE ( ResourceID VARCHAR(50), RelatedBettype VARCHAR(200), PlayerId VARCHAR(20), TeamId VARCHAR(20), PlayerRank TINYINT )
 	DECLARE @tmp_MainResource TABLE ( MainResourceID VARCHAR(50), RelatedBettype VARCHAR(3), PlayerId VARCHAR(20), TeamId VARCHAR(20), PlayerRank TINYINT )
@@ -58,7 +69,7 @@ BEGIN
 		FROM @tmp_Offer o 
 			RIGHT JOIN @tmp_ResourceWeb w
 				ON o.ResourceID =w.ResourceID
-		WHERE o.ResourceID IS NULL
+		WHERE o.ResourceID IS NULL AND ISNULL(o.RelatedBettype,'') <> ''
 	
 		--bettype has related			
 		INSERT INTO @tmp_MainResource ( MainResourceID, RelatedBettype, PlayerId, TeamId, PlayerRank )	
