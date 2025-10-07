@@ -22,7 +22,7 @@ BEGIN
 		FROM (VALUES (685), (686), (687), (688)) AS t(BetType)
 		
 	),BetIDRange AS (
-		SELECT ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS RowNum,
+		SELECT ROW_NUMBER() OVER (ORDER BY (SELECT NULL) ASC) AS RowNum,
 				number + 800 AS BetID
 		FROM master.dbo.spt_values 
 		WHERE type = 'P' AND number BETWEEN 1 AND 20
@@ -67,7 +67,7 @@ BEGIN
 				AND sp.BetType  = bt.BetType
 				AND sp.pfID		= bt.pfID
 	WHERE sp.BetType IS NULL
-	ORDER BY bt.BetType, br.BetID
+	ORDER BY bt.BetType ASC, br.BetID ASC
 END
 GO
 

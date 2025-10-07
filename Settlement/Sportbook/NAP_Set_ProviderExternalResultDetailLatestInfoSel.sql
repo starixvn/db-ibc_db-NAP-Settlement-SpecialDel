@@ -54,8 +54,8 @@ BEGIN
 	BEGIN
 		;WITH  cteLatestSports AS
 			(
-				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC) AS rn
-						,DENSE_RANK() OVER (ORDER BY ex.SourceId ) AS TopSourceId
+				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId ASC, ex.CreateDate DESC) AS rn
+						,DENSE_RANK() OVER (ORDER BY ex.SourceId ASC) AS TopSourceId
 						,ex.SourceId
 						,ex.ResourceId
 						,ex.HomeValue
@@ -68,8 +68,8 @@ BEGIN
 					AND ISNULL(ex.IsLive,0) = 0
 
 				UNION ALL
-				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC) AS rn
-						,DENSE_RANK() OVER (ORDER BY ex.SourceId ) AS TopSourceId
+				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId ASC, ex.CreateDate DESC) AS rn
+						,DENSE_RANK() OVER (ORDER BY ex.SourceId ASC) AS TopSourceId
 						,ex.SourceId
 						,ex.ResourceId
 						,ex.HomeValue
