@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] @MatchId I
 	,@Results				VARCHAR(MAX)
 	,@OldResults			VARCHAR(MAX) = NULL
 	,@EventCounters			VARCHAR(MAX) = NULL
-	,@IsAutoRefundFM		BIT			= NULL
+	,@IsAutoRefundFM		BIT			= 0
 	,@IsAuto				BIT			= 0
 	,@AdminId				INT			= 0
 	,@Ip					VARCHAR(20)	= ''
