@@ -56,7 +56,7 @@ BEGIN
 			,ROW_NUMBER() OVER (PARTITION BY t.Matchid, t.ResourceID ORDER BY t.changetime ASC) AS rn
 		FROM @tmpMatch t
 	)
-	SELECT MatchId, changetime
+	SELECT DISTINCT MatchId, changetime
 	FROM cte s
 	WHERE rn <> 1
 		AND (HomeValue <> PreHome OR AwayValue <> PreAway)
