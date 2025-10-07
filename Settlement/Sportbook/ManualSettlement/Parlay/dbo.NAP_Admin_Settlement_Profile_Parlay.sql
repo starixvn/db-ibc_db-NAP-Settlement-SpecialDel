@@ -699,7 +699,7 @@ BEGIN
 								+ ')'')'
 	
 		INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
-		EXEC (@sqlOpenqueryCommand)
+		EXEC sys.sp_executesql @sqlOpenqueryCommand
 			
 		SELECT @strSetting = CAST((
 			SELECT	si.SiteId AS 's'
@@ -972,7 +972,7 @@ BEGIN
 			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 					WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
 					WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
-					ELSE '' END,',') WITHIN GROUP (ORDER BY OrdNo)
+					ELSE '' END,',') WITHIN GROUP (ORDER BY OrdNo ASC)
 	FROM (
 			SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
 		  	FROM @tmpSelectedRID sr

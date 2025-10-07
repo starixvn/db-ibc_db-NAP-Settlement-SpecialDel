@@ -1027,7 +1027,7 @@ BEGIN
 				CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 					 WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
 					 WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
-					 ELSE '' END AS VARCHAR(MAX)), ',') WITHIN GROUP (ORDER BY OrdNo)
+					 ELSE '' END AS VARCHAR(MAX)), ',') WITHIN GROUP (ORDER BY OrdNo ASC)
 		FROM (
 				SELECT DISTINCT ResourceID, HomeValue, AwayValue, CASE WHEN @Sporttype = 58 AND ResourceID = '00' THEN 'FinalScore' ELSE RoundName END AS RoundName, MAX(OrdNo) AS OrdNo
 		  		FROM @tmpGetLog sr
