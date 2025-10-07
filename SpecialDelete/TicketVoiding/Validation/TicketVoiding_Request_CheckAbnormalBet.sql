@@ -72,6 +72,7 @@ AS
 		- 20250624@July: [TVS] Enhance TVS in case 1 or many siteDBs down - Scale out validate [Redmine: #228047]
 		- 20250715@Lani: [TVS] Abnormal Bet - Send ticket of the username in AB Exception List to CTS [Redmine: #231465]
 		- 20250815@Lani: [TVS] Return both running and settle tickets of sitedbdown [Redmine: #232580]
+		- 20251007@July: [TVS] Update rules Send Letstalk [Redmine: #240950]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -114,7 +115,7 @@ BEGIN
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT)
 	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), eventdate DATETIME)
-	DECLARE	@Letstalk_Info AS TABLE (MatchId INT, IsHasUUSTickets BIT, ListBettype VARCHAR(MAX),ListBetteam VARCHAR(MAX))
+	DECLARE	@Letstalk_Info AS TABLE (MatchId INT, IsAllUUSTickets BIT, ListBettype VARCHAR(MAX),ListBetteam VARCHAR(MAX))
 	DECLARE @tmp_OnlineServerId AS TABLE (ServerId SMALLINT)
 
 	SET @Archived_FromDate = CONVERT(DATE, DATEADD(DAY, -7, GETDATE()))
@@ -719,7 +720,7 @@ BEGIN
 						SELECT TOP(1) a.AllowVoidSubType, a.IsAllowVoidVip					
 						FROM DBCTG.bodb02.dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)	
 						WHERE a.CustID IN (t.CustID, t.recommend, t.mrecommend, t.srecommend)
-						ORDER BY a.LevelId
+						ORDER BY a.LevelId ASC
 				)ab
 
 		INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
@@ -962,9 +963,9 @@ BEGIN
 		LEFT JOIN #tmpTransInfo s ON t.transid = s.transid
 
 	--6. Info for send letstalk when add request
-	INSERT INTO @Letstalk_Info (MatchId, IsHasUUSTickets, ListBettype, ListBetteam)
+	INSERT INTO @Letstalk_Info (MatchId, IsAllUUSTickets, ListBettype, ListBetteam)
 	SELECT m.MatchId
-		,ISNULL(t1.IsHasUUSTickets, 0)
+		,CASE WHEN t1.cnt_ticket = t1.cnt_UUSticket THEN 1 ELSE 0 END IsAllUUSTickets
 		,ISNULL(STUFF((SELECT DISTINCT ', ' + CAST(b.typenamee AS VARCHAR(100))
 			FROM #validTransId AS v
 			INNER JOIN dbo.bettype b WITH(NOLOCK) ON v.bettype = b.typeid
@@ -976,13 +977,13 @@ BEGIN
 			FOR XML PATH(''), TYPE).value('.', 'VARCHAR(MAX)'), 1, 2, ''), '')
 	FROM @tmpMatchId_Info m
 	OUTER APPLY (
-		SELECT TOP 1 1 AS IsHasUUSTickets
+		SELECT COUNT(1) cnt_ticket
+			  ,SUM(CASE WHEN t.CurrencyName = 'UUS' THEN 1 ELSE 0 END) AS cnt_UUSticket
 		FROM #validTransId t
 		WHERE t.matchid = m.MatchId
-			AND t.CurrencyName = 'UUS'
 	)t1
 
-	SELECT l.MatchId, l.IsHasUUSTickets, l.ListBettype, l.ListBetteam
+	SELECT l.MatchId, l.IsAllUUSTickets, l.ListBettype, l.ListBetteam
 	FROM @Letstalk_Info l
 
 	DROP TABLE #inputTransid
