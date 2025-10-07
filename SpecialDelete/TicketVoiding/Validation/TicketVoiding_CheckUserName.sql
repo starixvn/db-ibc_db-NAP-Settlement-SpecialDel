@@ -979,7 +979,7 @@ BEGIN
 				betteam,
 				t.transid,
 				winlost,
-				DENSE_RANK() OVER (PARTITION BY t.custid ORDER BY matchid, bettype, betteam) AS group_number
+				DENSE_RANK() OVER (PARTITION BY t.custid ORDER BY matchid ASC, bettype ASC, betteam ASC) AS group_number
 			FROM #tmpTransInfo t
 				LEFT JOIN #SelectedTrans t1 ON t1.TransId = t.transid
 			WHERE matchid <> 29
@@ -1057,7 +1057,7 @@ BEGIN
 					SELECT TransId, winlost
 					FROM @tmp_remaining
 					WHERE CustId = @CustId
-					ORDER BY winlost desc;
+					ORDER BY winlost DESC;
 
 					OPEN TransactionCursor;
 
@@ -1114,7 +1114,7 @@ BEGIN
 					SELECT TransId, winlost
 					FROM @tmp_remaining
 					WHERE CustId = @CustId
-					ORDER BY winlost desc;
+					ORDER BY winlost DESC;
 
 					OPEN TransactionCursor;
 
@@ -1167,7 +1167,7 @@ BEGIN
 						FROM @tmp_Dup
 						WHERE CustId = @CustId
 						GROUP BY group_number
-						ORDER BY SUM(winlost) desc;
+						ORDER BY SUM(winlost) DESC;
 
 						OPEN TransactionCursor;
 
@@ -1221,7 +1221,7 @@ BEGIN
 				WHERE CustId = @CustId AND statusID = 112
 					AND NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.transid = t.transid)
 					AND t.IsSiteDBDown = 0
-				ORDER BY winlost desc;
+				ORDER BY winlost DESC;
 
 				OPEN TransactionCursor;
 
@@ -1305,7 +1305,7 @@ BEGIN
 		,b.AdjustVoidLimit AS AdjustVoidLimit
 	FROM #tmpTransInfo b
 	WHERE b.IsSiteDBDown = 0
-	ORDER BY b.username
+	ORDER BY b.username ASC
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_2
