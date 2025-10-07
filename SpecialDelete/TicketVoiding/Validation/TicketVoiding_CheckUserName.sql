@@ -736,7 +736,7 @@ BEGIN
 					FOR JSON PATH))
 
 				--select @TransInfoJson
-				INSERT INTO #TransidInRequest
+				INSERT INTO #TransidInRequest(TransId)
 				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest
 					@TransInfoJson = @TransInfoJson
 					,@RequestId = @RequestId
