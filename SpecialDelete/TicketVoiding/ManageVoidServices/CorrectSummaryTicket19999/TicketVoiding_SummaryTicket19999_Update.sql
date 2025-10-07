@@ -44,7 +44,7 @@ BEGIN
 	CREATE TABLE #BeforeTransId14(
 		   matchid INT ,transid BIGINT PRIMARY KEY,betdaqid BIGINT ,sitedbgroupid SMALLINT
 		  ,bettype SMALLINT ,statusID TINYINT ,Status NVARCHAR(10)
-		  ,winlostdate SMALLDATETIME ,SettlementTime DATETIME ,actual_stake MONEY ,modds SMALLMONEY
+		  ,winlostdate SMALLDATETIME ,SettlementTime DATETIME ,actual_stake MONEY ,stake MONEY, modds SMALLMONEY
 		  ,srecommend INT ,mrecommend INT,recommend INT ,custid INT	
 		  ,winlost MONEY ,awinLost MONEY ,mwinLost MONEY ,swinLost MONEY
 		  ,playercomm MONEY ,comm MONEY ,acomm MONEY ,scomm MONEY, refno BIGINT
@@ -54,50 +54,73 @@ BEGIN
 	CREATE TABLE #AfterTransId14(
 		   matchid INT ,transid BIGINT PRIMARY KEY,betdaqid BIGINT ,sitedbgroupid SMALLINT
 		  ,bettype SMALLINT ,statusID TINYINT ,Status NVARCHAR(10)
-		  ,winlostdate SMALLDATETIME ,SettlementTime DATETIME ,actual_stake MONEY ,modds SMALLMONEY
+		  ,winlostdate SMALLDATETIME ,SettlementTime DATETIME ,actual_stake MONEY ,stake MONEY, modds SMALLMONEY
 		  ,srecommend INT ,mrecommend INT,recommend INT ,custid INT	
 		  ,winlost MONEY ,awinLost MONEY ,mwinLost MONEY ,swinLost MONEY
 		  ,playercomm MONEY ,comm MONEY ,acomm MONEY ,scomm MONEY, refno BIGINT
 		  ,sporttype SMALLINT, oddsid INT, ExtraInfo VARCHAR(1000), BonusID INT, WalletType TINYINT
 	)
+	
+	--capture before for balance trigger
+	INSERT INTO #BeforeTransId14( 
+			matchid ,transid ,betdaqid ,sitedbgroupid
+			,bettype ,statusID ,Status 
+			,winlostdate ,SettlementTime ,actual_stake ,stake ,modds 
+			,srecommend ,mrecommend ,recommend ,custid	
+			,winlost ,awinLost ,mwinLost ,swinLost
+			,playercomm ,comm ,acomm ,scomm, refno
+			,oddsid, ExtraInfo, BonusID, WalletType
+		)
+	SELECT b.matchid, c.TransId, c.betdaqid, b.SiteDBGroupID
+		,b.bettype, c.statusID, c.status, c.winlostdate, c.SettlementTime, c.actual_stake, c.stake, b.modds
+		,b.srecommend, b.mrecommend, b.recommend, b.custid
+		,c.winlost, c.awinlost, c.mwinlost, c.swinlost
+		,c.playercomm, c.comm, c.acomm, c.scomm, b.refno
+		,b.oddsid, b.ExtraInfo, b.BonusID, b.WalletType
+	FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
+	WHERE b.SiteDBGroupID = @SiteDBGroupID
+		
+	--capture after for balance trigger
+	INSERT INTO #AfterTransId14( 
+			matchid ,transid ,betdaqid ,sitedbgroupid
+			,bettype ,statusID ,Status 
+			,winlostdate ,SettlementTime ,actual_stake ,stake ,modds 
+			,srecommend ,mrecommend ,recommend ,custid	
+			,winlost ,awinLost ,mwinLost ,swinLost
+			,playercomm ,comm ,acomm ,scomm, refno
+			,oddsid, ExtraInfo, BonusID, WalletType
+		)
+	SELECT b.matchid, b.TransId, b.betdaqid, b.SiteDBGroupID
+		,b.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.stake, b.modds
+		,b.srecommend, b.mrecommend, b.recommend, b.custid
+		,b.winlost, b.awinlost, b.mwinlost, b.swinlost
+		,b.playercomm, b.comm, b.acomm, b.scomm, b.refno
+		,b.oddsid, b.ExtraInfo, b.BonusID, b.WalletType
+	FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
+	WHERE b.SiteDBGroupID = @SiteDBGroupID
 
-	;WITH CTE_SumBettrans14 AS (
-		SELECT b14.CustID, b14.winlostdate
-			 , SUM(b14.stake) AS stake
-			 , SUM(b14.actual_stake) AS actual_stake
-			 , SUM(b14.winlost) AS winlost
-			 , SUM(b14.awinlost) AS awinlost
-			 , SUM(b14.mwinlost) AS mwinlost
-			 , SUM(b14.swinlost) AS swinlost
-			 , SUM(b14.playercomm) AS playercomm
-			 , SUM(b14.comm) AS comm
-			 , SUM(b14.acomm) AS acomm
-			 , SUM(b14.scomm) AS scomm
-		FROM dbo.bettrans14 b14 WITH (NOLOCK)
-		WHERE b14.SiteDBGroupID = @SiteDBGroupID
-			AND EXISTS ( SELECT TOP 1 1 FROM dbo.TVS_BetTicket14 c WITH (NOLOCK) WHERE c.CustId = b14.custid AND c.Winlostdate = b14.winlostdate)
-		GROUP BY b14.CustID, b14.winlostdate
-	)
 	INSERT INTO #Result_19999 (custid, winlostdate
 								, stake 
 								, actual_stake 
 								, winlost_dif, awinlost_dif, mwinlost_dif, swinlost_dif
 								, playercomm_dif, comm_dif, acomm_dif, scomm_dif)
-	SELECT s.CustID
-		,s.winlostdate
-		, s.stake - b.Stake AS stake
-		, s.actual_stake - b.actual_stake AS actual_stake
-		, s.winlost - b.winlost  AS winlost_dif
-		, s.awinlost - b.awinlost  AS awinlost_dif
-		, s.mwinlost - b.mwinlost  AS mwinlost_dif
-		, s.swinlost - b.swinlost  AS swinlost_dif
-		, s.playercomm - b.playercomm  AS playercomm_dif
-		, s.comm - b.comm  AS comm_dif
-		, s.acomm - b.acomm  AS acomm_dif
-		, s.scomm - b.scomm  AS scomm_dif
-	FROM CTE_SumBettrans14 s
-		INNER JOIN dbo.Transfer b WITH (ROWLOCK) ON b.custid = s.custid AND b.winlostdate = s.winlostdate 
-	WHERE b.bettype = 19999
+	SELECT b.CustID
+		 , b.winlostdate
+		 , SUM(a.stake - b.stake) AS stake
+		 , SUM(a.actual_stake - b.actual_stake) AS actual_stake
+		 , SUM(a.winlost - b.winlost)  AS winlost_dif
+		 , SUM(a.awinlost - b.awinlost)  AS awinlost_dif
+		 , SUM(a.mwinlost - b.mwinlost)  AS mwinlost_dif
+		 , SUM(a.swinlost - b.swinlost)  AS swinlost_dif
+		 , SUM(a.playercomm - b.playercomm)  AS playercomm_dif
+		 , SUM(a.comm - b.comm)  AS comm_dif
+		 , SUM(a.acomm - b.acomm)  AS acomm_dif
+		 , SUM(a.scomm - b.scomm)  AS scomm_dif
+	FROM #BeforeTransId14 b
+		INNER JOIN #AfterTransId14 a ON b.custid = a.custid AND b.winlostdate = a.winlostdate 
+	GROUP BY b.CustID, b.winlostdate
 
 	SET @AffectedList = (SELECT CustID				AS '@c'
 							   ,winlostdate			AS '@w'
@@ -118,46 +141,6 @@ BEGIN
 	EXEC dbo.TicketVoiding_Admin_Bet14_19999 
 		@AffectedList = @AffectedList
 		,@IsSiteDB = @IsSiteDB
-
-	--capture before for balance trigger
-	INSERT INTO #BeforeTransId14( 
-			matchid ,transid ,betdaqid ,sitedbgroupid
-			,bettype ,statusID ,Status 
-			,winlostdate ,SettlementTime ,actual_stake ,modds 
-			,srecommend ,mrecommend ,recommend ,custid	
-			,winlost ,awinLost ,mwinLost ,swinLost
-			,playercomm ,comm ,acomm ,scomm, refno
-			,oddsid, ExtraInfo, BonusID, WalletType
-		)
-	SELECT b.matchid, c.TransId, c.betdaqid, b.SiteDBGroupID
-		,b.bettype, c.statusID, c.status, c.winlostdate, c.SettlementTime, c.actual_stake, b.modds
-		,b.srecommend, b.mrecommend, b.recommend, b.custid
-		,c.winlost, c.awinlost, c.mwinlost, c.swinlost
-		,c.playercomm, c.comm, c.acomm, c.scomm, b.refno
-		,b.oddsid, b.ExtraInfo, b.BonusID, b.WalletType
-	FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
-		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
-	WHERE b.SiteDBGroupID = @SiteDBGroupID
-		
-	--capture after for balance trigger
-	INSERT INTO #AfterTransId14( 
-			matchid ,transid ,betdaqid ,sitedbgroupid
-			,bettype ,statusID ,Status 
-			,winlostdate ,SettlementTime ,actual_stake ,modds 
-			,srecommend ,mrecommend ,recommend ,custid	
-			,winlost ,awinLost ,mwinLost ,swinLost
-			,playercomm ,comm ,acomm ,scomm, refno
-			,oddsid, ExtraInfo, BonusID, WalletType
-		)
-	SELECT b.matchid, b.TransId, b.betdaqid, b.SiteDBGroupID
-		,b.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.modds
-		,b.srecommend, b.mrecommend, b.recommend, b.custid
-		,b.winlost, b.awinlost, b.mwinlost, b.swinlost
-		,b.playercomm, b.comm, b.acomm, b.scomm, b.refno
-		,b.oddsid, b.ExtraInfo, b.BonusID, b.WalletType
-	FROM dbo.TVS_BetTicket14 c WITH (NOLOCK)
-		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = c.TransId
-	WHERE b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS (SELECT 1 FROM #BeforeTransId14 b WHERE NOT EXISTS (SELECT TOP 1 1 FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1) AND b.bettype = bettype)))
