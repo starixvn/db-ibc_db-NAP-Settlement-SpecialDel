@@ -550,6 +550,7 @@ BEGIN
 	END
 
 	DROP TABLE #tblMatch
+	DROP TABLE #tmpTransId
 END
 GO
  
