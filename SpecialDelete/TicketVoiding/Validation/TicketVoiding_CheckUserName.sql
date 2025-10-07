@@ -51,6 +51,7 @@ AS
 		- 20250513@Lani: [TVS] Integrate - Pingoal Soccer Marble [Redmine: #227161]
 		- 20250620@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance - Abnormal Account [Redmine: #225390]
 		- 20250801@Lani: [TVS] ScaleOut DBTrans [Phase 5] - Abnormal Account/EKO/WKO/Wrong Offered Name [Redmine: #232582]
+		- 20251006@July: [TVS] Abnormal Account - Block void ticket after balance up date [Redmine: #238233]
 
 	Param's Explanation:
 */
@@ -85,9 +86,20 @@ BEGIN
 			,@UsernamesOfCreditCashService VARCHAR(MAX) = ''
 			,@SiteDBDownInfoJson	  VARBINARY(MAX) = NULL
 			,@UserNameSiteDBDown	  VARCHAR(MAX) = ''
+			,@BeingBalanceUpDate	  VARCHAR(255)
+			,@BalanceUpDate			  DATETIME
+			,@UsernamesOfBalanceUp    VARCHAR(MAX) = ''
 
 	DECLARE @SiteDBGroupID			 SMALLINT
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	SELECT @BeingBalanceUpDate = VValue
+    FROM dbo.MBUSettings WITH (NOLOCK) 
+	WHERE VName = 'BeingBalanceUpDate'
+
+	SELECT @BalanceUpDate = VValue
+    FROM dbo.MBUSettings WITH (NOLOCK) 
+	WHERE VName = 'BalanceUpDate'
 
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT, credit MONEY, srecommend INT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
@@ -695,15 +707,6 @@ BEGIN
 		END
 	END
 
-	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
-	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
-	
-	IF @BeingMovebetDate IS NOT NULL 
-		AND EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE winlostdate = @BeingMovebetDate)
-	BEGIN
-		SET @IsBeingMovebetdate = 1 --Error msg: The system is running the Movebet process, please wait and try again
-	END
-
 	----------End of data prepare-----------------
 	--3. TransId in request table
 	DECLARE @TransInfoJson			 VARBINARY(MAX)
@@ -768,6 +771,25 @@ BEGIN
 	DELETE t
 	FROM #tmpTransInfo AS t
 	WHERE 1 = CASE WHEN @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1 THEN 1 ELSE 0 END
+
+	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
+	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
+	
+	IF @BeingMovebetDate IS NOT NULL 
+		AND EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE winlostdate = @BeingMovebetDate)
+	BEGIN
+		SET @IsBeingMovebetdate = 1 --Error msg: The system is running the Movebet process, please wait and try again
+	END
+
+	IF @IsVoidAllArchivedTickets = 1 
+		AND @BeingBalanceUpDate IS NOT NULL 
+		AND EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE winlostdate = @BalanceUpDate)
+	BEGIN
+		SELECT @UsernamesOfBalanceUp  = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(username AS VARCHAR(50))
+												FROM #tmpTransInfo
+												WHERE winlostdate = @BalanceUpDate
+												FOR XML PATH('')), 1, 1, ''), '')
+	END
 
 	--Get ticket of sitedbdown
 	BEGIN
@@ -907,6 +929,7 @@ BEGIN
 		  ,@UsernamesOfCreditCashService AS UsernamesOfCreditCashService
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
 		  ,@UserNameSiteDBDown AS SiteDBDownUserNames
+		  ,@UsernamesOfBalanceUp AS UsernamesOfBalanceUp
 
 	--2. List TransId for case auto void with policy
 	IF @ActionId = 10

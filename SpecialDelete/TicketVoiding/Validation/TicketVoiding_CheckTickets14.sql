@@ -21,6 +21,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket - Combine table result return [Redmine: #196020]
 		- 20240304@Max: [TVS] Archived Ticket - Void full range of archived tickets [Redmine: #201448]
 		- 20250828@July: ScaleOut DBTrans [Phase 6] - Archived Ticket [Redmine: #236118]
+		- 20251006@July: [TVS] Archived Tickets - Block void ticket after balance up date [Redmine: #238233]
 		
 	Param's Explanation:
 */
@@ -33,8 +34,19 @@ BEGIN
 	       ,@MovebetDate					DATETIME
 		   ,@TransInfoJson					VARBINARY(MAX) = NULL
 		   ,@SiteDBGroupID					SMALLINT
+		   ,@BeingBalanceUpDate				VARCHAR(255)
+		   ,@BalanceUpDate					DATETIME
+		   ,@BalanceUpTransIds				VARCHAR(MAX) = ''
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	SELECT @BeingBalanceUpDate = VValue
+    FROM dbo.MBUSettings WITH (NOLOCK) 
+	WHERE VName = 'BeingBalanceUpDate'
+
+	SELECT @BalanceUpDate = VValue
+    FROM dbo.MBUSettings WITH (NOLOCK) 
+	WHERE VName = 'BalanceUpDate'
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -126,6 +138,16 @@ BEGIN
 														FOR XML PATH('')
 													), 1, 1, ''), '')
 	END	
+	
+	IF @IsVoidAllArchivedTickets = 1 
+		AND @BeingBalanceUpDate IS NOT NULL 
+		AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate = @BalanceUpDate)
+	BEGIN
+		SELECT @BalanceUpTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+												  FROM #validTransId t
+												  WHERE winlostdate = @BalanceUpDate
+												  FOR XML PATH('')), 1, 1, ''), '')
+	END
 
 	/*****************Return table **************************/
 	-- 1. Return validation/Transinfo table
@@ -142,6 +164,7 @@ BEGIN
 	SELECT @InvalidTransIds AS InvalidTransIds
 		 , @UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
 		 , CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
+		 , @BalanceUpTransIds AS BalanceUpTransIds
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId

@@ -34,6 +34,7 @@ AS
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
+		- 20251006@July: Block void ticket after balance up date [Redmine: #238233]
 
 	Param's explanation:	
 		
@@ -54,12 +55,14 @@ BEGIN
 			,@SitedbgroupId		SMALLINT
 			,@ActionID			INT = 90999 --TVS - Agency Cash Service
 			,@session			NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
+			,@BeingBalanceUpDate VARCHAR(255)
+			,@BalanceUpDate		 DATETIME
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 		SET @IsSiteDB = 1
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-
+	
 	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
 	
@@ -221,7 +224,7 @@ BEGIN
 								FOR XML PATH('r'), ROOT('root')
 								) AS VARCHAR(MAX))
 	END
-	
+
 	-- gather match Ids
 	INSERT INTO #tblMatch (matchid)
 	SELECT	matchid
@@ -260,6 +263,29 @@ BEGIN
  			,@ErrMsg = 'Some invalid tickets exist!'
 			,@FailedTransIds = @FailedTransIds
 		
+		RETURN
+	END
+
+	/*Modify the way to get balance up date*/
+	SELECT @BeingBalanceUpDate = VValue
+    FROM dbo.MBUSettings WITH (NOLOCK) 
+	WHERE VName = 'BeingBalanceUpDate'
+
+	SELECT @BalanceUpDate = VValue
+    FROM dbo.MBUSettings WITH (NOLOCK) 
+	WHERE VName = 'BalanceUpDate'
+
+	IF @BeingBalanceUpDate IS NOT NULL 
+		AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate = @BalanceUpDate)
+	BEGIN
+		SELECT @FailedTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+												  FROM #tmpTransId t
+												  WHERE Eventdate = @BalanceUpDate
+												  FOR XML PATH('')), 1, 1, ''), '')
+		
+		SELECT	@ErrCode = 99
+			   ,@ErrMsg = 'Being Balance Up'
+			   ,@FailedTransIds = @FailedTransIds
 		RETURN
 	END
 

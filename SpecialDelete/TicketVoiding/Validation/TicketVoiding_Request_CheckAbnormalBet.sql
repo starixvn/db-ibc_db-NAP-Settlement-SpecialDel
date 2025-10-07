@@ -73,6 +73,7 @@ AS
 		- 20250715@Lani: [TVS] Abnormal Bet - Send ticket of the username in AB Exception List to CTS [Redmine: #231465]
 		- 20250815@Lani: [TVS] Return both running and settle tickets of sitedbdown [Redmine: #232580]
 		- 20251007@July: [TVS] Update rules Send Letstalk [Redmine: #240950]
+		- 20251006@July: [TVS] Abnormal Bet - Block void ticket after balance up date [Redmine: #238233]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -106,8 +107,19 @@ BEGIN
 			,@Archived_FromDate			 DATETIME = NULL
 			,@SiteDBDownInfoJson		 VARBINARY(MAX) = NULL
 			,@SiteDBGroupID				 SMALLINT
-	
+			,@BeingBalanceUpDate		 VARCHAR(255)
+			,@BalanceUpDate				 DATETIME
+			,@BalanceUpTransIds			 VARCHAR(MAX) = ''
+
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	SELECT @BeingBalanceUpDate = VValue
+    FROM dbo.MBUSettings WITH (NOLOCK) 
+	WHERE VName = 'BeingBalanceUpDate'
+
+	SELECT @BalanceUpDate = VValue
+    FROM dbo.MBUSettings WITH (NOLOCK) 
+	WHERE VName = 'BalanceUpDate'
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -148,7 +160,7 @@ BEGIN
 	CREATE TABLE #tmpInputTransid_RemarkId (
 		 Transid		BIGINT
 		,RemarkId		INT	  /*  1: Invalid
-								, 2: Moved or Duplicated
+								, 2: Moved or Duplicated or Balance up Date
 								, 3: DifferentMatch
 								, 4: Settled
 								, 5: Unsupported
@@ -170,7 +182,7 @@ BEGIN
 	SELECT DISTINCT transid
 	FROM #tmpInputTransid_RemarkId
 
-	CREATE TABLE #invalidTransId (transid BIGINT, isMoved BIT)
+	CREATE TABLE #invalidTransId (transid BIGINT, isMoved BIT, IsBalanceUp BIT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
 		transid						BIGINT PRIMARY KEY
@@ -628,9 +640,10 @@ BEGIN
 		AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
 
 	-- get invalid or moved transId
-	INSERT INTO #invalidTransId (transid, isMoved)
+	INSERT INTO #invalidTransId (transid, isMoved, IsBalanceUp)
 	SELECT temp.transid
 		  ,ISNULL(bm.IsMoved14, 0) AS isMoved
+		  ,ISNULL(f.IsBalanceUp, 0) AS IsBalanceUp
 	FROM #inputTransid AS temp
 		OUTER APPLY (
 		SELECT TOP 1 IsMoved14
@@ -638,6 +651,14 @@ BEGIN
 		WHERE transid = temp.transid 
 			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 AND winlostdate < @Archived_FromDate THEN 1 ELSE 0 END
 		) bm
+		OUTER APPLY (
+		SELECT TOP 1 1 AS IsBalanceUp
+		FROM #tmpTransInfo
+		WHERE transid = temp.transid 
+			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 1 AND IsMoved14 = 1 
+								AND @BeingBalanceUpDate IS NOT NULL AND winlostdate = @BalanceUpDate 
+						 THEN 1 ELSE 0 END
+		) f
 	WHERE NOT EXISTS (SELECT 1 FROM #validTransId 
 					  WHERE transid = temp.transid 
 					  AND 1 = CASE WHEN @ActionId = 1 AND StatusId IN (111,112,113) THEN 0 ELSE 1 END)
@@ -652,6 +673,11 @@ BEGIN
 	SELECT @MovedTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 								FROM #invalidTransId
 								WHERE isMoved = 1
+								FOR XML PATH('')), 1, 1, ''), '')
+
+	SELECT @BalanceUpTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+								FROM #invalidTransId
+								WHERE IsBalanceUp = 1
 								FOR XML PATH('')), 1, 1, ''), '')
 
 	UPDATE t
@@ -882,6 +908,7 @@ BEGIN
 	--2. Validate Table
 	SELECT   @MovedTransIds AS MovedTransIds
 			,@InvalidTransIds AS InvalidTransIds
+			,@BalanceUpTransIds AS BalanceUpTransIds
 			,@SettledTransIds AS SettledTransIds
 			,@ExistingReqTransIds AS ExistingReqTransIds
 			,@UnsupportedTransids AS UnsupportedTransids
