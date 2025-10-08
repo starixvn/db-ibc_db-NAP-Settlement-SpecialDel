@@ -40,6 +40,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#208026]   
 		- 20240808@Aries: VS5 - Virtually Sports [Redmine:#207309]
 		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
+		- 20251007@Max: VS6 - eSoccer [Redmine: #240731]
 */
 RETURN
 (
@@ -160,7 +161,6 @@ RETURN
 							WHEN @HomeValue >= CAST(REPLACE(@betteam, '+', '') AS INT) THEN 1
 						END
 			END
-			WHEN @pfID IN (424, 385, 384) THEN --betteam = homevalue
 			   CASE WHEN @betteam = @HomeValue THEN 1
 					ELSE -1 END
 			
@@ -377,6 +377,90 @@ RETURN
 					WHEN tbl.fm <> 0 AND @betteam IN ('ha','12') THEN 1
 					ELSE -1
 					END
+			WHEN @pfID = 25 THEN
+				CASE 
+					WHEN tbl.fm = 0 THEN 0
+					WHEN tbl.fm < 0 AND @betteam = 'a' THEN 1
+					WHEN tbl.fm > 0 AND @betteam = 'h' THEN 1
+					ELSE -1
+					END
+			WHEN @pfID = 143 THEN
+				CASE 
+					WHEN @betteam = 'ho' AND @HomeValue > 0 THEN @AwayValue - @hdp1
+					WHEN @betteam = 'hu' AND @HomeValue > 0 THEN @hdp1 - @AwayValue
+					WHEN @betteam = 'ao' AND @HomeValue < 0 THEN @AwayValue - @hdp1
+					WHEN @betteam = 'au' AND @HomeValue < 0 THEN @hdp1 - @AwayValue
+					WHEN @betteam = 'do' AND @HomeValue = 0 THEN @AwayValue - @hdp1
+					WHEN @betteam = 'du' AND @HomeValue = 0 THEN @hdp1 - @AwayValue    
+					ELSE -1
+				END
+			WHEN @pfID = 145 THEN
+				CASE 
+					WHEN @betteam = 'y' AND (@HomeValue > 0) AND (@AwayValue > 0) THEN 1
+					WHEN @betteam = 'n' AND ((@HomeValue = 0) OR (@AwayValue = 0)) THEN 1
+					ELSE -1
+				END	
+			WHEN @pfid = 170 THEN
+				CASE 
+					WHEN @betteam = 'b' AND (CAST(@HomeValue AS INT) > 0 AND CAST(@AwayValue AS INT) > 0) THEN 1	
+					WHEN @betteam = 'n' AND (CAST(@HomeValue AS INT) = 0 AND CAST(@AwayValue AS INT) = 0) THEN 1
+					WHEN @betteam = 'h' AND (CAST(@HomeValue AS INT) > 0 AND CAST(@AwayValue AS INT) = 0) THEN 1	
+					WHEN @betteam = 'a' AND (CAST(@HomeValue AS INT) = 0 AND CAST(@AwayValue AS INT) > 0) THEN 1
+					ELSE - 1
+				END
+			WHEN @pfID = 418 THEN
+				CASE 
+					WHEN CAST(@HomeValue AS INT) > 0 AND CAST(@AwayValue AS INT) > 0 
+						THEN CASE	
+								WHEN @betteam = 'YO' AND CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) > @hdp1 THEN 1
+								WHEN @betteam = 'YU' AND CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) < @hdp1 THEN 1
+								ELSE -1
+							END
+					ELSE CASE
+							WHEN @betteam = 'NO' AND CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) > @hdp1 THEN 1
+							WHEN @betteam = 'NU' AND CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) < @hdp1 THEN 1
+							ELSE - 1
+						END
+				END
+			WHEN @pfID = 449 THEN
+				CASE 
+					WHEN @betteam = '1XO' AND @AwayValue >= 0 AND @HomeValue - @hdp1 > 0 THEN 1
+					WHEN @betteam = '1XU' AND @AwayValue >= 0 AND @HomeValue - @hdp1 < 0 THEN 1
+					WHEN @betteam = '12O' AND @AwayValue <> 0 AND @HomeValue - @hdp1 > 0 THEN 1
+					WHEN @betteam = '12U' AND @AwayValue <> 0 AND @HomeValue - @hdp1 < 0 THEN 1
+					WHEN @betteam = '2XO' AND @AwayValue <= 0 AND @HomeValue - @hdp1 > 0 THEN 1
+					WHEN @betteam = '2XU' AND @AwayValue <= 0 AND @HomeValue - @hdp1 < 0 THEN 1
+					ELSE -1
+				END
+			WHEN @pfID = 450 THEN	
+				CASE 
+					WHEN @betteam = 'OO' AND @AwayValue = 1 AND @HomeValue > @hdp1 THEN 1
+					WHEN @betteam = 'OU' AND @AwayValue = 1 AND @HomeValue < @hdp1 THEN 1
+					WHEN @betteam = 'EO' AND @AwayValue = 0 AND @HomeValue > @hdp1 THEN 1
+					WHEN @betteam = 'EU' AND @AwayValue = 0 AND @HomeValue < @hdp1 THEN 1
+					ELSE -1
+				END	
+			WHEN @pfID = 451 THEN
+				CASE
+					WHEN @betteam = 'Y1X' AND (CAST(@HomeValue AS INT) > 0  AND CAST(@AwayValue AS INT) > 0) AND fm >= 0 THEN 1
+					WHEN @betteam = 'Y12' AND (CAST(@HomeValue AS INT) > 0  AND CAST(@AwayValue AS INT) > 0) AND fm <> 0 THEN 1
+					WHEN @betteam = 'Y2X' AND (CAST(@HomeValue AS INT) > 0  AND CAST(@AwayValue AS INT) > 0) AND fm <= 0 THEN 1
+
+					WHEN @betteam = 'N1X' AND (CAST(@HomeValue AS INT) = 0  OR CAST(@AwayValue AS INT) = 0) AND fm >= 0 THEN 1
+					WHEN @betteam = 'N12' AND (CAST(@HomeValue AS INT) = 0  OR CAST(@AwayValue AS INT) = 0) AND fm <> 0 THEN 1
+					WHEN @betteam = 'N2X' AND (CAST(@HomeValue AS INT) = 0  OR CAST(@AwayValue AS INT) = 0) AND fm <= 0 THEN 1
+					ELSE -1
+				END
+			WHEN @pfID = 494 THEN 
+				CASE 
+					WHEN @betteam = 'AOS' 
+						THEN CASE
+								WHEN CHARINDEX(@HomeValue + '-' + @AwayValue, @Transdesc) = 0 THEN 1
+								ELSE -1
+							END
+					WHEN @betteam = @HomeValue + '-' + @AwayValue THEN 1
+					ELSE -1
+				END
 			WHEN @pfID = 633 THEN
 				CASE
 					WHEN CASE
@@ -650,7 +734,7 @@ RETURN
 					WHEN @pfID = 9118 THEN CAST(@HomeValue AS MONEY) - @hdp1 * 1000
 					WHEN @pfID = 9119 THEN CAST(@AwayValue AS MONEY) - @hdp1 * 1000
 					
-					WHEN @pfID IN (20,711, 608, 614, 5, 24, 3911, 8805, 8822) THEN CAST(@HomeValue AS MONEY) - CAST(@AwayValue AS MONEY)
+					WHEN @pfID IN (20,711, 608, 614, 5, 24, 3911, 8805, 8822, 25) THEN CAST(@HomeValue AS MONEY) - CAST(@AwayValue AS MONEY)
 
 					WHEN @pfID = 3915 THEN CASE WHEN @HomeValue = 'N' THEN 99
 												ELSE CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
@@ -685,7 +769,7 @@ RETURN
 
 	OUTER APPLY -- bettype 376: input betcheck into @AwayValue
 	(
-		SELECT	ROW_NUMBER () OVER (ORDER BY(SELECT NULL)ASC) AS rn
+		SELECT	ROW_NUMBER () OVER (ORDER BY(SELECT NULL) ASC) AS rn
 				,CAST(CASE WHEN f.[value] = '' THEN CAST(1 AS SMALLMONEY) ELSE f.[value] END AS SMALLMONEY) AS odds
 		FROM	STRING_SPLIT(@AwayValue, ',') f
 		WHERE	@pfID = 376

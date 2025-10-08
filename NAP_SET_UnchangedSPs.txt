@@ -1,1 +1,1 @@
-Common SP\Validation\NAP_Admin_Settlement_Validation_Ticket.sql
+Settlement\Outright\dbo.NAP_Admin_Outright_Update.sql
