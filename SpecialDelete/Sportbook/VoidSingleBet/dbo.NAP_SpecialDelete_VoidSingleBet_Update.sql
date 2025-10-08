@@ -1859,7 +1859,7 @@ BEGIN
 
 					DELETE @tmpBoostSetting
 					INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
-					EXEC (@sqlOpenqueryCommand)
+					EXEC sys.sp_executesql @sqlOpenqueryCommand
 
 					SET @strSetting = ''
 					SELECT @strSetting = CAST((
