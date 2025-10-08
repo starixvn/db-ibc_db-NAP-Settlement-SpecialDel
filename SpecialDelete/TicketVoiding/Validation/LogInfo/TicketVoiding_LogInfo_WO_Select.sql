@@ -76,7 +76,7 @@ BEGIN
 		,PoolHouseMainParlayCount 		INT
 	)
 
-	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT) 
 	CREATE TABLE #FilterInfo (
 		 MatchId				INT --parent matchid
 		,FilterFromTransTime	DATETIME
