@@ -30,20 +30,30 @@ BEGIN
 	END
 
 	DECLARE @tmp_ResourceWeb TABLE(ResourceID VARCHAR(50))
-	DECLARE @tmp_Offer TABLE ( ResourceID VARCHAR(50), RelatedBettype VARCHAR(200), PlayerId VARCHAR(20), TeamId VARCHAR(20), PlayerRank TINYINT )
-	DECLARE @tmp_MainResource TABLE ( MainResourceID VARCHAR(50), RelatedBettype VARCHAR(3), PlayerId VARCHAR(20), TeamId VARCHAR(20), PlayerRank TINYINT )
+	DECLARE @tmp_ResourceFormat TABLE (ResourceName VARCHAR(20), ResourceFormat VARCHAR(3) )
+	DECLARE @tmp_Offer TABLE ( ResourceID VARCHAR(50), RelatedBettype VARCHAR(200), PlayerId VARCHAR(20), TeamId VARCHAR(20), PlayerRank TINYINT, OddsInfo VARCHAR(500) )
+	DECLARE @tmp_MainResource TABLE ( MainResourceID VARCHAR(50), RelatedBettype VARCHAR(3), PlayerId VARCHAR(20), TeamId VARCHAR(20), PlayerRank TINYINT, OddsInfo VARCHAR(500) )
 	DECLARE @tmp_Generate TABLE ( ResourceID VARCHAR(50), OtherInfo VARCHAR(50) )
 
 	INSERT INTO  @tmp_ResourceWeb (ResourceID )
 	SELECT DISTINCT v.value FROM string_split(@ResourceIds,',')v
 
+	INSERT INTO @tmp_ResourceFormat (ResourceName, ResourceFormat)
+	VALUES ( '"points"'		 , '653')
+		  ,( '"assists"'	 , '656')
+		  ,( '"rebounds"'	 , '659')
+		  ,( '"three_points"', '662')
+		  ,( '"blocks"'		 , '665')
+		  ,( '"steals"'		 , '667')
+
 	BEGIN TRY
 		---Offer
-		;WITH cte_offer (ResourceID, RelatedBettype, PlayerId, TeamId)
+		;WITH cte_offer (ResourceID, RelatedBettype, PlayerId, TeamId, OddsInfo)
 		AS (SELECT	DISTINCT s.ResourceID
 				,JSON_VALUE(s.APSetting,'$."relatedBettype"') AS RelatedBettype
 				,JSON_VALUE(f.OddsInfo,'$."pid"') AS PlayerId 
 				,JSON_VALUE(f.OddsInfo,'$."tid"') AS TeamId 
+				,f.OddsInfo
 			FROM	dbo.odds o WITH(NOLOCK)
 				INNER JOIN dbo.odds_flex f WITH(NOLOCK)
 					ON o.oddsid = f.oddsid
@@ -60,24 +70,27 @@ BEGIN
 					AND ISNULL(f.IsDeleted,0) = 0
 		)
 
-		INSERT INTO @tmp_Offer ( ResourceID, RelatedBettype, PlayerId, TeamId, PlayerRank)
+		INSERT INTO @tmp_Offer ( ResourceID, RelatedBettype, PlayerId, TeamId, PlayerRank, OddsInfo)
 		SELECT ResourceID, RelatedBettype, PlayerId, TeamId
 			  ,DENSE_RANK() OVER(ORDER BY cte.PlayerId ASC)
+			  ,OddsInfo
 		FROM cte_offer cte
-
+		
+		---keep base bettype has ticket and related bettype
 		DELETE o
 		FROM @tmp_Offer o 
-			RIGHT JOIN @tmp_ResourceWeb w
+				LEFT JOIN @tmp_ResourceWeb w
 				ON o.ResourceID =w.ResourceID
-		WHERE o.ResourceID IS NULL AND ISNULL(o.RelatedBettype,'') <> ''
+		WHERE w.ResourceID IS NULL AND ISNULL(o.RelatedBettype,'') <> '' 
 	
 		--bettype has related			
-		INSERT INTO @tmp_MainResource ( MainResourceID, RelatedBettype, PlayerId, TeamId, PlayerRank )	
+		INSERT INTO @tmp_MainResource ( MainResourceID, RelatedBettype, PlayerId, TeamId, PlayerRank, OddsInfo )	
 		SELECT DISTINCT o.ResourceID	
 				,v.RelatedBettype	
 				,o.PlayerId 
 				,o.TeamId
 				,PlayerRank
+				,o.OddsInfo
 		FROM @tmp_Offer o
 			CROSS APPLY (SELECT v.value AS RelatedBettype FROM STRING_SPLIT(RelatedBettype, ',')v)v
 		WHERE ISNULL(o.RelatedBettype,'') <> ''
@@ -86,7 +99,14 @@ BEGIN
 		FROM @tmp_MainResource m
 		WHERE m.RelatedBettype = 0 ---fulltime
 			OR EXISTS (SELECT 1 FROM @tmp_Offer o WHERE ISNULL(o.RelatedBettype,'') = '' AND o.PlayerId = m.PlayerId AND LEFT(o.ResourceID,3) = m.RelatedBettype  )
-		
+	 
+		DELETE m
+		FROM @tmp_MainResource m
+			LEFT JOIN @tmp_ResourceFormat f
+				ON m.RelatedBettype = f.ResourceFormat
+					AND m.OddsInfo LIKE '%' + f.ResourceName +'%'
+		WHERE f.ResourceFormat IS NULL
+
 		BEGIN TRANSACTION
 			INSERT INTO @tmp_Generate	 ( ResourceID, OtherInfo)
 			SELECT DISTINCT m.RelatedBettype + CAST(20-PlayerRank AS VARCHAR(2) ), PlayerId +',' + TeamId
