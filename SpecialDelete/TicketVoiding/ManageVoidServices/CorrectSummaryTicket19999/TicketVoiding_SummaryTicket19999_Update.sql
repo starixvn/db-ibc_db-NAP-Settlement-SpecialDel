@@ -148,7 +148,7 @@ BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
 		FROM	#BeforeTransId14 b
-			INNER JOIN dbo.match m WITH(NOLOCK)
+			INNER JOIN dbo.match14 m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1) AND b.bettype = bettype)
 	END
@@ -159,7 +159,7 @@ BEGIN
 		UPDATE b
 		SET sporttype	= l.sporttype
 		FROM #BeforeTransId14 b
-			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
+			INNER JOIN dbo.outright14 AS o WITH (NOLOCK) 
 				ON	b.matchid = o.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
 				ON	o.leagueid = l.leagueid
@@ -172,9 +172,9 @@ BEGIN
 		UPDATE b
 		SET sporttype 	= r.sporttype
 		FROM #BeforeTransId14 b
-			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+			INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) 
 				ON b.oddsid = o.Orid
-			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) 
 				ON r.EventID = o.EventID
 		WHERE b.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)
 	END
