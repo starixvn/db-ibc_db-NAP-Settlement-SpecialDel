@@ -160,7 +160,7 @@ BEGIN
 	CREATE TABLE #tmpInputTransid_RemarkId (
 		 Transid		BIGINT
 		,RemarkId		INT	  /*  1: Invalid
-								, 2: Moved or Duplicated or Balance up Date
+								, 2: Moved or Duplicated 
 								, 3: DifferentMatch
 								, 4: Settled
 								, 5: Unsupported
@@ -169,6 +169,7 @@ BEGIN
 								, 8: DifferentLiveScore
 								, 9: AB Exception TransIds
 								, 10: SiteDB down TransIds
+								, 11: Balance up Date
 							  */
 	)
 	CREATE TABLE #inputTransid (transid BIGINT PRIMARY KEY)
@@ -681,7 +682,9 @@ BEGIN
 								FOR XML PATH('')), 1, 1, ''), '')
 
 	UPDATE t
-	SET t.RemarkId = CASE WHEN v.isMoved = 0 THEN 1 ELSE 2 END
+	SET t.RemarkId = CASE WHEN v.isMoved = 1 THEN 2
+						  WHEN v.IsBalanceUp = 1 THEN 11
+						  ELSE 1 END
 	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #invalidTransId v ON t.Transid = v.transid
 	
