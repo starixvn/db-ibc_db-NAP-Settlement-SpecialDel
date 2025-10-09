@@ -318,19 +318,17 @@ BEGIN
 								  ELSE NULL
 								END 
 			FROM #RecoverBet r
-				INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
-					ON r.bettype = sb.BetType
 				CROSS APPLY (
-					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode, m.eventdate, m.eventstatus, m.betstatus
+					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.kickofftime, m.matchcode, m.eventdate, m.eventstatus, m.betstatus
 					FROM match m WITH (NOLOCK)
 					WHERE m.matchid = r.matchid
 					UNION 
-					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId AS leagueid, 0, m.StartTime, m.MatchNo AS matchcode, m.EventDate, m.eventstatus, m.betstatus
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId AS leagueid, m.StartTime, m.MatchNo AS matchcode, m.EventDate, m.eventstatus, m.betstatus
 					FROM Match3rd m WITH (NOLOCK)
 					WHERE m.Match3rdId = r.matchid
 				 )m			
-			WHERE sb.sporttype BETWEEN 190 AND 199 -- VS Betradar
-				 OR sb.sporttype IN (180, 186	-- Inspired VS 
+			WHERE m.sporttype BETWEEN 190 AND 199 -- VS Betradar
+				 OR m.sporttype IN (180, 186	-- Inspired VS 
 								  , 178, 179	-- VS 3 (Leap Gaming)
 								  , 188			-- VS 4 (Edge Gaming)
 								  , 147			-- VS5
@@ -342,8 +340,8 @@ BEGIN
 			SET  matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
 				,homeid 	= o.RacerID
 				,awayid 	= 0
-				,leagueid 	= r.leagueid
-				,sporttype 	= r.sporttype
+				,leagueid 	= vs.leagueid
+				,sporttype 	= vs.sporttype
 				,showtime	= CONVERT(VARCHAR(20), vs.EventTime, 113) 
 				,eventdate  = o.eventdate
 				,eventstatus = ISNULL(o.eventstatus,'')
@@ -357,13 +355,11 @@ BEGIN
 							   END
 				,TicketType = 3
 			FROM #RecoverBet r
-				INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
-					ON r.bettype = sb.BetType
 				INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 					 ON r.oddsid = o.Orid
 				INNER JOIN dbo.VSRaceInfo vs WITH (NOLOCK) 
 						 ON vs.EventID = o.EventID		
-			WHERE sb.sporttype BETWEEN 181 AND 185 -- Inspired VS 181	
+			WHERE vs.sporttype BETWEEN 181 AND 185 -- Inspired VS 181	
 		END
 
 		/*Modify the way to get move bet date*/
