@@ -69,11 +69,11 @@ BEGIN
 	WHERE b.SiteDBGroupID = @SiteDBGroupID
 	
 	IF @BeingBalanceUpDate IS NOT NULL 
-		AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate = @BalanceUpDate)
+		AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate < @BalanceUpDate)
 	BEGIN
 		SELECT @BalanceUpTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 										FROM #validTransId t
-										WHERE winlostdate = @BalanceUpDate
+										WHERE winlostdate < @BalanceUpDate
 										FOR XML PATH('')), 1, 1, ''), '')
 	END
 
