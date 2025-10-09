@@ -73,9 +73,9 @@ BEGIN
 		  , @NegativeBalanceUsers	VARCHAR(MAX)	= '' 
 		  , @ErrMsg					NVARCHAR(200)	= ''
 		  , @ErrCode				INT				= 0	
-		  , @SiteDBGroupID		SMALLINT
+		  , @SiteDBGroupID		    SMALLINT
 		  , @transInfo				VARBINARY(MAX) 
-		  , @TransInfoMaxPO		VARCHAR(MAX)
+		  , @TransInfoMaxPO		    VARCHAR(MAX)
 		  , @TotalTransMaxPO		INT = 0
 		  , @batchPO				SMALLINT = 500
 
@@ -139,7 +139,6 @@ BEGIN
 		SubHdp1				SMALLMONEY,
 		SubHdp2				SMALLMONEY,
 		SubOdds				SMALLMONEY,
-		SubCustId			INT,
 		SubTransdesc		NVARCHAR(2000),		
 		BetFrom				NVARCHAR(4),
 		matchid				INT,
@@ -183,7 +182,7 @@ BEGIN
 		winlost				MONEY,
 		TransId				BIGINT
 	)
-	
+	CREATE TABLE #CTE_CustInfo(custid INT, username VARCHAR(30), username2 VARCHAR(50), site VARCHAR(10), currency SMALLINT)
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -192,7 +191,7 @@ BEGIN
 	DECLARE @beforeUpd 		TVP_BalanceChange		  
 		  , @afterUpd 		TVP_BalanceChange		  		  		  		 		
 	
-	SELECT @before_yesterday = CONVERT(varchar(10), DATEADD(day, -2, GETDATE()), 120)	
+	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(DAY, -2, GETDATE()), 120)	
 		 , @CompletedMatchIds = ''		 
 		 , @NegativeBalanceUsers = ''
 		 , @ErrCode = 0
@@ -313,9 +312,9 @@ BEGIN
 			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'	
 
 			SELECT @ErrCode AS ErrorCode
-				,@ErrMsg AS ErrorMsg
-				,@NegativeBalanceUsers AS NegativeBalanceUsers
-				,@CompletedMatchIds AS CompletedMatchIds
+				  ,@ErrMsg AS ErrorMsg
+				  ,@NegativeBalanceUsers AS NegativeBalanceUsers
+				  ,@CompletedMatchIds AS CompletedMatchIds
 			
 			RETURN
 		END	
@@ -328,7 +327,7 @@ BEGIN
 	
 		BEGIN
 			UPDATE r
-			SET  matchcode 	= NULL
+			SET  matchcode 	= m.matchcode
 				,homeid 	= m.homeid
 				,awayid 	= m.awayid
 				,leagueid 	= m.leagueid
@@ -361,7 +360,7 @@ BEGIN
 					FROM match m WITH (NOLOCK)
 					WHERE m.matchid = r.matchid
 					UNION 
-					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId AS leagueid, 0, m.StartTime, m.matchcode, m.EventDate, m.eventstatus, m.betstatus
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId AS leagueid, 0, m.StartTime, m.MatchNo AS matchcode, m.EventDate, m.eventstatus, m.betstatus
 					FROM Match3rd m WITH (NOLOCK)
 					WHERE m.Match3rdId = r.matchid
 				 )m			
@@ -450,9 +449,9 @@ BEGIN
 		IF @ErrCode <> 0 OR @avaiableProcess = 0
 		BEGIN
 			SELECT @ErrCode AS ErrorCode
-				,@ErrMsg AS ErrorMsg
-				,@NegativeBalanceUsers AS NegativeBalanceUsers
-				,@CompletedMatchIds AS CompletedMatchIds
+				  ,@ErrMsg AS ErrorMsg
+				  ,@NegativeBalanceUsers AS NegativeBalanceUsers
+				  ,@CompletedMatchIds AS CompletedMatchIds
 
 			RETURN
 		END
@@ -471,8 +470,7 @@ BEGIN
 			  , (CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END) AS winlost	
 			  , b.TransId
 		FROM bettrans b WITH (NOLOCK) 
-			 INNER JOIN #RecoverBet t 
-					 ON	b.transid = t.TransId
+			 INNER JOIN #RecoverBet t ON b.transid = t.TransId
 
 		INSERT INTO @beforeUpd(custid, balance, balanceType)
 		SELECT	CustID
@@ -1177,7 +1175,7 @@ BEGIN
 							, gametypeid
 							, balance
 							, winlost
-							,TransId)
+							, TransId)
 		SELECT	b.custid				  
 			  , b.winlostdate
 			  , b.bettype AS gametypeid
@@ -1185,8 +1183,7 @@ BEGIN
 			  , (CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END) AS winlost	
 			  , b.TransId
 		FROM bettrans b WITH (NOLOCK) 
-			 INNER JOIN #RecoverBet t 
-					 ON	b.transid = t.TransId		
+			 INNER JOIN #RecoverBet t ON b.transid = t.TransId		
 
 		INSERT INTO @afterUpd(custid, balance, balanceType)
 		SELECT	CustID
@@ -1198,7 +1195,7 @@ BEGIN
 		INSERT INTO #Balance (custid, balance, increased)
 		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
 		FROM @beforeUpd AS b
-		INNER JOIN @afterUpd AS a ON b.custid = a.custid
+			INNER JOIN @afterUpd AS a ON b.custid = a.custid
 		WHERE b.balance <> a.balance
 
 		--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
@@ -1237,7 +1234,7 @@ BEGIN
 											, balance
 											, bettype
 											, GameTypeID
-											,RefID)
+											, RefID)
 		SELECT a.custid
 			 , a.winlostdate
 			 , (a.winlost - b.winlost) AS Balance
@@ -1245,8 +1242,7 @@ BEGIN
 			 , a.gametypeid
 			 , a.TransId
 		FROM #beforeUpd b
-			INNER JOIN #afterUpd a 
-				ON	a.TransId = b.TransId						
+			INNER JOIN #afterUpd a ON a.TransId = b.TransId						
 		WHERE (a.winlost - b.winlost) > 0
 
 		INSERT INTO BalancePendingDebitGame (custid
@@ -1254,7 +1250,7 @@ BEGIN
 										   , balance
 										   , bettype
 										   , GameTypeID
-										   ,RefID)
+										   , RefID)
 		SELECT a.custid
 			 , a.winlostdate
 			 , ABS(a.winlost - b.winlost) AS Balance
@@ -1262,8 +1258,7 @@ BEGIN
 			 , a.gametypeid
 			 , a.TransId
 		FROM #beforeUpd b
-			INNER JOIN #afterUpd a 
-				ON	a.TransId = b.TransId
+			INNER JOIN #afterUpd a ON a.TransId = b.TransId
 		WHERE (a.winlost - b.winlost) < 0
 		
 		--> Delete zzzbettrans
@@ -1453,6 +1448,26 @@ BEGIN
 				,@NegativeBalanceUsers AS NegativeBalanceUsers
 				,@CompletedMatchIds AS CompletedMatchIds
 				
+		;WITH CTE_CustIdAll AS (
+			SELECT DISTINCT t.custid
+			FROM #RecoverBet b
+			CROSS APPLY (
+				VALUES (custid)
+				      ,(creator)
+				      ,(recommend)
+				      ,(mrecommend)
+				      ,(srecommend)
+			) AS t (custid)
+		)
+		INSERT INTO #CTE_CustInfo (custid, username, username2, site, currency)
+		SELECT ci.custid
+			 , ci.username
+			 , ci.username2
+			 , ci.site
+			 , ci.currency
+		FROM CustDB.dbo.Customer ci WITH(NOLOCK)
+			INNER JOIN CTE_CustIdAll ca ON ci.custid = ca.custid		
+
 		SELECT  r.Stake,
 				r.AwayId,
 				r.BetCheck,
@@ -1504,14 +1519,10 @@ BEGIN
 				@isITAdmin AS IsItSupport,
 				r.BetFrom 
 		FROM #RecoverBet r
-			 INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK)
-					ON r.CustId = ci.custid
-			 LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
-					 ON r.recommend = ag.custid
-			 LEFT JOIN CustDB.dbo.Customer ma WITH(NOLOCK)
-					 ON r.mrecommend = ma.custid
-			 LEFT JOIN CustDB.dbo.Customer su WITH(NOLOCK)
-					 ON r.srecommend = su.custid
+			 INNER JOIN #CTE_CustInfo ci WITH (NOLOCK) ON r.CustId = ci.custid
+			 LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK) ON r.recommend = ag.custid
+			 LEFT JOIN #CTE_CustInfo ma WITH(NOLOCK) ON r.mrecommend = ma.custid
+			 LEFT JOIN #CTE_CustInfo su WITH(NOLOCK) ON r.srecommend = su.custid
 			 CROSS APPLY (SELECT CASE 
 									WHEN r.IsDeposit = 0  
 										 AND r.custid NOT IN (SELECT CustID FROM [f_GetBetDaqCustomer] (1))    
@@ -1557,6 +1568,7 @@ BEGIN
 	DROP TABLE #RecoverBet
 	DROP TABLE #beforeUpd
 	DROP TABLE #afterUpd
+	DROP TABLE #CTE_CustInfo
 
 	SET NOCOUNT OFF	
 END
