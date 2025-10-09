@@ -451,16 +451,6 @@ RETURN
 					WHEN @betteam = 'N2X' AND (CAST(@HomeValue AS INT) = 0  OR CAST(@AwayValue AS INT) = 0) AND fm <= 0 THEN 1
 					ELSE -1
 				END
-			WHEN @pfID = 494 THEN 
-				CASE 
-					WHEN @betteam = 'AOS' 
-						THEN CASE
-								WHEN CHARINDEX(@HomeValue + '-' + @AwayValue, @Transdesc) = 0 THEN 1
-								ELSE -1
-							END
-					WHEN @betteam = @HomeValue + '-' + @AwayValue THEN 1
-					ELSE -1
-				END
 			WHEN @pfID = 633 THEN
 				CASE
 					WHEN CASE
