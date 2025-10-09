@@ -192,10 +192,8 @@ BEGIN
 		
 		IF @@ROWCOUNT = 0
 		BEGIN
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
-
-			SELECT @ErrCode AS ErrorCode
-				,@ErrMsg AS ErrorMsg
+			SELECT 99 AS ErrorCode
+				 ,'No ticket found.' AS ErrorMsg
 			
 			RETURN
 		END				 
@@ -276,10 +274,8 @@ BEGIN
 		  
 		IF @@ROWCOUNT = 0
 		BEGIN
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'	
-
-			SELECT @ErrCode AS ErrorCode
-				  ,@ErrMsg AS ErrorMsg
+			SELECT 99 AS ErrorCode
+				  ,'No ticket found.' AS ErrorMsg
 			
 			RETURN
 		END	
@@ -367,11 +363,8 @@ BEGIN
 		
 		IF EXISTS ( SELECT TOP 1 1 FROM #RecoverBet WHERE eventdate <= @Movebetdate )
 		BEGIN
-			SELECT @ErrCode = 112
-				 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
-
-			SELECT @ErrCode AS ErrorCode
-				  ,@ErrMsg AS ErrorMsg
+			SELECT 112 AS ErrorCode
+				  ,'Could not recover some tickets due to Movebet process. Please try Search again.' AS ErrorMsg
 
 			RETURN	
 		END
