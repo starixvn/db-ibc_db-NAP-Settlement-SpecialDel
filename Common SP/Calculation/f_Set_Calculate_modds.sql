@@ -724,7 +724,7 @@ RETURN
 					WHEN @pfID = 9118 THEN CAST(@HomeValue AS MONEY) - @hdp1 * 1000
 					WHEN @pfID = 9119 THEN CAST(@AwayValue AS MONEY) - @hdp1 * 1000
 					
-					WHEN @pfID IN (20,711, 608, 614, 5, 24, 3911, 8805, 8822, 25) THEN CAST(@HomeValue AS MONEY) - CAST(@AwayValue AS MONEY)
+					WHEN @pfID IN (20,711, 608, 614, 5, 24, 3911, 8805, 8822, 25, 451) THEN CAST(@HomeValue AS MONEY) - CAST(@AwayValue AS MONEY)
 
 					WHEN @pfID = 3915 THEN CASE WHEN @HomeValue = 'N' THEN 99
 												ELSE CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
