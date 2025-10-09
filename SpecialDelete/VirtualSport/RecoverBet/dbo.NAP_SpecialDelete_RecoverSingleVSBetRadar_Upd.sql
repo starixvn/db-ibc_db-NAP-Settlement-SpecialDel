@@ -131,15 +131,6 @@ BEGIN
 		LeagueId			INT,
 		matchcode			NVARCHAR(50),
 		modds				SMALLMONEY,
-		SubStatus			NVARCHAR(10),
-		SubTransId			BIGINT,
-		SubBetCheck			NVARCHAR(50),
-		SubBetTeam			NVARCHAR(10),
-		SubBetType			SMALLINT,
-		SubHdp1				SMALLMONEY,
-		SubHdp2				SMALLMONEY,
-		SubOdds				SMALLMONEY,
-		SubTransdesc		NVARCHAR(2000),		
 		BetFrom				NVARCHAR(4),
 		matchid				INT,
 		[Action]			VARCHAR(100),
@@ -192,8 +183,6 @@ BEGIN
 		  , @afterUpd 		TVP_BalanceChange		  		  		  		 		
 	
 	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(DAY, -2, GETDATE()), 120)	
-		 , @ErrCode = 0
-		 , @ErrMsg = ''
 	
 	BEGIN TRY	 
 		--> parse @TransIds
@@ -240,15 +229,6 @@ BEGIN
 				creator,
 				oddsid,
 				modds,
-				SubStatus,
-				SubTransId,
-				SubBetCheck,
-				SubBetTeam,
-				SubBetType,
-				SubHdp1,
-				SubHdp2,
-				SubOdds,
-				SubTransdesc,
 				BetFrom,
 				matchid,					
 				currency
@@ -280,15 +260,6 @@ BEGIN
 				z.creator,
 				b.oddsid,
 				b.modds,
-				NULL AS SubStatus,
-				NULL AS SubTransId,
-				NULL AS SubBetCheck,
-				NULL AS SubBetTeam,
-				NULL AS SubBetType,
-				NULL AS SubHdp1,
-				NULL AS SubHdp2,
-				NULL AS SubOdds,
-				NULL AS SubTransdesc,
 				b.betfrom,
 				b.matchid,					
 				b.currency
@@ -321,7 +292,7 @@ BEGIN
 	
 		BEGIN
 			UPDATE r
-			SET  matchcode 	= m.matchcode
+			SET  matchcode 	= NULL
 				,homeid 	= m.homeid
 				,awayid 	= m.awayid
 				,leagueid 	= m.leagueid
@@ -1457,6 +1428,7 @@ BEGIN
 				r.BetId,
 				r.BetTeam,
 				r.BetType,
+				r.BetFrom,
 				r.CurrencyCode,
 				r.Hdp1,
 				r.Hdp2,
@@ -1480,15 +1452,6 @@ BEGIN
 				r.HomeId,
 				r.AwayId,
 				r.modds AS MasterOdds,
-				r.SubStatus,
-				r.SubTransId,
-				r.SubBetCheck,
-				r.SubBetTeam,
-				r.SubBetType,
-				r.SubHdp1,
-				r.SubHdp2,
-				r.SubOdds,
-				r.SubTransdesc,
 				r.CustId AS UserId,
 				r.recommend AS AgentId,
 				ag.UserName AS AgentName,
@@ -1500,7 +1463,15 @@ BEGIN
 				ci.Site AS EmailGroup,
 				CURRENT_TIMESTAMP AS [DateTime],
 				@isITAdmin AS IsItSupport,
-				r.BetFrom 
+				NULL AS SubStatus,
+				NULL AS SubTransId,
+				NULL AS SubBetCheck,
+				NULL AS SubBetTeam,
+				NULL AS SubBetType,
+				NULL AS SubHdp1,
+				NULL AS SubHdp2,
+				NULL AS SubOdds,
+				NULL AS SubTransdesc
 		FROM #RecoverBet r
 			 INNER JOIN #CTE_CustInfo ci ON r.CustId = ci.custid
 			 LEFT JOIN #CTE_CustInfo ag ON r.recommend = ag.custid
