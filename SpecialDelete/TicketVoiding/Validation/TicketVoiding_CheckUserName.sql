@@ -87,7 +87,6 @@ BEGIN
 			,@SiteDBDownInfoJson	  VARBINARY(MAX) = NULL
 			,@UserNameSiteDBDown	  VARCHAR(MAX) = ''
 			,@BeingBalanceUpDate	  VARCHAR(255)
-			,@BalanceUpDate			  DATETIME
 			,@UsernamesOfBalanceUp    VARCHAR(MAX) = ''
 
 	DECLARE @SiteDBGroupID			 SMALLINT
@@ -96,10 +95,6 @@ BEGIN
 	SELECT @BeingBalanceUpDate = VValue
     FROM dbo.MBUSettings WITH (NOLOCK) 
 	WHERE VName = 'BeingBalanceUpDate'
-
-	SELECT @BalanceUpDate = VValue
-    FROM dbo.MBUSettings WITH (NOLOCK) 
-	WHERE VName = 'BalanceUpDate'
 
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT, credit MONEY, srecommend INT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
@@ -783,11 +778,11 @@ BEGIN
 
 	IF @IsVoidAllArchivedTickets = 1 
 		AND @BeingBalanceUpDate IS NOT NULL 
-		AND EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE winlostdate = @BalanceUpDate)
+		AND EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE winlostdate < @BeingBalanceUpDate)
 	BEGIN
 		SELECT @UsernamesOfBalanceUp  = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(username AS VARCHAR(50))
 												FROM #tmpTransInfo
-												WHERE winlostdate = @BalanceUpDate
+												WHERE winlostdate < @BeingBalanceUpDate
 												FOR XML PATH('')), 1, 1, ''), '')
 	END
 

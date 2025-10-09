@@ -56,7 +56,6 @@ BEGIN
 			,@ActionID			INT = 90999 --TVS - Agency Cash Service
 			,@session			NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 			,@BeingBalanceUpDate VARCHAR(255)
-			,@BalanceUpDate		 DATETIME
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 		SET @IsSiteDB = 1
@@ -127,8 +126,7 @@ BEGIN
 			,b.srecommend
 			,b.ruben, b.betdaqid
 	FROM @tblInputTransId t 
-		INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
-			ON b.transid = t.transid
+		INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON b.transid = t.transid
 	WHERE b.statusID NOT IN (101, 102)
 
 	-- UPDATE eventtype = 1
@@ -271,16 +269,12 @@ BEGIN
     FROM dbo.MBUSettings WITH (NOLOCK) 
 	WHERE VName = 'BeingBalanceUpDate'
 
-	SELECT @BalanceUpDate = VValue
-    FROM dbo.MBUSettings WITH (NOLOCK) 
-	WHERE VName = 'BalanceUpDate'
-
 	IF @BeingBalanceUpDate IS NOT NULL 
-		AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate = @BalanceUpDate)
+		AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate < @BeingBalanceUpDate)
 	BEGIN
 		SELECT @FailedTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 												  FROM #tmpTransId t
-												  WHERE Eventdate = @BalanceUpDate
+												  WHERE Eventdate < @BeingBalanceUpDate
 												  FOR XML PATH('')), 1, 1, ''), '')
 		
 		SELECT	@ErrCode = 99
@@ -504,7 +498,6 @@ BEGIN
 	EXEC dbo.NAP_CustNegativeBalance_Sel
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-	
 	
 	--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
 	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit

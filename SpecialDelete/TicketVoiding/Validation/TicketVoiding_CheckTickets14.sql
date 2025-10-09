@@ -35,7 +35,6 @@ BEGIN
 		   ,@TransInfoJson					VARBINARY(MAX) = NULL
 		   ,@SiteDBGroupID					SMALLINT
 		   ,@BeingBalanceUpDate				VARCHAR(255)
-		   ,@BalanceUpDate					DATETIME
 		   ,@BalanceUpTransIds				VARCHAR(MAX) = ''
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -43,10 +42,6 @@ BEGIN
 	SELECT @BeingBalanceUpDate = VValue
     FROM dbo.MBUSettings WITH (NOLOCK) 
 	WHERE VName = 'BeingBalanceUpDate'
-
-	SELECT @BalanceUpDate = VValue
-    FROM dbo.MBUSettings WITH (NOLOCK) 
-	WHERE VName = 'BalanceUpDate'
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -141,11 +136,11 @@ BEGIN
 	
 	IF @IsVoidAllArchivedTickets = 1 
 		AND @BeingBalanceUpDate IS NOT NULL 
-		AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate = @BalanceUpDate)
+		AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate < @BeingBalanceUpDate)
 	BEGIN
 		SELECT @BalanceUpTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 												  FROM #validTransId t
-												  WHERE winlostdate = @BalanceUpDate
+												  WHERE winlostdate < @BeingBalanceUpDate
 												  FOR XML PATH('')), 1, 1, ''), '')
 	END
 

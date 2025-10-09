@@ -108,7 +108,6 @@ BEGIN
 			,@SiteDBDownInfoJson		 VARBINARY(MAX) = NULL
 			,@SiteDBGroupID				 SMALLINT
 			,@BeingBalanceUpDate		 VARCHAR(255)
-			,@BalanceUpDate				 DATETIME
 			,@BalanceUpTransIds			 VARCHAR(MAX) = ''
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -116,10 +115,6 @@ BEGIN
 	SELECT @BeingBalanceUpDate = VValue
     FROM dbo.MBUSettings WITH (NOLOCK) 
 	WHERE VName = 'BeingBalanceUpDate'
-
-	SELECT @BalanceUpDate = VValue
-    FROM dbo.MBUSettings WITH (NOLOCK) 
-	WHERE VName = 'BalanceUpDate'
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -657,7 +652,7 @@ BEGIN
 		FROM #tmpTransInfo
 		WHERE transid = temp.transid 
 			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 1 AND IsMoved14 = 1 
-								AND @BeingBalanceUpDate IS NOT NULL AND winlostdate = @BalanceUpDate 
+								AND @BeingBalanceUpDate IS NOT NULL AND winlostdate < @BeingBalanceUpDate 
 						 THEN 1 ELSE 0 END
 		) f
 	WHERE NOT EXISTS (SELECT 1 FROM #validTransId 
