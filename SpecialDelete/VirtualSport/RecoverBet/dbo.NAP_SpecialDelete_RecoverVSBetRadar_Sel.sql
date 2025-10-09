@@ -63,6 +63,7 @@ BEGIN
 		LiveHomeScore	SMALLINT,
 		Odds			SMALLMONEY,
 		OddsType		INT,
+		oddsid			INT,
 		RefNo			BIGINT,
 		SportType		SMALLINT,
 		Status			NVARCHAR(10),
@@ -71,9 +72,11 @@ BEGIN
 		TransId			BIGINT,
 		UserName		VARCHAR(30),
 		WinLost			MONEY,
-		IsDeposit		BIT,
+		winlostdate		SMALLDATETIME,
+		IsDeposit		BIT DEFAULT(0),
 		recommend		INT,
 		mrecommend		INT,
+		srecommend		INT,
 		CustId			INT,
 		showtime		NVARCHAR(20),
 		LeagueId		INT,
@@ -106,226 +109,140 @@ BEGIN
 	SELECT @before_yesterday = CONVERT(varchar(10), DATEADD(day, -2, GETDATE()), 120)
 	
 	--> search by @TransIds
-	IF @TicketType = 'Single'	   	
+	IF @TicketType = 'Single' OR (@TicketType = 'Mix Parlay' AND @Type = 'Main')
 	BEGIN
-		--> VS Betradar, Inspired VS 180, VS 3(Leap Gaming)	
 		INSERT INTO #RecoverBet(
-				Stake,
-				AwayId,
-				BetCheck,
-				BetId,
-				BetTeam,
-				BetType,
-				CurrencyCode,
-				Hdp1,
-				Hdp2,
-				HomeId,
-				IsLiveIndicator,
-				LiveAwayScore,
-				LiveHomeScore,
-				Odds,
-				OddsType,
-				RefNo,
-				SportType,
-				Status,
-				TransDate,
-				TransDesc,
-				TransId,
-				UserName,
-				WinLost,
-				IsDeposit,
-				recommend,
-				mrecommend,
-				CustId,
-				showtime,
-				LeagueId,
-				matchcode,
-				modds,
-				EventDate,
-				SubStatus,
-				SubTransId,
-				SubBetCheck,
-				SubBetTeam,
-				SubBetType,
-				SubHdp1,
-				SubHdp2,
-				SubOdds,
-				SubTransdesc,
-				MatchId)
-		SELECT  z.Stake,
-				m.AwayId,
-				z.BetCheck,
-				b.BetId,
-				z.BetTeam,
-				z.BetType,
-				b.CurrencyName AS CurrencyCode,
-				z.Hdp1,
-				z.Hdp2,
-				m.HomeId,
-				z.liveindicator AS IsLiveIndicator,
-				z.LiveAwayScore,
-				z.LiveHomeScore,
-				z.Odds,
-				b.OddsType,
-				z.RefNo,
-				m.SportType,
-				z.Status,
-				b.TransDate,
-				b.TransDesc,
-				z.TransId,
-				b.UserName,
-				z.winlost - b.actual_stake AS WinLost,
-				CASE WHEN b.srecommend IN (SELECT custid from custDB.dbo.Dep_CustSuper with(NOLOCK)) then 1 ELSE 0 END as IsDeposit,
-				b.recommend,
-				b.mrecommend,
-				b.CustId,
-				ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime,
-				m.leagueid,
-				NULL AS matchcode,
-				b.modds,
-				m.EventDate,
-				NULL AS SubStatus,
-				NULL AS SubTransId,
-				NULL AS SubBetCheck,
-				NULL AS SubBetTeam,
-				NULL AS SubBetType,
-				NULL AS SubHdp1,
-				NULL AS SubHdp2,
-				NULL AS SubOdds,
-				NULL AS SubTransdesc,
-				z.matchid
-		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
-			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-					 ON	z.transid = b.transid
-						AND z.custid = b.custid
-						AND z.matchid = b.matchid					
-						AND z.bettype = b.bettype
-			  CROSS APPLY (
-					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode, m.eventdate
+					Stake,
+					BetCheck,
+					BetId,
+					BetTeam,
+					BetType,
+					CurrencyCode,
+					Hdp1,
+					Hdp2,
+					IsLiveIndicator,
+					LiveAwayScore,
+					LiveHomeScore,
+					Odds,
+					OddsType,
+					oddsid,
+					RefNo,
+					Status,
+					TransDate,
+					TransDesc,
+					TransId,
+					UserName,
+					WinLost,
+					winlostdate,
+					recommend,
+					mrecommend,
+					srecommend,
+					CustId,
+					modds,
+					MatchId)
+			SELECT  z.Stake,
+					z.BetCheck,
+					b.BetId,
+					z.BetTeam,
+					z.BetType,
+					b.CurrencyName AS CurrencyCode,
+					z.Hdp1,
+					z.Hdp2,
+					z.liveindicator AS IsLiveIndicator,
+					z.LiveAwayScore,
+					z.LiveHomeScore,
+					z.Odds,
+					b.OddsType,
+					b.oddsid,
+					z.RefNo,
+					z.Status,
+					b.TransDate,
+					b.TransDesc,
+					z.TransId,
+					b.UserName,
+					z.winlost - b.actual_stake AS WinLost,
+					b.winlostdate,
+					b.recommend,
+					b.mrecommend,
+					b.srecommend,
+					b.CustId,
+					b.modds,
+					z.matchid
+			FROM  #tblTransIds tbl
+				 INNER JOIN dbo.zzzbettrans z WITH (NOLOCK)	ON tbl.transid = z.transid				 
+				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
+						 ON	z.transid = b.transid
+							AND z.custid = b.custid
+							AND z.matchid = b.matchid					
+							AND z.bettype = b.bettype
+			WHERE z.winlostdate >= @before_yesterday
+			  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
+		
+		IF @TicketType = 'Single'
+		BEGIN
+			--> VS Betradar, Inspired VS 180, VS 3(Leap Gaming)	
+			UPDATE r
+			SET  matchcode 	= NULL
+				,homeid 	= m.homeid
+				,awayid 	= m.awayid
+				,leagueid 	= m.leagueid
+				,sporttype	= m.SportType
+				,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
+				,eventdate  = m.eventdate
+			FROM #RecoverBet r
+				CROSS APPLY (
+					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.kickofftime, m.matchcode, m.eventdate, m.eventstatus, m.betstatus
 					FROM match m WITH (NOLOCK)
-					WHERE m.matchid = z.matchid
+					WHERE m.matchid = r.matchid
 					UNION 
-					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, m.StartTime, m.matchcode, m.EventDate
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId AS leagueid, m.StartTime, m.MatchNo AS matchcode, m.EventDate, m.eventstatus, m.betstatus
 					FROM Match3rd m WITH (NOLOCK)
-					WHERE m.Match3rdId = z.matchid
-				 )m
-		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
-		  AND z.winlostdate >= @before_yesterday
-		  AND (
-				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
-			 OR m.sporttype IN (180, 186	-- Inspired VS 
-							  , 178, 179	-- VS 3 (Leap Gaming)
-							  , 188			-- VS 4 (Edge Gaming)
-							  , 147			-- VS5
-							  , 134, 116	-- VS6
-						) 
-			  )
-		  AND z.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))		  		
-		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
+					WHERE m.Match3rdId = r.matchid
+				 )m			
+			WHERE m.sporttype BETWEEN 190 AND 199 -- VS Betradar
+				 OR m.sporttype IN (180, 186	-- Inspired VS 
+								  , 178, 179	-- VS 3 (Leap Gaming)
+								  , 188			-- VS 4 (Edge Gaming)
+								  , 147			-- VS5
+								  , 134, 116	-- VS6
+							) 
 
-		--> Inspired VS 181, Virtual Horse Racing & Virtual Dog Racing
-		INSERT INTO #RecoverBet(
-				Stake,
-				AwayId,
-				BetCheck,
-				BetId,
-				BetTeam,
-				BetType,
-				CurrencyCode,
-				Hdp1,
-				Hdp2,
-				HomeId,
-				IsLiveIndicator,
-				LiveAwayScore,
-				LiveHomeScore,
-				Odds,
-				OddsType,
-				RefNo,
-				SportType,
-				Status,
-				TransDate,
-				TransDesc,
-				TransId,
-				UserName,
-				WinLost,
-				IsDeposit,
-				recommend,
-				mrecommend,
-				CustId,
-				showtime,
-				LeagueId,
-				matchcode,
-				modds,
-				EventDate,
-				SubStatus,
-				SubTransId,
-				SubBetCheck,
-				SubBetTeam,
-				SubBetType,
-				SubHdp1,
-				SubHdp2,
-				SubOdds,
-				SubTransdesc,
-				VendorMatchId,
-				MatchId)
-		SELECT  z.Stake,
-				0 AS AwayId,
-				z.BetCheck,
-				b.BetId,
-				z.BetTeam,
-				z.BetType,
-				b.CurrencyName AS CurrencyCode,
-				z.Hdp1,
-				z.Hdp2,
-				o.RacerID AS HomeId,
-				z.liveindicator AS IsLiveIndicator,
-				z.LiveAwayScore,
-				z.LiveHomeScore,
-				z.Odds,
-				b.OddsType,
-				z.RefNo,
-				r.SportType,
-				z.Status,
-				b.TransDate,
-				b.TransDesc,
-				z.TransId,
-				b.UserName,
-				z.winlost - b.actual_stake AS WinLost,
-				CASE WHEN b.srecommend IN (SELECT custid from custDB.dbo.Dep_CustSuper with(NOLOCK)) then 1 ELSE 0 END as IsDeposit,
-				b.recommend,
-				b.mrecommend,
-				b.CustId,
-				ISNULL(CONVERT(NVARCHAR(20), r.EventTime, 113), '') AS showtime,
-				r.LeagueID,
-				CONVERT(NVARCHAR(50), o.RacerNum) AS matchcode,
-				b.modds,
-				o.EventDate,
-				NULL AS SubStatus,
-				NULL AS SubTransId,
-				NULL AS SubBetCheck,
-				NULL AS SubBetTeam,
-				NULL AS SubBetType,
-				NULL AS SubHdp1,
-				NULL AS SubHdp2,
-				NULL AS SubOdds,
-				NULL AS SubTransdesc,
-				VendorMatchId,
-				z.matchid
-		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
-			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-					 ON	z.transid = b.transid
-						AND z.custid = b.custid
-						AND z.matchid = b.matchid					
-						AND z.bettype = b.bettype
-			 INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
-					 ON b.oddsid = o.Orid
-			 INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
-					 ON r.EventID = o.EventID
-		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
-		  AND z.winlostdate >= @before_yesterday
-		  AND (r.sporttype BETWEEN 181 AND 185 OR r.SportType IN (177,198,125,126,127)) -- Inspired VS 181		  				  			  				
-		  AND b.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)		
-		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
+			--> Inspired VS 181, Virtual Horse Racing & Virtual Dog Racing
+			UPDATE r
+			SET  matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
+				,homeid 	= o.RacerID
+				,awayid 	= 0
+				,leagueid 	= vs.leagueid
+				,sporttype 	= vs.sporttype
+				,showtime	= CONVERT(VARCHAR(20), vs.EventTime, 113) 
+				,eventdate  = o.eventdate
+			FROM #RecoverBet r
+				INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+					 ON r.oddsid = o.Orid
+				INNER JOIN dbo.VSRaceInfo vs WITH (NOLOCK) 
+						 ON vs.EventID = o.EventID		
+			WHERE (vs.sporttype BETWEEN 181 AND 185 OR vs.SportType IN (177,198,125,126,127)) -- Inspired VS 181		  				  			  				
+				AND r.bettype IN (1231,1232,1233,1237,1238,2770,2771,15500,15501)		
+		
+			--- Remove invalid ticket
+			DELETE d
+			FROM #RecoverBet d
+			WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId = 1)
+				OR sporttype IS NULL
+
+		END 
+		
+		IF @TicketType = 'Mix Parlay' AND @Type = 'Main'
+		BEGIN
+			--- Remove invalid ticket
+			DELETE d
+			FROM #RecoverBet d
+			WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId = 1)
+
+			UPDATE d
+			SET EventDate = d.winlostdate
+			FROM #RecoverBet d
+		END
 
 		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
 		BEGIN
@@ -335,6 +252,7 @@ BEGIN
 				INTO @tmpTransIdMoveBet (TransId)
 			WHERE EventDate <= @MovebetDate
 		END
+		
 		--> build @InvalidTransIds, @MovedTransIds				
 		;WITH t_invalid AS
 		(
@@ -370,143 +288,6 @@ BEGIN
 		FROM t_invalid
 	END		
 	
-	--> search by @TransIds
-	IF @TicketType = 'Mix Parlay' AND @Type = 'Main'
-	BEGIN
-		--> search tickets
-		INSERT INTO #RecoverBet(
-				Stake,
-				AwayId,
-				BetCheck,
-				BetId,
-				BetTeam,
-				BetType,
-				CurrencyCode,
-				Hdp1,
-				Hdp2,
-				HomeId,
-				IsLiveIndicator,
-				LiveAwayScore,
-				LiveHomeScore,
-				Odds,
-				OddsType,
-				RefNo,
-				SportType,
-				Status,
-				TransDate,
-				TransDesc,
-				TransId,
-				UserName,
-				WinLost,
-				IsDeposit,
-				recommend,
-				mrecommend,
-				CustId,
-				modds,				
-				EventDate,
-				SubStatus,
-				SubTransId,
-				SubBetCheck,
-				SubBetTeam,
-				SubBetType,
-				SubHdp1,
-				SubHdp2,
-				SubOdds,
-				SubTransdesc)
-		SELECT  z.Stake,
-				NULL AS AwayId,
-				z.BetCheck,
-				b.BetId,
-				z.BetTeam,
-				z.BetType,
-				b.CurrencyName AS CurrencyCode,
-				z.Hdp1,
-				z.Hdp2,
-				NULL AS HomeId,
-				z.liveindicator AS IsLiveIndicator,
-				z.LiveAwayScore,
-				z.LiveHomeScore,
-				z.Odds,
-				b.OddsType,
-				z.RefNo,
-				NULL AS SportType,
-				z.Status,
-				b.TransDate,
-				b.TransDesc,
-				z.TransId,
-				b.UserName,
-				z.winlost - b.actual_stake AS WinLost,
-				CASE WHEN b.srecommend IN (SELECT custid from custDB.dbo.Dep_CustSuper with(NOLOCK)) then 1 ELSE 0 END as IsDeposit,
-				b.recommend,
-				b.mrecommend,
-				b.CustId,
-				b.modds,				
-				b.winlostdate AS EventDate,
-				NULL AS SubStatus,
-				NULL AS SubTransId,
-				NULL AS SubBetCheck,
-				NULL AS SubBetTeam,
-				NULL AS SubBetType,
-				NULL AS SubHdp1,
-				NULL AS SubHdp2,
-				NULL AS SubOdds,
-				NULL AS SubTransdesc
-		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
-			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-					 ON	z.transid = b.transid
-						AND z.custid = b.custid
-						AND z.matchid = b.matchid					
-						AND z.bettype = b.bettype			 
-		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
-		  AND z.winlostdate >= @before_yesterday
-		  AND z.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))	
-		  AND z.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))	  
-		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
-
-		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
-		BEGIN
-			DELETE 
-			FROM #RecoverBet
-				OUTPUT	DELETED.TransId
-				INTO @tmpTransIdMoveBet (TransId)
-			WHERE EventDate <= @MovebetDate
-		END
-
-		--> build @InvalidTransIds, @MovedTransIds				
-		;WITH t_invalid AS
-		(
-			SELECT	t.transid
-					,CASE 
-						WHEN EXISTS (SELECT TOP 1 1 
-									 FROM dbo.bettrans14 b14 WITH(NOLOCK) 
-									 WHERE b14.transid = t.transid AND b14.SiteDBGroupID = @SiteDBGroupID
-									 UNION ALL
-									 SELECT TOP 1 1 
-									 FROM @tmpTransIdMoveBet m
-									 WHERE m.transid = t.transid)
-							THEN 1 
-						ELSE 0 
-					 END AS isMoved					
-			FROM	#tblTransIds t
-			WHERE	t.transid NOT IN (SELECT transid FROM #RecoverBet)
-		)
-		SELECT @InvalidTransIds = @InvalidTransIds +
-								  CASE
-									  WHEN isMoved = 0
-											THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + 
-												 CAST(transid AS VARCHAR(50))
-									  ELSE ''
-								  END								  
-			 , @MovedTransIds = @MovedTransIds +
-								CASE
-									WHEN isMoved = 1
-											THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + 
-												 CAST(transid AS VARCHAR(50))
-									ELSE ''
-								END
-		FROM t_invalid
-	END
-	
 	--> search by @TransIds + @MatchId
 	IF @TicketType = 'Mix Parlay' AND @Type = 'Sub'
 	BEGIN
@@ -535,9 +316,9 @@ BEGIN
 				TransId,
 				UserName,
 				WinLost,
-				IsDeposit,
 				recommend,
 				mrecommend,
+				srecommend,
 				CustId,
 				showtime,
 				LeagueId,
@@ -575,9 +356,9 @@ BEGIN
 				b.TransId,
 				b.UserName,
 				b.winlost - b.actual_stake AS WinLost,
-				CASE WHEN b.srecommend IN (SELECT custid from custDB.dbo.Dep_CustSuper with(NOLOCK)) then 1 ELSE 0 END as IsDeposit,
 				b.recommend,
 				b.mrecommend,
+				b.srecommend,
 				b.CustId,
 				ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime,
 				m.leagueid,
@@ -596,11 +377,11 @@ BEGIN
 			 INNER JOIN bettransm bm WITH (NOLOCK)
 					 ON b.refno = bm.refno			 			
 			 CROSS APPLY (
-					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.IsNeutral, m.kickofftime, m.matchcode, m.eventdate
+					SELECT m.homeid, m.awayid, m.sporttype, m.leagueid, m.kickofftime, m.matchcode, m.eventdate
 					FROM match m WITH (NOLOCK)
 					WHERE m.matchid = @MatchId
 					UNION 
-					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId, 0, m.StartTime, m.matchcode, m.EventDate
+					SELECT m.homeid, m.awayid, m.sporttype, m.League3rdId AS leagueid, m.StartTime, m.matchcode, m.EventDate
 					FROM Match3rd m WITH (NOLOCK)
 					WHERE m.Match3rdId = @MatchId
 				 )m
@@ -681,6 +462,12 @@ BEGIN
 		FROM t_invalid
 	END		
 	
+	-- update Isdeposit
+	UPDATE r 
+		SET IsDeposit = 1
+	FROM #RecoverBet r
+	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = r.srecommend)
+
 	------------------------------------------------------------------------------
 	--1. Table invald/moved transid
 	SELECT @InvalidTransIds AS InvalidTransIds
@@ -728,27 +515,24 @@ BEGIN
 			VendorMatchId,
 			MatchId
 	FROM #RecoverBet r
-	     CROSS APPLY (SELECT CASE 
-								WHEN r.IsDeposit = 0  
-									 AND r.custid NOT IN (SELECT CustID FROM [f_GetBetDaqCustomer] (1))    
-									 AND r.username <> '12EU'  
-									 AND r.mrecommend NOT IN (105181, 118473, 105183)  
-									 AND r.recommend NOT IN (11196380, 13423967) -- Foobet, 1E
-											THEN 'Credit'
-								WHEN r.IsDeposit = 1  
-									 AND r.custid NOT IN (SELECT CustID FROM [f_GetBetDaqCustomer] (1))    
-									 AND r.username <> '12EU'  
-									 AND r.mrecommend NOT IN (105181, 118473, 105183) 
-									 AND r.recommend NOT IN (11196380, 13423967) -- Foobet, 1E
-											THEN 'Deposit'																			
-								ELSE ''							
-							 END AS GroupName) AS T
+	      CROSS APPLY (SELECT CASE 
+								WHEN r.custid NOT IN (SELECT CustID FROM [f_GetBetDaqCustomer] (1))    
+										AND r.username <> '12EU'  
+										AND r.mrecommend NOT IN (105181, 118473, 105183)  
+										AND r.recommend NOT IN (11196380, 13423967) -- Foobet, 1E
+									THEN 
+										CASE WHEN r.IsDeposit = 0 THEN 'Credit'
+												WHEN r.IsDeposit = 1 THEN 'Deposit'
+												ELSE '' END
+								ELSE '' END AS GroupName) AS T
 	ORDER BY CASE
 				WHEN T.GroupName = 'Credit'	 THEN 0
 				WHEN T.GroupName = 'Deposit' THEN 1				
 				ELSE 2				
 			 END ASC
-			 
+		
+	DROP TABLE #RecoverBet
+	DROP TABLE #tblTransIds
 	SET NOCOUNT OFF		
 END
 GO
