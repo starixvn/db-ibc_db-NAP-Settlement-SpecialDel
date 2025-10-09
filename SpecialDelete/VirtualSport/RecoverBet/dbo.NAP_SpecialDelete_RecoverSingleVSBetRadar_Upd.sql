@@ -80,7 +80,7 @@ BEGIN
 		  , @batchPO				SMALLINT = 500
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
+	DECLARE @tmpTransInfo TABLE (matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 
 	DECLARE @tmpMaxWinLimit	TABLE( CustId INT, MaxWinLimit MONEY)
@@ -462,7 +462,7 @@ BEGIN
 							 , gametypeid
 							 , balance
 							 , winlost
-							 ,TransId)
+							 , TransId)
 		SELECT	b.custid				  
 			  , b.winlostdate
 			  , b.bettype AS gametypeid
@@ -999,7 +999,7 @@ BEGIN
 			END
 		END	
 
-		--VS5
+		--VS6
 		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE TicketType = 7)
 		BEGIN	
 			DELETE @tmpMatchId
@@ -1468,8 +1468,8 @@ BEGIN
 		FROM CustDB.dbo.Customer ci WITH(NOLOCK)
 			INNER JOIN CTE_CustIdAll ca ON ci.custid = ca.custid		
 
-		SELECT  r.Stake,
-				r.AwayId,
+		SELECT  r.TransId,
+				r.Stake,
 				r.BetCheck,
 				r.BetId,
 				r.BetTeam,
@@ -1477,7 +1477,6 @@ BEGIN
 				r.CurrencyCode,
 				r.Hdp1,
 				r.Hdp2,
-				r.HomeId,
 				r.IsLiveIndicator,
 				r.LiveAwayScore,
 				r.LiveHomeScore,
@@ -1488,15 +1487,16 @@ BEGIN
 				r.Status,
 				r.TransDate,
 				r.TransDesc,
-				r.TransId,
 				r.UserName,
 				r.WinLost,
 				T.GroupName,
+				r.matchid,
 				r.showtime,
 				r.LeagueId,
 				r.matchcode,
+				r.HomeId,
+				r.AwayId,
 				r.modds AS MasterOdds,
-				r.matchid,
 				r.SubStatus,
 				r.SubTransId,
 				r.SubBetCheck,
@@ -1519,25 +1519,20 @@ BEGIN
 				@isITAdmin AS IsItSupport,
 				r.BetFrom 
 		FROM #RecoverBet r
-			 INNER JOIN #CTE_CustInfo ci WITH (NOLOCK) ON r.CustId = ci.custid
-			 LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK) ON r.recommend = ag.custid
-			 LEFT JOIN #CTE_CustInfo ma WITH(NOLOCK) ON r.mrecommend = ma.custid
-			 LEFT JOIN #CTE_CustInfo su WITH(NOLOCK) ON r.srecommend = su.custid
+			 INNER JOIN #CTE_CustInfo ci ON r.CustId = ci.custid
+			 LEFT JOIN #CTE_CustInfo ag ON r.recommend = ag.custid
+			 LEFT JOIN #CTE_CustInfo ma ON r.mrecommend = ma.custid
+			 LEFT JOIN #CTE_CustInfo su ON r.srecommend = su.custid
 			 CROSS APPLY (SELECT CASE 
-									WHEN r.IsDeposit = 0  
-										 AND r.custid NOT IN (SELECT CustID FROM [f_GetBetDaqCustomer] (1))    
+									WHEN r.custid NOT IN (SELECT CustID FROM [f_GetBetDaqCustomer] (1))    
 										 AND r.username <> '12EU'  
 										 AND r.mrecommend NOT IN (105181, 118473, 105183)  
 										 AND r.recommend NOT IN (11196380, 13423967) -- Foobet, 1E
-												THEN 'Credit'
-									WHEN r.IsDeposit = 1  
-										 AND r.custid NOT IN (SELECT CustID FROM [f_GetBetDaqCustomer] (1))    
-										 AND r.username <> '12EU'  
-										 AND r.mrecommend NOT IN (105181, 118473, 105183) 
-										 AND r.recommend NOT IN (11196380, 13423967) -- Foobet, 1E
-												THEN 'Deposit'																				
-									ELSE ''							
-								 END AS GroupName) AS T
+										THEN 
+											CASE WHEN r.IsDeposit = 0 THEN 'Credit'
+												 WHEN r.IsDeposit = 1 THEN 'Deposit'
+												 ELSE '' END
+									ELSE '' END AS GroupName) AS T
 		ORDER BY CASE
 					WHEN T.GroupName = 'Credit'	 THEN 0
 					WHEN T.GroupName = 'Deposit' THEN 1					
@@ -1556,9 +1551,9 @@ BEGIN
 				, @IsReleased				= 1	
 		
 		SELECT @ErrCode AS ErrorCode
-				,@ErrMsg AS ErrorMsg
-				,@NegativeBalanceUsers AS NegativeBalanceUsers
-				,@CompletedMatchIds AS CompletedMatchIds
+			  ,@ErrMsg AS ErrorMsg
+			  ,@NegativeBalanceUsers AS NegativeBalanceUsers
+			  ,@CompletedMatchIds AS CompletedMatchIds
 	END CATCH		
 	
 	DROP TABLE #tblTransIds
