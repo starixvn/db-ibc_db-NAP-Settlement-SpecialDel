@@ -194,6 +194,7 @@ BEGIN
 			,MatchId                 INT	
 			,ExcludedTicketsJson	 NVARCHAR(MAX)
 			,ExcludedTicketsCounts	 INT
+			,IsFinish				 BIT
 		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
