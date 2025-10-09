@@ -632,8 +632,7 @@ BEGIN
 				FROM @tmpMatchId t
 					INNER JOIN dbo.match m WITH (NOLOCK) ON t.matchId = m.matchid
 			) AS tbl
-				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
-				ON	sp.ResourceID = tbl.Id
+				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = tbl.Id
 			WHERE sp.SportType IN (178, 179, 188)
 
 			UPDATE r SET 
