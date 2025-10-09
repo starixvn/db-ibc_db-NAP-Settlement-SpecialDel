@@ -192,8 +192,6 @@ BEGIN
 		  , @afterUpd 		TVP_BalanceChange		  		  		  		 		
 	
 	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(DAY, -2, GETDATE()), 120)	
-		 , @CompletedMatchIds = ''		 
-		 , @NegativeBalanceUsers = ''
 		 , @ErrCode = 0
 		 , @ErrMsg = ''
 	
@@ -209,8 +207,6 @@ BEGIN
 
 			SELECT @ErrCode AS ErrorCode
 				,@ErrMsg AS ErrorMsg
-				,@NegativeBalanceUsers AS NegativeBalanceUsers
-				,@CompletedMatchIds AS CompletedMatchIds
 			
 			RETURN
 		END				 
@@ -313,8 +309,6 @@ BEGIN
 
 			SELECT @ErrCode AS ErrorCode
 				  ,@ErrMsg AS ErrorMsg
-				  ,@NegativeBalanceUsers AS NegativeBalanceUsers
-				  ,@CompletedMatchIds AS CompletedMatchIds
 			
 			RETURN
 		END	
@@ -411,8 +405,6 @@ BEGIN
 
 			SELECT @ErrCode AS ErrorCode
 				  ,@ErrMsg AS ErrorMsg
-				  ,@NegativeBalanceUsers AS NegativeBalanceUsers
-				  ,@CompletedMatchIds AS CompletedMatchIds
 
 			RETURN	
 		END
@@ -450,8 +442,6 @@ BEGIN
 		BEGIN
 			SELECT @ErrCode AS ErrorCode
 				  ,@ErrMsg AS ErrorMsg
-				  ,@NegativeBalanceUsers AS NegativeBalanceUsers
-				  ,@CompletedMatchIds AS CompletedMatchIds
 
 			RETURN
 		END
@@ -1192,6 +1182,11 @@ BEGIN
 		FROM #afterUpd						 					 	  
 		GROUP BY CustID
 
+		--> INSERT data into pending balance table   
+		EXEC [dbo].[NAP_Admin_BalancePendingIns]
+			  @BeforeUpd = @beforeUpd
+			, @AfterUpd	 = @afterUpd
+		
 		INSERT INTO #Balance (custid, balance, increased)
 		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
 		FROM @beforeUpd AS b
@@ -1221,13 +1216,19 @@ BEGIN
 			FROM	#Balance
 			WHERE	increased = 0
 		END
+		
+		--> Build list of customer name with negative balance	: fix here				
+		SET @CustIds = ''
+		SELECT	@CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), custid)
+		FROM #Balance
+		WHERE Increased = 0
+		
+		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
+			@CustIds = @CustIds,
+			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT				
+
 		DROP TABLE #Balance
-		
-		--> INSERT data into pending balance table   
-		EXEC [dbo].[NAP_Admin_BalancePendingIns]
-			  @BeforeUpd = @beforeUpd
-			, @AfterUpd	 = @afterUpd
-		
+
 		--> Insert data into pending balance game table
 		INSERT INTO BalancePendingCreditGame (custid
 											, winlostdate
@@ -1310,7 +1311,6 @@ BEGIN
 			, @isExistMatch3rd          = 1
 			, @IsReleased				= 1	
 		
-		
 		----------------Insert Max Payout Queue----------------
 		DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL, @sporttype SMALLINT = NULL
 		DECLARE @Match_tmp AS TABLE (matchId INT, sporttype SMALLINT, IsFinish BIT)
@@ -1348,35 +1348,6 @@ BEGIN
 				,@sporttype = @sporttype
 				,@TransidList = @TransIds_MaxPO
 		END
-		
-		--> Build list of customer name with negative balance	: fix here				
-		SET @NegativeBalanceUsers = ''				
-		
-		SELECT @CustIds = @CustIds +
-						  CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + 
-						  CONVERT(VARCHAR(20), b.custid)
-		FROM @beforeUpd b
-			 INNER JOIN	@afterUpd a 	
-					 ON a.custid = b.custid
-		WHERE b.balance > a.balance	
-		
-		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
-			@CustIds = @CustIds,
-			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT							
-		
-		--> build data for @CompletedMatchIds					
-		SET @CompletedMatchIds = ''
-		
-		;WITH CTE_CompletedMatch AS
-		(
-			SELECT DISTINCT matchid
-			FROM #RecoverBet
-			WHERE eventstatus = 'completed'
-		)			
-		SELECT @CompletedMatchIds = @CompletedMatchIds
-									+ CASE WHEN @CompletedMatchIds <> '' THEN ',' ELSE '' END
-									+ CAST(matchid AS VARCHAR(100))
-		FROM CTE_CompletedMatch		
 		
 		--Insert data for Max Payout NonSport
 		WHILE (@TotalTransMaxPO > 0)
@@ -1442,11 +1413,23 @@ BEGIN
 		--> Return data to web	
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 
+		--> build data for @CompletedMatchIds					
+		SET @CompletedMatchIds = ''
+		
+		;WITH CTE_CompletedMatch AS
+		(
+			SELECT DISTINCT matchid
+			FROM #RecoverBet
+			WHERE eventstatus = 'completed'
+		)			
+		SELECT @CompletedMatchIds = @CompletedMatchIds + CASE WHEN @CompletedMatchIds <> '' THEN ',' ELSE '' END + CAST(matchid AS VARCHAR(100))
+		FROM CTE_CompletedMatch		
+		
 		--1. Return table validate
 		SELECT @ErrCode AS ErrorCode
-				,@ErrMsg AS ErrorMsg
-				,@NegativeBalanceUsers AS NegativeBalanceUsers
-				,@CompletedMatchIds AS CompletedMatchIds
+			  ,@ErrMsg AS ErrorMsg
+			  ,@NegativeBalanceUsers AS NegativeBalanceUsers
+			  ,@CompletedMatchIds AS CompletedMatchIds
 				
 		;WITH CTE_CustIdAll AS (
 			SELECT DISTINCT t.custid
@@ -1552,8 +1535,6 @@ BEGIN
 		
 		SELECT @ErrCode AS ErrorCode
 			  ,@ErrMsg AS ErrorMsg
-			  ,@NegativeBalanceUsers AS NegativeBalanceUsers
-			  ,@CompletedMatchIds AS CompletedMatchIds
 	END CATCH		
 	
 	DROP TABLE #tblTransIds
