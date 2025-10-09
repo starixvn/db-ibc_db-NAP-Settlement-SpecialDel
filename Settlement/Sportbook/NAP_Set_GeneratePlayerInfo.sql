@@ -104,7 +104,18 @@ BEGIN
 		FROM @tmp_MainResource m
 			LEFT JOIN @tmp_ResourceFormat f
 				ON m.RelatedBettype = f.ResourceFormat
-					AND m.OddsInfo LIKE '%' + f.ResourceName +'%'
+					AND CASE WHEN m.MainResourceID lIKE '680__' THEN  '"points"'	
+							 WHEN m.MainResourceID lIKE '681__' THEN  '"rebounds"'
+							 WHEN m.MainResourceID lIKE '682__' THEN '"steals"'
+							 WHEN m.MainResourceID lIKE '683__' THEN '"assists"'
+							 WHEN m.MainResourceID lIKE '684__' THEN '"three_points"'
+							 WHEN m.MainResourceID lIKE '677__' OR m.MainResourceID lIKE '679__' THEN  '"points","rebounds","steals","assists","blocks"'
+							 WHEN m.MainResourceID lIKE '669__' THEN  '"points","rebounds","assists"'
+							 WHEN m.MainResourceID lIKE '671__' THEN  '"rebounds","assists"'
+							 WHEN m.MainResourceID lIKE '673__' THEN  '"points","rebounds"'
+							 WHEN m.MainResourceID lIKE '674__' THEN  '"steals","blocks"'
+							ELSE m.OddsInfo
+							END LIKE '%' + f.ResourceName +'%'
 		WHERE f.ResourceFormat IS NULL
 
 		BEGIN TRANSACTION
