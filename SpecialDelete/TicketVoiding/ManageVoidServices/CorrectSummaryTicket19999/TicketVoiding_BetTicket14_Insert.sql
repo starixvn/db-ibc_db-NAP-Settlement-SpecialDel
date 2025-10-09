@@ -20,7 +20,6 @@ BEGIN
 
 	DECLARE	@SiteDBGroupID			SMALLINT
 		   ,@BeingBalanceUpDate		VARCHAR(255)
-		   ,@BalanceUpDate			DATETIME
 		   ,@InvalidTransIds		VARCHAR(MAX) = ''
 		   ,@BalanceUpTransIds		VARCHAR(MAX) = ''
 
@@ -36,10 +35,6 @@ BEGIN
 	SELECT @BeingBalanceUpDate = VValue
     FROM dbo.MBUSettings WITH (NOLOCK) 
 	WHERE VName = 'BeingBalanceUpDate'
-
-	SELECT @BalanceUpDate = VValue
-    FROM dbo.MBUSettings WITH (NOLOCK) 
-	WHERE VName = 'BalanceUpDate'
 
 	CREATE TABLE #validTransId (
 		transid			BIGINT PRIMARY KEY
@@ -69,11 +64,11 @@ BEGIN
 	WHERE b.SiteDBGroupID = @SiteDBGroupID
 	
 	IF @BeingBalanceUpDate IS NOT NULL 
-		AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate < @BalanceUpDate)
+		AND EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate < @BeingBalanceUpDate)
 	BEGIN
 		SELECT @BalanceUpTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 										FROM #validTransId t
-										WHERE winlostdate < @BalanceUpDate
+										WHERE winlostdate < @BeingBalanceUpDate
 										FOR XML PATH('')), 1, 1, ''), '')
 	END
 
