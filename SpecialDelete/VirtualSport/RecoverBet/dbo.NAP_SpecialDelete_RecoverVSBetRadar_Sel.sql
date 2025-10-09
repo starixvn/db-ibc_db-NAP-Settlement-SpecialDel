@@ -25,6 +25,7 @@ AS
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20250220@Max: [TVS] Recover ticket of Virtual Sports 2 [Redmine: #212323]		
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
+		- 20251009@July: [TVS] Virtual Sport 6 - Integrate new sport type [Redmine:#241016]
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -212,8 +213,12 @@ BEGIN
 		  AND z.winlostdate >= @before_yesterday
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
-				OR m.sporttype IN (180, 186) -- Inspired VS 
-				OR m.sporttype IN (178, 179, 188, 147, 134) -- VS3(Leap Gaming), VS4(Edge Gaming) 
+			 OR m.sporttype IN (180, 186	-- Inspired VS 
+							  , 178, 179	-- VS 3 (Leap Gaming)
+							  , 188			-- VS 4 (Edge Gaming)
+							  , 147			-- VS5
+							  , 134, 116	-- VS6
+						) 
 			  )
 		  AND z.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))		  		
 		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID

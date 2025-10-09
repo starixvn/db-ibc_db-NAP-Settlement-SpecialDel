@@ -32,6 +32,7 @@ AS
 		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 		- 20250612@July: Fix replication issue caused by NULL values in the action call/refund input ticket [Redmine:#229870]
 		- 20250624@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
+		- 20251009@July: [TVS] Virtual Sport 6 - Integrate new sport type [Redmine:#241016]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -320,7 +321,7 @@ BEGIN
 					WHEN m.sporttype IN (178, 179) THEN 4 -- VS 3 (Leap Gaming)
 					WHEN m.sporttype IN (188) THEN 5 -- VS 4 (Edge Gaming)
 					WHEN m.sporttype IN (147) THEN 6 -- VS5
-					WHEN m.sporttype IN (134) THEN 7 -- VS6
+					WHEN m.sporttype IN (134, 116) THEN 7 -- VS6
 					ELSE NULL
 				END AS TicketType
 				,b.currency
@@ -343,8 +344,13 @@ BEGIN
 		  AND z.winlostdate >= @before_yesterday
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
-				OR m.sporttype IN (180, 186, 178, 179, 188, 147, 134) -- Inspired VS 180, VS3(Leap Gaming), VS4(Edge Gaming), VS5, VS6
-			 )
+			 OR m.sporttype IN (180, 186	-- Inspired VS 
+							  , 178, 179	-- VS 3 (Leap Gaming)
+							  , 188			-- VS 4 (Edge Gaming)
+							  , 147			-- VS5
+							  , 134, 116	-- VS6
+						) 
+			  )
 		  AND z.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
 		  AND z.SiteDBGroupID = @SiteDBGroupID
 		  
@@ -1126,7 +1132,7 @@ BEGIN
 			) AS tbl
 				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = tbl.ResourceId
 				INNER JOIN #RecoverBet b on sp.BetType = b.bettype	AND (sp.BetID = 0 OR sp.BetID = b.betid ) 
-			WHERE sp.SportType IN (134)
+			WHERE sp.SportType IN (134, 116)
 
 			UPDATE r SET 
 				 r.actualPO = CASE
