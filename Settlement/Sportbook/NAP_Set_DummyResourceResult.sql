@@ -363,7 +363,7 @@ BEGIN
 						SELECT	CAST(r.HomeValue AS INT) + CAST(r.AwayValue AS INT) AS Value
 					) result
 				WHERE	r.ResourceId LIKE 'Q[1-4]' 					
-				ORDER BY r.ResourceId
+				ORDER BY r.ResourceId ASC
 
 				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue)
 				VALUES('632', @CorrectQuaterOddEven)
@@ -628,7 +628,7 @@ BEGIN
 						SELECT	CAST(r.HomeValue AS INT) + CAST(r.AwayValue AS INT) AS Value
 					) result
 				WHERE	r.ResourceId LIKE 'Q[1-4]'
-				ORDER BY r.ResourceId
+				ORDER BY r.ResourceId ASC
 
 				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
 				SELECT	'632', @CorrectQuaterOddEven, ssId
@@ -727,7 +727,7 @@ BEGIN
 						SELECT	CAST(r.HomeValue AS INT) - CAST(r.AwayValue AS INT) AS Value
 					) result
 				WHERE	r.ResourceId LIKE 'Q[1-4]'
-				ORDER BY r.ResourceId
+				ORDER BY r.ResourceId ASC
 
 				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
 				SELECT	'642', @QuaterResult, ssId
