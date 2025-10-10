@@ -34,6 +34,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]  
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
+		- 20251007@Max: VS6 - eSoccer - Get dummy ResourceID [Redmine: #240731]
 */
 
 BEGIN
@@ -815,7 +816,7 @@ BEGIN
 
 		END
 	END
-	ELSE IF @Sporttype = 1
+	ELSE IF @Sporttype = 1 OR @sporttype = 116
 	BEGIN
 		SET @DeterminedType = CASE WHEN @Action = 'CAL-HT' AND @IsDetermined = 1 THEN 2 ELSE 0 END
 
