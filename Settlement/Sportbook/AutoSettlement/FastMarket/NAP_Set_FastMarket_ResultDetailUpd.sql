@@ -22,6 +22,7 @@ AS
 		- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
 		- 20210107@Kathy: Support settle determined [Readmine:#147141]
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
+		- 20250910@Hughie: Auto Refund- Fast Market & Time Machine- Support Special Session [Redmine:#225889]
 		
 	Param's Explanation:
 		- @Results: 
