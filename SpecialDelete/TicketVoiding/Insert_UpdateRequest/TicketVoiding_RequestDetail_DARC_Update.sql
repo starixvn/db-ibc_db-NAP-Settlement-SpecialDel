@@ -27,6 +27,7 @@ AS
 		- 20240701@July: [TVS] Manage Request - Change way to get data - [Redmine: #205983]
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20251010@Lani: [TVS] Danger Accepted/Wrong Score - Display the excluding ticket based on the business rules [Redmine: #236067]
 
 	Param's explanation:
 		+ @IssueTypeId: 1 - Danger Accepted, 10 - Red Card
@@ -58,6 +59,7 @@ BEGIN
 			,IssueDetail			NVARCHAR(MAX)
 			,TypeAccept				VARCHAR(2000)
 			,SubIssueTypeId			SMALLINT
+			,AdvancedExtraInfo		NVARCHAR(MAX)
 			)
 
 	CREATE TABLE #tmpTransInfo(
@@ -107,6 +109,7 @@ BEGIN
 			,IssueDetail					
 			,TypeAccept
 			,SubIssueTypeId
+			,AdvancedExtraInfo
 		)
 	SELECT @RequestId AS RequestId
 			,t.c.value('@MatchId','INT') AS MatchID
@@ -135,6 +138,7 @@ BEGIN
 				+ '" TransVoidToTime="' + ISNULL(CONVERT(VARCHAR(50),NULLIF(t.c.value('@TransVoidToTime','DATETIME'),''), 121),'')
 				+ '" />' AS TypeAccept
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+			,t.c.value('@ExcludedTickets','NVARCHAR(MAX)') AS AdvancedExtraInfo
 	FROM @DARCInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@DARCInfoXML = NULL))
 
@@ -158,6 +162,7 @@ BEGIN
 			, IssueDetail = l.IssueDetail
 			, TransIds = l.TypeAccept
 			, SubIssueTypeId = l.SubIssueTypeId
+			, AdvancedExtraInfo = l.AdvancedExtraInfo
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
 	END
@@ -181,6 +186,7 @@ BEGIN
 		, IssueDetail
 		, TransIds
 		, SubIssueTypeId
+		, AdvancedExtraInfo
 		)
 	SELECT @RequestId
 		, l.MatchID
@@ -200,6 +206,7 @@ BEGIN
 		, l.IssueDetail
 		, l.TypeAccept
 		, l.SubIssueTypeId
+		, l.AdvancedExtraInfo
 	FROM #tblGetLogInfo l
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
 		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID
@@ -283,6 +290,7 @@ BEGIN
 							+ ', VoidFrom: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidTo: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
 							+ ', TypeAccept: ' + l.TypeAccept
+							+ ', AdvancedExtraInfo: ' + l.AdvancedExtraInfo
 							FROM #tblGetLogInfo l
 
 	-- Write Log
