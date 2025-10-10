@@ -72,7 +72,6 @@ BEGIN
             AND r.LastModifyDate <= DATEADD(SECOND, - COALESCE(ap.Waitingtime,ss.Waitingtime,300), @CurrTime)
             AND m.eventdate BETWEEN @fromdate AND @todate 
             AND GlobalShowTime <= @checktime
-            --AND (ISNULL(ap.[Enable],0) = 1 OR ISNULL(ss.[Enable],0) = 1) 
             AND COALESCE(ap.[Enable],ss.[Enable],0) = 1
             AND ISNULL(m.SettlementStatus,0) & 87 = 0
 			AND ar.IsExistAR IS NULL
