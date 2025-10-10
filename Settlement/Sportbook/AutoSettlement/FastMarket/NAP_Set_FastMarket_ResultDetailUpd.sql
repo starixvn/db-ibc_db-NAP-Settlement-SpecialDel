@@ -141,7 +141,7 @@ BEGIN
 					,T.C.value('@a','VARCHAR(50)') AS AwayValue
 					,T.C.value('@o','VARCHAR(50)') AS OtherInfo
 					,T.C.value('@s','BIT') AS IsSave
-					,T.C.value('@st','INT') AS StatusId
+					,T.C.value('@st','TINYINT') AS StatusId
 			FROM	@xmlSpecialSession.nodes('r/w') AS T(C)
 
 			MERGE dbo.ResultDetail TARGET

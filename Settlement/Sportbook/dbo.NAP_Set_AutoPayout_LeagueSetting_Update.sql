@@ -148,7 +148,7 @@ BEGIN
 		AND ms.AutoType IN (7, 11)
 		AND ISNULL(ms.[Enable],0) <> @Enable
  
-		SELECT @UpdatedMatchIDs = STRING_AGG(CAST(matchID AS VARCHAR),',')
+		SELECT @UpdatedMatchIDs = STRING_AGG(CAST(matchID AS VARCHAR(MAX)),',')
 		FROM @tmpUpdatedMatches
 	END
 END
