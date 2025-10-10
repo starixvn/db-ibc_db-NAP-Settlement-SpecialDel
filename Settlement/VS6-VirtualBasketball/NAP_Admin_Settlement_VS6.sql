@@ -21,7 +21,8 @@ AS
 		- 20241023@Louisa: Initial [Redmine:#210733]
 		- 20250328@Louisa: extend data type of currency from tinyint to smallint [Redmine:#222173]
 		- 20250408@Aries: Remove the redundant information from the alert when exceeded Max Payout of Virtual Sport [Redmine:#223116]
-		- 20250805@Hughie: Integrate - Support "1 minute Basketball" event for VS6-Betby [Redmine:#235139] 
+		- 20250805@Hughie: Integrate - Support "1 minute Basketball" event for VS6-Betby [Redmine:#235139]
+		- 20251007@Max: VS6 - eSoccer - get dummy ResourceID [Redmine: #240731]
 
 	Param's explaination
 		@Action: Refund	   - @ActionId: 81056
@@ -51,6 +52,9 @@ BEGIN
 			,@TotalTransMaxPO		INT = 0
 			,@batchPO				SMALLINT = 500
 			,@ResourcesJson			VARCHAR(MAX) = ''
+			,@DummyResourceIds		VARCHAR(MAX) 
+			,@DummyResourceResults  VARCHAR(MAX)
+			,@WebResourceResult VARCHAR(MAX)
 	
 	DECLARE @tmpMaxWinLimit	TABLE( CustId INT, MaxWinLimit MONEY)
 	DECLARE @tmpTransIDMaxPO TABLE (TransID BIGINT, custid INT, actualPO MONEY, winlost MONEY, transdate DATETIME, bettype SMALLINT )
@@ -59,6 +63,11 @@ BEGIN
 	DECLARE @tmpSelectedResources TABLE ( ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 										  BetType SMALLINT,OddsType SMALLINT,  BetID BIGINT, pfID SMALLINT ,PRIMARY KEY (BetType,BetID)
 										  )
+	DECLARE @tmpResources TABLE(
+		ResourceID VARCHAR(20)
+		,HomeValue VARCHAR(2000)
+		,AwayValue VARCHAR(2000)
+	)
 
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT
 		,custid INT, currency SMALLINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
@@ -73,6 +82,8 @@ BEGIN
 	SELECT   @StartTime	= CURRENT_TIMESTAMP
 			,@procName	= OBJECT_NAME(@@PROCID)
 			,@SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
+			,@DummyResourceIds = ''
+			,@DummyResourceResults = ''
 
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT	@MatchId AS matchid, 8 AS KeyID
@@ -93,15 +104,69 @@ BEGIN
 	END	
 	----/ end check lock match single
 
-	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+	IF @SportType = 116 
+	BEGIN
+		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 
-	INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, OddsType )  
-	SELECT Id, ISNULL(Home,''), ISNULL(Away,''), sp.BetType, sp.BetID, sp.pfID , sp.OddsType
-	FROM OPENXML(@handle,'Resources/Resource',1) WITH(Id VARCHAR(20),Home VARCHAR(50),Away VARCHAR(50)) AS tbl
-		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = tbl.Id
-	WHERE sp.SportType = @sporttype
+		INSERT INTO @tmpResources(ResourceID, HomeValue, AwayValue) 
+		SELECT Id, ISNULL(Home,''), ISNULL(Away,'')
+		FROM OPENXML(@handle,'Resources/Resource',1) WITH(Id VARCHAR(20),Home VARCHAR(50),Away VARCHAR(50)) AS tbl
+		
+		EXEC sp_xml_removedocument @handle
 
-	EXEC sp_xml_removedocument @handle
+		SET	@WebResourceResult = CAST((SELECT	ResourceID AS '@Id'
+										,HomeValue AS '@Home'
+										,AwayValue AS '@Away'
+								FROM	@tmpResources
+								FOR XML PATH('Resource'), ROOT ('Results'), TYPE
+						) AS VARCHAR(MAX))
+
+		-- insert dummy resouceid
+		SELECT	@DummyResourceIds = @DummyResourceIds + s.ResourceID + ','
+		FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+		WHERE	s.SportType = @SportType
+				AND s.SettleType = 'MNL'
+				AND s.RefResourceId IS NOT NULL
+
+		IF @DummyResourceIds <> ''
+		BEGIN
+			EXEC dbo.NAP_Set_DummyResourceResult
+				@MatchID = @MatchID
+				,@sportType = @sportType
+				,@WebResourceResult = @WebResourceResult
+				,@DummyResourceIds = @DummyResourceIds
+				,@DummyResourceResults = @DummyResourceResults OUTPUT
+
+			EXEC sp_xml_preparedocument @handle OUTPUT, @DummyResourceResults
+			INSERT INTO @tmpResources(ResourceID, HomeValue, AwayValue)
+			SELECT Id, Home, Away
+			FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
+													,Home VARCHAR(2000)
+													,Away VARCHAR(2000)
+												) AS tbl
+			EXEC sp_xml_removedocument @handle
+		END
+
+		
+
+		INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, OddsType )  
+		SELECT tbl.ResourceID, tbl.HomeValue, tbl.AwayValue, sp.BetType, sp.BetID, sp.pfID , sp.OddsType
+		FROM @tmpResources tbl
+			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = tbl.ResourceID
+		WHERE sp.SportType = @sporttype
+	END
+	ELSE
+	BEGIN
+		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+
+		INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, OddsType )  
+		SELECT Id, ISNULL(Home,''), ISNULL(Away,''), sp.BetType, sp.BetID, sp.pfID , sp.OddsType
+		FROM OPENXML(@handle,'Resources/Resource',1) WITH(Id VARCHAR(20),Home VARCHAR(50),Away VARCHAR(50)) AS tbl
+			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = tbl.Id
+		WHERE sp.SportType = @sporttype
+
+		EXEC sp_xml_removedocument @handle
+	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedResources WHERE ResourceID = '00' ) AND (ISNULL(@GameSession,0) <> 1)
 	BEGIN
