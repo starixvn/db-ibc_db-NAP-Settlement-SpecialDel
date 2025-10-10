@@ -421,12 +421,14 @@ BEGIN
 		
 		DECLARE @tmpMatchId TABLE (matchId INT, Sporttype SMALLINT, IsFinish BIT)
 		
-		IF @IsExistVSBetradar = 1
+		IF @IsExistVSBetradar = 1 OR @IsExistInspiredVS = 1
 		BEGIN	
+			DELETE FROM @tmpMatchId
+
 			INSERT INTO @tmpMatchId (MatchId)
 			SELECT DISTINCT b.MatchId
 			FROM #RecoverBet b
-			WHERE b.TicketType = 1
+			WHERE b.TicketType IN (1, 2, 3)
 
 			WHILE (1=1)
 			BEGIN
@@ -444,7 +446,7 @@ BEGIN
 					SELECT transid '@q' -- transid			 
 						 , creator '@cr' -- creator
 					FROM #RecoverBet	
-					WHERE TicketType = 1	AND matchid = @matchId	 					 
+					WHERE TicketType IN (1, 2, 3) AND matchid = @matchId	 					 
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				) 
 				SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
@@ -455,143 +457,112 @@ BEGIN
 					, @_sXML 		= @_sXML
 					, @matchId = @matchId
 			END									
-													
-			--> Re-cal	
-			SET @_xml = (
-				SELECT matchid '@m' 
-					 , transid '@t'
-				FROM #RecoverBet
-				WHERE TicketType = 1
-				  AND [Action] = @Action_Recal
-				FOR XML PATH('r'), ROOT('root'), TYPE
-			) 
-			SELECT @TicketInfos_Recal = CONVERT(VARCHAR(MAX), @_xml)											
-		
-			EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main] 
-						@mode = 'RECOVER'
-					  , @TicketInfos = @TicketInfos_Recal
-					  , @IsBalance = 0
-					  , @CWLBettype = 0
-					  , @ErrCode = @ErrCode OUTPUT
-					  , @ErrMsg = @ErrMsg OUTPUT						
-		
-			--> Refund		
-			SET @_xml = (
-				SELECT transid '@t'
-				FROM #RecoverBet
-				WHERE TicketType = 1
-				  AND [Action] = @Action_Refund
-				FOR XML PATH('r'), ROOT('root'), TYPE
-			) 
-			SELECT @TicketInfos_Refund = CONVERT(VARCHAR(MAX), @_xml)
-		
-			EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Refund] 
-						@mode = 'RECOVER'
-					  , @TicketInfos = @TicketInfos_Refund
-					  , @IsBalance = 0
-					  , @CWLBettype = 0
-					  , @ErrCode = @ErrCode OUTPUT
-					  , @ErrMsg = @ErrMsg OUTPUT										  				
-		END			
-		
-		IF @IsExistInspiredVS = 1
-		BEGIN
-			DELETE @tmpMatchId
-			INSERT INTO @tmpMatchId (MatchId)
-			SELECT DISTINCT b.MatchId
-			FROM #RecoverBet b
-			WHERE b.TicketType IN (2, 3)
-
-			WHILE (1=1)
-			BEGIN
-				SET @_sXML = NULL
-
-				UPDATE TOP(1)m
-				SET IsFinish = 1, @matchid = MatchId
-				FROM @tmpMatchId m
-				WHERE IsFinish IS NULL
-
-				IF @@ROWCOUNT = 0 BREAK;
-
-				--> Update Bettrans	to running
+					
+			IF @IsExistVSBetradar = 1
+			BEGIN 
+				--> Re-cal	
 				SET @_xml = (
-					SELECT transid '@q' -- transid			 
-						 , creator '@cr' -- creator
+					SELECT matchid '@m' 
+						 , transid '@t'
 					FROM #RecoverBet
-					WHERE TicketType IN (2, 3)	 AND matchid = @matchId		 					 
+					WHERE TicketType = 1
+					  AND [Action] = @Action_Recal
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				) 
-				SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+				SELECT @TicketInfos_Recal = CONVERT(VARCHAR(MAX), @_xml)											
 		
-				EXEC dbo.Bet_ExecRep_05 
-					  @IgnoreList 	= @IgnoreList
-					, @updatetype 	= 6
-					, @_sXML 		= @_sXML
-					, @matchId		= @matchId
-			END			
-
-			--> Build #ReCalMatchID_InspiredVS
-			INSERT INTO #ReCalMatchID_InspiredVS(matchid, TicketType)
-			SELECT matchid, TicketType
-			FROM #RecoverBet
-			WHERE TicketType IN (2, 3)
-			  AND [Action] = @Action_Recal
-			GROUP BY matchid, TicketType					
+				EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main] 
+							@mode = 'RECOVER'
+						  , @TicketInfos = @TicketInfos_Recal
+						  , @IsBalance = 0
+						  , @CWLBettype = 0
+						  , @ErrCode = @ErrCode OUTPUT
+						  , @ErrMsg = @ErrMsg OUTPUT						
 		
-			SET @cnt_RecalMatchInspiredVS = @@ROWCOUNT													
+				--> Refund		
+				SET @_xml = (
+					SELECT transid '@t'
+					FROM #RecoverBet
+					WHERE TicketType = 1
+					  AND [Action] = @Action_Refund
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) 
+				SELECT @TicketInfos_Refund = CONVERT(VARCHAR(MAX), @_xml)
+		
+				EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Refund] 
+							@mode = 'RECOVER'
+						  , @TicketInfos = @TicketInfos_Refund
+						  , @IsBalance = 0
+						  , @CWLBettype = 0
+						  , @ErrCode = @ErrCode OUTPUT
+						  , @ErrMsg = @ErrMsg OUTPUT										  				
+			END
+			
+			IF @IsExistInspiredVS = 1
+			BEGIN
+				--> Build #ReCalMatchID_InspiredVS
+				INSERT INTO #ReCalMatchID_InspiredVS(matchid, TicketType)
+				SELECT matchid, TicketType
+				FROM #RecoverBet
+				WHERE TicketType IN (2, 3)
+				  AND [Action] = @Action_Recal
+				GROUP BY matchid, TicketType					
+		
+				SET @cnt_RecalMatchInspiredVS = @@ROWCOUNT													
 	
-			--> Re-cal For Inspired VS								
-			SET @i = 1					
-			WHILE @i <= @cnt_RecalMatchInspiredVS
-			BEGIN
-				SELECT @matchId = matchid
-					 , @TicketType = TicketType
-				FROM #ReCalMatchID_InspiredVS
-				WHERE RowNum = @i
-			
-				IF @TicketType = 2 -- inspired vs 180				
-					EXEC dbo.NAP_Admin_Settlement_3_VS 
-						 @Creator	= @UserID
-					   , @MatchId	= @matchid
-					   , @Mode		= 'CAL'
-				ELSE IF @TicketType = 3 -- inspired vs 181
+				--> Re-cal For Inspired VS								
+				SET @i = 1					
+				WHILE @i <= @cnt_RecalMatchInspiredVS
 				BEGIN
-					EXEC Admin_Calculate_181M @matchid =@matchid  
-					EXEC Admin_Calculate_181 @matchid =@matchid
-				END						   
-		
-				SET @i = @i + 1
-			END	
+					SELECT @matchId = matchid
+						 , @TicketType = TicketType
+					FROM #ReCalMatchID_InspiredVS
+					WHERE RowNum = @i
 			
-			--> Build #RefundMatchID_InspiredVS
-			INSERT INTO #RefundMatchID_InspiredVS(matchid, TicketType)
-			SELECT matchid, TicketType
-			FROM #RecoverBet
-			WHERE TicketType IN (2, 3)
-			  AND [Action] = @Action_Refund
-			GROUP BY matchid, TicketType
+					IF @TicketType = 2 -- inspired vs 180				
+						EXEC dbo.NAP_Admin_Settlement_3_VS 
+							 @Creator	= @UserID
+						   , @MatchId	= @matchid
+						   , @Mode		= 'CAL'
+					ELSE IF @TicketType = 3 -- inspired vs 181
+					BEGIN
+						EXEC Admin_Calculate_181M @matchid =@matchid  
+						EXEC Admin_Calculate_181 @matchid =@matchid
+					END						   
 		
-			SET @cnt_RefundMatchInspiredVS = @@ROWCOUNT														
-		
-			--> Refund For Inspired VS								
-			SET @i = 1				
-			WHILE @i <= @cnt_RefundMatchInspiredVS
-			BEGIN
-				SELECT @matchId = matchid
-					 , @TicketType = TicketType
-				FROM #RefundMatchID_InspiredVS
-				WHERE RowNum = @i
+					SET @i = @i + 1
+				END	
 			
-				IF @TicketType = 2 -- inspired vs 180
-					EXEC dbo.NAP_Admin_Calculate_VS_180_Refund 
-						 @matchid = @matchid
-				ELSE IF @TicketType = 3 -- inspired vs 181
-					EXEC Admin_Calculate_VS_181_Refund 
-						 @matchid =@matchid							 
+				--> Build #RefundMatchID_InspiredVS
+				INSERT INTO #RefundMatchID_InspiredVS(matchid, TicketType)
+				SELECT matchid, TicketType
+				FROM #RecoverBet
+				WHERE TicketType IN (2, 3)
+				  AND [Action] = @Action_Refund
+				GROUP BY matchid, TicketType
 		
-				SET @i = @i + 1
-			END						
-		END	
+				SET @cnt_RefundMatchInspiredVS = @@ROWCOUNT														
+		
+				--> Refund For Inspired VS								
+				SET @i = 1				
+				WHILE @i <= @cnt_RefundMatchInspiredVS
+				BEGIN
+					SELECT @matchId = matchid
+						 , @TicketType = TicketType
+					FROM #RefundMatchID_InspiredVS
+					WHERE RowNum = @i
+			
+					IF @TicketType = 2 -- inspired vs 180
+						EXEC dbo.NAP_Admin_Calculate_VS_180_Refund 
+							 @matchid = @matchid
+					ELSE IF @TicketType = 3 -- inspired vs 181
+						EXEC Admin_Calculate_VS_181_Refund 
+							 @matchid =@matchid							 
+		
+					SET @i = @i + 1
+				END						
+			END		
+		END			
 		
 		IF @IsExistVS3 = 1 OR @IsExistVS4 = 1
 		BEGIN	
