@@ -190,14 +190,6 @@ BEGIN
 		SELECT	t.value
 		FROM STRING_SPLIT(@TransIds, ',') t					
 		
-		IF @@ROWCOUNT = 0
-		BEGIN
-			SELECT 99 AS ErrorCode
-				 ,'No ticket found.' AS ErrorMsg
-			
-			RETURN
-		END				 
-		
 		--> Search tickets			
 		INSERT INTO #RecoverBet(
 				Stake,
@@ -276,7 +268,6 @@ BEGIN
 		BEGIN
 			SELECT 99 AS ErrorCode
 				  ,'No ticket found.' AS ErrorMsg
-			
 			RETURN
 		END	
 		
@@ -365,7 +356,6 @@ BEGIN
 		BEGIN
 			SELECT 112 AS ErrorCode
 				  ,'Could not recover some tickets due to Movebet process. Please try Search again.' AS ErrorMsg
-
 			RETURN	
 		END
 		
