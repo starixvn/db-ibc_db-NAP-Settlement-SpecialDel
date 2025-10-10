@@ -883,79 +883,77 @@ BEGIN
 		SET IsDeposit = 1
 		FROM #ExcludedBettypesTickets AS b
 		WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH (NOLOCK) WHERE d.custid = b.srecommend)
-	END
 
-	--Update ExcludedTicketsJson and ExcludedTicketsCounts
-	WHILE (1=1)
-	BEGIN
-		SELECT TOP 1 @MatchId = MatchId
-		FROM @Validation
-		WHERE IsFinish IS NULL
+		--Update ExcludedTicketsJson and ExcludedTicketsCounts
+		WHILE (1=1)
+		BEGIN
+			SET @MatchId = (SELECT TOP 1 MatchId FROM @Validation WHERE IsFinish IS NULL)
 
-		UPDATE v
-		SET v.IsFinish = 1
-		FROM @Validation AS v
-		WHERE MatchId = @MatchId
-
-		IF @@ROWCOUNT = 0 BREAK;
-
-		SET @ExcludedTicketsJson = COMPRESS((
-			SELECT TransId AS 'TransId'
-				  ,Refno AS 'RefNo'
-				  ,SubTransid AS 'SubTransId'
-				  ,UserName AS 'UserName'
-				  ,Transdate AS 'Transdate'
-				  ,Stake AS 'Stake'
-				  ,Odds AS 'Odds'
-				  ,SubOdds AS 'SubOdds'
-				  ,Oddsspread AS 'Oddsspread'
-				  ,OddsType AS 'OddsType'
-				  ,Bettype AS 'Bettype'
-				  ,Subbettype AS 'Subbettype'
-				  ,Status AS 'Status'
-				  ,Substatus AS 'Substatus'
-				  ,Currencyname AS 'CurrencyName'
-				  ,Betteam AS 'Betteam'
-				  ,Subbetteam AS 'Subbetteam'
-				  ,Subhdp1 AS 'SubHdp1'
-				  ,SubHdp2 AS 'SubHdp2'
-				  ,Hdp1 AS 'Hdp1'
-				  ,Hdp2 AS 'Hdp2'
-				  ,Livehomescore AS 'Livehomescore'
-				  ,Liveawayscore AS 'Liveawayscore'
-				  ,BetId AS 'BetId'
-				  ,BetCheck AS 'BetCheck'
-				  ,SubCheckTime AS 'SubCheckTime'
-				  ,IsMixParlay AS 'IsMixParlay'
-				  ,Transdesc AS 'Transdesc'
-				  ,Betdaqid AS 'Betdaqid'
-				  ,Wallettype AS 'WalletType'
-				  ,RefCode AS 'RefCode'
-				  ,CAST(Winlost AS VARCHAR) AS 'WinLost'
-				  ,Liveindicator AS 'Liveindicator'
-				  ,Actual_stake AS 'ActualStake'
-				  ,ExtraInfo AS 'ExtraInfo'
-				  ,IsDeposit AS 'IsDeposit'
-				  ,MatchId AS 'MatchId'
-				  ,HomeId AS 'HomeId'
-				  ,AwayId AS 'AwayId'
-				  ,LeagueId AS 'LeagueId'
-				  ,IsNeutral AS 'IsNeutral'
-				  ,MatchCode AS 'MatchCode'
-				  ,SettlementStatus AS 'SettlementStatus'
-				  ,Sporttype AS 'Sporttype'
-				  ,IsCancelCashOut AS 'IsCancelCashOut'
-			FROM #ExcludedBettypesTickets 
+			UPDATE v
+			SET v.IsFinish = 1
+			FROM @Validation AS v
 			WHERE MatchId = @MatchId
-		FOR JSON PATH))
 
-		SET @ExcludedTicketsCounts = (SELECT COUNT(*) FROM #ExcludedBettypesTickets WHERE MatchId = @MatchId GROUP BY MatchId)
+			IF @@ROWCOUNT = 0 BREAK;
 
-		UPDATE v
-		SET v.ExcludedTicketsJson = CONVERT(VARCHAR(MAX),@ExcludedTicketsJson,1)
-		   ,v.ExcludedTicketsCounts = @ExcludedTicketsCounts
-		FROM @Validation AS v
-		WHERE MatchId = @MatchId
+			SET @ExcludedTicketsJson = COMPRESS((
+				SELECT TransId AS 'TransId'
+					  ,Refno AS 'RefNo'
+					  ,SubTransid AS 'SubTransId'
+					  ,UserName AS 'UserName'
+					  ,Transdate AS 'Transdate'
+					  ,Stake AS 'Stake'
+					  ,Odds AS 'Odds'
+					  ,SubOdds AS 'SubOdds'
+					  ,Oddsspread AS 'Oddsspread'
+					  ,OddsType AS 'OddsType'
+					  ,Bettype AS 'Bettype'
+					  ,Subbettype AS 'Subbettype'
+					  ,Status AS 'Status'
+					  ,Substatus AS 'Substatus'
+					  ,Currencyname AS 'CurrencyName'
+					  ,Betteam AS 'Betteam'
+					  ,Subbetteam AS 'Subbetteam'
+					  ,Subhdp1 AS 'SubHdp1'
+					  ,SubHdp2 AS 'SubHdp2'
+					  ,Hdp1 AS 'Hdp1'
+					  ,Hdp2 AS 'Hdp2'
+					  ,Livehomescore AS 'Livehomescore'
+					  ,Liveawayscore AS 'Liveawayscore'
+					  ,BetId AS 'BetId'
+					  ,BetCheck AS 'BetCheck'
+					  ,SubCheckTime AS 'SubCheckTime'
+					  ,IsMixParlay AS 'IsMixParlay'
+					  ,Transdesc AS 'Transdesc'
+					  ,Betdaqid AS 'Betdaqid'
+					  ,Wallettype AS 'WalletType'
+					  ,RefCode AS 'RefCode'
+					  ,CAST(Winlost AS VARCHAR) AS 'WinLost'
+					  ,Liveindicator AS 'Liveindicator'
+					  ,Actual_stake AS 'ActualStake'
+					  ,ExtraInfo AS 'ExtraInfo'
+					  ,IsDeposit AS 'IsDeposit'
+					  ,MatchId AS 'MatchId'
+					  ,HomeId AS 'HomeId'
+					  ,AwayId AS 'AwayId'
+					  ,LeagueId AS 'LeagueId'
+					  ,IsNeutral AS 'IsNeutral'
+					  ,MatchCode AS 'MatchCode'
+					  ,SettlementStatus AS 'SettlementStatus'
+					  ,Sporttype AS 'Sporttype'
+					  ,IsCancelCashOut AS 'IsCancelCashOut'
+				FROM #ExcludedBettypesTickets 
+				WHERE MatchId = @MatchId
+			FOR JSON PATH))
+
+			SET @ExcludedTicketsCounts = (SELECT COUNT(*) FROM #ExcludedBettypesTickets WHERE MatchId = @MatchId GROUP BY MatchId)
+
+			UPDATE v
+			SET v.ExcludedTicketsJson = CONVERT(VARCHAR(MAX),@ExcludedTicketsJson,1)
+			   ,v.ExcludedTicketsCounts = @ExcludedTicketsCounts
+			FROM @Validation AS v
+			WHERE MatchId = @MatchId
+		END
 	END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
