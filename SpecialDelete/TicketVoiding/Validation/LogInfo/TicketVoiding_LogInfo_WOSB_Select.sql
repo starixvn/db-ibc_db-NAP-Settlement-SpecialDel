@@ -753,7 +753,7 @@ BEGIN
 			,sub.betcheck
 			,sub.OddsId
 			,d.SubIssueTypeId
-			,b.odds
+			,sub.odds AS FilterOdds
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
 		FROM #FilterInfo d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
