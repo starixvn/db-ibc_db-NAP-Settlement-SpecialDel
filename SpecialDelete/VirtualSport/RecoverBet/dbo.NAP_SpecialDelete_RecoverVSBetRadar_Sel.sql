@@ -25,7 +25,7 @@ AS
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
 		- 20250220@Max: [TVS] Recover ticket of Virtual Sports 2 [Redmine: #212323]		
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
-		- 20251009@July: [TVS] Virtual Sport 6 - Integrate new sport type [Redmine:#241016]
+		- 20251009@July: [TVS] Virtual Sport 6 - Integrate new sport type - 'eSoccer' and 'eVolleyball' [Redmine:#241016]
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -204,7 +204,7 @@ BEGIN
 								  , 178, 179	-- VS 3 (Leap Gaming)
 								  , 188			-- VS 4 (Edge Gaming)
 								  , 147			-- VS5
-								  , 134, 116	-- VS6
+								  , 134, 116, 114 -- VS6
 							) 
 
 			--> Inspired VS 181, Virtual Horse Racing & Virtual Dog Racing

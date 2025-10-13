@@ -32,7 +32,7 @@ AS
 		- 20250402@Mike: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 		- 20250612@July: Fix replication issue caused by NULL values in the action call/refund input ticket [Redmine:#229870]
 		- 20250624@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
-		- 20251009@July: [TVS] Virtual Sport 6 - Integrate new sport type [Redmine:#241016]
+		- 20251009@July: [TVS] Virtual Sport 6 - Integrate new sport type - 'eSoccer' and 'eVolleyball' [Redmine:#241016]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -301,7 +301,7 @@ BEGIN
 								  WHEN m.sporttype IN (178, 179) THEN 4 -- VS 3 (Leap Gaming)
 								  WHEN m.sporttype IN (188) THEN 5 -- VS 4 (Edge Gaming)
 								  WHEN m.sporttype IN (147) THEN 6 -- VS5
-								  WHEN m.sporttype IN (134, 116) THEN 7 -- VS6
+								  WHEN m.sporttype IN (134, 116, 114) THEN 7 -- VS6
 								  ELSE NULL
 								END 
 			FROM #RecoverBet r
@@ -319,7 +319,7 @@ BEGIN
 								  , 178, 179	-- VS 3 (Leap Gaming)
 								  , 188			-- VS 4 (Edge Gaming)
 								  , 147			-- VS5
-								  , 134, 116	-- VS6
+								  , 134, 116, 114 -- VS6
 							) 
 
 			-- Inspired VS 181
@@ -776,7 +776,7 @@ BEGIN
 				) AS tbl
 					INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON	sp.ResourceID = tbl.ResourceId
 					INNER JOIN #RecoverBet b on sp.BetType = b.bettype	AND (sp.BetID = 0 OR sp.BetID = b.betid ) 
-				WHERE sp.SportType IN (134, 116)
+				WHERE sp.SportType IN (134, 116, 114)
 			END
 
 			UPDATE r SET 
