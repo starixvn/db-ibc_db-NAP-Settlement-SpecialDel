@@ -190,8 +190,6 @@ BEGIN
 	  ,id [int] IDENTITY (1,1) PRIMARY KEY
 	)
 
-	--create nonclustered index ix_cust_status on #tmpTransInfo (custid,statusid) include (winlost)
-
 	CREATE TABLE #SelectedTrans (
 		TransId BIGINT,
 		CustId INT,
