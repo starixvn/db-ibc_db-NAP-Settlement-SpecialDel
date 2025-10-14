@@ -868,7 +868,7 @@ BEGIN
 	IF @IsShowLogOnly = 0
 	BEGIN
 		INSERT INTO @tmpExcludedTickets(TransId)
-		SELECT MatchId, TransId
+		SELECT TransId
 		FROM #TVSTicketBets
 		WHERE IsExcluded = 1
 	END
