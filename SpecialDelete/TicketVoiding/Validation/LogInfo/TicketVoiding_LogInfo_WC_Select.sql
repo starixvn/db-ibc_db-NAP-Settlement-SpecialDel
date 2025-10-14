@@ -977,8 +977,8 @@ BEGIN
 		END
 		
 		DELETE b 
-		FROM #TVSTicketBets AS B
-		WHERE B.IsExcluded = 1
+		FROM #TVSTicketBets AS b
+		WHERE b.IsExcluded = 1
 	END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
@@ -1038,10 +1038,9 @@ BEGIN
 				,a.HighlightAcceptType
 				,a.MinTransId
 				,a.ActionType
-				,v.ExcludedTicketsJson AS ExcludedTicketsJson
-				,v.ExcludedTicketsCounts AS ExcludedTicketsCounts
+				,NULL AS ExcludedTicketsJson
+				,NULL AS ExcludedTicketsCounts
 			FROM #CTE_RequestDetail rd WITH (NOLOCK)
-				INNER JOIN @Validation AS v ON rd.MatchId = v.MatchId
 				CROSS APPLY (
 						SELECT CONVERT(XML, rd.TransIds)
 					)AS t1(xDATA)
@@ -1306,11 +1305,10 @@ BEGIN
 			,SUM(MainParlayCount) AS MainParlayCount
 			,l.ScoreId
 			,MIN(CancelCashOutCount) AS CancelCashOutCount
-			,v.ExcludedTicketsJson AS ExcludedTicketsJson
-			,v.ExcludedTicketsCounts AS ExcludedTicketsCounts
+			,NULL AS ExcludedTicketsJson
+			,NULL AS ExcludedTicketsCounts
 		FROM #logInfo l
-		INNER JOIN @Validation AS v ON l.MatchId = v.MatchId
-		GROUP BY l.MatchId, l.LiveScores, l.ScoreId, v.ExcludedTicketsJson, v.ExcludedTicketsCounts 
+		GROUP BY l.MatchId, l.LiveScores, l.ScoreId 
 
 		-- 4. List ticket unmark/mark & Transinfo table (if any)
 		SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
