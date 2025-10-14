@@ -96,6 +96,7 @@ BEGIN
 			VoidTime			  DATETIME,
 			IsSiteDBDown		  BIT DEFAULT(0),
 			Username			  NVARCHAR(50),
+			--Support for loginfo exlucded tickets
 			Srecommend			  INT,
 			Stake				  MONEY,
 			Odds				  SMALLMONEY,
@@ -230,16 +231,7 @@ BEGIN
 
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
-	--DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
 	DECLARE @tmpExcludedTickets AS TABLE (TransId BIGINT)
-
-	--IF ISNULL(@OnlineServerId, '') <> ''
-	--BEGIN
-	--	INSERT INTO @tmpOnlineServerId (ServerId)
-	--	SELECT value AS ServerId
-	--	FROM STRING_SPLIT(@OnlineServerId, ',')
-	--	WHERE value <> ''
-	--END
 
 	SET @DARCInfoInfoXML = CONVERT(XML, @DARCInfo)
 	INSERT INTO #FilterInfo (MatchID, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId, AATime, PATime, SATime, FilterVoidFromTime, FilterVoidToTime)
@@ -428,9 +420,6 @@ BEGIN
 							   ELSE 0 END
 					 END
 		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,b.SiteDBGroupID,@OnlineServerId) = 1
-		--1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-		--			 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-		--			 ELSE 0 END
 		
 	UPDATE b
 	SET accepttype = CASE WHEN b.AcceptModeCashOut = 0 THEN 3 ELSE b.AcceptModeCashOut END
@@ -447,9 +436,6 @@ BEGIN
 				   				ELSE 0 END
 					AND bm.betfrom <> 'P'
 					AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,bm.SiteDBGroupID,@OnlineServerId) = 1
-					--1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					--			 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					--			 ELSE 0 END
 				)
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
@@ -580,9 +566,6 @@ BEGIN
 			AND act.VoidTime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime
 			AND b.SiteDBGroupID = sub.SiteDBGroupID
 			AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,sub.SiteDBGroupID,@OnlineServerId) = 1
-			--1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-			--			 WHEN sub.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-			--			 ELSE 0 END
 	END 
 
 	UPDATE b
@@ -902,9 +885,6 @@ BEGIN
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
 		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,SiteDBGroupID,@OnlineServerId) = 1
-		--1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-		--			 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-		--			 ELSE 0 END
 	SET @cnt_s = @@ROWCOUNT
 
 	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId)
@@ -912,9 +892,6 @@ BEGIN
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
 		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,SiteDBGroupID,@OnlineServerId) = 1
-		--1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-		--			 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-		--			 ELSE 0 END
 	SET @cnt_p = @@ROWCOUNT
 
 	--Get excluded tickets

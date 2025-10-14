@@ -402,9 +402,6 @@ BEGIN
 					 WHEN d.FilterBy = 4 AND ((b.checktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))THEN 1
 					ELSE 0 END
 		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,b.SiteDBGroupID,@OnlineServerId) = 1
-		--1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-		--			 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-		--			 ELSE 0 END
 
 	-- Get ticket cancel cashout
 	INSERT INTO #TVSTicketBets(
@@ -527,9 +524,6 @@ BEGIN
 					   ELSE 0 END 
 		   AND NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets t WHERE t.transid = b.transid)
 		   AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,b.SiteDBGroupID,@OnlineServerId) = 1
-		   --1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					-- 	WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					--    ELSE 0 END
 
 	-- Fix case: wrong score 2 Score: Original score 1, Canel CO: Score 2
 	DECLARE @tmpRemoveDuplCancelCO TABLE (TransId BIGINT)
@@ -557,9 +551,6 @@ BEGIN
 								   ELSE 0 END
 						AND bm.betfrom <> 'P' 
 						AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,bm.SiteDBGroupID,@OnlineServerId) = 1
-						--1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-						--			 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-						--			 ELSE 0 END
 					)
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
@@ -675,9 +666,6 @@ BEGIN
 			AND b.matchid = 29 AND b.bettype = 29
 			AND b.SiteDBGroupID = sub.SiteDBGroupID
 			AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,sub.SiteDBGroupID,@OnlineServerId) = 1
-			--1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-			--			 WHEN sub.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-			--			 ELSE 0 END
 			AND 1 = CASE WHEN sub.livehomescore = 0 AND sub.liveawayscore = 0 AND sub.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 			AND 1 = CASE WHEN d.FilterBy = 1 AND sub.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
 						    WHEN d.FilterBy = 2 AND ISNULL(sub.checktime, sub.transdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
@@ -1015,9 +1003,6 @@ BEGIN
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
 		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,SiteDBGroupID,@OnlineServerId) = 1
-		--1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-		--			 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-		--			 ELSE 0 END
 	SET @cnt_s = @@ROWCOUNT
 
 	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId, RequestDetailId)
@@ -1025,9 +1010,6 @@ BEGIN
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
 		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,SiteDBGroupID,@OnlineServerId) = 1
-		--1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-		--			 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-		--			 ELSE 0 END
 	SET @cnt_p = @@ROWCOUNT
 
 	--Get excluded tickets
