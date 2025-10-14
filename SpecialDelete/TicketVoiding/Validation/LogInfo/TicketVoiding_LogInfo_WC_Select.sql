@@ -288,7 +288,6 @@ BEGIN
 			,Srecommend
 			,Winlost
 			,Actual_stake
-			,IsExcluded
 		)
 	SELECT DISTINCT  b.transid
 			,b.transid AS SubTransID
@@ -339,17 +338,11 @@ BEGIN
 			,b.srecommend
 			,b.winlost
 			,b.actual_stake
-			,CASE WHEN e.ExcludedBettype IS NOT NULL THEN 1 ELSE 0 END AS IsExcluded
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
-		OUTER APPLY (
-				SELECT f.BetType AS ExcludedBettype
-				FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() AS f
-				WHERE f.BetType = b.bettype AND f.SubIssueTypeId = d.SubIssueTypeId AND f.IssueTypeId = @IssueTypeId
-			) AS e
 	WHERE  1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					ELSE 0 END
@@ -410,7 +403,6 @@ BEGIN
 			,Srecommend
 			,Winlost
 			,Actual_stake
-			,IsExcluded
 		)
 	SELECT DISTINCT b.transid
 			,b.transid AS SubTransID
@@ -459,15 +451,9 @@ BEGIN
 			,b.srecommend
 			,b.winlost
 			,b.actual_stake
-			,CASE WHEN e.ExcludedBettype IS NOT NULL THEN 1 ELSE 0 END AS IsExcluded
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
-		OUTER APPLY (
-				SELECT f.BetType AS ExcludedBettype
-				FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() AS f
-				WHERE f.BetType = b.bettype AND f.SubIssueTypeId = d.SubIssueTypeId AND f.IssueTypeId = @IssueTypeId
-			) AS e
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
 	WHERE  1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
@@ -565,7 +551,6 @@ BEGIN
 				,Srecommend
 				,Winlost
 				,Actual_stake
-				,IsExcluded
 			)
 		SELECT DISTINCT b.transid 
 				,sub.TransID
@@ -618,17 +603,11 @@ BEGIN
 				,b.srecommend
 				,b.winlost
 				,b.actual_stake
-				,CASE WHEN e.ExcludedBettype IS NOT NULL THEN 1 ELSE 0 END AS IsExcluded
 		FROM #FilterInfo d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			INNER JOIN @bettype_tmp bt ON bt.bettype = sub.bettype
 			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = sub.bettype
-			OUTER APPLY (
-				SELECT f.BetType AS ExcludedBettype
-				FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() AS f
-				WHERE f.BetType = sub.bettype AND f.SubIssueTypeId = d.SubIssueTypeId AND f.IssueTypeId = @IssueTypeId
-			) AS e
 		WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END
@@ -663,6 +642,13 @@ BEGIN
 	FROM #TVSTicketBets AS b
 	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH (NOLOCK) WHERE d.custid = b.srecommend)
 
+	UPDATE b
+	SET b.IsExcluded = 1
+	FROM #TVSTicketBets AS b
+	INNER JOIN #FilterInfo AS d ON b.matchid = d.MatchId
+	WHERE EXISTS ( SELECT TOP 1 1 
+				   FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
+				   WHERE f.bettype = b.Subbettype AND f.SubIssueTypeId = d.SubIssueTypeId AND f.IssueTypeId = @IssueTypeId)
 
 	SELECT TOP (1) @FilterBy = FilterBy
 	FROM #FilterInfo

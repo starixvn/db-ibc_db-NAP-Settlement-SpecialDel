@@ -289,7 +289,6 @@ BEGIN
 			,Srecommend
 			,Winlost
 			,Actual_stake
-			,IsExcluded
 		)
 	SELECT  DISTINCT b.transid
 			,b.transid AS SubTransID
@@ -351,17 +350,11 @@ BEGIN
 			,b.srecommend
 			,b.winlost
 			,b.actual_stake
-			,CASE WHEN e.ExcludedBettype IS NOT NULL THEN 1 ELSE 0 END AS IsExcluded
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		INNER JOIN @bettype_tmp bt ON b.bettype = bt.bettype
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
-		OUTER APPLY (
-				SELECT f.BetType AS ExcludedBettype
-				FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() AS f
-				WHERE f.BetType = b.bettype AND f.SubIssueTypeId = d.SubIssueTypeId AND f.IssueTypeId = @IssueTypeId
-			) AS e
 		CROSS APPLY (
 			SELECT CASE WHEN d.FilterBy = 1 THEN b.transdate 
 					WHEN d.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
@@ -447,7 +440,6 @@ BEGIN
 				,Srecommend
 				,Winlost
 				,Actual_stake
-				,IsExcluded
 			)
 		SELECT DISTINCT b.transid AS TransId
 				,sub.TransId AS SubTransID
@@ -506,16 +498,10 @@ BEGIN
 				,b.srecommend
 				,b.winlost
 				,b.actual_stake
-				,CASE WHEN e.ExcludedBettype IS NOT NULL THEN 1 ELSE 0 END AS IsExcluded
 		FROM #FilterInfo d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			INNER JOIN @bettype_tmp bt ON sub.bettype = bt.bettype
-			OUTER APPLY (
-				SELECT f.BetType AS ExcludedBettype
-				FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() AS f
-				WHERE f.BetType = sub.bettype AND f.SubIssueTypeId = d.SubIssueTypeId AND f.IssueTypeId = @IssueTypeId
-			) AS e
 			CROSS APPLY (
 				SELECT CASE WHEN d.FilterBy = 1 THEN sub.transdate
 						    WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
@@ -549,6 +535,14 @@ BEGIN
 	SET IsDeposit = 1
 	FROM #TVSTicketBets AS b
 	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH (NOLOCK) WHERE d.custid = b.srecommend)
+
+	UPDATE b
+	SET b.IsExcluded = 1
+	FROM #TVSTicketBets AS b
+	INNER JOIN #FilterInfo AS d ON b.matchid = d.MatchId
+	WHERE EXISTS ( SELECT TOP 1 1 
+				   FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
+				   WHERE f.bettype = b.Subbettype AND f.SubIssueTypeId = d.SubIssueTypeId AND f.IssueTypeId = @IssueTypeId)
 
 	/*Get Transid in Request of range Transid*/
 	DECLARE @TransInfoJson_Request		VARBINARY(MAX)
@@ -847,11 +841,12 @@ BEGIN
 			FROM @Validation AS v
 			WHERE MatchId = @MatchId
 		END
-	END
+		
+		DELETE b
+		FROM #TVSTicketBets AS b
+		WHERE b.IsExcluded = 1
 
-	DELETE b
-	FROM #TVSTicketBets AS b
-	WHERE b.IsExcluded = 1
+	END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
