@@ -1073,7 +1073,7 @@ BEGIN
 	BEGIN
 		SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 		FROM #TransidInRequest
-	END
+	END;
 
 	-- 3. Loginfo table
 	;WITH _cte AS (
