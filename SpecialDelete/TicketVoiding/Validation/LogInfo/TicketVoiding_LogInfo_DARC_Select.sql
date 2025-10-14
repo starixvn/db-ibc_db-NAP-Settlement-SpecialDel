@@ -215,7 +215,7 @@ BEGIN
 		
 		INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
 		SELECT matchid, bettype, betid 
-		FROM dbo.f_TVS_GetInstantSettlementBettypes(@MatchIds)
+		FROM dbo.f_TVS_GetInstantSettlementBettypes(@MatchIds);
 		
 	END
 
@@ -1026,7 +1026,7 @@ BEGIN
 		, IsInValidTotalTickets
 		, IsExistedInOtherRequest
 		, IsExistsSecondAccept
-	FROM @Validation
+	FROM @Validation;
 
 	-- 2. TransId exists in other request table
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
@@ -1073,7 +1073,7 @@ BEGIN
 	BEGIN
 		SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 		FROM #TransidInRequest
-	END;
+	END
 
 	-- 3. Loginfo table
 	;WITH _cte AS (
