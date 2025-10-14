@@ -95,38 +95,38 @@ BEGIN
 			SiteDBGroupID		  SMALLINT,
 			IsSiteDBDown		  BIT DEFAULT(0),
 			Username			  NVARCHAR(50),
+			RefCode				  BIGINT,
+			ExtraInfo			  VARCHAR(1000),
 			Srecommend			  INT,
 			Stake				  MONEY,
+			Actual_stake		  MONEY,
 			Odds				  SMALLMONEY,
 			SubOdds				  SMALLMONEY,
 			Oddsspread			  MONEY,	
 			Oddstype			  TINYINT,
-			Status				  NVARCHAR(10),
-			SubStatus			  NVARCHAR(10),
-			CurrencyName		  NVARCHAR(50),
 			Betteam				  NVARCHAR(10),
 			SubBetteam			  NVARCHAR(10),
 			Hdp1				  SMALLMONEY,
 			Hdp2				  SMALLMONEY,
 			SubHdp1				  SMALLMONEY,			
 			SubHdp2				  SMALLMONEY,
+			Status				  NVARCHAR(10),
+			SubStatus			  NVARCHAR(10),
 			Betcheck			  NVARCHAR(50),
-			SubCheckTime		  DATETIME, 
+			SubCheckTime		  DATETIME,
+			SettlementStatus	  TINYINT,
+			Winlost				  MONEY,
+			IsExcluded			  BIT DEFAULT(0),
 			Transdesc			  NVARCHAR(1000),
 			WalletType			  TINYINT,
-			RefCode				  BIGINT,
-			ExtraInfo			  VARCHAR(1000),
 			IsDeposit			  BIT,
+			CurrencyName		  NVARCHAR(50),
 			HomeId				  INT,
 			AwayId				  INT,
 			LeagueId			  INT,
 			IsNeutral			  INT,
 			MatchCode			  NVARCHAR(50),
-			SettlementStatus	  TINYINT,
 			Sporttype			  SMALLINT,
-			Winlost				  MONEY,
-			Actual_stake		  MONEY,
-			IsExcluded			  BIT DEFAULT(0),
 		    ID					  INT IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -265,16 +265,6 @@ BEGIN
 			,accepttype
 			,IsCancelCashOut
 			,IsSiteDBDown
-			,Stake
-			,Odds
-			,SubOdds
-			,Oddsspread	
-			,Oddstype
-			,Status
-			,SubStatus
-			,CurrencyName
-			,Betteam
-			,SubBetteam
 			,Hdp1
 			,Hdp2
 			,SubHdp1	
@@ -288,6 +278,16 @@ BEGIN
 			,Srecommend
 			,Winlost
 			,Actual_stake
+			,Stake
+			,Odds
+			,SubOdds
+			,Oddsspread	
+			,Oddstype
+			,Status
+			,SubStatus
+			,CurrencyName
+			,Betteam
+			,SubBetteam
 		)
 	SELECT DISTINCT  b.transid
 			,b.transid AS SubTransID
@@ -315,16 +315,6 @@ BEGIN
 				  END AS accepttype
 			,0 AS IsCancelCashOut
 			,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
-			,b.stake
-			,b.odds
-			,b.odds AS Subodds
-			,b.oddsspread
-			,b.oddstype
-			,b.status
-			,b.status AS SubStatus
-			,b.CurrencyName
-			,b.betteam
-			,b.betteam AS SubBetteam
 			,b.hdp1
 			,b.hdp2
 			,b.hdp1 AS SubHdp1
@@ -338,6 +328,16 @@ BEGIN
 			,b.srecommend
 			,b.winlost
 			,b.actual_stake
+			,b.stake
+			,b.odds
+			,b.odds AS Subodds
+			,b.oddsspread
+			,b.oddstype
+			,b.status
+			,b.status AS SubStatus
+			,b.CurrencyName
+			,b.betteam
+			,b.betteam AS SubBetteam
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -380,6 +380,15 @@ BEGIN
 			,IsCancelCashOut
 			,CheckTimeCashOut
 			,IsSiteDBDown
+			,Betcheck
+			,SubCheckTime
+			,Transdesc
+			,WalletType
+			,RefCode
+			,ExtraInfo
+			,Srecommend
+			,Winlost
+			,Actual_stake
 			,Stake
 			,Odds
 			,SubOdds
@@ -394,15 +403,6 @@ BEGIN
 			,Hdp2
 			,SubHdp1	
 			,SubHdp2
-			,Betcheck
-			,SubCheckTime
-			,Transdesc
-			,WalletType
-			,RefCode
-			,ExtraInfo
-			,Srecommend
-			,Winlost
-			,Actual_stake
 		)
 	SELECT DISTINCT b.transid
 			,b.transid AS SubTransID
@@ -428,6 +428,15 @@ BEGIN
 			,1 AS IsCancelCashOut
 		    ,c.CheckTime
 			,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
+			,b.betcheck
+			,b.checktime AS Subchecktime
+			,b.transdesc
+			,b.WalletType
+			,b.RefCode
+			,b.ExtraInfo
+			,b.srecommend
+			,b.winlost
+			,b.actual_stake
 			,b.stake
 			,b.odds
 			,b.odds AS Subodds
@@ -442,15 +451,6 @@ BEGIN
 			,b.hdp2
 			,b.hdp1 AS SubHdp1
 			,b.hdp2 AS SubHdp2
-			,b.betcheck
-			,b.checktime AS Subchecktime
-			,b.transdesc
-			,b.WalletType
-			,b.RefCode
-			,b.ExtraInfo
-			,b.srecommend
-			,b.winlost
-			,b.actual_stake
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -533,15 +533,6 @@ BEGIN
 				,SubOdds
 				,Oddsspread	
 				,Oddstype
-				,Status
-				,SubStatus
-				,CurrencyName
-				,Betteam
-				,SubBetteam
-				,Hdp1
-				,Hdp2
-				,SubHdp1	
-				,SubHdp2
 				,Betcheck
 				,SubCheckTime
 				,Transdesc
@@ -551,6 +542,15 @@ BEGIN
 				,Srecommend
 				,Winlost
 				,Actual_stake
+				,Status
+				,SubStatus
+				,CurrencyName
+				,Betteam
+				,SubBetteam
+				,Hdp1
+				,Hdp2
+				,SubHdp1	
+				,SubHdp2
 			)
 		SELECT DISTINCT b.transid 
 				,sub.TransID
@@ -585,15 +585,6 @@ BEGIN
 				,sub.odds AS Subodds
 				,b.oddsspread
 				,b.oddstype
-				,b.status
-				,sub.status AS SubStatus
-				,b.CurrencyName
-				,b.betteam
-				,sub.betteam AS SubBetteam
-				,b.hdp1
-				,b.hdp2
-				,sub.hdp1 AS SubHdp1
-				,sub.hdp2 AS SubHdp2
 				,sub.betcheck
 				,sub.checktime AS Subchecktime
 				,b.transdesc
@@ -603,6 +594,15 @@ BEGIN
 				,b.srecommend
 				,b.winlost
 				,b.actual_stake
+				,b.status
+				,sub.status AS SubStatus
+				,b.CurrencyName
+				,b.betteam
+				,sub.betteam AS SubBetteam
+				,b.hdp1
+				,b.hdp2
+				,sub.hdp1 AS SubHdp1
+				,sub.hdp2 AS SubHdp2
 		FROM #FilterInfo d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -905,25 +905,6 @@ BEGIN
 					  ,Refno AS 'RefNo'
 					  ,SubTransid AS 'SubTransId'
 					  ,UserName AS 'UserName'
-					  ,Transdate AS 'Transdate'
-					  ,Stake AS 'Stake'
-					  ,Odds AS 'Odds'
-					  ,SubOdds AS 'SubOdds'
-					  ,Oddsspread AS 'Oddsspread'
-					  ,OddsType AS 'OddsType'
-					  ,Bettype AS 'Bettype'
-					  ,Subbettype AS 'Subbettype'
-					  ,Status AS 'Status'
-					  ,Substatus AS 'Substatus'
-					  ,Currencyname AS 'CurrencyName'
-					  ,Betteam AS 'Betteam'
-					  ,Subbetteam AS 'Subbetteam'
-					  ,Subhdp1 AS 'SubHdp1'
-					  ,SubHdp2 AS 'SubHdp2'
-					  ,Hdp1 AS 'Hdp1'
-					  ,Hdp2 AS 'Hdp2'
-					  ,Livehomescore AS 'Livehomescore'
-					  ,Liveawayscore AS 'Liveawayscore'
 					  ,BetId AS 'BetId'
 					  ,BetCheck AS 'BetCheck'
 					  ,SubCheckTime AS 'SubCheckTime'
@@ -946,6 +927,25 @@ BEGIN
 					  ,SettlementStatus AS 'SettlementStatus'
 					  ,Sporttype AS 'Sporttype'
 					  ,IsCancelCashOut AS 'IsCancelCashOut'
+					  ,Transdate AS 'Transdate'
+					  ,Stake AS 'Stake'
+					  ,Odds AS 'Odds'
+					  ,SubOdds AS 'SubOdds'
+					  ,Oddsspread AS 'Oddsspread'
+					  ,OddsType AS 'OddsType'
+					  ,Bettype AS 'Bettype'
+					  ,Subbettype AS 'Subbettype'
+					  ,Status AS 'Status'
+					  ,Substatus AS 'Substatus'
+					  ,Currencyname AS 'CurrencyName'
+					  ,Betteam AS 'Betteam'
+					  ,Subbetteam AS 'Subbetteam'
+					  ,Subhdp1 AS 'SubHdp1'
+					  ,SubHdp2 AS 'SubHdp2'
+					  ,Hdp1 AS 'Hdp1'
+					  ,Hdp2 AS 'Hdp2'
+					  ,Livehomescore AS 'Livehomescore'
+					  ,Liveawayscore AS 'Liveawayscore'
 				FROM #TVSTicketBets AS t
 				INNER JOIN @tmpExcludedTickets AS m ON m.TransId = t.SubTransid 
 				WHERE MatchId = @MatchId AND t.IsExcluded = 1
