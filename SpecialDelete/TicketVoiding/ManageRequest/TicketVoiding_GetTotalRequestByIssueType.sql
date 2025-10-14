@@ -13,6 +13,7 @@ AS
 	
 	Revisions: 
 		- 20250731@July: Create new SP - Support show RequestIds count follow IssueTypeId  [Redmine:#227835]
+		- 20251008@July: Exclude IsTest  [Redmine:#239994]
 		
 	Param's explanation:
 		
@@ -35,6 +36,7 @@ BEGIN
 	FROM dbo.TicketVoiding_Request WITH (NOLOCK)
 	WHERE IssueTypeId IN (SELECT IssueTypeId FROM @tmpIssueTypeId)
 		AND CreatedDate BETWEEN @FromDate AND @ToDate
+		AND IsTest = 0
 	GROUP BY IssueTypeId
 
 	IF @FromDate < @MinTimeRequestActive
