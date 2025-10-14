@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="" isFunction="1"></info>*/
 CREATE FUNCTION [dbo].[f_TVS_GetInstantSettlementBettypes]
 (
 	@MatchIds VARCHAR(MAX)
