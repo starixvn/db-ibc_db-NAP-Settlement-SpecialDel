@@ -34,6 +34,7 @@ AS
 		- 20250609@July: Enhance MaxPayout Per Match for Virtual Sport [Redmine: #229870]
 		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
 		- 20250821@July: Exclude sites for MBC [Redmine: #236702]
+		- 20251013@Max: Add new sports for VS6 - check data [Redmine: #240955]
 
 	Param's explanation:		
 		
@@ -78,7 +79,7 @@ BEGIN
 	SELECT m.Match3rdId, m.sporttype
 	FROM dbo.[Match3rd] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
-		AND m.sporttype IN (147,134)
+		AND m.sporttype IN (147,134,116,114)
 	UNION ALL
 	SELECT m.EventID, m.sporttype
 	FROM dbo.VSRaceInfo m WITH (NOLOCK)

@@ -24,6 +24,7 @@ AS
 		- 20250328@Tommy: VS7 (Kiron) - Company Max Payout & Max Payout Per Match [Redmine: #220804]  
 		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
 		- 20250729@Max: Enhance SP [Redmine: #234577]
+		- 20251013@Max: Add new sports for VS6 - archive [Redmine: #240955]
 	
 	Param's explanation:	
 		
@@ -82,12 +83,12 @@ BEGIN
 	SELECT m.Match3rdId, 1 EventTypeID
 	FROM dbo.Match3rd m WITH (NOLOCK)
 	WHERE m.eventdate <= @Archive_Date
-		AND m.SportType IN (147,134)
+		AND m.SportType IN (147,134,116,114)
 	UNION ALL
 	SELECT m14.Match3rdId, 1 EventTypeID
 	FROM dbo.Match3rd14 m14 WITH (NOLOCK)
 	WHERE m14.eventdate <= @Archive_Date
-		AND m14.SportType IN (147,134)
+		AND m14.SportType IN (147,134,116,114)
 
 	UNION ALL
 	SELECT m.EventID, 6 EventTypeID

@@ -20,6 +20,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20241028@Max: [TVS] Virtual Sports 6 (Betby) - Virtual Betby Basketball [Redmine: #212502]
+		- 20251013@Max: Add new sports for VS6 - recover [Redmine: #240955]
 	
 	Param's explanation:	
 		
@@ -74,7 +75,7 @@ BEGIN
 	
 	DELETE t
 	FROM #CustLimitBet_tmp t
-	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188,147,177,198,134) AND @sporttype NOT BETWEEN 190 AND 197)
+	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186,188,147,177,198,134,116,114) AND @sporttype NOT BETWEEN 190 AND 197)
 		OR (t.bettype IN(SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1)) OR (t.bettype BETWEEN 801 AND 806)) 
 	
 	SET @CreatedDate = GETDATE()
