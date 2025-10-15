@@ -121,6 +121,7 @@ AS
 	  - 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 	  - 20250826@July: Integration - Saba Coins [Redmine: #236197]
 	  - 20250909@July: Support Void Streamer Tips bets [Redmine: #237271]
+	  - 20251009@July: [TVS] Virtual Sport 6 - Integrate new sport type - 'eSoccer' and 'eVolleyball' [Redmine:#241016]
 	
 	 Param's Explanation:   
 */
@@ -596,7 +597,7 @@ BEGIN
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-			,@isExistMatch3rd			= MAX (CASE WHEN Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147,134) THEN 1 ELSE 0 END)
+			,@isExistMatch3rd			= MAX (CASE WHEN Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147,134,116,114) THEN 1 ELSE 0 END)
 	FROM	#SpecialDeleteBets b
 		OUTER APPLY (
 					SELECT GroupId
@@ -621,14 +622,14 @@ BEGIN
 					AND f.GroupId IS NULL
 					AND Bettype NOT IN (1231,1232,1233,2770,2771,15500,15501)
 					AND Bettype NOT BETWEEN 7901 AND 7999
-					AND sporttype NOT IN (147,134)
+					AND sporttype NOT IN (147,134,116,114)
 				THEN 1 --SB,NG,LC
 			WHEN Bettype = 10 THEN 2	-- Outright
 			WHEN f.GroupId = 1 THEN 6 -- FM
 			WHEN Bettype IN (1231,1232,1233,2770,2771,15500,15501) THEN 4 -- VS Racing
 			WHEN Bettype = 38 THEN 5 -- Bet Builder
 			WHEN f.GroupId = 2 THEN 7 -- FM 228
-			WHEN (Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147,134)) THEN 8 --Bitcoin, VS5
+			WHEN (Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147,134,116,114)) THEN 8 --Bitcoin, VS5, VS6
 			ELSE 0
 		END AS KeyID
 	FROM #SpecialDeleteBets b

@@ -31,6 +31,7 @@ AS
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 		- 20250826@July: Integration - Saba Coins [Redmine: #236197]
 		- 20250909@July: Support Void Streamer Tips bets [Redmine: #237271]
+		- 20251009@July: [TVS] Virtual Sport 6 - Integrate new sport type - 'eSoccer' and 'eVolleyball' [Redmine:#241016]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -44,6 +45,7 @@ BEGIN
 			,@isExistVS					BIT = 0
 			,@IsExistVS3 				BIT = 0
 			,@IsExistVS4 				BIT = 0
+			,@isExistMatch3rd			BIT = 0
 
 	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
@@ -353,7 +355,8 @@ BEGIN
 			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
-			,@IsExistVS4				= MAX (CASE WHEN sporttype IN(188,147,134) THEN 1 ELSE 0 END)
+			,@IsExistVS4				= MAX (CASE WHEN sporttype IN(188) THEN 1 ELSE 0 END)
+			,@isExistMatch3rd			= MAX (CASE WHEN Bettype BETWEEN 7901 AND 7999 OR b.sporttype IN (147,134,116,114) THEN 1 ELSE 0 END)
 	FROM	#BetDelete b
 	
 	-- STEP 1 : BackUp bettrans
@@ -416,7 +419,7 @@ BEGIN
 		AND main.matchid = tmpmain.matchid		
 	
 	--Get data before update
-	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
+	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1 OR @isExistMatch3rd = 1)
 	BEGIN
 		INSERT INTO #balanceGameBefore(custid, winlostdate, balance, winlost, gametypeid, groupid, TransId)
 		SELECT b.custid, b.winlostdate
@@ -524,7 +527,7 @@ BEGIN
 	END	
 
 	--Get data after update
-	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
+	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1 OR @isExistMatch3rd = 1)
 	BEGIN
 		INSERT INTO #balanceGameAfter(custid, winlostdate, balance, winlost, gametypeid, groupid, TransId)
 		SELECT b.custid, b.winlostdate
@@ -600,7 +603,7 @@ BEGIN
 		, @BalanceWalletAfter	= @AfterUpd
 		, @ActionId				= 0
 	
-	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
+	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @isExistMatch3rd = 1)
 	BEGIN
 		
 		CREATE TABLE #balanceGameChange (
