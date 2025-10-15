@@ -30,6 +30,7 @@ AS
 		- 20250630@Max: Support MaxPayout Per match for MixParlay of Virtual Sports (bettypes 2799, 10449, 11099) [Redmine: #231837]
 		- 20250703@July: Max Payout Per Match for E-Sport/ Muay Thai [Redmine: #230454]
 		- 20250825@Max: Max Payout Per Match for all bettypes of SportBook - Old Redmine: #234501 [Redmine: #236839]
+		- 20251013@Max: Add new sports for Virtual Sport6-Betby - insert main table [Redmine: #240955]
 	
 	Param's explanation:	
 		
@@ -43,7 +44,7 @@ BEGIN
 	END
 	
 
-	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186,188,147,177,134,125,126,127) AND (@sporttype NOT BETWEEN 190 AND 198))
+	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186,188,147,177,134,125,126,127,116,114) AND (@sporttype NOT BETWEEN 190 AND 198))
 		OR (@bettype BETWEEN 801 AND 806)
 	BEGIN
 		RETURN
