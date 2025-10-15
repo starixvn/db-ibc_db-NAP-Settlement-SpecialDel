@@ -19,14 +19,16 @@ AS
 		- 20251011@Lani: Create new function get instant settlement bettypes - Refactor code following CI/CD rules [Redmine: #236067]
 */
 BEGIN
-	DECLARE @EvenStatusCompleted NVARCHAR(50) = 'completed'
 	DECLARE @CTE_match AS TABLE (MatchId INT, SportType SMALLINT)
 	DECLARE @CTE_isCal AS TABLE (MatchId INT, IsHTCal BIT, ResourceId VARCHAR(20))
+	DECLARE @EvenStatusCompleted NVARCHAR(50) = 'completed'
 
 	INSERT INTO @CTE_match (MatchId, SportType)
 	SELECT t.value AS MatchId, m.sporttype
 	FROM STRING_SPLIT(@MatchIds,',') AS t
-	INNER JOIN dbo.match AS m WITH (NOLOCK) ON t.value = m.matchid
+	INNER JOIN dbo.match AS m WITH (NOLOCK) 
+		ON CAST(t.value AS INT) = m.matchid AND m.eventstatus <> @EvenStatusCompleted
+	WHERE t.value <> ''
 
 	IF EXISTS (SELECT TOP 1 1 FROM @CTE_match WHERE sporttype = 1) --Soccer	 
 	BEGIN 
@@ -48,6 +50,7 @@ BEGIN
 								ELSE 0 END
 			)f	 	
 	END
+
 	IF EXISTS (SELECT TOP 1 1 FROM @CTE_match WHERE sporttype = 2) --Basketball
 	BEGIN
 		INSERT INTO @CTE_isCal (matchid, ResourceId)
@@ -71,6 +74,6 @@ BEGIN
 			)f	 	
 	END
 	
-	RETURN
+	RETURN;
 END
 GO
