@@ -1531,7 +1531,7 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH(NOLOCK) ON b.srecommend = s.custid
 		LEFT JOIN @VIPAccount_tmp vip ON b.custid = vip.CustID			
 		LEFT JOIN CustDB.dbo.Site si WITH(NOLOCK) ON su.site = si.site
-	ORDER BY ISNULL(b.MainTransId, b.transid)
+	ORDER BY ISNULL(b.MainTransId, b.transid) ASC
 		   , CASE 
 				WHEN b.BonusID IS NOT NULL
 						THEN CASE 
@@ -1539,7 +1539,7 @@ BEGIN
 								ELSE 2 
 							 END
 				ELSE b.transid
-			 END	 	
+			 END ASC 	 	
 		
 	-- Write useraction log	
 	BEGIN TRY
