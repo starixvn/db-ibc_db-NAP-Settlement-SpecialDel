@@ -757,14 +757,10 @@ BEGIN
 	ELSE
 	BEGIN
 		INSERT INTO @tmpExcludedTickets(TransId)
-		SELECT t.TransId
-		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-		CROSS APPLY (
-			SELECT value AS TransId
-			FROM STRING_SPLIT(NULLIF(rd.AdvancedExtraInfo,''),',')
-			WITH (TransId BIGINT)
-		) AS t
-		WHERE rd.RequestId = @RequestId
+		SELECT TRY_CAST(t.value AS BIGINT)
+		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+		CROSS APPLY STRING_SPLIT(NULLIF(rd.AdvancedExtraInfo,''), ',') AS t
+		WHERE rd.RequestId = @RequestId AND TRY_CAST(t.value AS BIGINT) IS NOT NULL;
 	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpExcludedTickets)
