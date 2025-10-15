@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Set_ResultDetailUpd]
+ALTER PROCEDURE [dbo].[NAP_Set_ResultDetailUpd]
 (
 	 @MatchId INT   
 	,@UserId INT 
@@ -15,13 +15,15 @@ AS
     
     Revisions:
 		-20250109@Hughie: Create new SP [Readmine:#216004]
+		-20251015@Hughie: Player Scores Input Screen [Readmine:#236275]
 
 	Param's Explanation:
 		@SelectedResources: <Resources>
-						    	<Resource Id="01" Home="2" Away="3" />
-						    	<Resource Id="00" Home="3" Away="4" />
+						    	<Resource Id="01" Home="2" Away="3" ResultStatusId="3" />
+						    	<Resource Id="00" Home="3" Away="4" ResultStatusId="3" />
 						      </Resources>
-*/
+
+*/		
 
 BEGIN
 	SET NOCOUNT ON
@@ -30,6 +32,7 @@ BEGIN
 									 ResourceId VARCHAR(20)
 									, HomeValue	VARCHAR(50)
 									, AwayValue	VARCHAR(50)
+									, ResultStatusId TINYINT
 								)
 
 	DECLARE @xmlResults XML
@@ -37,11 +40,12 @@ BEGIN
 	SET @xmlResults = CAST(@SelectedResources AS XML)
 	
 
-	INSERT INTO @tmpAllResult(ResourceId, HomeValue, AwayValue)
+	INSERT INTO @tmpAllResult(ResourceId, HomeValue, AwayValue, ResultStatusId)
 	SELECT 
 			    T.c.value('@Id', 'VARCHAR(20)') as Id
 			    ,T.c.value('@Home', 'VARCHAR(50)') as HomeValue
 			    ,T.c.value('@Away', 'VARCHAR(50)') as AwayValue
+				,T.c.value('@ResultStatusId', 'TINYINT') as ResultStatusId
 	        FROM @xmlResults.nodes('Resources/Resource') T(c)
 
 	BEGIN TRY				
@@ -58,18 +62,18 @@ BEGIN
 
 	MERGE dbo.ResultDetail TARGET
 	USING (
-			SELECT  r.ResourceId, r.HomeValue, r.AwayValue
+			SELECT  r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusId
 			FROM    @tmpAllResult r
 		) AS SOURCE ON TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid							
-	WHEN MATCHED AND ResultStatusID NOT IN ( 2, 5 ) AND SettlementStatusID = 0 THEN 
+	WHEN MATCHED AND TARGET.ResultStatusID NOT IN ( 2, 5 ) AND SettlementStatusID = 0 THEN 
 			UPDATE SET HomeValue		= SOURCE.HomeValue
 						,AwayValue      = SOURCE.AwayValue
-						,ResultStatusId	= 3
+						,ResultStatusId	= SOURCE.ResultStatusId
 						,LastModifyDate = GETDATE()
 						,LastModifyBy   = @UserId
 	WHEN NOT MATCHED BY TARGET THEN
 		INSERT (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
-		VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, 3, 0, GETDATE(), GETDATE(), @UserId, @UserId);
+		VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, SOURCE.ResultStatusId, 0, GETDATE(), GETDATE(), @UserId, @UserId);
 
 	END TRY
 
