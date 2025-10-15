@@ -19,16 +19,16 @@ AS
 		- 20251011@Lani: Create new function get instant settlement bettypes - Refactor code following CI/CD rules [Redmine: #236067]
 */
 BEGIN
-	DECLARE @CTE_match AS TABLE (MatchId INT, SportType SMALLINT)
-	DECLARE @CTE_isCal AS TABLE (MatchId INT, IsHTCal BIT, ResourceId VARCHAR(20))
-	DECLARE @EvenStatusCompleted NVARCHAR(50) = 'completed'
+	DECLARE @CTE_match AS TABLE (MatchId INT, SportType SMALLINT);
+	DECLARE @CTE_isCal AS TABLE (MatchId INT, IsHTCal BIT, ResourceId VARCHAR(20));
+	DECLARE @EvenStatusCompleted NVARCHAR(50) = 'completed';
 
 	INSERT INTO @CTE_match (MatchId, SportType)
 	SELECT t.value AS MatchId, m.sporttype
 	FROM STRING_SPLIT(@MatchIds,',') AS t
 	INNER JOIN dbo.match AS m WITH (NOLOCK) 
 		ON CAST(t.value AS INT) = m.matchid AND m.eventstatus <> @EvenStatusCompleted
-	WHERE t.value <> ''
+	WHERE t.value <> '';
 
 	IF EXISTS (SELECT TOP 1 1 FROM @CTE_match WHERE sporttype = 1) --Soccer	 
 	BEGIN 
@@ -36,7 +36,7 @@ BEGIN
 		SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
 		FROM @CTE_match m
 			LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
-		WHERE m.sporttype = 1
+		WHERE m.sporttype = 1;
 
 		--> Build bettype list supported for instant settlement based on settlement status of match
 		INSERT INTO @tmpInstantSettlementBettypes (matchid, bettype)
@@ -48,8 +48,8 @@ BEGIN
 					WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
 									WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
 								ELSE 0 END
-			)f	 	
-	END
+			) AS f;	 	
+	END;
 
 	IF EXISTS (SELECT TOP 1 1 FROM @CTE_match WHERE sporttype = 2) --Basketball
 	BEGIN
@@ -71,9 +71,9 @@ BEGIN
 					AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
 									WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM @CTE_isCal) THEN 1
 									ELSE 0 END
-			)f	 	
-	END
+			) AS f; 	
+	END;
 	
 	RETURN;
-END
+END;
 GO
