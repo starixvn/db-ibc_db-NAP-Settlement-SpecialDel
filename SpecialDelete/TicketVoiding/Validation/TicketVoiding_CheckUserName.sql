@@ -778,9 +778,21 @@ BEGIN
 		AND @BeingBalanceUpDate IS NOT NULL 
 		AND EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE winlostdate < @BeingBalanceUpDate)
 	BEGIN
-		SELECT @UsernamesOfBalanceUp  = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(username AS VARCHAR(50))
-												FROM #tmpTransInfo
-												WHERE winlostdate < @BeingBalanceUpDate
+		;WITH cteUserName AS (
+				SELECT DISTINCT b.custid
+				FROM #tmpTransInfo AS t
+				CROSS APPLY
+				(
+					VALUES (custid)
+					,(recommend)
+					,(mrecommend)
+					,(srecommend)
+				) AS b (custid)
+				WHERE winlostdate < @BeingBalanceUpDate
+			)
+		SELECT @UsernamesOfBalanceUp  = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(i.UserName AS VARCHAR(50))
+												FROM #InputUsernameList AS i
+												INNER JOIN cteUserName AS t ON t.custid = i.custid
 												FOR XML PATH('')), 1, 1, ''), '')
 	END
 
