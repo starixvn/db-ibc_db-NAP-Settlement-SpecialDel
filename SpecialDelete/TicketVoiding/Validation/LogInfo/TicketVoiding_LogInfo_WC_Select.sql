@@ -877,7 +877,7 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpExcludedTickets(MatchId, TransId)
 		SELECT rd.MatchId, TRY_CAST(t.value AS BIGINT) AS TransId
-		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+		FROM #CTE_RequestDetail AS rd
 		CROSS APPLY STRING_SPLIT(NULLIF(rd.ExcludedTickets,''), ',') AS t
 		WHERE rd.RequestId = @RequestId AND TRY_CAST(t.value AS BIGINT) IS NOT NULL;
 	END
