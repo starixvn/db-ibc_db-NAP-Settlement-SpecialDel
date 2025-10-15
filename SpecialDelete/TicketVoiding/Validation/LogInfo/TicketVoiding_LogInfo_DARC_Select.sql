@@ -181,7 +181,7 @@ BEGIN
 
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
-	DECLARE @tmpExcludedTickets AS TABLE (TransId BIGINT)
+	DECLARE @tmpExcludedTickets AS TABLE (TransId BIGINT, MatchId INT)
 
 	SET @DARCInfoInfoXML = CONVERT(XML, @DARCInfo)
 	INSERT INTO #FilterInfo (MatchID, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId, AATime, PATime, SATime, FilterVoidFromTime, FilterVoidToTime)
@@ -720,14 +720,14 @@ BEGIN
 		
 	END
 
-	CREATE TABLE #CTE_RequestDetail (RequestId INT, MatchId INT, Sporttype SMALLINT, TransIds VARCHAR(MAX), IssueDetail NVARCHAR(MAX), VoidFromTime DATETIME, VoidToTime DATETIME, SingleCount INT, MainParlayCount INT, ActionId TINYINT)
+	CREATE TABLE #CTE_RequestDetail (RequestId INT, MatchId INT, Sporttype SMALLINT, TransIds VARCHAR(MAX), IssueDetail NVARCHAR(MAX), VoidFromTime DATETIME, VoidToTime DATETIME, SingleCount INT, MainParlayCount INT, ActionId TINYINT, ExcludedTickets NVARCHAR(MAX))
 	CREATE TABLE #CTE_Ticket_Single (RequestId INT, MatchId INT, TransId BIGINT, Bettype SMALLINT, IsCancelCO BIT)
 	CREATE TABLE #CTE_Ticket_SubParlay (RequestId INT, MatchId INT, TransId BIGINT)
 
 	DECLARE @cnt_s INT , @cnt_p INT	
 
-	INSERT INTO #CTE_RequestDetail (RequestId, MatchId, Sporttype, TransIds, IssueDetail, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, ActionId)
-	SELECT rd.RequestId, MatchId, Sporttype, TransIds, IssueDetail, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, ActionId
+	INSERT INTO #CTE_RequestDetail (RequestId, MatchId, Sporttype, TransIds, IssueDetail, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, ActionId, ExcludedTickets)
+	SELECT rd.RequestId, MatchId, Sporttype, TransIds, IssueDetail, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, ActionId, AdvancedExtraInfo
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 	WHERE rd.RequestId = @RequestId
@@ -749,17 +749,17 @@ BEGIN
 	--Get excluded tickets
 	IF @IsShowLogOnly = 0
 	BEGIN
-		INSERT INTO @tmpExcludedTickets(TransId)
-		SELECT TransId
+		INSERT INTO @tmpExcludedTickets(MatchId, TransId)
+		SELECT MatchId, TransId
 		FROM #TVSTicketBets
 		WHERE IsExcluded = 1
 	END
 	ELSE
 	BEGIN
-		INSERT INTO @tmpExcludedTickets(TransId)
-		SELECT TRY_CAST(t.value AS BIGINT)
-		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-		CROSS APPLY STRING_SPLIT(NULLIF(rd.AdvancedExtraInfo,''), ',') AS t
+		INSERT INTO @tmpExcludedTickets(MatchId, TransId)
+		SELECT rd.MatchId, TRY_CAST(t.value AS BIGINT) AS TransId
+		FROM #CTE_RequestDetail AS rd
+		CROSS APPLY STRING_SPLIT(NULLIF(rd.ExcludedTickets,''), ',') AS t
 		WHERE rd.RequestId = @RequestId AND TRY_CAST(t.value AS BIGINT) IS NOT NULL;
 	END
 
@@ -813,7 +813,7 @@ BEGIN
 					  ,Actual_stake AS 'ActualStake'
 					  ,ExtraInfo AS 'ExtraInfo'
 					  ,IsDeposit AS 'IsDeposit'
-					  ,MatchId AS 'MatchId'
+					  ,t.MatchId AS 'MatchId'
 					  ,HomeId AS 'HomeId'
 					  ,AwayId AS 'AwayId'
 					  ,LeagueId AS 'LeagueId'
@@ -823,13 +823,11 @@ BEGIN
 					  ,Sporttype AS 'Sporttype'
 					  ,IsCancelCashOut AS 'IsCancelCashOut'
 				FROM #TVSTicketBets AS t
-				INNER JOIN @tmpExcludedTickets AS m ON m.TransId = t.SubTransid
-				WHERE MatchId = @MatchId AND t.IsExcluded = 1
+				INNER JOIN @tmpExcludedTickets AS m ON m.TransId = t.SubTransid AND t.matchid = m.MatchId
+				WHERE t.MatchId = @MatchId AND t.IsExcluded = 1
 			FOR JSON PATH))
 
-			SET @ExcludedTicketsCounts = (SELECT COUNT(1) FROM #TVSTicketBets AS t
-														  INNER JOIN @tmpExcludedTickets AS e ON t.SubTransid = e.TransId
-														  WHERE t.MatchId = @MatchId)
+			SET @ExcludedTicketsCounts = (SELECT COUNT(1) FROM @tmpExcludedTickets WHERE MatchId = @MatchId)
 
 			UPDATE v
 			SET v.ExcludedTicketsJson = CONVERT(VARCHAR(MAX),@ExcludedTicketsJson,1)

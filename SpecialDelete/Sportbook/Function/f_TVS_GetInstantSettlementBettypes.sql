@@ -53,6 +53,8 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1 FROM @CTE_match WHERE sporttype = 2) --Basketball
 	BEGIN
+		DELETE FROM @CTE_isCal
+
 		INSERT INTO @CTE_isCal (matchid, ResourceId)
 		SELECT m.matchid, rd.ResourceId
 		FROM @CTE_match AS m
