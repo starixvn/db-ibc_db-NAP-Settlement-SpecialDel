@@ -6,25 +6,26 @@ ALTER PROCEDURE [dbo].[NAP_Set_OutrightSelInfo]
 	,@StatusID			INT = 0 
 	,@IsIncludeTest		BIT = 0 
 AS 
-/**
- * Created by	: Jamie   
- * Date			: 20130808
- * Task			: Outright results 
- * DB			: DBPRO/bodb02  
+/*
+	  Created by	: Jamie   
+	  Date			: 20130808
+	  Task			: Outright results 
+	  DB			: DBPRO/bodb02  
 
- * Revisions	:
-	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
-	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
-	- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
-	- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
-	- 20250819@Hughie: Apply SOP for Outright [Redmine: #232955]
+	  Revisions	:
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
+		- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
+		- 20250819@Hughie: Apply SOP for Outright [Redmine: #232955]
+		- 20250917@Hughie: SOP Outright Phase 2 [Redmine: #233004]
 
- * Parameters:
-    @FromDate: From  date,
-	@ToDate: To date ,
-	@LeagueID: = 0: show info of all leagues     
-	@LeagueIDs: '86,97,181,184'
-	@StatusID: 0=ALL | 1=Running | 2=Completed
+	  Parameters:
+		@FromDate: From  date,
+		@ToDate: To date ,
+		@LeagueID: = 0: show info of all leagues     
+		@LeagueIDs: '86,97,181,184'
+		@StatusID: 0=ALL | 1=Running | 2=Completed | 3=TraderConfirmed
  */
 BEGIN   
 	SET NOCOUNT ON  
@@ -56,26 +57,32 @@ BEGIN
 		,	ISNULL(o.status, 'Running') AS status
 		,	tl.sporttype 
 		,	o.odds
+		,	r.ResultStatusID
+		,	r.ModifiedBy
+		,	c.username AS ConfirmedBy
 	FROM dbo.outright AS o WITH (NOLOCK)
 		INNER JOIN @tmpLeague AS tl  ON tl.leagueid = o.leagueid
+		LEFT JOIN ResultDetailOutright r WITH (NOLOCK) ON r.Orid = o.orid AND r.leagueid = tl.LeagueID
+		LEFT JOIN custInfo c WITH (NOLOCK) ON c.custid = r.ModifiedBy
 	WHERE ((@ToDate IS NULL AND o.eventdate >= @FromDate) 
             OR (@ToDate IS NOT NULL AND o.eventdate BETWEEN @FromDate AND @ToDate))
 		AND 1 = CASE WHEN @StatusID = 0 THEN 1
 					 WHEN @StatusID = 1 AND o.oddsstatus IN ('Running','Closed','Internal') THEN 1
 					 WHEN @StatusID = 2 AND o.oddsstatus IN ('Completed') THEN 1
+					 WHEN @StatusID = 3 AND r.Orid IS NOT NULL AND r.ResultStatusID = 3 THEN 1
 					 ELSE 0  
 				END 
 		AND ISNULL(o.IsDeleted,0) = 0	
 		AND tl.isTest = IIF(@IsIncludeTest = 0,0,tl.isTest)			 
-	ORDER BY o.leagueid
-		,	 IIF(o.oddsstatus IN ('Running','Closed','Internal'),1,2)
-		,	 o.kickofftime  
+	ORDER BY o.leagueid ASC
+		,	 IIF(o.oddsstatus IN ('Running','Closed','Internal'),1,2) ASC
+		,	 o.kickofftime  ASC
 	
 	INSERT INTO @LeagueWonCount (LeagueID, WonCount)
 	SELECT r.leagueid, COUNT(r.orid) AS COUNTWON 
 	FROM ResultDetailOutright AS r WITH (NOLOCK)
 	INNER JOIN @tmpLeague AS tl ON tl.LeagueID = r.leagueid
-	WHERE r.Result = 'WON'
+	WHERE r.Result = 'WON' AND r.ResultStatusID IN (2,5)
 	GROUP BY r.leagueid
 
 	SELECT

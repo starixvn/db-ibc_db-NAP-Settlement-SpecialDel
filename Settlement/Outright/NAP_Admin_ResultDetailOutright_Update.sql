@@ -14,6 +14,7 @@ AS
     
     Revisions:   
 		- 20250805@Hughie: Created [Redmine:#232955]
+		- 20250805@Hughie: Apply SOP for Outright phase 2 [Redmine:#233004]
 
 	Param's Explanation:
 
@@ -41,8 +42,7 @@ SET NOCOUNT ON
 						,TARGET.ResultStatusId		= 5
 						,TARGET.SettlementStatusID	= 4
 						,TARGET.IsDeadheat			= @IsDeadheat
-						,TARGET.ModifiedDate		= GETDATE()
-						,TARGET.ModifiedBy			= @AdminID
+						,TARGET.SettledBy			= @AdminID
 						,TARGET.RepUpdateTime		= dbo.f_GetDateTime2()
 	WHEN NOT MATCHED BY TARGET THEN
 		INSERT(
@@ -53,10 +53,7 @@ SET NOCOUNT ON
 			,ResultStatusID
 			,SettlementStatusID
 			,IsDeadheat
-			,CreatedBy
-			,CreatedDate
-			,ModifiedBy
-			,ModifiedDate
+			,SettledBy
 			,RepUpdateTime
 		)               
 		VALUES(
@@ -68,19 +65,16 @@ SET NOCOUNT ON
 			,4 -- Completed
 			,@IsDeadheat
 			,@AdminID
-			,GETDATE()
-			,@AdminID
-			,GETDATE()
 			,dbo.f_GetDateTime2()
 		);
 
 	IF EXISTS (SELECT 1 FROM ResultDetailOutright r WITH (NOLOCK) WHERE leagueid = @LeagueId AND r.Orid = @Orid AND Result = 'WON')
 	BEGIN
 		UPDATE r WITH (UPDLOCK,ROWLOCK)
-		SET r.SumWon = (SELECT COUNT(1) FROM ResultDetailOutright WITH (NOLOCK) WHERE leagueid = @LeagueId AND Result = 'WON')
+		SET r.SumWon = (SELECT COUNT(1) FROM ResultDetailOutright WITH (NOLOCK) WHERE leagueid = @LeagueId AND Result = 'WON' AND ResultStatusID IN (2,5))
 			,r.RepUpdateTime = dbo.f_GetDateTime2()
 		FROM ResultDetailOutright r
-		WHERE r.leagueid = @LeagueId AND r.Result = 'WON'
+		WHERE r.leagueid = @LeagueId AND r.Result = 'WON' AND ResultStatusID IN (2,5)
 	END
 	ELSE IF EXISTS (SELECT 1 FROM ResultDetailOutright r WITH (NOLOCK) WHERE leagueid = @LeagueId AND r.Orid = @Orid AND Result <> 'WON')
 	BEGIN
