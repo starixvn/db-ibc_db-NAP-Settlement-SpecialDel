@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite,oneback_admin_smp_service" viewers="" isFunction="0" isNested="1"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite" viewers="" isFunction="0" isNested="1"></info>*/
 ALTER PROC dbo.NAP_Set_ProviderExternalResultDetailIns
 (
 @MatchId3rd	INT	
