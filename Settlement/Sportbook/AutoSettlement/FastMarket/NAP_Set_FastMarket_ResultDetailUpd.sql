@@ -84,7 +84,7 @@ BEGIN
 		,AwayValue	VARCHAR(50)
 		,OtherInfo	VARCHAR(50)
 		,IsSave		BIT	
-		,StatusId	INT
+		,StatusId	TINYINT
 	)
 	
 	DECLARE @tblPosition TABLE(
