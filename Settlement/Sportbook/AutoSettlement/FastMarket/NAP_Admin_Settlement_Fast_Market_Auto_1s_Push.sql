@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] @MatchId I
 	,@Results				VARCHAR(MAX)
 	,@OldResults			VARCHAR(MAX) = NULL
 	,@EventCounters			VARCHAR(MAX) = NULL
+	,@IsAutoRefundFM		BIT			= 0
 	,@IsAuto				BIT			= 0
 	,@AdminId				INT			= 0
 	,@Ip					VARCHAR(20)	= ''
@@ -39,7 +40,8 @@ AS
 			- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 			- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 			- 20230817@Kathy: Write log [Redmine:#192311]
-			- - 20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
+			- 20250415@Aries: Settle - Integrate - Result Amendment - Fast Markets, Time Machine, ＆ Bet Builder [Redmine:#223456]
+			- 20250910@Hughie: Auto Refund- Fast Market & Time Machine- Support Special Session [Redmine:#225889]
 			
 	Param's Explanation:
 		- @Result: 
@@ -257,6 +259,7 @@ BEGIN
 																WHEN @EventCounters IS NULL THEN ''
 																ELSE ', @EventCounters = ''' + @EventCounters + '''' 
 															END
+															+ ', @IsAutoRefundFM = ' + CONVERT(NVARCHAR(50), @IsAutoRefundFM)
 															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
 															+ ', @IsAuto = ' + CONVERT(NVARCHAR(50), @IsAuto)
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''

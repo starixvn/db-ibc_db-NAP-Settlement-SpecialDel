@@ -11,6 +11,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:
 		 - 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+		 - 20250623@Hughie: Auto Refund- Fast Market ＆ Time Machine- Support Special Session [Redmine:#225889]
 
 	Param's Explanation:
 		@SelectedResources= '<Resources>
@@ -21,14 +22,15 @@ AS
 				1: Waitting
 				2: Success
 				3: Fail
-		@CalculationType: 7 - Auto Refund
+		@CalculationType: 7 - Auto Refund Early
+						 11 - Auto Refund FM
 			
 */
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE  @handle INT
-	CREATE TABLE #tmpResourceIds ( ResourceId VARCHAR(20),SourceId TINYINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50),Remark VARCHAR(1000),OtherInfo VARCHAR(MAX), PRIMARY KEY(ResourceId) )
+	CREATE TABLE #tmpResourceIds ( ResourceId VARCHAR(20),SourceId TINYINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50),Remark VARCHAR(1000),OtherInfo VARCHAR(MAX))
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO #tmpResourceIds (ResourceId,SourceId, HomeValue, AwayValue,Remark,OtherInfo)
@@ -48,7 +50,8 @@ BEGIN
 		  ) AS SOURCE ON TARGET.ResourceId  = SOURCE.ResourceId 
 							AND TARGET.Matchid  = @MatchId 
 							AND TARGET.TypeId = @TypeId 
-							AND TARGET.SourceId  = SOURCE.SourceId 
+							AND TARGET.SourceId  = SOURCE.SourceId
+							AND TARGET.OtherInfo = SOURCE.OtherInfo
 	WHEN MATCHED THEN
 		UPDATE SET   StatusId	  = @StatusId
 					,Remark		  = IIF(ISNULL(SOURCE.Remark,'') != '',SOURCE.Remark,TARGET.Remark)
