@@ -39,7 +39,7 @@ AS
 		- 20250513@July: DA/RC/WC - Update the validation to get tickets based on allowance setting [Redmine: #227029]
 		- 20250716@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
 		- 20250815@Lani: [TVS] Return both running and settle tickets of sitedbdown [Redmine: #232580]
-		- 20251009@Lani: [TVS] Wrong Score - Return ExcludedTicketsCounts, ExcludedTicketsJson, List of excluded bettypes [Redmine: #236067]
+		- 20251009@Lani: [TVS] Wrong Score - Return ExcludedTicketsCount, ExcludedTicketsJson, List of excluded bettypes [Redmine: #236067]
 		- 20251117@July: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:
@@ -181,7 +181,7 @@ BEGIN
 			,ScoreId                 INT
 			,IsFinish				 BIT
 			,ExcludedTicketsJson	 NVARCHAR(MAX)
-			,ExcludedTicketsCounts	 INT
+			,ExcludedTicketsCount	 INT
 			,IsExistsSecondAccept	 BIT DEFAULT(0) 	
 		)
 	SET @WrongScoreInfoXML = CONVERT(XML, @WrongScoreInfo)
@@ -885,7 +885,7 @@ BEGIN
 	--Get info detail of excluded tickets
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpExcludedTickets)
 	BEGIN
-		--Update ExcludedTicketsJson and ExcludedTicketsCounts
+		--Update ExcludedTicketsJson and ExcludedTicketsCount
 		WHILE (1=1)
 		BEGIN
 			SET @MatchId = (SELECT TOP 1 MatchId FROM @Validation WHERE IsFinish IS NULL)
@@ -952,7 +952,7 @@ BEGIN
 
 			UPDATE v
 			SET v.ExcludedTicketsJson = CONVERT(VARCHAR(MAX),@ExcludedTicketsJson,1)
-			   ,v.ExcludedTicketsCounts = @ExcludedTicketsCount
+			   ,v.ExcludedTicketsCount = @ExcludedTicketsCount
 			FROM @Validation AS v
 			WHERE MatchId = @MatchId
 		END
@@ -1020,7 +1020,7 @@ BEGIN
 				,a.MinTransId
 				,a.ActionType
 				,NULL AS ExcludedTicketsJson
-				,NULL AS ExcludedTicketsCounts
+				,NULL AS ExcludedTicketsCount
 			FROM #CTE_RequestDetail rd WITH (NOLOCK)
 				CROSS APPLY (
 						SELECT CONVERT(XML, rd.TransIds)
@@ -1096,7 +1096,7 @@ BEGIN
 				,a.MinTransId
 				,a.ActionType
 				,v.ExcludedTicketsJson AS ExcludedTicketsJson
-				,v.ExcludedTicketsCounts AS ExcludedTicketsCounts
+				,v.ExcludedTicketsCount AS ExcludedTicketsCount
 			FROM #CTE_RequestDetail rd WITH (NOLOCK)
 				INNER JOIN @Validation AS v ON rd.MatchId = v.MatchId
 				CROSS APPLY (
@@ -1287,7 +1287,7 @@ BEGIN
 			,l.ScoreId
 			,MIN(CancelCashOutCount) AS CancelCashOutCount
 			,NULL AS ExcludedTicketsJson
-			,NULL AS ExcludedTicketsCounts
+			,NULL AS ExcludedTicketsCount
 		FROM #logInfo l
 		GROUP BY l.MatchId, l.LiveScores, l.ScoreId 
 
@@ -1419,7 +1419,7 @@ BEGIN
 			,CASE WHEN h.IsCancelCashOut = 1 THEN '(Cancel Cash Out)' 
 			      WHEN h.IsCashOut = 1 THEN '(Cash Out)' 
 			      ELSE NULL END AS ActionType
-			,v.ExcludedTicketsCounts
+			,v.ExcludedTicketsCount
 			,v.ExcludedTicketsJson
 		FROM _cte l
 			INNER JOIN @Validation AS v ON l.MatchId = v.MatchId 

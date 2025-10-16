@@ -38,7 +38,7 @@ AS
 		- 20250715@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
 		- 20250814@July: Red card - Detect insufficient tickets [Redmine: #236096]
 		- 20250815@Lani: [TVS] Return both running and settle tickets of sitedbdown [Redmine: #232580]
-		- 20251009@Lani: [TVS] Return ExcludedTicketsCounts, ExcludedTicketsJson, List of excluded bettypes [Redmine: #236067]
+		- 20251009@Lani: [TVS] Return ExcludedTicketsCount, ExcludedTicketsJson, List of excluded bettypes [Redmine: #236067]
 		- 20251117@July: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:
@@ -175,7 +175,7 @@ BEGIN
 			,IsExistsSecondAccept	 BIT DEFAULT(0) 	
 			,MatchId                 INT	
 			,ExcludedTicketsJson	 NVARCHAR(MAX)
-			,ExcludedTicketsCounts	 INT
+			,ExcludedTicketsCount	 INT
 			,IsFinish				 BIT
 		)
 
@@ -765,7 +765,7 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpExcludedTickets)
 	BEGIN 
-		--Update ExcludedTicketsJson and ExcludedTicketsCounts
+		--Update ExcludedTicketsJson and ExcludedTicketsCount
 		WHILE (1=1)
 		BEGIN
 			UPDATE TOP (1) v
@@ -831,7 +831,7 @@ BEGIN
 
 			UPDATE v
 			SET v.ExcludedTicketsJson = CONVERT(VARCHAR(MAX),@ExcludedTicketsJson,1)
-			   ,v.ExcludedTicketsCounts = @ExcludedTicketsCount
+			   ,v.ExcludedTicketsCount = @ExcludedTicketsCount
 			FROM @Validation AS v
 			WHERE MatchId = @MatchId
 		END
@@ -917,7 +917,7 @@ BEGIN
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			,v.ExcludedTicketsJson AS ExcludedTicketsJson
-			,v.ExcludedTicketsCounts AS ExcludedTicketsCounts
+			,v.ExcludedTicketsCount AS ExcludedTicketsCount
 		FROM #CTE_RequestDetail rd WITH (NOLOCK)
 			INNER JOIN @Validation AS v ON rd.MatchId = v.MatchId
 			CROSS APPLY (
@@ -1110,7 +1110,7 @@ BEGIN
 			  ELSE NULL END AS ActionType
 		,l.TransVoidToTime
 		,v.ExcludedTicketsJson AS ExcludedTicketsJson
-		,v.ExcludedTicketsCounts AS ExcludedTicketsCounts
+		,v.ExcludedTicketsCount AS ExcludedTicketsCount
 	FROM _cte l
 		INNER JOIN @Validation AS v ON l.MatchId = v.MatchId
 		OUTER APPLY (SELECT TOP 1 b.accepttype AS HighlightAcceptType, b.transid AS MinTransId, b.IsCancelCashOut
