@@ -629,7 +629,7 @@ BEGIN
 	SET MatchCode = m.matchcode
 		,HomeId = m.homeid
 		,AwayId = m.awayid
-		,LeagueId = m.awayid
+		,LeagueId = m.leagueid
 		,IsNeutral = ISNULL(m.IsNeutral, CONVERT(BIT,0))
 		,SettlementStatus = ISNULL(m.SettlementStatus,0)
 		,username = ci.username
