@@ -6,6 +6,7 @@
 	
 	Revisions:
 		- 20250819@Hughie.Pham: Created [RedmineID: #232955]
+		- 20250925@Hughie: Apply SOP for Outright phase 2 [Redmine:#233004]
 
 	Example:			
 */
@@ -23,6 +24,7 @@ CREATE TYPE [dbo].[TVP_ReplResultDetailOutright] AS TABLE (
 	,[ModifiedBy] [INT] NULL
 	,[ModifiedDate] [DATETIME] NULL
 	,[OtherInfo] [VARCHAR](MAX) NULL
+	,[SettledBy] [INT] NULL
 	,[RepUpdateTime] [DATETIME2](7) NOT NULL
 	,[isDeleted] [BIT]
 	,[_FetchedTime] [DATETIME2](7)

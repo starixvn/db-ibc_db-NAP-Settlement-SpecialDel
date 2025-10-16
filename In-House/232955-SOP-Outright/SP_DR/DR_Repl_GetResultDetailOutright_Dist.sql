@@ -11,6 +11,7 @@ AS
 	
 	Revisions:
 		- 20250819@Hughie.Pham: Created [RedmineID: #232955]
+		- 20250925@Hughie: Apply SOP for Outright phase 2 [Redmine:#233004]
 
 	Example:			
 */
@@ -31,7 +32,7 @@ BEGIN
 			FROM [dbo].[ResultDetailOutright] WITH (NOLOCK, INDEX = IX_ResultDetailOutright_RepUpdateTime)
 			WHERE [RepUpdateTime] > @start AND [RepUpdateTime] < @__time_upperbound			
 		) t
-		ORDER BY [RepUpdateTime]
+		ORDER BY [RepUpdateTime] ASC
     )
     SELECT @__time_end = ISNULL(MAX([RepUpdateTime]), @start) FROM CTE_Timestamp;
 	
@@ -53,11 +54,12 @@ BEGIN
 			,[ModifiedBy]
 			,[ModifiedDate]
 			,[OtherInfo]
+			,[SettledBy]
 			,[RepUpdateTime]
 			,ISNULL([IsDeleted], 0) AS [IsDeleted]
 			,SYSDATETIME() AS [_FetchedTime]
         FROM [dbo].[ResultDetailOutright]  WITH (NOLOCK, INDEX = IX_ResultDetailOutright_RepUpdateTime)
         WHERE [RepUpdateTime] > @__time_start AND [RepUpdateTime] <= @__time_end
-		ORDER BY [RepUpdateTime]
+		ORDER BY [RepUpdateTime] ASC
     END
 END
