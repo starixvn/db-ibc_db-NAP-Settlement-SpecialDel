@@ -911,7 +911,7 @@ BEGIN
 					  ,Wallettype AS 'WalletType'
 					  ,RefCode AS 'RefCode'
 					  ,CAST(Winlost AS VARCHAR) AS 'WinLost'
-					  ,Liveindicator AS 'Liveindicator'
+					  ,Liveindicator AS 'IsLiveIndicator'
 					  ,Actual_stake AS 'ActualStake'
 					  ,ExtraInfo AS 'ExtraInfo'
 					  ,IsDeposit AS 'IsDeposit'
