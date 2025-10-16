@@ -19,9 +19,9 @@ AS
 
 	Param's Explanation:
 		@SelectedResources: <Resources>
-						    	<Resource Id="01" Home="2" Away="3" ResultStatusId="3" />
-						    	<Resource Id="00" Home="3" Away="4" ResultStatusId="3" />
-						      </Resources>
+						    	<Resource Id="6754545" Home="None" Away="" ResultStatusId="3" OtherInfo ='685250,873970' />
+						    	<Resource Id="6762626" Home="Y" Away="" ResultStatusId="3" OtherInfo ='677096,873970' />
+						     </Resources>
 
 */		
 
@@ -33,19 +33,20 @@ BEGIN
 									, HomeValue	VARCHAR(50)
 									, AwayValue	VARCHAR(50)
 									, ResultStatusId TINYINT
+									, OtherInfo VARCHAR(50)
 								)
 
 	DECLARE @xmlResults XML
 	
 	SET @xmlResults = CAST(@SelectedResources AS XML)
-	
 
-	INSERT INTO @tmpAllResult(ResourceId, HomeValue, AwayValue, ResultStatusId)
+	INSERT INTO @tmpAllResult(ResourceId, HomeValue, AwayValue, ResultStatusId, OtherInfo)
 	SELECT 
 			    T.c.value('@Id', 'VARCHAR(20)') as Id
 			    ,T.c.value('@Home', 'VARCHAR(50)') as HomeValue
 			    ,T.c.value('@Away', 'VARCHAR(50)') as AwayValue
 				,T.c.value('@ResultStatusId', 'TINYINT') as ResultStatusId
+				,T.c.value('@OtherInfo', ' VARCHAR(50)') as OtherInfo
 	        FROM @xmlResults.nodes('Resources/Resource') T(c)
 
 	BEGIN TRY				
@@ -62,7 +63,7 @@ BEGIN
 
 	MERGE dbo.ResultDetail TARGET
 	USING (
-			SELECT  r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusId
+			SELECT  r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusId, r.OtherInfo
 			FROM    @tmpAllResult r
 		) AS SOURCE ON TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid							
 	WHEN MATCHED AND TARGET.ResultStatusID NOT IN ( 2, 5 ) AND SettlementStatusID = 0 THEN 
@@ -71,9 +72,10 @@ BEGIN
 						,ResultStatusId	= SOURCE.ResultStatusId
 						,LastModifyDate = GETDATE()
 						,LastModifyBy   = @UserId
+						,OtherInfo		= SOURCE.OtherInfo
 	WHEN NOT MATCHED BY TARGET THEN
-		INSERT (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
-		VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, SOURCE.ResultStatusId, 0, GETDATE(), GETDATE(), @UserId, @UserId);
+		INSERT (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy, OtherInfo)               
+		VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, SOURCE.ResultStatusId, 0, GETDATE(), GETDATE(), @UserId, @UserId, OtherInfo);
 
 	END TRY
 
