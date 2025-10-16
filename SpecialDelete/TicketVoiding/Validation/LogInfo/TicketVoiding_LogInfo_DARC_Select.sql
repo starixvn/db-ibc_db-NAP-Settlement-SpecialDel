@@ -57,7 +57,7 @@ BEGIN
 			,@SiteDBGroupID			SMALLINT
 			,@MatchId				INT
 			,@ExcludedTicketsJson	VARBINARY(MAX) = NULL
-			,@ExcludedTicketsCounts INT = 0
+			,@ExcludedTicketsCount INT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -827,11 +827,11 @@ BEGIN
 				WHERE t.MatchId = @MatchId AND t.IsExcluded = 1
 			FOR JSON PATH))
 
-			SET @ExcludedTicketsCounts = (SELECT COUNT(1) FROM @tmpExcludedTickets WHERE MatchId = @MatchId)
+			SET @ExcludedTicketsCount = (SELECT COUNT(1) FROM @tmpExcludedTickets WHERE MatchId = @MatchId)
 
 			UPDATE v
 			SET v.ExcludedTicketsJson = CONVERT(VARCHAR(MAX),@ExcludedTicketsJson,1)
-			   ,v.ExcludedTicketsCounts = @ExcludedTicketsCounts
+			   ,v.ExcludedTicketsCounts = @ExcludedTicketsCount
 			FROM @Validation AS v
 			WHERE MatchId = @MatchId
 		END
