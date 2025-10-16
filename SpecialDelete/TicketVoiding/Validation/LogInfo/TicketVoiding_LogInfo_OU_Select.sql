@@ -36,6 +36,7 @@ AS
 		- 20250626@Lani: [TVS] Vega Project - Migration data from KBT to KL on the TVS Site [Redmine: #227162]
 		- 20250723@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
 		- 20250916@July: HotFix - Remove check validate no bettype affect poolhouse [Redmine: #238982]
+		- 20250930@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 
 	Param's explanation:
 		+ @OnlineServerId = '0,1,2,3'
@@ -473,7 +474,7 @@ BEGIN
 		,b.status AS SubStatus 
 		,b.betteam AS Subbetteam  
 		,b.oddsspread AS Suboddsspread 
-		,b.transdesc SubTransdesc  
+		,b.transdesc AS SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
 		,b.betid AS FilterBetIdX
@@ -637,7 +638,7 @@ BEGIN
 			,sub.status AS SubStatus 
 			,sub.betteam AS Subbetteam  
 			,sub.oddsspread AS Suboddsspread 
-			,sub.transdesc SubTransdesc  
+			,sub.transdesc AS SubTransdesc  
 			,b.modds
 			,sub.SiteDBGroupID
 			,sub.betcheck AS FilterBetIdX
@@ -975,7 +976,7 @@ BEGIN
 			   ,m.Subbetcheck AS 'subbetcheck'
 			   ,m.Subchecktime AS 'Subchecktime'
 			   ,m.IsMixParlay AS 'IsMixParlay'
-			   ,m.Transdesc AS 'Transdesc'
+			   ,m.SubTransdesc AS 'Transdesc'
 			   ,m.betdaqid AS 'betdaqid'
 			   ,m.WalletType AS 'WalletType'
 			   ,m.RefCode AS 'RefCode'

@@ -25,6 +25,7 @@ AS
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250729@Lani: [TVS] ScaleOut DBTrans [Phase 5] - Abnormal Account/EKO/WKO/Wrong Offered Name [Redmine: #232582]
+		- 20250930@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941] 
 
 	Param's explanation:
 	+ @KickOffInfo: 
@@ -355,7 +356,7 @@ BEGIN
 			,b.status AS SubStatus 
 			,b.betteam AS Subbetteam  
 			,b.oddsspread AS Suboddsspread 
-			,b.transdesc SubTransdesc  
+			,b.transdesc AS SubTransdesc  
 			,b.modds 
 			,b.SiteDBGroupID
 			,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
@@ -499,7 +500,7 @@ BEGIN
 				,sub.status AS SubStatus 
 				,sub.betteam AS Subbetteam  
 				,sub.oddsspread AS Suboddsspread 
-				,sub.transdesc SubTransdesc  
+				,sub.transdesc AS SubTransdesc  
 				,b.modds
 				,sub.SiteDBGroupID
 				,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
@@ -780,7 +781,7 @@ BEGIN
 			,m.betcheck AS 'betcheck'
 			,m.Subchecktime AS 'Subchecktime'
 			,m.IsMixParlay AS 'IsMixParlay'
-			,m.Transdesc AS 'Transdesc'
+			,m.SubTransdesc AS 'Transdesc'
 			,m.betdaqid AS 'betdaqid'
 			,m.WalletType AS 'WalletType'
 			,m.RefCode AS 'RefCode'
@@ -832,7 +833,7 @@ BEGIN
 				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 				FROM #TransidInRequest
 				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-				ORDER BY TransId
+				ORDER BY TransId ASC
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
 			FROM #TransidInRequest r
@@ -934,7 +935,7 @@ BEGIN
 			SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 			FROM #TransidInRequest
 			WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-			ORDER BY TransId
+			ORDER BY TransId ASC
 			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 			,1,2,'') AS TransIds
 			

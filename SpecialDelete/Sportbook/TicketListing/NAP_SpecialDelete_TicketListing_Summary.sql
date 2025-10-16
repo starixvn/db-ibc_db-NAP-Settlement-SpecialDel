@@ -92,6 +92,7 @@ AS
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250428@Max: TVS- Search matchid got error on ticket listing [Redmine: #225671]
 		- 20250724@July: Get Result Amendment for main parlay ticket of matchid input [Redmine: #233478]
+		- 20250903@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -133,6 +134,8 @@ AS
 					OddsId="8518"			-- Default : "All" ; Format : 8518,8519,...
 					Transdesc = '100001'	-- Default : "All" ; Format : 100001,100002,... (PlayerId - [Team].[TeamID])
 					VirtualHead ="1"		-- Default : "All" ; Format : Single Number
+					Performance = 'points'  -- Default : "All" ; Format : points, assists, rebounds, three_points, points+assists, points+rebounds (only for bettype 675, 676)
+					PlayerAndOdds = '01$404680660,02$404680660' -- Default : "All" ; Format: betteam$oddsid (Apply only for bettype Most 680 - 684 (basketball) and bettype Man Out 9662 -> 9667 (Cricket)
 		/>
 	<BetTypes/>'
     - @SingleOrSubParlay: 
@@ -162,16 +165,25 @@ BEGIN
 	WHERE  1 = CASE WHEN sporttype NOT IN (50,8) AND matchid = @MatchId THEN 1
 					WHEN sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
-	UNION --Bitcoin
-	SELECT match3rdId, sporttype
-	FROM dbo.match3rd WITH (NOLOCK)
-	WHERE match3rdId = @MatchID
 
-	UNION --Virtual Horse Racing & Virtual Dog Racing
-	SELECT EventID, sporttype
-	FROM dbo.VSRaceInfo WITH (NOLOCK)
-	WHERE EventID = @MatchID
-		AND SportType IN (177,198,125,126,127)
+	--Bitcoin
+	IF NOT EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = @MatchId)
+	BEGIN
+		INSERT INTO @tmpMatchId (MatchId, sporttype)
+		SELECT match3rdId, sporttype
+		FROM dbo.match3rd WITH (NOLOCK)
+		WHERE match3rdId = @MatchID
+	END
+	
+	--Virtual Horse Racing & Virtual Dog Racing
+	IF NOT EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = @MatchId)
+	BEGIN
+		INSERT INTO @tmpMatchId (MatchId, sporttype)
+		SELECT EventID, sporttype
+		FROM dbo.VSRaceInfo WITH (NOLOCK)
+		WHERE EventID = @MatchID
+			AND SportType IN (177,198,125,126,127)
+	END
 
 	SELECT @SportType = sporttype FROM @tmpMatchId
 
@@ -209,6 +221,7 @@ BEGIN
 		,matchid			INT	
 		,custid				INT
 		,RefCode			BIGINT	
+		,Transdesc			NVARCHAR(2000)
 		,FilterBettype		SMALLINT
 		,FilterBetTeam		NVARCHAR(10)
 		,FilterSet			VARCHAR(50)
@@ -218,9 +231,10 @@ BEGIN
 		,FilterBetOption	NVARCHAR(50)
 		,FilterHdp1			SMALLMONEY
         ,FilterHdp2			SMALLMONEY
-		,FilterOddsSpread	 MONEY
+		,FilterOddsSpread	MONEY
 		,FilterOddsId		INT
 		,FilterTransdesc	NVARCHAR(2000)
+		,FilterPlayerAndOdds NVARCHAR(1000)
 	)
 
 	CREATE TABLE #TmpBettrans (
@@ -254,7 +268,7 @@ BEGIN
 				WHERE b.betcheck = ms.MarketId and matchid = b.matchid
 				)ms
 			INNER JOIN  #tmpSelectionType s ON ms.SelectionType=s.Selectiontype
-		WHERE b.matchid IN (SELECT MatchId FROM @tmpMatchId)
+		WHERE EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid)
 	END
 	
 	INSERT INTO @tmpBettypes (bettype)
@@ -275,7 +289,9 @@ BEGIN
 		OddsSpread		VARCHAR(500),
 		OddsId			VARCHAR(1000),
 		Transdesc		NVARCHAR(2000),
-		VirtualHead		VARCHAR(500)
+		VirtualHead		VARCHAR(500),
+		Performance		VARCHAR(500), --Use only for bettype 675, 676 basketball player prop
+		PlayerAndOdds	NVARCHAR(2000) -- Use for bettype Most 680 -> 684  basketball, bettype Man Out 9662 -> 9667 cricket
 	)
 	CREATE TABLE #tblBetType_Detail
 	(
@@ -292,6 +308,8 @@ BEGIN
 		OddsId			INT,
 		Transdesc		NVARCHAR(2000),
 		VirtualHead		SMALLMONEY,
+		Performance		VARCHAR(500),
+		PlayerAndOdds	NVARCHAR(2000),
 		Hdp1_tmp		SMALLMONEY
 	)
 
@@ -300,6 +318,7 @@ BEGIN
 		,ParentBettype		SMALLINT
 		,mLiveIndicator		BIT
 		,Refno				BIGINT
+		,Transdesc			NVARCHAR(2000)
 		,FilterBettype		SMALLINT
 		,FilterBetTeam		NVARCHAR(10)
 		,FilterSet			VARCHAR(50)
@@ -314,6 +333,7 @@ BEGIN
 		,FilterTransdesc	NVARCHAR(2000)
 		,srecommend			INT
 		,ParentHdp2			SMALLMONEY --selection parlay
+		,FilterPlayerAndOdds NVARCHAR(1000)
 	) 
 
 	CREATE TABLE #CTE_ParlayVSTickets (
@@ -325,7 +345,7 @@ BEGIN
 	) 
 
 	-- Parse xml @BetTeams
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead, Performance, PlayerAndOdds)
 	SELECT t.c.value('@Id','SMALLINT') AS Id
 			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam			-- check columns : betteam		 ; multi-choice	 
 			, t.c.value('@Set','VARCHAR(500)') AS [Set]					-- check columns : betid		 ; single-choice + multi-choice
@@ -339,10 +359,12 @@ BEGIN
 			, t.c.value('@OddsId','VARCHAR(1000)') AS OddsId			-- check columns : OddsId		 ; single-choice + multi-choice
 			, t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc		-- check columns : Transdesc	 ; single-choice + multi-choice
 			, t.c.value('@VirtualHead','NVARCHAR(500)') AS VirtualHead	-- check columns : hdp1 OR hdp2	 ; single-choice
+			, t.c.value('@Performance','VARCHAR(500)') AS Performance   -- check columns: transdesc	     ; single-choice + multi-choice
+			, t.c.value('@PlayerAndOdds','NVARCHAR(2000)') AS PlayerAndOdds --check columns: betteam and oddsid ; single choice +  multi-choice
 	FROM @BetTeams.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTeams = NULL))
 
-	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead)
+	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc, VirtualHead, Performance, PlayerAndOdds)
 	SELECT cte.Id
 			, CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -361,12 +383,16 @@ BEGIN
 			, cte.OddsId
 			, cte.Transdesc
 			, cte.VirtualHead
+			, cte.Performance
+			, cte.PlayerAndOdds
 	FROM (
 		SELECT cte.Id
 				, bt.value AS BetTeam 
 				, se.value AS [Set]
 				, ga.value AS Game
 				, bop.value AS BetOption
+				, p.value AS Performance
+				, plo.value AS PlayerAndOdds
 				, CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault
 						ELSE v.value END AS SMALLMONEY) AS [Value]
 				, CAST(CASE WHEN vhdp1.value = 'ALL' THEN @ValueDefault
@@ -393,12 +419,14 @@ BEGIN
 				CROSS APPLY STRING_SPLIT(cte.OddsSpread, ',') os
 				CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
 				CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
+				CROSS APPLY STRING_SPLIT(cte.Performance, ',') p
+				CROSS APPLY STRING_SPLIT(cte.PlayerAndOdds, ',') plo
 	) cte
 	WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 			   WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
 			   ELSE 1 END = 1
 
-	INSERT INTO @tmpConsolidatedBettypes
+	INSERT INTO @tmpConsolidatedBettypes(parentid, typeid)
 	SELECT f.GroupTypeId AS parentid
 		 , f.Bettype AS typeid
     FROM [dbo].[f_SD_GroupDisplayBettype] () f
@@ -422,7 +450,7 @@ BEGIN
 						FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore)
 						WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 						) AS BS_tmp		
-		WHERE b.matchid IN (SELECT MatchId FROM @tmpMatchId)
+		WHERE EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid)
 			AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')					
 			AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
 																  WHEN 1 THEN 0
@@ -439,8 +467,8 @@ BEGIN
 	END
 	ELSE -- For Others
 	BEGIN
-		INSERT INTO #SpecialDeleteBets (transid, srecommend, bettype, liveindicator, statusID, matchid, custid, RefCode,
-			FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc)
+		INSERT INTO #SpecialDeleteBets (transid, srecommend, bettype, liveindicator, statusID, matchid, custid, RefCode, Transdesc,
+			FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds)
 		SELECT transid 
 			,srecommend
 			,b.bettype
@@ -449,6 +477,7 @@ BEGIN
 			,matchid
 			,custid
 			,RefCode
+			,b.transdesc
 			,b.bettype AS FilterBetType
 			,b.betteam AS FilterBetTeam
 			,b.betid AS FilterSet
@@ -460,10 +489,13 @@ BEGIN
 			,b.hdp2 AS FilterHdp2
 			,b.oddsspread AS FilterOddsSpread
 			,b.oddsid AS FilterOddsId
-			,b.transdesc AS FilterTransdesc
+			,CASE 
+					WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc, '$.pid')
+					ELSE b.transdesc END AS FilterTransdesc
+			,b.oddsid AS FilterPlayerAndOdds
 		FROM bettrans b WITH (NOLOCK)
 			INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
-		WHERE matchid IN (SELECT MatchId FROM @tmpMatchId)
+		WHERE EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid)
 			AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
 			AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE livehomescore END
@@ -508,6 +540,25 @@ BEGIN
 								 ELSE 0
 							END
 					END = 1
+			)
+
+			DELETE b
+			FROM #SpecialDeleteBets b
+			WHERE NOT EXISTS
+			(
+				SELECT TOP 1 1 
+				FROM #tblBetType_Detail AS tp
+				WHERE tp.Id = b.FilterBettype AND 1 =
+					CASE 
+						WHEN tp.Performance = 'All' THEN 1
+						WHEN tp.Performance = 'points' AND b.FilterBettype = 675 AND CHARINDEX('"points"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'three_points' AND b.FilterBettype = 675 AND CHARINDEX('"three_points"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'assists' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'rebounds' AND b.FilterBettype = 675 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+						ELSE 0
+					END
 			)
 
 			DELETE b
@@ -594,16 +645,24 @@ BEGIN
 			FROM  #SpecialDeleteBets b
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 				WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc IS NULL OR b.FilterTransdesc = tp.Transdesc))
-		
+			
+			DELETE b
+			FROM #SpecialDeleteBets b
+			WHERE NOT EXISTS (
+				SELECT TOP 1 1 
+				FROM #tblBetType_Detail tp
+				WHERE tp.Id = b.FilterBettype 
+					AND (tp.PlayerAndOdds = 'All' OR (b.FilterBetTeam = LEFT(tp.PlayerAndOdds,2) AND b.FilterPlayerAndOdds = SUBSTRING(tp.PlayerAndOdds,4,LEN(tp.PlayerAndOdds))))
+			)
 		END
 
-		INSERT INTO #TmpBettrans
+		INSERT INTO #TmpBettrans (srecommend, bettype, liveindicator, statusID, matchid, cnt)
 		SELECT srecommend
 			,bettype
 			,liveindicator
 			,statusID
 			,matchid
-			,COUNT(transid) cnt
+			,COUNT(transid) AS cnt
 		FROM #SpecialDeleteBets tmp	
 		GROUP BY srecommend
 			,matchid
@@ -620,6 +679,7 @@ BEGIN
 				,ParentBettype
 				,mLiveIndicator
 				,Refno
+				,Transdesc
 				,FilterBettype
 				,FilterBetTeam
 				,FilterSet
@@ -634,11 +694,13 @@ BEGIN
 				,FilterTransdesc
 				,srecommend
 				,ParentHdp2
+				,FilterPlayerAndOdds
 			)
 		SELECT   b.transid
 				,b.bettype
 				,bm.liveIndicator
 				,b.refno
+				,bm.transdesc
 				,bm.bettype AS FilterBetType
 				,bm.betteam AS FilterBetTeam
 				,bm.betcheck AS FilterSet
@@ -650,9 +712,12 @@ BEGIN
 				,bm.hdp2 AS FilterHdp2
 				,bm.oddsspread AS FilterOddsSpread
 				,bm.oddsid AS FilterOddsId
-				,bm.transdesc AS FilterTransdesc
+				,CASE 
+					WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.transdesc, '$.pid')
+					ELSE bm.transdesc END AS FilterTransdesc
 				,b.srecommend
 				,b.hdp2 AS ParentHdp2
+				,bm.oddsid AS FilterPlayerAndOdds
 		FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
 			INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
 			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
@@ -722,6 +787,25 @@ BEGIN
 								END
 						END = 1
 				)
+			
+			DELETE b
+			FROM #CTE_ParlayTickets b
+			WHERE NOT EXISTS
+			(
+				SELECT TOP 1 1 
+				FROM #tblBetType_Detail AS tp
+				WHERE tp.Id = b.FilterBettype AND 1 =
+					CASE 
+						WHEN tp.Performance = 'All' THEN 1
+						WHEN tp.Performance = 'points' AND b.FilterBettype = 675 AND CHARINDEX('"points"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'three_points' AND b.FilterBettype = 675 AND CHARINDEX('"three_points"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'assists' AND b.FilterBettype = 675 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'rebounds' AND b.FilterBettype = 675 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'points+assists' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"assists"', b.transdesc ) > 0 THEN 1
+						WHEN tp.Performance = 'points+rebounds' AND b.FilterBettype = 676 AND CHARINDEX('"points"', b.transdesc ) > 0 AND CHARINDEX('"rebounds"', b.transdesc ) > 0 THEN 1
+						ELSE 0
+					END
+			)
 
 			DELETE b
 			FROM  #CTE_ParlayTickets b
@@ -807,11 +891,25 @@ BEGIN
 			FROM  #CTE_ParlayTickets b
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 					WHERE tp.Id = b.FilterBettype AND (tp.Transdesc IS NULL OR b.FilterTransdesc = tp.Transdesc ))
+
+			DELETE b
+			FROM #CTE_ParlayTickets b
+			WHERE NOT EXISTS (
+				SELECT TOP 1 1 
+				FROM #tblBetType_Detail tp
+				WHERE tp.Id = b.FilterBettype 
+					AND (tp.PlayerAndOdds = 'All' OR (b.FilterBetTeam = LEFT(tp.PlayerAndOdds,2) AND b.FilterPlayerAndOdds = SUBSTRING(tp.PlayerAndOdds,4,LEN(tp.PlayerAndOdds))))
+			)
 		END
 	END
 	
 	-- System parlay - Virtual Sports (VS2: 2799 & VS4: 10449) -- NOTE: bettypes don't have filter Advance Mode 
-	IF EXISTS (SELECT 1 FROM @tmpBettypes WHERE bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1)))
+	IF EXISTS 
+		(SELECT 1 FROM @tmpBettypes 
+		 WHERE EXISTS (
+			   SELECT 1 
+			   FROM f_TVS_SpeciallyBettypes() sb 
+			   WHERE TypeId IN (1) AND sb.Bettype = bettype))
 	BEGIN
 		INSERT INTO #CTE_ParlayVSTickets(
 				TransId
@@ -830,8 +928,8 @@ BEGIN
 			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 		WHERE b.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
-			AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
-			AND b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (1))
+			AND EXISTS (SELECT 1 FROM f_TVS_SpeciallyBettypes() AS sb WHERE TypeId IN (1) AND sb.Bettype = b.bettype)
+			AND EXISTS (SELECT 1 FROM f_TVS_SpeciallyBettypes() AS sb WHERE TypeId IN (1) AND sb.Bettype = b.matchid)
 			AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -873,7 +971,7 @@ BEGIN
 				,@IsChinaView AS IsChinaView
 				,@SpecialPlatfrom AS SpecialPlatfrom
 			FROM #TmpBettrans WITH (NOLOCK)
-		    WHERE srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
+		    WHERE EXISTS (SELECT 1 FROM dbo.Dep_CustSuper cs WITH (NOLOCK) WHERE site = @LicenseeName AND srecommend = cs.custid)
 		    GROUP BY bettype, LiveIndicator
 		END
 
@@ -897,7 +995,7 @@ BEGIN
 				,@IsChinaView AS IsChinaView
 				,@SpecialPlatfrom AS SpecialPlatfrom
 			FROM #CTE_ParlayTickets AS t
-			WHERE t.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
+			WHERE EXISTS (SELECT 1 FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName AND t.srecommend = custid)
 			GROUP BY t.ParentBettype
 				,t.mLiveIndicator
 			HAVING COUNT(t.Refno) > 0
@@ -923,7 +1021,7 @@ BEGIN
 				,@IsChinaView AS IsChinaView
 				,@SpecialPlatfrom AS SpecialPlatfrom
 			FROM #CTE_ParlayVSTickets b
-			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName)
+			WHERE EXISTS (SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName AND b.srecommend = custid)
 			GROUP BY b.bettype
 				,b.mLiveIndicator
 			HAVING COUNT(b.Refno) > 0
@@ -1132,12 +1230,12 @@ BEGIN
 		,LiveIndicator
 		,IsChinaView
 		,SpecialPlatfrom
-	ORDER BY OrderNo
-		,LicenseeName
-		,bettype
-		,LiveIndicator
-		,IsChinaView
-		,SpecialPlatfrom
+	ORDER BY OrderNo ASC
+		,LicenseeName ASC
+		,bettype ASC
+		,LiveIndicator ASC
+		,IsChinaView ASC
+		,SpecialPlatfrom ASC
 
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #TmpBettrans
