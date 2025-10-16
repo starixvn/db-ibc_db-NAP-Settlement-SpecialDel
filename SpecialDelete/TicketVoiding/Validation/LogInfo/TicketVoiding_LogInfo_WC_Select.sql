@@ -128,6 +128,7 @@ BEGIN
 			IsNeutral			  INT,
 			MatchCode			  NVARCHAR(50),
 			Sporttype			  SMALLINT,
+			GroupDisplay		  INT,
 		    ID					  INT IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -172,6 +173,11 @@ BEGIN
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpExcludedTickets AS TABLE (MatchId INT, TransId BIGINT)
+	DECLARE @tmpConsolidatedBettypes AS TABLE
+	(
+		ParentId	INT
+		,TypeId		INT PRIMARY KEY
+	)
 
 	DECLARE @Validation AS TABLE (
 			 IsInValidTotalTickets   BIT DEFAULT(0)
@@ -211,6 +217,11 @@ BEGIN
 
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT bettype FROM dbo.f_TVS_GetValidBettypes()
+
+	INSERT INTO @tmpConsolidatedBettypes (ParentId, TypeId)
+	SELECT f.GroupTypeId AS ParentId
+		  ,f.Bettype AS TypeId
+	FROM [dbo].[f_SD_GroupDisplayBettype] () AS f
 	
 	BEGIN -- Instant Settlement declaration
 
@@ -289,6 +300,7 @@ BEGIN
 			,CurrencyName
 			,Betteam
 			,SubBetteam
+			,GroupDisplay
 		)
 	SELECT DISTINCT  b.transid
 			,b.transid AS SubTransID
@@ -339,11 +351,13 @@ BEGIN
 			,b.CurrencyName
 			,b.betteam
 			,b.betteam AS SubBetteam
+			,ISNULL(tb.ParentId,b.bettype) AS GroupDisplay
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
+		LEFT JOIN @tmpConsolidatedBettypes AS tb ON tb.TypeId = b.bettype
 	WHERE  1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					ELSE 0 END
@@ -404,6 +418,7 @@ BEGIN
 			,Hdp2
 			,SubHdp1	
 			,SubHdp2
+			,GroupDisplay
 		)
 	SELECT DISTINCT b.transid
 			,b.transid AS SubTransID
@@ -452,10 +467,12 @@ BEGIN
 			,b.hdp2
 			,b.hdp1 AS SubHdp1
 			,b.hdp2 AS SubHdp2
+			,ISNULL(tb.ParentId,b.bettype) AS GroupDisplay
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
+		LEFT JOIN @tmpConsolidatedBettypes AS tb ON tb.TypeId = b.bettype
 	WHERE  1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					ELSE 0 END
@@ -552,6 +569,7 @@ BEGIN
 				,Hdp2
 				,SubHdp1	
 				,SubHdp2
+				,GroupDisplay
 			)
 		SELECT DISTINCT b.transid 
 				,sub.TransID
@@ -604,11 +622,13 @@ BEGIN
 				,b.hdp2
 				,sub.hdp1 AS SubHdp1
 				,sub.hdp2 AS SubHdp2
+				,ISNULL(tb.ParentId,sub.bettype) AS GroupDisplay
 		FROM #FilterInfo d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			INNER JOIN @bettype_tmp bt ON bt.bettype = sub.bettype
 			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = sub.bettype
+			LEFT JOIN @tmpConsolidatedBettypes AS tb ON tb.TypeId = sub.bettype
 		WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END
@@ -661,7 +681,7 @@ BEGIN
 			, @MaxRow INT  -- Keep the total row of your data
 			, @Threshold INT  -- the number of each batch
 
-	SET @MaxRow = (SELECT MAX(ID) FROM #TVSTicketBets)
+	SET @MaxRow = (SELECT MAX(ID) FROM #TVSTicketBets WHERE IsExcluded = 0)
 	SET @Threshold = 20000
 
 	IF @Threshold >= @MaxRow
@@ -679,7 +699,7 @@ BEGIN
 						,SubTransid AS 's_t'
 						,ScoreId AS 'score'
 				FROM #TVSTicketBets R
-				WHERE ID BETWEEN @StartRow AND @StopRow
+				WHERE (ID BETWEEN @StartRow AND @StopRow) AND IsExcluded = 0
 					FOR JSON PATH))
 
 				INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId, ScoreId, CreatedBy)
@@ -700,7 +720,7 @@ BEGIN
 		
 		--Remove Transid exists in other request
 		DELETE FROM #TVSTicketBets 
-		WHERE EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = SubTransid)
+		WHERE EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = SubTransid) AND IsExcluded = 0
 		
 		IF @@ROWCOUNT <> 0
 		BEGIN
@@ -731,7 +751,7 @@ BEGIN
 		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked, IsCancelCashOut)
 		SELECT MatchId, SubTransid, IsMixParlay, SiteDBGroupID, CASE WHEN SubStatusId IN (0,1) THEN 1 ELSE 0 END AS isMarked, IsCancelCashOut
 		FROM #TVSTicketBets
-		WHERE IsSiteDBDown = 1;
+		WHERE IsSiteDBDown = 1 AND IsExcluded = 0;
 
 		SELECT @SingleCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 0 AND IsCancelCashOut = 0 THEN 1 ELSE NULL END)
 		      ,@ParlayCountSiteDBDown = COUNT(CASE WHEN IsMixParlay = 1 THEN 1 ELSE NULL END)
@@ -761,11 +781,11 @@ BEGIN
 								WHEN f.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
 							 END AS VoidTime
 					)act
-	WHERE b.IsCancelCashOut <> 1 AND b.IsSiteDBDown = 0 -- Not count ticket cancel CO
+	WHERE b.IsCancelCashOut <> 1 AND b.IsSiteDBDown = 0 AND b.IsExcluded = 0 -- Not count ticket cancel CO
 	GROUP BY CASE WHEN f.FilterBy = 2 THEN CAST(b.Sublivehomescore AS VARCHAR(2)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(2)) ELSE NULL END, b.ScoreId, f.MatchId
 	ORDER BY CASE WHEN f.FilterBy = 2 THEN CAST(b.Sublivehomescore AS VARCHAR(2)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(2)) ELSE NULL END ASC, b.ScoreId ASC, f.MatchId ASC
 
-	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsCancelCashOut = 1)
+	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsCancelCashOut = 1 AND IsExcluded = 0)
 	BEGIN
 		
 		IF NOT EXISTS ( SELECT TOP 1 1 FROM #logInfo) --For case sitedb only cancel CO
@@ -776,7 +796,7 @@ BEGIN
 				  ,MAX(b.CheckTimeCashOut) AS VoidToTime
 				  ,MIN(b.CheckTimeCashOut) AS HighLightMinTime
 			FROM #TVSTicketBets b
-			WHERE b.IsSiteDBDown = 0
+			WHERE b.IsSiteDBDown = 0 AND IsExcluded = 0
 			GROUP BY b.matchid, b.ScoreId
 		END
 		
@@ -791,20 +811,20 @@ BEGIN
 					  ,MIN(CheckTimeCashOut) AS MIN_CheckTimeCashOut
 					  ,MAX(CheckTimeCashOut) AS MAX_CheckTimeCashOut
 				FROM #TVSTicketBets b
-				WHERE li.MatchId = b.matchid AND b.IsCancelCashOut = 1 AND li.ScoreId = b.ScoreId AND b.IsSiteDBDown = 0
+				WHERE li.MatchId = b.matchid AND b.IsCancelCashOut = 1 AND li.ScoreId = b.ScoreId AND b.IsSiteDBDown = 0 AND IsExcluded = 0
 				GROUP BY b.matchid, b.ScoreId
 			)b
 	END
 
 	--Not display Score in message template when voiding non-live tickets only [193108]
-	IF NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE liveindicator = 1 AND IsSiteDBDown = 0)
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE liveindicator = 1 AND IsSiteDBDown = 0 AND IsExcluded = 0)
 	BEGIN
 		UPDATE l SET l.LiveScores = ''
 		FROM #logInfo l
 	END
 
 	/* Display warning message in case void second accept tickets before the allowance time of this type */
-	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE FilterBy = 2) AND EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE accepttype = 2 AND IsSiteDBDown = 0)
+	IF EXISTS (SELECT TOP 1 1 FROM #FilterInfo WHERE FilterBy = 2) AND EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE accepttype = 2 AND IsSiteDBDown = 0 AND IsExcluded = 0)
 	BEGIN
 		DECLARE @tmp_SAChecking AS TABLE (MatchId INT, VoidFromTime DATETIME, SAFromTime DATETIME)
 		INSERT INTO @tmp_SAChecking (MatchId, VoidFromTime, SAFromTime)
@@ -830,6 +850,7 @@ BEGIN
 					INNER JOIN #TVSTicketBets t ON t.matchid = l.MatchId AND t.IsSiteDBDown = 0
 					INNER JOIN #FilterInfo f ON t.matchid = f.MatchId AND t.ScoreId = f.ScoreId
 				WHERE t.accepttype = 2
+					AND t.IsExcluded = 0
 					AND v.MatchId = l.MatchId
 					AND v.ScoreId = l.ScoreId
 					AND 1 = CASE WHEN f.FilterBy = 1 AND t.transdate BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
@@ -943,6 +964,8 @@ BEGIN
 					  ,Hdp2 AS 'Hdp2'
 					  ,Livehomescore AS 'Livehomescore'
 					  ,Liveawayscore AS 'Liveawayscore'
+					  ,GroupDisplay AS 'GroupBettypeId'
+					  ,CASE WHEN IsMixParlay = 1 THEN 'Parlay' ELSE 'Single' END AS 'GroupName'
 				FROM #TVSTicketBets AS t
 				INNER JOIN @tmpExcludedTickets AS m ON m.TransId = t.SubTransid AND m.MatchId = t.matchid
 				WHERE t.MatchId = @MatchId AND t.IsExcluded = 1

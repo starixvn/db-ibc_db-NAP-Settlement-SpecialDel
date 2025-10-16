@@ -799,7 +799,7 @@ BEGIN
 			 , b.WalletType AS 'WalletType'
 			 , b.refcode AS 'RefCode'
 			 , CAST(b.winlost AS VARCHAR) AS 'WinLost'
-			 , b.liveindicator AS 'LiveIndicator' 
+			 , b.liveindicator AS 'IsLiveIndicator' 
 			 , b.actual_stake AS 'ActualStake'
 			 , b.ExtraInfo AS 'ExtraInfo'
 			 , b.winlostdate AS 'WinLostDate'

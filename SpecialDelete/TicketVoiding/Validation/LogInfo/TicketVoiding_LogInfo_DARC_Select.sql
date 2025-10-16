@@ -129,6 +129,7 @@ BEGIN
 			Winlost				  MONEY,
 			Actual_stake		  MONEY,
 			IsExcluded			  BIT DEFAULT(0),
+			GroupDisplay		  INT,
 			ID					  INT IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -182,6 +183,11 @@ BEGIN
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpExcludedTickets AS TABLE (TransId BIGINT, MatchId INT)
+	DECLARE @tmpConsolidatedBettypes AS TABLE
+	(
+		ParentId INT
+		,TypeId	  INT PRIMARY KEY
+	)
 
 	SET @DARCInfoInfoXML = CONVERT(XML, @DARCInfo)
 	INSERT INTO #FilterInfo (MatchID, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId, AATime, PATime, SATime, FilterVoidFromTime, FilterVoidToTime)
@@ -205,6 +211,11 @@ BEGIN
 
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT bettype FROM dbo.f_TVS_GetValidBettypes()
+
+	INSERT INTO @tmpConsolidatedBettypes (ParentId, TypeId)
+	SELECT f.GroupTypeId AS ParentId
+		  ,f.Bettype AS TypeId
+	FROM dbo.f_SD_GroupDisplayBettype() AS f
 	
 	BEGIN -- Instant Settlement declaration
 
@@ -289,6 +300,7 @@ BEGIN
 			,Srecommend
 			,Winlost
 			,Actual_stake
+			,GroupDisplay
 		)
 	SELECT  DISTINCT b.transid
 			,b.transid AS SubTransID
@@ -350,11 +362,13 @@ BEGIN
 			,b.srecommend
 			,b.winlost
 			,b.actual_stake
+			,ISNULL(tb.ParentId,b.bettype) AS GroupDisplay
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		INNER JOIN @bettype_tmp bt ON b.bettype = bt.bettype
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
+		LEFT JOIN @tmpConsolidatedBettypes AS tb ON tb.TypeId = b.bettype
 		CROSS APPLY (
 			SELECT CASE WHEN d.FilterBy = 1 THEN b.transdate 
 					WHEN d.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
@@ -440,6 +454,7 @@ BEGIN
 				,Srecommend
 				,Winlost
 				,Actual_stake
+				,GroupDisplay
 			)
 		SELECT DISTINCT b.transid AS TransId
 				,sub.TransId AS SubTransID
@@ -498,10 +513,12 @@ BEGIN
 				,b.srecommend
 				,b.winlost
 				,b.actual_stake
+				,ISNULL(tb.ParentId,sub.bettype) AS GroupDisplay
 		FROM #FilterInfo d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			INNER JOIN @bettype_tmp bt ON sub.bettype = bt.bettype
+			LEFT JOIN @tmpConsolidatedBettypes AS tb ON tb.TypeId = sub.bettype
 			CROSS APPLY (
 				SELECT CASE WHEN d.FilterBy = 1 THEN sub.transdate
 						    WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
@@ -822,6 +839,8 @@ BEGIN
 					  ,SettlementStatus AS 'SettlementStatus'
 					  ,Sporttype AS 'Sporttype'
 					  ,IsCancelCashOut AS 'IsCancelCashOut'
+					  ,GroupDisplay AS 'GroupBettypeId'
+					  ,CASE WHEN t.IsMixParlay = 1 THEN 'Parlay' ELSE 'Single' END AS 'GroupName'
 				FROM #TVSTicketBets AS t
 				INNER JOIN @tmpExcludedTickets AS m ON m.TransId = t.SubTransid AND t.matchid = m.MatchId
 				WHERE t.MatchId = @MatchId AND t.IsExcluded = 1
