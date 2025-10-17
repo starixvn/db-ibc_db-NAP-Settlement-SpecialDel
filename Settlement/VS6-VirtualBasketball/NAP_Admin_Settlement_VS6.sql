@@ -126,7 +126,7 @@ BEGIN
 		FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
 		WHERE	s.SportType = @SportType
 				AND s.SettleType = 'MNL'
-				AND s.RefResourceId IS NOT NULL
+				AND EXISTS (SELECT TOP 1 1 FROM @tmpResources t WHERE t.ResourceID = s.RefResourceId)
 
 		IF @DummyResourceIds <> ''
 		BEGIN
