@@ -5,20 +5,12 @@
     DB: DBPRO/bodb02
 	
 	Revisions:
-		 - 20250822@Louisa: TEST LOCAL AND SIT [Redmine:#233012]
+		 - 20250822@Louisa: TEST LOCAL AND SIT/UAT [Redmine:#233012]
 */
-
----RON ON LOCAL AND SIT ONLY
 
 USE bodb02
 GO
 
-IF @@SERVERNAME NOT IN ('TESTDBPRO','SITDB02')
-BEGIN
-	SELECT 'Server name is not correct!'
-	RETURN
-END
-ELSE
 BEGIN
 	DELETE FROM SettlementSpecialBettypeProfile 
 	WHERE SportType = 2
