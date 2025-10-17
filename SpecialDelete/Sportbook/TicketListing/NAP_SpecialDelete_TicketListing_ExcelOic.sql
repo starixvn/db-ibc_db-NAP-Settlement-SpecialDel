@@ -383,7 +383,7 @@ BEGIN
 							WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 							) AS BS_tmp
 			WHERE	b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
-					AND EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = b.matchid )
+					AND EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid )
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 					AND 1 = CASE WHEN  @SportType = 164 THEN 1 --Happy 5
 								 WHEN  @SportType <> 164 AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence) THEN 1 --Number Game
@@ -420,7 +420,7 @@ BEGIN
 				INNER JOIN dbo.Dep_CustSuper dc WITH (NOLOCK) ON b.srecommend = dc.custid
 				INNER JOIN @tmpLicenseeName s ON dc.site = s.LicenseeName
 			WHERE	b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
-				AND EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = b.matchid )
+				AND EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid )
 				AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 				AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
@@ -808,8 +808,8 @@ BEGIN
 
     -- System parlay Virtual Sports
     IF EXISTS(SELECT 1 
-			  FROM @tmpBettypes 
-			  WHERE EXISTS (SELECT bettype FROM f_TVS_SpeciallyBettypes() AS sb WHERE TypeId IN (1) AND sb.Bettype = bettype))
+			  FROM @tmpBettypes AS t
+			  WHERE EXISTS (SELECT bettype FROM f_TVS_SpeciallyBettypes() AS sb WHERE TypeId IN (1) AND sb.Bettype = t.bettype))
 	BEGIN
 		INSERT INTO #SpecialDeleteBets (transid, CustId, Recommend, LicenseeName)	
 		SELECT	b.transid,

@@ -905,11 +905,11 @@ BEGIN
 	
 	-- System parlay - Virtual Sports (VS2: 2799 & VS4: 10449) -- NOTE: bettypes don't have filter Advance Mode 
 	IF EXISTS 
-		(SELECT 1 FROM @tmpBettypes 
+		(SELECT 1 FROM @tmpBettypes AS t
 		 WHERE EXISTS (
 			   SELECT 1 
 			   FROM f_TVS_SpeciallyBettypes() sb 
-			   WHERE TypeId IN (1) AND sb.Bettype = bettype))
+			   WHERE TypeId IN (1) AND sb.Bettype = t.bettype))
 	BEGIN
 		INSERT INTO #CTE_ParlayVSTickets(
 				TransId
@@ -970,8 +970,8 @@ BEGIN
 				,@LicenseeName AS LicenseeName
 				,@IsChinaView AS IsChinaView
 				,@SpecialPlatfrom AS SpecialPlatfrom
-			FROM #TmpBettrans WITH (NOLOCK)
-		    WHERE EXISTS (SELECT 1 FROM dbo.Dep_CustSuper cs WITH (NOLOCK) WHERE site = @LicenseeName AND srecommend = cs.custid)
+			FROM #TmpBettrans AS t WITH (NOLOCK)
+		    WHERE EXISTS (SELECT 1 FROM dbo.Dep_CustSuper cs WITH (NOLOCK) WHERE site = @LicenseeName AND t.srecommend = cs.custid)
 		    GROUP BY bettype, LiveIndicator
 		END
 
@@ -995,7 +995,7 @@ BEGIN
 				,@IsChinaView AS IsChinaView
 				,@SpecialPlatfrom AS SpecialPlatfrom
 			FROM #CTE_ParlayTickets AS t
-			WHERE EXISTS (SELECT 1 FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName AND t.srecommend = custid)
+			WHERE EXISTS (SELECT 1 FROM dbo.Dep_CustSuper AS cs WITH (NOLOCK) WHERE site = @LicenseeName AND t.srecommend = cs.custid)
 			GROUP BY t.ParentBettype
 				,t.mLiveIndicator
 			HAVING COUNT(t.Refno) > 0

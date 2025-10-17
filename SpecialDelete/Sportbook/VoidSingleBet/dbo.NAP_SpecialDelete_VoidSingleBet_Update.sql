@@ -607,7 +607,7 @@ BEGIN
 		SELECT bm.matchid, bm.refno
 		FROM #tblTransIds t 
 			INNER LOOP JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid 
-		WHERE EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = bm.matchid)
+		WHERE EXISTS (SELECT 1 FROM @tmpMatchId AS tm WHERE tm.MatchId = bm.matchid)
 			AND bm.statusID NOT IN (101, 102, 103)
 
 		SET @totalSubParlay = @@ROWCOUNT
@@ -622,7 +622,7 @@ BEGIN
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT DISTINCT b.matchid
 			, CASE 
-				WHEN NOT EXISTS (SELECT 1 FROM f_TVS_SpeciallyBettypes() AS sb WHERE sb.Bettype = bettype)
+				WHEN NOT EXISTS (SELECT 1 FROM f_TVS_SpeciallyBettypes() AS sb WHERE sb.Bettype = b.bettype)
 						AND Bettype NOT BETWEEN 801 AND 899
 						AND f.GroupId IS NULL
 						AND Bettype NOT IN (1231,1232,1233)
@@ -2174,7 +2174,7 @@ BEGIN
 							FROM dbo.f_TVS_GetInstantBettypes()
 							WHERE InstantType IS NULL
 							AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
-										 WHEN c.ResourceId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM #CTE_isCal AS cc WHERE cc.ResourceId = ResourceId) THEN 1
+										 WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal) THEN 1
 										 ELSE 0 END
 					)f	 	
 			END

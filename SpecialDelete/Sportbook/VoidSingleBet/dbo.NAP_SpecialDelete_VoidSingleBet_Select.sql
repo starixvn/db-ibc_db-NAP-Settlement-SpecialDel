@@ -535,7 +535,7 @@ BEGIN
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
-			WHERE EXISTS (SELECT 1 FROM @tmpMatchId WHERE matchid = b.matchid)
+			WHERE EXISTS (SELECT 1 FROM @tmpMatchId AS t WHERE t.matchid = b.matchid)
 				AND CASE
 						WHEN @TimeType = 0 THEN b.transdate
 						WHEN @TimeType = 1 AND b.checktime IS NOT NULL THEN b.checktime
@@ -667,7 +667,7 @@ BEGIN
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
-			WHERE EXISTS (SELECT 1 FROM @tmpMatchId WHERE matchid = b.matchid)
+			WHERE EXISTS (SELECT 1 FROM @tmpMatchId AS t WHERE t.matchid = b.matchid)
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 				AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 				AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END			
