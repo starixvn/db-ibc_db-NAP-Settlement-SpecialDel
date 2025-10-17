@@ -22,7 +22,6 @@ AS
 		- 20250120@Aries: Enhance the Validate Order for Auto Payout2 [Redmine:#209415]
 		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
 		- 20250625@Aries: Match completed, but the auto payout flow still logs a failure [Redmine:#231523]
-		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
 
 	Param's Explanation:
 
@@ -37,7 +36,7 @@ BEGIN
 			,@EAR_InactiveProvider		VARCHAR(500)
 			
 	DECLARE @Resource TABLE (ResourceId	VARCHAR(20), PRIMARY KEY (ResourceId))
-	DECLARE @Result TABLE (MatchId INT, SourceId SMALLINT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT, ResultStatusID TINYINT, CreateDate DATETIME, OtherInfo VARCHAR(50) )
+	DECLARE @Result TABLE (MatchId INT, SourceId SMALLINT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT, ResultStatusID TINYINT, CreateDate DATETIME)
 
 	SELECT @ResultTable	= r.ResultTable 
 		  ,@ExternalResultTable = r.ExternalResultTable 
@@ -94,35 +93,35 @@ BEGIN
 				) AS pe
 		WHERE m.matchid = @MatchId
 			AND m.eventstatus = 'running'
-			AND EXISTS (SELECT 1 FROM @Resource rs WHERE r.ResourceID = rs.ResourceID)
+			AND r.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)
 	
 	END
 
 	IF @ResultTable = 1
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate, OtherInfo)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate, rd.OtherInfo
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
 		FROM	dbo.ResultDetail AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
-			AND EXISTS (SELECT 1 FROM @Resource AS rs  WHERE rd.ResourceID = rs.ResourceID)	
+			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)	
 			AND rd.ResultStatusID = 3			
 	END
 	ELSE IF @ResultTable = 2
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate, OtherInfo)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate, rd.OtherInfo
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
 		FROM	dbo.ResultDetailOS AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
-			AND EXISTS (SELECT 1 FROM @Resource AS rs  WHERE rd.ResourceID = rs.ResourceID)	
+			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)	
 			AND rd.ResultStatusID = 3
 	END
 	ELSE IF @ResultTable = 3
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate, OtherInfo)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate, rd.OtherInfo
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
 		FROM	dbo.ResultDetailES AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
-			AND EXISTS (SELECT 1 FROM @Resource AS rs  WHERE rd.ResourceID = rs.ResourceID)
+			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)
 			AND rd.ResultStatusID = 3
 	END
 
@@ -132,7 +131,7 @@ BEGIN
 			SELECT MAX(p.ProviderExternalId) AS ProviderExternalId
 			FROM ProviderExternalResultDetail AS p WITH(NOLOCK)
 			WHERE  p.matchId = @MatchId
-				AND EXISTS (SELECT 1 FROM @Resource AS rs  WHERE p.ResourceID = rs.ResourceID)
+				AND p.ResourceId IN (SELECT r.ResourceID FROM @Resource AS r)
 				AND p.SourceID < 1001 
 				AND p.SourceID NOT IN (98,99,100)
 				AND ISNULL(p.IsLive,0) = 0
@@ -149,7 +148,7 @@ BEGIN
 			SELECT MAX(p.ProviderExternalId) AS ProviderExternalId
 			FROM ProviderExternalResultDetailOS AS p WITH(NOLOCK)
 			WHERE  p.matchId = @MatchId
-				AND EXISTS (SELECT 1 FROM @Resource AS rs  WHERE p.ResourceID = rs.ResourceID)
+				AND p.ResourceId IN (SELECT r.ResourceID FROM @Resource AS r)
 				AND p.SourceID < 1001 
 				AND p.SourceID NOT IN (98,99,100)
 				AND ISNULL(p.IsLive,0) = 0
@@ -166,7 +165,7 @@ BEGIN
 			SELECT MAX(p.ProviderExternalId) AS ProviderExternalId
 			FROM ProviderExternalResultDetailES AS p WITH(NOLOCK)
 			WHERE  p.matchId = @MatchId
-				AND EXISTS (SELECT 1 FROM @Resource AS rs  WHERE p.ResourceID = rs.ResourceID)
+				AND p.ResourceId IN (SELECT r.ResourceID FROM @Resource AS r)
 				AND p.SourceID < 1001 
 				AND p.SourceID NOT IN (98,99,100)
 				AND ISNULL(p.IsLive,0) = 0
@@ -186,7 +185,6 @@ BEGIN
 		  ,m.AwayValue
 		  ,m.CreateDate
 		  ,ss.HasAwayValue
-		  ,m.OtherInfo
 	FROM @Result AS m
 		OUTER APPLY (
 			SELECT TOP 1 tbl.ResourceId
