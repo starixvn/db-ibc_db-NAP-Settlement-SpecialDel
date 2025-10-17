@@ -58,7 +58,7 @@ BEGIN
 				, '' AS RelatedBettype
 		FROM ResultDetail r WITH(NOLOCK)
 		WHERE r.MatchId = @MatchId
-			AND SUBSTRING(ResourceID,4,2) > 10
+			AND SUBSTRING(ResourceID,4,2) > 20
 			AND ISNULL(r.OtherInfo,'') <> ''
 
 	END

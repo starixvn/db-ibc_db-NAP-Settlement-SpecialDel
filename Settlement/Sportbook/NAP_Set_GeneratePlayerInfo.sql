@@ -120,7 +120,7 @@ BEGIN
 
 		BEGIN TRANSACTION
 			INSERT INTO @tmp_Generate	 ( ResourceID, OtherInfo)
-			SELECT DISTINCT m.RelatedBettype + CAST(21-PlayerRank AS VARCHAR(2) ), PlayerId +',' + TeamId
+			SELECT DISTINCT m.RelatedBettype + CAST(41-PlayerRank AS VARCHAR(2) ), PlayerId +',' + TeamId
 			FROM @tmp_MainResource m
 	
 			INSERT INTO ResultDetail (MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,CreateDate,LastModifyDate,CreateBy,LastModifyBy,OtherInfo	)

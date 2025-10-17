@@ -25,7 +25,7 @@ BEGIN
 		SELECT ROW_NUMBER() OVER (ORDER BY (SELECT NULL) ASC) AS RowNum,
 				number + 800 AS BetID
 		FROM master.dbo.spt_values 
-		WHERE type = 'P' AND number BETWEEN 1 AND 20
+		WHERE type = 'P' AND number BETWEEN 1 AND 40
 	)
 	INSERT INTO SettlementSpecialBettypeProfile
 	(	pfID	
