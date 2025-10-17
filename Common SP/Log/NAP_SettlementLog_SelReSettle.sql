@@ -27,8 +27,8 @@ BEGIN
 			,	sl.HomeValue
 			,	sl.AwayValue
 			,	sl.OtherInfo
-			,	LAG(sl.LogDate,1) OVER(PARTITION BY sl.ResourceID ORDER BY sl.LogDate) AS Pre
-			,	LEAD(sl.LogDate,1) OVER(PARTITION BY sl.ResourceID ORDER BY sl.LogDate) AS Nex
+			,	LAG(sl.LogDate,1) OVER(PARTITION BY sl.ResourceID ORDER BY sl.LogDate ASC) AS Pre
+			,	LEAD(sl.LogDate,1) OVER(PARTITION BY sl.ResourceID ORDER BY sl.LogDate ASC) AS Nex
 		FROM SettlementLog AS sl WITH (NOLOCK)
 		WHERE sl.MatchID = @MatchID
 			AND sl.ActionID NOT IN (165,166,167,81009,81010,81012)
