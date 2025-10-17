@@ -118,26 +118,23 @@ BEGIN
 							END LIKE '%' + f.ResourceName +'%'
 		WHERE f.ResourceFormat IS NULL
 
-		BEGIN TRANSACTION
-			INSERT INTO @tmp_Generate	 ( ResourceID, OtherInfo)
-			SELECT DISTINCT m.RelatedBettype + CAST(41-PlayerRank AS VARCHAR(2) ), PlayerId +',' + TeamId
-			FROM @tmp_MainResource m
+		INSERT INTO @tmp_Generate	 ( ResourceID, OtherInfo)
+		SELECT DISTINCT m.RelatedBettype + CAST(41-PlayerRank AS VARCHAR(2) ), PlayerId +',' + TeamId
+		FROM @tmp_MainResource m
 	
-			INSERT INTO ResultDetail (MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,CreateDate,LastModifyDate,CreateBy,LastModifyBy,OtherInfo	)
-			SELECT @MatchId,tmp.ResourceId,NULL,NULL,0,0,GETDATE(),GETDATE(),0,0,tmp.OtherInfo
-			FROM @tmp_Generate tmp
-				LEFT JOIN dbo.ResultDetail r WITH(NOLOCK) 
-					ON  r.MatchId = @matchid AND r.ResourceId = tmp.ResourceId
-			WHERE r.ResourceId IS NULL
+		INSERT INTO ResultDetail (MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID,CreateDate,LastModifyDate,CreateBy,LastModifyBy,OtherInfo	)
+		SELECT @MatchId,tmp.ResourceId,NULL,NULL,0,0,GETDATE(),GETDATE(),0,0,tmp.OtherInfo
+		FROM @tmp_Generate tmp
+			LEFT JOIN dbo.ResultDetail r WITH(NOLOCK) 
+				ON  r.MatchId = @matchid AND r.ResourceId = tmp.ResourceId
+		WHERE r.ResourceId IS NULL
 
-		COMMIT TRANSACTION
 	END TRY
 
 	BEGIN CATCH
 		SELECT  @ErrMsg	= ISNULL(ERROR_MESSAGE(),'')
 				,@ErrCode= ERROR_MESSAGE()
 				
-		ROLLBACK TRANSACTION
 	END CATCH
 END
  
