@@ -28,7 +28,6 @@ AS
 		- 20241113@July: Enhance the way to add request for suspenders - [Redmine: #185495]
 		- 20250305@Lani: [TVS] Edit log data content and TypeAccept column[Redmine: #216151]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
-		- 20251010@Lani: [TVS] Danger Accepted/Wrong Score - Display the excluding ticket based on the business rules [Redmine: #236067]
 
 	Param's explanation:
 */
@@ -62,7 +61,6 @@ BEGIN
 			,TypeAccept				VARCHAR(2000)
 			,SubIssueTypeId			SMALLINT
 			,ScoreId				VARCHAR(20)	
-			,AdvancedExtraInfo		NVARCHAR(MAX)
 			)
 	
 	CREATE TABLE #tmpTransInfo(
@@ -117,7 +115,6 @@ BEGIN
 			,SubIssueTypeId
 			,TypeAccept
 			,ScoreId
-			,AdvancedExtraInfo
 		)
 	SELECT @RequestId AS RequestId
 			,t.c.value('@MatchId','INT') AS MatchID
@@ -149,7 +146,6 @@ BEGIN
 			+ '" ActionType="' + t.c.value('@ActionType','VARCHAR(100)')
 			+ '" />' AS TypeAccept
 			,t.c.value('@ScoreId','VARCHAR(20)') AS ScoreId
-			,t.c.value('@ExcludedTickets', 'NVARCHAR(MAX)') AS AdvancedExtraInfo
 	FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 
@@ -178,7 +174,6 @@ BEGIN
 			, SubIssueTypeId = l.SubIssueTypeId
 			, TransIds = l.TypeAccept
 			, FilterBy = l.FilterBy
-			, AdvancedExtraInfo = l.AdvancedExtraInfo
 		FROM dbo.TicketVoiding_RequestDetail rd WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = rd.RequestId AND l.MatchID = rd.MatchId 
 														AND l.ScoreId = CAST(rd.TransIds AS XML).value('(/r/@ScoreId)[1]', 'VARCHAR(20)')
@@ -204,7 +199,6 @@ BEGIN
 		, IssueDetail
 		, TransIds
 		, SubIssueTypeId
-		, AdvancedExtraInfo
 		)
 	SELECT @RequestId
 		, l.MatchID
@@ -224,7 +218,6 @@ BEGIN
 		, l.IssueDetail
 		, l.TypeAccept
 		, l.SubIssueTypeId
-		, l.AdvancedExtraInfo
 	FROM #tblGetLogInfo l
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
 		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID 
@@ -285,7 +278,6 @@ BEGIN
 								+ CAST(l.LiveAwayScore AS VARCHAR(5))+' ('
 								+ 'From Time: '+ CONVERT(VARCHAR(30),l.FilterFromTransTime, 21)  +' - '
 								+ 'To Time: '+ CONVERT(VARCHAR(30),l.FilterToTransTime, 21) +'); '
-								+ ' AdvancedExtraInfo: ' +  l.AdvancedExtraInfo
 		FROM #tblGetLogInfo l
 	END
 	ELSE
@@ -298,7 +290,6 @@ BEGIN
 							+ ', VoidFrom: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidTo: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
 							+ ', TypeAccept: ' + l.TypeAccept
-							+ ', AdvancedExtraInfo: ' +  l.AdvancedExtraInfo
 		FROM #tblGetLogInfo l
 	END
 	
