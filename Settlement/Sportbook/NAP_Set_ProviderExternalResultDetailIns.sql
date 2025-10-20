@@ -6,6 +6,7 @@ ALTER PROC dbo.NAP_Set_ProviderExternalResultDetailIns
 ,@SourceId	SMALLINT	
 ,@Resources	VARCHAR(MAX)	
 ,@UserId	INT	= 148
+,@otherinfo	VARCHAR(MAX) = NULL
 )
 AS
 /*
@@ -19,6 +20,7 @@ AS
 		- 20241118@Aries: Fix an issue which is wrong settlement due to the lack of consistency when calculating Innnings [Redmine:#213767]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217] 
 		- 20241224@Aries: Fix an issue due to that Final result (with isLive = 0) is not inserted scores [Redmine:#215732]
+		- 20251015@Hughie: Basketball Player Props [Redmine:#233012]
 
 	Param's Explanation:
 		@SourceId: 1 - SBO
@@ -59,6 +61,7 @@ SET NOCOUNT ON
 		,CreateBy
 		,LastModifyBy
 		,IsLive
+		,OtherInfo
 	)
 	SELECT	@MatchId3rd
 			,@MatchId
@@ -69,6 +72,7 @@ SET NOCOUNT ON
 			,@UserId
 			,@UserId
 			,r.IsLive
+			,@otherinfo
 	FROM @tmpResource AS r
 		OUTER APPLY(
 			SELECT  TOP 1 
@@ -88,6 +92,3 @@ SET NOCOUNT ON
         OR ISNULL(r.AwayValue,'') != ISNULL(pr.AwayValue,'')
 END
 GO
-
-
-
