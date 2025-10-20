@@ -125,7 +125,7 @@ BEGIN
 			HomeId				  INT,
 			AwayId				  INT,
 			LeagueId			  INT,
-			IsNeutral			  INT,
+			IsNeutral			  BIT,
 			MatchCode			  NVARCHAR(50),
 			Sporttype			  SMALLINT,
 			GroupDisplay		  INT,
