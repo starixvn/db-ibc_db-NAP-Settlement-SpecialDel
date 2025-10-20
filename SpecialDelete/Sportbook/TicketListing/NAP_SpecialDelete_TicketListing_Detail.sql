@@ -388,7 +388,7 @@ BEGIN
 				WHERE b.betcheck = ms.MarketId and matchid = b.matchid
 				)ms
 			INNER JOIN  #tmpSelectionType s ON ms.SelectionType=s.Selectiontype
-		WHERE EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = b.matchid )
+		WHERE EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid )
 	END
 	
 	-- Parse xml @BetTeams
@@ -525,7 +525,7 @@ BEGIN
 					LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
 					LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
 				WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
-					AND EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = b.matchid )
+					AND EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid )
 					AND 1 = CASE WHEN @LicenseeName <> 'Credit' AND @LicenseeName <> 'ALL'  
 									AND ds.custid IS NOT NULL AND ds.site = @LicenseeName THEN 1
 								 WHEN @LicenseeName = 'Credit'  
@@ -602,7 +602,7 @@ BEGIN
 				LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
 				LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
 				WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
-					AND EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = b.matchid)
+					AND EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid)
 					AND 1 = CASE WHEN @LicenseeName <> 'Credit' AND @LicenseeName <> 'ALL'  
 									AND ds.custid IS NOT NULL AND ds.site = @LicenseeName THEN 1
 								 WHEN @LicenseeName = 'Credit'  
@@ -870,7 +870,7 @@ BEGIN
 		BEGIN
 			DELETE b
 			FROM #SpecialDeleteBets b
-			WHERE NOT EXISTS (SELECT 1 FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName AND custid = b.srecommend)
+			WHERE NOT EXISTS (SELECT 1 FROM Dep_CustSuper AS s with(NOLOCK) where site = @LicenseeName AND s.custid = b.srecommend)
 		END
 		---IBC
 		IF @LicenseeName= 'Credit'  
@@ -1037,8 +1037,8 @@ BEGIN
 
 	-- System parlay Virtual Sports
     IF EXISTS(SELECT 1 
-			  FROM @tmpBettypes 
-			  WHERE EXISTS (SELECT bettype FROM f_TVS_SpeciallyBettypes() AS sb WHERE TypeId IN (1) AND sb.Bettype = bettype))
+			  FROM @tmpBettypes AS r
+			  WHERE EXISTS (SELECT bettype FROM f_TVS_SpeciallyBettypes() AS sb WHERE TypeId IN (1) AND sb.Bettype = r.bettype))
 	BEGIN 
 		---ALL
 		--IF @LicenseeName= 'ALL'  
@@ -1118,7 +1118,7 @@ BEGIN
 		BEGIN
 			DELETE b
 			FROM #SpecialDeleteBets b
-			WHERE EXISTS (SELECT 1 FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName AND custid = b.srecommend)
+			WHERE EXISTS (SELECT 1 FROM dbo.Dep_CustSuper AS s WITH (NOLOCK) WHERE site = @LicenseeName AND s.custid = b.srecommend)
 		END
 		---IBC
 		IF @LicenseeName= 'Credit'  
