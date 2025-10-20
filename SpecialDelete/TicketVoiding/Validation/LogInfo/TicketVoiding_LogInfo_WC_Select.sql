@@ -172,7 +172,6 @@ BEGIN
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
-	DECLARE @tmpExcludedTickets AS TABLE (MatchId INT, TransId BIGINT)
 	DECLARE @tmpConsolidatedBettypes AS TABLE
 	(
 		ParentId	INT
@@ -866,8 +865,8 @@ BEGIN
 
 	DECLARE @cnt_s INT , @cnt_p INT	
 
-	INSERT INTO #CTE_RequestDetail (RequestId, MatchId, Sporttype, TransIds, IssueDetail, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, ActionId, Id, Livehomescore, Liveawayscore, ExcludedTickets)
-	SELECT rd.RequestId, MatchId, Sporttype, TransIds, IssueDetail, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, ActionId, rd.Id, rd.LiveHomeScore, rd.LiveAwayScore, rd.AdvancedExtraInfo
+	INSERT INTO #CTE_RequestDetail (RequestId, MatchId, Sporttype, TransIds, IssueDetail, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, ActionId, Id, Livehomescore, Liveawayscore)
+	SELECT rd.RequestId, MatchId, Sporttype, TransIds, IssueDetail, VoidFromTime, VoidToTime, SingleCount, MainParlayCount, ActionId, rd.Id, rd.LiveHomeScore, rd.LiveAwayScore
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN DBCTG.bodb02.dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 	WHERE rd.RequestId = @RequestId
@@ -886,25 +885,8 @@ BEGIN
 		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,SiteDBGroupID,@OnlineServerId) = 1
 	SET @cnt_p = @@ROWCOUNT
 
-	--Get excluded tickets
-	IF @IsShowLogOnly = 0
-	BEGIN
-		INSERT INTO @tmpExcludedTickets(MatchId, TransId)
-		SELECT MatchId, TransId
-		FROM #TVSTicketBets
-		WHERE IsExcluded = 1
-	END
-	ELSE
-	BEGIN
-		INSERT INTO @tmpExcludedTickets(MatchId, TransId)
-		SELECT rd.MatchId, TRY_CAST(t.value AS BIGINT) AS TransId
-		FROM #CTE_RequestDetail AS rd
-		CROSS APPLY STRING_SPLIT(NULLIF(rd.ExcludedTickets,''), ',') AS t
-		WHERE rd.RequestId = @RequestId AND TRY_CAST(t.value AS BIGINT) IS NOT NULL;
-	END
-
 	--Get info detail of excluded tickets
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpExcludedTickets)
+	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsExcluded = 1)
 	BEGIN
 		--Update ExcludedTicketsJson and ExcludedTicketsCount
 		WHILE (1=1)
@@ -967,11 +949,10 @@ BEGIN
 					  ,GroupDisplay AS 'GroupBettypeId'
 					  ,CASE WHEN IsMixParlay = 1 THEN 'Parlay' ELSE 'Single' END AS 'GroupName'
 				FROM #TVSTicketBets AS t
-				INNER JOIN @tmpExcludedTickets AS m ON m.TransId = t.SubTransid AND m.MatchId = t.matchid
 				WHERE t.MatchId = @MatchId AND t.IsExcluded = 1
 			FOR JSON PATH))
 
-			SET @ExcludedTicketsCount = (SELECT COUNT(1) FROM @tmpExcludedTickets WHERE MatchId = @MatchId)
+			SET @ExcludedTicketsCount = (SELECT COUNT(1) FROM #TVSTicketBets WHERE MatchId = @MatchId AND IsExcluded = 1)
 
 			UPDATE v
 			SET v.ExcludedTicketsJson = CONVERT(VARCHAR(MAX),@ExcludedTicketsJson,1)
