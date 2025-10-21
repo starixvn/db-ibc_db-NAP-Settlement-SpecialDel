@@ -71,6 +71,27 @@ BEGIN
 						WHERE RequestId = @RequestId AND m.TransId = TransId 
 					)um
 
+		--For case ticket marked function and then save request. Expect: NOT unmarked this ticket.
+		BEGIN
+			--For single
+			DELETE m
+			FROM @tmpMarkTransId m 
+				INNER JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON m.TransId = mt.TransId
+			WHERE mt.MarkType = 0 -- For 0: SD, 1: TVS
+
+			--For sub parlay
+			DELETE m
+			FROM @tmpMarkTransId m
+					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.TransId = bm.TransId
+					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno
+					CROSS APPLY (
+						 SELECT TOP 1 m.TransId, m.MarkType 
+						 FROM dbo.MarkedTransaction m WITH (NOLOCK) 
+						 WHERE b.TransId = m.TransId AND bm.matchid = m.MatchId -- Case main parlay for 2 match sub
+					 )mt
+			WHERE mt.MarkType = 0 -- For 0: SD, 1: TVS
+		END
+
 		SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM @tmpMarkTransId
 											FOR XML PATH('')), 1,1,''),'')
