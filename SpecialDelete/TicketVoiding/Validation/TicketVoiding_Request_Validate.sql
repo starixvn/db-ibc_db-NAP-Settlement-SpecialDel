@@ -61,7 +61,7 @@ BEGIN
 	BEGIN
 		DELETE m
 		FROM @tmpMarkTransId m 
-		OUTER APPLY ( 
+		CROSS APPLY ( 
 						SELECT RequestId, MatchId, TransId
 						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
 						WHERE RequestId = @RequestId AND m.TransId = TransId
@@ -70,7 +70,6 @@ BEGIN
 						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 						WHERE RequestId = @RequestId AND m.TransId = TransId 
 					)um
-		WHERE um.TransId IS NULL
 
 		SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM @tmpMarkTransId
