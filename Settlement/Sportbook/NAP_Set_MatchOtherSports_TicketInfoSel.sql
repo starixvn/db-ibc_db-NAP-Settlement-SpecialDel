@@ -18,7 +18,7 @@ AS
 			- 20250507@Aries: Enhance the performance for the Multi-sport Page [Redmine:#223959]
 			- 20250701@Aries: Fix an issue that a timeout occurred when filtering a large amount of data on the Settlement Site [Redmine:#231940]
 			- 20250716@Max: Enhance performance when filtering a large amount of data on the Settlement Site [Redmine: #233183]
-
+			- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
 
 	Parameters Explanation: 
 		@MatchInfo='[{"m":83541400,"s":9,"cmt":0,"e":"running","cfht":0,"cfft":4635582},{"m":83541402,"s":9,"cmt":0,"e":"running","cfht":0,"cfft":0}]'
@@ -142,12 +142,18 @@ BEGIN
 		  ,SUM(IIF(mt.TransId IS NOT NULL AND b.statusid = 0, 1, 0)) AS TotalMarkedTicket
 	FROM #tmpAllParentChildMatch AS m 
 		INNER LOOP JOIN bettrans AS b WITH(NOLOCK,INDEX(CIX_matchid_bettype), FORCESEEK) ON m.matchid = b.matchid --WITH(NOLOCK,INDEX(CIX_matchid_bettype))
-		INNER JOIN SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK) ON  sp.Sporttype = m.SportType AND sp.bettype =  b.bettype AND (sp.BetID = 0 OR b.BetID = sp.BetID) 
+		INNER JOIN SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK) 
+			ON  sp.Sporttype = m.SportType 
+			AND sp.bettype =  b.bettype 
+			AND (	sp.BetID = 0 
+					OR (b.bettype NOT IN (675,676,678 ) AND b.BetID = sp.BetID )
+					OR (b.bettype IN (675,676,678 ) AND  CHARINDEX( RIGHT(CAST(b.BetID AS VARCHAR(10)),2) +  b.betteam, sp.ResourceID) > 0   )
+				) 
 		LEFT JOIN @__tmpMarkedTransaction AS mt ON mt.TransId = b.transid
 	WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN @SitedbGroupID_Central ELSE b.SiteDBGroupID END
 	GROUP BY m.matchid,m.eventstatus, sp.ResourceID, sp.SettleType,m.ParentId,m.ChildMatchType,m.sporttype
 	OPTION (FORCE ORDER)
-
+	
 	INSERT INTO #tmpMatchCount(matchid, ParentId, ChildMatchType, eventstatus,sporttype, ResourceID, settleType, TotalTicket, TotalValidTicket, TotalRunningTicket, TotalWaitingTicket, TotalMarkedTicket)
 	SELECT m.matchid
 		  ,m.ParentId
@@ -163,7 +169,13 @@ BEGIN
 		  ,SUM(IIF(mt.TransId IS NOT NULL AND bm.statusid = 0, 1, 0)) AS TotalMarkedTicket
 	FROM #tmpAllParentChildMatch AS m 
 		INNER LOOP JOIN bettransm AS bm WITH(NOLOCK, FORCESEEK) ON m.matchid = bm.matchid -- WITH(NOLOCK,INDEX(IX_matchid))
-		INNER JOIN SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK) ON  sp.Sporttype = m.SportType AND sp.bettype =  bm.bettype AND (sp.BetID = 0 OR bm.betcheck = CAST(sp.BetID AS NVARCHAR(50))) 
+		INNER JOIN SettlementSpecialBettypeProfile AS sp  WITH(NOLOCK) 
+			ON  sp.Sporttype = m.SportType 
+			AND sp.bettype =  bm.bettype
+			AND (	sp.BetID = 0 
+					OR (bm.bettype NOT IN (675,676,678 ) AND bm.betcheck = CAST(sp.BetID AS NVARCHAR(50)) )
+					OR (bm.bettype IN (675,676,678 ) AND  CHARINDEX( RIGHT(betcheck,2) +  bm.betteam, sp.ResourceID) > 0   )
+				) 
 		LEFT JOIN @__tmpMarkedTransaction AS mt ON mt.TransId = bm.transid
 	WHERE bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN @SitedbGroupID_Central ELSE bm.SiteDBGroupID END
 	GROUP BY m.matchid,m.eventstatus, sp.ResourceID, sp.SettleType,m.ParentId,m.ChildMatchType,m.sporttype

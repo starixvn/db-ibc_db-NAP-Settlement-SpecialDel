@@ -20,6 +20,8 @@ AS
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
+		- 20250829@Max: Basketball Player Prop [Redmine:#233012]
+
 	Param's Explanation:
 		- @MinusValue: Basketball instance
 		- @AbandonedStatus: 0: normal case 
@@ -166,7 +168,35 @@ RETURN
 					 WHEN @betteam = 'h' AND fm > 0.25 THEN 1
 					 WHEN @betteam = 'a' AND fm > 0.25 THEN -1
 					 ELSE NULL END
-
+			WHEN @pfID = 8827 THEN --Basketball player props group bettypes at least/exact
+				CASE WHEN @betteam LIKE '<=%' THEN
+						CASE 
+							WHEN @HomeValue > CAST(REPLACE(@betteam, '<=', '') AS INT) THEN -1
+						END
+					WHEN ISNUMERIC(@betteam) = 1 THEN
+						CASE 
+							WHEN @HomeValue > CAST(@betteam AS INT) THEN -1
+						END 
+					WHEN @betteam LIKE '%+' THEN
+						CASE 
+							WHEN @HomeValue >= CAST(REPLACE(@betteam, '+', '') AS INT) THEN 1
+						END
+					ELSE NULL
+				END
+			WHEN @pfID = 8828 THEN --Basketball player props group bettypes band
+				CASE 
+					-- Range option
+					WHEN CHARINDEX('-', @betteam) > 0 THEN
+						CASE 
+							WHEN @HomeValue > CAST(SUBSTRING(@betteam, CHARINDEX('-', @betteam) + 1, LEN(@betteam)) AS INT) THEN -1
+						END
+					-- Minimum option
+					WHEN @betteam LIKE '%+' THEN
+						CASE 
+							WHEN @HomeValue >= CAST(REPLACE(@betteam, '+', '') AS INT) THEN 1
+						END
+					ELSE NULL
+				END
 			ELSE NULL
 		END AS modds
 	FROM(

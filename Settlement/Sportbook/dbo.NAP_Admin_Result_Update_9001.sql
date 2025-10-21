@@ -11,7 +11,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_9001]
  ,@Sporttype		SMALLINT
  ,@IsDirectly		BIT				   = 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
  ,@IsAuto			BIT				   = 0
- ,@DeterminedType	INT			   = 0
+ ,@DeterminedType	INT				   = 0
+ ,@IsSDTEarly		BIT				   = 0
 
 AS 
 /*
@@ -48,6 +49,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241021@Aries: AutoPayout2 for Baseball AiO (Regular and Series Matches) [Redmine:#211632]
 		- 20241228@Aries: Support Refund Settle Determined and Mercy Rule for Baseball [Redmine:#212365]
+		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
 		
     Param's Explanation: 
     
@@ -138,7 +140,7 @@ BEGIN
         
     EXEC sp_xml_removedocument @handle
 
-	IF @Sporttype = 2 AND @DeterminedType = 0
+	IF @Sporttype = 2 AND @DeterminedType = 0 AND @IsSDTEarly = 0
 	BEGIN
 		UPDATE @tblSelectedRID
 		SET	HomeValue = CASE WHEN HomeValue + AwayValue = 0 THEN NULL ELSE HomeValue END
@@ -158,7 +160,7 @@ BEGIN
 	   SET @ResultStatusID      = 4
        SET @SettlementStatusID  = 0  -- Initial
     END 
-    ELSE IF @action = 'REFUND' AND @DeterminedType = 0
+    ELSE IF @action = 'REFUND' AND @DeterminedType = 0 AND @IsSDTEarly = 0
     BEGIN
 	   SET @SettlementStatusID 	= 1
        SET @ResultStatusID 		= CASE WHEN @IsAuto = 1 THEN 2 
@@ -171,7 +173,7 @@ BEGIN
        FROM @tblSelectedRID sr
        		INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sr.ResourceID = sd.ResourceID
     END 
-	ELSE IF @action = 'REFUND' AND @DeterminedType > 0
+	ELSE IF @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1)
     BEGIN
 		SET @SettlementStatusID  = 1
 		SET @ResultStatusID  = 5
@@ -295,13 +297,13 @@ BEGIN
 		IF @sporttype = 8 AND @action = 'REFUND'  
 		BEGIN
 
-			IF EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID AS r WHERE r.ResourceID  IN (SELECT sd.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) AS sd))
+			IF EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID AS r WHERE EXISTS (SELECT 1 FROM dbo.f_Set_MajorRound(@sporttype) AS sd WHERE sd.ResourceID = r.ResourceID))
 			BEGIN
 				UPDATE  r
 				SET r.OtherInfo = ''
 				FROM dbo.ResultDetailOS AS r
 				WHERE MatchId = @MatchID
-					AND  r.ResourceId IN (SELECT sd.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) AS sd)
+					AND EXISTS (SELECT 1 FROM dbo.f_Set_MajorRound(@sporttype) AS sd WHERE sd.ResourceID = r.ResourceId)
 			END
 
 			IF EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
@@ -326,7 +328,7 @@ BEGIN
 					   ,@ftawayscore = SUM(CAST(AwayValue AS INT)) 
 				FROM	ResultDetailOS AS r WITH(NOLOCK)
 				WHERE r.MatchId = @MatchID
-					AND r.ResourceId IN (SELECT sd.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) AS sd WHERE sd.ResourceID != '00')
+					AND EXISTS (SELECT 1 FROM dbo.f_Set_MajorRound(@sporttype) AS sd WHERE sd.ResourceID != '00' AND  sd.ResourceID = r.ResourceId )
 					AND r.ResultStatusID  IN (2,5)
 					AND r.HomeValue != '' 
 					AND r.AwayValue != ''
@@ -346,7 +348,7 @@ BEGIN
     BEGIN
 	    MERGE dbo.ResultDetail TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.OtherInfo
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
@@ -358,10 +360,11 @@ BEGIN
 	            ,LastModifyBy        = @creator
 				,ResultSetting		 = CASE WHEN @IsApplyRefundSOP = 1 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ISNULL(ResultSetting,0) & (~6) --- Turn off bit[2] bit[3]
 											ELSE ResultSetting END
+				,OtherInfo			 = ISNULL(SOURCE.OtherInfo, TARGET.OtherInfo)
 	
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
-	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
-	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
+	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy, OtherInfo)               
+	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator, SOURCE.OtherInfo);
 		
 		IF @IsDirectly = 1
 		BEGIN
@@ -376,7 +379,7 @@ BEGIN
 				AND sd.AllowDirectly = 0
 		END
 
-		IF @Sporttype = 2 AND EXISTS (SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
+		IF @Sporttype = 2 AND (EXISTS (SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00') OR @IsSDTEarly = 1)
 		BEGIN
 			SELECT	@hthomescore = ISNULL(SUM(CASE WHEN rd.ResourceId = '01' THEN rd.HomeValue ELSE 0 END), 0)
 					,@htawayscore = ISNULL(SUM(CASE WHEN rd.ResourceId = '01' THEN rd.AwayValue ELSE 0 END), 0)
@@ -417,7 +420,7 @@ BEGIN
 					AND (ISNULL(HomeValue,'') = '' OR @DeterminedType = 0)
 			END
 
-			IF @action = 'REFUND' AND @DeterminedType > 0
+			IF @action = 'REFUND' AND (@DeterminedType > 0 OR @IsSDTEarly = 1)
 			BEGIN
 				UPDATE dbo.ResultDetail
 				SET  HomeValue = @q1homescore + @q2homescore
@@ -502,24 +505,32 @@ BEGIN
 								  ELSE 0
 							 END
 			END
+			IF @action = 'REFUND' AND @IsSDTEarly = 1
+			BEGIN
+				UPDATE r
+				SET  r.SettlementStatusID = 7
+				FROM dbo.ResultDetail AS r
+					INNER JOIN @tblSelectedRID rs ON rs.ResourceID = r.ResourceId
+				WHERE r.MatchId = @matchid
+			END
 		END
     END 
 
-	IF (@action = 'UNDO' OR (@action = 'REFUND' AND  @DeterminedType > 0)) AND @ExternalResultTable = 1  
+	IF (@action = 'UNDO' OR (@action = 'REFUND' AND  (@DeterminedType > 0 OR @IsSDTEarly = 1))) AND @ExternalResultTable = 1  
 	BEGIN
 		DELETE  p
 		FROM dbo.ProviderExternalResultDetail AS p
 		WHERE p.MatchId = @MatchId 
 			AND p.SourceId = 99
-			AND p.ResourceId IN (SELECT s.ResourceId FROM  @tblSelectedRID AS s)
+			AND EXISTS (SELECT 1 FROM  @tblSelectedRID AS s WHERE s.ResourceId = p.ResourceId)
 	END
-	ELSE IF (@action = 'UNDO' OR (@action = 'REFUND' AND  @DeterminedType > 0)) AND  @ExternalResultTable = 2 
+	ELSE IF (@action = 'UNDO' OR (@action = 'REFUND' AND  (@DeterminedType > 0 OR @IsSDTEarly = 1))) AND  @ExternalResultTable = 2 
 	BEGIN
 		DELETE  p
 		FROM dbo.ProviderExternalResultDetailOS  AS p
 		WHERE p.MatchId = @MatchId 
 			AND p.SourceId = 99
-			AND p.ResourceId IN (SELECT s.ResourceId FROM  @tblSelectedRID AS s)
+			AND EXISTS (SELECT 1 FROM  @tblSelectedRID AS s WHERE s.ResourceId = p.ResourceId)
 	END
     
 END 

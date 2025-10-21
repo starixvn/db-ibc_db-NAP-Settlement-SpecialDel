@@ -20,6 +20,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 	,@IsPingoal			BIT				= 0
 	,@IsSettleRelated	BIT				= 0
+	,@IsSDTEarly		BIT				= 0
 	,@RemarkInfo		VARCHAR(MAX)	= NULL
 AS    
 /*  Creator: 20180821@Vicky
@@ -98,6 +99,7 @@ AS
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 		- 20241111@Aries: Apply AutoPayout2 for Badminton and Table Tennis [Redmine:#214409]
 		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
+		- 20250829@Max: Basketball Player Prop [Redmine:#233012]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -332,7 +334,7 @@ BEGIN
 				RETURN
 			END
 
-			IF @DeterminedType > 0 
+			IF @DeterminedType > 0 OR @IsSDTEarly = 1
 			BEGIN
 				IF @SportType = 8 AND EXISTS (SELECT TOP 1 1 FROM @tmpResourcesWeb WHERE OtherInfo = 'Mercy')
 				BEGIN
@@ -343,7 +345,8 @@ BEGIN
 				SELECT DISTINCT s.BetType, s.BetID,s.ResourceId,s.RefResourceId, s.SDTResourceId,s.SDTpfId,IIF(RefResourceId = '00' AND @IsMercy = 1,1,0),s.OddsType
 				FROM	dbo.SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
 				WHERE	s.SportType = @SportType
-					AND 1 = CASE WHEN @IsMercy = 0 AND ISNULL(s.SDTRefund,0) & @DeterminedType > 0 THEN 1
+					AND 1 = CASE WHEN @IsMercy = 0 AND (ISNULL(s.SDTRefund,0) & @DeterminedType > 0) THEN 1
+								 WHEN @IsMercy = 0 AND ISNULL(s.SDTpfId,0) > 0 AND @IsSDTEarly = 1 AND s.SettleType = 'EAR' THEN 1
 								 WHEN @IsMercy = 1 AND ISNULL(s.DeterminedType,0) & @DeterminedType > 8 THEN 1
 								 ELSE 0
 							 END
@@ -453,7 +456,11 @@ BEGIN
 		SELECT DISTINCT tbl.ResourceID, 
 				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE IIF(@SportType != 10,ISNULL(HomeValue,''),ISNULL(AwayValue,'')) END,  --  @SportType = 10  Golf, using Stroke count, so swap the score to make it become normal stype
 				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointAwayValue, '') ELSE IIF(@SportType != 10,ISNULL(AwayValue,''),ISNULL(HomeValue,'')) END, 
-				sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, 
+				sp.BetType
+				, CASE WHEN sp.BetType IN (675, 676, 678) THEN sp.BetID*100 + RIGHT(sp.ResourceID,2)
+						ELSE sp.BetID
+						END AS BetID
+				, sp.pfID, sp.RoundID, sp.OrdNo, 
 				sd.isFinal, 
 				sd.RoundName, 
 				sp.GroupType, sp.OddsType,
@@ -502,9 +509,15 @@ BEGIN
 									WHERE	mt.TransId = b.transId
 					) mt
 					CROSS APPLY(
+									SELECT CASE WHEN b.BetType IN (675, 676, 678) THEN b.BetID*100 + CAST(b.betteam AS BIGINT)
+												ELSE b.BetID
+												END AS BetID
+					)bid
+					CROSS APPLY(
 									SELECT TOP 1 pfID, HomeValue, AwayValue, t.OddsType
 									FROM @tmpSelectedRID t
-									WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
+									WHERE b.BetType = t.BetType 
+										AND (t.BetID = 0 OR bid.BetID = t.BetID) 
 								) sr
 					CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betid) m
 				WHERE b.matchid = @MatchId
@@ -580,6 +593,11 @@ BEGIN
 		
 			SELECT @TotalSubParlay = COUNT(1)			
 			FROM	dbo.bettransm bm WITH(NOLOCK)
+			CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+										ELSE bm.betcheck
+										END AS BetCheck
+						)bid
+
 			WHERE	bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 					AND bm.statusID NOT IN (101)
@@ -591,7 +609,7 @@ BEGIN
 					AND EXISTS (SELECT	TOP 1 1
 								FROM	@tmpSelectedRID t
 								WHERE	t.BetType = bm.bettype
-										AND (t.BetID = 0 OR t.BetID = bm.betcheck))
+										AND (t.BetID = 0 OR t.BetID = bid.betcheck))
 		END
 		ELSE IF @action LIKE 'UNDO%'
 		BEGIN
@@ -599,7 +617,11 @@ BEGIN
 			INSERT INTO #tmpTransID(TransID, CustID, BetdaqId, currentStatuswinlost)
 			SELECT b.transid,b.CustID, ISNULL(b.betdaqid,0), b.statuswinlost
 			FROM bettrans b WITH (NOLOCK)
-				INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)
+				CROSS APPLY (	SELECT CASE WHEN b.BetType IN (675, 676, 678) THEN b.BetID*100 + CAST(b.betteam AS BIGINT)
+											ELSE b.BetID
+											END AS BetID
+				)bid
+				INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR bid.BetID = t.BetID)
 				OUTER APPLY (
 					SELECT	TOP (1) mt.TransId
 					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
@@ -621,6 +643,10 @@ BEGIN
 				
 			SELECT @TotalSubParlay = COUNT(1)			
 			FROM	dbo.bettransm bm WITH(NOLOCK)
+				CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+											ELSE bm.betcheck
+											END AS betcheck
+							)bid
 				LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK) 
 					ON	b.matchid = 29
 						AND b.bettype = 29
@@ -641,16 +667,16 @@ BEGIN
 					AND EXISTS (SELECT	TOP 1 1
 								FROM	@tmpSelectedRID t
 								WHERE	t.BetType = bm.bettype
-										AND (t.BetID = 0 OR t.BetID = bm.betcheck))
+										AND (t.BetID = 0 OR t.BetID = bid.betcheck))
 		END 
 		ELSE IF @action LIKE 'REFUND%'
 		BEGIN
-			IF @DeterminedType > 0 
+			IF @DeterminedType > 0 OR @IsSDTEarly = 1
 			BEGIN
 				UPDATE sr
 				SET  sr.SDTpfId = bt.SDTpfId
-					,sr.HomeValue = bt.HomeValue
-					,sr.AwayValue = bt.AwayValue
+					,sr.HomeValue = CASE WHEN @IsSDTEarly = 1 THEN sr.HomeValue ELSE bt.HomeValue END
+					,sr.AwayValue = CASE WHEN @IsSDTEarly = 1 THEN sr.AwayValue ELSE bt.AwayValue END
 					,sr.AbandonedStatus = bt.AbandonedStatus
 					,sr.onlySDTCal = bt.onlySDTCal
 				FROM @tmpSelectedRID AS sr
@@ -733,7 +759,11 @@ BEGIN
 				INSERT INTO #tmpTransID(TransID, CustID, BetdaqId, currentStatuswinlost)
 				SELECT transid,b.CustID, ISNULL(b.betdaqid,0), b.statuswinlost
 				FROM bettrans b WITH (NOLOCK)
-					INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)
+					CROSS APPLY (	SELECT CASE WHEN b.BetType IN (675, 676, 678) THEN b.BetID*100 + CAST(b.betteam AS BIGINT)
+												ELSE b.BetID
+												END AS BetID
+								)bid
+					INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR bid.BetID = t.BetID)
 				WHERE b.matchid = @MatchId
 					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND	b.statusID NOT IN (103, 101)
@@ -745,13 +775,17 @@ BEGIN
 
 				SELECT @TotalSubParlay = COUNT(1)			
 				FROM	dbo.bettransm bm WITH(NOLOCK)
+					CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+												ELSE bm.betcheck
+												END AS betcheck
+								)bid
 				WHERE	bm.matchid = @MatchID
 						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 						AND bm.statusID NOT IN (101, 103)
 						AND EXISTS (SELECT	TOP 1 1
 									FROM	@tmpSelectedRID t
 									WHERE	t.BetType = bm.bettype
-											AND (t.BetID = 0 OR t.BetID = bm.betcheck))
+											AND (t.BetID = 0 OR t.BetID = bid.betcheck))
 			END
 		END 
 
@@ -792,7 +826,7 @@ BEGIN
 											   ,IsMarked AS '@im'
 											   ,DeadHeat AS '@dh'
 									   FROM @tmpTransIDBatch
-									   WHERE 1 = IIF(@DeterminedType > 0 AND modds IS NOT NULL AND @action LIKE 'REFUND%', 0,1)
+									   WHERE 1 = IIF((@DeterminedType > 0 OR @IsSDTEarly = 1) AND modds IS NOT NULL AND @action LIKE 'REFUND%', 0,1)
 									   FOR XML PATH('r'), ROOT( 'root' ))
 			
 			IF ISNULL(@strTransIds, '') != '' 
@@ -809,7 +843,7 @@ BEGIN
 				   ,@ErrMessage			 = @ErrMsg OUTPUT
 			END
 
-			IF @DeterminedType > 0 AND @action LIKE 'REFUND%'
+			IF (@DeterminedType > 0 OR @IsSDTEarly = 1) AND @action LIKE 'REFUND%'
 			BEGIN
 				SET @strSDTTransIds  = (SELECT  transid		AS '@t'
 											   ,modds		AS '@m'
@@ -883,7 +917,7 @@ BEGIN
 													   ,winlost	AS '@w'	
 													   ,statuswinlost AS '@s'
 											   FROM @tmpTransIDBatch
-											   WHERE 1 = IIF(@DeterminedType > 0 AND modds IS NOT NULL  AND @action LIKE 'REFUND%', 0,1) 
+											   WHERE 1 = IIF((@DeterminedType > 0 OR @IsSDTEarly = 1) AND modds IS NOT NULL  AND @action LIKE 'REFUND%', 0,1) 
 											   FOR XML PATH('r'), ROOT( 'root' ))
 					IF ISNULL(@strTransIds, '') != ''
 					BEGIN
@@ -902,7 +936,7 @@ BEGIN
 						   ,@ErrMessage			 = @ErrMsg OUTPUT
 					END
 
-					IF @DeterminedType > 0 AND @action LIKE 'REFUND%'
+					IF (@DeterminedType > 0 OR @IsSDTEarly = 1) AND @action LIKE 'REFUND%'
 					BEGIN
 						SET @strSDTTransIds = (SELECT transid	AS '@t'
 													   ,winlost	AS '@w'	
@@ -993,7 +1027,7 @@ BEGIN
 				CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 					 WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
 					 WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
-					 ELSE '' END AS VARCHAR(MAX)), ',') WITHIN GROUP (ORDER BY OrdNo)
+					 ELSE '' END AS VARCHAR(MAX)), ',') WITHIN GROUP (ORDER BY OrdNo ASC)
 		FROM (
 				SELECT DISTINCT ResourceID, HomeValue, AwayValue, CASE WHEN @Sporttype = 58 AND ResourceID = '00' THEN 'FinalScore' ELSE RoundName END AS RoundName, MAX(OrdNo) AS OrdNo
 		  		FROM @tmpGetLog sr
@@ -1115,6 +1149,7 @@ BEGIN
 								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets)
 								+ ', @DeterminedType = ' + CONVERT(VARCHAR(50), @DeterminedRefundType)
 								+ ', @IsAuto = ''' + CONVERT(CHAR(1), @IsAuto ) + ''''	
+								+ ', @IsSDTEarly = ''' + CONVERT(CHAR(1), @IsSDTEarly ) + ''''
 								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 								+ ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
 								
@@ -1138,6 +1173,7 @@ BEGIN
 				,@IsAuto			= @IsAuto
 				,@DeterminedType    = @DeterminedRefundType
 				,@IsCentral			= @IsCentral
+				,@IsSDTEarly		= @IsSDTEarly
 				,@BroadcastSessionId = @BroadcastSessionId
 				
 				,@ErrCode			= @ErrCode OUTPUT

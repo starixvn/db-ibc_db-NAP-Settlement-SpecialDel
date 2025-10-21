@@ -21,6 +21,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@IsPingoal			BIT				= 0
 	,@IsSettleRelated	BIT				= 0
 	,@RemarkInfo		VARCHAR(MAX)	= NULL
+	,@IsSDTEarly		BIT				= 0
 	,@IsOrg				BIT				= 1		OUTPUT
 AS
 /*	Creator: 20180821@Vicky
@@ -64,6 +65,7 @@ AS
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241206@Aries: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
+		- 20250829@Max: Basketball Player Prop [Redmine:#233012]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -136,6 +138,7 @@ BEGIN
 															+ IIF(@AutoSourceInfo IS NOT NULL,', @AutoSourceInfo =  ''' + @AutoSourceInfo + '''','') 
 															+ ', @IsPingoal = ' + CONVERT(NVARCHAR(1), @IsPingoal)
 															+ ', @IsSettleRelated = ' + CONVERT(NVARCHAR(1), @IsSettleRelated)
+															+ ', @IsSDTEarly = ' + CONVERT(NVARCHAR(1), @IsSDTEarly)
 															+ IIF(@RemarkInfo IS NOT NULL,', @RemarkInfo =  ''' + @RemarkInfo + '''','') 
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'

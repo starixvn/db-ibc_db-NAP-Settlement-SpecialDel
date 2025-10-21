@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="1"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_Calculate_modds] (
 		@pfID			SMALLINT
 		,@betteam 		NVARCHAR(10)
@@ -39,6 +39,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#208026]   
 		- 20240808@Aries: VS5 - Virtually Sports [Redmine:#207309]
+		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
 */
 RETURN
 (
@@ -114,7 +115,51 @@ RETURN
 			   CASE WHEN @betteam IN ('y', 'n') AND  @betteam = @HomeValue THEN 1
 					WHEN @HomeValue = 'NONE' THEN 0
 					ELSE -1 END
-					
+			
+			WHEN @pfID = 9663 THEN 
+			   CASE WHEN @HomeValue = 'Y' THEN 1
+					WHEN @HomeValue = 'N' THEN -1
+					WHEN @HomeValue = 'NONE' THEN 0
+				END
+			WHEN @pfID = 9664 THEN 
+			   CASE WHEN @betteam IN ('01', '02') AND  @betteam = @HomeValue THEN 1
+					WHEN @HomeValue = 'NONE' THEN 0
+					ELSE -1 END
+			WHEN @pfID = 9665 THEN --Basketball player props group bettypes at least/exact
+				CASE WHEN @betteam LIKE '<=%' THEN
+						CASE 
+							WHEN @HomeValue <= CAST(REPLACE(@betteam, '<=', '') AS INT) THEN 1
+							WHEN @HomeValue > CAST(REPLACE(@betteam, '<=', '') AS INT) THEN -1
+						END
+					WHEN ISNUMERIC(@betteam) = 1 THEN
+						CASE 
+							WHEN @HomeValue < CAST(@betteam AS INT) THEN -1
+							WHEN @HomeValue = CAST(@betteam AS INT) THEN 1
+							WHEN @HomeValue > CAST(@betteam AS INT) THEN -1
+						END 
+					WHEN @betteam LIKE '%+' THEN
+						CASE 
+							WHEN @HomeValue < CAST(REPLACE(@betteam, '+', '') AS INT) THEN -1
+							WHEN @HomeValue >= CAST(REPLACE(@betteam, '+', '') AS INT) THEN 1
+						END
+				END
+			WHEN @pfID = 9666 THEN --Basketball player props group bettypes band
+				CASE 
+					-- Range option
+					WHEN CHARINDEX('-', @betteam) > 0 THEN
+						CASE 
+							WHEN @HomeValue < CAST(LEFT(@betteam, CHARINDEX('-', @betteam) - 1) AS INT) THEN -1
+							WHEN @HomeValue >= CAST(LEFT(@betteam, CHARINDEX('-', @betteam) - 1) AS INT) 
+								 AND @HomeValue <= CAST(SUBSTRING(@betteam, CHARINDEX('-', @betteam) + 1, LEN(@betteam)) AS INT) THEN 1
+							WHEN @HomeValue > CAST(SUBSTRING(@betteam, CHARINDEX('-', @betteam) + 1, LEN(@betteam)) AS INT) THEN -1
+						END
+					-- Minimum option
+					WHEN @betteam LIKE '%+' THEN
+						CASE 
+							WHEN @HomeValue < CAST(REPLACE(@betteam, '+', '') AS INT) THEN -1
+							WHEN @HomeValue >= CAST(REPLACE(@betteam, '+', '') AS INT) THEN 1
+						END
+			END
 			WHEN @pfID IN (424, 385, 384) THEN --betteam = homevalue
 			   CASE WHEN @betteam = @HomeValue THEN 1
 					ELSE -1 END
@@ -640,7 +685,7 @@ RETURN
 
 	OUTER APPLY -- bettype 376: input betcheck into @AwayValue
 	(
-		SELECT	ROW_NUMBER () OVER (ORDER BY(SELECT NULL)) AS rn
+		SELECT	ROW_NUMBER () OVER (ORDER BY(SELECT NULL)ASC) AS rn
 				,CAST(CASE WHEN f.[value] = '' THEN CAST(1 AS SMALLMONEY) ELSE f.[value] END AS SMALLMONEY) AS odds
 		FROM	STRING_SPLIT(@AwayValue, ',') f
 		WHERE	@pfID = 376

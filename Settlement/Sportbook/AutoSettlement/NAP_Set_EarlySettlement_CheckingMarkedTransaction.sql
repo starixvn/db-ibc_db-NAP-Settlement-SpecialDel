@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_EarlySettlement_CheckingMarkedTransaction]
     @MatchID				INT
 	,@ResourceIDs			VARCHAR(MAX)
@@ -24,6 +24,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
 		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
+		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
 
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'
@@ -85,7 +86,13 @@ BEGIN
 		WHERE	mt.matchid IN (SELECT tmp.MatchID FROM @tmpMatch AS tmp)
 				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID NOT IN (101, 102)
-				AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = b.bettype AND (t.BetId = 0 OR t.BetId = b.betid))
+				AND EXISTS (	SELECT TOP 1 1 FROM @tmpBettype t 
+								WHERE t.bettype = b.bettype 
+									AND (t.BetId = 0 
+											OR (t.BetId = b.betid AND b.bettype NOT IN (675,676,678 )) 
+											OR (b.bettype IN (675,676,678 ) AND t.BetID = b.Betid  AND b.betteam = RIGHT(t.ResourceID, 2)) 
+									)
+							)
 	)
 	BEGIN
 		SET @isExistMarkedTicket = 1		
@@ -107,7 +114,13 @@ BEGIN
 			   				WHERE	bm.matchid = mt.matchid
 			   						AND bm.refno = b.refno
 			   						AND bm.statusID = 0
-			   						AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = bm.bettype AND (t.BetId = 0 OR t.BetId = bm.betcheck))
+			   						AND EXISTS (	SELECT TOP 1 1 FROM @tmpBettype t 
+													WHERE t.bettype = bm.bettype 
+														AND (t.BetId = 0 
+																OR (t.BetId = bm.betcheck AND bm.bettype NOT IN (675,676,678 )) 
+																OR (bm.bettype IN (675,676,678 ) AND t.BetID = bm.betcheck  AND bm.betteam = RIGHT(t.ResourceID, 2)) 
+															)
+												)
 			   			)bm
 				   WHERE	mt.MatchId IN (SELECT tmp.MatchID FROM @tmpMatch AS tmp))
 	BEGIN

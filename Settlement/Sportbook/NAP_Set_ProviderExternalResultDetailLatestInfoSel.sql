@@ -19,6 +19,7 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 		- 20252705@Aries: SOP- Soccer- Phase 3.2- Outside Score for Calculate Popup [Redmine:#226229]
+		- 20250829@Max: Basketball Player Prop [Redmine:#233012]
 
 	Param's explanation:
 		
@@ -53,8 +54,8 @@ BEGIN
 	BEGIN
 		;WITH  cteLatestSports AS
 			(
-				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC) AS rn
-						,DENSE_RANK() OVER (ORDER BY ex.SourceId ) AS TopSourceId
+				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId ASC, ex.CreateDate DESC) AS rn
+						,DENSE_RANK() OVER (ORDER BY ex.SourceId ASC) AS TopSourceId
 						,ex.SourceId
 						,ex.ResourceId
 						,ex.HomeValue
@@ -67,8 +68,8 @@ BEGIN
 					AND ISNULL(ex.IsLive,0) = 0
 
 				UNION ALL
-				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC) AS rn
-						,DENSE_RANK() OVER (ORDER BY ex.SourceId ) AS TopSourceId
+				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId ASC, ex.CreateDate DESC) AS rn
+						,DENSE_RANK() OVER (ORDER BY ex.SourceId ASC) AS TopSourceId
 						,ex.SourceId
 						,ex.ResourceId
 						,ex.HomeValue
@@ -91,14 +92,14 @@ BEGIN
 	END
 
 	SELECT	r.SourceId 
-			,p.SourceName
+			,ISNULL(r.SourceName,p.SourceName) AS SourceName
 			,r.Remark
 			,r.ResourceId 
 			,r.HomeValue
 			,r.AwayValue
 			,r.OrderNo
 	FROM @tmpProviderExternalResult r
-	INNER JOIN dbo.ProviderInfo p WITH(NOLOCK)
+	LEFT JOIN dbo.ProviderInfo p WITH(NOLOCK)
 			ON r.SourceId = p.SourceId
 	
 

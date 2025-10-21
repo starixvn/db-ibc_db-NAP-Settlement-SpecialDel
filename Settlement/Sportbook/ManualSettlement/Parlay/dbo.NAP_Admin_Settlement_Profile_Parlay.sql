@@ -17,7 +17,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@IsReSettledTickets	BIT			= 1
 	,@LockedByRefno			BIT			= 0
 	,@IsCentral				BIT			= 0
-	,@DeterminedType		INT		= 0
+	,@DeterminedType		INT			= 0
+	,@IsSDTEarly			BIT			= 0
 	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@ParlayKeyId			INT			= 0
 	,@ErrCode				INT				= 0	OUTPUT
@@ -53,7 +54,8 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240729@Kathy: get eventdate before settlement [Redmine:#208293]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
-		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
+		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026] 
+		- 20250829@Max: Basketball Player Prop [Redmine:#233012]
 
 		
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
@@ -216,7 +218,9 @@ BEGIN
 	SELECT	 c.Id
 			,c.SDTResourceId
 			,sp.Bettype
-			,sp.BetId
+			, CASE WHEN sp.BetType IN (675, 676, 678) THEN sp.BetID*100 + RIGHT(sp.ResourceID,2)
+						ELSE sp.BetID
+						END AS BetID
 			,sp.pfId
 			,IIF(@sportType = 1,sp.SDTpfId,c.SDTpfId)
 			,sp.OddsType
@@ -242,7 +246,7 @@ BEGIN
 			ON	ISNULL(sp.RefResourceId,sp.ResourceID) = sd.ResourceID
 	WHERE	sp.SportType = @Sporttype
 	
-	IF @SportType != 1 AND @DeterminedType > 0
+	IF @SportType != 1 AND (@DeterminedType > 0 OR @IsSDTEarly = 1)
 	BEGIN
 		SELECT  @RemarkSDT = RemarkSDT
 		FROM OPENXML(@handle,'/Resources',1) WITH(RemarkSDT	VARCHAR(500)) as tbl
@@ -338,16 +342,20 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			IF @DeterminedType = 0
+			IF @DeterminedType = 0 AND ISNULL(@IsSDTEarly,0) = 0
 			BEGIN
 				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
 				FROM	dbo.bettransm bm WITH(NOLOCK)
+					CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+											ELSE bm.betcheck
+											END AS betcheck
+							)bid
 					CROSS APPLY (
 						SELECT	TOP 1 pfID, HomeValue, AwayValue
 						FROM	@tmpSelectedRID t
 						WHERE	t.BetType = bm.bettype
-								AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+								AND (t.BetID = 0 OR t.BetID = bid.betcheck)
 					)sr
 					CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, bm.betteam, bm.hdp1, bm.hdp2, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck) m
 					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
@@ -371,7 +379,7 @@ BEGIN
 
 				SET @totalSubParlay = @@ROWCOUNT
 			END
-			ELSE IF @sportType != 1 AND  @DeterminedType > 0
+			ELSE IF @sportType != 1 AND  ( @DeterminedType > 0 OR ISNULL(@IsSDTEarly,0) = 1)
 			BEGIN
 				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsInstHTFT, bettype, hdp1, hdp2, betteam)
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked, sr.IsInstHTFT, bm.bettype, bm.hdp1, bm.hdp2, bm.betteam
@@ -432,11 +440,15 @@ BEGIN
 		INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
 		SELECT	bm.transid, bm.refno , CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked 
 		FROM	dbo.bettransm bm WITH(NOLOCK)
+			CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+											ELSE bm.betcheck
+											END AS betcheck
+							)bid
 			CROSS APPLY (
 				SELECT	TOP 1 pfID, HomeValue, AwayValue
 				FROM	@tmpSelectedRID t
 				WHERE	t.BetType = bm.bettype
-						AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+						AND (t.BetID = 0 OR t.BetID = bid.betcheck)
 						AND t.DeterminedType = 0
 			)sr
 			LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK) 
@@ -459,7 +471,7 @@ BEGIN
 
 		SET @totalSubParlay = @@ROWCOUNT
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0)
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0 OR ISNULL(@IsSDTEarly,0)  = 1)
 		BEGIN
 			INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
 			SELECT	bm.transid, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked 
@@ -505,16 +517,20 @@ BEGIN
 	END 
 	ELSE IF @action LIKE 'REFUND%' 
 	BEGIN
-		IF @DeterminedType = 0
+		IF @DeterminedType = 0 AND ISNULL(@IsSDTEarly,0) = 0
 		BEGIN
 			INSERT INTO #tmpsubTransID (TransID, refno, modds)
 			SELECT	bm.transid, bm.refno, 0
 			FROM	dbo.bettransm bm WITH(NOLOCK)
+				CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+											ELSE bm.betcheck
+											END AS betcheck
+							)bid
 				CROSS APPLY (
 					SELECT	TOP 1 bettype
 					FROM	@tmpSelectedRID t
 					WHERE	t.BetType = bm.bettype
-							AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+							AND (t.BetID = 0 OR t.BetID = bid.betcheck)
 							AND t.IsSDT = 0
 				)sr
 			WHERE	bm.matchid = @MatchID
@@ -523,7 +539,7 @@ BEGIN
 		
 			SET @totalSubParlay = @@ROWCOUNT
 		END
-		ELSE IF @sportType != 1 AND @DeterminedType > 0
+		ELSE IF @sportType != 1 AND (@DeterminedType > 0 OR ISNULL(@IsSDTEarly,0) = 1)
 		BEGIN
 			INSERT INTO #tmpsubTransID (TransID, refno, modds,moddsSDT)
 			SELECT	bm.transid, bm.refno, ISNULL(m.modds,0), m.modds
@@ -683,7 +699,7 @@ BEGIN
 								+ ')'')'
 	
 		INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
-		EXEC (@sqlOpenqueryCommand)
+		EXEC sys.sp_executesql @sqlOpenqueryCommand
 			
 		SELECT @strSetting = CAST((
 			SELECT	si.SiteId AS 's'
@@ -815,7 +831,7 @@ BEGIN
 					SET isFinish = 1
 				WHERE	modds IS NULL
 			END
-			ELSE IF @Action LIKE 'REFUND%' AND @sportType != 1 AND @DeterminedType > 0 
+			ELSE IF @Action LIKE 'REFUND%' AND @sportType != 1 AND (@DeterminedType > 0 OR @IsSDTEarly = 1) 
 			BEGIN
 				INSERT INTO dbo.ParlaySettlementProcessing(SessionId, MatchId, MessageType, Action, ActionId, subTransIds, mainTransIds, RefnoMainTransIds, EventDate, strSetting, IsReSettledTickets, BroadcastSessionId)
 				SELECT	@SessionId
@@ -956,7 +972,7 @@ BEGIN
 			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 					WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
 					WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
-					ELSE '' END,',') WITHIN GROUP (ORDER BY OrdNo)
+					ELSE '' END,',') WITHIN GROUP (ORDER BY OrdNo ASC)
 	FROM (
 			SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
 		  	FROM @tmpSelectedRID sr
@@ -983,6 +999,7 @@ BEGIN
 				,(SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' AND ResourceID = '00' AND HomeValue <> AwayValue) AS '@IsAutoRefund'
 				,@matchLog AS '@matchLog'
 				,@IsReSettledTickets AS '@IsReSettledTickets'
+				,@IsSDTEarly AS '@IsSDTEarly'
 				,@totalSubParlay AS '@totalSubParlay'
 				,@creator AS '@creator'
 				,@ActionID AS '@ActionID'

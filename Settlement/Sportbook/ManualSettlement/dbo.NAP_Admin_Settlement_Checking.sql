@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIG-bodb02,DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Checking] 
 	  @MatchId 				INT = NULL
 	, @MatchIds 			VARCHAR(4000) = NULL OUTPUT
@@ -49,6 +49,7 @@ AS
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20252802@Aries.Nguyen: Enhance the logic code to decrease the amount of calling SPs into NAP_Set_ServerInfo [RedmineID: #218790]
+		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
 
 	Param's Explanation:
 		
@@ -108,7 +109,10 @@ BEGIN
 		    EXEC sp_xml_removedocument @handle
 
 			INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
-		    SELECT DISTINCT tbl.ResourceID, sp.BetType, sp.BetID
+		    SELECT DISTINCT tbl.ResourceID, sp.BetType
+							, CASE WHEN sp.BetType IN (675, 676, 678) THEN sp.BetID*100 + RIGHT(sp.ResourceID,2)
+									ELSE sp.BetID
+									END AS BetID
 		    FROM @tmpWebResource AS tbl
 		        INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
 		    WHERE sp.SportType = @SportType 
@@ -124,12 +128,16 @@ BEGIN
 			
 			IF EXISTS (SELECT TOP 1 1
 					   FROM dbo.bettrans b WITH(NOLOCK)
+							CROSS APPLY(	SELECT CASE WHEN b.BetType IN (675, 676, 678) THEN b.BetID*100 + CAST(b.betteam AS BIGINT)
+												ELSE b.BetID
+												END AS BetID
+										)bid
 					   WHERE b.matchid = @matchid
 					   		AND (b.statusID = 1 -- waiting status
 								OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate ))
 							AND EXISTS (SELECT 1 
 					   					FROM @tmpResourceIDs t
-					   					WHERE t.Bettype = b.Bettype AND (t.BetID = 0 OR t.BetID = b.BetID)
+					   					WHERE t.Bettype = b.Bettype AND (t.BetID = 0 OR t.BetID = bid.BetID)
 					   					)
 							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					)
@@ -138,12 +146,16 @@ BEGIN
 			END 				
 			ELSE IF EXISTS (SELECT TOP 1 1
 					   FROM dbo.bettransm bm WITH(NOLOCK)
+							CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
+											ELSE bm.betcheck
+											END AS BetCheck
+										)bid
 					   WHERE bm.matchid = @matchid
 					   		AND (bm.statusID = 1 -- waiting status
 								OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,@currentdate) > @currentdate ))
 							AND EXISTS (SELECT 1 
 					   					FROM @tmpResourceIDs t
-					   					WHERE t.Bettype = bm.Bettype AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+					   					WHERE t.Bettype = bm.Bettype AND (t.BetID = 0 OR t.BetID = bid.betcheck)
 					   					)
 							AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 					)
