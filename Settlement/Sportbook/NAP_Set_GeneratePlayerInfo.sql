@@ -35,6 +35,9 @@ BEGIN
 	DECLARE @tmp_MainResource TABLE ( MainResourceID VARCHAR(50), RelatedBettype VARCHAR(3), PlayerId VARCHAR(20), TeamId VARCHAR(20), PlayerRank TINYINT, OddsInfo VARCHAR(500) )
 	DECLARE @tmp_Generate TABLE ( ResourceID VARCHAR(50), OtherInfo VARCHAR(50) )
 
+	DROP TABLE IF EXISTS #tmp_OddsFlex
+	CREATE TABLE #tmp_OddsFlex(ResourceID VARCHAR(20), APSetting VARCHAR(MAX), OddsInfo VARCHAR(4000))
+
 	INSERT INTO  @tmp_ResourceWeb (ResourceID )
 	SELECT DISTINCT v.value FROM string_split(@ResourceIds,',')v
 
@@ -47,13 +50,9 @@ BEGIN
 		  ,( '"steals"'		 , '667')
 
 	BEGIN TRY
-		---Offer
-		;WITH cte_offer (ResourceID, RelatedBettype, PlayerId, TeamId, OddsInfo)
-		AS (SELECT	DISTINCT s.ResourceID
-				,JSON_VALUE(s.APSetting,'$."relatedBettype"') AS RelatedBettype
-				,JSON_VALUE(f.OddsInfo,'$."pid"') AS PlayerId 
-				,JSON_VALUE(f.OddsInfo,'$."tid"') AS TeamId 
-				,f.OddsInfo
+		
+		INSERT INTO #tmp_OddsFlex(ResourceID, APSetting, OddsInfo)
+		SELECT	DISTINCT s.ResourceID, s.APSetting, f.OddsInfo
 			FROM	dbo.odds o WITH(NOLOCK)
 				INNER JOIN dbo.odds_flex f WITH(NOLOCK)
 					ON o.oddsid = f.oddsid
@@ -61,13 +60,22 @@ BEGIN
 						ON o.bettype = s.BetType
 			WHERE	s.SportType = 2
 					AND s.SettleType = 'EAR'
-					AND (s.betid = 0 
-							OR ( s.bettype NOT IN (675,676,678 ) AND s.ResourceID LIKE '%' + CAST(o.Resourceid AS VARCHAR)) 
+					AND (s.betid = 0
+							OR ( s.bettype NOT IN (675,676,678 ) AND s.ResourceID LIKE '%' + CAST(o.Resourceid AS VARCHAR))
 							OR ( s.bettype IN (675,676,678 ) AND s.ResourceID = CAST(o.bettype AS VARCHAR(3)) + o.ResourceID + f.betChoice )
 						)
 					AND	o.matchid = @MatchId
 					AND ISNULL(o.IsDeleted,0) = 0
 					AND ISNULL(f.IsDeleted,0) = 0
+		
+		---Offer
+		;WITH cte_offer (ResourceID, RelatedBettype, PlayerId, TeamId, OddsInfo)
+		AS (SELECT	DISTINCT ResourceID
+				,JSON_VALUE(APSetting,'$."relatedBettype"') AS RelatedBettype
+				,JSON_VALUE(OddsInfo,'$."pid"') AS PlayerId 
+				,JSON_VALUE(OddsInfo,'$."tid"') AS TeamId 
+				,OddsInfo
+			FROM	#tmp_OddsFlex
 		)
 
 		INSERT INTO @tmp_Offer ( ResourceID, RelatedBettype, PlayerId, TeamId, PlayerRank, OddsInfo)
