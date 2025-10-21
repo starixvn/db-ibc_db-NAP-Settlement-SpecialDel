@@ -1109,10 +1109,9 @@ BEGIN
 			  ,@RequestId
 			  ,s.matchid
 			  ,COUNT(CASE WHEN s.IsCancelCO = 1 THEN s.transid ELSE NULL END) AS CancelCashOutCount
-			  ,COUNT(CASE WHEN ISNULL(b.betdaqid, -1) <> -2 THEN s.TransId ELSE NULL END) AS SettleCount
+			  ,COUNT(CASE WHEN ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS SettleCount
 		FROM #CTE_Ticket_Single s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets b ON b.transid = s.transid AND b.IsMixParlay = 0
-		WHERE b.StatusId IN (111, 112, 113)
 		GROUP BY b.Id, s.matchid 
 
 		-- 3. Loginfo Table
