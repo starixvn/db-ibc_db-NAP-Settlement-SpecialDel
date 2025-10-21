@@ -58,6 +58,8 @@ BEGIN
 			,@MatchId				INT
 			,@ExcludedTicketsJson	VARBINARY(MAX) = NULL
 			,@ExcludedTicketsCount INT = 0
+			,@VoidFromTime		    DATETIME
+			,@VoidToTime			DATETIME
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -775,6 +777,16 @@ BEGIN
 
 			IF @@ROWCOUNT = 0 BREAK;
 
+			SELECT @VoidFromTime = VoidFromTime, @VoidToTime = VoidToTime
+			FROM #logInfo
+			WHERE MatchId = @MatchId
+
+			DELETE 
+			FROM #TVSTicketBets 
+			WHERE IsExcluded = 1 
+				AND MatchId = @MatchId
+				AND VoidTime NOT BETWEEN @VoidFromTime AND @VoidToTime 
+
 			SET @ExcludedTicketsJson = COMPRESS((
 				SELECT t.TransId AS 'TransId'
 					  ,Refno AS 'RefNo'
@@ -859,14 +871,13 @@ BEGIN
 		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CashOutCount, InstantlySettleCount, SettleCount, CancelCashOutCount)
 		SELECT @RequestId
 			  ,s.matchid
-			  ,COUNT(CASE WHEN b.IsCancelCashOut = 0 AND ISNULL(b.betdaqid, -1) = -2 THEN s.TransId ELSE NULL END) AS CashOutCount
-			  ,COUNT(CASE WHEN i.bettype IS NOT NULL AND ISNULL(b.betdaqid, -1) <> -2 THEN s.TransId ELSE NULL END) AS InstantlySettleCount
-			  ,COUNT(CASE WHEN i.bettype IS NULL AND ISNULL(b.betdaqid, -1) <> -2 THEN s.TransId ELSE NULL END) AS SettleCount
-			  ,COUNT(CASE WHEN s.IsCancelCO = 1 THEN s.transid ELSE NULL END) AS CancelCashOutCount
+			  ,COUNT(CASE WHEN b.IsCancelCashOut = 0 AND ISNULL(b.betdaqid, -1) = -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS CashOutCount
+			  ,COUNT(CASE WHEN i.bettype IS NOT NULL AND ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS InstantlySettleCount
+			  ,COUNT(CASE WHEN i.bettype IS NULL AND ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS SettleCount
+			  ,COUNT(CASE WHEN s.IsCancelCO = 1 AND b.StatusId IN (111, 112, 113) THEN s.transid ELSE NULL END) AS CancelCashOutCount
 		FROM #CTE_Ticket_Single s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets b ON b.transid = s.transid AND b.matchid = s.MatchId AND b.IsMixParlay = 0
 			LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = s.MatchId
-		WHERE b.StatusId IN (111, 112, 113)
 		GROUP BY s.matchid
 		
 		--Check score for void message
