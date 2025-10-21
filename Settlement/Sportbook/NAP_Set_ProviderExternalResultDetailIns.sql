@@ -6,7 +6,6 @@ ALTER PROC dbo.NAP_Set_ProviderExternalResultDetailIns
 ,@SourceId	SMALLINT	
 ,@Resources	VARCHAR(MAX)	
 ,@UserId	INT	= 148
-,@otherinfo	VARCHAR(MAX) = NULL
 )
 AS
 /*
@@ -28,8 +27,8 @@ AS
 		@Resources:
 			For Soccer:
 				<Resources>
-					<Resource Id = "01" Home="1" Away="0"/>
-					<Resource Id = "00" Home="2" Away="1"/>
+					<Resource Id = "01" Home="1" Away="0" otherinfo="111,1000"/>
+					<Resource Id = "00" Home="2" Away="1" otherinfo="444,1000"/>
 				</Resources>
 		
 */
@@ -38,15 +37,16 @@ BEGIN
 SET NOCOUNT ON
 
 	DECLARE @xmlResources XML
-	DECLARE @tmpResource TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),IsLive BIT)
+	DECLARE @tmpResource TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OtherInfo VARCHAR(50), IsLive BIT)
 
 	SET @xmlResources = CAST(@Resources AS XML)	
 
-	INSERT INTO @tmpResource(ResourceId,HomeValue,AwayValue,IsLive)
+	INSERT INTO @tmpResource(ResourceId,HomeValue,AwayValue,OtherInfo,IsLive)
 	SELECT   DISTINCT
 			 T.C.value('@Id', 'VARCHAR(20)') AS ResourceId
 			,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
 			,T.C.value('@Away', 'VARCHAR(50)') AS AwayValue
+			,T.C.value('@OtherInfo', 'VARCHAR(50)') AS OtherInfo
 			,ISNULL(T.C.value('@IsLive', 'BIT'),0) AS IsLive
 	FROM  @xmlResources.nodes('/Resources/Resource') AS T(C)
 	WHERE T.C.value('@Id', 'VARCHAR(20)') != ''
@@ -72,7 +72,7 @@ SET NOCOUNT ON
 			,@UserId
 			,@UserId
 			,r.IsLive
-			,@otherinfo
+			,r.OtherInfo
 	FROM @tmpResource AS r
 		OUTER APPLY(
 			SELECT  TOP 1 
