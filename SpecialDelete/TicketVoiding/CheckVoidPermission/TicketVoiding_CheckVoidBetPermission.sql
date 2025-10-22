@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckVoidBetPermission]
 	,@IsHostVoidSettledTickets			BIT = 0
 	,@IsHostVoidInstantlySettledTickets BIT = 0
 	,@IsHostVoidUnsettledTickets		BIT = 0
+	,@IsHostUUSTickets					BIT = 0
 	,@IsCheckForTVS						BIT = 0
 	,@ErrCode							INT = 0 OUTPUT
 	,@ErrMsg							NVARCHAR(200) = '' OUTPUT
@@ -24,6 +25,7 @@ AS
 	    - 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
+		- 20251008@July: Add new permission for voiding tickets that have UUS currency only [Redmine: #241141]
 
 	Param's Explanation:
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
@@ -42,6 +44,7 @@ BEGIN
 			,@IsExistsSettledCashOutTickets BIT = 0
 			,@IsExistsSettledCancelCashOutTickets BIT = 0
 			,@IsExistsInstantlySettledSABATickets BIT = 0
+			,@IsHasUUSTickets BIT = 0
 
 	DECLARE @SupportInstantSettleSABABettype  TABLE (bettype SMALLINT);
 
@@ -71,6 +74,7 @@ BEGIN
 		,betid BIGINT
 		,eventstatus NVARCHAR(50)
 		,sporttype SMALLINT
+		,currency SMALLINT
 	)
 
 	INSERT INTO #tmpTransInfo( 
@@ -87,16 +91,19 @@ BEGIN
 		,IsCancelCashOut
 		,statuswinlost
 		,betid
+		,currency
 		)
-	SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb, isCCO, statuswl, bid
+	SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb, isCCO, statuswl, bid, curr
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
-				SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb, isCCO, statuswl, bid
+				SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb, isCCO, statuswl, bid, curr
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT, s_t BIGINT, btype SMALLINT, bdaq BIGINT, sid TINYINT, s_sid  TINYINT, isP BIT, isM BIT, sitedb SMALLINT, isCCO BIT, statuswl TINYINT, bid BIGINT)
+				WITH( mid INT, t BIGINT, s_t BIGINT, btype SMALLINT, bdaq BIGINT, sid TINYINT, s_sid  TINYINT, isP BIT, isM BIT, sitedb SMALLINT, isCCO BIT, statuswl TINYINT, bid BIGINT, curr SMALLINT)
 		) tbl
 	WHERE f.value <> ''
+
+	SET @IsHasUUSTickets = (SELECT TOP 1 1 FROM #tmpTransInfo WHERE currency IN (20,72))
 
 	-- Instant Settlement declaration
 	DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
@@ -260,6 +267,12 @@ BEGIN
 		END
 		RETURN
 	END
+
+	IF @IsHostUUSTickets = 0 AND @IsHasUUSTickets = 1 
+	BEGIN
+		SELECT @ErrCode = 1 ,@ErrMsg = 'You do not have enough permission to void/cancel cash out REAL tickets of this request.'
+	END
+
 
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #tmpTransInfo

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_CheckVoidBetPermission_TransInfo] 
 (
 	@TransIds				VARCHAR(MAX) = NULL
@@ -9,7 +9,7 @@ AS
 /*	
 	Created by: 20221124@Max
 	Task: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20221124@Max: Create new SP [Redmine: #180863]
@@ -19,6 +19,7 @@ AS
 		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250819@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
+		- 20251008@July: Add new permission for voiding tickets that have UUS currency only [Redmine: #241141]
 
 	Param's explanation:	
 		- @TransIds: '12343091763609600,12343108943478784'
@@ -73,6 +74,7 @@ BEGIN
 		,IsCancelCashOut BIT
 		,statuswinlost	TINYINT
 		,betid			BIGINT
+		,currency		SMALLINT
 	)
 
 	--Search tickets single
@@ -90,6 +92,7 @@ BEGIN
 		,IsCancelCashOut
 		,statuswinlost
 		,betid
+		,currency
 	)
 	SELECT b.matchid
 		,b.TransId
@@ -104,6 +107,7 @@ BEGIN
 		,CASE WHEN t.IsCancelCashOut = 1 THEN 1 ELSE 0 END IsCancelCashOut
 		,b.statuswinlost
 		,b.betid
+		,b.currency
 	FROM @TransIdTemp t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
 	WHERE 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
@@ -132,6 +136,7 @@ BEGIN
 			,IsCancelCashOut
 			,statuswinlost
 			,betid
+			,currency
 		)
 		SELECT bm.matchid
 			  ,bm.TransId
@@ -146,8 +151,10 @@ BEGIN
 			  ,0 AS IsCancelCashOut
 			  ,bm.statuswinlost
 			  ,NULL AS betid
+			  ,b.currency
 		FROM @TransIdTemp t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.transid
+			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
 		WHERE 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
 					   WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
 					   ELSE 0 END
@@ -175,6 +182,7 @@ BEGIN
 			,IsCancelCashOut
 			,statuswinlost
 			,betid
+			,currency
 		)
 		SELECT b.matchid
 			,b.TransId
@@ -189,6 +197,7 @@ BEGIN
 			,CASE WHEN t.IsCancelCashOut = 1 THEN 1 ELSE 0 END IsCancelCashOut
 			,b.statuswinlost
 			,b.betid
+			,b.currency
 		FROM @TransIdTemp t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
 		WHERE 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
@@ -210,6 +219,7 @@ BEGIN
 		,IsCancelCashOut AS 'isCCO'
 		,statuswinlost AS 'statuswl'
 		,betid AS 'bid'
+		,currency AS 'curr'
 	FROM #TransInfo
 	FOR JSON PATH))
 
