@@ -523,6 +523,22 @@ BEGIN
 	FROM SettlementResultTableSetting WITH(NOLOCK)
 	WHERE AP_Group = @AutoPayoutGroup
 
+	DELETE FROM #MatchResource
+	WHERE ResourceId LIKE	'680__'	
+		OR ResourceId LIKE 	'681__'
+		OR ResourceId LIKE 	'682__'
+		OR ResourceId LIKE 	'683__'
+		OR ResourceId LIKE 	'684__'
+		OR ResourceId LIKE	'675____'
+		OR ResourceId LIKE	'676____'
+		OR ResourceId LIKE	'678____'
+		OR ResourceId LIKE	'669__'
+		OR ResourceId LIKE	'671__'
+		OR ResourceId LIKE	'673__'
+		OR ResourceId LIKE	'674__'
+		OR ResourceId LIKE	'677__'
+		OR ResourceId LIKE	'679__'
+
 	;WITH CTE_Provider AS (
 			SELECT mr.matchId, mr.ResourceId,mr.ResourceType
 				 ,MIN(mr.CreatedDate) AS CreatedDate
