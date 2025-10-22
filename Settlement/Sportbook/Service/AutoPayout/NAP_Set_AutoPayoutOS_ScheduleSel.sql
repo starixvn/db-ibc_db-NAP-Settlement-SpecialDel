@@ -577,6 +577,8 @@ BEGIN
 		OR ResourceId LIKE	'671__'
 		OR ResourceId LIKE	'673__'
 		OR ResourceId LIKE	'674__'
+		OR ResourceId LIKE	'677__'
+		OR ResourceId LIKE	'679__'
 
 	SELECT matchId,ResourceId,HomeValue, AwayValue
 	FROM #MatchResourceConfirmDate
