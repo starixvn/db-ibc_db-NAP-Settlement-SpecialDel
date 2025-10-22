@@ -21,6 +21,7 @@ AS
 		- 20250619@July: Not show table loginfo when invalid ticket [Redmine: #227162]
 		- 20250728@Lani: [TVS] ScaleOut DBTrans [Phase 4] - Reduced Over/Abandoned/Not Participate/Match Early Completed/Other Issues [Redmine: #232581]
 		- 20250923@Lani: [TVS] Log Info - Add Details for some issue types [Redmine: #238132]
+		- 20251022@Lani: [TVS] Not Participate - Add new bet types (Basketball player props) [Redmine: #241923]
 
 	Param's explanation:	
 		- @OnlineServerId = '0,1,3'
@@ -362,7 +363,8 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
-		,b.transdesc AS FilterTransdesc
+		,CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid')
+			  ELSE b.transdesc END AS FilterTransdesc
 		,b.bettype AS FilterBettype
 		,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
 		,ISNULL(tb.ParentId,b.bettype) AS GroupDisplay
@@ -524,7 +526,8 @@ BEGIN
 			,sub.transdesc SubTransdesc  
 			,b.modds
 			,sub.SiteDBGroupID
-			,sub.transdesc AS FilterTransdesc
+			,CASE WHEN (sub.bettype BETWEEN 653 AND 688) AND (sub.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(sub.transdesc,'$.pid')
+			      ELSE sub.transdesc END AS FilterTransdesc
 			,sub.bettype AS FilterBettype
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
 			,ISNULL(tb.ParentId, sub.bettype) AS GroupDisplay

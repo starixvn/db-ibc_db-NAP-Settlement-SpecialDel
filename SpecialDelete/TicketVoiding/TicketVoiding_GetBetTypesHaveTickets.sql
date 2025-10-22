@@ -21,6 +21,7 @@ AS
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250729@Lani: [TVS] ScaleOut DBTrans [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
+		- 20251022@Lani: [TVS] Not Participate - Add new bet types (Basketball player props) [Redmine: #241923]
     Param's Explanation:  
 	   - @OnlineServerId: '0,1,2,3'
 */
@@ -78,7 +79,9 @@ BEGIN
     -- Scan bettrans and bettransm to get bettype list
 	-- bettrans
     INSERT INTO #TmpBettype(bettype, transdesc)
-	SELECT bettype, transdesc
+	SELECT bettype,
+		   CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid')
+			    ELSE b.transdesc END AS Transdesc
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
 		LEFT JOIN @tmpTimeRange t ON b.matchid = t.MatchId
@@ -94,7 +97,9 @@ BEGIN
 
     -- bettransm
     INSERT INTO #TmpBettype(bettype, transdesc)
-    SELECT bm.bettype, bm.transdesc
+    SELECT bm.bettype,
+		   CASE WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.transdesc,'$.pid')
+			    ELSE bm.transdesc END AS Transdesc
     FROM dbo.bettransm bm WITH(NOLOCK)
 		INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId
 		LEFT JOIN @tmpTimeRange t ON bm.matchid = t.MatchId
