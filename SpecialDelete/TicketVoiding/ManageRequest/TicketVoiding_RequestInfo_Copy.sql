@@ -36,6 +36,7 @@ AS
 		- 20250825@Lani: [TVS] Copy Request Info - Update message template - Wrong HDP, 1st HDP, Wrong OU, Wrong 1st OU, Wrong Odds [Redmine: #235984]
 		- 20250910@July: [TVS] Copy Request Info - Update message template - Wrong Odds - Handicap [Redmine: #236306]
 		- 20251022@Lani: [TVS] Fix bug - can not get request info [Redmine: #239994]
+		- 20251022@Lani: [TVS] Second Team Batting - New Issue Type [Redmine: #236104]
 		
 
 	Param's explanation:
@@ -266,7 +267,7 @@ BEGIN
 								 , '')
 	END
 	
-	IF @IssueTypeId IN (19,21,23,12,24,25,2,4,5,6,7,27) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB, Wrong HDP/1stHDP, WrongOU/1stOU, Wrong Odds
+	IF @IssueTypeId IN (19,21,23,12,24,25,2,4,5,6,7,27,28) --Reduced Overs, Not Participate, Abandoned, Wrong Market Offered, Technical Error, Wrong odds SB, Wrong HDP/1stHDP, WrongOU/1stOU, Wrong Odds, Second Team Batting
 	BEGIN
 		INSERT INTO @tmpTicketInfo (TransId, Transdesc, Bettype, LiveIndicator, BetId, Betteam, OddsId)
 		SELECT s.TransId, ISNULL(b.Transdesc,''), b.Bettype, b.liveindicator, CONVERT(NVARCHAR(50), b.betid) AS BetId, betteam, oddsid
@@ -514,7 +515,7 @@ BEGIN
 		  PlayerName,
 		  PlayerAndOdds,
 		  TicketsCount,
-		  ROW_NUMBER() OVER (PARTITION BY b.bettypeId, b.PlayerId, b.betid ORDER BY b.bettypeId ASC, b.PlayerId ASC, b.betid ASC, b.InputtedRuns ASC) AS RowId
+		  ROW_NUMBER() OVER (PARTITION BY b.bettypeId, b.PlayerId, b.betid, b.PlayerAndOdds ORDER BY b.bettypeId ASC, b.PlayerId ASC, b.betid ASC, b.InputtedRuns ASC, b.PlayerAndOdds ASC) AS RowId
 	FROM @BettypeCountDetail b
 	)
 	SELECT BetTypeId, b.typenamee AS OriginalBetTypeName, InputtedRuns, BetId, PlayerName, PlayerAndOdds, TicketsCount 
