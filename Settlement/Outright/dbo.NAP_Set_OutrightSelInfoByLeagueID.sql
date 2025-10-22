@@ -36,6 +36,7 @@ BEGIN
 			,ps.Screenshot
 			,r.Result as TraderScore
 			,r.ResultStatusID as ResultStatusId
+            ,r.IsDeadHeat as IsDeadHeatResultDetail
 	FROM	dbo.outright AS o WITH (NOLOCK)
 			INNER JOIN dbo.League AS l WITH (NOLOCK) ON l.leagueid = o.leagueid
 			OUTER APPLY (	SELECT TOP 1 Result AS Screenshot
@@ -45,11 +46,11 @@ BEGIN
 							ORDER BY p.ProviderId DESC
 			) ps
 			OUTER APPLY (
-					SELECT TOP 1 r.Result, r.ResultStatusID
+					SELECT TOP 1 r.Result, r.ResultStatusID, r.IsDeadHeat
 					FROM ResultDetailOutright r WITH (NOLOCK)
 					WHERE r.Orid = o.orid
 						AND r.Leagueid = @LeagueID
-						AND (r.ResultStatusID = 3  OR r.ResultStatusID = 5) -- Trader Confirmed
+						AND r.ResultStatusID IN (3,5)-- Trader Confirmed
 			) r
 	WHERE	o.leagueID = @LeagueID 	
 			AND 1 = CASE WHEN @StatusID = 0 THEN 1

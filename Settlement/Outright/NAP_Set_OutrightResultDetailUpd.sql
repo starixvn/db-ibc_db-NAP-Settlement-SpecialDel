@@ -15,6 +15,7 @@ AS
     
     Revisions:
 		-20250923@Hughie: Apply SOP for Outright Phase 2 [Readmine:#233004]
+		-20251022@Hughie: Enhance SOP Outright Phase 3 [Readmine:#241793]
 
 	Param's Explanation:
 		@SelectedResources: <Resources>
@@ -29,6 +30,8 @@ BEGIN
 									Orid INT
 									,Teamid	INT
 									,Result	VARCHAR(10)
+                                    ,IsDeadHeat BIT
+									,ResultStatusId INT
 								)
 
 	DECLARE @xmlResults XML
@@ -36,11 +39,13 @@ BEGIN
 	SET @xmlResults = CAST(@SelectedResources AS XML)
 	
 
-	INSERT INTO @tmpAllResult(Orid, Teamid, Result)
+	INSERT INTO @tmpAllResult(Orid, Teamid, Result, IsDeadHeat, ResultStatusId)
 	SELECT 
 			    T.c.value('@Orid', 'INT') as Orid
 			    ,T.c.value('@Teamid', 'INT') as Teamid
 			    ,T.c.value('@Result', 'VARCHAR(10)') as Result
+                ,T.c.value('@IsDeadHeat', 'BIT') as IsDeadHeat
+				,T.c.value('@ResultStatusId', 'INT') as ResultStatusId
 	        FROM @xmlResults.nodes('Resources/Resource') T(c)
 
 	BEGIN TRY				
@@ -57,18 +62,19 @@ BEGIN
 
 	MERGE dbo.ResultDetailOutright TARGET
 	USING (
-			SELECT  r.orid, r.Teamid, r.Result
+			SELECT  r.orid, r.Teamid, r.Result, r.IsDeadHeat, r.ResultStatusId
 			FROM    @tmpAllResult r
 		) AS SOURCE ON TARGET.Orid = SOURCE.Orid AND TARGET.leagueid = @leagueid						
-	WHEN MATCHED AND ResultStatusID NOT IN ( 2, 5 ) AND SettlementStatusID = 0 THEN 
+	WHEN MATCHED AND TARGET.ResultStatusId NOT IN ( 2, 5 ) AND TARGET.SettlementStatusID = 0 THEN 
 			UPDATE SET Result = SOURCE.Result
-						,ResultStatusId	= 3
+						,ResultStatusId	= SOURCE.ResultStatusId
+                        ,IsDeadHeat = SOURCE.IsDeadHeat
 						,ModifiedDate = GETDATE()
 						,ModifiedBy   = @UserId
 						,RepUpdateTime = dbo.f_GetDateTime2()
 	WHEN NOT MATCHED BY TARGET THEN
-		INSERT (Orid, Leagueid, Teamid, Result, ResultStatusID, SettlementStatusID, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate, RepUpdateTime)               
-		VALUES (SOURCE.Orid, @Leagueid, SOURCE.Teamid, SOURCE.Result, 3, 0, @UserId, GETDATE(), @UserId, GETDATE(), dbo.f_GetDateTime2());
+		INSERT (Orid, Leagueid, Teamid, Result, ResultStatusID, SettlementStatusID, IsDeadHeat ,CreatedBy, CreatedDate, ModifiedBy, ModifiedDate, RepUpdateTime)               
+		VALUES (SOURCE.Orid, @Leagueid, SOURCE.Teamid, SOURCE.Result,SOURCE.ResultStatusId, 0, SOURCE.IsDeadHeat, @UserId, GETDATE(), @UserId, GETDATE(), dbo.f_GetDateTime2());
 
 	END TRY
 
