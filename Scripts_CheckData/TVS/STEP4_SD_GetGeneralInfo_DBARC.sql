@@ -21,103 +21,78 @@ transid bigint
 
 )
 
+CREATE TABLE #VoidReasonPattern (
+    Reason NVARCHAR(50),
+	Pattern NVARCHAR(255)
+);
+INSERT INTO #VoidReasonPattern (Reason, Pattern)
+		  SELECT 'Danger Accepted'			, '%Due to%bets erroneously accepted%danger play%considered VOID%'
+UNION ALL SELECT 'Danger Accepted'			, '%Due to%match has been completed%considered VOID%'
+UNION ALL SELECT 'Danger Accepted'			, '%Due to%goal% has been completed%considered VOID%'
+UNION ALL SELECT 'Danger Accepted'			, '%Due to%Booking% has been completed%considered VOID%'
+UNION ALL SELECT 'Danger Accepted'			, '%Due to%corner% has been completed%considered VOID%'
+UNION ALL SELECT 'Danger Accepted'			, '%Due to%the first penalty kick had been taken%considered VOID%'
+UNION ALL SELECT 'Danger Accepted'			, '%Due to%a goal was scored from a penalty awarded%%considered VOID%'
+UNION ALL SELECT 'Danger Accepted'			, '%Due to%an official decision to award%considered VOID%'
+UNION ALL SELECT 'Danger Accepted'			, '%Due to%1st Half has been completed%considered VOID%'
+UNION ALL SELECT 'Danger Accepted'			, '%Due to%wrong market offered caused by penalty retaken%considered VOID%'
+UNION ALL SELECT 'Danger Accepted'			, '%Due to%the penalty shootout had been started in the match between%considered VOID%'
+UNION ALL SELECT 'Danger Accepted'			, '%Due to%penalty kick had been taken%considered VOID%'
+UNION ALL SELECT 'Wrong Odds'				, '%Due to%wrong odds displayed%considered VOID%'
+UNION ALL SELECT 'Wrong Score'				, '%Due to%wrong score displayed%considered VOID%' 
+UNION ALL SELECT 'Wrong Score'				, '%Due to%an official decision to cancel%considered VOID%'
+UNION ALL SELECT 'Wrong HDP'				, '%Due to%wrong HDP displayed%considered VOID%'
+UNION ALL SELECT 'Wrong 1st HDP'			, '%Due to%wrong%HDP displayed%considered VOID%'
+UNION ALL SELECT 'Wrong OU'					, '%Due to%wrong OU displayed%considered VOID%' 
+UNION ALL SELECT 'Wrong 1st OU'				, '%Due to%wrong%OU displayed%considered VOID%' 
+UNION ALL SELECT 'Red card'					, '%Due to%wrong market offered caused by no indication%considered VOID%'
+UNION ALL SELECT 'Red card'					, '%Due to%wrong market offered caused by wrong indication%considered VOID%'
+UNION ALL SELECT 'Red card'					, '%Due to%red card being awarded to%considered VOID%'
+UNION ALL SELECT 'Red card'					, '%Due to%wrong odds offered on replacement of%considered VOID%' 
+UNION ALL SELECT 'Red card'					, '%Due to%an official decision to cancel%team%after reviewing VAR for the match between%considered VOID%'
+UNION ALL SELECT 'Early Kick Off'			, '%Due to%early%considered VOID%'
+UNION ALL SELECT 'Wrong Kick Off Time'		, '%Due to%wrong%time displayed%considered VOID%'
+UNION ALL SELECT 'Wrong Offered Name'		, '%Due to%wrong team name displayed%considered VOID%' 
+UNION ALL SELECT 'Wrong Offered Name'		, '%Due to%wrong league name displayed%considered VOID%'
+UNION ALL SELECT 'Technical Error'			, '%Due to%technical error%VOID%' 
+UNION ALL SELECT 'Second Team Batting'		, '%Following a review of the match between%considered VOID%' --Technical Error
+UNION ALL SELECT 'Abandoned'				, '%Due to%abandoned%considered VOID%'								
+UNION ALL SELECT 'Reduced Over'				, '%Due to%scheduled overs being reduced%considered VOID%'			
+UNION ALL SELECT 'Not Participate'			, '%Due to%Player%did not participate%considered VOID%'				
+UNION ALL SELECT 'Wrong Market Offered'		, '%Due to%wrong market offered%match%considered VOID%'				
+UNION ALL SELECT 'Match Completed'			, '%Due to%Wicket%has been completed%considered VOID%'				
+UNION ALL SELECT 'Match Early Completed'	, '%The match between%has been completed earlier%considered VOID%'	
+UNION ALL SELECT 'Wrong Team Name'			, '%Due to%wrong%team name displayed%considered VOID%'				
+UNION ALL SELECT 'Abnormal Bet'				, '%Due to%abnormal bets%VOID%'		
+UNION ALL SELECT 'Game Crashed Void Live'	, '%Due to%technical%issue caused by disruption%considered VOID%' --SubType
+UNION ALL SELECT 'Should Not Offer'			, '%Due to%should not offer%market for the match%considered VOID%' --SubType								
+UNION ALL SELECT 'Restart'					, '%Due to%Map%has been restart%considered VOID%' --SubType
+
+
 /*Range archive*/																							
 INSERT INTO #message_tmp (messageID, reason, transid, MessageContent)																									
-SELECT   MessageId																									
-		, CASE 
-			WHEN Content_en LIKE '%Due to%bets erroneously accepted%danger play%'
-			  OR Content_en LIKE '%Due to%match has been completed%considered VOID%'
-			  OR Content_en LIKE '%Due to%goal% has been completed%considered VOID%'
-			  OR Content_en LIKE '%Due to%Booking% has been completed%considered VOID%'
-			  OR Content_en LIKE '%Due to%corner% has been completed%considered VOID%'
-			  OR Content_en LIKE '%Due to%the first penalty kick had been taken%considered VOID%'
-			  OR Content_en LIKE '%Due to%a goal was scored from a penalty awarded%%considered VOID%'
-			  OR Content_en LIKE '%Due to%an official decision to award%considered VOID%'
-			  OR Content_en LIKE '%Due to%1st Half has been completed%considered VOID%'
-			  OR Content_en LIKE '%Due to%wrong market offered caused by penalty retaken%considered VOID%'
-			THEN 'Danger Accepted'
-			WHEN Content_en LIKE '%Due to%wrong odds displayed%considered VOID%' THEN 'Wrong Odds'
-			WHEN Content_en LIKE '%Due to%wrong score displayed%considered VOID%' 
-			  OR Content_en LIKE '%Due to%an official decision to cancel%considered VOID%'
-			THEN 'Wrong Score'
-			WHEN Content_en LIKE '%Due to%wrong HDP displayed%considered VOID%' THEN 'Wrong HDP'
-			WHEN Content_en LIKE '%Due to%wrong%HDP displayed%considered VOID%' THEN 'Wrong 1st HDP'
-			WHEN Content_en LIKE '%Due to%wrong OU displayed%considered VOID%' THEN 'Wrong OU'
-			WHEN Content_en LIKE '%Due to%wrong%OU displayed%considered VOID%' THEN 'Wrong 1st OU'
-			WHEN Content_en LIKE '%Due to%early%considered VOID%' THEN 'Early Kick Off'
-			WHEN Content_en LIKE '%Due to%wrong%time displayed%considered VOID%' THEN 'Wrong Kick Off Time'
-			WHEN Content_en LIKE '%Due to%wrong market offered caused by no indication%considered VOID%'
-				OR Content_en LIKE '%Due to%wrong market offered caused by wrong indication%considered VOID%'
-				OR Content_en LIKE '%Due to%red card being awarded to%considered VOID%'
-				OR Content_en LIKE '%Due to%wrong odds offered on replacement of%considered VOID%' 
-				OR Content_en LIKE '%Due to%an official decision to cancel%team%after reviewing VAR for the match between%considered VOID%'
-				THEN 'Red card'
-			WHEN Content_en LIKE '%Due to%abandoned%considered VOID%' THEN 'Abandoned'
-			WHEN Content_en LIKE '%Due to%scheduled overs being reduced%considered VOID%' THEN 'Reduced Over'
-			WHEN Content_en LIKE '%Due to%Player%did not participate%considered VOID%' THEN 'Not Participate'
-			WHEN Content_en LIKE '%Due to%wrong market offered%match%considered VOID%' THEN 'Wrong Market Offered'
-			WHEN Content_en LIKE '%Due to%Wicket%has been completed%considered VOID%' THEN 'Match Completed'
-			WHEN Content_en LIKE '%Due to%wrong%team name displayed%considered VOID'THEN 'Wrong Team Name'
-			WHEN Content_en LIKE '%Due to%technical error%VOID%' THEN 'Technical Error'
-			WHEN Content_en LIKE '%Due to%technical issue caused by disruption%considered VOID%' THEN 'Game Crashed Void Live' -- Subtype
-			WHEN Content_en LIKE '%Due to%abnormal bets%VOID%' THEN 'Abnormal Bet'
-			ELSE 'Other Issues'
-		END as Reason																						
+SELECT   ms.MessageId																									
+		, COALESCE(v.Reason, 'Other Issues') AS Reason																		
 		, t.transid		
 		, ms.Content_en
 FROM DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] ms WITH (NOLOCK)
 	CROSS APPLY (SELECT DISTINCT BetTransId																								
-			FROM DBMSG.bodb_Message_Archive.[dbo].[MsgTarget_Archive] mt1 with (nolock)																						
+			FROM DBMSG.bodb_Message_Archive.[dbo].[MsgTarget_Archive] mt1 WITH (NOLOCK)																				
 			WHERE mt1.MessageId= ms.MessageId																						
 				AND mt1.isDeleted = 0																					
 				AND mt1.BettransId <> ''																					
 			) mt	
-	CROSS APPLY (select ltrim(rtrim(value)) as transid 
-				from STRING_SPLIT(mt.BetTransId,',')
-		) as t																								
+	CROSS APPLY (SELECT LTRIM(RTRIM(value)) AS transid FROM STRING_SPLIT(mt.BetTransId,',')) AS t
+	LEFT JOIN #VoidReasonPattern v ON ms.Content_en LIKE v.Pattern
 WHERE ms.CreateTime >= @from AND ms.CreateTime < @to																									
 	AND ms.IsTest = 0	
 	AND Content_en LIKE '%Due to%VOID%'
 
 /*Range active*/																							
 INSERT INTO #message_tmp (messageID, reason, transid, MessageContent)																									
-SELECT   MessageId																									
-	, CASE 
-			WHEN Content_en LIKE '%Due to%bets erroneously accepted%danger play%'
-			  OR Content_en LIKE '%Due to%match has been completed%considered VOID%'
-			  OR Content_en LIKE '%Due to%goal% has been completed%considered VOID%'
-			  OR Content_en LIKE '%Due to%Booking% has been completed%considered VOID%'
-			  OR Content_en LIKE '%Due to%corner% has been completed%considered VOID%'
-			  OR Content_en LIKE '%Due to%the first penalty kick had been taken%considered VOID%'
-			  OR Content_en LIKE '%Due to%a goal was scored from a penalty awarded%%considered VOID%'
-			  OR Content_en LIKE '%Due to%an official decision to award%considered VOID%'
-			  OR Content_en LIKE '%Due to%1st Half has been completed%considered VOID%' THEN 'Danger Accepted'
-			WHEN Content_en LIKE '%Due to%wrong odds displayed%considered VOID%' THEN 'Wrong Odds'
-			WHEN Content_en LIKE '%Due to%wrong score displayed%considered VOID%' 
-			  OR Content_en LIKE '%Due to%an official decision to cancel%considered VOID%' THEN 'Wrong Score'
-			WHEN Content_en LIKE '%Due to%wrong HDP displayed%considered VOID%' THEN 'Wrong HDP'
-			WHEN Content_en LIKE '%Due to%wrong%HDP displayed%considered VOID%' THEN 'Wrong 1st HDP'
-			WHEN Content_en LIKE '%Due to%wrong OU displayed%considered VOID%' THEN 'Wrong OU'
-			WHEN Content_en LIKE '%Due to%wrong%OU displayed%considered VOID%' THEN 'Wrong 1st OU'
-			WHEN Content_en LIKE '%Due to%early%considered VOID%' THEN 'Early Kick Off'
-			WHEN Content_en LIKE '%Due to%wrong%time displayed%considered VOID%' THEN 'Wrong Kick Off Time'
-			WHEN Content_en LIKE '%Due to%wrong market offered caused by%considered VOID%'
-			  OR Content_en LIKE '%Due to%red card being awarded to%considered VOID%'
-			  OR Content_en LIKE '%Due to%wrong odds offered on replacement of%considered VOID%' 
-			  OR Content_en LIKE '%Due to%an official decision to cancel%team%after reviewing VAR for the match between%considered VOID%' THEN 'Red card'
-			WHEN Content_en LIKE '%Due to%abandoned%considered VOID%' THEN 'Abandoned'
-			WHEN Content_en LIKE '%Due to%scheduled overs being reduced%considered VOID%' THEN 'Reduced Over'
-			WHEN Content_en LIKE '%Due to%Player%did not participate%considered VOID%' THEN 'Not Participate'
-			
-			WHEN Content_en LIKE '%Due to%wrong market offered%match%considered VOID%' THEN 'Wrong Market Offered'
-			WHEN Content_en LIKE '%Due to%Wicket%has been completed%considered VOID%' THEN 'Match Completed'
-			WHEN Content_en LIKE '%Due to%wrong%team name displayed%considered VOID'THEN 'Wrong Team Name'
-			WHEN Content_en LIKE '%Due to%technical error%VOID%' THEN 'Technical Error'
-			WHEN Content_en LIKE '%Due to%technical issue caused by disruption%considered VOID%' THEN 'Game Crashed Void Live' -- Subtype
-			WHEN Content_en LIKE '%Due to%abnormal bets%VOID%' THEN 'Abnormal Bet'
-			ELSE 'Other Issues'
-		END as Reason						
-		, t.transid	
+SELECT   ms.MessageId																									
+		, COALESCE(v.Reason, 'Other Issues') AS Reason																		
+		, t.transid		
 		, ms.Content_en
 FROM DBMSG.bodb_Message.dbo.[Msg] ms WITH (NOLOCK)	
 	CROSS APPLY (SELECT DISTINCT BetTransId																								
@@ -126,9 +101,8 @@ FROM DBMSG.bodb_Message.dbo.[Msg] ms WITH (NOLOCK)
 				AND mt1.isDeleted = 0																					
 				AND mt1.BettransId <> ''																					
 			) mt
-	CROSS APPLY (select ltrim(rtrim(value)) as transid 
-				from STRING_SPLIT(mt.BetTransId,',')
-		) as t																								
+	CROSS APPLY (SELECT LTRIM(RTRIM(value)) AS transid FROM STRING_SPLIT(mt.BetTransId,',')) AS t
+	LEFT JOIN #VoidReasonPattern v ON ms.Content_en LIKE v.Pattern
 WHERE ms.CreateTime >= @from AND ms.CreateTime < @to																									
 	AND ms.IsTest = 0																								
 	AND Content_en LIKE '%Due to%VOID%'	
@@ -231,7 +205,7 @@ FROM #temp_transid ms WITH (NOLOCK)
 	AND bk.statusID = 102	
 	AND bk.winlostdate between  @from AND @to
 GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
-ORDER BY winlostdate
+ORDER BY winlostdate ASC 
 
 SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' END IsMonthly																									
 	, 'SD' AS 'TVS/SD?', bk.winlostdate
@@ -257,7 +231,7 @@ FROM #temp_transid ms WITH (NOLOCK)
 	AND bk.statusID = 102
 	AND bk.winlostdate between  @from AND @to
 GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
-ORDER BY winlostdate	
+ORDER BY winlostdate ASC	
 
 
 SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' END IsMonthly																								
@@ -284,8 +258,9 @@ FROM #temp_transid ms WITH (NOLOCK)
 	AND bk.statusID = 102		
 	AND bk.winlostdate between  @from AND @to
 GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
-ORDER BY winlostdate																									
+ORDER BY winlostdate ASC																									
 
 
 DROP TABLE #message_tmp
 DROP TABLE #temp_transid
+DROP TABLE #VoidReasonPattern
