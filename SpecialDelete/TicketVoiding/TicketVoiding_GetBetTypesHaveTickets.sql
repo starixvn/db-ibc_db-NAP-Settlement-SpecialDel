@@ -80,7 +80,8 @@ BEGIN
 	-- bettrans
     INSERT INTO #TmpBettype(bettype, transdesc)
 	SELECT bettype,
-		   CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid')
+		   CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+		        WHEN b.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(b.transdesc, '$.p[0].pid')-- Bettype Most of basketball
 			    ELSE b.transdesc END AS Transdesc
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
@@ -98,7 +99,8 @@ BEGIN
     -- bettransm
     INSERT INTO #TmpBettype(bettype, transdesc)
     SELECT bm.bettype,
-		   CASE WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.transdesc,'$.pid')
+		   CASE WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+		        WHEN bm.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(bm.transdesc, '$.p[0].pid')-- Bettype Most of basketball
 			    ELSE bm.transdesc END AS Transdesc
     FROM dbo.bettransm bm WITH(NOLOCK)
 		INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId

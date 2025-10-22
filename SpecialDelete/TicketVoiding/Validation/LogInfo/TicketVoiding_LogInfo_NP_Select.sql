@@ -363,13 +363,16 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
-		,CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid')
+		,CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+			  WHEN b.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(b.transdesc, '$.p[0].pid')-- Bettype Most of basketball
 			  ELSE b.transdesc END AS FilterTransdesc
 		,b.bettype AS FilterBettype
 		,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
 		,ISNULL(tb.ParentId,b.bettype) AS GroupDisplay
 		,b.bettype AS GroupBettype
-		,b.transdesc AS GroupTransdesc
+		,CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+			  WHEN b.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(b.transdesc, '$.p[0].pid')-- Bettype Most of basketball
+			  ELSE b.transdesc END AS GroupTransdesc
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN @tmpMatchId m ON m.MatchId = b.matchid
 		INNER JOIN @bettype_tmp d ON b.bettype = d.bettype
@@ -526,13 +529,16 @@ BEGIN
 			,sub.transdesc SubTransdesc  
 			,b.modds
 			,sub.SiteDBGroupID
-			,CASE WHEN (sub.bettype BETWEEN 653 AND 688) AND (sub.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(sub.transdesc,'$.pid')
-			      ELSE sub.transdesc END AS FilterTransdesc
+			,CASE WHEN (sub.bettype BETWEEN 653 AND 688) AND (sub.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(sub.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+				  WHEN sub.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(sub.transdesc, '$.p[0].pid')-- Bettype Most of basketball
+				  ELSE sub.transdesc END AS FilterTransdesc
 			,sub.bettype AS FilterBettype
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
 			,ISNULL(tb.ParentId, sub.bettype) AS GroupDisplay
 			,sub.bettype AS GroupBettype
-			,sub.transdesc AS GroupTransdesc
+			,CASE WHEN (sub.bettype BETWEEN 653 AND 688) AND (sub.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(sub.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+				  WHEN sub.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(sub.transdesc, '$.p[0].pid')-- Bettype Most of basketball
+				  ELSE sub.transdesc END AS GroupTransdesc
 		FROM @tmpMatchId d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -827,14 +833,24 @@ BEGIN
 		BEGIN
 			;WITH cte AS
 			(
-				SELECT s.transid, s.requestid, b.transdesc AS PlayerId, s.Bettype
+				SELECT s.transid
+					  ,s.requestid
+					  ,CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+							WHEN b.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(b.transdesc, '$.p[0].pid')-- Bettype Most of basketball
+							ELSE b.transdesc END AS PlayerId
+					  ,s.Bettype
 				FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK)
 				INNER JOIN bettrans AS b WITH (NOLOCK) ON b.transid = s.transid
 				WHERE s.RequestId = @RequestId
 
 				UNION ALL 
 
-				SELECT sub.transid, sub.requestid, bm.transdesc AS PlayerId, bm.bettype
+				SELECT sub.transid
+					  ,sub.requestid
+					  ,CASE WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+							WHEN bm.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(bm.transdesc, '$.p[0].pid')-- Bettype Most of basketball
+							ELSE bm.transdesc END AS PlayerId
+					  ,bm.bettype
 				FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS sub WITH (NOLOCK)
 				INNER JOIN bettransm AS bm WITH (NOLOCK) ON bm.transid = sub.TransId
 				INNER JOIN bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno 
