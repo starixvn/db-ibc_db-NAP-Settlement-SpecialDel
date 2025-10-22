@@ -23,6 +23,7 @@ AS
 		- 20250709@Max: Auto Payout 2- Support Template with FT only for Golf [Redmine: #231388]
 		- 20250826@Louisa: Enhance code [Redmine: #237088]
 		- 20250904@Helen: Enhance code [Redmine: #237289]
+		- 20251022@Louisa: temporary exclude bettype most and performnace of Basketball [Redmine: #242394]
 
 */
 BEGIN
@@ -563,6 +564,16 @@ BEGIN
 	WHERE s.ResourceStatus != 0
 		AND (ssp.pfID IS NOT NULL OR cte.ResourceType = 1)
 	
+	DELETE FROM #MatchResourceConfirmDate
+	WHERE ResourceId LIKE	'680__'	
+		OR ResourceId LIKE 	'681__'
+		OR ResourceId LIKE 	'682__'
+		OR ResourceId LIKE 	'683__'
+		OR ResourceId LIKE 	'684__'
+		OR ResourceId LIKE	'675____'
+		OR ResourceId LIKE	'676____'
+		OR ResourceId LIKE	'678____'
+
 	SELECT matchId,ResourceId,HomeValue, AwayValue
 	FROM #MatchResourceConfirmDate
 	WHERE CreatedDate IS NULL
