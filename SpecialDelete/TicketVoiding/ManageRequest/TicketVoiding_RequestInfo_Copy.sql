@@ -514,13 +514,13 @@ BEGIN
 		  PlayerName,
 		  PlayerAndOdds,
 		  TicketsCount,
-		  ROW_NUMBER() OVER (PARTITION BY b.bettypeId, b.PlayerId, b.betid ORDER BY b.bettypeId, b.PlayerId, b.betid, b.InputtedRuns) AS RowId
+		  ROW_NUMBER() OVER (PARTITION BY b.bettypeId, b.PlayerId, b.betid ORDER BY b.bettypeId ASC, b.PlayerId ASC, b.betid ASC, b.InputtedRuns ASC) AS RowId
 	FROM @BettypeCountDetail b
 	)
 	SELECT BetTypeId, b.typenamee AS OriginalBetTypeName, InputtedRuns, BetId, PlayerName, PlayerAndOdds, TicketsCount 
 	FROM CTE AS c
 	INNER JOIN bettype AS b WITH (NOLOCK) ON c.BetTypeId = b.typeid
 	WHERE RowId < 2
-	ORDER BY BetTypeId, InputtedRuns, BetId ASC;
+	ORDER BY BetTypeId ASC, InputtedRuns ASC, BetId ASC;
 
 END
