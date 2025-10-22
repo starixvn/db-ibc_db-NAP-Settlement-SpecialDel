@@ -161,6 +161,8 @@ RETURN
 							WHEN @HomeValue >= CAST(REPLACE(@betteam, '+', '') AS INT) THEN 1
 						END
 			END
+
+			WHEN @pfID IN (424, 385, 384, 16) THEN --betteam = homevalue
 			   CASE WHEN @betteam = @HomeValue THEN 1
 					ELSE -1 END
 			
