@@ -35,6 +35,7 @@ AS
 		- 20250813@Lani: [TVS] Copy Request Info - Update message template - Reduced Overs / Abandoned [Redmine: #235737]
 		- 20250825@Lani: [TVS] Copy Request Info - Update message template - Wrong HDP, 1st HDP, Wrong OU, Wrong 1st OU, Wrong Odds [Redmine: #235984]
 		- 20250910@July: [TVS] Copy Request Info - Update message template - Wrong Odds - Handicap [Redmine: #236306]
+		- 20251022@Lani: [TVS] Fix bug - can not get request info [Redmine: #239994]
 		
 
 	Param's explanation:
@@ -313,10 +314,13 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpTicketInfo WHERE Bettype IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc())) --Cricket
 		BEGIN
 			INSERT INTO @tmpBettypeCount (BetTypeId, PlayerId, TicketsCount)
-			SELECT s.BetType, s.Transdesc, COUNT(1) AS TicketsCount
+			SELECT s.BetType,
+				   CASE WHEN (s.bettype BETWEEN 653 AND 688) AND (s.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(s.transdesc,'$.pid')
+						ELSE s.Transdesc END AS PlayerId,
+				   COUNT(1) AS TicketsCount
 			FROM  @tmpTicketInfo s 
 			WHERE s.Bettype IN (SELECT bettype FROM f_TVS_BettypesUsingTransdesc() WHERE TypeId = 0)
-			GROUP BY s.BetType, s.Transdesc
+			GROUP BY s.BetType, CASE WHEN (s.bettype BETWEEN 653 AND 688) AND (s.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(s.transdesc,'$.pid') ELSE s.Transdesc END
 			
 			UPDATE b
 			SET b.PlayerName = t.teamname
@@ -510,13 +514,13 @@ BEGIN
 		  PlayerName,
 		  PlayerAndOdds,
 		  TicketsCount,
-		  ROW_NUMBER() OVER (PARTITION BY b.bettypeId, b.PlayerId, b.betid ORDER BY b.bettypeId, b.PlayerId, b.betid, b.InputtedRuns) AS RowId
+		  ROW_NUMBER() OVER (PARTITION BY b.bettypeId, b.PlayerId, b.betid ORDER BY b.bettypeId ASC, b.PlayerId ASC, b.betid ASC, b.InputtedRuns ASC) AS RowId
 	FROM @BettypeCountDetail b
 	)
 	SELECT BetTypeId, b.typenamee AS OriginalBetTypeName, InputtedRuns, BetId, PlayerName, PlayerAndOdds, TicketsCount 
 	FROM CTE AS c
 	INNER JOIN bettype AS b WITH (NOLOCK) ON c.BetTypeId = b.typeid
 	WHERE RowId < 2
-	ORDER BY BetTypeId, InputtedRuns, BetId ASC;
+	ORDER BY BetTypeId ASC, InputtedRuns ASC, BetId ASC;
 
 END
