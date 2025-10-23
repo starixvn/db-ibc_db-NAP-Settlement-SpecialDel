@@ -26,6 +26,7 @@ AS
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250321@Lani: [TVS] Enhance out of memory issue [Redmine: #217771]
 		- 20250819@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
+		- 20251013@July: Support show ticket archive matchid no input [Redmine: #238233]
 		
 	Param's explanation:	
 		
@@ -217,8 +218,6 @@ BEGIN
 			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
 						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
 						 ELSE 0 END
-			AND b.bettype NOT IN (805, 806)
-			AND b.bettype NOT BETWEEN 901 AND 920
 			AND b.betfrom <> 'P'
 	END
 	
@@ -231,7 +230,7 @@ BEGIN
 	--Remove Invalid data
 	DELETE t
 	FROM #TVSTicketBets t
-	WHERE @MatchId IS NOT NULL AND t.matchid <> @MatchId
+	WHERE ISNULL(@MatchId,0) <> 0 AND t.matchid <> @MatchId
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
