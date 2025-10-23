@@ -881,7 +881,7 @@ BEGIN
 				INNER JOIN dbo.bettype AS b WITH (NOLOCK) ON c.Bettype = b.typeid
 				INNER JOIN dbo.team AS tm WITH (NOLOCK) ON tm.teamid = TRY_CAST(c.PlayerId AS BIGINT)
 				LEFT JOIN @tmpConsolidatedBettypes AS t ON c.Bettype = t.TypeId
-			GROUP BY ISNULL(t.ParentId,c.Bettype), b.typenamee, tm.teamid, tm.teamname
+			GROUP BY ISNULL(t.ParentId,c.Bettype), b.typenamee, tm.teamid, tm.teamname, c.PlayerAndOdds
 		END	
 
 		RETURN;
