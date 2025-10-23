@@ -264,7 +264,7 @@ BEGIN
 
 						INSERT INTO @tmpTransId (TransID,modds,odds,oddsspread,statuswinlost,SettlementTime
 							,WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, Status, StatusID, ruben)
-						SELECT *
+						SELECT t, m, o, os, statuswl, st, w, aw, mw, sw, pc, c, ac, sc, s, sid, r
 						FROM OPENJSON(@Decompress_TransInfoJson)
 							WITH (
 							t   BIGINT
@@ -338,7 +338,7 @@ BEGIN
 								, hdp1 , hdp2 , livehomescore , liveawayscore , creator, betid, ExtraInfo		
 								,virtualrate	 
 							)
-							SELECT *
+							SELECT t, mid, wld, bdaq, m, o, oid, os, statuswl, st, w, aw, mw, sw, pc, c, ac, sc, s, sid, r, rut, hdp1, hdp2, lh, la, cr, bid, ex, v
 							FROM OPENJSON(@Decompress_TransInfoJson)
 								WITH (
 								t   BIGINT
@@ -475,7 +475,7 @@ BEGIN
 							,winlostdate, statuswinlost, refno, WinLost
 							, Status, StatusID, ruben, hdp1, hdp2, livehomescore, liveawayscore, Creator, odds
 						)
-						SELECT *
+						SELECT t, mid, wld, statuswl, ref, w, s, sid, r, hdp1, hdp2, lh, la, cr, o
 							FROM OPENJSON(@Decompress_TransInfoJson)
 								WITH (
 								t   BIGINT
@@ -585,7 +585,7 @@ BEGIN
 						SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 						INSERT INTO @tmpTransId (TransID, matchid, winlostdate, statuswinlost, StatusID, odds)
-						SELECT *
+						SELECT t, mid, wld, statuswl, sid, o
 							FROM OPENJSON(@Decompress_TransInfoJson)
 								WITH (
 								t   BIGINT
@@ -644,7 +644,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType)
-							SELECT *
+							SELECT t, mid, cust, btype, us, crdate, mt
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -687,7 +687,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid)
-							SELECT *
+							SELECT t, mid
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -713,7 +713,7 @@ BEGIN
 						SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 						INSERT INTO @tmpTransId (TransID ,matchid, MainMatchId)
-						SELECT *
+						SELECT t, mid, m_mid
 							FROM OPENJSON(@Decompress_TransInfoJson)
 								WITH (
 								t   BIGINT
@@ -739,7 +739,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid, Status, WinLost)
-							SELECT *
+							SELECT t, mid, s, w
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -779,7 +779,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid, transdate, comstatus)
-							SELECT *
+							SELECT t, mid, td, cst
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -815,7 +815,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid)
-							SELECT *
+							SELECT t, mid
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -849,7 +849,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid)
-							SELECT *
+							SELECT t, mid
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -917,7 +917,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid, MainMatchId)
-							SELECT *
+							SELECT t, mid, m_mid
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
