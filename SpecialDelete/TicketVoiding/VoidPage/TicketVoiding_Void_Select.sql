@@ -347,7 +347,7 @@ BEGIN
 		END
 		
 	END
-	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7, 2, 19, 21, 23, 12, 24, 25, 18, 27) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU, WrongOdds, ReducedOver, Not Participate, Abandoned
+	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7, 2, 19, 21, 23, 12, 24, 25, 18, 27, 28) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU, WrongOdds, ReducedOver, Not Participate, Abandoned, Technical Error, Second Team Batting, Wrong Market Offered, Match Early Completed
 	BEGIN
 		INSERT INTO #TVSTicketBets(
 				GroupID			
