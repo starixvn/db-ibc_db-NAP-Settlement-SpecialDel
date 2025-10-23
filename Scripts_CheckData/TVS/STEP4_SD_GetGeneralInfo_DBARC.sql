@@ -38,7 +38,7 @@ UNION ALL SELECT 'Danger Accepted'			, '%Due to%1st Half has been completed%cons
 UNION ALL SELECT 'Danger Accepted'			, '%Due to%wrong market offered caused by penalty retaken%VOID%'
 UNION ALL SELECT 'Danger Accepted'			, '%Due to%the penalty shootout had been started in the match between%VOID%'
 UNION ALL SELECT 'Danger Accepted'			, '%Due to%penalty kick had been taken%VOID%'
-UNION ALL SELECT 'Wrong Odds'				, '%Due to%wrong%odds displayed%VOID%'
+UNION ALL SELECT 'Wrong Odds'				, '%Due to%wrong%odds%VOID%'
 UNION ALL SELECT 'Wrong Score'				, '%Due to%wrong score displayed%VOID%' 
 UNION ALL SELECT 'Wrong Score'				, '%Due to%an official decision to cancel%considered%VOID%'
 UNION ALL SELECT 'Wrong HDP'				, '%Due to%wrong HDP displayed%considered%VOID%'
@@ -57,14 +57,14 @@ UNION ALL SELECT 'Wrong Offered Name'		, '%Due to%wrong league name displayed%co
 UNION ALL SELECT 'Technical Error'			, '%Due to%technical error%VOID%' 
 UNION ALL SELECT 'Second Team Batting'		, '%Following a review of the match between%considered%VOID%'
 UNION ALL SELECT 'Abandoned'				, '%Due to%abandoned%considered%VOID%'								
-UNION ALL SELECT 'Reduced Over'				, '%Due to%scheduled overs being reduced%considered%VOID%'			
+UNION ALL SELECT 'Reduced Over'				, '%Due to%number of scheduled%being reduced%considered%VOID%'			
 UNION ALL SELECT 'Not Participate'			, '%Due to%Player%did not participate%VOID%'				
 UNION ALL SELECT 'Wrong Market Offered'		, '%Due to%wrong%market offered%match%considered%VOID%'				
 UNION ALL SELECT 'Match Completed'			, '%Due to%Wicket%has been completed%considered%VOID%'				
 UNION ALL SELECT 'Match Early Completed'	, '%The match between%has been completed earlier%considered%VOID%'	
 UNION ALL SELECT 'Wrong Team Name'			, '%Due to%wrong%team name displayed%considered%VOID%'				
 UNION ALL SELECT 'Abnormal Bet'				, '%Due to%abnormal bet%VOID%'		
-UNION ALL SELECT 'Game Crashed Void Live'	, '%Due to%technical%issue caused by disruption%considered%VOID%' --SubType
+UNION ALL SELECT 'Game Crashed Void Live'	, '%Due to%technical%issue%considered%VOID%' --SubType
 UNION ALL SELECT 'Should Not Offer'			, '%Due to%should not offer%match%considered%VOID%' --SubType				
 UNION ALL SELECT 'Restart'					, '%Due to%Map%has been restart%considered%VOID%' --SubType
 
