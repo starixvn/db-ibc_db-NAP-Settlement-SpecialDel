@@ -875,7 +875,7 @@ BEGIN
 				 , tm.teamid AS PlayerId
 				 , b.typenamee AS OriginalBetTypeName
 				 , NULL AS BetId
-				 , c.PlayerAndOdds AS PlayerAndOdds --Support group bettype Most 680 
+				 , c.PlayerAndOdds AS PlayerAndOdds --Support group bettype Most 680->684 
 				 , COUNT(1) AS TicketsCount
 			FROM cte AS c
 				INNER JOIN dbo.bettype AS b WITH (NOLOCK) ON c.Bettype = b.typeid
