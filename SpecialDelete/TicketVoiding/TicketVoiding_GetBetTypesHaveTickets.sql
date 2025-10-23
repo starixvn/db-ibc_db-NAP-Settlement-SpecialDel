@@ -80,12 +80,20 @@ BEGIN
 	-- bettrans
     INSERT INTO #TmpBettype(bettype, transdesc)
 	SELECT bettype,
-		   CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
-		        WHEN b.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(b.transdesc, '$.p[0].pid')-- Bettype Most of basketball
-			    ELSE b.transdesc END AS Transdesc
-	FROM dbo.bettrans b WITH(NOLOCK)
-		INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
-		LEFT JOIN @tmpTimeRange t ON b.matchid = t.MatchId
+		   COALESCE(j1.PlayerId,j2.PlayerId,b.Transdesc) AS Transdesc
+	FROM dbo.bettrans AS b WITH(NOLOCK)
+		INNER JOIN @tmpMatchId AS m ON b.matchid = m.MatchId
+		LEFT JOIN @tmpTimeRange AS t ON b.matchid = t.MatchId
+		OUTER APPLY 
+		(
+			SELECT JSON_VALUE(b.transdesc,N'$.pid') AS PlayerId
+			WHERE (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684)
+		) AS j1
+		OUTER APPLY 
+		(
+			SELECT JSON_VALUE(b.transdesc,N'$.p[0].pid') AS PlayerId
+			WHERE b.bettype BETWEEN 680 AND 684
+		) AS j2
 	WHERE 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
 				   WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
 				   ELSE 0 END
@@ -94,17 +102,25 @@ BEGIN
 		AND 1 = CASE WHEN t.FromDate IS NULL AND t.ToDate IS NULL THEN 1 
 		             WHEN b.transdate BETWEEN t.FromDate AND t.ToDate THEN 1
 					 ELSE 0 END
-	GROUP BY bettype, transdesc
+	GROUP BY b.bettype, COALESCE(j1.PlayerId,j2.PlayerId,b.Transdesc)
 
     -- bettransm
     INSERT INTO #TmpBettype(bettype, transdesc)
     SELECT bm.bettype,
-		   CASE WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
-		        WHEN bm.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(bm.transdesc, '$.p[0].pid')-- Bettype Most of basketball
-			    ELSE bm.transdesc END AS Transdesc
+		   COALESCE(j1.PlayerId,j2.PlayerId,bm.Transdesc) AS Transdesc
     FROM dbo.bettransm bm WITH(NOLOCK)
 		INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId
 		LEFT JOIN @tmpTimeRange t ON bm.matchid = t.MatchId
+		OUTER APPLY 
+		(
+			SELECT JSON_VALUE(bm.transdesc,N'$.pid') AS PlayerId
+			WHERE (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684)
+		) AS j1
+		OUTER APPLY 
+		(
+			SELECT JSON_VALUE(bm.transdesc,N'$.p[0].pid') AS PlayerId
+			WHERE bm.bettype BETWEEN 680 AND 684
+		) AS j2
    WHERE 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
 				  WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
 				  ELSE 0 END
@@ -113,7 +129,7 @@ BEGIN
 					 ELSE 0 END
 		AND NOT EXISTS(SELECT TOP 1 1
 					   FROM #TmpBettype tb WHERE bm.bettype = tb.bettype)
-    GROUP BY bm.bettype, bm.transdesc
+    GROUP BY bm.bettype, COALESCE(j1.PlayerId,j2.PlayerId,bm.Transdesc)
 
 	IF EXISTS( SELECT TOP 1 1 FROM @tmpTimeRange)--New issuetype WMO, Technical Error, WrongOdds SB
 	BEGIN
