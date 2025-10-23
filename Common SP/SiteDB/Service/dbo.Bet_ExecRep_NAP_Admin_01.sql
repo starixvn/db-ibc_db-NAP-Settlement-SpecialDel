@@ -501,7 +501,7 @@ BEGIN
 					BEGIN
 						INSERT INTO @tmpTransId (TransID, matchid
 							,winlostdate, statuswinlost, refno, WinLost
-							, Status, StatusID, ruben, hdp1, hdp2, livehomescore, liveawayscore, Creator
+							, Status, StatusID, ruben, hdp1, hdp2, livehomescore, liveawayscore, Creator, odds
 						)
 						SELECT	T.C.value('./@t', 'bigint') AS transid
 								,T.C.value('./@mid', 'INT') AS matchid
@@ -517,6 +517,7 @@ BEGIN
 								,T.C.value('./@lh', 'SMALLINT') AS livehomescore
 								,T.C.value('./@la', 'SMALLINT') AS liveawayscore	
 								,T.C.value('./@cr', 'INT') AS Creator
+								,T.C.value('./@o', 'SMALLMONEY') AS odds
 						FROM	@TransInfo.nodes('/root/r') AS T(C)
 						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
 
@@ -598,7 +599,7 @@ BEGIN
 					ELSE -- @TransInfo IS NOT NULL (xml format)
 					BEGIN
 						INSERT INTO @tmpTransId (TransID, matchid
-							,winlostdate, statuswinlost, StatusID
+							,winlostdate, statuswinlost, StatusID, odds
 						)
 						SELECT	T.C.value('./@t', 'bigint') AS transid
 							,T.C.value('./@mid', 'INT') AS matchid
@@ -607,7 +608,8 @@ BEGIN
 									ELSE T.C.value('./@wld', 'SMALLDATETIME') 
 								END AS winlostdate
 								,T.C.value('./@statuswl', 'VARCHAR(1)')				
-								,T.C.value('./@sid', 'TINYINT') AS StatusID									
+								,T.C.value('./@sid', 'TINYINT') AS StatusID		
+								,T.C.value('./@o', 'SMALLMONEY') AS odds
 						FROM	@TransInfo.nodes('/root/r') AS T(C)
 						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
 					END

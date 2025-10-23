@@ -62,6 +62,7 @@ AS
 		- 20230306@Louisa: Exclude LiveScores HDP for Field Hockey [Redmine:#184450]
 		- 20241113@Louisa: set priority of action MoveEvent higher than Settlement for WinlostDate value [Redmine:#213613]
 		- 20250703@Max: Support re-settle when recover voided sub parlay from TVS [Redmine: #227829]
+		- 20251020@Max: Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 
     Param's Explanation:
        
@@ -82,11 +83,11 @@ BEGIN
 		,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, winlostdate SMALLDATETIME)
 	
-	CREATE TABLE #tmpOutputBetParlayDetail (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)
+	CREATE TABLE #tmpOutputBetParlayDetail (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME, odds SMALLMONEY)
 	
 	DECLARE @tmpOutputBettransmVoidRecover TABLE (transid BIGINT, winlost MONEY
 		,status VARCHAR(10), statusId TINYINT, ruben TINYINT
-		,statuswinlost TINYINT, creator INT, winlostdate SMALLDATETIME)
+		,statuswinlost TINYINT, creator INT, winlostdate SMALLDATETIME, odds SMALLMONEY)
 	DECLARE @tmpTransIdsVoidRecover TABLE (transid BIGINT)
 	
 	------ process by batch for betparlaydetail
@@ -400,8 +401,8 @@ BEGIN
 				,winlostdate = CASE WHEN @matchdate < winlostdate THEN winlostdate 
 									ELSE @matchdate
 								END
-			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben, inserted.status, inserted.creator, inserted.statusID, inserted.winlostdate
-			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, creator, statusId, winlostdate)
+			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben, inserted.status, inserted.creator, inserted.statusID, inserted.winlostdate, inserted.odds
+			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, creator, statusId, winlostdate, odds)
             WHERE matchid = @matchid 
                 AND statusID NOT IN (101, 102) 
                 AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
@@ -410,8 +411,9 @@ BEGIN
             SET statuswinlost = 0
                 ,statusID = 102
                 ,winlostdate = r.winlostdate
-			OUTPUT inserted.transid, inserted.statuswinlost, inserted.statusid, inserted.winlostdate
-			INTO #tmpOutputBetParlayDetail(transid, statuswinlost, StatusId, winlostdate)
+				,odds = r.odds
+			OUTPUT inserted.transid, inserted.statuswinlost, inserted.statusid, inserted.winlostdate, inserted.odds
+			INTO #tmpOutputBetParlayDetail(transid, statuswinlost, StatusId, winlostdate, odds)
 			FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
 			INNER JOIN @tmpOutputBettransmVoidRecover r
 				ON pd.transid 	= r.transid
@@ -437,21 +439,24 @@ BEGIN
                     ,winlostdate = NULL
 			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben
 					, Inserted.Statuswinlost
-					, inserted.status, inserted.statusID, inserted.winlostdate
-			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, statuswinlost, status, statusid, winlostdate)
+					, inserted.status, inserted.statusID, inserted.winlostdate, inserted.odds
+			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, statuswinlost, status, statusid, winlostdate, odds)
             WHERE    matchid = @matchid
                     AND statusID = 102
                     AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)                
         
-            UPDATE    dbo.BetParlayDetail WITH(ROWLOCK,UPDLOCK)
+            UPDATE  pd
                 SET winlostdate = NULL
                     ,statuswinlost = NULL
                     ,statusid = 0
-			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
-			INTO #tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
+					,odds = r.odds
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid, inserted.odds
+			INTO #tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId, odds)
+			FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+				INNER JOIN @tmpOutputBettransmVoidRecover r
+				ON pd.transid 	= r.transid
             WHERE    matchid = @matchid 
-                    AND statusID = 102
-                    AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
+                    AND pd.statusID = 102
         END --@doing = 'RECOVER'
 
 		 IF @doing = 'RECOVER-RECAL'
@@ -488,8 +493,8 @@ BEGIN
 									END
 			OUTPUT inserted.transid, inserted.winlost, inserted.ruben
 					, Inserted.status
-					, inserted.statusID, inserted.creator
-			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, statusId, creator)
+					, inserted.statusID, inserted.creator, inserted.odds
+			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, statusId, creator, odds)
 			FROM dbo.bettransm bm WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN dbo.zzzbettrans z WITH (NOLOCK) ON z.transid = bm.TransId
             WHERE  bm.matchid = @matchid
@@ -500,8 +505,9 @@ BEGIN
                 SET pd.statusid = b.statusID
 					,pd.statuswinlost = b.statuswinlost
 					,pd.winlostdate = b.winlostdate
-			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
-			INTO #tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
+					,pd.odds = b.odds
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid, inserted.odds
+			INTO #tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId, odds)
 			FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
 				INNER JOIN dbo.bettransm b ON b.transid = pd.transid
             WHERE    pd.matchid = @matchid 
@@ -2382,6 +2388,7 @@ BEGIN
 								,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS 'wld'							
 								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS 'statuswl'
 								,StatusId AS 'sid'
+								,odds AS 'o'
 						FROM	#tmpOutputBetParlayDetail
 						WHERE ID BETWEEN @StartRow AND @StopRow
 						FOR JSON AUTO

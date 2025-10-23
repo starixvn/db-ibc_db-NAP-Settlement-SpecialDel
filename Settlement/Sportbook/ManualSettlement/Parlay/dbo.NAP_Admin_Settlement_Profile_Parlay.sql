@@ -56,8 +56,8 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026] 
 		- 20250829@Max: Basketball Player Prop [Redmine:#233012]
-
-		
+		- 20251020@Max: Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
+	
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
@@ -151,7 +151,7 @@ BEGIN
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	CREATE TABLE #tmpsubTransID (Id BIGINT IDENTITY(1,1),TransID BIGINT, refno BIGINT, modds SMALLMONEY, moddsSDT SMALLMONEY, IsSDT BIT DEFAULT(0), isFinish BIT, IsMarked BIT
-		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, betteam VARCHAR(10))
+		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, betteam VARCHAR(10), IsHybrid BIT)
 	CREATE TABLE #tmpRefnos (refno BIGINT)
 	----------------------------------------------------------------------------------------------------------------------
 
@@ -259,8 +259,9 @@ BEGIN
   	BEGIN
 		IF @sportType = 1 AND @Action <> 'CAL_EAR'
 		BEGIN
-			INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
+			INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsHybrid)
 			SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
+				, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 				CROSS APPLY (
 					SELECT	TOP 1 pfID, HomeValue, AwayValue
@@ -294,8 +295,9 @@ BEGIN
 			
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0)
 			BEGIN
-				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
+				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsHybrid)
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
+						, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
 						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
@@ -344,8 +346,9 @@ BEGIN
 		BEGIN
 			IF @DeterminedType = 0 AND ISNULL(@IsSDTEarly,0) = 0
 			BEGIN
-				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
+				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsHybrid)
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
+						, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
 											ELSE bm.betcheck
@@ -381,8 +384,9 @@ BEGIN
 			END
 			ELSE IF @sportType != 1 AND  ( @DeterminedType > 0 OR ISNULL(@IsSDTEarly,0) = 1)
 			BEGIN
-				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsInstHTFT, bettype, hdp1, hdp2, betteam)
+				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsInstHTFT, bettype, hdp1, hdp2, betteam, IsHybrid)
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked, sr.IsInstHTFT, bm.bettype, bm.hdp1, bm.hdp2, bm.betteam
+						, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
 						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, ISNULL(IsCalculated, 0) AS IsCalculated, MinusValue,AbandonedStatus, IsInstHTFT
@@ -437,8 +441,9 @@ BEGIN
 	END
 	ELSE IF @action LIKE 'UNDO%'
 	BEGIN
-		INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
+		INSERT INTO #tmpsubTransID (TransID, refno, IsMarked, IsHybrid)
 		SELECT	bm.transid, bm.refno , CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked 
+				, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 		FROM	dbo.bettransm bm WITH(NOLOCK)
 			CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
 											ELSE bm.betcheck
@@ -473,8 +478,9 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0 OR ISNULL(@IsSDTEarly,0)  = 1)
 		BEGIN
-			INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
+			INSERT INTO #tmpsubTransID (TransID, refno, IsMarked, IsHybrid)
 			SELECT	bm.transid, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked 
+					, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 				CROSS APPLY (
 					SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
@@ -764,20 +770,28 @@ BEGIN
 						,@strSetting
 						,@IsReSettledTickets					
 				FROM(
-					SELECT	s1.Id/@batchNo AS batchNo
-							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
-							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
-					FROM	#tmpsubTransID s1
-						LEFT JOIN #tmpMainTransId main
-							ON s1.refno = main.refno
-					WHERE	s1.IsSDT = 1
-					GROUP BY s1.id/@batchNo
-				) main
+						SELECT	batchNo AS batchNo
+								,STRING_AGG(CAST(TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+								,STRING_AGG(CASE WHEN statusId = 102 THEN NULL ELSE CAST(Refno AS VARCHAR(MAX)) + '|' + CAST(TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
+						FROM (
+								SELECT DISTINCT 
+									s1.Id/@batchNo AS batchNo,
+									main.TransId,
+									main.statusId,
+									main.Refno
+								FROM #tmpsubTransID s1
+								LEFT JOIN #tmpMainTransId main
+									ON s1.refno = main.refno
+								WHERE	s1.IsSDT = 1
+							) AS distinctData
+						GROUP BY batchNo
+					) main
 					CROSS APPLY (
 						SELECT CAST((SELECT	s2.transid AS 't'	
 									,s2.modds AS 'm'
 									,s2.refno AS 'r'
 									,s2.IsMarked AS 'im'
+									,s2.IsHybrid AS 'ih'
 						FROM	#tmpsubTransID s2         
 						WHERE	s2.IsSDT = 1
 								AND s2.id/@batchNo = main.batchNo
@@ -807,15 +821,22 @@ BEGIN
 						,@IsReSettledTickets						
 						,@BroadcastSessionId 
 				FROM(
-					SELECT	s1.Id/@batchNo AS batchNo
-							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
-							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
-					FROM	#tmpsubTransID s1
-						LEFT JOIN #tmpMainTransId main
-							ON s1.refno = main.refno
-					WHERE	s1.modds IS NULL
-					GROUP BY s1.id/@batchNo
-				) main
+						SELECT	batchNo AS batchNo
+								,STRING_AGG(CAST(TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+								,STRING_AGG(CASE WHEN statusId = 102 THEN NULL ELSE CAST(Refno AS VARCHAR(MAX)) + '|' + CAST(TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
+						FROM (
+								SELECT DISTINCT 
+									s1.Id/@batchNo AS batchNo,
+									main.TransId,
+									main.statusId,
+									main.Refno
+								FROM #tmpsubTransID s1
+								LEFT JOIN #tmpMainTransId main
+									ON s1.refno = main.refno
+								WHERE	s1.modds IS NULL
+							) AS distinctData
+						GROUP BY batchNo
+					) main
 					CROSS APPLY (
 						SELECT CAST((SELECT	s2.transid AS 't'
 									,s2.refno AS 'r'
@@ -847,20 +868,28 @@ BEGIN
 						,@IsReSettledTickets
 						,@BroadcastSessionId
 				FROM(
-					SELECT	s1.Id/@batchNo AS batchNo
-							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
-							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
-					FROM	#tmpsubTransID s1
-						LEFT JOIN #tmpMainTransId main
-							ON s1.refno = main.refno
-					WHERE	s1.moddsSDT IS NOT NULL
-					GROUP BY s1.id/@batchNo
-				) main
+						SELECT	batchNo AS batchNo
+								,STRING_AGG(CAST(TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+								,STRING_AGG(CASE WHEN statusId = 102 THEN NULL ELSE CAST(Refno AS VARCHAR(MAX)) + '|' + CAST(TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
+						FROM (
+								SELECT DISTINCT 
+									s1.Id/@batchNo AS batchNo,
+									main.TransId,
+									main.statusId,
+									main.Refno
+								FROM #tmpsubTransID s1
+								LEFT JOIN #tmpMainTransId main
+									ON s1.refno = main.refno
+								WHERE	s1.moddsSDT IS NOT NULL
+							) AS distinctData
+						GROUP BY batchNo
+					) main
 					CROSS APPLY (
 						SELECT CAST((SELECT	s2.transid AS 't'
 									,s2.modds AS 'm'
 									,s2.refno AS 'r'
 									,s2.IsMarked AS 'im'
+									,s2.IsHybrid AS 'ih'
 						FROM	#tmpsubTransID s2         
 						WHERE	s2.moddsSDT IS NOT NULL
 								AND s2.id/@batchNo = main.batchNo
@@ -888,20 +917,28 @@ BEGIN
 					,@IsReSettledTickets
 					,@BroadcastSessionId
 			FROM(
-					SELECT	s1.Id/@batchNo AS batchNo
-							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
-							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
-					FROM	#tmpsubTransID s1
-						LEFT JOIN #tmpMainTransId main
-							ON s1.refno = main.refno
-					WHERE	isFinish IS NULL
-					GROUP BY s1.id/@batchNo
+					SELECT	batchNo AS batchNo
+							,STRING_AGG(CAST(TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+							,STRING_AGG(CASE WHEN statusId = 102 THEN NULL ELSE CAST(Refno AS VARCHAR(MAX)) + '|' + CAST(TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
+					FROM (
+							SELECT DISTINCT 
+								s1.Id/@batchNo AS batchNo,
+								main.TransId,
+								main.statusId,
+								main.Refno
+							FROM #tmpsubTransID s1
+							LEFT JOIN #tmpMainTransId main
+								ON s1.refno = main.refno
+							WHERE	isFinish IS NULL
+						) AS distinctData
+					GROUP BY batchNo
 				) main
 				CROSS APPLY (
 					SELECT CAST((SELECT	s2.transid AS 't'	
 								,s2.modds AS 'm'
 								,s2.refno AS 'r'
 								,s2.IsMarked AS 'im'
+								,s2.IsHybrid AS 'ih'
 					FROM	#tmpsubTransID s2         
 					WHERE	s2.isFinish IS NULL
 							AND s2.id/@batchNo = main.batchNo

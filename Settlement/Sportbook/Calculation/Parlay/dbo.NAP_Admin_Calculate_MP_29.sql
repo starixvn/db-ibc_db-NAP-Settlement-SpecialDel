@@ -35,6 +35,7 @@ AS
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240425@Kathy: enhance MaxPayout [Redmine:#199518]
+		- 20251020@Max: Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 		- 20251112@Max: Change code to release org for BetBuilder+ [Redmine: #243653]
 
 	Param's Explanation:

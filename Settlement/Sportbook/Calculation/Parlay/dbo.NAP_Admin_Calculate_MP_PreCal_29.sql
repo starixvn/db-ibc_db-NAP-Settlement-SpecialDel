@@ -50,6 +50,7 @@ AS
 		- 20240425@Kathy: enhance parlay [Redmine:#199518]
 		- 20240521@Kathy: write log [Redmine:#199518]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
+		- 20251020@Max: Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 		- 20251112@Max: Change code to release org for BetBuilder+ [Redmine: #243653]
 
 
@@ -314,7 +315,7 @@ BEGIN
 			SELECT	refno, mainwinlostdate, COUNT(1)
 			FROM	#BetParlayDetail_pre
 			GROUP BY refno,mainwinlostdate
-			ORDER BY refno	ASC
+			ORDER BY refno ASC
 
 			UPDATE #tmpBeingGeneratedRefno
 				SET runningTotal = @totalRow
