@@ -22,6 +22,7 @@ AS
 		- 20250120@Aries: Enhance the Validate Order for Auto Payout2 [Redmine:#209415]
 		- 20250326@Aries: Support AutoPayout2 for Ice Hockey [Redmine:#219397]
 		- 20250625@Aries: Match completed, but the auto payout flow still logs a failure [Redmine:#231523]
+		- 20251022@Louisa: Auto Payout for Basketball Player Prop [Redmine: #236974]
 
 	Param's Explanation:
 
@@ -36,7 +37,7 @@ BEGIN
 			,@EAR_InactiveProvider		VARCHAR(500)
 			
 	DECLARE @Resource TABLE (ResourceId	VARCHAR(20), PRIMARY KEY (ResourceId))
-	DECLARE @Result TABLE (MatchId INT, SourceId SMALLINT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT, ResultStatusID TINYINT, CreateDate DATETIME)
+	DECLARE @Result TABLE (MatchId INT, SourceId SMALLINT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT, ResultStatusID TINYINT, CreateDate DATETIME, OtherInfo VARCHAR(50))
 
 	SELECT @ResultTable	= r.ResultTable 
 		  ,@ExternalResultTable = r.ExternalResultTable 
@@ -99,8 +100,8 @@ BEGIN
 
 	IF @ResultTable = 1
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate, OtherInfo)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate, rd.OtherInfo
 		FROM	dbo.ResultDetail AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
 			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)	
@@ -108,8 +109,8 @@ BEGIN
 	END
 	ELSE IF @ResultTable = 2
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate, OtherInfo)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate, rd.OtherInfo
 		FROM	dbo.ResultDetailOS AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
 			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)	
@@ -117,8 +118,8 @@ BEGIN
 	END
 	ELSE IF @ResultTable = 3
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate, OtherInfo)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate, rd.OtherInfo
 		FROM	dbo.ResultDetailES AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
 			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)
@@ -137,8 +138,8 @@ BEGIN
 				AND ISNULL(p.IsLive,0) = 0
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId, CreateDate)
-		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId, rd.CreateDate
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId, CreateDate, OtherInfo)
+		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId, rd.CreateDate, rd.OtherInfo
 		FROM CTE_Provider AS cte	
 			INNER JOIN ProviderExternalResultDetail AS rd WITH(NOLOCK) ON rd.ProviderExternalId = cte.ProviderExternalId
 	END
@@ -154,8 +155,8 @@ BEGIN
 				AND ISNULL(p.IsLive,0) = 0
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId, CreateDate)
-		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId,rd.CreateDate
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId, CreateDate, OtherInfo)
+		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId,rd.CreateDate, rd.OtherInfo
 		FROM CTE_Provider AS cte	
 			INNER JOIN ProviderExternalResultDetailOS AS rd WITH(NOLOCK) ON rd.ProviderExternalId = cte.ProviderExternalId
 	END
@@ -171,8 +172,8 @@ BEGIN
 				AND ISNULL(p.IsLive,0) = 0
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId,CreateDate)
-		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId,rd.CreateDate
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId,CreateDate, OtherInfo)
+		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId,rd.CreateDate, rd.OtherInfo
 		FROM CTE_Provider AS cte	
 			INNER JOIN ProviderExternalResultDetailES AS rd WITH(NOLOCK) ON rd.ProviderExternalId = cte.ProviderExternalId
 	END
@@ -185,6 +186,7 @@ BEGIN
 		  ,m.AwayValue
 		  ,m.CreateDate
 		  ,ss.HasAwayValue
+		  ,m.OtherInfo
 	FROM @Result AS m
 		OUTER APPLY (
 			SELECT TOP 1 tbl.ResourceId
