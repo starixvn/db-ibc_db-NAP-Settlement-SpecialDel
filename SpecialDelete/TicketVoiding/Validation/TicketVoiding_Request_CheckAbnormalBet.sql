@@ -73,6 +73,7 @@ AS
 		- 20250715@Lani: [TVS] Abnormal Bet - Send ticket of the username in AB Exception List to CTS [Redmine: #231465]
 		- 20250815@Lani: [TVS] Return both running and settle tickets of sitedbdown [Redmine: #232580]
 		- 20251007@July: [TVS] Update rules Send Letstalk [Redmine: #240950]
+		- 20251006@July: [TVS] Abnormal Bet - Block void ticket after balance up date [Redmine: #238233]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -106,8 +107,14 @@ BEGIN
 			,@Archived_FromDate			 DATETIME = NULL
 			,@SiteDBDownInfoJson		 VARBINARY(MAX) = NULL
 			,@SiteDBGroupID				 SMALLINT
-	
+			,@BeingBalanceUpDate		 VARCHAR(255)
+			,@BalanceUpTransIds			 VARCHAR(MAX) = ''
+
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	SELECT @BeingBalanceUpDate = VValue
+    FROM dbo.MBUSettings WITH (NOLOCK) 
+	WHERE VName = 'BeingBalanceUpDate'
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -148,7 +155,7 @@ BEGIN
 	CREATE TABLE #tmpInputTransid_RemarkId (
 		 Transid		BIGINT
 		,RemarkId		INT	  /*  1: Invalid
-								, 2: Moved or Duplicated
+								, 2: Moved or Duplicated 
 								, 3: DifferentMatch
 								, 4: Settled
 								, 5: Unsupported
@@ -157,6 +164,7 @@ BEGIN
 								, 8: DifferentLiveScore
 								, 9: AB Exception TransIds
 								, 10: SiteDB down TransIds
+								, 11: Balance up Date
 							  */
 	)
 	CREATE TABLE #inputTransid (transid BIGINT PRIMARY KEY)
@@ -170,7 +178,7 @@ BEGIN
 	SELECT DISTINCT transid
 	FROM #tmpInputTransid_RemarkId
 
-	CREATE TABLE #invalidTransId (transid BIGINT, isMoved BIT)
+	CREATE TABLE #invalidTransId (transid BIGINT, TicketType INT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
 		transid						BIGINT PRIMARY KEY
@@ -256,6 +264,7 @@ BEGIN
 	  ,ChildMatchId				INT
 	  ,IsSiteDBDown				BIT DEFAULT(0)
 	  ,eventdate				DATETIME
+	  ,TicketType				INT --1: Moved, 2: Balance up
 	)
 	--Search single tickets
 	INSERT INTO #tmpTransInfo(
@@ -342,9 +351,6 @@ BEGIN
 			         WHEN @FilterBy = 1 AND b.bettype = 29 AND b.betteam = '1' THEN 1
 					 WHEN @FilterBy = 2 AND b.bettype = 29 AND b.betteam <> '1' THEN 1
 				     ELSE 0 END
-		AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.winlostdate >= @Archived_FromDate THEN 1
-					 WHEN @IsVoidAllArchivedTickets = 1 THEN 1
-				     ELSE 0 END
 		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1
 					 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
 					 ELSE 0 END
@@ -391,6 +397,7 @@ BEGIN
 			,SiteDBGroupID
 			,winlostdate
 		    ,IsSiteDBDown
+			,TicketType
 		)
 		SELECT b.matchid
 			,b.TransId
@@ -428,6 +435,9 @@ BEGIN
 			,b.SiteDBGroupID
 			,b.winlostdate
 			,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
+			,CASE WHEN @IsVoidAllArchivedTickets = 0 AND b.winlostdate < @Archived_FromDate THEN 1 
+				  WHEN @IsVoidAllArchivedTickets = 1 AND @BeingBalanceUpDate IS NOT NULL AND b.winlostdate < @BeingBalanceUpDate THEN 2
+				  ELSE NULL END AS TicketType
 		FROM #inputTransid t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
@@ -438,14 +448,10 @@ BEGIN
 			             WHEN @FilterBy = 1 AND b.bettype = 29 AND b.betteam = '1' THEN 1
 					     WHEN @FilterBy = 2 AND b.bettype = 29 AND b.betteam <> '1' THEN 1
 				         ELSE 0 END
-			AND 1 = CASE WHEN @IsVoidAllArchivedTickets =  0 AND b.winlostdate >= @Archived_FromDate THEN 1
-					     WHEN @IsVoidAllArchivedTickets = 1 THEN 1
-				         ELSE 0 END
 			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1
 						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
 					     ELSE 0 END
 	END
-
 
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29) AND (IsMoved14 = 0)))
 	BEGIN
@@ -556,7 +562,7 @@ BEGIN
 		INSERT INTO @tmpSiteDBDownInfo (MatchId, TransId, IsMixParlay, SiteDBGroupID, isMarked)
 		SELECT ISNULL(ChildMatchId, MatchId) AS MatchId, TransId, IsMixParlay, SiteDBGroupID, CASE WHEN statusID IN (0,1) THEN 1 ELSE 0 END AS isMarked
 		FROM #tmpTransInfo t
-		WHERE IsSiteDBDown = 1
+		WHERE IsSiteDBDown = 1 AND TicketType IS NULL
 			AND t.transid IN (SELECT transid FROM #tmpInputTransid_RemarkId WHERE RemarkId IS NULL)
 
 		UPDATE t
@@ -614,7 +620,7 @@ BEGIN
 		,b.CustomerClass
 		,b.IsCreditCashService
 	FROM #tmpTransInfo b
-	WHERE IsSiteDBDown = 0
+	WHERE IsSiteDBDown = 0 AND TicketType IS NULL
 
 	INSERT INTO #TransidInRequest (TransId)
 	SELECT DISTINCT tmp.transid
@@ -628,15 +634,14 @@ BEGIN
 		AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
 
 	-- get invalid or moved transId
-	INSERT INTO #invalidTransId (transid, isMoved)
+	INSERT INTO #invalidTransId (transid, TicketType)
 	SELECT temp.transid
-		  ,ISNULL(bm.IsMoved14, 0) AS isMoved
+		  ,ISNULL(TicketType,0) AS TicketType
 	FROM #inputTransid AS temp
 		OUTER APPLY (
-		SELECT TOP 1 IsMoved14
+		SELECT TicketType
 		FROM #tmpTransInfo
 		WHERE transid = temp.transid 
-			AND 1 = CASE WHEN @IsVoidAllArchivedTickets = 0 AND IsMoved14 = 1 AND winlostdate < @Archived_FromDate THEN 1 ELSE 0 END
 		) bm
 	WHERE NOT EXISTS (SELECT 1 FROM #validTransId 
 					  WHERE transid = temp.transid 
@@ -646,16 +651,23 @@ BEGIN
 
 	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 									FROM #invalidTransId
-									WHERE isMoved = 0
+									WHERE TicketType = 0
 									FOR XML PATH('')), 1, 1, ''), '')
 
 	SELECT @MovedTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 								FROM #invalidTransId
-								WHERE isMoved = 1
+								WHERE TicketType = 1
+								FOR XML PATH('')), 1, 1, ''), '')
+
+	SELECT @BalanceUpTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+								FROM #invalidTransId
+								WHERE TicketType = 2
 								FOR XML PATH('')), 1, 1, ''), '')
 
 	UPDATE t
-	SET t.RemarkId = CASE WHEN v.isMoved = 0 THEN 1 ELSE 2 END
+	SET t.RemarkId = CASE WHEN v.TicketType = 1 THEN 2
+						  WHEN v.TicketType = 2 THEN 11
+						  ELSE 1 END
 	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #invalidTransId v ON t.Transid = v.transid
 	
@@ -882,6 +894,7 @@ BEGIN
 	--2. Validate Table
 	SELECT   @MovedTransIds AS MovedTransIds
 			,@InvalidTransIds AS InvalidTransIds
+			,@BalanceUpTransIds AS BalanceUpTransIds
 			,@SettledTransIds AS SettledTransIds
 			,@ExistingReqTransIds AS ExistingReqTransIds
 			,@UnsupportedTransids AS UnsupportedTransids

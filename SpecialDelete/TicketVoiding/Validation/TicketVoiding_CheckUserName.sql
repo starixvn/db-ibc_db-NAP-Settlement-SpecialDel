@@ -51,6 +51,7 @@ AS
 		- 20250513@Lani: [TVS] Integrate - Pingoal Soccer Marble [Redmine: #227161]
 		- 20250620@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance - Abnormal Account [Redmine: #225390]
 		- 20250801@Lani: [TVS] ScaleOut DBTrans [Phase 5] - Abnormal Account/EKO/WKO/Wrong Offered Name [Redmine: #232582]
+		- 20251006@July: [TVS] Abnormal Account - Block void ticket after balance up date [Redmine: #238233]
 
 	Param's Explanation:
 */
@@ -85,9 +86,15 @@ BEGIN
 			,@UsernamesOfCreditCashService VARCHAR(MAX) = ''
 			,@SiteDBDownInfoJson	  VARBINARY(MAX) = NULL
 			,@UserNameSiteDBDown	  VARCHAR(MAX) = ''
+			,@BeingBalanceUpDate	  VARCHAR(255)
+			,@UsernamesOfBalanceUp    VARCHAR(MAX) = ''
 
 	DECLARE @SiteDBGroupID			 SMALLINT
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	SELECT @BeingBalanceUpDate = VValue
+    FROM dbo.MBUSettings WITH (NOLOCK) 
+	WHERE VName = 'BeingBalanceUpDate'
 
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT, credit MONEY, srecommend INT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
@@ -182,8 +189,6 @@ BEGIN
 	  ,IsSiteDBDown BIT DEFAULT(0)
 	  ,id [int] IDENTITY (1,1) PRIMARY KEY
 	)
-
-	--create nonclustered index ix_cust_status on #tmpTransInfo (custid,statusid) include (winlost)
 
 	CREATE TABLE #SelectedTrans (
 		TransId BIGINT,
@@ -695,15 +700,6 @@ BEGIN
 		END
 	END
 
-	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
-	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
-	
-	IF @BeingMovebetDate IS NOT NULL 
-		AND EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE winlostdate = @BeingMovebetDate)
-	BEGIN
-		SET @IsBeingMovebetdate = 1 --Error msg: The system is running the Movebet process, please wait and try again
-	END
-
 	----------End of data prepare-----------------
 	--3. TransId in request table
 	DECLARE @TransInfoJson			 VARBINARY(MAX)
@@ -733,7 +729,7 @@ BEGIN
 					FOR JSON PATH))
 
 				--select @TransInfoJson
-				INSERT INTO #TransidInRequest
+				INSERT INTO #TransidInRequest(TransId)
 				EXEC DBCTG.bodb02.dbo.TicketVoiding_CheckExistingRequest
 					@TransInfoJson = @TransInfoJson
 					,@RequestId = @RequestId
@@ -768,6 +764,37 @@ BEGIN
 	DELETE t
 	FROM #tmpTransInfo AS t
 	WHERE 1 = CASE WHEN @IsRemoveCreditCashService = 1 AND t.IsCreditCashService = 1 THEN 1 ELSE 0 END
+
+	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
+	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
+	
+	IF @BeingMovebetDate IS NOT NULL 
+		AND EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE winlostdate = @BeingMovebetDate)
+	BEGIN
+		SET @IsBeingMovebetdate = 1 --Error msg: The system is running the Movebet process, please wait and try again
+	END
+
+	IF @IsVoidAllArchivedTickets = 1 
+		AND @BeingBalanceUpDate IS NOT NULL 
+		AND EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE winlostdate < @BeingBalanceUpDate)
+	BEGIN
+		;WITH cteUserName AS (
+				SELECT DISTINCT b.custid
+				FROM #tmpTransInfo AS t
+				CROSS APPLY
+				(
+					VALUES (custid)
+					,(recommend)
+					,(mrecommend)
+					,(srecommend)
+				) AS b (custid)
+				WHERE winlostdate < @BeingBalanceUpDate
+			)
+		SELECT @UsernamesOfBalanceUp  = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(i.UserName AS VARCHAR(50))
+												FROM #InputUsernameList AS i
+												INNER JOIN cteUserName AS t ON t.custid = i.custid
+												FOR XML PATH('')), 1, 1, ''), '')
+	END
 
 	--Get ticket of sitedbdown
 	BEGIN
@@ -907,6 +934,7 @@ BEGIN
 		  ,@UsernamesOfCreditCashService AS UsernamesOfCreditCashService
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
 		  ,@UserNameSiteDBDown AS SiteDBDownUserNames
+		  ,@UsernamesOfBalanceUp AS UsernamesOfBalanceUp
 
 	--2. List TransId for case auto void with policy
 	IF @ActionId = 10
@@ -956,7 +984,7 @@ BEGIN
 				betteam,
 				t.transid,
 				winlost,
-				DENSE_RANK() OVER (PARTITION BY t.custid ORDER BY matchid, bettype, betteam) AS group_number
+				DENSE_RANK() OVER (PARTITION BY t.custid ORDER BY matchid ASC, bettype ASC, betteam ASC) AS group_number
 			FROM #tmpTransInfo t
 				LEFT JOIN #SelectedTrans t1 ON t1.TransId = t.transid
 			WHERE matchid <> 29
@@ -1034,7 +1062,7 @@ BEGIN
 					SELECT TransId, winlost
 					FROM @tmp_remaining
 					WHERE CustId = @CustId
-					ORDER BY winlost desc;
+					ORDER BY winlost DESC;
 
 					OPEN TransactionCursor;
 
@@ -1091,7 +1119,7 @@ BEGIN
 					SELECT TransId, winlost
 					FROM @tmp_remaining
 					WHERE CustId = @CustId
-					ORDER BY winlost desc;
+					ORDER BY winlost DESC;
 
 					OPEN TransactionCursor;
 
@@ -1144,7 +1172,7 @@ BEGIN
 						FROM @tmp_Dup
 						WHERE CustId = @CustId
 						GROUP BY group_number
-						ORDER BY SUM(winlost) desc;
+						ORDER BY SUM(winlost) DESC;
 
 						OPEN TransactionCursor;
 
@@ -1198,7 +1226,7 @@ BEGIN
 				WHERE CustId = @CustId AND statusID = 112
 					AND NOT EXISTS (SELECT TOP 1 1 FROM #SelectedTrans s WHERE s.transid = t.transid)
 					AND t.IsSiteDBDown = 0
-				ORDER BY winlost desc;
+				ORDER BY winlost DESC;
 
 				OPEN TransactionCursor;
 
@@ -1282,7 +1310,7 @@ BEGIN
 		,b.AdjustVoidLimit AS AdjustVoidLimit
 	FROM #tmpTransInfo b
 	WHERE b.IsSiteDBDown = 0
-	ORDER BY b.username
+	ORDER BY b.username ASC
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_2
@@ -1291,4 +1319,6 @@ BEGIN
 	DROP TABLE #InputValidCustid_tmp
 	DROP TABLE #SelectedTrans
 END
+
+
 
