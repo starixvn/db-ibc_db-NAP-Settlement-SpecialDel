@@ -3,8 +3,8 @@ USE bodb_archive
 GO
 
 DECLARE @from datetime, @to datetime																						
-SET @from = '2023-09-01'																									
-SET @to = '2023-10-01'																									
+SET @from = '2025-09-01'																									
+SET @to = '2025-10-01'																									
 																									
 CREATE TABLE #message_tmp (messageID INT, reason VARCHAR(50), transid BIGINT, MessageContent varchar(max))																								
 CREATE TABLE #temp_transid (
@@ -26,7 +26,7 @@ CREATE TABLE #VoidReasonPattern (
 	Pattern NVARCHAR(255)
 );
 INSERT INTO #VoidReasonPattern (Reason, Pattern)
-		  SELECT 'Danger Accepted'			, '%Due to%bets erroneously accepted%danger%considered%VOID%'
+		  SELECT 'Danger Accepted'			, '%Due to%erroneously accepted%danger%considered%VOID%'
 UNION ALL SELECT 'Danger Accepted'			, '%Due to%match has been completed%considered%VOID%'
 UNION ALL SELECT 'Danger Accepted'			, '%Due to%goal% has been completed%considered%VOID%'
 UNION ALL SELECT 'Danger Accepted'			, '%Due to%Booking% has been completed%considered%VOID%'
@@ -59,14 +59,14 @@ UNION ALL SELECT 'Second Team Batting'		, '%Following a review of the match betw
 UNION ALL SELECT 'Abandoned'				, '%Due to%abandoned%considered%VOID%'								
 UNION ALL SELECT 'Reduced Over'				, '%Due to%number of scheduled%being reduced%considered%VOID%'			
 UNION ALL SELECT 'Not Participate'			, '%Due to%Player%did not participate%VOID%'				
-UNION ALL SELECT 'Wrong Market Offered'		, '%Due to%wrong%market offered%match%considered%VOID%'				
+UNION ALL SELECT 'Wrong Market Offered'		, '%Due to%market offered%Live betting%match%considered%VOID%'				
 UNION ALL SELECT 'Match Completed'			, '%Due to%Wicket%has been completed%considered%VOID%'				
 UNION ALL SELECT 'Match Early Completed'	, '%The match between%has been completed earlier%considered%VOID%'	
 UNION ALL SELECT 'Wrong Team Name'			, '%Due to%wrong%team name displayed%considered%VOID%'				
 UNION ALL SELECT 'Abnormal Bet'				, '%Due to%abnormal bet%VOID%'		
 UNION ALL SELECT 'Game Crashed Void Live'	, '%Due to%technical%issue%considered%VOID%' --SubType
 UNION ALL SELECT 'Should Not Offer'			, '%Due to%should not offer%match%considered%VOID%' --SubType				
-UNION ALL SELECT 'Restart'					, '%Due to%Map%has been restart%considered%VOID%' --SubType
+UNION ALL SELECT 'Restart'					, '%Due to%has been restart%considered%VOID%' --SubType
 
 
 /*Range archive*/																							
