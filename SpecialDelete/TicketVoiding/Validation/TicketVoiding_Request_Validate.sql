@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_Request_Validate]
+ALTER PROCEDURE [dbo].[TicketVoiding_Request_Validate]
 (
 	 @RequestId				INT			  = NULL
    , @UserID			  	INT			  = NULL
@@ -112,8 +112,12 @@ BEGIN
 	BEGIN TRY
         IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
 		BEGIN	       
-            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
-            VALUES (@ID, @spName, NULL, @UserID, NULL, GETDATE(),@SubmittedDate)
+            SET @sqlCommand = 'OUTPUT' 
+							+ CASE WHEN ISNULL(@MarkTransIds,'') = '' THEN '' ELSE '@MarkTransIds = ''' + CONVERT(NVARCHAR(MAX), @MarkTransIds) + '''' END
+							+ CASE WHEN ISNULL(@UnMarkTransIds,'') = '' THEN '' ELSE ',@UnMarkTransIds = ''' + CONVERT(NVARCHAR(MAX), @UnMarkTransIds) + '''' END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, @sqlCommand, @UserID, NULL, GETDATE(),@SubmittedDate)
         END        
 	END TRY
 	BEGIN CATCH
