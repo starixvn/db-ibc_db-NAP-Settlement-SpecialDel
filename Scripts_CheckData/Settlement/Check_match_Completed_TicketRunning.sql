@@ -83,7 +83,7 @@
 	from bodb02.dbo.Match3rd m with(nolock)
 	inner join bodb02.dbo.League3rd l with(nolock) on m.League3rdId = l.League3rdId
 	cross apply (select top 1 transid from bodb02.dbo.bettrans b with(nolock) where b.matchid = m.Match3rdId and b.statusid = 0) b
-	where   m.sporttype IN ( 134, 147 )
+	where   m.sporttype IN ( 134, 147, 114, 116 )
 		  and l.isTest = 0
 		  --and m.kickofftime between '2023-09-27 02:29:04' and '2023-09-27 02:40:04'
 		  and m.eventstatus = 'completed'
