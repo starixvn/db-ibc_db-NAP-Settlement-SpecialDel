@@ -73,7 +73,17 @@
 	from bodb02.dbo.match m with(nolock)
 	inner join bodb02.dbo.league l with(nolock) on m.leagueid = l.leagueid
 	cross apply (select top 1 transid from bodb02.dbo.bettrans b with(nolock) where b.matchid = m.matchid and b.statusid = 0) b
-	where   m.sporttype IN ( 178, 193, 180, 192 )
+	where   m.sporttype IN ( 178, 193, 180, 192, 179 )
+		  and l.isTest = 0
+		  --and m.kickofftime between '2023-09-27 02:29:04' and '2023-09-27 02:40:04'
+		  and m.eventstatus = 'completed'
+		  and m.eventdate =  '2023-09-27'
+
+	select m.Match3rdId AS matchid, m.sporttype, m.eventstatus, m.eventdate 
+	from bodb02.dbo.Match3rd m with(nolock)
+	inner join bodb02.dbo.League3rd l with(nolock) on m.League3rdId = l.League3rdId
+	cross apply (select top 1 transid from bodb02.dbo.bettrans b with(nolock) where b.matchid = m.Match3rdId and b.statusid = 0) b
+	where   m.sporttype IN ( 134, 147 )
 		  and l.isTest = 0
 		  --and m.kickofftime between '2023-09-27 02:29:04' and '2023-09-27 02:40:04'
 		  and m.eventstatus = 'completed'
@@ -93,7 +103,7 @@
 	from bodb02.dbo.match m with(nolock)
 	inner join bodb02.dbo.league l with(nolock) on m.leagueid = l.leagueid
 	cross apply (select top 1 transid from bodb02.dbo.bettrans b with(nolock) where b.matchid = m.matchid and b.statusid = 0) b
-	where   m.sporttype < 99
+	where   m.sporttype <= 99
 		  and l.isTest = 0
 		  --and m.kickofftime between '2023-09-27 02:29:04' and '2023-09-27 02:40:04'
 		  and m.eventstatus = 'completed'
