@@ -26,6 +26,7 @@ AS
 		- 20250109@Lani: [TVS] Save new filter (FilterBetIdX, FilterBetIdY, FilterBetTypeId) of 'Wrong HDP' issue type [Redmine: #215545]
 		- 20250224@Lani: [TVS] Basketball - Integrate 6 new bet types (Change data type of inputted 'FilterBetTypeId' column) [Redmine: #217848]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20251027@Lani: [TVS]  Wrong OU - Add more bet types to the filter (New Player Prop Basketball) [Redmine: #242269]
 
 	Param's explanation:
 */
