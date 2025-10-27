@@ -73,6 +73,7 @@ AS
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 		- 20250819@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's explanation:	
 		
@@ -1622,6 +1623,7 @@ BEGIN
 		   ,s.GroupPHaffected -- Affect isuetype : HDP,OU,ODDS
 		   ,s.VendorMatchId
 	       ,s.GroupBettypeId
+		   ,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM CTE_InstantSettlementSubgrouping s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site

@@ -20,6 +20,7 @@ AS
 		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation:			
 			- @BetType:
@@ -68,6 +69,7 @@ BEGIN
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
 		,modds					SMALLMONEY
+		,oddsspread				MONEY
 	)		
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
@@ -126,6 +128,7 @@ BEGIN
 			,ExtraInfo
 			,ActualStake
 			,modds
+			,oddsspread
 		)
 	SELECT  bm.transid AS SubTransID			 
 			,bm.betcheck AS SubBetCheck	
@@ -164,6 +167,7 @@ BEGIN
 			,b.ExtraInfo
 			,b.actual_stake AS ActualStake	
 			,b.modds 
+			,b.oddsspread
 	FROM @tblTransIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID		   
@@ -229,6 +233,8 @@ BEGIN
 			 ,t.ActualStake
 			 ,@SiteDBGroupID AS SiteDBGroupID
 			 ,t.modds AS MasterOdds
+			 ,t.oddsspread
+			 ,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID

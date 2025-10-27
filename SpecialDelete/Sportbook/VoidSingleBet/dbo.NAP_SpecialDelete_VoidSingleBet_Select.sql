@@ -106,6 +106,7 @@ AS
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, serverAlias [Redmine: #213451]
 		- 20250903@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -1712,6 +1713,7 @@ BEGIN
 			,s.SiteDBGroupId
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 			,s.modds AS MasterOdds
+			,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 2 THEN 1 ELSE 0 END AS IsHybrid
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site

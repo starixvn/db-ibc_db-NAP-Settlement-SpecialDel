@@ -16,6 +16,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250506@July: Change to remove step update isprocess call 2 times [Redmine: #219112]
 		- 20250605@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's explanation:
 		ValidationType => 21, 22 (recover + resettle)
@@ -24,6 +25,7 @@ AS
 		ValidationType => 27, 28 (recover + resettle)
 		ValidationType => 29 (resettle)
 		ValidationType => 30 (resettle)
+		ValidationType => 31, 32 (hybrid parlay)
 */
 BEGIN
 	SET NOCOUNT ON
@@ -134,9 +136,12 @@ BEGIN
 			  ,bm.transdate
 			  ,bm.winlostdate
 			  ,bm.statusID
-			  ,CASE WHEN bm.statuswinlost IS NOT NULL THEN 26 ELSE 25 END AS ValidationType
+			  ,CASE WHEN b.oddsspread <> 3 THEN CASE WHEN bm.statuswinlost IS NOT NULL THEN 26 ELSE 25 END
+					WHEN b.oddsspread = 3 THEN CASE WHEN bm.statuswinlost IS NOT NULL THEN 32 ELSE 31 END
+				END AS ValidationType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
+			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
 		WHERE t.TicketType = 2
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpInputTransId t

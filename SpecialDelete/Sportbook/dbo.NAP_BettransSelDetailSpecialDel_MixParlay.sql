@@ -22,6 +22,7 @@ AS
 		- 20240304@July: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation:
 			
@@ -54,7 +55,9 @@ BEGIN
 		,betcheck		NVARCHAR(50)
 		,transdesc		NVARCHAR(1000)
 		,showtime		NVARCHAR(50)
-		,transdate		DATETIME		
+		,transdate		DATETIME
+		,status			NVARCHAR(20)
+		,eventdate		DATETIME
 		)			
 		
 	INSERT INTO @BetListMP	
@@ -80,7 +83,9 @@ BEGIN
 			,betcheck
 			,transdesc
 			,showtime
-			,transdate			
+			,transdate		
+			,status
+			,eventdate
 		)				
 	SELECT
 			b.transid		
@@ -104,15 +109,17 @@ BEGIN
 			,b.betcheck
 			,b.transdesc
 			,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
-			,b.transdate					
+			,b.transdate
+			,b.status
+			,m.eventdate
 	FROM	dbo.BettransM AS b WITH(NOLOCK)		
 		CROSS APPLY (
-			SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID
+			SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID, eventdate
 			FROM match AS m WITH(NOLOCK)
 			WHERE b.matchid=m.matchid	
 
 			UNION ALL
-			SELECT homeid, awayid, League3rdId, sporttype, 0, matchid, matchcode, StartTime, NULL, NULL
+			SELECT homeid, awayid, League3rdId, sporttype, 0, matchid, matchcode, StartTime, NULL, NULL, EventDate
 			FROM Match3rd AS m WITH(NOLOCK)
 			WHERE b.matchid=m.Match3rdId	
 		)m
@@ -154,7 +161,9 @@ BEGIN
 				,betcheck
 				,transdesc
 				,showtime
-				,transdate				
+				,transdate
+				,status
+				,eventdate
 			)				
 		SELECT
 				b.transid		
@@ -178,15 +187,17 @@ BEGIN
 				,b.betcheck
 				,b.transdesc
 				,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
-				,b.transdate						
+				,b.transdate
+				,b.status
+				,m.eventdate
 		FROM	dbo.BettransM14 AS b WITH(NOLOCK)		
 			CROSS APPLY (
-				SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID
+				SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID, m.eventdate
 				FROM match14 AS m WITH(NOLOCK)
 				WHERE b.matchid=m.matchid	
 
 				UNION ALL
-				SELECT homeid, awayid, League3rdId, sporttype, 0, matchid, matchcode, StartTime, NULL, NULL
+				SELECT homeid, awayid, League3rdId, sporttype, 0, matchid, matchcode, StartTime, NULL, NULL, m.EventDate
 				FROM Match3rd14 AS m WITH(NOLOCK)
 				WHERE b.matchid=m.Match3rdId	
 			)m								
@@ -221,7 +232,9 @@ BEGIN
 		  ,betcheck
 		  ,transdesc
 		  ,showtime
-		  ,transdate		
+		  ,transdate
+		  ,status
+		  ,eventdate
 	FROM @BetListMP	
 	
 END
