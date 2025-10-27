@@ -202,7 +202,7 @@ BEGIN
 	      ,statusId
 	      ,ValidationType
 	FROM #Ticket_Result
-	ORDER BY ValidationType
+	ORDER BY ValidationType ASC
 
 	DROP TABLE #tmpInputTransId
 	DROP TABLE #tmpTransIds

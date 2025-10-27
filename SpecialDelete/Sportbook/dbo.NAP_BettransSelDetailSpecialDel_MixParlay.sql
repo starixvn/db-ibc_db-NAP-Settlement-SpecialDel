@@ -130,7 +130,7 @@ BEGIN
 			OR m.sporttype = 147 --VS5
 			)
 			AND b.SiteDBGroupID = @SiteDBGroupID
-	ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END
+	ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END ASC
 		
 	IF EXISTS (
 			SELECT	TOP 1 1
@@ -208,7 +208,7 @@ BEGIN
 				OR m.sporttype = 147 --VS5
 				)
 			AND b.SiteDBGroupID = @SiteDBGroupID
-		ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END
+		ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END ASC
 	END	
 
 	SELECT TransID
