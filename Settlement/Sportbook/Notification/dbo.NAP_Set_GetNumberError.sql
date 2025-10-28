@@ -49,7 +49,7 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-	INSERT INTO @tblSoccerTeam
+	INSERT INTO @tblSoccerTeam (custid)
 	SELECT	14228954			-- Keyscore1	
 	UNION ALL SELECT 14228977	-- Keyscore2		
 	UNION ALL SELECT 8068543	-- TRACY			
@@ -59,7 +59,7 @@ BEGIN
 	UNION ALL SELECT 20442488	-- starix56 
 	UNION ALL SELECT 111		-- Auto Settlement
 
-	INSERT INTO @tblOtherSportTeam
+	INSERT INTO @tblOtherSportTeam (custid)
 	SELECT 462523 -- IRENE		
 	UNION ALL SELECT 1590728	-- OSAMMY	
 	UNION ALL SELECT 622158		-- OSBONNIE		
