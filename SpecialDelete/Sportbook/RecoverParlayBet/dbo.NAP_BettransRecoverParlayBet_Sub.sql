@@ -162,7 +162,7 @@ BEGIN
 	   ,SiteID		INT
 	   ,bettype		SMALLINT
 	)
-	CREATE CLUSTERED INDEX IDX_tblMainTicket_custid_transid ON #tblMainTicket(custid, transid)
+	CREATE CLUSTERED INDEX IX_tblMainTicket_custid_transid ON #tblMainTicket(custid, transid)
 
 	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, increased BIT)
 	
@@ -515,7 +515,7 @@ BEGIN
 
 			DELETE @tmpBoostSetting
 			INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
-			EXEC (@sqlOpenqueryCommand)
+			EXEC sys.sp_executesql @sqlOpenqueryCommand
 
 			SET @strSetting = ''
 			SELECT @strSetting = CAST((
@@ -836,7 +836,7 @@ BEGIN
 						   AND c.roleid = 4 
 						   AND c.custid = t.srecommend) AS T3						   							    							
 		WHERE T1.GroupName IS NOT NULL
-		ORDER BY T1.GroupName, t.transid			 
+		ORDER BY T1.GroupName ASC, t.transid ASC	 		 
 	END TRY
 	BEGIN CATCH
 		IF @totalSubParlay <= @ThreadHold
