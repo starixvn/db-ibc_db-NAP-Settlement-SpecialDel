@@ -590,8 +590,8 @@ BEGIN
 		AND g.mrecommend 	NOT IN (105181, 118473, 105183) --MHC
 		AND d.recommend 	NOT IN (11196380) --Foobet
 		AND d.recommend 	NOT IN (13423967) --OneExchange
-	ORDER BY T.GroupName
-		   , ISNULL(d.MainTransId, d.transid)
+	ORDER BY T.GroupName ASC
+		   , ISNULL(d.MainTransId, d.transid) ASC
 		   , CASE 
 				WHEN d.BonusID IS NOT NULL
 						THEN CASE 
@@ -599,7 +599,7 @@ BEGIN
 								ELSE 2 
 							 END
 				ELSE d.transid
-			 END
+			 END ASC
 
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #transIdTemp

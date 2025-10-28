@@ -198,7 +198,7 @@ BEGIN
 								ELSE NULL
 						    END AS GroupName) AS T1								
 	WHERE T1.GroupName IS NOT NULL
-	ORDER BY T1.GroupName, t.transid								
+	ORDER BY T1.GroupName ASC, t.transid ASC								
 
 	--- invalid trans info
 	SELECT t.transid AS InvalidTrans
