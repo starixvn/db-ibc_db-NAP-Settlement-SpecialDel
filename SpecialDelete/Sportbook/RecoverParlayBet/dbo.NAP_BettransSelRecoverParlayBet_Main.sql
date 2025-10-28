@@ -18,6 +18,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation:			
 			- @BetType:
@@ -54,6 +55,7 @@ BEGIN
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
 		,Winlostdate			DATETIME
+		,oddsspread				MONEY		
 	)	
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
@@ -91,6 +93,7 @@ BEGIN
 			,ExtraInfo
 			,ActualStake
 			,Winlostdate
+			,oddsspread
 			)
 	SELECT  z.custid AS custid
 			,case when EXISTS (select TOP 1 1 from custDB.dbo.Dep_CustSuper with(nolock) WHERE custid = b.srecommend) then 1 else 0 end AS isdeposit
@@ -117,6 +120,7 @@ BEGIN
 			,b.ExtraInfo
 			,b.actual_stake AS ActualStake
 			,b.winlostdate
+			,b.oddsspread
 	FROM @tblTransIds t
 		 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID	
@@ -168,6 +172,7 @@ BEGIN
 			 ,t.ActualStake   
 			 ,@SiteDBGroupID AS SiteDBGroupID
 			 ,t.modds AS MasterOdds
+			 ,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID
