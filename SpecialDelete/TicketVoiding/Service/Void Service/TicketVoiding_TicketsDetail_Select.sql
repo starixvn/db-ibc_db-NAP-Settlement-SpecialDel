@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_HybridTransInfo_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_TicketsDetail_Select]
 (
 	@TransId	VARCHAR(MAX) = NULL
 )
@@ -24,9 +24,10 @@ BEGIN
 	SELECT value
 	FROM string_split(@TransId, ',')
 
-	SELECT t.TransId, bm.matchid, bm.bettype, bm.hdp1, bm.betteam
+	SELECT b.TransId AS MainTransId, b.custid, t.TransId AS SubTransId, bm.matchid AS SubMatchId, bm.bettype AS SubBettype, bm.hdp1 AS SubHdp1, bm.betteam AS SubBetteam
 	FROM @tmp_TransIds t
 		INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
+		INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
 END
 GO
 

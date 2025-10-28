@@ -4,7 +4,8 @@ ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Sub]
 	@IP					VARCHAR(50),
 	@BetType			VARCHAR(20)		= 'All',
 	@MainTransIds		VARCHAR(MAX)	= '',
-	@MatchId			INT	
+	@MatchId			INT	,
+	@IsCalledJackTimeHybridParlay BIT = 1
 AS
 /*
 	Created: Kent
@@ -369,6 +370,8 @@ BEGIN
 					WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
 					ELSE 0
 			  END	= 1	
+		 AND 1 = CASE WHEN @IsCalledJackTimeHybridParlay = 0 AND b.oddsspread = 3 THEN 0
+					ELSE 1 END
 				
 		IF @@ROWCOUNT = 0
 		BEGIN
@@ -745,7 +748,7 @@ BEGIN
 			
 		--1. Table return error code/ msg
 		SELECT @ErrCode AS ErrorCode
-			  ,@ErrMsg AS ErrorMsg
+			  ,IIF(@IsCalledJackTimeHybridParlay = 1, 'Failed to adjust odds, some tickets of Hybrid parlay have not been voided/recovered.', @ErrMsg) AS ErrorMsg
 		      ,@SettledMainTranIds AS SettledMainTranIds
 			  ,@NegativeBalanceUsers AS NegativeBalanceUsers
 

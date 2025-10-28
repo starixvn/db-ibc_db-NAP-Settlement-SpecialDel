@@ -20,7 +20,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
 	@SecondAcceptFlag		TINYINT			= 0 ,
 	@TransIds				VARCHAR(MAX)	= '',
 	@IsCheckTime			BIT				= 1,
-	@SelectionSubParlays	VARCHAR(200)    = ''
+	@SelectionSubParlays	VARCHAR(200)    = '',
+	@IsCalledJackTimeHybridParlay BIT = 1
 )
 AS
 	/*
@@ -1255,6 +1256,8 @@ BEGIN
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
+			WHERE 1 = CASE WHEN @IsCalledJackTimeHybridParlay = 0 AND b.oddsspread = 3 THEN 0
+					ELSE 1 END
 			
 			IF @SelectionSubParlays <> ''
 			BEGIN
@@ -2103,7 +2106,7 @@ BEGIN
 
 		--1. Table return error code/ msg
 		SELECT @ErrCode AS ErrorCode
-			,@ErrMsg AS ErrorMsg
+			,IIF(@IsCalledJackTimeHybridParlay = 1, 'Failed to adjust odds, some tickets of Hybrid parlay have not been voided/recovered.', @ErrMsg) AS ErrorMsg
 			,@NegativeBalanceUsers AS NegativeBalanceUsers
 			,@SiteDBGroupID AS SiteDBGroupID
 		
