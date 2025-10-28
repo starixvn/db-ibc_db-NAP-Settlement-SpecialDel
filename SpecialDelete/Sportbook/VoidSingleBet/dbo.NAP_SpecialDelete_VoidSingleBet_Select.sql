@@ -874,7 +874,7 @@ BEGIN
 				b.transid,
 				bm.custid,
 				b.odds,   
-				bm.oddsspread,
+				CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END,
 				b.OddsType,  
 				bm.transdate,
 				bm.checktime,
@@ -895,7 +895,7 @@ BEGIN
 				b.recommend,
 				b.betid,
 				b.betdaqid,
-				bm.transdesc,
+				CASE WHEN b.oddsspread = 3 THEN b.transdesc ELSE bm.transdesc END,
 				bm.refno,			
 				b.statusID AS mainstatusid,
 				b.WinLost - b.actual_stake AS WinLost,
@@ -1713,7 +1713,7 @@ BEGIN
 			,s.SiteDBGroupId
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 			,s.modds AS MasterOdds
-			,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 2 THEN 1 ELSE 0 END AS IsHybrid
+			,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
