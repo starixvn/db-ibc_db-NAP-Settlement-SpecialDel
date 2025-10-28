@@ -1,5 +1,6 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_GetNumberError] @AdminId INT
+/*<info serverAlias="DBSIG-bodb02,DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Set_GetNumberError] 
+	@AdminId INT
 	,@NumberError INT = 0 OUTPUT
 AS
 /*	Creator: Kathy
@@ -17,6 +18,7 @@ AS
 		- 20191210@Helen: Hotfix GetNumberOfNotifications failed when message length is over 300 characters - [Redmine:#125246]						  
 		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - Added AdminId = 111 to Other sport - [Redmine:#126963]
 		- 20200720@Kathy: Extend datatype for table Settled_Message.Action [Redmine:#135846]
+		- 20251027@Louisa: Enhance Betbuilder-send message when has effected ticket [Redmine:#237039]
 							
 	Param's Explanation:
 		
@@ -26,8 +28,26 @@ BEGIN
 	DECLARE @tblSoccerTeam TABLE (custid INT)
 	DECLARE @tblOtherSportTeam TABLE (custid INT)
 	
+	DECLARE @tblBetbuilder TABLE (
+		matchid INT
+		,marketid INT
+		,matchcode NVARCHAR(50)
+		,homeid INT
+		,awayid INT
+		,sporttype SMALLINT
+		,IP VARCHAR(15)
+		,starttime DATETIME
+		,Action VARCHAR(20)
+		,Message VARCHAR(MAX)
+		,IsSent BIT
+		)
+
 	DECLARE	@IsSoccer			BIT = 0
 			,@IsOtherSport		BIT = 0
+			,@IsCentral			BIT
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	INSERT INTO @tblSoccerTeam
 	SELECT	14228954			-- Keyscore1	
@@ -69,7 +89,7 @@ BEGIN
 		,Message VARCHAR(MAX)
 		,IsSent BIT
 		)
-		
+	
 	INSERT INTO @tblTemp (matchid, matchcode, homeid, awayid, sporttype, IP, starttime, Action, Message, IsSent)
 	SELECT	m.matchid, m.matchcode, m.homeid, m.awayid, m.sporttype
 			,s.IP, s.Starttime, s.Action, s.Message
@@ -91,14 +111,45 @@ BEGIN
 					OR (s.AdminId = @AdminId)
 				)
 				AND Message IS NOT NULL
-				
-	SET @NumberError = @@rowcount
+ 
+	DELETE tbl 
+	OUTPUT deleted.matchid
+			,SUBSTRING(
+					deleted.Message,
+					CHARINDEX('MarketId:', deleted.Message) + LEN('MarketId:'),                   
+					CHARINDEX(',', deleted.Message) - (CHARINDEX('MarketId:', deleted.Message) + LEN('MarketId:'))  
+				) AS MarketId
+			,deleted.matchcode, deleted.homeid, deleted.awayid, deleted.sporttype, deleted.IP, deleted.starttime, deleted.Action, deleted.Message, deleted.IsSent
+	INTO @tblBetbuilder  (matchid, marketid, matchcode, homeid, awayid, sporttype, IP, starttime, Action, Message, IsSent)
+	FROM @tblTemp tbl
+	WHERE tbl.sporttype IN (1,2)
+		AND tbl.Action = 'KEYIN-AUTO'
+		AND tbl.Message LIKE 'MarketId%'
+ 
+	DELETE tbl
+	FROM @tblBetbuilder tbl
+	WHERE NOT EXISTS (SELECT TOP 1 b.Transid 
+						FROM bettrans b WITH(NOLOCK) 
+						WHERE b.matchid = tbl.matchid 
+							AND b.BetCheck = tbl.marketid
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+							AND b.bettype = 38)
+
+
+	SET @NumberError = (SELECT COUNT(1) FROM @tblTemp)
+	
+	IF @NumberError = 0
+		SET @NumberError = (SELECT COUNT(1) FROM @tblBetbuilder)
 
 	-- send email in case calculation got issues
 	SELECT matchid, matchcode, homeid, awayid, sporttype, IP, starttime, Action, Message
 	FROM	@tblTemp
 	WHERE	IsSent = 0
-
+	UNION
+	SELECT matchid, matchcode, homeid, awayid, sporttype, IP, starttime, Action, Message
+	FROM @tblBetbuilder
+	WHERE	IsSent = 0
+/*
 	UPDATE	s
 	SET		s.IsSent = 1
 	FROM	dbo.Settled_Message s 
@@ -107,6 +158,6 @@ BEGIN
 				AND s.Action = t.Action
 				AND s.Message = t.Message
 	WHERE	t.IsSent = 0
-				
+	*/			
 END
 GO
