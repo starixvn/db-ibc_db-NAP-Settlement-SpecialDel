@@ -39,6 +39,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@WrongOfferedNameInfo  NVARCHAR(MAX) = NULL
 	,@OtherIssuesInfo		VARCHAR(MAX) = NULL
 	,@MatchEarlyCompletedInfo 	NVARCHAR(MAX) = NULL
+	,@SecondTeamBattingInfo VARCHAR(MAX) = NULL
 	,@BriefInfoNote			NVARCHAR(MAX) = NULL
 	,@IsVoided				BIT			  = 0
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
@@ -92,6 +93,7 @@ AS
 		- 20241022@July: [TVS] New Issue Type "Other Issues" [Redmine: #211913]
 		- 20250108@Lani: [TVS] Separate SP of updating request detail for wrong HDP/OU and 1st HDP/OU issue types [Redmine: #215545]
 		- 20250515@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
+		- 20250929@Lani: [TVS] Second Team Batting - New Issue Type [Redmine: #236104]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -359,7 +361,7 @@ BEGIN
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest
 		END
-		ELSE IF @IssueTypeId IN (24)
+		ELSE IF @IssueTypeId IN (24) --Technical Error
 		BEGIN
 			EXEC dbo.TicketVoiding_RequestDetail_TE_Update
 					 @RequestId		 = @RequestId		
@@ -401,6 +403,17 @@ BEGIN
 					,@UserId		 = @UserId		
 					,@IP			 = @IP			
 					,@MatchEarlyCompletedInfo = @MatchEarlyCompletedInfo
+					,@TransInfoJson	 = @TransInfoJson			
+					,@IsEditRequest	 = @IsEditRequest
+		END
+		ELSE IF @IssueTypeId IN (28) --Second Team Batting (Use same SP of issuetype Technical Error)
+		BEGIN
+			EXEC dbo.TicketVoiding_RequestDetail_TE_Update
+					 @RequestId		 = @RequestId		
+					,@IssueTypeId	 = @IssueTypeId	
+					,@UserId		 = @UserId		
+					,@IP			 = @IP			
+					,@TechnicalErrorInfo = @SecondTeamBattingInfo
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest
 		END

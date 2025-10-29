@@ -37,6 +37,7 @@ AS
 		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services - [Redmine: #224490]
 		- 20250612@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay[Redmine: #227829]
 		- 20250811@July: Wrong Market Offered - Enhancement for processing void many tickets in a request [Redmine: #235789]
+		- 20250929@Lani: [TVS] Second Team Batting - New Issue Type [Redmine: #236104]
 
 	Param's explanation:
 		
@@ -129,12 +130,12 @@ BEGIN
 		;WITH CTE_Single AS(
 			SELECT vh.RequestId
 					,SUM( CASE 
-							WHEN @IssueTypeId NOT IN (1,10,3,12,24,25,18) AND f.bettype IS NULL THEN 1
-							WHEN @IssueTypeId IN (1,10,3,12,24,25,18) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+							WHEN @IssueTypeId NOT IN (1,10,3,12,24,25,18,28) AND f.bettype IS NULL THEN 1
+							WHEN @IssueTypeId IN (1,10,3,12,24,25,18,28) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 							ELSE 0 END
 					) AS TotalVoidedSingle
 					,SUM(CASE WHEN f.bettype IS NOT NULL THEN 1 ELSE 0 END) AS TotalVoidedParlay
-					,SUM(CASE WHEN @IssueTypeId IN (1,10,3,12,24) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut -- Apply for DA,RC,WC
+					,SUM(CASE WHEN @IssueTypeId IN (1,10,3,12,24,28) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut -- Apply for DA,RC,WC,TE, WMO,Second Team Batting
 			FROM #tmpResult vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) 
 						ON vh.VoidingHistoryId = z.VoidingHistoryId AND z.VoidingHistoryId IS NOT NULL

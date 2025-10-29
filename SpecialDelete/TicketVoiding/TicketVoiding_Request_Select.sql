@@ -285,8 +285,8 @@ BEGIN
 					FOR XML PATH('')
 				)sp	 (TransIds)
 		WHERE	rd.RequestId = @RequestId
-		ORDER BY CASE WHEN @IssueTypeId = 1 THEN m.matchcode ELSE NULL END
-			, CASE WHEN @IssueTypeId = 3 THEN CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) ELSE NULL END
+		ORDER BY CASE WHEN @IssueTypeId = 1 THEN m.matchcode ELSE NULL END ASC
+			, CASE WHEN @IssueTypeId = 3 THEN CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) ELSE NULL END ASC
 	END
 	ELSE IF @IssueTypeId = 13 -- apply for Abnormal Account
 	BEGIN

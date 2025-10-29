@@ -15,6 +15,7 @@ AS
 	Revisions: 
 		- 20250311@Max: Init SP [#Redmine: #217979]
 		- 20250408@July: Enhance out of memory - Mode Loginfo [#Redmine: #217771]
+		- 20251001@Lani: [TVS] Second Team Batting - New Issue Type [Redmine: #236104]
 
 	Param's explanation:
 		@Mode		BIT = 1 --Loginfo, 0 --Others
@@ -116,7 +117,7 @@ BEGIN
 			SELECT TransId, RequestId, MainTransId, MatchId, ScoreId, CreatedBy
 			FROM #tmpTransRequest WITH (NOLOCK);
 		END
-		ELSE IF @IssueTypeId IN (12,24)	
+		ELSE IF @IssueTypeId IN (12,24,28)	
 		BEGIN
 			SELECT TransId, RequestId, MainTransId, MatchId, CreatedBy, Id
 			FROM #tmpTransRequest WITH (NOLOCK);

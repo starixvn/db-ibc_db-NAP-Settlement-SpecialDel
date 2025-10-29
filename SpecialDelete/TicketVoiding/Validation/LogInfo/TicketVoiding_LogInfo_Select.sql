@@ -24,6 +24,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@WrongOfferedNameInfo  	VARCHAR(MAX) = NULL
 	,@OtherIssuesInfo  			VARCHAR(MAX) = NULL
 	,@MatchEarlyCompletedInfo   VARCHAR(MAX) = NULL
+	,@SecondTeamBattingInfo		VARCHAR(MAX) =  NULL
 	,@OnlineServerId	  		VARCHAR(10) = NULL
 )
 AS
@@ -85,6 +86,7 @@ AS
 		- 20250514@Lani: [TVS] New Issue Type - Match Early Completed [Redmine: #226438]
 		- 20250725@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
 		- 20250724@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
+		- 20250929@Lani: [TVS] Second Team Batting - New Issue Type [Redmine: #236104]
 
 	Param's explanation:
 		
@@ -124,6 +126,7 @@ BEGIN
 					+ CASE WHEN @WrongOfferedNameInfo IS NULL THEN '' ELSE ',@WrongOfferedNameInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOfferedNameInfo) + '''' END
 					+ CASE WHEN @OtherIssuesInfo IS NULL THEN '' ELSE ',@OtherIssuesInfo = ''' + CONVERT(NVARCHAR(MAX), @OtherIssuesInfo) + '''' END
 					+ CASE WHEN @MatchEarlyCompletedInfo IS NULL THEN '' ELSE ',@MatchEarlyCompletedInfo = ''' + CONVERT(NVARCHAR(MAX), @MatchEarlyCompletedInfo) + '''' END
+					+ CASE WHEN @SecondTeamBattingInfo IS NULL THEN '' ELSE ',@SecondTeamBattingInfo = ''' + CONVERT(NVARCHAR(MAX), @SecondTeamBattingInfo) + '''' END
 					+ CASE WHEN @OnlineServerId IS NULL THEN '' ELSE ',@OnlineServerId = ''' + CONVERT(NVARCHAR(10), @OnlineServerId) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
@@ -299,6 +302,16 @@ BEGIN
             ,@MatchEarlyCompletedInfo = @MatchEarlyCompletedInfo
 			,@OnlineServerId	      = @OnlineServerId
     END
+	ELSE IF @IssueTypeId = 28 --Second Team Batting (use same SP of issuetype Technical Error)
+	BEGIN 
+		EXEC dbo.TicketVoiding_LogInfo_ADVMode_Select
+			 @RequestId			   = @RequestId
+			,@ActionId			   = @ActionId
+			,@IsShowLogOnly		   = @IsShowLogOnly
+			,@IssueTypeId		   = @IssueTypeId
+			,@AdvancedModeInfo	   = @SecondTeamBattingInfo
+			,@OnlineServerId	   = @OnlineServerId
+	END
 	
 	-- Write useraction log	
 	BEGIN TRY
