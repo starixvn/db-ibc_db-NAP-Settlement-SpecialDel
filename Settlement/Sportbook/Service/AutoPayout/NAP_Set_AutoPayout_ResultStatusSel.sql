@@ -41,19 +41,19 @@ BEGIN
 
 	IF @ResultTable = 1
 	BEGIN
-		SELECT r.ResourceId, rd.ResultStatusID, rd.SettlementStatusID, r.Type, rd.Homevalue, rd.AwayValue
+		SELECT r.ResourceId, rd.ResultStatusID, rd.SettlementStatusID, r.Type, rd.Homevalue, rd.AwayValue, rd.OtherInfo
 		FROM   @Resource AS r
 			LEFT JOIN dbo.ResultDetail AS rd WITH(NOLOCK) ON r.ResourceID = rd.ResourceID AND rd.matchid = @MatchId
 	END
 	ELSE IF @ResultTable = 2
 	BEGIN
-		SELECT r.ResourceId, rd.ResultStatusID, rd.SettlementStatusID, r.Type, rd.Homevalue, rd.AwayValue
+		SELECT r.ResourceId, rd.ResultStatusID, rd.SettlementStatusID, r.Type, rd.Homevalue, rd.AwayValue, rd.OtherInfo
 		FROM   @Resource AS r
 			LEFT JOIN dbo.ResultDetailOS AS rd WITH(NOLOCK) ON r.ResourceID = rd.ResourceID AND rd.matchid = @MatchId
 	END
 	ELSE IF @ResultTable = 3
 	BEGIN
-		SELECT r.ResourceId, rd.ResultStatusID, rd.SettlementStatusID, r.Type, rd.Homevalue, rd.AwayValue
+		SELECT r.ResourceId, rd.ResultStatusID, rd.SettlementStatusID, r.Type, rd.Homevalue, rd.AwayValue, rd.OtherInfo
 		FROM   @Resource AS r
 			LEFT JOIN dbo.ResultDetailES AS rd WITH(NOLOCK) ON r.ResourceID = rd.ResourceID AND rd.matchid = @MatchId
 	END
