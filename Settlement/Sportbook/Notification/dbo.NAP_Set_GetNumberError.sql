@@ -25,6 +25,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+
 	DECLARE @tblSoccerTeam TABLE (custid INT)
 	DECLARE @tblOtherSportTeam TABLE (custid INT)
 	
@@ -154,6 +155,15 @@ BEGIN
 	SET		s.IsSent = 1
 	FROM	dbo.Settled_Message s 
 		INNER JOIN @tblTemp t
+			ON	s.MatchId = t.MatchId
+				AND s.Action = t.Action
+				AND s.Message = t.Message
+	WHERE	t.IsSent = 0
+
+	UPDATE	s
+	SET		s.IsSent = 1
+	FROM	dbo.Settled_Message s 
+		INNER JOIN @tblBetbuilder t
 			ON	s.MatchId = t.MatchId
 				AND s.Action = t.Action
 				AND s.Message = t.Message
