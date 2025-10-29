@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Update] 
 (
 	@Matches  XML           = NULL,
@@ -7,10 +7,9 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Update]
 )
 AS
 /*
-    Created by: Alan
-	Date: 20190325
+    Created by: 20190325@Alan
 	Task: Mark Ticket for Settlement Exclusion
-	DB: DBTXN/BODB02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
@@ -23,6 +22,7 @@ AS
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 
 	Explanation's Param:
 		@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
@@ -95,8 +95,8 @@ BEGIN
 		,CreatedDate
 		)
 	SELECT x.value('@MatchId', 'INT') AS MatchId
-		,x.value('@UserId', 'INT') AS UserId
-		,x.value('@CreatedDate', 'DATETIME') AS CreatedDate
+		  ,x.value('@UserId', 'INT') AS UserId
+		  ,x.value('@CreatedDate', 'DATETIME') AS CreatedDate
 	FROM @Matches.nodes('Matches/Match') XmlData(x)
 	OPTION (OPTIMIZE FOR (@Matches = NULL));
 
@@ -118,7 +118,28 @@ BEGIN
 								AND t.UserId = m.UserId
 								AND m.CreatedDate = t.CreatedDate
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.transid AND b.SiteDBGroupID = @SiteDBGroupID
-	
+	WHERE m.MarkType IN (0,1)
+
+	-- Get tickets insert into transaction
+	INSERT INTO #Tickets (
+		TransId
+		,MatchId
+		,BetType
+		,IsParlay
+		,Refno
+		)
+	SELECT m.TransId
+		,m.MatchId
+		,m.BetType
+		,1 AS IsParlay
+		,bm.refno
+	FROM dbo.MarkedTransaction m WITH (NOLOCK)
+		INNER JOIN #Match t ON t.MatchId = m.MatchId
+								AND t.UserId = m.UserId
+								AND m.CreatedDate = t.CreatedDate
+		INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = m.transid AND bm.SiteDBGroupID = @SiteDBGroupID
+	WHERE m.MarkType IN (2,3)
+
 	-- Check Lock Match
 	DECLARE @avaiableProcess BIT
 		   ,@IsExistSingle BIT = 0

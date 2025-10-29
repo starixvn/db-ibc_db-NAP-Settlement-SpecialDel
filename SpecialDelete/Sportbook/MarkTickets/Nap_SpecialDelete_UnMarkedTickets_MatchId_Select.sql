@@ -46,6 +46,7 @@ AS;
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250908@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -355,7 +356,8 @@ BEGIN
 			  FilterTransdesc	    NVARCHAR(2000),
 			  FilterPlayerAndOdds	NVARCHAR(1000),
 			  ActualStake			MONEY,
-			  MatchId				INT
+			  MatchId				INT,
+			  IsHybrid				BIT DEFAULT(0)
              );
 
 	CREATE TABLE #ParlayTickets
@@ -613,6 +615,7 @@ BEGIN
 			,ExtraInfo
 			,ActualStake
 			,MatchId
+			,IsHybrid
 		)
 		SELECT 
 			b.transid,
@@ -640,7 +643,7 @@ BEGIN
 			b.recommend,
 			b.betid,
 			b.betdaqid,
-			bm.transdesc,
+			CASE WHEN b.oddsspread = 3 THEN b.transdesc ELSE bm.transdesc END AS TransDesc,
 			bm.Refno,
 			b.WinLost - b.actual_stake AS WinLost,
 			1 AS IsMixParlay,
@@ -668,10 +671,11 @@ BEGIN
 			bm.SubOddsId AS FilterPlayerAndOdds,
 			b.ExtraInfo,
 			b.actual_stake AS ActualStake,
-			bm.MatchId
+			bm.MatchId,
+			CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 		FROM #ParlayTickets AS bm
-		INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno AND b.SiteDBGroupID = @SiteDBGroupID
-		INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno AND b.SiteDBGroupID = @SiteDBGroupID
+			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
 	END
 
 	-- Filter Advanced Mode
@@ -816,6 +820,14 @@ BEGIN
 	DELETE t 
 	FROM #Tickets t
 		INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = t.transid AND t.MatchId = m.MatchId
+	
+	IF EXISTS ( SELECT TOP 1 1 FROM #Tickets WHERE IsHybrid = 1) 
+	BEGIN
+		DELETE t 
+		FROM #Tickets t
+			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = t.SubTransId AND t.MatchId = m.MatchId
+		WHERE t.IsHybrid = 1
+	END
 
 	UPDATE s
 	SET IsDeposit = 1
@@ -882,7 +894,8 @@ BEGIN
 		b.SubOdds,
 		b.ActualStake,
 		b.modds AS MasterOdds, 
-		@SiteDBGroupID AS SiteDBGroupID
+		@SiteDBGroupID AS SiteDBGroupID,
+		b.IsHybrid
 	FROM #Tickets b
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON b.custid = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 

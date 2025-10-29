@@ -9,13 +9,12 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update
 )
 AS
 /*
-    Created by: Alan
-	Date: 20190325
+    Created by: 20190325@Alan
 	Task: Mark Ticket for Settlement Exclusion
-	DB: DBTXN/BODB02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Explanation's Param:
-		
+
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
@@ -39,6 +38,7 @@ AS
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20240912@Max: [TVS] Display mark ticket result when Add/Edit request and remove AB Bet sub type [Redmine: #210388]
 		- 20250505@July: Display show mark ticket for case error request [Redmine: #219112]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -73,7 +73,6 @@ BEGIN
 		   ,@totalParlay	INT = 0
            ,@ErrMsg			NVARCHAR(200) = ''
            ,@ErrCode        INT = 0 
-		   ,@MarkType		TINYINT	= 0 --default 0 (function mark)
 		   ,@SiteDBGroupID	SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -83,26 +82,23 @@ BEGIN
 	FROM STRING_SPLIT(@TransIds, ',')
 	WHERE value <> '';
 
-	IF @IssueTypeId IS NOT NULL --TVS
-	BEGIN
-		SET @MarkType = 1
-	END
 	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #Match(matchid INT, HomeId INT, AwayId INT, SportType TINYINT, IsNeutral BIT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT);
 	DECLARE @tmpMarkTicketList AS TABLE (TransId BIGINT)
 
-	CREATE TABLE #Tickets
-				(TransId   BIGINT,
-				MatchId   INT,
-				CustId    INT,
-				BetType   SMALLINT,
-				refno	 BIGINT,
-				IsParlay  BIT DEFAULT(0),
-				SubTransId BIGINT,
-				IsFinish	BIT
-				);
+	CREATE TABLE #Tickets(
+			TransId		BIGINT,
+			MatchId		INT,
+			CustId		INT,
+			BetType		SMALLINT,
+			refno		BIGINT,
+			IsParlay	BIT DEFAULT(0),
+			SubTransId	BIGINT,
+			MarkType	TINYINT, -- 0: SD, 1: TVS, 2: SD-HP (Hybrid Parlay), 3: TVS-HP (Hybrid Parlay)
+			IsFinish	BIT
+	);
 
 	-- Get tickets insert into transaction
 	INSERT INTO #Tickets (
@@ -113,6 +109,7 @@ BEGIN
 			,refno
 			,IsParlay
 			,SubTransId
+			,MarkType
 	)
 		OUTPUT  inserted.TransId INTO @tmpMarkTicketList (TransId)
 	SELECT t.TransId,
@@ -122,6 +119,7 @@ BEGIN
 			,b.refno
 			,CASE WHEN @IssueTypeId = 11 AND b.bettype = 29 THEN 1 ELSE 0 END AS IsParlay --Mixparlay of AB
 			,NULL
+			,CASE WHEN @IssueTypeId IS NULL THEN 0 ELSE 1 END AS MarkType
 	FROM #transIds t
 	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 	WHERE b.SiteDBGroupID = @SiteDBGroupID
@@ -149,15 +147,19 @@ BEGIN
 			,refno
 			,IsParlay
 			,SubTransId
+			,MarkType
 		)
 		OUTPUT  inserted.TransId INTO @tmpMarkTicketList (TransId)
-		SELECT b.TransId
+		SELECT CASE WHEN b.oddsspread = 3 THEN bm.TransId ELSE b.TransId END AS TransId 
 			,bm.matchid
 			,bm.bettype
 			,bm.custid
 			,bm.refno
 			,1
 			,bm.transid
+			,CASE WHEN b.oddsspread = 3 THEN IIF(@IssueTypeId IS NULL, 2, 3) --2: SD-HP, 3: TVS-HP
+				 ELSE IIF(@IssueTypeId IS NULL, 0, 1) --0: SD, 1: TVS
+			 END AS MarkType
 		FROM #ParlayTransIds t
 			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
@@ -318,7 +320,7 @@ BEGIN
     
 		-- Insert Transaction
 		DECLARE @TransIds_SB VARCHAR(MAX)
-		DECLARE @MarkedTransactionDeleted TABLE (TransId BIGINT, MatchId INT, BetType SMALLINT, CustId INT,IsParlay  BIT DEFAULT(0));
+		DECLARE @MarkedTransactionDeleted TABLE (TransId BIGINT, MatchId INT, BetType SMALLINT, CustId INT, MarkType TINYINT,IsParlay  BIT DEFAULT(0));
 		WHILE (0=0)
 		BEGIN
 			DELETE @MarkedTransactionDeleted
@@ -329,7 +331,8 @@ BEGIN
 				,DELETED.BetType
 				,DELETED.CustId
 				,DELETED.IsParlay
-			INTO @MarkedTransactionDeleted (TransId, MatchId, BetType, CustId, IsParlay)
+				,DELETED.MarkType
+			INTO @MarkedTransactionDeleted (TransId, MatchId, BetType, CustId, IsParlay, MarkType)
 			FROM #Tickets t
 			WHERE t.IsFinish IS NULL
 
@@ -340,7 +343,7 @@ BEGIN
 											,t.MatchId AS '@match'
 											,t.BetType AS '@bettype'
 											,t.CustId AS '@cust'
-											,@MarkType AS '@type'
+											,t.MarkType AS '@type'
 											,t.IsParlay AS '@p'
 										FROM @MarkedTransactionDeleted t
 										FOR XML PATH('r')
@@ -418,7 +421,6 @@ BEGIN
 	FROM @tmpMarkTicketList tmp
 		INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON tmp.TransId = m.TransId
 				
-
 	-- Write Log
 	SET @xmlLog = CAST((
 			SELECT @LogActionId AS '@LogActionId' -- 90500: Action Mark, 90508: Mark by add request

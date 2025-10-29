@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_AutoUnmark_TransInfo_Select]
 (
 	 @MatchId		INT				= NULL
@@ -9,12 +9,13 @@ CREATE PROCEDURE [dbo].[TicketVoiding_AutoUnmark_TransInfo_Select]
 AS
 /*	Created by: 20220831@July
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20220831@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 
 	Param's explanation:	
 	
@@ -22,7 +23,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #tmp_TransId (transid BIGINT, matchid INT, userid INT, createddate DATETIME, refno BIGINT,statusID TINYINT, bettype SMALLINT, MarkType TINYINT, betid NVARCHAR(100))
+	CREATE TABLE #tmp_TransId (transid BIGINT, matchid INT, userid INT, createddate DATETIME, refno BIGINT, bettype SMALLINT, MarkType TINYINT, betid NVARCHAR(100))
 	CREATE TABLE #CTE_FilterByTicketStatus(MatchId INT, transid BIGINT, bettype SMALLINT, UserId INT, CreatedDate DATETIME, MarkType INT, betid NVARCHAR(100))
 
 	DECLARE @Sporttypes AS TABLE (sporttype SMALLINT)
@@ -36,15 +37,14 @@ BEGIN
 	SELECT DISTINCT value AS sporttype
 	FROM STRING_SPLIT(@Sporttype, ',')
 
-	INSERT INTO #tmp_TransId (transid, matchid, userid, createddate, refno, statusID, bettype, MarkType, betid)
+	INSERT INTO #tmp_TransId (transid, matchid, userid, createddate, refno, bettype, MarkType, betid)
 	SELECT mt.TransId
 		,mt.MatchId
 		,mt.UserId
 		,mt.CreatedDate
 		,CASE WHEN b.matchid = 29 THEN b.refno ELSE NULL END AS refno
-		,b.statusID
 		,CASE WHEN b.matchid = 29 THEN NULL ELSE b.bettype END AS bettype
-		,CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END AS MarkType
+		,mt.MarkType
 		,CASE WHEN b.matchid = 29 THEN NULL ELSE CONVERT(NVARCHAR(100), b.betid) END AS betid 
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON mt.TransId = b.transid 
@@ -62,6 +62,34 @@ BEGIN
 		AND m.sporttype <= 99
 		AND 1 = CASE WHEN b.matchid <> 29 AND b.statusID IN (101,102) THEN 0 ELSE 1 END
 		AND b.SiteDBGroupID = @SiteDBGroupID
+		AND mt.MarkType IN (0,1) -- SD/TVS
+
+	INSERT INTO #tmp_TransId (transid, matchid, userid, createddate, refno, bettype, MarkType, betid)
+	SELECT mt.TransId
+		,mt.MatchId
+		,mt.UserId
+		,mt.CreatedDate
+		,NULL AS refno
+		,bm.bettype
+		,mt.MarkType
+		,bm.betcheck AS betid
+	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
+		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON mt.TransId = bm.transid 
+		INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
+		INNER JOIN @Sporttypes s ON s.sporttype = m.sporttype
+		INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+	WHERE ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
+		AND 1 = CASE WHEN @MatchId IS NULL THEN 1 
+					 ELSE 
+						CASE WHEN m.sporttype NOT IN (50,8) AND m.matchid = @MatchId THEN 1 
+							 WHEN m.sporttype IN (50,8) AND (m.matchid = @MatchId OR m.ParentID = @MatchId) THEN 1
+							 ELSE 0 END
+						END
+		AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
+		AND m.sporttype <= 99
+		AND bm.statusID IN (0,1)
+		AND bm.SiteDBGroupID = @SiteDBGroupID
+		AND mt.MarkType IN (2,3) -- SD-HP/TVS-HP
 
 	INSERT INTO #CTE_FilterByTicketStatus (transid, MatchId, bettype, UserId, CreatedDate, MarkType, betid)
 	SELECT f.TransId

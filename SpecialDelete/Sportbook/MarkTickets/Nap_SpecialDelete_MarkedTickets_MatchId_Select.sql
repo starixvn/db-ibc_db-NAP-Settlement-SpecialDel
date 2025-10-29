@@ -47,6 +47,7 @@ AS;
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250908@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -357,7 +358,8 @@ BEGIN
 		FilterOddsId		 INT,
 		FilterTransdesc     NVARCHAR(2000),
 		FilterPlayerAndOdds NVARCHAR(1000),
-		ActualStake			MONEY
+		ActualStake			MONEY,
+		IsHybrid			BIT DEFAULT(0)
 	)
 
 	IF @Bet = 'All' OR @Bet = 'Single'
@@ -482,7 +484,6 @@ BEGIN
 
 	IF @Bet = 'All' OR @Bet = 'Parlay'
 	BEGIN
-
 		INSERT INTO #Tickets (
 			GroupID
 			,transid
@@ -595,8 +596,8 @@ BEGIN
 			bm.matchid
 			,b.modds
 		FROM dbo.bettransm bm WITH (NOLOCK)
-			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
-			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
+			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
+			INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = bm.bettype
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = bm.matchid
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
 		WHERE bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
@@ -606,6 +607,137 @@ BEGIN
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END	
 			AND EXISTS (SELECT TOP 1 1 FROM #Durations d WHERE bm.transdate BETWEEN d.FromTransDate AND d.ToTransDate)
+			AND m.MarkType IN (0,1) -- SD/TVS
+
+		IF EXISTS (SELECT TOP 1 1 FROM MarkedTransaction WHERE MarkType IN (2,3) AND MatchId IN (SELECT MatchId FROM @tmpMatchId))
+		BEGIN
+			INSERT INTO #Tickets (
+				GroupID
+				,transid
+				,custid	
+				,odds
+				,oddsspread	
+				,OddsType
+				,transdate
+				,bettype
+				,betteam
+				,betcheck
+				,hdp1
+				,hdp2
+				,IsLiveIndicator
+				,livehomescore 
+				,liveawayscore 
+				,creator
+				,UserName
+				,Stake
+				,CurrencyName
+				,status
+				,srecommend
+				,mrecommend
+				,recommend
+				,betid
+				,betdaqid
+				,TransDesc
+				,refno
+				,WinLost
+				,IsMixParlay
+				,SubTransId
+				,SubStatus
+				,SubBetCheck
+				,SubBetTeam
+				,SubBetType
+				,SubHdp1
+				,SubHdp2
+				,SubOdds
+				,FilterBettype
+				,FilterBetTeam
+				,FilterSet
+				,FilterGame	
+				,FilterValue
+				,FilterHdp1
+				,FilterHdp2
+				,FilterGoal
+				,FilterOddsSpread
+				,FilterOddsId
+				,FilterTransdesc
+				,FilterPlayerAndOdds
+				,ExtraInfo
+				,ActualStake
+				,matchid
+				,modds
+				,IsHybrid
+			)
+			SELECT 
+				b.transid,
+				b.transid,
+				bm.custid,
+				b.odds,   
+				bm.oddsspread,
+				b.OddsType,  
+				bm.transdate,
+				b.bettype,
+				b.betteam,
+				b.betcheck,
+				b.hdp1,
+				b.hdp2,
+				bm.liveindicator,
+				bm.livehomescore,
+				bm.liveawayscore,
+				bm.creator,
+				b.UserName,
+				b.stake,
+				b.CurrencyName, 
+				b.status,
+				b.srecommend,
+				b.mrecommend,
+				b.recommend,
+				b.betid,
+				b.betdaqid,
+				CASE WHEN b.oddsspread = 3 THEN b.transdesc ELSE bm.transdesc END AS TransDesc,
+				bm.Refno,
+				b.WinLost - b.actual_stake AS WinLost,
+				1 AS IsMixParlay,
+				bm.transid AS SubTransId,
+				bm.status AS SubStatus,
+				bm.betcheck AS SubBetCheck,
+				bm.betteam AS SubBetTeam,
+				bm.bettype AS SubBetType,
+				bm.hdp1 AS SubHdp1,
+				bm.hdp2 AS SubHdp2,
+				bm.odds As SubOdds,
+				bm.bettype AS FilterBetType,
+				bm.betteam AS FilterBetTeam,
+				bm.betcheck AS FilterSet,
+				RIGHT(bm.betcheck, 2) AS FilterGame,
+				bm.hdp1 + bm.hdp2 AS FilterValue,
+				bm.hdp1 AS FilterHdp1,
+				CASE WHEN bt.Id = 646 THEN ABS(bm.hdp2) ELSE bm.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
+				ISNULL(bm.betcheck, 0) AS FilterGoal,
+				CASE WHEN bt.Id = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS FilterOddsSpread, --229:SABA HDP Time Machine
+				bm.oddsid AS FilterOddsId,
+				CASE 
+					WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.TransDesc, '$.pid')
+					ELSE bm.transdesc END AS FilterTransdesc,
+				bm.oddsid AS FilterPlayerAndOdds,
+				b.ExtraInfo,
+				b.actual_stake AS ActualStake,
+				bm.matchid
+				,b.modds
+				,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			FROM dbo.MarkedTransaction m WITH(NOLOCK)
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON m.TransId = bm.transid AND m.MatchId = bm.matchid
+				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
+				INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = bm.bettype
+				INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
+			WHERE bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
+				AND bm.statusID IN (0, 1)
+				AND EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = bm.matchid )
+				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
+				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
+				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END	
+				AND EXISTS (SELECT TOP 1 1 FROM #Durations d WHERE bm.transdate BETWEEN d.FromTransDate AND d.ToTransDate)
+				AND m.MarkType IN (2,3) -- SD-HP/TVS-HP
+		END
 	END
 
 	-- Filter Advanced Mode
@@ -811,6 +943,7 @@ BEGIN
 		b.ActualStake,
 		@SiteDBGroupID AS SiteDBGroupID
 		,b.modds AS MasterOdds
+		,b.IsHybrid
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.custid = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 

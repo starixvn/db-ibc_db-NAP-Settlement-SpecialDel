@@ -37,6 +37,8 @@ AS
 		- 20230303@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
+
 */
 BEGIN
      SET NOCOUNT ON;
@@ -138,7 +140,7 @@ BEGIN
 			,IsParlay
 			,SubTransId
 			)
-		SELECT b.transid
+		SELECT CASE WHEN b.oddsspread = 3 THEN bm.TransId ELSE b.TransId END AS TransId
 			,bm.matchid
 			,bm.bettype
 			,bm.custid

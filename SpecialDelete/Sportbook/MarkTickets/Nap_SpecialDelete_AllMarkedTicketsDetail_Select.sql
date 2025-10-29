@@ -24,6 +24,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 
 	Explanation's Param:
 */
@@ -76,7 +77,8 @@ BEGIN
               SubHdp1         SMALLMONEY,
               SubHdp2         SMALLMONEY,
               modds			  SMALLMONEY,
-			  SubOdds         SMALLMONEY
+			  SubOdds         SMALLMONEY,
+			  IsHybrid		  BIT DEFAULT(0)
              );
 	-- get single tickets
 	INSERT INTO #Tickets (
@@ -244,17 +246,106 @@ BEGIN
 		AND m.UserId = @UserId
 		AND m.CreatedDate = @CreatedDate
 		AND bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
+		AND m.MarkType IN (0,1) -- SD/TVS
 	
-	UPDATE sub
-	SET MainTransId = main.transid
-	FROM #Tickets main
-			INNER JOIN #Tickets sub
-					ON main.RefCode = sub.RefCode	
-					AND main.transid <> sub.transid					
-					AND main.custid = sub.custid
-					AND main.matchid = sub.matchid
-					AND main.bettype = sub.bettype											
-	WHERE main.WalletType = 1		
+	IF EXISTS (SELECT TOP 1 1 
+			  FROM MarkedTransaction WITH(NOLOCK)
+			  WHERE MatchId = @MatchId AND UserId = @UserId AND CreatedDate = @CreatedDate AND MarkType IN (2,3)
+	)
+	BEGIN
+		-- get subparlay tickets
+		INSERT INTO #Tickets (
+				bettype
+				,transid
+				,betid
+				,refno
+				,hdp1
+				,hdp2
+				,odds
+				,oddsspread	
+				,OddsType
+				,STATUS	
+				,stake
+				,transdate
+				,betteam
+				,betcheck
+				,IsLiveIndicator
+				,custid	
+				,livehomescore
+				,liveawayscore
+				,matchid
+				,winlost
+				,TransDesc
+				,betdaqid
+				,username
+				,srecommend
+				,recommend
+				,ExtraInfo
+				,CurrencyName
+				,IsMixParlay
+				,SubTransId
+				,SubStatus
+				,SubBetCheck
+				,SubBetTeam
+				,SubBetType
+				,SubHdp1
+				,SubHdp2
+				,SubOdds
+				,modds
+				,IsHybrid
+			)
+			SELECT
+				b.bettype
+				,b.transid
+				,isnull(b.BetID, 0) AS BetID
+				,bm.refno
+				,b.hdp1
+				,b.hdp2
+				,b.odds
+				,bm.oddsspread
+				,b.OddsType
+				,CASE WHEN b.STATUS = 'running'
+						AND IsNull(b.SecAcceptFlag, 0) = 1
+						AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+					ELSE b.STATUS END AS STATUS
+				,b.stake
+				,bm.transdate
+				,b.betteam
+				,b.betcheck
+				,bm.liveindicator
+				,bm.custid
+				,bm.livehomescore
+				,bm.liveawayscore
+				,bm.matchid
+				,(b.winlost - b.actual_stake) winlost
+				,CASE WHEN b.oddsspread = 3 THEN b.transdesc ELSE bm.transdesc END AS TransDesc
+				,b.betdaqid
+				,b.username
+				,b.srecommend
+				,b.recommend
+				,b.ExtraInfo
+				,b.CurrencyName
+				,1 AS IsMixParlay
+				,bm.transid AS SubTransId
+				,bm.status AS SubStatus
+				,bm.betcheck AS SubBetCheck
+				,bm.betteam AS SubBetTeam
+				,bm.bettype AS SubBetType
+				,bm.hdp1 AS SubHdp1
+				,bm.hdp2 AS SubHdp2
+				,bm.odds As SubOdds
+				,b.modds
+				,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			FROM dbo.MarkedTransaction m WITH(NOLOCK)
+				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON m.TransId = bm.transid AND m.MatchId = bm.matchid
+				INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND bm.refno = b.refno
+			WHERE bm.statusID IN (0, 1) -- running, waiting
+			AND m.matchid = @MatchId
+			AND m.UserId = @UserId
+			AND m.CreatedDate = @CreatedDate
+			AND bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
+			AND m.MarkType IN (2,3) -- SD-HP/TVS-HP
+	END
 
 	UPDATE b
 	SET IsDeposit = 1
@@ -269,7 +360,7 @@ BEGIN
 			  , @777_Name	   VARCHAR(50) = '777'
 
 		CREATE TABLE #t_LicenseeNames(LicenseeName VARCHAR(100), GroupName VARCHAR(100))
-		CREATE CLUSTERED INDEX t_IDX_LicenseeNames_LicenseeName ON #t_LicenseeNames(LicenseeName)
+		CREATE CLUSTERED INDEX CIX_LicenseeNames_LicenseeName ON #t_LicenseeNames(LicenseeName)
 		CREATE TABLE #t_UIRepresentativeLicenseeGroupNames(GroupName VARCHAR(100))
 
 		INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
@@ -351,7 +442,8 @@ BEGIN
 		b.SubHdp2,
 		b.SubOdds,
 		b.modds AS MasterOdds,
-		@SiteDBGroupID AS SiteDBGroupID
+		@SiteDBGroupID AS SiteDBGroupID,
+		IsHybrid
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.custid = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
@@ -369,7 +461,7 @@ BEGIN
 		   , ISNULL(b.MainTransId, b.transid) ASC
 		   , CASE WHEN b.BonusID IS NOT NULL
 				THEN CASE WHEN b.MainTransId IS NULL THEN 1
-				ELSE 2 END ELSE b.transid END
+				ELSE 2 END ELSE b.transid END ASC
 
 				
 	DROP TABLE #Tickets

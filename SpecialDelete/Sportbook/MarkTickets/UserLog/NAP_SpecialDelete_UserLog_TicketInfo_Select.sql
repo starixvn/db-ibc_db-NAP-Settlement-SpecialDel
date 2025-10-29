@@ -10,6 +10,7 @@ AS
 	
 	Revisions: 
 		- 20200911@Zane: Create new SP [Redmine: #141235]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 
 	Param's explanation:
 */
@@ -34,6 +35,13 @@ BEGIN
 		FROM #tblTransIds t
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
 			WHERE b.bettype = 29
+	
+	-- Return Hybrid parlay transid
+	SELECT t.transid, b.TransId AS MainTransId
+	FROM #tblTransIds t
+		INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON t.transid = bm.transid
+		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON b.refno = bm.refno
+	WHERE b.bettype = 29 AND b.oddsspread = 3
 
 	DROP TABLE #tblTransIds
 END
