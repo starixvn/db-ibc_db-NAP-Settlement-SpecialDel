@@ -360,8 +360,9 @@ BEGIN
 			  ActualStake		 MONEY,
 			  OddsId			INT,
 			  SiteDBGroupId		SMALLINT,
-			  SettlementStatus	  TINYINT,
-			  eventstatus			  NVARCHAR(50)
+			  SettlementStatus	TINYINT,
+			  eventstatus		NVARCHAR(50),
+			  finalodds			SMALLMONEY
              );
 
 	CREATE TABLE #SpecialDeleteBetsm
@@ -386,8 +387,9 @@ BEGIN
 			  SubOddsSpread	 MONEY,
 			  SubOddsId		INT,
 			  SubTransDesc  NVARCHAR(2000),
-			  SiteDBGroupId		SMALLINT,
-			  matchid		INT
+			  SiteDBGroupId	SMALLINT,
+			  matchid		INT, 
+			  finalodds		SMALLMONEY
              );
 
 	DECLARE @SportType SMALLINT
@@ -708,6 +710,7 @@ BEGIN
 				,SubTransDesc
 				,SiteDBGroupId
 				,matchid
+				,finalodds
 			)
 			SELECT
 				 bm.custid 
@@ -733,6 +736,7 @@ BEGIN
 				,bm.transdesc
 				,bm.SiteDBGroupID
 				,bm.matchid
+				,bm.finalodds
 			FROM dbo.bettransm bm WITH (NOLOCK)
 				INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = bm.bettype
 			WHERE EXISTS (SELECT 1 FROM @tmpMatchId WHERE matchid = bm.matchid)
@@ -774,6 +778,7 @@ BEGIN
 				,SubTransDesc
 				,SiteDBGroupId
 				,matchid
+				,finalodds
 			)
 			SELECT
 				 bm.custid 
@@ -799,6 +804,7 @@ BEGIN
 				,bm.transdesc
 				,bm.SiteDBGroupID
 				,bm.matchid
+				,bm.finalodds
 			FROM dbo.bettransm bm WITH (NOLOCK)
 				INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = bm.bettype
 			WHERE EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = bm.matchid)
@@ -868,6 +874,7 @@ BEGIN
 				,FilterOdds
 				,matchid
 				,modds
+				,finalodds
 			)
 			SELECT
 				b.transid,
@@ -925,11 +932,12 @@ BEGIN
 				b.actual_stake AS ActualStake,
 				bm.SubOddsId
 				,bm.SiteDBGroupId
-				,bm.SubOdds AS FilterOdds
+				,CASE WHEN b.oddsspread = 3 THEN bm.finalodds ELSE bm.SubOdds END AS FilterOdds
 				,bm.matchid
 				,b.modds
+				,bm.finalodds
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
-				INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) 
+				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
 		END
 		
@@ -1116,6 +1124,21 @@ BEGIN
 		END
 	END	
 
+	--Update odds support show betlist for Hybrid parlay
+	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE IsMixParlay = 1 AND oddsspread = 3) 
+	BEGIN
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #SpecialDeleteBets AS b
+		INNER JOIN (
+			SELECT transid, MAX(SubOdds) AS Max_SubOdds
+			FROM #SpecialDeleteBets
+			WHERE IsMixParlay = 1 AND oddsspread = 3
+			GROUP BY transid
+		) AS x ON b.transid = x.transid
+		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+	END 
+
 	-- UPDATE eventtype = 1
 	IF(EXISTS (
 			SELECT TOP 1 1 
@@ -1290,6 +1313,7 @@ BEGIN
 			   ,s.eventstatus
 			   ,s.SettlementStatus
 			   ,s.modds
+			   ,s.finalodds
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN #SpecialDeleteBets sub ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1359,6 +1383,7 @@ BEGIN
 			   ,s.eventstatus
 			   ,s.SettlementStatus
 			   ,s.modds
+			   ,s.finalodds
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON s.betid = b.transid AND b.matchid = s.matchid
 		WHERE	s.recommend IN (52466, 5707545)
@@ -1421,6 +1446,7 @@ BEGIN
 			   ,s.eventstatus
 			   ,s.SettlementStatus
 			   ,s.modds
+			   ,s.finalodds
 		FROM #SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1493,6 +1519,7 @@ BEGIN
 			   ,s.eventstatus
 			   ,s.SettlementStatus
 		       ,s.modds
+			   ,s.finalodds
 		FROM #SpecialDeleteBets s
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1566,6 +1593,7 @@ BEGIN
 			   ,s.eventstatus
 			   ,s.SettlementStatus
 			   ,s.modds
+			   ,s.finalodds
 			   ,CASE WHEN s.eventstatus <> @eventstatus_completed AND s.mainstatusid IN (111, 112, 113) AND ISNULL(s.betdaqid,0) <> -2
 						THEN CASE WHEN s.SportType = 1 AND
 													EXISTS (SELECT TOP 1 1
@@ -1638,6 +1666,7 @@ BEGIN
 			   ,s.SettlementStatus
 			   ,s.modds
 			   ,s.SubGroupName
+			   ,s.finalodds
 		FROM CTE_InstantSettlementSubgrouping s
 		WHERE CASE
 					WHEN @SettledType = 'All' THEN 1
@@ -1714,6 +1743,7 @@ BEGIN
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 			,s.modds AS MasterOdds
 			,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,s.finalodds
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
@@ -1734,6 +1764,7 @@ BEGIN
 					ELSE 2 END
 				ELSE s.transid
 			 END ASC
+		   , s.SubTransid ASC
 	
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #SpecialDeleteBetsm
