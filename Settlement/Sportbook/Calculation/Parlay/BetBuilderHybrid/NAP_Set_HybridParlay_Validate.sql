@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_HybridParlay_ScheduleSel] 
-       @MatchId	INT = 0
+ALTER PROCEDURE [dbo].[NAP_Set_HybridParlay_Validate] 
+	@MatchId	INT
 AS
 /*
     Created by: Max

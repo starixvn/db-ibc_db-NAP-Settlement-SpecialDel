@@ -65,6 +65,7 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240425@Kathy: enhance MaxPayout [Redmine:#199518]
 		- 20250703@Max: Support re-settle when recover voided sub parlay from TVS [Redmine: #227829]
+		- 20251020@Max: Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 
     Param's Explanation:
         @action         @mode
@@ -205,7 +206,10 @@ BEGIN
 			, @AffectedTransIds = @AffectedTransIds OUTPUT
     END
 
-	/*TVS: VOID/RECOVER ==> NAP_Admin_Calculate_MP_m */
+	/*
+		TVS: VOID/RECOVER;l HYBRID PARLAY: updateleg
+		==> NAP_Admin_Calculate_MP_m 
+	*/
     IF @mode = 'VOID'
     BEGIN
         EXEC dbo.NAP_Admin_Calculate_MP_m @matchid = @MatchID
@@ -232,6 +236,12 @@ BEGIN
             , @action = 'RECOVER-RECAL'
             , @VoidTransID = @VoidTransID
     END
+	IF @mode = 'updateleg'
+	BEGIN
+		 EXEC dbo.NAP_Admin_Calculate_MP_m
+            @action = 'updateleg'
+            , @strXML = @strXML
+	END
 	/*====================================================*/
 	
 	IF @Mode = 'subParlay' AND @Action = 'MoveTicket'

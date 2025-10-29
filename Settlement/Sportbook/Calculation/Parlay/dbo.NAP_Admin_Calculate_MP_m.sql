@@ -18,6 +18,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_m]
 	,@betstatus	NVARCHAR(50) = NULL
 	,@IsRefundHT BIT = NULL
 	,@Sporttype SMALLINT = NULL
+	,@strXML	VARCHAR(MAX) = ''
 AS
 /*
     Creator: Viet
@@ -89,6 +90,7 @@ BEGIN
 		,status VARCHAR(10), statusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, creator INT, winlostdate SMALLDATETIME, odds SMALLMONEY)
 	DECLARE @tmpTransIdsVoidRecover TABLE (transid BIGINT)
+	DECLARE @tmpSubTransHybrid TABLE (TransId BIGINT, MatchId INT, Refno BIGINT, Odds MONEY)
 	
 	------ process by batch for betparlaydetail
 	DECLARE @StartRow INT = 1
@@ -302,6 +304,30 @@ BEGIN
                     AND pd.transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
         END --@doing = 'RECOVER-RECAL'
 
+		IF @doing = 'updateleg'
+        BEGIN   
+			SET @FunctionName = 'UpdateLegOdds'
+
+			INSERT INTO @tmpSubTransHybrid (TransId, MatchId, Refno, Odds)
+			SELECT js.TransId AS TransId, js.MatchId AS MatchId, js.Refno AS Refno, js.Odds AS Odds
+			FROM OPENJSON(@strXML) WITH (TransId BIGINT, MatchId INT, Refno BIGINT, Odds MONEY) js
+
+            UPDATE bm 
+            SET odds = t.Odds
+			OUTPUT INSERTED.transid, inserted.odds
+			INTO @tmpOutputBettransmVoidRecover(transid, odds)
+			FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
+				INNER JOIN @tmpSubTransHybrid t ON t.TransId = bm.TransId
+
+            UPDATE pd
+            SET odds = r.odds
+			OUTPUT inserted.transid, inserted.odds
+			INTO #tmpOutputBetParlayDetail(transid, odds)
+			FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+			INNER JOIN @tmpOutputBettransmVoidRecover r
+				ON pd.transid 	= r.transid
+        END --@doing = 'VOID'
+
         -- ===================================================        
 
 		IF @IsSiteDB = 1 AND @doing <> 'CAL'
@@ -317,6 +343,15 @@ BEGIN
 							,CASE WHEN @doing IN ('RECOVER','RECOVER-RECAL') AND winlostdate IS NULL THEN '' ELSE winlostdate END AS 'wld'
 							,CASE WHEN @doing = 'RECOVER' AND statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS 'statuswl'
 							,ruben AS 'r' -- ruben
+					FROM	@tmpOutputBettransmVoidRecover
+					FOR JSON AUTO
+				)
+			END
+			ELSE IF @doing IN ('updateleg')
+			BEGIN
+				SET @transinfoJson = (
+					SELECT	transId AS 't'	
+							,odds AS 'o'						
 					FROM	@tmpOutputBettransmVoidRecover
 					FOR JSON AUTO
 				)
