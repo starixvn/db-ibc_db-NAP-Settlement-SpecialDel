@@ -568,6 +568,7 @@ BEGIN
 		,VendorMatchId
 		,d.SecAcceptFlag
 		,CASE WHEN d.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+		,d.transid AS SubTransId
 	FROM #SpecialDeleteBets d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.custid = c.custid

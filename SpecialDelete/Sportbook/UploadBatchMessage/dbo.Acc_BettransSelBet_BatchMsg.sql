@@ -29,17 +29,20 @@ AS
   - 20240715@July: HotFix - Cannot upload message for SA Gaming [Redmine: #207967]
   - 20240715@July: Upload Batch Message - New 3rd Party Products [Redmine: #207996]
   - 20241125@Lani: Change join type on 'recommend' and 'custid' columns, 'mrecommend' and 'custid' [Redmine: #213451]
-  
+  - 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
+
 Explanation's Param:  
 	- @ProductIds: [1-99]
+		+ 1001: Bet Builder+
 		+ 1002: Bet Builder
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @invalidTransId 	VARCHAR(MAX)
-		,@balanUpDate			SMALLDATETIME
-		,@BetBuilder_ProductId	INT = 1002
+	DECLARE @invalidTransId 			VARCHAR(MAX)
+		   ,@balanUpDate				SMALLDATETIME
+		   ,@BetBuilderPlus_ProductId	INT = 1001
+		   ,@BetBuilder_ProductId		INT = 1002
 
 	CREATE TABLE #transIdList 	( transid 	BIGINT)
 	CREATE TABLE #productIdList ( ProductId INT)
@@ -59,7 +62,8 @@ BEGIN
 		, mrecommend INT
 		, srecommend INT
 		, betfrom NVARCHAR(4)
-	
+		, oddsspread MONEY
+		, ProductId INT
 	)
 	
 	-- set balanUpDate
@@ -88,9 +92,14 @@ BEGIN
 	IF(EXISTS (SELECT 1 FROM #productIdList WHERE ProductId = @BetBuilder_ProductId))
 	BEGIN
 		INSERT INTO #productBettype (ProductId, Bettype, SubProduct)
-		SELECT DISTINCT @BetBuilder_ProductId AS ProductId, sb.Bettype, sb.SubProduct
-		FROM dbo.SportBettypeMatrix sb (NOLOCK)
-		WHERE sb.Bettype = 38 	
+		SELECT @BetBuilder_ProductId AS ProductId, 38 AS Bettype, NULL AS SubProduct
+	END
+
+	-- Check Bet Builder+
+	IF(EXISTS (SELECT 1 FROM #productIdList WHERE ProductId = @BetBuilderPlus_ProductId))
+	BEGIN
+		INSERT INTO #productBettype (ProductId, Bettype, SubProduct)
+		SELECT @BetBuilderPlus_ProductId AS ProductId, 29 AS Bettype, NULL AS SubProduct
 	END
 	-- search by group 1
 	/*	
@@ -110,6 +119,8 @@ BEGIN
 			, mrecommend
 			, srecommend
 			, betfrom
+			, oddsspread
+			, ProductId
 		)
 		SELECT 
 			b.transid
@@ -120,10 +131,12 @@ BEGIN
 			, b.mrecommend
 			, b.srecommend
 			, b.betfrom
+			, b.oddsspread
+			, bt.ProductID
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #transIdList t ON b.transid = t.transid
 			INNER JOIN #productBettype bt ON b.bettype = bt.bettype			   
-			
+
 		UNION ALL 
 		SELECT 
 			b.transid
@@ -134,9 +147,19 @@ BEGIN
 			, b.mrecommend
 			, b.srecommend
 			, b.betfrom
+			, b.oddsspread
+			, bt.ProductID
 		FROM bettrans14 b WITH (NOLOCK)
 			INNER JOIN #transIdList t ON b.transid = t.transid
 			INNER JOIN #productBettype bt ON b.bettype = bt.bettype			   
+		
+		--Remove invalid tickets
+		DELETE b
+		FROM #BetDelete b
+		WHERE 1 = CASE WHEN b.ProductId = @BetBuilderPlus_ProductId AND b.bettype = 29 AND b.oddsspread <> 3 THEN 1
+					   WHEN b.ProductId = 1 AND b.bettype = 29 AND b.oddsspread = 3 THEN 1
+					   ELSE 0 END
+			
 	END
 	-- search by group 2
 	/*	
