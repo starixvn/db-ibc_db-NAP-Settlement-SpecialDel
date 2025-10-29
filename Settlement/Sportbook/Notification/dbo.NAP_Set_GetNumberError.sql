@@ -149,7 +149,7 @@ BEGIN
 	SELECT matchid, matchcode, homeid, awayid, sporttype, IP, starttime, Action, Message
 	FROM @tblBetbuilder
 	WHERE	IsSent = 0
-/*
+ 
 	UPDATE	s
 	SET		s.IsSent = 1
 	FROM	dbo.Settled_Message s 
@@ -158,6 +158,6 @@ BEGIN
 				AND s.Action = t.Action
 				AND s.Message = t.Message
 	WHERE	t.IsSent = 0
-	*/			
+ 		
 END
 GO
