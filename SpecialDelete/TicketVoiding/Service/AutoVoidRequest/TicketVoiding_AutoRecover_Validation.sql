@@ -19,13 +19,15 @@ AS
 		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's explanation:
-		ValidationType => 21, 22 (recover + resettle)
-		ValidationType => 23,24 (recover + resettle main)
+		ValidationType => 21, 22 (recover + resettle single)
+		ValidationType => 23, 24 (recover + resettle main)
 		ValidationType => 25, 26 (recover + resettle sub)
-		ValidationType => 27, 28 (recover + resettle)
-		ValidationType => 29 (resettle)
-		ValidationType => 30 (resettle)
-		ValidationType => 31, 32 (hybrid parlay)
+		ValidationType => 27, 28 (recover + resettle Cricket)
+		ValidationType => 29 (resettle single_14)
+		ValidationType => 30 (resettle main_14)
+		ValidationType => 31, 32 (recover + resettle sub - hybrid parlay)
+		ValidationType => 33, 34 (recover + resettle main - hybrid parlay)
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -123,7 +125,10 @@ BEGIN
 			,b.transdate
 			,b.winlostdate
 			,b.statusID
-			,CASE WHEN b.statuswinlost IS NOT NULL THEN 24 ELSE 23 END AS ValidationType
+			,CASE 
+				 WHEN b.oddsspread = 3 THEN IIF(b.statuswinlost IS NULL, 33, 34)
+				 ELSE IIF(b.statuswinlost IS NULL, 23, 24)
+			 END AS ValidationType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.TicketType = 2
@@ -136,8 +141,9 @@ BEGIN
 			  ,bm.transdate
 			  ,bm.winlostdate
 			  ,bm.statusID
-			  ,CASE WHEN b.oddsspread <> 3 THEN CASE WHEN bm.statuswinlost IS NOT NULL THEN 26 ELSE 25 END
-					WHEN b.oddsspread = 3 THEN CASE WHEN bm.statuswinlost IS NOT NULL THEN 32 ELSE 31 END
+			  ,CASE 
+				 WHEN b.oddsspread = 3 THEN IIF(bm.statuswinlost IS NULL, 31, 32)
+				 ELSE IIF(bm.statuswinlost IS NULL, 26, 25)
 				END AS ValidationType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
@@ -191,7 +197,6 @@ BEGIN
 
 	INSERT INTO #Ticket_Result(TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
 	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #ParlayTickets_14 --Parlay_14
-
 
 	SELECT TransId
 		  ,RequestId
