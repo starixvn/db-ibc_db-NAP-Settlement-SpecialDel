@@ -15,6 +15,7 @@ AS
 	- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 	- 20250815@Hughie: Apply SOP for Outright [Readmine:#232955]
 	- 20250917@Hughie: SOP Outright Phase 2 [Redmine: #233004]
+	- 20251022@Hughie: Enhance SOP Outright Phase 3 [Readmine:#241793]
 
  * Parameters: 
 	@StatusID: 0=ALL (N/A)| 1=Running | 2=Running AND Completed | 3=Completed (Already settled: WON/LOSE/REFUND) | 4 =Completed AND WON
