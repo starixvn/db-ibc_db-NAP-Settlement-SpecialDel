@@ -20,6 +20,7 @@ AS
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 		- 20252705@Aries: SOP- Soccer- Phase 3.2- Outside Score for Calculate Popup [Redmine:#226229]
 		- 20250829@Max: Basketball Player Prop [Redmine:#233012]
+		- 20253010@Louisa: Enhance showing Provider for template HT-FT[Redmine:#242825]
 
 	Param's explanation:
 		
@@ -55,7 +56,7 @@ BEGIN
 		;WITH  cteLatestSports AS
 			(
 				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId ASC, ex.CreateDate DESC) AS rn
-						,DENSE_RANK() OVER (ORDER BY ex.SourceId ASC) AS TopSourceId
+						,DENSE_RANK() OVER (ORDER BY CASE WHEN @SportType IN (6) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
 						,ex.SourceId
 						,ex.ResourceId
 						,ex.HomeValue
@@ -69,7 +70,7 @@ BEGIN
 
 				UNION ALL
 				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId ASC, ex.CreateDate DESC) AS rn
-						,DENSE_RANK() OVER (ORDER BY ex.SourceId ASC) AS TopSourceId
+						,DENSE_RANK() OVER (ORDER BY CASE WHEN @SportType IN (6) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
 						,ex.SourceId
 						,ex.ResourceId
 						,ex.HomeValue
