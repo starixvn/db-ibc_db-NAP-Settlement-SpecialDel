@@ -226,6 +226,6 @@ BEGIN
 		,SettlementStatusID
 		,OtherInfo
 		,ResultSetting
-	FROM @tmpResultDetail ORDER BY MatchID, SourceId, ResourceId ASC
+	FROM @tmpResultDetail ORDER BY MatchID ASC, SourceId ASC, ResourceId ASC
 
 END
