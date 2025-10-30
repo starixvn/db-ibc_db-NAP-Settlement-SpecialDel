@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_HybridParlay_LegOddsUpd]
 	@MatchId		INT
 	,@LegOddsJSON	NVARCHAR(MAX)
 	,@creator		INT
-	,@IP			VARCHAR(15)
+	,@IP			VARCHAR(15) = ''
 	,@ErrCode		INT = 0 OUTPUT
 	,@ErrMsg		NVARCHAR(200) = NULL OUTPUT
 AS
@@ -59,7 +59,7 @@ BEGIN
 		AND b.oddsspread = 3
 
 	INSERT INTO #tmpMaxTransIdUpdateLeg (Refno, MatchId, Odds, TransId)
-	SELECT t.MatchId, t.RefNo, t.Odds, bm.MaxSubTransId
+	SELECT t.RefNo, t.MatchId, t.Odds, bm.MaxSubTransId
 	FROM #tmpLegOddsInfo t
 		CROSS APPLY (
 				SELECT COUNT(CASE WHEN bm.statuswinlost IS NOT NULL THEN 1 ELSE 0 END) AS cntSettled
