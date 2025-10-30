@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02 " executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailLatestInfoSel]
+ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailLatestInfoSel_UAT1]
 	@MatchId	INT
 	,@SettleType	VARCHAR(10) = 'MNL'
 AS
@@ -46,17 +46,17 @@ BEGIN
 
 	IF @IsAppliedSOP = 1
 	BEGIN
-	/*	INSERT INTO @tmpProviderExternalResult (SourceId, SourceName, Remark, ResourceId, HomeValue, AwayValue, OrderNo)
+		INSERT INTO @tmpProviderExternalResult (SourceId, SourceName, Remark, ResourceId, HomeValue, AwayValue, OrderNo)
 		EXEC [dbo].[NAP_Set_ProviderExternalResultDetailOSLatestInfoSel]
 			 @MatchId		= @MatchId
-			,@SettleType	= @SettleType*/
+			,@SettleType	= @SettleType
 	END
 	ELSE 
 	BEGIN
 		;WITH  cteLatestSports AS
 			(
 				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId ASC, ex.CreateDate DESC) AS rn
-						,DENSE_RANK() OVER (PARTITION BY CASE WHEN ex.SportType IN (6) THEN ex.SourceId ELSE 1 END ORDER BY CASE WHEN ex.SportType IN (6) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
+						,DENSE_RANK() OVER (PARTITION BY CASE WHEN @SportType IN (6) THEN ex.SourceId ELSE 1 END ORDER BY CASE WHEN @SportType IN (6) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
 						,ex.SourceId
 						,ex.ResourceId
 						,ex.HomeValue
@@ -70,7 +70,7 @@ BEGIN
 
 				UNION ALL
 				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId ASC, ex.CreateDate DESC) AS rn
-						,DENSE_RANK() OVER (PARTITION BY CASE WHEN ex.SportType IN (6) THEN ex.SourceId ELSE 1 END ORDER BY CASE WHEN ex.SportType IN (6) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
+						,DENSE_RANK() OVER (PARTITION BY CASE WHEN @SportType IN (6) THEN ex.SourceId ELSE 1 END ORDER BY CASE WHEN @SportType IN (6) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
 						,ex.SourceId
 						,ex.ResourceId
 						,ex.HomeValue
