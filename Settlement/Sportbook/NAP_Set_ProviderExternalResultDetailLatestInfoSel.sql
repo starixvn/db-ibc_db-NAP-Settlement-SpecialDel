@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02 " executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailLatestInfoSel_]
+ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailLatestInfoSel]
 	@MatchId	INT
 	,@SettleType	VARCHAR(10) = 'MNL'
 AS
