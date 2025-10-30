@@ -44,8 +44,9 @@ BEGIN
 			FROM dbo.BetBuilderHybridParlayLog l WITH (NOLOCK)
 			WHERE l.MatchId = @MatchId
 				AND l.LogDate >= @Logdate
+			GROUP BY l.MatchID, l.TransId
 		)
-		SELECT t.MachId, t.TransId AS Betid, l.Odds
+		SELECT t.MatchID, t.TransId AS Betid, l.Odds
 		FROM cte t
 		CROSS APPLY (
 				SELECT TOP 1 Odds
