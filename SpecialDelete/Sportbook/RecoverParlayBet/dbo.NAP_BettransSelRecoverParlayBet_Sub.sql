@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Sub] 
-	@BetType		VARCHAR(100) = 'all'
+	@BetType		VARCHAR(100) = 'All'
 	,@MatchId		INT			= 0	
 	,@TransIds		VARCHAR(MAX)	= ''
 AS
@@ -23,7 +23,7 @@ AS
 
 	Param's Explanation:			
 			- @BetType:
-			'all': All
+			'All': All
 			'Mix Parlay': Mix Parlay
 			'System Parlay': System Parlay
 			Checkbox 'Bet Builder+': Search only hybrid parlay tickets.(Disable "Bet" radio buttons & Enable Selection field)
@@ -184,10 +184,10 @@ BEGIN
 			AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 			AND (m.sporttype BETWEEN 1 AND 99)		
 			AND CASE
-					WHEN @BetType = 'all' THEN 1
-					WHEN @BetType = 'Mix Parlay' THEN CASE WHEN b.betteam = 1 THEN 1 ELSE 0 END
-					WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
-					WHEN @BetType = 'Bet Builder+' THEN CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END
+					WHEN @BetType = 'All' AND b.oddsspread <> 3 THEN 1
+					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' AND b.oddsspread <> 3 THEN 1
+					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' AND b.oddsspread <> 3 THEN 1
+					WHEN @BetType = 'Bet Builder+' AND b.oddsspread = 3 THEN 1
 					ELSE 0
 				END	= 1													
 	

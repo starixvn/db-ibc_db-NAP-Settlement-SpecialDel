@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Main] 
-	@BetType				VARCHAR(20)		= 'All',
+	@BetType				VARCHAR(100)	= 'All',
 	@TransIds				VARCHAR(MAX)	= '',
 	@UserId					INT, 
 	@IP						VARCHAR(50)
@@ -34,11 +34,13 @@ AS
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20250623@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation:			
-		- @BetType: 'all': All
+		- @BetType: 'All': All
 					'Mix Parlay': Mix Parlay
 					'System Parlay': System Parlay
+					Checkbox 'Bet Builder+': Search only hybrid parlay tickets.(Disable "Bet" radio buttons & Enable Selection field)
 */
 BEGIN
 	SET NOCOUNT ON
@@ -177,9 +179,10 @@ BEGIN
 		WHERE b.matchid = 29 AND b.bettype = 29
 			AND b.statusid = 102
 			AND CASE
-					WHEN @BetType = 'all' THEN 1
-					WHEN @BetType = 'Mix Parlay' THEN CASE WHEN b.betteam = 1 THEN 1 ELSE 0 END
-					WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
+					WHEN @BetType = 'All' AND b.oddsspread <> 3 THEN 1
+					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' AND b.oddsspread <> 3 THEN 1
+					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' AND b.oddsspread <> 3 THEN 1
+					WHEN @BetType = 'Bet Builder+' AND b.oddsspread = 3 THEN 1
 					ELSE 0
 				END	= 1	
 		
@@ -650,6 +653,8 @@ BEGIN
 				,b.actual_stake AS ActualStake
 				,@SiteDBGroupID AS SiteDBGroupID
 				,b.modds AS MasterOdds 
+				,b.oddsspread 
+				,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 		FROM	#tblRecoverBet t
 				INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = t.transid AND b.SiteDBGroupID = @SiteDBGroupID
 				INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = b.srecommend

@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Main] 
-	@BetType		VARCHAR(100) = 'all'
+	@BetType		VARCHAR(100) = 'All'
 	,@TransIds		VARCHAR(MAX)	= ''
 AS
 /*
@@ -24,6 +24,8 @@ AS
 			'all': All
 			'Mix Parlay': Mix Parlay
 			'System Parlay': System Parlay
+			Checkbox 'Bet Builder+': Search only hybrid parlay tickets.(Disable "Bet" radio buttons & Enable Selection field)
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -132,11 +134,13 @@ BEGIN
 		AND b.statusid = 102
 		AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 		AND CASE
-				WHEN @BetType = 'all' THEN 1
-				WHEN @BetType = 'Mix Parlay' THEN CASE WHEN b.betteam = 1 THEN 1 ELSE 0 END
-				WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
+				WHEN @BetType = 'All' AND b.oddsspread <> 3 THEN 1
+				WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' AND b.oddsspread <> 3 THEN 1
+				WHEN @BetType = 'System Parlay' AND b.betteam <> '1' AND b.oddsspread <> 3 THEN 1
+				WHEN @BetType = 'Bet Builder+' AND b.oddsspread = 3 THEN 1
 				ELSE 0
 			END	= 1			
+	
 	/*Modify the way to get move bet date*/
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -172,6 +176,7 @@ BEGIN
 			 ,@SiteDBGroupID AS SiteDBGroupID
 			 ,t.modds AS MasterOdds
 			 ,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			 ,t.oddsspread
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID

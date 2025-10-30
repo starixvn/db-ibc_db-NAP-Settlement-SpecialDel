@@ -2,15 +2,14 @@
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Sub] 
 	@UserId				INT,	
 	@IP					VARCHAR(50),
-	@BetType			VARCHAR(20)		= 'All',
+	@BetType			VARCHAR(100)		= 'All',
 	@MainTransIds		VARCHAR(MAX)	= '',
 	@MatchId			INT	,
 	@IsCalledJackTimeHybridParlay BIT = 1
 AS
 /*
-	Created: Kent
-	Date: 20161111
-	DB: DBTXN/bodb02
+	Created: 20161111@Kent
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 		
 		- 20161019@Kent: Recover sub voided Parlay tickets [Redmine:#65531]
@@ -34,12 +33,14 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20250623@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation:			
 			- @BetType:
-			'all': All
+			'All': All
 			'Mix Parlay': Mix Parlay
 			'System Parlay': System Parlay
+			Checkbox 'Bet Builder+': Search only hybrid parlay tickets.(Disable "Bet" radio buttons & Enable Selection field)
 */
 BEGIN
 	SET NOCOUNT ON
@@ -144,6 +145,7 @@ BEGIN
 		,ruben					TINYINT
 		,oddsspread 			MONEY
 		,SiteID					INT
+		,finalodds				SMALLMONEY
 		,IsFinish				BIT
 	)	
 	
@@ -307,6 +309,7 @@ BEGIN
 				,oddsspread
 				,SiteID
 				,modds
+				,finalodds
 				)
 		SELECT  bm.transid AS SubTransID			 
 				,bm.betcheck AS SubBetCheck	
@@ -352,6 +355,7 @@ BEGIN
 				,b.oddsspread
 				,b.BetSiteID
 				,b.modds
+				,bm.finalodds
 		FROM @tblMainTransIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
@@ -365,9 +369,10 @@ BEGIN
 		  AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 		  AND (m.sporttype BETWEEN 1 AND 99)
 		  AND CASE
-					WHEN @BetType = 'all' THEN 1
-					WHEN @BetType = 'Mix Parlay' THEN CASE WHEN b.betteam = 1 THEN 1 ELSE 0 END
-					WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
+					WHEN @BetType = 'All' AND b.oddsspread <> 3 THEN 1
+					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' AND b.oddsspread <> 3 THEN 1
+					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' AND b.oddsspread <> 3 THEN 1
+					WHEN @BetType = 'Bet Builder+' AND b.oddsspread = 3 THEN 1
 					ELSE 0
 			  END	= 1	
 		 AND 1 = CASE WHEN @IsCalledJackTimeHybridParlay = 0 AND b.oddsspread = 3 THEN 0
@@ -801,6 +806,9 @@ BEGIN
 				 ,CURRENT_TIMESTAMP AS [DateTime]
 				 ,t.matchid
 				 ,t.modds AS MasterOdds 
+				 ,t.finalodds
+				 ,t.oddsspread
+				 ,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 		FROM @tblRecoverBet t
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				   ON t.custid = f.CustID
