@@ -1462,10 +1462,11 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE IsMixParlay = 1 AND oddsspread = 3) 
 	BEGIN
 		;WITH CTE_MaxSubOdds AS (
-			SELECT transid, MAX(SubOdds) AS Max_SubOdds
-			FROM #SpecialDeleteBets
-			WHERE IsMixParlay = 1 AND oddsspread = 3
-			GROUP BY transid
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #SpecialDeleteBets t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+			GROUP BY t.transid
 		)
 		UPDATE b
 		SET b.SubOdds = x.Max_SubOdds
