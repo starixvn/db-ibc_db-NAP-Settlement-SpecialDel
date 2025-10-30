@@ -46,10 +46,10 @@ BEGIN
 
 	IF @IsAppliedSOP = 1
 	BEGIN
-		INSERT INTO @tmpProviderExternalResult (SourceId, SourceName, Remark, ResourceId, HomeValue, AwayValue, OrderNo)
+	/*	INSERT INTO @tmpProviderExternalResult (SourceId, SourceName, Remark, ResourceId, HomeValue, AwayValue, OrderNo)
 		EXEC [dbo].[NAP_Set_ProviderExternalResultDetailOSLatestInfoSel]
 			 @MatchId		= @MatchId
-			,@SettleType	= @SettleType
+			,@SettleType	= @SettleType*/
 	END
 	ELSE 
 	BEGIN
