@@ -1,6 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_HybridParlay_LegOddsUpd] 
-	@LegOddsJSON	NVARCHAR(MAX)
+ALTER PROCEDURE [dbo].[NAP_Admin_HybridParlay_LegOddsUpd]
+	@MatchId		INT
+	,@LegOddsJSON	NVARCHAR(MAX)
 	,@creator		INT
 	,@IP			VARCHAR(15)
 	,@ErrCode		INT = 0 OUTPUT
@@ -137,7 +138,8 @@ BEGIN
 				FOR JSON AUTO)
 		
 			EXEC dbo.NAP_Admin_Calculate_MP_broker   
-				@strXML = @strLegOdds  
+				@MatchId	= @MatchId
+				,@strXML = @strLegOdds  
 				,@mode  = 'update_leg'
 		END
 

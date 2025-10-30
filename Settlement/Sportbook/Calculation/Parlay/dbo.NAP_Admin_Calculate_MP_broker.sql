@@ -236,10 +236,18 @@ BEGIN
             , @action = 'RECOVER-RECAL'
             , @VoidTransID = @VoidTransID
     END
+	IF @mode = 'Hybrid_m' --Settle bettransm via statuswinlost
+	 BEGIN
+        EXEC dbo.NAP_Admin_Calculate_MP_m @matchid = @MatchID
+            , @matchdate = @matchdate
+            , @action = 'Hybrid_m'
+            , @strTransIds = @strTransIds
+    END
 	IF @mode = 'updateleg'
 	BEGIN
 		 EXEC dbo.NAP_Admin_Calculate_MP_m
-            @action = 'updateleg'
+		 	@matchid = @MatchID
+            , @action = 'updateleg'
             , @strXML = @strXML
 	END
 	/*====================================================*/

@@ -19,6 +19,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_m]
 	,@IsRefundHT BIT = NULL
 	,@Sporttype SMALLINT = NULL
 	,@strXML	VARCHAR(MAX) = ''
+	,@strTransIds VARCHAR(MAX) = ''
 AS
 /*
     Creator: Viet
@@ -304,6 +305,61 @@ BEGIN
                     AND pd.transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
         END --@doing = 'RECOVER-RECAL'
 
+		IF @doing = 'Hybrid_m'
+        BEGIN 
+			SET @FunctionName = 'SettleSubParlayHybrid'
+
+           INSERT INTO @tmpSubTransHybrid (TransId)
+            SELECT CONVERT(BIGINT, [value])
+            FROM STRING_SPLIT(@strTransIds, ',')
+        
+            UPDATE bm 
+                SET    
+					winlost = 0
+                    ,ruben = CASE WHEN statuswinlost IS NULL THEN 0
+								ELSE 1
+							END
+                    ,[status] = CASE 
+							WHEN statuswinlost = 0  THEN N'DRAW'
+							WHEN statuswinlost = 6 THEN N'Refund'
+							WHEN statuswinlost IN (3,4) THEN N'LOSE'
+							WHEN statuswinlost IN (1,2) THEN N'WON'
+							WHEN statuswinlost IS NULL THEN 'running'
+						END
+					,statusID = CASE 
+									WHEN statuswinlost = 0 THEN 111
+									WHEN statuswinlost = 6 THEN 103 
+									WHEN statuswinlost IN (3,4) THEN 113
+									WHEN statuswinlost IN (1,2) THEN 112
+									WHEN statuswinlost IS NULL THEN 0
+								END
+					,winlostdate = CASE WHEN statuswinlost IS NULL THEN NULL
+										ELSE bm.winlostdate
+									END
+			OUTPUT inserted.transid, inserted.winlost, inserted.ruben
+					, Inserted.status
+					, inserted.statusID, inserted.odds
+			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, statusId, odds)
+			FROM dbo.bettransm bm WITH (ROWLOCK, UPDLOCK)
+            WHERE  bm.matchid = @matchid
+                    AND statusID IN (0,1)
+					AND statuswinlost IS NOT NULL
+                    AND bm.transid IN (SELECT transid FROM @tmpSubTransHybrid)                
+        
+            UPDATE  pd 
+                SET pd.statusid = b.statusID
+					,pd.statuswinlost = b.statuswinlost
+					,pd.winlostdate = b.winlostdate
+					,pd.odds = b.odds
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid, inserted.odds
+			INTO #tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId, odds)
+			FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+				INNER JOIN dbo.bettransm b ON b.transid = pd.transid
+            WHERE    pd.matchid = @matchid 
+                    AND pd.statusID IN (0,1)
+                    AND pd.transid IN (SELECT transid FROM @tmpSubTransHybrid)
+        END --@doing = 'Hybrid_m'
+
 		IF @doing = 'updateleg'
         BEGIN   
 			SET @FunctionName = 'UpdateLegOdds'
@@ -318,6 +374,8 @@ BEGIN
 			INTO @tmpOutputBettransmVoidRecover(transid, odds)
 			FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 				INNER JOIN @tmpSubTransHybrid t ON t.TransId = bm.TransId
+			WHERE bm.MatchId = @MatchId
+				AND t.Odds < bm.Odds
 
             UPDATE pd
             SET odds = r.odds
@@ -326,6 +384,7 @@ BEGIN
 			FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
 			INNER JOIN @tmpOutputBettransmVoidRecover r
 				ON pd.transid 	= r.transid
+			WHERE pd.MatchId = @MatchId
         END --@doing = 'VOID'
 
         -- ===================================================        
@@ -342,6 +401,19 @@ BEGIN
 							,statusId AS 'sid' 
 							,CASE WHEN @doing IN ('RECOVER','RECOVER-RECAL') AND winlostdate IS NULL THEN '' ELSE winlostdate END AS 'wld'
 							,CASE WHEN @doing = 'RECOVER' AND statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS 'statuswl'
+							,ruben AS 'r' -- ruben
+					FROM	@tmpOutputBettransmVoidRecover
+					FOR JSON AUTO
+				)
+			END
+			ELSE IF @doing IN ('Hybrid_m')
+			BEGIN
+				SET @transinfoJson = (
+					SELECT	transId AS 't'	
+							,winlost AS 'w'
+							,Status AS 's' 
+							,statusId AS 'sid' 
+							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS 'wld'
 							,ruben AS 'r' -- ruben
 					FROM	@tmpOutputBettransmVoidRecover
 					FOR JSON AUTO

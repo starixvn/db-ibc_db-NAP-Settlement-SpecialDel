@@ -434,7 +434,8 @@ BEGIN
 			,MAX(pd.winlostdate) as matchdate_max
 			,CAST(dbo.PRODUCT(pd.odds) AS MONEY) AS odds
 			,dbo.PRODUCT(
-				CASE WHEN pd.statusid = 102 THEN 1
+				CASE WHEN b.oddsspread = 3 THEN pd.odds
+					WHEN pd.statusid = 102 THEN 1
 					WHEN pd.statusid = 0 THEN 1
 					ELSE
 						CASE pd.statuswinlost
