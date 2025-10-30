@@ -71,6 +71,7 @@ BEGIN
 		,modds					SMALLMONEY
 		,oddsspread				MONEY
 		,finalodds				SMALLMONEY
+		,matchid			    INT
 	)		
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
@@ -131,6 +132,7 @@ BEGIN
 			,modds
 			,oddsspread
 			,finalodds
+			,matchid
 		)
 	SELECT  bm.transid AS SubTransID			 
 			,bm.betcheck AS SubBetCheck	
@@ -171,6 +173,7 @@ BEGIN
 			,b.modds 
 			,b.oddsspread
 			,bm.finalodds
+			,bm.matchid
 	FROM @tblTransIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID		   
@@ -207,9 +210,10 @@ BEGIN
 	IF @BetType = 'Bet Builder+'
 	BEGIN
 		;WITH CTE_MaxSubOdds AS (
-			SELECT transid, MAX(SubOdds) AS Max_SubOdds
-			FROM @tblRecoverBet
-			GROUP BY transid
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM @tblRecoverBet t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			GROUP BY t.transid
 		)
 		UPDATE b
 		SET b.SubOdds = x.Max_SubOdds
@@ -254,6 +258,7 @@ BEGIN
 			 ,t.oddsspread
 			 ,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 			 ,t.finalodds
+			 ,t.matchid
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID

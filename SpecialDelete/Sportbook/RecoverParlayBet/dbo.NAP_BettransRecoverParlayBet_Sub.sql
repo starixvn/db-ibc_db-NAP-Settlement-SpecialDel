@@ -405,9 +405,10 @@ BEGIN
 		IF @BetType = 'Bet Builder+'
 		BEGIN
 			;WITH CTE_MaxSubOdds AS (
-				SELECT transid, MAX(SubOdds) AS Max_SubOdds
-				FROM @tblRecoverBet
-				GROUP BY transid
+				SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+				FROM @tblRecoverBet t
+					INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+				GROUP BY t.transid
 			)
 			UPDATE b
 			SET b.SubOdds = x.Max_SubOdds
