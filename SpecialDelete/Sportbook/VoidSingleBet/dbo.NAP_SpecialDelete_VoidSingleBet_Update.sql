@@ -2305,7 +2305,7 @@ BEGIN
 						ELSE 2 END
 					ELSE al.transid
 				 END ASC
-		DROP TABLE #CTE_CustInfo
+			   , al.SubTransId ASC
 	END	
 	
 	-- Write useraction log	
@@ -2343,5 +2343,6 @@ BEGIN
 	DROP TABLE #AfterUpd 
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #tblMatchParlayProcess
+	DROP TABLE #CTE_CustInfo
 
 END

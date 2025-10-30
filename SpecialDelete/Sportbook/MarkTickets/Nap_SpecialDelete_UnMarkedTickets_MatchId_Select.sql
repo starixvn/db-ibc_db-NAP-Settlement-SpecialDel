@@ -357,6 +357,7 @@ BEGIN
 			  FilterPlayerAndOdds	NVARCHAR(1000),
 			  ActualStake			MONEY,
 			  MatchId				INT,
+			  finalodds				SMALLMONEY,
 			  IsHybrid				BIT DEFAULT(0)
              );
 
@@ -382,6 +383,7 @@ BEGIN
 			  SubOddsSpread	 MONEY,
 			  MatchId		INT,
 			  SubOddsId		INT,
+			  finalodds		SMALLMONEY,
 			  SubTransDesc  NVARCHAR(2000)
              );
 
@@ -527,6 +529,7 @@ BEGIN
 			,MatchId
 			,SubOddsId
 			,SubTransDesc
+			,finalodds
 		)
 		SELECT
 			bm.custid, 
@@ -550,7 +553,8 @@ BEGIN
 			CASE WHEN bt.Id = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS SubOddsSpread, --229:SABA HDP Time Machine
 			bm.matchid,
 			bm.oddsid,
-			bm.transdesc
+			bm.transdesc,
+			bm.finalodds
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
 		WHERE EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = bm.matchid)
@@ -616,6 +620,7 @@ BEGIN
 			,ActualStake
 			,MatchId
 			,IsHybrid
+			,finalodds
 		)
 		SELECT 
 			b.transid,
@@ -672,7 +677,8 @@ BEGIN
 			b.ExtraInfo,
 			b.actual_stake AS ActualStake,
 			bm.MatchId,
-			CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid,
+			bm.finalodds
 		FROM #ParlayTickets AS bm
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno AND b.SiteDBGroupID = @SiteDBGroupID
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
@@ -895,7 +901,8 @@ BEGIN
 		b.ActualStake,
 		b.modds AS MasterOdds, 
 		@SiteDBGroupID AS SiteDBGroupID,
-		b.IsHybrid
+		b.IsHybrid,
+		b.finalodds
 	FROM #Tickets b
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON b.custid = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
@@ -914,6 +921,7 @@ BEGIN
 		   , CASE WHEN b.BonusID IS NOT NULL
 				THEN CASE WHEN b.MainTransId IS NULL THEN 1
 				ELSE 2 END ELSE b.transid END ASC
+		   , b.SubTransId ASC
 
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail

@@ -177,6 +177,7 @@ BEGIN
 			 ,t.modds AS MasterOdds
 			 ,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 			 ,t.oddsspread
+			 ,t.transid AS SubTransID
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID

@@ -9,7 +9,7 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkedTickets_MatchId_Select]
     @CurrencyIDs   VARCHAR(MAX) = NULL,
     @LicenseeNames VARCHAR(MAX) = NULL,
     @BetTypes      XML          = NULL,
-	@Bet 		   VARCHAR(10)  = 'All'
+	@Bet 		   VARCHAR(100)  = 'All'
 )
 AS;
 /*
@@ -359,6 +359,7 @@ BEGIN
 		FilterTransdesc     NVARCHAR(2000),
 		FilterPlayerAndOdds NVARCHAR(1000),
 		ActualStake			MONEY,
+		finalodds			SMALLMONEY,
 		IsHybrid			BIT DEFAULT(0)
 	)
 
@@ -666,13 +667,14 @@ BEGIN
 				,matchid
 				,modds
 				,IsHybrid
+				,finalodds
 			)
 			SELECT 
 				b.transid,
 				b.transid,
 				bm.custid,
 				b.odds,   
-				bm.oddsspread,
+				CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END,
 				b.OddsType,  
 				bm.transdate,
 				b.bettype,
@@ -724,6 +726,7 @@ BEGIN
 				bm.matchid
 				,b.modds
 				,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+				,bm.finalodds
 			FROM dbo.MarkedTransaction m WITH(NOLOCK)
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON m.TransId = bm.transid AND m.MatchId = bm.matchid
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
@@ -944,6 +947,7 @@ BEGIN
 		@SiteDBGroupID AS SiteDBGroupID
 		,b.modds AS MasterOdds
 		,b.IsHybrid
+		,b.finalodds
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.custid = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
@@ -962,6 +966,7 @@ BEGIN
 		   , CASE WHEN b.BonusID IS NOT NULL
 				THEN CASE WHEN b.MainTransId IS NULL THEN 1
 				ELSE 2 END ELSE b.transid END ASC
+		   , b.SubTransId ASC
 
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail

@@ -130,7 +130,7 @@ BEGIN
 		)
 	SELECT m.TransId
 		,m.MatchId
-		,m.BetType
+		,bm.BetType
 		,1 AS IsParlay
 		,bm.refno
 	FROM dbo.MarkedTransaction m WITH (NOLOCK)

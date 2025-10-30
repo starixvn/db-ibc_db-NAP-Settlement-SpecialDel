@@ -265,7 +265,7 @@ BEGIN
 								ELSE NULL
 						    END AS GroupName) AS T1								
 	WHERE T1.GroupName IS NOT NULL
-	ORDER BY T1.GroupName ASC, t.transid ASC
+	ORDER BY T1.GroupName ASC, t.transid ASC, t.SubTransID ASC 
 
 	--- invalid trans info
 	/*

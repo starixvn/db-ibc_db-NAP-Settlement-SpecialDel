@@ -655,6 +655,7 @@ BEGIN
 				,b.modds AS MasterOdds 
 				,b.oddsspread 
 				,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+				,t.transid AS SubTransID
 		FROM	#tblRecoverBet t
 				INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = t.transid AND b.SiteDBGroupID = @SiteDBGroupID
 				INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = b.srecommend

@@ -844,7 +844,8 @@ BEGIN
 						   AND c.roleid = 4 
 						   AND c.custid = t.srecommend) AS T3						   							    							
 		WHERE T1.GroupName IS NOT NULL
-		ORDER BY T1.GroupName ASC, t.transid ASC	 		 
+		ORDER BY T1.GroupName ASC, t.transid ASC, t.SubTransID ASC
+		
 	END TRY
 	BEGIN CATCH
 		IF @totalSubParlay <= @ThreadHold

@@ -78,6 +78,7 @@ BEGIN
               SubHdp2         SMALLMONEY,
               modds			  SMALLMONEY,
 			  SubOdds         SMALLMONEY,
+			  finalodds		  SMALLMONEY,
 			  IsHybrid		  BIT DEFAULT(0)
              );
 	-- get single tickets
@@ -196,20 +197,21 @@ BEGIN
 			,SubHdp2
 			,SubOdds
 			,modds
+			,finalodds
 		)
 		SELECT
 			b.bettype
 			,b.transid
-			,isnull(b.BetID, 0) AS BetID
+			,ISNULL(b.BetID, 0) AS BetID
 			,bm.refno
 			,b.hdp1
 			,b.hdp2
 			,b.odds
-			,bm.oddsspread
+			,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END
 			,b.OddsType
 			,CASE WHEN b.STATUS = 'running'
-					AND IsNull(b.SecAcceptFlag, 0) = 1
-					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+					AND ISNULL(b.SecAcceptFlag, 0) = 1
+					AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 				ELSE b.STATUS END AS STATUS
 			,b.stake
 			,bm.transdate
@@ -238,6 +240,7 @@ BEGIN
 			,bm.hdp2 AS SubHdp2
 			,bm.odds As SubOdds
 			,b.modds
+			,bm.finalodds
 		FROM dbo.bettransm AS bm WITH (NOLOCK)
 			INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND bm.refno = b.refno
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
@@ -293,20 +296,21 @@ BEGIN
 				,SubOdds
 				,modds
 				,IsHybrid
+				,finalodds
 			)
 			SELECT
 				b.bettype
 				,b.transid
-				,isnull(b.BetID, 0) AS BetID
+				,ISNULL(b.BetID, 0) AS BetID
 				,bm.refno
 				,b.hdp1
 				,b.hdp2
 				,b.odds
-				,bm.oddsspread
+				,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END
 				,b.OddsType
 				,CASE WHEN b.STATUS = 'running'
-						AND IsNull(b.SecAcceptFlag, 0) = 1
-						AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+						AND ISNULL(b.SecAcceptFlag, 0) = 1
+						AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 					ELSE b.STATUS END AS STATUS
 				,b.stake
 				,bm.transdate
@@ -336,6 +340,7 @@ BEGIN
 				,bm.odds As SubOdds
 				,b.modds
 				,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+				,bm.finalodds
 			FROM dbo.MarkedTransaction m WITH(NOLOCK)
 				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON m.TransId = bm.transid AND m.MatchId = bm.matchid
 				INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND bm.refno = b.refno
@@ -443,7 +448,8 @@ BEGIN
 		b.SubOdds,
 		b.modds AS MasterOdds,
 		@SiteDBGroupID AS SiteDBGroupID,
-		IsHybrid
+		IsHybrid,
+		finalodds
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.custid = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
@@ -462,7 +468,7 @@ BEGIN
 		   , CASE WHEN b.BonusID IS NOT NULL
 				THEN CASE WHEN b.MainTransId IS NULL THEN 1
 				ELSE 2 END ELSE b.transid END ASC
-
+		   , b.SubTransId ASC
 				
 	DROP TABLE #Tickets
 	DROP TABLE #t_LicenseeNames
