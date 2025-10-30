@@ -20,6 +20,7 @@ AS
 		- 20241114@Aries: Support to add a new Live columns for Provider Tables [Redmine:#213217]
 		- 20241111@Louisa: Refund SDT Baseball (Mercyrule) - [Redmine:#212365]
 		- 20250113@Hughie: Apply SOP for Soccer [Redmine:#216004]
+		- 20253010@Louisa: Enhance showing Provider for template HT-FT[Redmine:#242825]
 		
 	Param's explanation:
 		
@@ -73,7 +74,7 @@ BEGIN
 	IF EXISTS( SELECT TOP 1 1 FROM #tblMatchID m WHERE ExternalResultTable = 1 ) ---ProviderExternalResultDetail
 	INSERT INTO @tmpExternalResult ( rn, TopSourceId, Matchid, SourceId, ResourceId, HomeValue, AwayValue  )
 	SELECT	ROW_NUMBER() OVER (PARTITION BY ex.MatchId, ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC ) AS rn
-			,DENSE_RANK() OVER (PARTITION BY ex.MatchId ORDER BY ex.SourceId ) AS TopSourceId
+			,DENSE_RANK() OVER (PARTITION BY CASE WHEN ex.SportType IN (6) THEN ex.SourceId ELSE 1 END ORDER BY CASE WHEN ex.SportType IN (6) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
 			,ex.matchid
 			,ex.SourceId
 			,ex.ResourceId
@@ -88,7 +89,7 @@ BEGIN
 	IF EXISTS( SELECT TOP 1 1 FROM #tblMatchID m WHERE ExternalResultTable = 2  ) ---ProviderExternalResultDetailOS
 	INSERT INTO @tmpExternalResult ( rn, TopSourceId, Matchid, SourceId, ResourceId, HomeValue, AwayValue  )
 	SELECT	ROW_NUMBER() OVER (PARTITION BY ex.MatchId, ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC ) AS rn
-			,DENSE_RANK() OVER (PARTITION BY ex.MatchId ORDER BY ex.SourceId ) AS TopSourceId
+			,DENSE_RANK() OVER (PARTITION BY CASE WHEN ex.SportType IN (6) THEN ex.SourceId ELSE 1 END ORDER BY CASE WHEN ex.SportType IN (6) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
 			,ex.matchid
 			,ex.SourceId
 			,ex.ResourceId
