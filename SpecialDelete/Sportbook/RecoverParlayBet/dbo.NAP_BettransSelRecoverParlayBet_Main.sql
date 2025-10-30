@@ -1,12 +1,11 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Main] 
-	@BetType		VARCHAR(20) = 'all'
+	@BetType		VARCHAR(100) = 'all'
 	,@TransIds		VARCHAR(MAX)	= ''
 AS
 /*
-	Created: Kent
-	Date: 20161111
-	DB: DBTXN/bodb02
+	Created: 20161111@Kent
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 		
 		- 20161011@Kent: Select main voided Parlay tickets [Redmine:#65531]

@@ -1,12 +1,11 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelDetailSpecialDel_MixParlay]  
 	@Refno BIGINT
 AS  
 /*  
-	Created by: Kathy
-	Date: 20131009
+	Created by: 20131009@Kathy
 	Task: Get tickets of mix parlay by Refno 
-	DB:  DBTXN/BODB02
+	DB:  DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	Original:   
    
 	Revisions:   
@@ -58,6 +57,8 @@ BEGIN
 		,transdate		DATETIME
 		,status			NVARCHAR(20)
 		,eventdate		DATETIME
+		,refno			BIGINT
+		,IsFinish		BIT DEFAULT(0)
 		)			
 		
 	INSERT INTO @BetListMP	
@@ -86,6 +87,7 @@ BEGIN
 			,transdate		
 			,status
 			,eventdate
+			,refno
 		)				
 	SELECT
 			b.transid		
@@ -112,6 +114,7 @@ BEGIN
 			,b.transdate
 			,b.status
 			,m.eventdate
+			,b.refno
 	FROM	dbo.BettransM AS b WITH(NOLOCK)		
 		CROSS APPLY (
 			SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID, eventdate
@@ -164,6 +167,7 @@ BEGIN
 				,transdate
 				,status
 				,eventdate
+				,refno
 			)				
 		SELECT
 				b.transid		
@@ -190,6 +194,7 @@ BEGIN
 				,b.transdate
 				,b.status
 				,m.eventdate
+				,b.refno
 		FROM	dbo.BettransM14 AS b WITH(NOLOCK)		
 			CROSS APPLY (
 				SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID, m.eventdate
@@ -210,6 +215,20 @@ BEGIN
 			AND b.SiteDBGroupID = @SiteDBGroupID
 		ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END ASC
 	END	
+
+	UPDATE mp
+	SET mp.IsFinish = 1
+	   ,mp.transdesc = b.transdesc
+	FROM @BetListMP mp
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON mp.refno = b.refno
+	WHERE b.bettype = 29 AND b.oddsspread = 3
+
+	UPDATE mp
+	SET mp.IsFinish = 1
+	   ,mp.transdesc = b.transdesc
+	FROM @BetListMP mp
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON mp.refno = b.refno
+	WHERE b.bettype = 29 AND b.oddsspread = 3 AND mp.IsFinish = 0
 
 	SELECT TransID
 		  ,Bettype

@@ -1,13 +1,12 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Sub] 
-	@BetType		VARCHAR(20) = 'all'
+	@BetType		VARCHAR(100) = 'all'
 	,@MatchId		INT			= 0	
 	,@TransIds		VARCHAR(MAX)	= ''
 AS
 /*
-	Created: Kent
-	Date: 20161111
-	DB: DBTXN/bodb02
+	Created: 20161111@Kent
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 		
 		- 20161011@Kent: Select sub voided Parlay tickets [Redmine:#65531]
@@ -27,6 +26,7 @@ AS
 			'all': All
 			'Mix Parlay': Mix Parlay
 			'System Parlay': System Parlay
+			Checkbox 'Bet Builder+': Search only hybrid parlay tickets.(Disable "Bet" radio buttons & Enable Selection field)
 */
 BEGIN
 	SET NOCOUNT ON
@@ -70,6 +70,7 @@ BEGIN
 		,ActualStake			MONEY
 		,modds					SMALLMONEY
 		,oddsspread				MONEY
+		,finalodds				SMALLMONEY
 	)		
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
@@ -129,6 +130,7 @@ BEGIN
 			,ActualStake
 			,modds
 			,oddsspread
+			,finalodds
 		)
 	SELECT  bm.transid AS SubTransID			 
 			,bm.betcheck AS SubBetCheck	
@@ -168,6 +170,7 @@ BEGIN
 			,b.actual_stake AS ActualStake	
 			,b.modds 
 			,b.oddsspread
+			,bm.finalodds
 	FROM @tblTransIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID		   
@@ -184,6 +187,7 @@ BEGIN
 					WHEN @BetType = 'all' THEN 1
 					WHEN @BetType = 'Mix Parlay' THEN CASE WHEN b.betteam = 1 THEN 1 ELSE 0 END
 					WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
+					WHEN @BetType = 'Bet Builder+' THEN CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END
 					ELSE 0
 				END	= 1													
 	
@@ -235,6 +239,7 @@ BEGIN
 			 ,t.modds AS MasterOdds
 			 ,t.oddsspread
 			 ,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			 ,t.finalodds
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID
