@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
 (
 	@MatchId				INT,	
-	@Bet					VARCHAR(10)		= NULL,
+	@Bet					VARCHAR(100)		= NULL,
 	@TimeType	 			SMALLINT 		= 0,
 	@FromTransdate			DATETIME 		= NULL,
 	@ToTransdate			DATETIME 		= NULL,
@@ -182,9 +182,16 @@ AS
 					 PlayerAndOdds = '01$404680660,02$404680660' -- Default : "All" ; Format: betteam$oddsid (Apply only for bettype Most 680 - 684 (basketball) and bettype Man Out 9662 -> 9667 (Cricket)
 			/>
 		 <BetTypes/>'
+		
+		- @Bet:
+		 + 'All': Search both single and parlay tickets.
+		 + 'Single': Search only single tickets.
+		 + 'Sub Parlay': Search only parlay tickets.
+		 + Checkbox 'Bet Builder+': Search only hybrid parlay tickets.(Disable "Bet" radio buttons & Enable Selection field)
+
 		 - @SelectionSubParlays: 
 			+ IF @Bet: 'All' OR 'Single' => default : ''
-			+ IF @Bet: 'SubParlay' => value : '2,3,4,5,6,7,8,9,10 UP'
+			+ IF @Bet: 'SubParlay' OR 'Bet Builder+' => value : '2,3,4,5,6,7,8,9,10 UP'
 	*/
 BEGIN
 	SET NOCOUNT ON;
@@ -389,6 +396,7 @@ BEGIN
 		SiteID				INT,
 		modds				SMALLMONEY,
 		mainoddsspread 		MONEY,
+		finalodds			SMALLMONEY,
 		IsFinish			BIT
 	)
 
@@ -415,6 +423,7 @@ BEGIN
 		SubOddsId			INT,
 		SiteDBGroupId		SMALLINT,
 		matchid				INT,
+		finalodds			SMALLMONEY,
 		IsFinish			BIT
 	)
 
@@ -999,7 +1008,7 @@ BEGIN
 	END
 
 	-- Search Parlay Tickets
-	IF @Bet = 'All' OR @Bet = 'Sub Parlay'	
+	IF @Bet = 'All' OR @Bet = 'Sub Parlay' OR @Bet = 'Bet Builder+'	
 	BEGIN
 		IF @IsCheckTime = 1 --checkbox for the time range
 		BEGIN
@@ -1026,6 +1035,7 @@ BEGIN
 				,SubOddsId
 				,SiteDBGroupId
 				,matchid
+				,finalodds
 			)
 			SELECT
 				 bm.custid 
@@ -1050,6 +1060,7 @@ BEGIN
 				,bm.oddsid
 				,bm.SiteDBGroupID
 				,bm.matchid
+				,bm.finalodds
 			FROM (SELECT TOP (@CountTransId) transid FROM #tblTransIds) t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 			WHERE EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = bm.matchid)
@@ -1090,6 +1101,7 @@ BEGIN
 				,SubOddsId
 				,SiteDBGroupId
 				,matchid
+				,finalodds
 			)
 			SELECT
 				 bm.custid 
@@ -1114,6 +1126,7 @@ BEGIN
 				,bm.oddsid
 				,bm.SiteDBGroupID
 				,bm.matchid
+				,bm.finalodds
 			FROM (SELECT TOP (@CountTransId) transid FROM #tblTransIds) t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 			WHERE EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = bm.matchid)
@@ -1188,13 +1201,14 @@ BEGIN
 				,SiteID
 				,mainoddsspread
 				,modds
+				,finalodds
 			)
 			SELECT
 				b.transid AS grouptransid,
 				b.transid,
 				bm.custid,
 				b.odds,
-				bm.oddsspread,
+				CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END,
 				b.OddsType,
 				bm.transdate,
 				bm.checktime,
@@ -1247,12 +1261,13 @@ BEGIN
 				b.custid,
 				bm.SubOddsId
 				,bm.SiteDBGroupId
-				,bm.SubOdds AS FilterOdds
+				,CASE WHEN b.oddsspread = 3 THEN bm.finalodds ELSE bm.SubOdds END AS FilterOdds
 				,b.statusID
 				,bm.matchid
 				,b.BetSiteID
 				,b.oddsspread
 			    ,b.modds
+				,bm.finalodds
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
@@ -2271,6 +2286,8 @@ BEGIN
 			,ISNULL(si.IsChinaView,0) AS IsChinaView
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 			,al.modds AS MasterOdds
+			,CASE WHEN al.IsMixParlay = 1 AND al.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,al.finalodds
 		FROM #SpecialDeleteBets al
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK) ON al.custid = ci.custid
 			INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON	al.creator = cr.custid	

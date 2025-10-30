@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select] 
 (
 	@MatchId          INT,
-    @Bet              VARCHAR(10)  = NULL,
+    @Bet              VARCHAR(100)  = NULL,
 	@TimeType		  SMALLINT	  = 0,	
     @FromTransdate    DATETIME     = NULL,
     @ToTransdate      DATETIME     = NULL,
@@ -18,8 +18,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select]
 )
 AS
 /*
-    Created by: Kathy
-	Date: 
+    Created by: 20140102@Kathy
 	Original: [dbo].[Acc_BettransSelSpecialDel]
 	Task: Select bets transaction need to delete
 	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
@@ -149,6 +148,7 @@ AS
 		 + 'All': Search both single and parlay tickets.
 		 + 'Single': Search only single tickets.
 		 + 'Sub Parlay': Search only parlay tickets.
+		 + Checkbox 'Bet Builder+': Search only hybrid parlay tickets.(Disable "Bet" radio buttons & Enable Selection field)
 
 		 - @TimeType:
 		 + 0: TransTime.
@@ -157,7 +157,7 @@ AS
 		- @OddsFilter: <root><r o="0.75&1.25" ost="DEC"/></root>
 		 - @SelectionSubParlays: 
 			+ IF @Bet: 'All' OR 'Single' => default : ''
-			+ IF @Bet: 'SubParlay' => value : '2,3,4,5,6,7,8,9,10 UP'
+			+ IF @Bet: 'SubParlay' OR 'Bet Builder+' => value : '2,3,4,5,6,7,8,9,10 UP'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -682,7 +682,7 @@ BEGIN
 	END
 
 	-- Search Parlay Tickets
-	IF @Bet = 'All' OR @Bet = 'Sub Parlay'	
+	IF @Bet = 'All' OR @Bet = 'Sub Parlay' OR @Bet = 'Bet Builder+'
 	BEGIN
 		IF @IsCheckTime = 1 --checkbox for the time range
 		BEGIN
