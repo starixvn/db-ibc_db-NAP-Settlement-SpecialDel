@@ -253,7 +253,7 @@ BEGIN
 			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid		
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY t.transid
-		HAVING COUNT(CASE WHEN m.eventstatus <> 'completed' THEN 1 ELSE NULL END) -- count running subs for each main ticket
+		HAVING SUM(CASE WHEN m.eventstatus <> 'completed' THEN 1 ELSE 0 END) -- count running subs for each main ticket
 			   = COUNT(*) -- count all subs for each main ticket
 			  
 		-- Get match list
@@ -268,7 +268,7 @@ BEGIN
 
 		-- Match list is auto settled
 		INSERT INTO @tblMatchIds (RowNumber, matchid, transid, refno)
-		SELECT	DENSE_RANK() OVER (ORDER BY t.matchid) AS RowNumber,
+		SELECT	DENSE_RANK() OVER (ORDER BY t.matchid ASC) AS RowNumber,
 				t.matchid, t.transid, t.refno
 		FROM	#tmpMatch t
 		WHERE RowNumber = 1
@@ -429,7 +429,7 @@ BEGIN
 
 			DELETE @tmpBoostSetting
 			INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
-			EXEC (@sqlOpenqueryCommand)
+			EXEC sys.sp_executesql @sqlOpenqueryCommand
 
 			SET @strSetting = ''
 			SELECT @strSetting = CAST((
@@ -682,7 +682,7 @@ BEGIN
 										ELSE NULL
 									END AS GroupName) AS T1				
 		WHERE T1.GroupName IS NOT NULL
-		ORDER BY T1.GroupName, t.transid				
+		ORDER BY T1.GroupName ASC, t.transid ASC				
 	END TRY
 	BEGIN CATCH
 		IF @totalMainParlay <= @ThreadHold
