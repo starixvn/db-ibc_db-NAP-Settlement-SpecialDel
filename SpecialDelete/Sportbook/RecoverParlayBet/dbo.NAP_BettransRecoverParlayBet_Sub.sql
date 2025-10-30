@@ -400,7 +400,21 @@ BEGIN
 			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
 			RETURN
 		END										
-	
+		
+		--Update odds support show betlist for Hybrid parlay
+		IF @BetType = 'Bet Builder+'
+		BEGIN
+			;WITH CTE_MaxSubOdds AS (
+				SELECT transid, MAX(SubOdds) AS Max_SubOdds
+				FROM @tblRecoverBet
+				GROUP BY transid
+			)
+			UPDATE b
+			SET b.SubOdds = x.Max_SubOdds
+			FROM @tblRecoverBet AS b
+			INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		END
+
 		--> get list of MainTranIds	
 		INSERT INTO #tblMainTicket(transid, refno, StatusId, custid, balance, ruben, matchid, srecommend, BetTeam, oddsspread, SiteID, bettype)
 		SELECT t.transid

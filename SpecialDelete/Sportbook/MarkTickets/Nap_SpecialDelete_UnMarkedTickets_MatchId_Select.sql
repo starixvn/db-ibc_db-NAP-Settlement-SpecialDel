@@ -627,7 +627,7 @@ BEGIN
 			bm.custid,
 			b.odds,   
 			b.modds,
-			bm.oddsspread,
+			CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS oddsspread,
 			b.OddsType,  
 			bm.transdate,
 			b.bettype,
@@ -833,6 +833,19 @@ BEGIN
 		FROM #Tickets t
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = t.SubTransId AND t.MatchId = m.MatchId
 		WHERE t.IsHybrid = 1
+	
+		--Update odds support show betlist for Hybrid parlay
+		;WITH CTE_MaxSubOdds AS (
+			SELECT transid, MAX(SubOdds) AS Max_SubOdds
+			FROM #Tickets
+			WHERE IsHybrid = 1
+			GROUP BY transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #Tickets AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.IsHybrid = 1
 	END
 
 	UPDATE s

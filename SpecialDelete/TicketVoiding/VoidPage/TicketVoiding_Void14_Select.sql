@@ -4,11 +4,10 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void14_Select]
     @RequestId			INT = NULL
    ,@MatchId			INT = NULL
    ,@RequestDetailId	INT = NULL --Support WMO(12) issuetype
-   ,@OnlineServerId	  VARCHAR(10) = NULL
+   ,@OnlineServerId	    VARCHAR(10) = NULL
 )
 AS
-/*	Created by: July
-	Date 20211123
+/*	Created by: 20211123@July
 	Task: TVS - Void Archived Tickets [Redmine:#140180]
 	DB: DBCTG/bodb02,DBSIC-bodb02,DBSID-bodb02
 	
@@ -27,6 +26,7 @@ AS
 		- 20250321@Lani: [TVS] Enhance out of memory issue [Redmine: #217771]
 		- 20250819@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
 		- 20251013@July: Support show ticket archive matchid no input [Redmine: #238233]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 		
 	Param's explanation:	
 		
@@ -486,9 +486,6 @@ BEGIN
 			   ,s.IsCashOut
 			   ,s.SiteDBGroupID
 		FROM	#TVSTicketBets s 
-			--LEFT JOIN dbo.bettrans14 b WITH(NOLOCK)
-			--	ON	s.betid = b.transid
-			--		AND b.matchid = s.matchid	
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
 		--3. For Deposit
@@ -692,10 +689,12 @@ BEGIN
 		   ,s.statusID
 		   ,s.IsCashOut
 		   ,s.SiteDBGroupID
+		   ,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM CTE_OriginResult s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN dbo.f_TVS_GetGroupId() f ON s.OriginGroupName = f.GroupName
-	
+	ORDER BY s.transid ASC
+
 	DROP TABLE #TVSTicketBets
 END
 

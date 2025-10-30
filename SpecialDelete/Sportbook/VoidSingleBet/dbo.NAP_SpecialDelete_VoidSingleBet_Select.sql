@@ -1131,15 +1131,16 @@ BEGIN
 	--Update odds support show betlist for Hybrid parlay
 	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE IsMixParlay = 1 AND oddsspread = 3) 
 	BEGIN
-		UPDATE b
-		SET b.SubOdds = x.Max_SubOdds
-		FROM #SpecialDeleteBets AS b
-		INNER JOIN (
+		;WITH CTE_MaxSubOdds AS (
 			SELECT transid, MAX(SubOdds) AS Max_SubOdds
 			FROM #SpecialDeleteBets
 			WHERE IsMixParlay = 1 AND oddsspread = 3
 			GROUP BY transid
-		) AS x ON b.transid = x.transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #SpecialDeleteBets AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
 		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
 	END 
 

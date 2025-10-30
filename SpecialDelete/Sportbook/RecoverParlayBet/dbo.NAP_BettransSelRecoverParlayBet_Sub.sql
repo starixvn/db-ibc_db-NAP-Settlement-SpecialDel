@@ -203,6 +203,20 @@ BEGIN
 		WHERE EventDate <= @MovebetDate
 	END
 		
+	--Update odds support show betlist for Hybrid parlay
+	IF @BetType = 'Bet Builder+'
+	BEGIN
+		;WITH CTE_MaxSubOdds AS (
+			SELECT transid, MAX(SubOdds) AS Max_SubOdds
+			FROM @tblRecoverBet
+			GROUP BY transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM @tblRecoverBet AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+	END
+
 	SELECT	t.SubTransID     
 			 ,t.SubBetCheck  
 			 ,t.SubOdds      

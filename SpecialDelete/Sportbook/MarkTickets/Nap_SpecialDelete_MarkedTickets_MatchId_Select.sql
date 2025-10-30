@@ -740,6 +740,22 @@ BEGIN
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END	
 				AND EXISTS (SELECT TOP 1 1 FROM #Durations d WHERE bm.transdate BETWEEN d.FromTransDate AND d.ToTransDate)
 				AND m.MarkType IN (2,3) -- SD-HP/TVS-HP
+			
+			--Update odds support show betlist for Hybrid parlay
+			IF EXISTS (SELECT TOP 1 1 FROM #Tickets WHERE IsHybrid = 1) 
+			BEGIN
+				;WITH CTE_MaxSubOdds AS (
+					SELECT transid, MAX(SubOdds) AS Max_SubOdds
+					FROM #Tickets
+					WHERE IsHybrid = 1
+					GROUP BY transid
+				)
+				UPDATE b
+				SET b.SubOdds = x.Max_SubOdds
+				FROM #Tickets AS b
+				INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+				WHERE b.IsHybrid = 1
+			END 
 		END
 	END
 

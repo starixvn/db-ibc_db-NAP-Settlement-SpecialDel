@@ -174,7 +174,8 @@ BEGIN
 		statuswinlost		  TINYINT,
 		GroupPHaffected		  TINYINT, --  0: both 1X2 and AIO are NOT affected, 1:  only 1X2 is affected , 2: only AIO is affected
 		VendorMatchId		  VARCHAR(50),
-		GroupBettypeId		  SMALLINT
+		GroupBettypeId		  SMALLINT,
+		finalodds			  SMALLMONEY	 
     )
 
 	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT, betid BIGINT)	
@@ -519,6 +520,7 @@ BEGIN
 					,statuswinlost
 					,GroupPHaffected
 					,GroupBettypeId
+					,finalodds
 				)
 			SELECT DISTINCT
 					b.transid AS GroupID
@@ -528,7 +530,7 @@ BEGIN
 					,b.custid				
 					,b.odds
 					,bm.odds AS SubOdds
-					,bm.oddsspread AS Suboddsspread
+					,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
 					,b.OddsType
 					,bm.transdate AS Subtransdate
 					,b.bettype
@@ -550,7 +552,7 @@ BEGIN
 					,b.srecommend
 					,b.mrecommend
 					,b.recommend
-					,bm.transdesc AS SubTransdesc
+					,CASE WHEN b.oddsspread = 3 THEN b.transdesc ELSE bm.transdesc END AS SubTransdesc
 					,bm.bettype AS Subbettype
 					,1 AS IsMixParlay
 					,b.modds
@@ -573,6 +575,7 @@ BEGIN
 					,CASE WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NOT NULL THEN g.GroupBettypeId
 						  WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NULL THEN bm.bettype
 					      ELSE NULL END AS GroupBettypeId
+					,bm.finalodds
 			FROM	#TmpTransid AS d
 					INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
 					INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
@@ -738,6 +741,7 @@ BEGIN
 					,matchid
 					,SiteDBGroupID
 					,statuswinlost
+					,finalodds
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -747,7 +751,7 @@ BEGIN
 					,bm.custid AS Subcustid				
 					,b.odds
 					,bm.odds AS SubOdds
-					,bm.oddsspread AS Suboddsspread
+					,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
 					,b.OddsType
 					,bm.transdate AS Subtransdate
 					,b.bettype
@@ -769,7 +773,7 @@ BEGIN
 					,b.srecommend
 					,b.mrecommend
 					,b.recommend
-					,bm.Transdesc AS SubTransdesc
+					,CASE WHEN b.oddsspread = 3 THEN b.transdesc ELSE bm.transdesc END AS SubTransdesc
 					,bm.bettype AS Subbettype
 					,1 AS IsMixParlay
 					,b.modds
@@ -782,6 +786,7 @@ BEGIN
 					,d.matchid AS MatchId
 					,bm.SiteDBGroupID
 					,b.statuswinlost
+					,bm.finalodds
 			FROM	#TmpTransid AS d
 					INNER JOIN bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
 					INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno
@@ -856,6 +861,7 @@ BEGIN
 			,statuswinlost
 			,GroupPHaffected
 			,GroupBettypeId
+			,finalodds
 		)
 		SELECT DISTINCT
 				b.transid AS GroupID
@@ -865,7 +871,7 @@ BEGIN
 				,b.custid				
 				,b.odds
 				,bm.odds AS SubOdds
-				,bm.oddsspread AS Suboddsspread
+				,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
 				,b.OddsType
 				,bm.transdate AS Subtransdate
 				,b.bettype
@@ -887,7 +893,7 @@ BEGIN
 				,b.srecommend
 				,b.mrecommend
 				,b.recommend
-				,bm.transdesc AS SubTransdesc
+				,CASE WHEN b.oddsspread = 3 THEN b.transdesc ELSE bm.transdesc END AS SubTransdesc
 				,bm.bettype AS Subbettype
 				,1 AS IsMixParlay
 				,b.modds
@@ -910,6 +916,7 @@ BEGIN
 				,CASE WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NOT NULL THEN g.GroupBettypeId
 						WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NULL THEN bm.bettype
 						ELSE NULL END AS GroupBettypeId
+				,bm.finalodds
 		FROM	@tmp_MissingTransId AS d
 				INNER LOOP JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
@@ -947,6 +954,22 @@ BEGIN
 		BEGIN CATCH
 		END CATCH 
 	END
+
+	--Update odds support show betlist for Hybrid parlay
+	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMixParlay = 1 AND oddsspread = 3) 
+	BEGIN
+		;WITH CTE_MaxSubOdds AS (
+			SELECT transid, MAX(SubOdds) AS Max_SubOdds
+			FROM #TVSTicketBets
+			WHERE IsMixParlay = 1 AND oddsspread = 3
+			GROUP BY transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #TVSTicketBets AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+	END 
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
@@ -1205,6 +1228,7 @@ BEGIN
 			   ,s.GroupPHaffected
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
+			   ,s.finalodds
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1292,6 +1316,7 @@ BEGIN
 			   ,s.GroupPHaffected
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
+			   ,s.finalodds
 		FROM	#TVSTicketBets s 
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
@@ -1369,6 +1394,7 @@ BEGIN
 			   ,s.GroupPHaffected
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
+			   ,s.finalodds
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1454,6 +1480,7 @@ BEGIN
 		   ,s.GroupPHaffected 
 		   ,s.VendorMatchId
 		   ,s.GroupBettypeId
+		   ,s.finalodds
 		FROM	#TVSTicketBets s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1539,6 +1566,7 @@ BEGIN
 			   ,s.GroupPHaffected
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
+			   ,s.finalodds
 			   ,CASE WHEN s.eventstatus <> @eventstatus_completed AND s.mainstatusid IN (111, 112, 113) AND ISNULL(s.betdaqid,0) <> -2
 						THEN CASE WHEN s.SportType = 1 AND
 													EXISTS (SELECT TOP 1 1
@@ -1624,11 +1652,13 @@ BEGIN
 		   ,s.VendorMatchId
 	       ,s.GroupBettypeId
 		   ,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+		   ,s.finalodds
 	FROM CTE_InstantSettlementSubgrouping s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 		LEFT JOIN dbo.f_TVS_GetGroupId() f ON s.SubGroupName = f.GroupName
-		
+	ORDER BY s.transid ASC, s.SubTransid ASC
+
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #TmpTransid
