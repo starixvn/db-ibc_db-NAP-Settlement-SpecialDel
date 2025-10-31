@@ -24,6 +24,7 @@ AS
 		- 20250826@Louisa: Enhance code [Redmine: #237088]
 		- 20250904@Helen: Enhance code [Redmine: #237289]
 		- 20251022@Louisa: temporary exclude bettype most and performnace of Basketball [Redmine: #242394]
+		- 20251028@Hughie: Retry the Auto/Direct Payout flow for these failed matches after untick hold key [Redmine:#240174]
 
 */
 BEGIN
@@ -231,13 +232,14 @@ BEGIN
 						 WHERE p.sporttype = m.sporttype
 							AND p.SourceId = r.SourceID
 							AND p.isActive = 1) AS pm
+			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceId = x.ResourceId) x
 		WHERE  m.ExternalResultTable = 1
             AND r.SourceID < 1001
 			AND r.SourceID NOT IN (98,99,100)
 			AND ISNULL(r.IsLive,0) = 0
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
-			AND ap.IsExistsAP IS NULL
+			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 			 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
 						 ELSE 0
@@ -279,13 +281,14 @@ BEGIN
 						 WHERE p.sporttype = m.sporttype
 							AND p.SourceId = r.SourceID
 							AND p.isActive = 1) AS pm
+			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceId = x.ResourceId) x
 		WHERE m.ExternalResultTable = 2
 			AND r.SourceID < 1001
 			AND r.SourceID NOT IN (98,99,100)
 			AND ISNULL(r.IsLive,0) = 0
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
-			AND ap.IsExistsAP IS NULL
+			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 			 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
 						 ELSE 0
@@ -332,13 +335,14 @@ BEGIN
 							AND p.SourceId = r.SourceID
 							AND p.isActive = 1
 							AND p.GameType = m.GameType) AS pm
+			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceId = x.ResourceId) x
 		WHERE m.ExternalResultTable = 3
 			AND r.SourceID < 1001
 			AND r.SourceID NOT IN (98,99,100)
 			AND ISNULL(r.IsLive,0) = 0
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
-			AND ap.IsExistsAP IS NULL
+			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
 			AND ss.IsExistsProfile IS NOT NULL
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 						 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
@@ -392,12 +396,13 @@ BEGIN
 					WHERE r.matchid = m.matchId
 					AND r.IsHTCal = 0
 			)mr
+			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceId = x.ResourceId) x
 		WHERE m.ResultTable = 0
 			AND m.eventstatus = 'running'
 			AND 1 = CASE WHEN r.ResourceID = '00' THEN 1
 						WHEN r.ResourceID = '01' AND mr.IsHTCal = 0 THEN 1
 					ELSE 0 END
-			AND ap.IsExistsAP IS NULL
+			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
 			AND m.AP_Main_HasTrader = 1
 		
 		INSERT INTO #MatchResource(matchId,ResourceId,CreatedDate,ResourceType,IsTrader)
@@ -424,8 +429,9 @@ BEGIN
 								AND ISNULL(os.SourceID,0) = 0
 						) AS ap
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
+			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceID = x.ResourceID) x
 		WHERE m.ResultTable = 1
-			AND ap.IsExistsAP IS NULL
+			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 			 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
 						 ELSE 0
@@ -456,8 +462,9 @@ BEGIN
 								AND ISNULL(os.SourceID,0) = 0
 						) AS ap
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
+			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceID = x.ResourceID) x
 		WHERE m.ResultTable = 2
-			AND ap.IsExistsAP IS NULL			
+			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 			 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
 						 ELSE 0
@@ -493,8 +500,9 @@ BEGIN
 								AND ISNULL(os.SourceID,0) = 0
 						) AS ap
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
+			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceID = x.ResourceID) x
 		WHERE m.ResultTable = 3
-			AND ap.IsExistsAP IS NULL
+			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
 			AND ss.IsExistsProfile IS NOT NULL
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 			 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
