@@ -597,7 +597,7 @@ BEGIN
 			bm.matchid
 			,b.modds
 		FROM dbo.bettransm bm WITH (NOLOCK)
-			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
 			INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = bm.bettype
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = bm.matchid
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
@@ -729,7 +729,7 @@ BEGIN
 				,bm.finalodds
 			FROM dbo.MarkedTransaction m WITH(NOLOCK)
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON m.TransId = bm.transid AND m.MatchId = bm.matchid
-				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
+				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
 				INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = bm.bettype
 				INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
 			WHERE bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID

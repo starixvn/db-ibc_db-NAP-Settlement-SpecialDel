@@ -40,7 +40,6 @@ AS
 		- @BetType: 'All': All
 					'Mix Parlay': Mix Parlay
 					'System Parlay': System Parlay
-					Checkbox 'Bet Builder+': Search only hybrid parlay tickets.(Disable "Bet" radio buttons & Enable Selection field)
 */
 BEGIN
 	SET NOCOUNT ON
@@ -179,10 +178,9 @@ BEGIN
 		WHERE b.matchid = 29 AND b.bettype = 29
 			AND b.statusid = 102
 			AND CASE
-					WHEN @BetType = 'All' AND b.oddsspread <> 3 THEN 1
-					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' AND b.oddsspread <> 3 THEN 1
-					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' AND b.oddsspread <> 3 THEN 1
-					WHEN @BetType = 'Bet Builder+' AND b.oddsspread = 3 THEN 1
+					WHEN @BetType = 'All' THEN 1
+					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' THEN 1
+					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' THEN 1
 					ELSE 0
 				END	= 1	
 		
