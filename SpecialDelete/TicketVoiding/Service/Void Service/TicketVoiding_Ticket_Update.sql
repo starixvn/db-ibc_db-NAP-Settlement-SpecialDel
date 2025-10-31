@@ -45,7 +45,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF (@IssueTypeId = 17) OR (@IssueTypeId IN (11,13) AND @VoidingTypeId IN (5,6)) --Void 14
+	IF (@IssueTypeId = 17) OR (@IssueTypeId IN (11,13) AND @VoidingTypeId IN (5,6,22)) --Void 14
 	BEGIN
 		EXEC dbo.TicketVoiding_VoidHistorical_Update
 			@RequestId				= @RequestId
@@ -197,7 +197,7 @@ BEGIN
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
-	ELSE IF @VoidingTypeId IN (16) --Parlay14 ticket
+	ELSE IF @VoidingTypeId IN (16,23) --Parlay14 ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RecoverHistorical_MainParlay_Update
 			@RequestId = @RequestId

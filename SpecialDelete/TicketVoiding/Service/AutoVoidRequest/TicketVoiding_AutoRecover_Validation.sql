@@ -24,11 +24,12 @@ AS
 		ValidationType => 25, 26 (recover + resettle sub)
 		ValidationType => 27, 28 (recover + resettle Cricket)
 		ValidationType => 29 (recover single_14)
-		ValidationType => 30 (recover main_14) include hybrid parlay
-		ValidationType => 31 (recover sub - hybrid parlay)
-		ValidationType => 32 (resettle sub - hybrid parlay)
-		ValidationType => 33 (recover main - hybrid parlay)
-		ValidationType => 34 (resettle main - hybrid parlay)
+		ValidationType => 30 (recover main_14)
+		ValidationType => 31 (recover sub - hybrid parlay) --call JT
+		ValidationType => 32 (resettle sub - hybrid parlay) --call JT
+		ValidationType => 33 (recover main - hybrid parlay) --call JT
+		ValidationType => 34 (resettle main - hybrid parlay) --call JT
+		ValidationType => 35 (recover main_14 - hybrid parlay) --call JT
 */
 BEGIN
 	SET NOCOUNT ON
@@ -174,7 +175,7 @@ BEGIN
 				,b.transdate
 				,b.winlostdate
 				,b.statusID
-				,30 AS ValidationType
+				,CASE WHEN b.oddsspread = 3 THEN 35 ELSE 30 END AS ValidationType
 			FROM #tmpInputTransId t
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		END
