@@ -100,6 +100,8 @@ BEGIN
 			IsFinish	BIT
 	);
 
+	IF @IssueTypeId IS NULL SET @IssueTypeId = 0;
+
 	-- Get tickets insert into transaction
 	INSERT INTO #Tickets (
 			TransId
@@ -119,15 +121,15 @@ BEGIN
 			,b.refno
 			,CASE WHEN @IssueTypeId = 11 AND b.bettype = 29 THEN 1 ELSE 0 END AS IsParlay --Mixparlay of AB
 			,NULL
-			,CASE WHEN @IssueTypeId IS NULL THEN 0 ELSE 1 END AS MarkType
+			,CASE WHEN @IssueTypeId = 0 THEN 0 ELSE 1 END AS MarkType
 	FROM #transIds t
 	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 	WHERE b.SiteDBGroupID = @SiteDBGroupID
 	AND b.statusID IN (0,1)
-	AND 1 = CASE WHEN @IssueTypeId IS NULL AND b.bettype <> 29 THEN 1 --Function special delete
-			        WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1 --IssueType: Abnormal account 
-					WHEN @IssueTypeId IS NOT NULL AND @IssueTypeId <> 13 AND b.bettype NOT IN (38) THEN 1 --Other IssueType 
-					ELSE 0 END
+	AND 1 = CASE WHEN @IssueTypeId = 0 AND b.bettype <> 29 THEN 1 --Function special delete
+			     WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1 --IssueType: Abnormal account 
+				 WHEN @IssueTypeId NOT IN (0,13) AND b.bettype NOT IN (38) THEN 1 --Other IssueType 
+				 ELSE 0 END
 
 	
 	-- get only parlay tickets from @input transid
@@ -157,8 +159,8 @@ BEGIN
 			,bm.refno
 			,1
 			,bm.transid
-			,CASE WHEN b.oddsspread = 3 THEN IIF(@IssueTypeId IS NULL, 2, 3) --2: SD-HP, 3: TVS-HP
-				 ELSE IIF(@IssueTypeId IS NULL, 0, 1) --0: SD, 1: TVS
+			,CASE WHEN b.oddsspread = 3 THEN IIF(@IssueTypeId = 0, 2, 3) --2: SD-HP, 3: TVS-HP
+				 ELSE IIF(@IssueTypeId = 0, 0, 1) --0: SD, 1: TVS
 			 END AS MarkType
 		FROM #ParlayTransIds t
 			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
