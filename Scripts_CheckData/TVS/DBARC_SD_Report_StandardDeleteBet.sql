@@ -143,31 +143,23 @@ BEGIN
 		INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.transid = ms.TransId	
 	WHERE d.VoidingHistoryId IS NOT NULL
     
-    
-    select count(distinct (transid)) from #message_tmp
-
-   /* SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, ms.date, d.status, d.Transdate, ms.CREATOR, 1 AS IsArchived, 1 AS IsParlay
-      --, bm.transdate			
-		--, bm.hdp1, bm.hdp2, CAST(bm.LiveHomeScore AS VARCHAR(10)) + '-' + CAST(bm.LiveAwayScore AS VARCHAR(10))
-		--, bm.betteam, bm.odds, bm.custid, bm.bettype, b.currency
-       -- , d.VoidingHistoryId
-	FROM #message_tmp ms WITH (NOLOCK)																									
-		INNER JOIN dbo.bettrans_bk b WITH (NOLOCK) ON b.transid = ms.TransId	
-		INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.refno = b.refno AND ms.matchid = d.matchid
-		--INNER HASH JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = d.transid AND d.matchid = bm.matchid
-	WHERE d.VoidingHistoryId IS NULL
-    
-    
-*/
-    
-   
-    
-   INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, [Date], zzz_status, zzz_Transdate, CREATOR)		
+    INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, [Date], zzz_status, zzz_Transdate, CREATOR)		
 	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, ms.date, d.status, d.Transdate, ms.CREATOR										
 	FROM #message_tmp ms WITH (NOLOCK)																									
 		INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.transid = ms.TransId	
 	WHERE d.VoidingHistoryId IS NULL
     
+	--parlay 
+	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, [Date], zzz_status, zzz_Transdate, CREATOR, IsArchived, IsParlay
+        , currency, subtransid,actual_stake 
+	)		
+	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, ms.date, d.status, d.Transdate, ms.CREATOR, 1 AS IsArchived, 1 AS IsParlay			
+        , b.currency, d.transid as subtransid, b.actual_stake
+	FROM #message_tmp ms WITH (NOLOCK)																									
+		INNER JOIN dbo.bettrans_bk b WITH (NOLOCK) ON b.transid = ms.TransId	
+		INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.refno = b.refno AND ms.matchid = d.matchid	
+	WHERE d.VoidingHistoryId IS NULL
+
 	UPDATE s
 	SET   s.actual_stake = B.actual_stake
 		, s.currency = b.currency
@@ -187,24 +179,8 @@ BEGIN
 			WHERE b.TransId = s.TransId
 		)b
 		
-   
-
-	--parlay 
-	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, [Date], zzz_status, zzz_Transdate, CREATOR, IsArchived, IsParlay
-        , currency, subtransid,actual_stake 
-	)		
-	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, ms.date, d.status, d.Transdate, ms.CREATOR, 1 AS IsArchived, 1 AS IsParlay			
-        , b.currency, d.transid as subtransid, b.actual_stake
-	FROM #message_tmp ms WITH (NOLOCK)																									
-		INNER JOIN dbo.bettrans_bk b WITH (NOLOCK) ON b.transid = ms.TransId	
-		INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.refno = b.refno AND ms.matchid = d.matchid	
-	WHERE d.VoidingHistoryId IS NULL
-   
-    
-  
     UPDATE s
 	SET   s.actual_stake = CASE WHEN b.actual_stake IS NULL THEN s.actual_stake ELSE b.actual_stake END
-		--, s.currency = b.currency
 		, s.HDP1 = b.hdp1
 		, s.HDP2 = b.hdp2
 		, s.SCORE = b.SCORE
@@ -225,7 +201,12 @@ BEGIN
 END
 
 /*Range active*/
-/*BEGIN
+BEGIN
+	DELETE ms
+    FROM #message_tmp ms WITH (NOLOCK)																									
+		INNER JOIN bodb02.dbo.zzzbettrans d WITH (NOLOCK) ON d.transid = ms.TransId	
+	WHERE d.VoidingHistoryId IS NOT NULL
+	
 	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, [Date], zzz_status, zzz_Transdate, CREATOR)		
 	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, ms.date, d.status, d.Transdate, ms.CREATOR										
 	FROM #message_tmp ms WITH (NOLOCK)																									
@@ -252,7 +233,6 @@ END
 			FROM bodb02.dbo.bettrans14 b WITH (NOLOCK) 
 			WHERE b.TransId = s.TransId
 		)b
-		--INNER JOIN bodb02.dbo.Exchange e WITH (NOLOCK) ON b.currency = e.ExchangeId
 
 	--parlay 
 	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, [Date], zzz_status, zzz_Transdate, CREATOR, IsParlay, BETTIME
@@ -266,7 +246,20 @@ END
 		INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = d.transid AND d.matchid = bm.matchid
 	WHERE d.VoidingHistoryId IS NULL
 END
-*/
+
+DELETE ms
+FROM #message_tmp ms WITH (NOLOCK)																									
+	INNER JOIN #temp_transid d WITH (NOLOCK) ON d.transid = ms.TransId
+        
+---Update for case MBU T5 not copy zzzbetrans_bk, T6 delete zzzbettrans => miss data 
+IF EXISTS ( SELECT TOP 1 1 FROM #message_tmp)
+BEGIN
+    INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, [Date], zzz_status, zzz_Transdate, CREATOR)		
+    SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, ms.date, d.status, d.createddate, ms.CREATOR										
+    FROM #message_tmp ms WITH (NOLOCK)																									
+        INNER JOIN bodb02.dbo.TicketVoiding_VoidedTransaction d WITH (NOLOCK) ON d.transid = ms.TransId	
+END
+
 UPDATE d
 SET d.sporttype =   m.sporttype
 , d.sportName = m.SportName
@@ -289,7 +282,7 @@ CROSS APPLY (
 			LEFT JOIN bodb02.dbo.Sports s WITH (NOLOCK) on s.SportType = m.sporttype																						
 		WHERE	matchid = d.matchid																						
 																									
-		/*UNION ALL																							
+		UNION ALL																							
 		SELECT  matchid, leagueid , h.teamname as home, a.teamname as away, s.SportName, m.sporttype																							
 		FROM	bodb02.dbo.match m WITH (NOLOCK)																						
 			LEFT JOIN bodb02.dbo.team h WITH (NOLOCK) on h.teamid = m.homeid																						
@@ -303,7 +296,7 @@ CROSS APPLY (
 			INNER JOIN bodb02.dbo.League l WITH (NOLOCK) ON m.leagueid = l.leagueid	
 			LEFT JOIN bodb02.dbo.team h WITH (NOLOCK) on h.teamid = m.teamid																						
 			LEFT JOIN bodb02.dbo.Sports s WITH (NOLOCK) on s.SportType = L.sporttype																					
-		WHERE	orid = d.matchid*/	
+		WHERE	orid = d.matchid	
 		
 		UNION ALL																							
 		SELECT  orid, l.leagueid , h.teamname as home, NULL as away, s.SportName, l.sporttype																							
@@ -346,59 +339,6 @@ CROSS APPLY (
 		WHERE	Match3rdId = d.matchid
 	) m		
     
- /* 
-SELECT	'SD' AS 'TVS/SD?', ms.Date AS DATE
-, CASE WHEN s.IsDeposit = 1 THEN 'L' ELSE 'C' END AS SITE
-, ms.SportName AS SPORTS
-, ms.matchid AS MATCHID
-, c.Username AS ACCOUNT
-, b.typenamee AS BETTYPE
-, bk.betteam AS BET
-, bk.odds AS ODDS
-, bk.currencyname AS CUR
-, bk.actual_stake AS AMOUNT
-, ms.home + ' -vs- ' + ms.away AS EVENT
-, bk.HDP1, bk.HDP2
-, CAST(bk.LiveHomeScore AS VARCHAR(10)) + '-' + CAST(bk.LiveAwayScore AS VARCHAR(10)) AS SCORE
-, ms.CREATOR
-, ms.transid AS REFNO
-, ms.zzz_status AS STATUS
-, bk.transdate AS BETTIME
-, ms.zzz_Transdate AS DELTIME
-, ms.REASON
-FROM #temp_transid ms WITH (NOLOCK)																									
-	INNER JOIN bodb02.dbo.bettrans bk WITH(NOLOCK) ON bk.transid = ms.transid
-    INNER JOIN bodb02.dbo.bettype b WITH(NOLOCK) ON bk.bettype = b.typeid
-    INNER JOIN bodb02.dbo.vw_Customer c WITH(NOLOCK) ON bk.custid = c.custid
-	INNER JOIN bodb02.dbo.Site s WITH(NOLOCK) ON c.site = s.site																	
-ORDER BY ms.Date ASC 
-
-SELECT	'SD' AS 'TVS/SD?', ms.Date AS DATE
-, CASE WHEN s.IsDeposit = 1 THEN 'L' ELSE 'C' END AS SITE
-, ms.SportName AS SPORTS
-, ms.matchid AS MATCHID
-, c.Username AS ACCOUNT
-, b.typenamee AS BETTYPE
-, bk.betteam AS BET
-, bk.odds AS ODDS
-, bk.currencyname AS CUR
-, bk.actual_stake AS AMOUNT
-, ms.home + ' -vs- ' + ms.away AS EVENT
-, bk.HDP1, bk.HDP2
-, CAST(bk.LiveHomeScore AS VARCHAR(10)) + '-' + CAST(bk.LiveAwayScore AS VARCHAR(10)) AS SCORE
-, ms.CREATOR
-, ms.transid AS REFNO
-, ms.zzz_status AS STATUS
-, bk.transdate AS BETTIME
-, ms.zzz_Transdate AS DELTIME
-, ms.REASON
-FROM #temp_transid ms WITH (NOLOCK)																									
-	INNER JOIN bodb02.dbo.bettrans14 bk WITH(NOLOCK) ON bk.transid = ms.transid
-    INNER JOIN bodb02.dbo.bettype b WITH(NOLOCK) ON bk.bettype = b.typeid
-    INNER JOIN bodb02.dbo.vw_Customer c WITH(NOLOCK) ON bk.custid = c.custid
-	INNER JOIN bodb02.dbo.Site s WITH(NOLOCK) ON c.site = s.site
-ORDER BY ms.Date ASC 
-*/
 SELECT	'SD' AS 'TVS/SD?', ms.Date AS DATE
 , CASE WHEN s.IsDeposit = 1 THEN 'L' ELSE 'C' END AS SITE
 , ms.SportName AS SPORTS
@@ -420,7 +360,6 @@ SELECT	'SD' AS 'TVS/SD?', ms.Date AS DATE
 , ms.REASON
 , ms.IsParlay
 FROM #temp_transid ms WITH (NOLOCK)																									
-	--INNER JOIN dbo.bettrans_BK bk WITH(NOLOCK) ON bk.transid = ms.transid
     INNER JOIN bodb02.dbo.bettype b WITH(NOLOCK) ON ms.bettype = b.typeid
     INNER JOIN bodb02.dbo.vw_Customer c WITH(NOLOCK) ON ms.custid = c.custid
 	INNER JOIN bodb02.dbo.Site s WITH(NOLOCK) ON c.site = s.site
