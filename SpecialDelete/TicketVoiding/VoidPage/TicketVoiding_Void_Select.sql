@@ -8,8 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select]
 	,@OnlineServerId	  VARCHAR(10) = NULL
 )
 AS
-/*	Created by: Kathy
-	Date 20181212
+/*	Created by: 20181212@Kathy
 	Task: view voided ticket [Redmine:#90155]
 	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
@@ -959,16 +958,17 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMixParlay = 1 AND oddsspread = 3) 
 	BEGIN
 		;WITH CTE_MaxSubOdds AS (
-			SELECT transid, MAX(SubOdds) AS Max_SubOdds
-			FROM #TVSTicketBets
-			WHERE IsMixParlay = 1 AND oddsspread = 3
-			GROUP BY transid
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #TVSTicketBets t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+			GROUP BY t.transid
 		)
 		UPDATE b
 		SET b.SubOdds = x.Max_SubOdds
 		FROM #TVSTicketBets AS b
 		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
-		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3
 	END 
 
 	-- UPDATE eventtype = 1

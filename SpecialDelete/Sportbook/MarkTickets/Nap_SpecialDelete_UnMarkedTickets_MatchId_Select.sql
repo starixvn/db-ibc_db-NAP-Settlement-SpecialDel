@@ -836,10 +836,11 @@ BEGIN
 	
 		--Update odds support show betlist for Hybrid parlay
 		;WITH CTE_MaxSubOdds AS (
-			SELECT transid, MAX(SubOdds) AS Max_SubOdds
-			FROM #Tickets
-			WHERE IsHybrid = 1
-			GROUP BY transid
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #Tickets t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			WHERE t.IsHybrid = 1
+			GROUP BY t.transid
 		)
 		UPDATE b
 		SET b.SubOdds = x.Max_SubOdds
