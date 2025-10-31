@@ -375,7 +375,6 @@ BEGIN
 			FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 				INNER JOIN @tmpSubTransHybrid t ON t.TransId = bm.TransId
 			WHERE bm.MatchId = @MatchId
-				AND t.Odds < bm.Odds
 
             UPDATE pd
             SET odds = r.odds

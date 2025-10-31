@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_HybridTransID]
 	@MatchId		INT
 	,@Action		VARCHAR(20) = 'CAL'
 	,@creator		INT
-	,@IP			VARCHAR(15)
+	,@IP			VARCHAR(15) = ''
 	,@ErrCode		INT = 0 OUTPUT
 	,@ErrMsg		NVARCHAR(200) = NULL OUTPUT
 )
@@ -116,12 +116,14 @@ BEGIN
 		,b.oddsspread
 	FROM dbo.bettransm AS bm WITH (NOLOCK) 
 	INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
+	LEFT JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON bm.TransId = mt.TransId AND mt.MatchId = @MatchId
 	WHERE bm.matchid = @MatchId
 		AND bm.SiteDBGroupID = @SiteDBGroupId
 		AND b.bettype = 29
 		AND b.oddsspread = 3
 		AND bm.statusID IN (0,1)
 		AND bm.statuswinlost IS NOT NULL
+		AND mt.TransId IS NULL
 
 	SET @TotalSubParlay = @@ROWCOUNT
 
