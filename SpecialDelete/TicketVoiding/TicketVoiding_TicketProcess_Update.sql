@@ -20,6 +20,7 @@ AS
 		- 20240319@Max: [TVS] SP tuning for EC2024 [Redmine: #200840]
 		- 20250505@July: [TVS] Case Resettled miss update IsProcessed [Redmine: #219112]
 		- 20250613@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's explanation:
 */
@@ -85,7 +86,7 @@ BEGIN
 		IF @@ROWCOUNT = 0
 			BREAK
 
-		UPDATE s SET s.IsProcessed = CASE WHEN t.ValidationType IN (2,4,6,22,24,28) THEN 2 ELSE 1 END --2:Mark resettled ticket, 1: Mark processed ticket
+		UPDATE s SET s.IsProcessed = CASE WHEN t.ValidationType IN (2,4,6,22,24,28,34) THEN 2 ELSE 1 END --2:Mark resettled ticket, 1: Mark processed ticket
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransIdBatch t ON t.Id = s.Id
 
@@ -107,7 +108,7 @@ BEGIN
 		IF @@ROWCOUNT = 0
 			BREAK
 
-		UPDATE s SET s.IsProcessed = CASE WHEN t.ValidationType IN (26) THEN 2 ELSE 1 END
+		UPDATE s SET s.IsProcessed = CASE WHEN t.ValidationType IN (26,32) THEN 2 ELSE 1 END
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransIdBatch t ON t.id = s.Id
 

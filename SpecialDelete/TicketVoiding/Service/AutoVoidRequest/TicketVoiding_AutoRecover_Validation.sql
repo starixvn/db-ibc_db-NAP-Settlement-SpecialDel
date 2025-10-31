@@ -9,7 +9,7 @@ AS
 /*	
 	Created by:20231227@Max
 	Task: [TVS] Recover Ticket issue type [Redmine: #196020]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20231227@Max: Create new SP [Redmine: #196020]
@@ -23,11 +23,12 @@ AS
 		ValidationType => 23, 24 (recover + resettle main)
 		ValidationType => 25, 26 (recover + resettle sub)
 		ValidationType => 27, 28 (recover + resettle Cricket)
-		ValidationType => 29 (resettle single_14)
-		ValidationType => 30 (resettle main_14)
-		ValidationType => 31, 32 (recover + resettle sub - hybrid parlay)
-		ValidationType => 33, 34 (recover + resettle main - hybrid parlay)
-
+		ValidationType => 29 (recover single_14)
+		ValidationType => 30 (recover main_14) include hybrid parlay
+		ValidationType => 31 (recover sub - hybrid parlay)
+		ValidationType => 32 (resettle sub - hybrid parlay)
+		ValidationType => 33 (recover main - hybrid parlay)
+		ValidationType => 34 (resettle main - hybrid parlay)
 */
 BEGIN
 	SET NOCOUNT ON

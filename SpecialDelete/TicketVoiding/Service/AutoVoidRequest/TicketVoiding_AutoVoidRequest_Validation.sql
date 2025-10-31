@@ -41,15 +41,16 @@ AS
 	
 	Param's explanation:
 		ValidationType => 1, 2 (void + resettle single)
-		ValidationType => 3 (void main/sub)
+		ValidationType => 3 (void main/sub) => same VoidingType
 		ValidationType => 4 (resettle main)
 		ValidationType => 5, 6 (void + resettle Cricket)
 		ValidationType => 7 (cancel CO)
 		ValidationType => 8 (void single_14)
 		ValidationType => 9 (void main parlay_14)
-		ValidationType => 10 (void main/sub - hybrid parlay)
+		ValidationType => 10 (void main - hybrid parlay)
 		ValidationType => 11 (resettle main - hybrid parlay)
-		ValidationType => 12 (void main parlay_14 - hybrid parlay)
+		ValidationType => 12 (void sub - hybrid parlay)
+		ValidationType => 13 (void main parlay_14 - hybrid parlay)
 
 */
 BEGIN
@@ -248,7 +249,7 @@ BEGIN
 				,b.winlostdate
 				,b.statusID
 				,b.SiteDBGroupID
-				,CASE WHEN b.oddsspread = 3 THEN 12 ELSE 9 END AS ValidationType
+				,CASE WHEN b.oddsspread = 3 THEN 13 ELSE 9 END AS ValidationType
 			FROM #tmpInputTransId t
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
 			WHERE b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
@@ -280,7 +281,7 @@ BEGIN
 
 		INSERT INTO #ParlayTickets (TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, SiteDBGroupID, ValidationType)
 		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, bm.transdate, bm.winlostdate, bm.statusID, bm.SiteDBGroupID
-			,CASE WHEN b.oddsspread = 3 THEN 10 ELSE 3 END AS ValidationType
+			,CASE WHEN b.oddsspread = 3 THEN 12 ELSE 3 END AS ValidationType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
@@ -348,7 +349,7 @@ BEGIN
 				,b.winlostdate
 				,b.statusID
 				,b.SiteDBGroupID
-				,CASE WHEN b.oddsspread = 3 THEN 12 ELSE 9 END AS ValidationType
+				,CASE WHEN b.oddsspread = 3 THEN 13 ELSE 9 END AS ValidationType
 			FROM #tmpInputTransId t
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
 			WHERE b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
@@ -381,7 +382,7 @@ BEGIN
 			,bm.winlostdate
 			,bm.statusID
 			,bm.SiteDBGroupID
-			,CASE WHEN b.oddsspread = 3 THEN 10 ELSE 3 END AS ValidationType
+			,CASE WHEN b.oddsspread = 3 THEN 12 ELSE 3 END AS ValidationType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
@@ -396,7 +397,7 @@ BEGIN
 	SELECT TransId, RequestId, Matchid, IssueTypeId, 2, SiteDBGroupID FROM #SingleTickets_ReSettle WHERE TicketType = 1  --SingleReSettle
 
 	INSERT INTO #Tickets_Result (TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType, SiteDBGroupID)
-	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType, SiteDBGroupID FROM #ParlayTickets --Parlayvoid (10,3)
+	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType, SiteDBGroupID FROM #ParlayTickets --Parlayvoid (10,3,12)
 
 	INSERT INTO #Tickets_Result (TransId, RequestId, MatchId, IssueTypeId, ValidationType, SiteDBGroupID)
 	SELECT TransId, RequestId, MatchId, IssueTypeId, ValidationType, SiteDBGroupID FROM #ParlayTickets_ReSettle --ParlayReSettle (11,4)
