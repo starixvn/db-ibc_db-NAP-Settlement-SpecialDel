@@ -1,6 +1,8 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_HybridParlay_Validate] 
 	@MatchId	INT
+	,@ErrCode		INT = 0 OUTPUT
+	,@ErrMsg		NVARCHAR(200) = NULL OUTPUT
 AS
 /*
     Created by: Max
@@ -17,17 +19,14 @@ BEGIN
 	SET NOCOUNT ON;
 
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId AND p.IsCalculating IN (0,1))
-	BEGIN
-		SELECT NULL AS MatchId
-		RETURN
-	END
-	ELSE 
-	BEGIN
-		SELECT @MatchId AS MatchId
-		WHERE EXISTS (SELECT TOP 1 1 FROM bettransm bm WITH (NOLOCK)
+		OR NOT EXISTS (SELECT TOP 1 1 FROM bettransm bm WITH (NOLOCK)
 							WHERE bm.matchid = @MatchId
 								AND bm.statuswinlost IS NOT NULL
 								AND bm.statusID IN (0,1)
 					)
+	BEGIN
+		SELECT @ErrCode = 100
+			, @ErrMsg = 'No valid ticket found.'
+		RETURN
 	END
 END
