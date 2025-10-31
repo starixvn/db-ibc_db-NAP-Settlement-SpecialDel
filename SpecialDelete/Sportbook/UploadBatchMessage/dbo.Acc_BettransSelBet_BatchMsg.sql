@@ -156,7 +156,7 @@ BEGIN
 		--Remove invalid tickets
 		DELETE b
 		FROM #BetDelete b
-		WHERE 1 = CASE WHEN b.ProductId = @BetBuilderPlus_ProductId AND b.bettype = 29 AND b.oddsspread <> 3 THEN 1
+		WHERE 1 = CASE WHEN b.ProductId = @BetBuilderPlus_ProductId AND b.bettype = 29 AND ISNULL(b.oddsspread,0) <> 3 THEN 1
 					   WHEN b.ProductId = 1 AND b.bettype = 29 AND b.oddsspread = 3 THEN 1
 					   ELSE 0 END
 			

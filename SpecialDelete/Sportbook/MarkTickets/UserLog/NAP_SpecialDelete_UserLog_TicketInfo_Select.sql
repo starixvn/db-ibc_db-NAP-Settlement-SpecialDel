@@ -34,7 +34,7 @@ BEGIN
 	SELECT t.transid
 		FROM #tblTransIds t
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
-			WHERE b.bettype = 29
+			WHERE b.bettype = 29 AND b.oddsspread <> 3
 	
 	-- Return Hybrid parlay transid
 	SELECT t.transid, b.TransId AS MainTransId
