@@ -1274,7 +1274,7 @@ BEGIN
 			WHERE 1 = CASE WHEN @IsCalledJackTimeHybridParlay = 0 AND b.oddsspread = 3 THEN 0
 					ELSE 1 END
 				AND 1 = CASE WHEN @Bet = 'Bet Builder+' AND b.oddsspread = 3 THEN 1
-						     WHEN @Bet IN ( 'All','Sub Parlay') AND b.oddsspread <> 3 THEN 1 
+						     WHEN @Bet IN ( 'All','Sub Parlay') AND ISNULL(b.oddsspread,0) <> 3 THEN 1 
 						     ELSE 0 END
 
 			IF @SelectionSubParlays <> ''

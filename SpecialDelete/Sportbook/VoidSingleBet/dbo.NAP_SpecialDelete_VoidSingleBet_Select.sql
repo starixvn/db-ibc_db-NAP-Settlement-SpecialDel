@@ -940,7 +940,7 @@ BEGIN
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
 			WHERE 1 = CASE WHEN @Bet = 'Bet Builder+' AND b.oddsspread = 3 THEN 1
-						   WHEN @Bet IN ( 'All','Sub Parlay') AND b.oddsspread <> 3 THEN 1 
+						   WHEN @Bet IN ( 'All','Sub Parlay') AND ISNULL(b.oddsspread,0) <> 3 THEN 1 
 						   ELSE 0 END
 			 
 		END
