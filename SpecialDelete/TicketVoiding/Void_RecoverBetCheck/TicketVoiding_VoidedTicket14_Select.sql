@@ -20,6 +20,7 @@ AS;
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
 		- 20250828@July: [TVS] ScaleOut DBTrans [Phase 7] Manage Request page [Redmine: #236438]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
 
 	Param's explanation:	
 		
@@ -514,6 +515,7 @@ BEGIN
 		   ,s.winlostdate
 		   ,s.modds AS MasterOdds
 	       ,s.IsDeposit
+		   ,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid

@@ -44,6 +44,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
 
 	Param's explanation:	
 		
@@ -121,6 +122,7 @@ BEGIN
 		,zzzWinlost		MONEY
 		,modds			SMALLMONEY
 		,VendorMatchId	VARCHAR(50)
+		,finalodds		SMALLMONEY
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -271,7 +273,7 @@ BEGIN
 	END
 
 	UPDATE	t
-		SET transid = b.transid
+	SET transid = b.transid
 			,Betcheck = b.betcheck
 			,betdaqid = b.betdaqid
 			,betid = b.betid
@@ -311,11 +313,29 @@ BEGIN
 			,ActualStake = b.actual_stake
 			,t.Status = b.status
 			,modds = b.modds
+			,finalodds = bm.finalodds
 	FROM	#tmpTicket t
 		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON t.subTransId = bm.transid AND t.SiteDBGroupID = bm.SiteDBGroupID
 		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND t.SiteDBGroupID = b.SiteDBGroupID
 	WHERE b.matchid IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	
+	--Update odds support show betlist for Hybrid parlay
+	IF @@ROWCOUNT <> 0 AND EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE IsMixParlay = 1 AND oddsspread = 3) 
+	BEGIN
+		;WITH CTE_MaxSubOdds AS (
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #tmpTicket t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+			GROUP BY t.transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #tmpTicket AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+	END 
+
 	-- UPDATE eventtype = 1
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE IsMixParlay = 0 AND IsVoidArchived = 0))
 	BEGIN
@@ -645,6 +665,8 @@ BEGIN
 			,t.zzzWinlost
 			,t.modds AS MasterOdds
 			,VendorMatchId
+			,t.finalodds
+		    ,CASE WHEN t.IsMixParlay = 1 AND t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM	#tmpTicket t
 		LEFT JOIN #CTE_CustInfo c WITH(NOLOCK) ON c.custid = t.custid
 		LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK) ON ag.custid = t.recommend 
@@ -652,7 +674,7 @@ BEGIN
 		LEFT JOIN #CTE_CustInfo su WITH(NOLOCK) ON su.custid = t.srecommend
 		LEFT JOIN @VIPAccount_tmp vip ON t.custid = vip.CustID 	
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON su.site = si.site
-	ORDER BY ISNULL(t.MainTransId, t.transid)
+	ORDER BY ISNULL(t.MainTransId, t.transid) ASC
 		   , CASE 
 				WHEN t.BonusID IS NOT NULL
 						THEN CASE 
@@ -660,7 +682,8 @@ BEGIN
 								ELSE 2 
 							 END
 				ELSE t.transid
-			 END
+			 END ASC
+			, t.SubTransid ASC	
 
 	DROP TABLE #tmpTicket;
 	DROP TABLE #InstantSettlementBettypes

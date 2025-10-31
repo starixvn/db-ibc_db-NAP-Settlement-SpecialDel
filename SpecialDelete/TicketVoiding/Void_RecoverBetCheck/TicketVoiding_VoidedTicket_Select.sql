@@ -40,6 +40,7 @@ AS;
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
 		- 20250828@July: [TVS] ScaleOut DBTrans [Phase 7] Manage Request page [Redmine: #236438]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
 
 	Param's explanation:	
 		
@@ -132,7 +133,8 @@ BEGIN
 			  sporttype       SMALLINT,
 			  modds           SMALLMONEY,
 			  VendorMatchId   VARCHAR(50),
-			  SiteDBGroupID	  SMALLINT
+			  SiteDBGroupID	  SMALLINT,
+			  finalodds		  SMALLMONEY
              );
 
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -376,9 +378,27 @@ BEGIN
 				,ActualStake = b.actual_stake
 				,subTransId = bm.transid
 				,modds = b.modds
+				,finalodds = bm.finalodds
 		FROM	#tmpTicket t
 			INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON t.subTransId = bm.transid AND bm.SiteDBGroupID = t.SiteDBGroupID
 			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.SiteDBGroupID = bm.SiteDBGroupID
+	
+		--Update odds support show betlist for Hybrid parlay
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE IsMixParlay = 1 AND oddsspread = 3) 
+		BEGIN
+			;WITH CTE_MaxSubOdds AS (
+				SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+				FROM #tmpTicket t
+					INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+				WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+				GROUP BY t.transid
+			)
+			UPDATE b
+			SET b.SubOdds = x.Max_SubOdds
+			FROM #tmpTicket AS b
+			INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+			WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+		END 
 	END
 
 	--@IsMovebet = 1
@@ -463,6 +483,7 @@ BEGIN
 			INNER LOOP JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid AND bm.SiteDBGroupID = t.SiteDBGroupID
 			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29 AND b.SiteDBGroupID = bm.SiteDBGroupID
 
+		
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE TransId IS NULL AND IsMixParlay = 1)
 		BEGIN
 			UPDATE	t
@@ -510,6 +531,22 @@ BEGIN
 				INNER HASH JOIN dbo.bettrans14 b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29 AND b.SiteDBGroupID = bm.SiteDBGroupID
 		END
 
+		--Update odds support show betlist for Hybrid parlay (for bettransm14)
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE IsMixParlay = 1 AND oddsspread = 3) 
+		BEGIN
+			;WITH CTE_MaxSubOdds AS (
+				SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+				FROM #tmpTicket t
+					INNER JOIN dbo.bettransm14 bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+				WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+				GROUP BY t.transid
+			)
+			UPDATE b
+			SET b.SubOdds = x.Max_SubOdds
+			FROM #tmpTicket AS b
+			INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+			WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+		END 
 	END
 
 	-- UPDATE eventtype = 1
@@ -666,6 +703,7 @@ BEGIN
 			   ,s.modds
 			   ,s.IsDeposit
 			   ,s.VendorMatchId
+			   ,s.finalodds
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -740,6 +778,7 @@ BEGIN
 			   ,s.modds
 			   ,s.IsDeposit
 			   ,s.VendorMatchId
+			   ,s.finalodds
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
@@ -810,6 +849,7 @@ BEGIN
 			   ,s.modds
 			   ,s.IsDeposit
 			   ,s.VendorMatchId
+			   ,s.finalodds
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -883,6 +923,7 @@ BEGIN
 		   ,s.modds
 		   ,s.IsDeposit
 		   ,s.VendorMatchId
+		   ,s.finalodds
 		FROM	#tmpTicket s
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -951,6 +992,8 @@ BEGIN
 		   ,s.IsDeposit
 		   ,s.modds AS MasterOdds
 		   ,s.VendorMatchId
+		   ,s.finalodds
+		   ,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
@@ -975,6 +1018,7 @@ BEGIN
 							 END
 				ELSE s.transid
 			 END ASC
+		   , s.SubTransid ASC	
 
 	DROP TABLE #tmpTicket
 	DROP TABLE #TmpMatch
