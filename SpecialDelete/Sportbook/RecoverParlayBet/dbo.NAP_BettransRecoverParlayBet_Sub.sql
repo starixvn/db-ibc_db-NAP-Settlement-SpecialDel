@@ -395,7 +395,9 @@ BEGIN
 				   ,@IsReleased	= 1		
 			END	  			
 			
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
+			SELECT @ErrCode = 99
+				, @ErrMsg = CASE WHEN @IsCalledJackTimeHybridParlay = 0 THEN 'Failed to adjust odds, some tickets of Hybrid parlay have not been voided/recovered.' 
+								ELSE 'No ticket found.' END
 			
 			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
 			RETURN

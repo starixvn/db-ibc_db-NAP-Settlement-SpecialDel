@@ -1527,7 +1527,8 @@ BEGIN
 	IF (NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets) AND NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBetsm))
 	BEGIN
 		SELECT 99 AS ErrorCode
-			, 'No ticket found.' AS ErrorMsg
+			, CASE WHEN @IsCalledJackTimeHybridParlay = 0 THEN 'Failed to adjust odds, some tickets of Hybrid parlay have not been voided/recovered.'
+				ELSE 'No ticket found.' END AS ErrorMsg
 			, @NegativeBalanceUsers AS NegativeBalanceUsers
 		
 		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold

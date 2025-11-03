@@ -99,7 +99,7 @@ BEGIN
 		FROM	dbo.TicketVoiding_Queue q
 		WHERE q.QueueId = @QueueId 
 	END
-	ELSE IF @VoidingTypeId IN (18,19) AND @IsCalledJackTimeHybridParlay = 0
+	ELSE IF @VoidingTypeId IN (18,19,20,21) AND @IsCalledJackTimeHybridParlay = 0
 	BEGIN
 		UPDATE	q WITH(ROWLOCK, UPDLOCK)
 		SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())
