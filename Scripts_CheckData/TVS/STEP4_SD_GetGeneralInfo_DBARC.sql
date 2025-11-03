@@ -3,8 +3,8 @@ USE bodb_archive
 GO
 
 DECLARE @from datetime, @to datetime																						
-SET @from = '2025-09-01'																									
-SET @to = '2025-10-01'																									
+SET @from = '2025-10-01'																									
+SET @to = '2025-11-01'																									
 																									
 CREATE TABLE #message_tmp (messageID INT, reason VARCHAR(50), transid BIGINT, MessageContent varchar(max), matchid INT)																										
 CREATE TABLE #temp_transid (
@@ -19,6 +19,15 @@ transid bigint
 , LeagueGroup varchar(200)
 , MessageContent varchar(max)
 , IsParlay  BIT DEFAULT(0)
+, zzz_status NVARCHAR(100)
+, winlostdate SMALLDATETIME
+, currency TINYINT
+, actual_stake MONEY
+, statusId INT
+, actualrate FLOAT
+, stake MONEY
+, tpositiontaking SMALLMONEY
+, subtransid BIGINT
 )
 
 CREATE TABLE #VoidReasonPattern (
@@ -70,7 +79,7 @@ UNION ALL SELECT 'Restart'					, '%Due to%has been restart%considered%VOID%' --S
 
 
 /*Range archive*/																							
-INSERT INTO #message_tmp (messageID, reason, transid, MessageContent, matchid)																									
+/*INSERT INTO #message_tmp (messageID, reason, transid, MessageContent, matchid)																									
 SELECT   ms.MessageId																									
 		, COALESCE(v.Reason, 'Other Issues') AS Reason																		
 		, t.transid		
@@ -86,7 +95,7 @@ FROM DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] ms WITH (NOLOCK)
 	LEFT JOIN #VoidReasonPattern v ON ms.Content_en LIKE v.Pattern
 WHERE ms.CreateTime >= @from AND ms.CreateTime < @to																									
 	AND ms.IsTest = 0	
-	AND Content_en LIKE '%Due to%VOID%'
+	AND Content_en LIKE '%Due to%VOID%'*/
 
 /*Range active*/																							
 INSERT INTO #message_tmp (messageID, reason, transid, MessageContent, matchid)																									
@@ -115,33 +124,81 @@ WHERE d.VoidingHistoryId IS NOT NULL
 /*Range archive*/
 BEGIN
 	--single
-	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent)	
-	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent											
+	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, zzz_status)	
+	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, d.status											
 	FROM #message_tmp ms WITH (NOLOCK)																									
 		INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.transid = ms.TransId	
 	WHERE d.VoidingHistoryId IS NULL
 
 	--parlay 
-	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, IsParlay)			
-	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, 1 AS IsParlay			
+	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, IsParlay, zzz_status, subtransid, currency)			
+	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, 1 AS IsParlay, d.status, d.transid as subtransid, b.currency		
 	FROM #message_tmp ms WITH (NOLOCK)																									
 		INNER JOIN dbo.bettrans_bk b WITH (NOLOCK) ON b.transid = ms.TransId	
 		INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.refno = b.refno AND ms.matchid = d.matchid	
 	WHERE d.VoidingHistoryId IS NULL
+
+	UPDATE s
+	SET   s.actual_stake = b.actual_stake
+		, s.currency = b.currency
+		, s.statusId = b.statusID
+		, s.stake = b.stake
+		, s.actualrate = b.actualrate
+		, s.tpositiontaking = b.tpositiontaking
+		, s.winlostdate = b.winlostdate
+	FROM #temp_transid s
+		CROSS APPLY (
+			SELECT winlostdate, statusID, stake, actualrate, actual_stake, TransId, bettype, custid, currency, tpositiontaking
+			FROM dbo.bettrans_bk b WITH (NOLOCK) 
+			WHERE b.TransId = s.TransId
+		)b
+	
+	UPDATE s
+	SET   s.actual_stake = b.actual_stake
+		, s.statusId = b.statusID
+		, s.stake = b.stake
+		, s.actualrate = b.actualrate
+		, s.tpositiontaking = b.tpositiontaking
+		, s.winlostdate = b.winlostdate
+	FROM #temp_transid s
+		CROSS APPLY (
+			SELECT winlostdate, statusID, stake, actualrate, actual_stake, TransId, bettype, custid, currency, tpositiontaking
+			FROM dbo.bettransm bM WITH (NOLOCK) 
+			WHERE bm.transid = s.subtransid AND s.matchid = bm.matchid
+		)b
 END
 
 /*Range active*/
 BEGIN
 	--single
-	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent)	
-	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent												
+	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, zzz_status)	
+	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, d.status													
 	FROM #message_tmp ms WITH (NOLOCK)																									
 		INNER JOIN bodb02.dbo.zzzbettrans d WITH (NOLOCK) ON d.transid = ms.TransId	
 	WHERE d.VoidingHistoryId IS NULL
 	
+	UPDATE s
+	SET   s.actual_stake = b.actual_stake
+		, s.currency = b.currency
+		, s.statusId = b.statusID
+		, s.stake = b.stake
+		, s.actualrate = b.actualrate
+		, s.tpositiontaking = b.tpositiontaking
+		, s.winlostdate = b.winlostdate
+	FROM #temp_transid s
+		CROSS APPLY (
+			SELECT winlostdate, statusID, stake, actualrate, actual_stake, TransId, bettype, custid, currency, tpositiontaking
+			FROM bodb02.dbo.bettrans b WITH (NOLOCK) 
+			WHERE b.TransId = s.TransId
+			UNION 
+			SELECT winlostdate, statusID, stake, actualrate, actual_stake, TransId, bettype, custid, currency, tpositiontaking
+			FROM bodb02.dbo.bettrans14 b WITH (NOLOCK) 
+			WHERE b.TransId = s.TransId
+		)b
+
 	--parlay 
-	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, IsParlay)	
-	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, 1 AS IsParlay	
+	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, IsParlay, zzz_status, subtransid)	
+	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, 1 AS IsParlay, d.status, d.transid AS subtransid	
 	FROM #message_tmp ms WITH (NOLOCK)																									
 		INNER JOIN bodb02.dbo.bettrans b WITH (NOLOCK) ON b.transid = ms.TransId	
 		INNER JOIN bodb02.dbo.zzzbettrans d WITH (NOLOCK) ON d.refno = b.refno AND d.custid = b.custid
@@ -156,8 +213,8 @@ FROM #message_tmp ms WITH (NOLOCK)
 ---Update for case MBU T5 not copy zzzbetrans_bk, T6 delete zzzbettrans => miss data 
 IF EXISTS ( SELECT TOP 1 1 FROM #message_tmp)
 BEGIN
-    INSERT INTO #temp_transid (transid,reason,matchid, MessageContent)		
-    SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent									
+    INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, zzz_status)		
+    SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, d.status								
     FROM #message_tmp ms WITH (NOLOCK)																									
         INNER JOIN bodb02.dbo.TicketVoiding_VoidedTransaction d WITH (NOLOCK) ON d.transid = ms.TransId	
 END
@@ -262,14 +319,16 @@ BEGIN
 END
 	
 SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' END IsMonthly																											
-	, 'SD' AS 'TVS/SD?', bk.winlostdate
-	, YEAR(bk.winlostdate) AS YEAR_winlostdate
-	, MONTH(bk.winlostdate) AS MONTH_winlostdate
-	, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
-    , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
-	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
-    , 'VOID' AS ActionName
-	, '' as Function_SDName
+	, 'SD' AS 'TVS/SD?', ms.winlostdate
+	, YEAR(ms.winlostdate) AS YEAR_winlostdate
+	, MONTH(ms.winlostdate) AS MONTH_winlostdate
+	, ms.Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
+    , COUNT(DISTINCT ms.transid) AS Bet_cnt		
+	
+	, CAST(SUM(ms.stake * ms.actualrate) as money) AS MemberTO_RM, CAST(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
+    
+	, 'VOID' AS ActionName
+	, '' AS Function_SDName
 	, '' AS RequestId, '' TotalTicket, '' TotalTicket_Parlay, '' Bet_cnt_Parlay
     , '' IssueType, '' SubIssueType
 	, '' AS CreatedBy, '' CreatedDate,'' AS Duration, '' FromTimeUI, '' ToTimeUI
@@ -278,15 +337,14 @@ SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' E
     , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
 	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
-	, CASE WHEN MAX(CASE WHEN bk.statusID IN (111,112,113) THEN 1 ELSE 0 END) = 1 THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
+	, CASE WHEN MAX(CASE WHEN ms.zzz_status IN ('LOSE', 'DRAW','WON') THEN 1 ELSE 0 END) = 1 THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
 FROM #temp_transid ms WITH (NOLOCK)																									
-	INNER JOIN bettrans_bk bk WITH(NOLOCK) ON bk.transid = ms.transid																								
-	AND bk.currency <> 20																								
-	AND bk.statusID = 102	
-	AND bk.winlostdate between  @from AND @to
-GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
+WHERE ms.currency NOT IN (20,72)																							
+	AND ms.statusID = 102	
+	AND ms.winlostdate between  @from AND @to
+GROUP BY ms.winlostdate, ms.Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate ASC 
-
+/*
 SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' END IsMonthly																									
 	, 'SD' AS 'TVS/SD?', bk.winlostdate
 	, YEAR(bk.winlostdate) AS YEAR_winlostdate
@@ -339,7 +397,7 @@ FROM #temp_transid ms WITH (NOLOCK)
 	AND bk.winlostdate between  @from AND @to
 GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate ASC																									
-
+*/
 
 DROP TABLE #message_tmp
 DROP TABLE #temp_transid

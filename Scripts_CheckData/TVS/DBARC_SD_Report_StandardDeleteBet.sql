@@ -244,6 +244,26 @@ BEGIN
 		INNER JOIN bodb02.dbo.zzzbettrans d WITH (NOLOCK) ON d.refno = b.refno AND d.custid = b.custid
 		INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = d.transid AND d.matchid = bm.matchid
 	WHERE d.VoidingHistoryId IS NULL
+
+	UPDATE s
+	SET   s.actual_stake = CASE WHEN b.actual_stake IS NULL THEN s.actual_stake ELSE b.actual_stake END
+		, s.HDP1 = b.hdp1
+		, s.HDP2 = b.hdp2
+		, s.SCORE = b.SCORE
+		, s.BETTIME = b.transdate
+		, s.betteam = b.betteam
+		, s.odds = b.odds
+		, s.custid = b.custid
+		, s.bettype = b.bettype
+        , IsUpdate = 1
+        , IsParlay = 1
+	FROM #temp_transid s
+		CROSS APPLY (
+			SELECT bm.transdate, actual_stake, bm.hdp1, bm.hdp2, CAST(bm.LiveHomeScore AS VARCHAR(10)) + '-' + CAST(bm.LiveAwayScore AS VARCHAR(10)) AS SCORE
+            , bm.betteam, bm.odds, bm.custid, bm.bettype
+			FROM dbo.bettransm bM WITH (NOLOCK) 
+			WHERE bm.transid = s.subtransid AND s.matchid = bm.matchid
+		)b
 END
 
 DELETE ms
