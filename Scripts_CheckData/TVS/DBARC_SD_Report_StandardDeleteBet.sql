@@ -110,8 +110,6 @@ WHERE ms.CreateTime >= @from AND ms.CreateTime < @to
 	AND ms.IsTest = 0	
 	AND Content_en LIKE '%Due to%VOID%'
 
-
-
 /*Range active*/																							
 INSERT INTO #message_tmp (messageID, reason, transid, MessageContent, Date, CREATOR, matchid)			
 SELECT   ms.MessageId																									
@@ -143,6 +141,7 @@ BEGIN
 		INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.transid = ms.TransId	
 	WHERE d.VoidingHistoryId IS NOT NULL
     
+	--single
     INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, [Date], zzz_status, zzz_Transdate, CREATOR)		
 	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, ms.date, d.status, d.Transdate, ms.CREATOR										
 	FROM #message_tmp ms WITH (NOLOCK)																									
