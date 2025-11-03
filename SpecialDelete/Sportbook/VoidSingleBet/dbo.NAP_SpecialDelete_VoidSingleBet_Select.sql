@@ -148,7 +148,6 @@ AS
 		 + 'All': Search both single and parlay tickets.
 		 + 'Single': Search only single tickets.
 		 + 'Sub Parlay': Search only parlay tickets.
-		 + Checkbox 'Bet Builder+': Search only hybrid parlay tickets.(Disable "Bet" radio buttons & Enable Selection field)
 
 		 - @TimeType:
 		 + 0: TransTime.
@@ -157,7 +156,7 @@ AS
 		- @OddsFilter: <root><r o="0.75&1.25" ost="DEC"/></root>
 		 - @SelectionSubParlays: 
 			+ IF @Bet: 'All' OR 'Single' => default : ''
-			+ IF @Bet: 'SubParlay' OR 'Bet Builder+' => value : '2,3,4,5,6,7,8,9,10 UP'
+			+ IF @Bet: 'SubParlay' => value : '2,3,4,5,6,7,8,9,10 UP'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -682,7 +681,7 @@ BEGIN
 	END
 
 	-- Search Parlay Tickets
-	IF @Bet = 'All' OR @Bet = 'Sub Parlay' OR @Bet = 'Bet Builder+'
+	IF @Bet = 'All' OR @Bet = 'Sub Parlay'
 	BEGIN
 		IF @IsCheckTime = 1 --checkbox for the time range
 		BEGIN
@@ -939,9 +938,6 @@ BEGIN
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
-			WHERE 1 = CASE WHEN @Bet = 'Bet Builder+' AND b.oddsspread = 3 THEN 1
-						   WHEN @Bet IN ( 'All','Sub Parlay') AND ISNULL(b.oddsspread,0) <> 3 THEN 1 
-						   ELSE 0 END
 			 
 		END
 	

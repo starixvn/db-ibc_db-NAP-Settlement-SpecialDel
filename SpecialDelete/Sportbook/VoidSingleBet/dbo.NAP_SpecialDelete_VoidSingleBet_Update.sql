@@ -147,6 +147,7 @@ AS
 		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 		- 20250903@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -187,11 +188,10 @@ AS
 		 + 'All': Search both single and parlay tickets.
 		 + 'Single': Search only single tickets.
 		 + 'Sub Parlay': Search only parlay tickets.
-		 + Checkbox 'Bet Builder+': Search only hybrid parlay tickets.(Disable "Bet" radio buttons & Enable Selection field)
 
 		 - @SelectionSubParlays: 
 			+ IF @Bet: 'All' OR 'Single' => default : ''
-			+ IF @Bet: 'SubParlay' OR 'Bet Builder+' => value : '2,3,4,5,6,7,8,9,10 UP'
+			+ IF @Bet: 'SubParlay' => value : '2,3,4,5,6,7,8,9,10 UP'
 	*/
 BEGIN
 	SET NOCOUNT ON;
@@ -1008,7 +1008,7 @@ BEGIN
 	END
 
 	-- Search Parlay Tickets
-	IF @Bet = 'All' OR @Bet = 'Sub Parlay' OR @Bet = 'Bet Builder+'	
+	IF @Bet = 'All' OR @Bet = 'Sub Parlay'
 	BEGIN
 		IF @IsCheckTime = 1 --checkbox for the time range
 		BEGIN
@@ -1273,9 +1273,6 @@ BEGIN
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
 			WHERE 1 = CASE WHEN @IsCalledJackTimeHybridParlay = 0 AND b.oddsspread = 3 THEN 0
 					ELSE 1 END
-				AND 1 = CASE WHEN @Bet = 'Bet Builder+' AND b.oddsspread = 3 THEN 1
-						     WHEN @Bet IN ( 'All','Sub Parlay') AND ISNULL(b.oddsspread,0) <> 3 THEN 1 
-						     ELSE 0 END
 
 			IF @SelectionSubParlays <> ''
 			BEGIN

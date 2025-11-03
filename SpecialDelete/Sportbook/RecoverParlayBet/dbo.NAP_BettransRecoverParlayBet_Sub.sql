@@ -40,7 +40,6 @@ AS
 			'All': All
 			'Mix Parlay': Mix Parlay
 			'System Parlay': System Parlay
-			Checkbox 'Bet Builder+': Search only hybrid parlay tickets.(Disable "Bet" radio buttons & Enable Selection field)
 */
 BEGIN
 	SET NOCOUNT ON
@@ -369,10 +368,9 @@ BEGIN
 		  AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 		  AND (m.sporttype BETWEEN 1 AND 99)
 		  AND CASE
-					WHEN @BetType = 'All' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
-					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
-					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
-					WHEN @BetType = 'Bet Builder+' AND b.oddsspread = 3 THEN 1
+					WHEN @BetType = 'All' THEN 1
+					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' THEN 1
+					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' THEN 1
 					ELSE 0
 			  END	= 1	
 		 AND 1 = CASE WHEN @IsCalledJackTimeHybridParlay = 0 AND b.oddsspread = 3 THEN 0
@@ -404,18 +402,20 @@ BEGIN
 		END										
 		
 		--Update odds support show betlist for Hybrid parlay
-		IF @BetType = 'Bet Builder+'
+		IF EXISTS (SELECT TOP 1 1 FROM @tblRecoverBet WHERE oddsspread = 3) 
 		BEGIN
 			;WITH CTE_MaxSubOdds AS (
 				SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
 				FROM @tblRecoverBet t
 					INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+				WHERE t.oddsspread = 3
 				GROUP BY t.transid
 			)
 			UPDATE b
 			SET b.SubOdds = x.Max_SubOdds
 			FROM @tblRecoverBet AS b
 			INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+			WHERE b.oddsspread = 3
 		END
 
 		--> get list of MainTranIds	
