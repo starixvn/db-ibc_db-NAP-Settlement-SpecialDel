@@ -369,9 +369,9 @@ BEGIN
 		  AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 		  AND (m.sporttype BETWEEN 1 AND 99)
 		  AND CASE
-					WHEN @BetType = 'All' AND b.oddsspread <> 3 THEN 1
-					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' AND b.oddsspread <> 3 THEN 1
-					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' AND b.oddsspread <> 3 THEN 1
+					WHEN @BetType = 'All' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
 					WHEN @BetType = 'Bet Builder+' AND b.oddsspread = 3 THEN 1
 					ELSE 0
 			  END	= 1	
