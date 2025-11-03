@@ -31,7 +31,7 @@ BEGIN
 									,Teamid	INT
 									,Result	VARCHAR(10)
                                     ,IsDeadHeat BIT
-									,ResultStatusId INT
+									,ResultStatusId TINYINT
 								)
 
 	DECLARE @xmlResults XML
@@ -45,7 +45,7 @@ BEGIN
 			    ,T.c.value('@Teamid', 'INT') as Teamid
 			    ,T.c.value('@Result', 'VARCHAR(10)') as Result
                 ,T.c.value('@IsDeadHeat', 'BIT') as IsDeadHeat
-				,T.c.value('@ResultStatusId', 'INT') as ResultStatusId
+				,T.c.value('@ResultStatusId', 'TINYINT') as ResultStatusId
 	        FROM @xmlResults.nodes('Resources/Resource') T(c)
 
 	BEGIN TRY				
