@@ -121,7 +121,9 @@ BEGIN
 			,b.refno
 			,CASE WHEN @IssueTypeId = 11 AND b.bettype = 29 THEN 1 ELSE 0 END AS IsParlay --Mixparlay of AB
 			,NULL
-			,CASE WHEN @IssueTypeId = 0 THEN 0 ELSE 1 END AS MarkType
+			,CASE WHEN b.oddsspread = 3 THEN IIF(@IssueTypeId = 0, 2, 3) --2: SD-HP, 3: TVS-HP
+				 ELSE IIF(@IssueTypeId = 0, 0, 1) --0: SD, 1: TVS
+			 END AS MarkType
 	FROM #transIds t
 	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 	WHERE b.SiteDBGroupID = @SiteDBGroupID
