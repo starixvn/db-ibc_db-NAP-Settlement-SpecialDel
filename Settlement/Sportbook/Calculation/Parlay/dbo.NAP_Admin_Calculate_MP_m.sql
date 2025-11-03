@@ -227,6 +227,7 @@ BEGIN
                     ,status = 'running'
                     ,statusID = 0
                     ,winlostdate = NULL
+					,creator = custid
 			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben
 					, Inserted.Statuswinlost
 					, inserted.status, inserted.statusID, inserted.winlostdate, inserted.odds
