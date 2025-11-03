@@ -25,16 +25,16 @@ BEGIN
 	OPTION ( OPTIMIZE FOR ( @TransIdsXml = NULL ) )
 
 	-- Return single transid	
-	SELECT t.transid
-		FROM #tblTransIds t
-			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
-			WHERE b.bettype <> 29
+	SELECT t.transid, b.TransId AS MainTransId
+	FROM #tblTransIds t
+		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
+	WHERE b.bettype <> 29
 
 	-- Return parlay transid
-	SELECT t.transid
-		FROM #tblTransIds t
-			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
-			WHERE b.bettype = 29 AND b.oddsspread <> 3
+	SELECT t.transid, b.TransId AS MainTransId
+	FROM #tblTransIds t
+		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
+	WHERE b.bettype = 29 AND ISNULL(b.oddsspread,0) <> 3
 	
 	-- Return Hybrid parlay transid
 	SELECT t.transid, b.TransId AS MainTransId

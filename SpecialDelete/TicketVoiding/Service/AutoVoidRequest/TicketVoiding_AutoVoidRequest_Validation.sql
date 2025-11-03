@@ -255,7 +255,7 @@ BEGIN
 			WHERE b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		END
 	END
-	IF @IssueTypeId IN (1,10,3,8,9,12,24,26) --Note For issuetype 1,10,3: case validate cancelCO & For issuetype 8,9,26: case auto void instant
+	IF @IssueTypeId IN (1,10,3,12,24,28,8,9,26) --Note For issuetype 1,10,3,12,24,28: case validate cancelCO & For issuetype 8,9,26: case auto void instant
 	BEGIN
 		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, betdaqid, MatchId, IssueTypeId, TicketType, transdate, winlostdate, CheckTimeCancelCashOut, SiteDBGroupID)
 		SELECT t.TransId
