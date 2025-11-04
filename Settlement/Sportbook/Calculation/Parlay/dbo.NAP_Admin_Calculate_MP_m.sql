@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_m]
     ,@fta INT = NULL
     ,@hth INT = NULL
     ,@hta INT = NULL
-    ,@matchdate DATETIME
+    ,@matchdate DATETIME = NULL
     ,@priorAction VARCHAR(20) = NULL
     ,@action VARCHAR(30) = 'VOID'
     ,@VoidTransID VARCHAR(2000) = ''
