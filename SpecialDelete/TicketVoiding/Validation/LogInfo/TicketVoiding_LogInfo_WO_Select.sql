@@ -31,7 +31,6 @@ AS
 		- 20250723@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
 		- 20250916@July: HotFix - Remove check validate no bettype affect poolhouse [Redmine: #238982]
 		- 20250930@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
-		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
 		- 20251104@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:
