@@ -686,7 +686,7 @@ BEGIN
 			,d.SubIssueTypeId
 			,CASE WHEN d.sporttype = 1 THEN 'PH' ELSE 'HDP' END AS GroupName
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
-			,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
 			,sub.finalodds AS FinalOdds
 		FROM #FilterInfo d
 			 INNER JOIN dbo.bettransm sub ON d.MatchId_tmp = sub.matchid

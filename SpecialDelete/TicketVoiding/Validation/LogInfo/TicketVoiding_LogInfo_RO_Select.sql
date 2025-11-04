@@ -599,7 +599,7 @@ BEGIN
 			,b.modds
 			,sub.SiteDBGroupID
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
-			,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
 			,sub.finalodds AS FinalOdds
 			,sub.betcheck AS FilterSet
 			,sub.liveindicator AS FilterLiveIndicator

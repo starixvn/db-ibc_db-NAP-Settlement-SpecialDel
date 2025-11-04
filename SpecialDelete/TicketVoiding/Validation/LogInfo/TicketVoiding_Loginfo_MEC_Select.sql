@@ -709,7 +709,7 @@ BEGIN
 			,sub.SiteDBGroupID
 			,d.SubIssueTypeId
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
-			,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
 			,sub.finalodds AS FinalOdds
 			,sub.bettype AS FilterBettype	
 			,sub.betteam AS FilterBetteam 
