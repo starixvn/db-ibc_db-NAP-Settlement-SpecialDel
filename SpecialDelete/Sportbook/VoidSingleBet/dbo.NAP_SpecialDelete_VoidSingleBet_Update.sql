@@ -323,7 +323,7 @@ BEGIN
 
 	CREATE TABLE #SpecialDeleteBets (
 		grouptransid		BIGINT,
-		transid				BIGINT PRIMARY KEY, 
+		transid				BIGINT, 
 		custid				INT, 
 		recommend			INT, 
 		mrecommend			INT, 
