@@ -30,13 +30,14 @@ BEGIN
 
 	IF @TicketType = 0
 	BEGIN
-		SELECT b.TransId AS MainTransId, b.custid, NULL AS SubTransId, NULL AS SubMatchId, NULL AS SubBettype, NULL AS SubHdp1, NULL AS SubBetteam, b.transdesc 
+		SELECT b.TransId AS MainTransId, b.custid, NULL AS SubTransId, NULL AS SubMatchId, NULL AS SubBettypeId, NULL AS SubHdp1, NULL AS SubBetteam, b.transdesc 
 		FROM @tmp_TransIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransID = t.TransId AND b.matchid = 29 AND b.bettype = 29 AND b.oddsspread = 3
 	END
-	IF @TicketType = 1
+
+	ELSE IF @TicketType = 1
 	BEGIN
-		SELECT b.TransId AS MainTransId, b.custid, t.TransId AS SubTransId, bm.matchid AS SubMatchId, bm.bettype AS SubBettype, bm.hdp1 AS SubHdp1, bm.betteam AS SubBetteam, b.transdesc 
+		SELECT b.TransId AS MainTransId, b.custid, t.TransId AS SubTransId, bm.matchid AS SubMatchId, bm.bettype AS SubBettypeId, bm.hdp1 AS SubHdp1, bm.betteam AS SubBetteam, b.transdesc 
 		FROM @tmp_TransIds t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
