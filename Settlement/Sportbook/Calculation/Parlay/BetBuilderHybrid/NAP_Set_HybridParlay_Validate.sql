@@ -22,7 +22,6 @@ BEGIN
 		OR NOT EXISTS (SELECT TOP 1 1 FROM bettransm bm WITH (NOLOCK)
 							WHERE bm.matchid = @MatchId
 								AND bm.statuswinlost IS NOT NULL
-								AND bm.statusID IN (0,1)
 					)
 	BEGIN
 		SELECT @ErrCode = 100
