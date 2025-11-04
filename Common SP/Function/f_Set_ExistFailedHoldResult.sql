@@ -4,7 +4,7 @@ RETURNS @Result TABLE
 (
     matchid INT
     ,IsExistHoldResult INT
-    ,ResourceID INT NULL
+    ,ResourceID VARCHAR(20) NULL
 	,TypeId INT NULL
 )
 AS
@@ -20,9 +20,9 @@ AS
 */
 BEGIN
     DECLARE @Sporttype INT;		
-    DECLARE @TEMP TABLE (AutoPayoutResultId INT, ResourceID INT NULL, TypeId INT NULL);
+    DECLARE @TEMP TABLE (AutoPayoutResultId INT, ResourceID VARCHAR(20) NULL, TypeId INT NULL);
     DECLARE @IsExistHoldResult INT = 0;
-    DECLARE @ResourceID INT = NULL;
+    DECLARE @ResourceID VARCHAR(20) = NULL;
 	DECLARE @TypeId INT = NULL
 
     SELECT @Sporttype = m.sporttype
