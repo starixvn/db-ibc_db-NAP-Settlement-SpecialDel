@@ -29,6 +29,7 @@ AS
 		- 20250717@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
 		- 20250815@Lani: [TVS] Return both running and settle tickets of sitedbdown [Redmine: #232580]
 		- 20250909@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251103@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:	
 		- @AdvancedModeInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime =""/></root>
@@ -179,6 +180,8 @@ BEGIN
 	  ,SubIssueTypeId	  SMALLINT
 	  ,IsCancelCashOut	  BIT
 	  ,IsSiteDBDown		  BIT DEFAULT(0)
+	  ,IsHybrid BIT DEFAULT(0)
+	  ,FinalOdds SMALLMONEY
 	  ,No_ID INT IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -633,6 +636,8 @@ BEGIN
 			    ,SubIssueTypeId
 			    ,IsCancelCashOut
 				,IsSiteDBDown
+				,IsHybrid
+				,FinalOdds
 			)
 		SELECT DISTINCT d.MatchId
 			,b.TransId
@@ -713,6 +718,8 @@ BEGIN
 			,d.SubIssueTypeId
 			,0 AS IsCancelCashOut
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
+			,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,sub.finalodds AS FinalOdds
 		FROM #FilterInfo d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId_tmp = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -1047,6 +1054,8 @@ BEGIN
 				,m.sporttype AS 'sporttype'
 				,ISNULL(tb.parentid, m.Subbettype) AS 'GroupBettypeId' --Return for web filter bettype
 				,s.IsCancelCashOut AS 'IsCancelCashOut'
+				,m.IsHybrid AS 'IsHybrid'
+				,m.FinalOdds AS 'FinalOdds'
 			,CASE 
 				WHEN m.IsMixParlay = 1 THEN 'Parlay'
 				ELSE 'Single'

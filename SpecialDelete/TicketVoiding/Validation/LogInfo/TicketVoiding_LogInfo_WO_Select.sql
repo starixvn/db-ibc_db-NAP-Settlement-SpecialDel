@@ -32,6 +32,7 @@ AS
 		- 20250916@July: HotFix - Remove check validate no bettype affect poolhouse [Redmine: #238982]
 		- 20250930@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
+		- 20251104@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:
 		+ @OnlineServerId = '0,1,2,3'
@@ -190,6 +191,8 @@ BEGIN
 	  ,FilterOdds		  MONEY
 	  ,FilterBetteam	  NVARCHAR(10)
 	  ,IsSiteDBDown		  BIT DEFAULT(0)
+	  ,IsHybrid BIT DEFAULT(0)
+	  ,FinalOdds SMALLMONEY
 	  ,ID INT IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -624,6 +627,8 @@ BEGIN
 				,SubIssueTypeId
 				,GroupName
 				,IsSiteDBDown
+				,IsHybrid
+				,FinalOdds
 			)
 		SELECT DISTINCT d.MatchId
 			,b.TransId
@@ -686,6 +691,8 @@ BEGIN
 			,d.SubIssueTypeId
 			,CASE WHEN d.sporttype = 1 THEN 'PH' ELSE 'WO' END AS GroupName
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
+			,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,sub.finalodds AS FinalOdds
 		FROM #FilterInfo d
 			 INNER JOIN dbo.bettransm sub ON d.MatchId_tmp = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -1161,6 +1168,8 @@ BEGIN
 			   ,m.sporttype AS 'sporttype'
 			   ,ISNULL(s.IsOtherTicket,0) AS 'IsOtherTicket'
 			   ,CASE WHEN m.IsMixParlay = 1 THEN 'Parlay' ELSE bt.typenamee END AS 'GroupName' --Feature: [#213960]
+			   ,m.IsHybrid AS 'IsHybrid'
+			   ,m.FinalOdds AS 'FinalOdds'
 		FROM @tmpLogInfoTickets s
 			INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
 			INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = m.Subbettype 

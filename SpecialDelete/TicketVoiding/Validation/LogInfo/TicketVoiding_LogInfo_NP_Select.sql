@@ -22,6 +22,7 @@ AS
 		- 20250728@Lani: [TVS] ScaleOut DBTrans [Phase 4] - Reduced Over/Abandoned/Not Participate/Match Early Completed/Other Issues [Redmine: #232581]
 		- 20250923@Lani: [TVS] Log Info - Add Details for some issue types [Redmine: #238132]
 		- 20251022@Lani: [TVS] Not Participate - Add new bet types (Basketball player props) [Redmine: #241923]
+		- 20251104@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:	
 		- @OnlineServerId = '0,1,3'
@@ -146,6 +147,8 @@ BEGIN
 	  ,FilterTransdesc NVARCHAR(1000)
 	  ,FilterBettype	SMALLINT
 	  ,IsSiteDBDown BIT DEFAULT(0)
+	  ,IsHybrid BIT DEFAULT(0)
+	  ,FinalOdds SMALLMONEY
 	  --For count ticket follow bettype
 	  ,GroupDisplay INT
 	  ,GroupBettype SMALLINT
@@ -475,6 +478,8 @@ BEGIN
 				,GroupTransdesc
 				,GroupOddsId
 				,GroupBetteam
+				,IsHybrid
+				,FinalOdds
 			)
 		SELECT @MatchId AS matchid
 			,b.TransId
@@ -549,6 +554,8 @@ BEGIN
 				  ELSE sub.transdesc END AS GroupTransdesc
 			,sub.oddsid
 			,sub.betteam
+			,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,sub.finalodds AS FinalOdds
 		FROM @tmpMatchId d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -790,6 +797,8 @@ BEGIN
 			 , b.isDeposit AS 'IsDeposit' 
 			 , b.GroupDisplay AS 'GroupBettypeId'
 			 , CASE WHEN b.IsMixParlay = 1 THEN 'Parlay' ELSE 'Single' END AS 'GroupName'
+			 , b.IsHybrid AS 'IsHybrid'
+			 , b.FinalOdds AS 'FinalOdds'
 		FROM @tmpLogInfoTickets AS s
 			INNER JOIN #TVSTicketBets AS b ON s.transId = b.Subtransid
 	FOR JSON PATH))

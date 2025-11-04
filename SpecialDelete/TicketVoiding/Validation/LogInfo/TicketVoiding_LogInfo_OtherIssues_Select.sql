@@ -21,6 +21,7 @@ AS
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250512@July: System didnot unmark ticket when user edit request [Redmine: #227009]
 		- 20250729@Lani: [TVS] ScaleOut DBTrans [Phase 4] - Reduced Over/Abandoned/Not Participate/Match Early Completed/Other Issues [Redmine: #232581]
+		- 20251104@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:
 		
@@ -149,6 +150,8 @@ BEGIN
 	  ,SettledType TINYINT -- 1: Instant Settlement, 2: Normal Settlement
 	  ,SubIssueTypeId	  SMALLINT
 	  ,IsSiteDBDown BIT DEFAULT(0)
+	  ,IsHybrid	BIT DEFAULT(0)
+	  ,FinalOdds SMALLMONEY
 	  --For Advanced Mode
 	  ,FilterBettype	SMALLINT
 	  ,FilterBetteam NVARCHAR(10)
@@ -605,6 +608,8 @@ BEGIN
 				,SiteDBGroupID
 				,SubIssueTypeId
 				,IsSiteDBDown
+				,IsHybrid
+				,FinalOdds
 				--For Advanced Mode
 				,FilterBettype	
 				,FilterBetteam 
@@ -678,6 +683,8 @@ BEGIN
 			,sub.SiteDBGroupID
 			,d.SubIssueTypeId
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
+			,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,sub.finalodds AS FinalOdds
 			,sub.bettype AS FilterBettype	
 			,sub.betteam AS FilterBetteam 
 			,sub.hdp1 AS FilterHdp1 
@@ -1004,6 +1011,8 @@ BEGIN
 				WHEN m.IsMixParlay = 1 THEN 'Parlay'
 				ELSE 'Single'
 			END AS 'GroupName'
+			,m.IsHybrid AS 'IsHybrid'
+			,m.FinalOdds AS 'FinalOdds'
 	FROM @tmpLogInfoTickets s
 		INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
 		LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = m.Subbettype

@@ -21,6 +21,7 @@ AS
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250729@Lani: [TVS] ScaleOut DBTrans [Phase 5] - Abnormal Account/EKO/WKO/Wrong Offered Name [Redmine: #232582]
 		- 20250930@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251104@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:	
 		- @WrongOfferedNameInfo: <root><r MatchId="" @CurrencyIds="" LicenseeNames="" /></root>
@@ -133,6 +134,8 @@ BEGIN
 	  ,GroupName VARCHAR(100)
 	  ,SettledType		 TINYINT -- 1: Instant Settlement, 2: Normal Settlement, 3: SABA Time Machine Settlement
 	  ,IsSiteDBDown BIT DEFAULT(0)
+	  ,IsHybrid BIT DEFAULT(0)
+	  ,FinalOdds SMALLMONEY
 	  ,ID INT IDENTITY (1,1) PRIMARY KEY
 	)
 	
@@ -491,6 +494,8 @@ BEGIN
 				,modds 
 				,SiteDBGroupID
 				,IsSiteDBDown
+				,IsHybrid
+				,FinalOdds
 			)
 		SELECT @MatchId AS matchid
 			,b.TransId
@@ -551,6 +556,8 @@ BEGIN
 			,b.modds
 			,sub.SiteDBGroupID
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
+			,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,sub.finalodds AS FinalOdds
 		FROM @tmpMatchId d
 			INNER JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -814,6 +821,8 @@ BEGIN
 			,m.SettlementStatus AS 'SettlementStatus'
 			,m.sporttype AS 'sporttype'
 			,m.GroupName AS 'GroupName'
+			,m.IsHybrid AS 'IsHybrid'
+			,m.FinalOdds AS 'FinalOdds'
 	FROM @tmpLogInfoTickets s
 		INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
 	FOR JSON PATH))

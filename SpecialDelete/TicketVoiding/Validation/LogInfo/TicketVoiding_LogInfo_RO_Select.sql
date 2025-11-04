@@ -23,6 +23,7 @@ AS
 		- 20250619@July: Not show table loginfo when invalid ticket [Redmine: #227009]
 		- 20250728@Lani: [TVS] ScaleOut DBTrans [Phase 4] - Reduced Over/Abandoned/Not Participate/Match Early Completed/Other Issues [Redmine: #232581]
 		- 20250923@Lani: [TVS] Log Info - Add Details for some issue types [Redmine: #238132]
+		- 20251104@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:
 		- @OnlineServerId = '0,1,3'
@@ -161,6 +162,8 @@ BEGIN
 	  ,FilterBettype	SMALLINT
 	  ,FilterBetteam NVARCHAR(10)
 	  ,IsSiteDBDown BIT DEFAULT(0)
+	  ,IsHybrid BIT DEFAULT(0)
+	  ,FinalOdds SMALLMONEY
 	  ,ID INT IDENTITY (1,1) PRIMARY KEY
 	  --For bettype count
 	  ,GroupDisplay INT
@@ -519,6 +522,8 @@ BEGIN
 				,modds 
 				,SiteDBGroupID
 				,IsSiteDBDown
+				,IsHybrid
+				,FinalOdds
 				,FilterSet
 				,FilterLiveIndicator
 				,FilterTransdesc
@@ -594,6 +599,8 @@ BEGIN
 			,b.modds
 			,sub.SiteDBGroupID
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
+			,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,sub.finalodds AS FinalOdds
 			,sub.betcheck AS FilterSet
 			,sub.liveindicator AS FilterLiveIndicator
 			,sub.transdesc AS FilterTransdesc
@@ -855,6 +862,8 @@ BEGIN
 			  ,b.isDeposit AS 'IsDeposit'
 			  ,b.GroupDisplay AS 'GroupBettypeId' --Return for web filter bettype
 			  ,CASE WHEN b.IsMixParlay = 1 THEN 'Parlay' ELSE 'Single' END AS 'GroupName'
+			  ,b.IsHybrid AS 'IsHybrid'
+			  ,b.FinalOdds AS 'FinalOdds'
 		FROM @tmpLogInfoTickets AS s
 			INNER JOIN #TVSTicketBets AS b ON s.TransId = b.Subtransid
 	FOR JSON PATH))
