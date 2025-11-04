@@ -121,7 +121,6 @@ BEGIN
 		AND bm.SiteDBGroupID = @SiteDBGroupId
 		AND b.bettype = 29
 		AND b.oddsspread = 3
-		AND bm.statusID IN (0,1)
 		AND bm.statuswinlost IS NOT NULL
 		AND mt.TransId IS NULL
 
