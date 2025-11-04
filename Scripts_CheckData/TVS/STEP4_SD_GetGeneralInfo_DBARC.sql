@@ -163,7 +163,7 @@ BEGIN
 	FROM #temp_transid s
 		CROSS APPLY (
 			SELECT winlostdate, statusID, stake, actualrate, actual_stake, TransId, bettype, custid, currency, tpositiontaking
-			FROM dbo.bettransm bM WITH (NOLOCK) 
+			FROM dbo.bettransm bm WITH (NOLOCK) 
 			WHERE bm.transid = s.subtransid AND s.matchid = bm.matchid
 		)b
 END
@@ -324,9 +324,7 @@ SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' E
 	, MONTH(ms.winlostdate) AS MONTH_winlostdate
 	, ms.Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT ms.transid) AS Bet_cnt		
-	
 	, CAST(SUM(ms.stake * ms.actualrate) as money) AS MemberTO_RM, CAST(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
-    
 	, 'VOID' AS ActionName
 	, '' AS Function_SDName
 	, '' AS RequestId, '' TotalTicket, '' TotalTicket_Parlay, '' Bet_cnt_Parlay
