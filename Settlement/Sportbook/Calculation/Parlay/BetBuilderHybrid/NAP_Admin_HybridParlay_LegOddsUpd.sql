@@ -140,7 +140,7 @@ BEGIN
 			EXEC dbo.NAP_Admin_Calculate_MP_broker   
 				@MatchId	= @MatchId
 				,@strXML = @strLegOdds  
-				,@mode  = 'update_leg'
+				,@mode  = 'updateleg'
 		END
 
 		IF @totalRefNo <= @ThreadHold
