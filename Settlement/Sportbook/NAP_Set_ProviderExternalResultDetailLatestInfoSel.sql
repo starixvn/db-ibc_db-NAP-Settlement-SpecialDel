@@ -56,7 +56,7 @@ BEGIN
 		;WITH  cteLatestSports AS
 			(
 				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId ASC, ex.CreateDate DESC) AS rn
-						,DENSE_RANK() OVER (PARTITION BY CASE WHEN @SportType IN (3) THEN ex.SourceId ELSE 1 END ORDER BY CASE WHEN @SportType IN (3) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
+						,DENSE_RANK() OVER (PARTITION BY CASE WHEN @SportType IN (3,4,26,32,28) THEN ex.SourceId ELSE 1 END ORDER BY CASE WHEN @SportType IN (3,4,26,32,28) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
 						,ex.SourceId
 						,ex.ResourceId
 						,ex.HomeValue
@@ -70,7 +70,7 @@ BEGIN
 
 				UNION ALL
 				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId ASC, ex.CreateDate DESC) AS rn
-						,DENSE_RANK() OVER (PARTITION BY CASE WHEN @SportType IN (3) THEN ex.SourceId ELSE 1 END ORDER BY CASE WHEN @SportType IN (3) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
+						,DENSE_RANK() OVER (PARTITION BY CASE WHEN @SportType IN (3,4,26,32,28) THEN ex.SourceId ELSE 1 END ORDER BY CASE WHEN @SportType IN (3,4,26,32,28) THEN ex.ResourceId ELSE ex.SourceId END ASC) AS TopSourceId
 						,ex.SourceId
 						,ex.ResourceId
 						,ex.HomeValue
