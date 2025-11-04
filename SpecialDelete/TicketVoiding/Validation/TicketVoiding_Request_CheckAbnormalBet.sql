@@ -74,10 +74,11 @@ AS
 		- 20250815@Lani: [TVS] Return both running and settle tickets of sitedbdown [Redmine: #232580]
 		- 20251007@July: [TVS] Update rules Send Letstalk [Redmine: #240950]
 		- 20251006@July: [TVS] Abnormal Bet - Block void ticket after balance up date [Redmine: #238233]
+		- 20251104@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
-		+ @FilterBy: NULL: single ticket, 1: mix-parlay ticket, 2: system-parlay ticket
+		+ @FilterBy: NULL: single ticket, 1: mix-parlay ticket, 2: system-parlay ticket, 4: hybrid parlay  ( BetBuilder+)
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -348,8 +349,9 @@ BEGIN
 				   ELSE 0 END
 		AND b.betfrom <> 'P'
 		AND 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
-			         WHEN @FilterBy = 1 AND b.bettype = 29 AND b.betteam = '1' THEN 1
-					 WHEN @FilterBy = 2 AND b.bettype = 29 AND b.betteam <> '1' THEN 1
+			         WHEN @FilterBy = 1 AND b.bettype = 29 AND b.betteam = '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+					 WHEN @FilterBy = 2 AND b.bettype = 29 AND b.betteam <> '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+					 WHEN @FilterBy = 4 AND b.bettype = 29 AND b.oddsspread = 3 THEN 1
 				     ELSE 0 END
 		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1
 					 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
@@ -445,8 +447,9 @@ BEGIN
 				       ELSE 0 END
 			AND b.betfrom <> 'P'
 			AND 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
-			             WHEN @FilterBy = 1 AND b.bettype = 29 AND b.betteam = '1' THEN 1
-					     WHEN @FilterBy = 2 AND b.bettype = 29 AND b.betteam <> '1' THEN 1
+			             WHEN @FilterBy = 1 AND b.bettype = 29 AND b.betteam = '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+					     WHEN @FilterBy = 2 AND b.bettype = 29 AND b.betteam <> '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+						 WHEN @FilterBy = 4 AND b.bettype = 29 AND b.oddsspread = 3 THEN 1
 				         ELSE 0 END
 			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1
 						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
