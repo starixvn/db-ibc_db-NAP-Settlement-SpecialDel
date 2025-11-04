@@ -21,6 +21,9 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+	
+	DECLARE @SiteDBGroupID SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmp_TransIds AS TABLE (TransId BIGINT)
 
@@ -33,6 +36,7 @@ BEGIN
 		SELECT b.TransId AS MainTransId, b.custid, NULL AS SubTransId, NULL AS SubMatchId, NULL AS SubBettypeId, NULL AS SubHdp1, NULL AS SubBetteam, b.transdesc 
 		FROM @tmp_TransIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransID = t.TransId AND b.matchid = 29 AND b.bettype = 29 AND b.oddsspread = 3
+		WHERE b.SiteDBGroupID = @SiteDBGroupID
 	END
 
 	ELSE IF @TicketType = 1
@@ -41,6 +45,7 @@ BEGIN
 		FROM @tmp_TransIds t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
+		WHERE b.SiteDBGroupID = @SiteDBGroupID
 	END
 END
 GO
