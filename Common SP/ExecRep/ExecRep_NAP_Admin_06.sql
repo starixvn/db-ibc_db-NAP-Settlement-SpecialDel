@@ -18,324 +18,66 @@ BEGIN
 
 -----1. copy bettrans to bettrans 14, chage winlostdate from '2025-11-02' to '2025-11-01'
 
-IF EXISTS ( SELECT TOP 1 1 FROM bettrans WITH(NOLOCK) WHERE transid = 452766162334253075 )
-BEGIN
-	INSERT INTO bettrans14 
-	 (	[transid]
-		,[custid]
-		,[transdate]
-		,[oddsid]
-		,[hdp1]
-		,[hdp2]
-		,[odds]
-		,[stake]
-		,[status]
-		,[winlost]
-		,[awinlost]
-		,[mwinlost]
-		,[playercomm]
-		,[comm]
-		,[acomm]
-		,[apositiontaking]
-		,[mpositiontaking]
-		,[tpositiontaking]
-		,[playerdiscount]
-		,[discount]
-		,[adiscount]
-		,[livehomescore]
-		,[liveawayscore]
-		,[liveindicator]
-		,[betteam]
-		,[creator]
-		,[refno]
-		,[comstatus]
-		,[winlostdate]
-		,[betfrom]
-		,[betcheck]
-		,[checktime]
-		,[oddsspread]
-		,[actualrate]
-		,[matchid]
-		,[recommend]
-		,[mrecommend]
-		,[ruben]
-		,[betid]
-		,[statuswinlost]
-		,[modds]
-		,[bettype]
-		,[betdaqid]
-		,[tstamp]
-		,[actual_stake]
-		,[currency]
-		,[ip]
-		,[transdesc]
-		,[sdiscount]
-		,[scomm]
-		,[spositiontaking]
-		,[swinlost]
-		,[srecommend]
-		,[virtualrate]
-		,[Username]
-		,[CurrencyName]
-		,[oddstype]
-		,[statusID]
-		,[currency2]
-		,[balance]
-		,[SecAcceptFlag]
-		,[transid2]
-		,[recommdate]
-		,[ExtraInfo]
-		,[WalletType]
-		,[BonusID]
-		,[RefCode]
-		,[SettlementTime]
-		,[epositiontaking]
-		,[ReasonID]
-		,[sort]
-		,[SiteDBGroupID]
-		,[DeviceType]
-	)
-	SELECT
-		[transid]
-		,[custid]
-		,[transdate]
-		,[oddsid]
-		,[hdp1]
-		,[hdp2]
-		,[odds]
-		,[stake]
-		,[status]
-		,[winlost]
-		,[awinlost]
-		,[mwinlost]
-		,[playercomm]
-		,[comm]
-		,[acomm]
-		,[apositiontaking]
-		,[mpositiontaking]
-		,[tpositiontaking]
-		,[playerdiscount]
-		,[discount]
-		,[adiscount]
-		,[livehomescore]
-		,[liveawayscore]
-		,[liveindicator]
-		,[betteam]
-		,[creator]
-		,[refno]
-		,[comstatus]
-		,'2025-11-01' AS [winlostdate]
-		,[betfrom]
-		,[betcheck]
-		,[checktime]
-		,[oddsspread]
-		,[actualrate]
-		,[matchid]
-		,[recommend]
-		,[mrecommend]
-		,[ruben]
-		,[betid]
-		,[statuswinlost]
-		,[modds]
-		,[bettype]
-		,[betdaqid]
-		,[tstamp]
-		,[actual_stake]
-		,[currency]
-		,[ip]
-		,[transdesc]
-		,[sdiscount]
-		,[scomm]
-		,[spositiontaking]
-		,[swinlost]
-		,[srecommend]
-		,[virtualrate]
-		,[Username]
-		,[CurrencyName]
-		,[oddstype]
-		,[statusID]
-		,[currency2]
-		,[balance]
-		,[SecAcceptFlag]
-		,[transid2]
-		,[recommdate]
-		,[ExtraInfo]
-		,[WalletType]
-		,[BonusID]
-		,[RefCode]
-		,[SettlementTime]
-		,[epositiontaking]
-		,[ReasonID]
-		,[sort]
-		,[SiteDBGroupID]
-		,[DeviceType]
-	FROM bettrans WITH(NOLOCK)
-	WHERE transid = 452766162334253075
-		AND NOT EXISTS (SELECT TOP 1 1 FROM bettrans14 b14 WITH (NOLOCK) WHERE b14.transid = 452766162334253075 )
-END
--------------------------------------------------------------------------------------------
-IF EXISTS ( SELECT TOP 1 1 FROM bettrans WITH(NOLOCK) WHERE transid = 452750339678928897 )
-BEGIN
-	INSERT INTO bettrans14
-		 (	[transid]
-		,[custid]
-		,[transdate]
-		,[oddsid]
-		,[hdp1]
-		,[hdp2]
-		,[odds]
-		,[stake]
-		,[status]
-		,[winlost]
-		,[awinlost]
-		,[mwinlost]
-		,[playercomm]
-		,[comm]
-		,[acomm]
-		,[apositiontaking]
-		,[mpositiontaking]
-		,[tpositiontaking]
-		,[playerdiscount]
-		,[discount]
-		,[adiscount]
-		,[livehomescore]
-		,[liveawayscore]
-		,[liveindicator]
-		,[betteam]
-		,[creator]
-		,[refno]
-		,[comstatus]
-		,[winlostdate]
-		,[betfrom]
-		,[betcheck]
-		,[checktime]
-		,[oddsspread]
-		,[actualrate]
-		,[matchid]
-		,[recommend]
-		,[mrecommend]
-		,[ruben]
-		,[betid]
-		,[statuswinlost]
-		,[modds]
-		,[bettype]
-		,[betdaqid]
-		,[tstamp]
-		,[actual_stake]
-		,[currency]
-		,[ip]
-		,[transdesc]
-		,[sdiscount]
-		,[scomm]
-		,[spositiontaking]
-		,[swinlost]
-		,[srecommend]
-		,[virtualrate]
-		,[Username]
-		,[CurrencyName]
-		,[oddstype]
-		,[statusID]
-		,[currency2]
-		,[balance]
-		,[SecAcceptFlag]
-		,[transid2]
-		,[recommdate]
-		,[ExtraInfo]
-		,[WalletType]
-		,[BonusID]
-		,[RefCode]
-		,[SettlementTime]
-		,[epositiontaking]
-		,[ReasonID]
-		,[sort]
-		,[SiteDBGroupID]
-		,[DeviceType]
-	)
-	SELECT
-		[transid]
-		,[custid]
-		,[transdate]
-		,[oddsid]
-		,[hdp1]
-		,[hdp2]
-		,[odds]
-		,[stake]
-		,[status]
-		,[winlost]
-		,[awinlost]
-		,[mwinlost]
-		,[playercomm]
-		,[comm]
-		,[acomm]
-		,[apositiontaking]
-		,[mpositiontaking]
-		,[tpositiontaking]
-		,[playerdiscount]
-		,[discount]
-		,[adiscount]
-		,[livehomescore]
-		,[liveawayscore]
-		,[liveindicator]
-		,[betteam]
-		,[creator]
-		,[refno]
-		,[comstatus]
-		,'2025-11-01' AS [winlostdate]
-		,[betfrom]
-		,[betcheck]
-		,[checktime]
-		,[oddsspread]
-		,[actualrate]
-		,[matchid]
-		,[recommend]
-		,[mrecommend]
-		,[ruben]
-		,[betid]
-		,[statuswinlost]
-		,[modds]
-		,[bettype]
-		,[betdaqid]
-		,[tstamp]
-		,[actual_stake]
-		,[currency]
-		,[ip]
-		,[transdesc]
-		,[sdiscount]
-		,[scomm]
-		,[spositiontaking]
-		,[swinlost]
-		,[srecommend]
-		,[virtualrate]
-		,[Username]
-		,[CurrencyName]
-		,[oddstype]
-		,[statusID]
-		,[currency2]
-		,[balance]
-		,[SecAcceptFlag]
-		,[transid2]
-		,[recommdate]
-		,[ExtraInfo]
-		,[WalletType]
-		,[BonusID]
-		,[RefCode]
-		,[SettlementTime]
-		,[epositiontaking]
-		,[ReasonID]
-		,[sort]
-		,[SiteDBGroupID]
-		,[DeviceType]
+IF @@SERVERNAME NOT LIKE 'DB04%'
+	AND @@SERVERNAME NOT IN ('DB054', 'DB054C2\DB054', 'DB055', 'SITDB055')
+	AND @@SERVERNAME NOT LIKE 'SITDB04%'
+BEGIN 
+	IF EXISTS ( SELECT TOP 1 1 FROM bettrans WITH(NOLOCK) WHERE transid = 452766162334253075 )
+	BEGIN
+		INSERT INTO bettrans14 
+		(	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status, winlost, awinlost, mwinlost
+			,	playercomm, comm, acomm, apositiontaking, mpositiontaking, tpositiontaking, playerdiscount
+			,	discount, adiscount, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus
+			,	winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
+			,	ruben, betid, statuswinlost, modds, bettype, betdaqid, actual_stake, currency, ip, transdesc
+			,	sdiscount, scomm, spositiontaking, swinlost, srecommend, virtualrate, Username, CurrencyName
+			,	oddstype, statusID, currency2, balance, SecAcceptFlag, transid2, ExtraInfo, WalletType, BonusID
+			,	RefCode, SettlementTime, epositiontaking, ReasonID, sort, SiteDBGroupId, DeviceType
+		)
+		SELECT	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status, winlost, awinlost, mwinlost
+			,	playercomm, comm, acomm, apositiontaking, mpositiontaking, tpositiontaking, playerdiscount
+			,	discount, adiscount, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus
+			,	winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
+			,	ruben, betid, statuswinlost, modds, bettype, betdaqid, actual_stake, currency, ip, transdesc
+			,	sdiscount, scomm, spositiontaking, swinlost, srecommend, virtualrate, Username, CurrencyName
+			,	oddstype, statusID, currency2, balance, SecAcceptFlag, transid2, ExtraInfo, WalletType, BonusID
+			,	RefCode, SettlementTime, epositiontaking, ReasonID, sort, SiteDBGroupId, DeviceType
+		FROM bettrans WITH(NOLOCK)
+		WHERE transid = 452766162334253075
+			AND NOT EXISTS (SELECT TOP 1 1 FROM bettrans14 b14 WITH (NOLOCK) WHERE b14.transid = 452766162334253075 )
+	END
+	-------------------------------------------------------------------------------------------
+	IF EXISTS ( SELECT TOP 1 1 FROM bettrans WITH(NOLOCK) WHERE transid = 452750339678928897 )
+	BEGIN
+		INSERT INTO bettrans14 
+		(	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status, winlost, awinlost, mwinlost
+			,	playercomm, comm, acomm, apositiontaking, mpositiontaking, tpositiontaking, playerdiscount
+			,	discount, adiscount, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus
+			,	winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
+			,	ruben, betid, statuswinlost, modds, bettype, betdaqid, actual_stake, currency, ip, transdesc
+			,	sdiscount, scomm, spositiontaking, swinlost, srecommend, virtualrate, Username, CurrencyName
+			,	oddstype, statusID, currency2, balance, SecAcceptFlag, transid2, ExtraInfo, WalletType, BonusID
+			,	RefCode, SettlementTime, epositiontaking, ReasonID, sort, SiteDBGroupId, DeviceType
+		)
+		SELECT	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status, winlost, awinlost, mwinlost
+			,	playercomm, comm, acomm, apositiontaking, mpositiontaking, tpositiontaking, playerdiscount
+			,	discount, adiscount, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus
+			,	winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
+			,	ruben, betid, statuswinlost, modds, bettype, betdaqid, actual_stake, currency, ip, transdesc
+			,	sdiscount, scomm, spositiontaking, swinlost, srecommend, virtualrate, Username, CurrencyName
+			,	oddstype, statusID, currency2, balance, SecAcceptFlag, transid2, ExtraInfo, WalletType, BonusID
+			,	RefCode, SettlementTime, epositiontaking, ReasonID, sort, SiteDBGroupId, DeviceType
+		FROM bettrans WITH(NOLOCK)
+		WHERE transid = 452750339678928897
+			AND NOT EXISTS (SELECT TOP 1 1 FROM bettrans14 b14 WITH (NOLOCK) WHERE b14.transid = 452750339678928897)
+	END
 
-	FROM bettrans WITH(NOLOCK)
-	WHERE transid = 452750339678928897
-		AND NOT EXISTS (SELECT TOP 1 1 FROM bettrans14 b14 WITH (NOLOCK) WHERE b14.transid = 452750339678928897)
-END
-
----2. Delete bettrans ---------------------------------	
+	---2. Delete bettrans ---------------------------------	
 	
-	DELETE
-	FROM bettrans
-	WHERE transid IN ( 452766162334253075, 452750339678928897 )
----------------------------------------
+		DELETE
+		FROM bettrans
+		WHERE transid IN ( 452766162334253075, 452750339678928897 )
+	---------------------------------------
 
+	END
 END
