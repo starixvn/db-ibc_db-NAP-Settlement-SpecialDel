@@ -13,6 +13,7 @@ AS
 		- 20250618@July: Modify SP Check error in table CustWinLimitBet_Errors - [Redmine: #226514]
 		- 20250623@July: Rule 7 - Exclude error Missing History  - [Redmine: #226060]
 		- 20250701@July: Check TransIds exceeding the current potential setting - [Redmine: #232140]
+		- 20251105@July: Enhance the UUS account exclusion flow and add revisions for easier tracking. - [Redmine: #243430]
 
 	Param's explanation:		
 */
