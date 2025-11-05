@@ -330,11 +330,7 @@ BEGIN
 	
 	DELETE
 	FROM bettrans
-	WHERE transid IN ( 452766162334253075 )
-
-	DELETE
-	FROM bettrans
-	WHERE transid = 452750339678928897
+	WHERE transid IN ( 452766162334253075, 452750339678928897 )
 ---------------------------------------
 
 END
