@@ -13,7 +13,7 @@ AS
 		- 20250618@July: Modify SP Check error in table CustWinLimitBet_Errors - [Redmine: #226514]
 		- 20250623@July: Rule 7 - Exclude error Missing History  - [Redmine: #226060]
 		- 20250701@July: Check TransIds exceeding the current potential setting - [Redmine: #232140]
-		- 20251105@July: Enhance the UUS account exclusion flow and add revisions for easier tracking. - [Redmine: #243430]
+		- 20251105@July: Add revisions for easier tracking & try catch ignore issue - [Redmine: #243430]
 
 	Param's explanation:		
 */
@@ -67,7 +67,7 @@ BEGIN
 	SET @MaxRepUpdateTime = DATEADD(SECOND,-30,SYSDATETIME()) --back 30s
 
 	-----------------------------------------------------1 Check for missing data in CustWinLimitBet_History ---------------------------------------------------------
-	BEGIN
+	BEGIN TRY
 		SELECT @MaxTransId = MAX(TransId) FROM dbo.bettrans WITH (NOLOCK)
 		
 		WAITFOR DELAY '00:00:03.000'
@@ -200,8 +200,11 @@ BEGIN
 		FROM dbo.systemsettings c WITH (ROWLOCK, UPDLOCK)
 		WHERE c.VName = 'CustWinLimitBet_LastTransId'
 
-	END
-	
+	END TRY
+	BEGIN CATCH
+		 SELECT @ErrorMessage = ERROR_MESSAGE()
+	END CATCH
+
 	-----------------------------------------------------2 Check special cases based on predefined conditions.--------------------------------------------------------------------
 	BEGIN
 		SET @transIds = ''
@@ -256,7 +259,7 @@ BEGIN
 			, @MaxRow INT  -- Keep the total row of your data
 			, @Threshold INT  -- the number of each batch
 
-	BEGIN
+	BEGIN TRY
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
 		TRUNCATE TABLE #Result_tmp
@@ -390,7 +393,10 @@ BEGIN
 		BEGIN
 			SET @ErrorMessage = @ErrorMessage + '3. Check CustWinLimitBet.AccumToWin against Bettrans running tickets for UUS currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
 		END
-	END
+	END TRY
+	BEGIN CATCH
+		 SELECT @ErrorMessage = ERROR_MESSAGE()
+	END CATCH
 	
 	-----------------------------------------------------4 For members with isDaily = Yes -----------------------------------------------------
 	/*Schedule a daily job (at 4:00 AM server time) to compare CustWinLimitBet.AccumWinLoss against the sum of settled tickets in Bettrans since the latest reset.*/
@@ -403,7 +409,7 @@ BEGIN
 	SET @Nextday = DATEADD(DAY, 1, @Today)
 
 	IF @CurrentTime >= '03:59:00' AND @CurrentTime < '04:20:00' --Maximum call 2 times because job interval 10 minute
-	BEGIN
+	BEGIN TRY
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
 		TRUNCATE TABLE #Result_tmp
@@ -550,10 +556,13 @@ BEGIN
 		BEGIN
 			SET @ErrorMessage = @ErrorMessage + '4. For members with isDaily = Yes. Check CustWinLimitBet.AccumToWin & AccumWinLoss against Bettrans running/ settle tickets for UUS currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
 		END
-	END
+	END TRY
+	BEGIN CATCH
+		 SELECT @ErrorMessage = ERROR_MESSAGE()
+	END CATCH
 
 	-----------------------------------------------------5 Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency -----------------------------------------------------
-	BEGIN
+	BEGIN TRY
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
 		
@@ -701,7 +710,10 @@ BEGIN
 				SET @ErrorMessage = @ErrorMessage + '5. Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency for UUS currency (diff_WinLoss >0). RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' CustId(s): ' + @UUSCustIds + @CRLF
 			END
 		END
-	END
+	END TRY
+	BEGIN CATCH
+		 SELECT @ErrorMessage = ERROR_MESSAGE()
+	END CATCH
 	
 	-----------------------------------------------------6 Check TransIds exceeding the current potential setting ---------------------------------------------------------
 	BEGIN
