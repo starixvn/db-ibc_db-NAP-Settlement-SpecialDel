@@ -1287,6 +1287,11 @@ BEGIN
 									   WHEN sp.Id <> '10 UP' AND b.hdp2 = CAST (sp.Id AS SMALLMONEY) THEN 1
 									   ELSE 0 END)
 			END
+
+			--Remove sub invalid
+			DELETE bm
+			FROM #SpecialDeleteBetsm bm
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets b WHERE b.refno = bm.Refno) 
 		END
 	END
 	
