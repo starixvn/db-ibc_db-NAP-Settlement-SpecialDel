@@ -37,7 +37,7 @@ BEGIN
 		SELECT	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status, winlost, awinlost, mwinlost
 			,	playercomm, comm, acomm, apositiontaking, mpositiontaking, tpositiontaking, playerdiscount
 			,	discount, adiscount, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus
-			,	winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
+			,	'2025-11-01' AS winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
 			,	ruben, betid, statuswinlost, modds, bettype, betdaqid, actual_stake, currency, ip, transdesc
 			,	sdiscount, scomm, spositiontaking, swinlost, srecommend, virtualrate, Username, CurrencyName
 			,	oddstype, statusID, currency2, balance, SecAcceptFlag, transid2, ExtraInfo, WalletType, BonusID
@@ -61,7 +61,7 @@ BEGIN
 		SELECT	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status, winlost, awinlost, mwinlost
 			,	playercomm, comm, acomm, apositiontaking, mpositiontaking, tpositiontaking, playerdiscount
 			,	discount, adiscount, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus
-			,	winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
+			,	'2025-11-01' AS winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
 			,	ruben, betid, statuswinlost, modds, bettype, betdaqid, actual_stake, currency, ip, transdesc
 			,	sdiscount, scomm, spositiontaking, swinlost, srecommend, virtualrate, Username, CurrencyName
 			,	oddstype, statusID, currency2, balance, SecAcceptFlag, transid2, ExtraInfo, WalletType, BonusID
