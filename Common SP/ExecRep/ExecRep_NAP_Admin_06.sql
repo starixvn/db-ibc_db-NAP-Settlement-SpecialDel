@@ -166,9 +166,9 @@ BEGIN
 		,[ReasonID]
 		,[sort]
 		,[SiteDBGroupID]
-		,b.[DeviceType]
-	FROM bettrans b WITH(NOLOCK)
-	WHERE transid IN (452766162334253075)
+		,[DeviceType]
+	FROM bettrans WITH(NOLOCK)
+	WHERE transid = 452766162334253075
 		AND NOT EXISTS (SELECT TOP 1 1 FROM bettrans14 b14 WITH (NOLOCK) WHERE b14.transid = 452766162334253075 )
 
 -------------------------------------------------------------------------------------------
