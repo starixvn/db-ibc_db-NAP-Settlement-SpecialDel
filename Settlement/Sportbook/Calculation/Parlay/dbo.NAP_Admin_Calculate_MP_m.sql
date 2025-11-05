@@ -334,12 +334,14 @@ BEGIN
 									WHEN statuswinlost IN (1,2) THEN 112
 									WHEN statuswinlost IS NULL THEN 0
 								END
-					,winlostdate = CASE WHEN @matchdate < winlostdate THEN winlostdate 
+					,winlostdate = CASE WHEN statuswinlost IS NULL THEN NULL
+										WHEN @matchdate < winlostdate THEN winlostdate 
 										ELSE @matchdate
+									END
 			OUTPUT inserted.transid, inserted.winlost, inserted.ruben
 					, Inserted.status
-					, inserted.statusID, inserted.odds
-			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, statusId, odds)
+					, inserted.statusID, inserted.odds, inserted.winlostdate
+			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, statusId, odds, winlostdate)
 			FROM dbo.bettransm bm WITH (ROWLOCK, UPDLOCK)
             WHERE  bm.matchid = @matchid
                     AND statusID IN (0,1)
