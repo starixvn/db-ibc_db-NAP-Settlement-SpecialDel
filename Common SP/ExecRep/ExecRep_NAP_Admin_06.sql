@@ -44,7 +44,6 @@ BEGIN
 			,	RefCode, SettlementTime, epositiontaking, ReasonID, sort, SiteDBGroupId, DeviceType
 		FROM bettrans WITH(NOLOCK)
 		WHERE transid = 452766162334253075
-			AND NOT EXISTS (SELECT TOP 1 1 FROM bettrans14 b14 WITH (NOLOCK) WHERE b14.transid = 452766162334253075 )
 	END
 	-------------------------------------------------------------------------------------------
 	IF EXISTS ( SELECT TOP 1 1 FROM bettrans WITH(NOLOCK) WHERE transid = 452750339678928897 )
@@ -69,7 +68,6 @@ BEGIN
 			,	RefCode, SettlementTime, epositiontaking, ReasonID, sort, SiteDBGroupId, DeviceType
 		FROM bettrans WITH(NOLOCK)
 		WHERE transid = 452750339678928897
-			AND NOT EXISTS (SELECT TOP 1 1 FROM bettrans14 b14 WITH (NOLOCK) WHERE b14.transid = 452750339678928897)
 	END
 
 	---2. Delete bettrans ---------------------------------	
