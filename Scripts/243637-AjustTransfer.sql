@@ -4,7 +4,7 @@ USE bodb02
 GO
 
 /*
-	20251105@Louisa: issue ticket on DBTrans does not move to bettrans14 even SiteDB was moved Redmine:#243637
+	20251105@Louisa: ajust Transfer 19999 [Redmine:#243637]
 
 */
 
