@@ -91,7 +91,7 @@ BEGIN
 
 	IF @MatchDate <= @MoveBetDate
 	BEGIN
-		SELECT @ErrCode = 99, @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try search again.'
+		SELECT @ErrCode = 99, @ErrMsg = 'Could not calculate some tickets due to Movebet process. Please try search again.'
 		RETURN
 	END
 
@@ -105,6 +105,7 @@ BEGIN
 		,Winlostdate
 		,Ruben
 		,Oddspread
+		,MainTransId
 	)
 	SELECT 
 		bm.TransId
@@ -114,6 +115,7 @@ BEGIN
 		,bm.winlostdate
 		,b.ruben
 		,b.oddsspread
+		,b.TransId
 	FROM dbo.bettransm AS bm WITH (NOLOCK) 
 	INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
 	LEFT JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON bm.TransId = mt.TransId AND mt.MatchId = @MatchId
@@ -256,7 +258,7 @@ BEGIN
 			   ,@IsReleased    = 1
 		END
 
-		SELECT @ErrCode = 100, @ErrMsg = 'Unable to recover these parlay bets'
+		SELECT @ErrCode = 100, @ErrMsg = 'Unable to calculate these parlay bets'
 
 		RETURN
 	END CATCH

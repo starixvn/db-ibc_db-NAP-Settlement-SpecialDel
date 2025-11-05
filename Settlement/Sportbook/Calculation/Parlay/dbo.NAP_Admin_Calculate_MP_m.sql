@@ -334,9 +334,8 @@ BEGIN
 									WHEN statuswinlost IN (1,2) THEN 112
 									WHEN statuswinlost IS NULL THEN 0
 								END
-					,winlostdate = CASE WHEN statuswinlost IS NULL THEN NULL
-										ELSE bm.winlostdate
-									END
+					,winlostdate = CASE WHEN @matchdate < winlostdate THEN winlostdate 
+										ELSE @matchdate
 			OUTPUT inserted.transid, inserted.winlost, inserted.ruben
 					, Inserted.status
 					, inserted.statusID, inserted.odds
