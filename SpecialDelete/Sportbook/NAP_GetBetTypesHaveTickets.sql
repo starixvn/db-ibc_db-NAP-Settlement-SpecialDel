@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_GetBetTypesHaveTickets] 
     @Mode        SMALLINT = 0
     ,@MatchId    INT = 0 -- defaul value for NG
@@ -6,7 +6,7 @@ AS
 /*  
     Created: 20191029@Charles  
     Task : Select bettypes have tickets for NAP's special delete  
-    DB: DBTXN/bodb02 
+    DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02 
       
     Revisions:      
         - 20191029@Charles: Badminton AIO - [120325]
@@ -18,12 +18,14 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
+		- 20251105@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
     Param's Explanation:  
     @Mode:   
          0: Single bet  
          3: TicketListing  
          9: Mark Ticket
+		 10: Bet Builder+ (function Ticket Listing)
 */
 BEGIN
     SET NOCOUNT ON
@@ -34,7 +36,7 @@ BEGIN
     CREATE TABLE #TmpBettype (bettype SMALLINT)
 	DECLARE @tmpMatchId TABLE (MatchId INT)
     
-	IF @Mode IN (0,3,9)
+	IF @Mode IN (0,3,9,10)
 	BEGIN	
 		INSERT INTO @tmpMatchId (MatchId)
 		SELECT MatchId
@@ -63,10 +65,15 @@ BEGIN
 		
 		INSERT INTO #TmpBettype(bettype)
         SELECT bm.bettype
-        FROM dbo.bettransm bm WITH(NOLOCK)
+        FROM dbo.bettransm bm WITH (NOLOCK)
+			INNER HASH JOIN bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId
         WHERE bm.SiteDBGroupID = @SiteDBGroupID
             AND bm.bettype NOT IN (10,29,38,500)
+			AND (
+				(@Mode = 10 AND ISNULL(b.oddsspread,0) = 3)
+			 OR (@Mode IN (0,3,9) AND ISNULL(b.oddsspread,0) <> 3)
+			)
             AND bm.bettype < 19000
 			AND NOT EXISTS(SELECT TOP 1 1 FROM #TmpBettype tb WHERE bm.bettype = tb.bettype)
         GROUP BY bm.bettype

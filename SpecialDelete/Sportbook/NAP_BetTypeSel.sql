@@ -49,6 +49,7 @@ AS
 		- 20240319@July: Add code get bettype for page Number Game [Redmine: #200840]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20251105@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
     Param's Explanation:  
     @Mode:   
@@ -56,11 +57,12 @@ AS
          1: Number Game
 		 3: TicketListing  
          9: Mark Ticket
+		 10: Bet Builder+ (function Ticket Listing)
 */
 BEGIN
     SET NOCOUNT ON
 
-    IF @mode IN (0, 9) OR (@matchid <> 0 AND @mode = 3) 
+    IF @mode IN (0, 9, 10) OR (@matchid <> 0 AND @mode = 3) 
     BEGIN    
         DECLARE @Sporttype INT    
         
@@ -89,7 +91,7 @@ BEGIN
     
     CREATE TABLE #TmpBettype (
         typeid            INT
-        ,type             INT -- 0: Sport Book, 1:Number Game, 3: Bet Builder, 4: Bitcoin
+        ,type             INT -- 0: Sport Book, 1:Number Game, 3: Bet Builder, 4: Bitcoin, 5: Bet Builder+ (Hybrid Parlay)
         ,liveindicator    BIT
         ,GroupName	      VARCHAR(50) 
         )
@@ -119,7 +121,7 @@ BEGIN
         ,GroupName
         )
     SELECT ISNULL( tb.parentid, b.typeid)
-        , 0                    
+        , CASE WHEN @Mode = 10 THEN 5 ELSE 0 END                    
         , 0 
         , f.GroupName 
     FROM dbo.bettype b WITH(NOLOCK)
