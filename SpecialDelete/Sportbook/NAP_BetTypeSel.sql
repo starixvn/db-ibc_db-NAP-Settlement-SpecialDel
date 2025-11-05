@@ -190,7 +190,7 @@ BEGIN
     FROM #TmpBettype tb
 		INNER JOIN bettype b WITH(NOLOCK) ON tb.typeid = b.typeid    
     GROUP BY tb.typeid, b.typenamee, type, liveindicator, tb.GroupName
-    ORDER BY tb.GroupName,b.typenamee
+    ORDER BY tb.GroupName ASC,b.typenamee ASC
 
     DROP TABLE #betTypesTemp
     DROP TABLE #TmpBettype
