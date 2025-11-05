@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_HybridTransID] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_HybridParlay] 
 (
 	@MatchId		INT
 	,@Action		VARCHAR(20) = 'CAL'
