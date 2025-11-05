@@ -8,7 +8,11 @@ GO
 
 */
 
-----STEP 2: ajust Transfer 19999
+---1. COPY to bettrans14 and delete bettrans
+	EXEC ExecRep_NAP_Admin_06
+
+
+----2: ajust Transfer 19999
 
 UPDATE  f
 		SET  TransDate		= 	'2025-11-01'
