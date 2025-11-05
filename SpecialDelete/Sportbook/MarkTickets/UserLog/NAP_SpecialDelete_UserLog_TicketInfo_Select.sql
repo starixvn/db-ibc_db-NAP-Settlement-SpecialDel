@@ -1,5 +1,5 @@
 /*<info serverAlias="DBACC-bodb02" executers="wsv_nap" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_SpecialDelete_UserLog_TicketInfo_Select 
+ALTER PROCEDURE dbo.NAP_SpecialDelete_UserLog_TicketInfo_Select
     @TransIdsXml XML
 AS
 /*
@@ -37,6 +37,11 @@ BEGIN
 	WHERE b.bettype = 29 AND ISNULL(b.oddsspread,0) <> 3
 	
 	-- Return Hybrid parlay transid
+	SELECT t.transid, b.TransId AS MainTransId
+	FROM #tblTransIds t
+		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
+	WHERE b.bettype = 29 AND b.oddsspread = 3
+	UNION ALL
 	SELECT t.transid, b.TransId AS MainTransId
 	FROM #tblTransIds t
 		INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON t.transid = bm.transid
