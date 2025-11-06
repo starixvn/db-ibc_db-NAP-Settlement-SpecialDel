@@ -214,7 +214,7 @@ BEGIN
 		OPTION (OPTIMIZE FOR (@AffectTickets = NULL ))
 	END
 	---- If not sportbook and bet builder+ then don't care @livetype , so set @LiveType to 2 (All)
-	IF @Type NOT IN (0,2) SELECT @LiveType = 2
+	IF @Type NOT IN (0,5) SELECT @LiveType = 2
 
 	CREATE TABLE #SpecialDeleteBets 
 	(
