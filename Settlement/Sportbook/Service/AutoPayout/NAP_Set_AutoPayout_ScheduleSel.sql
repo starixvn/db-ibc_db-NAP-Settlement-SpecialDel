@@ -203,7 +203,7 @@ BEGIN
 										WHEN r.ResourceId = '01' AND t.TypeId = 1 THEN 1
 										ELSE 0
 									END
-						AND (r.SettlementStatusID != 0 OR ISNULL(r.ResultSetting,0) & 1 != 0))
+						AND ISNULL(r.ResultSetting,0) & 1 != 0)
 
 	-- Return data 
 	SELECT t.MatchId,t.ParentID, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
