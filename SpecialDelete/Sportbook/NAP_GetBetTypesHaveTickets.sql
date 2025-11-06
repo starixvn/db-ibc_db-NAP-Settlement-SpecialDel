@@ -70,10 +70,10 @@ BEGIN
 			INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId
         WHERE bm.SiteDBGroupID = @SiteDBGroupID
             AND bm.bettype NOT IN (10,29,38,500)
-			AND (
-				(@Mode = 10 AND ISNULL(b.oddsspread,0) = 3)
-			 OR (@Mode IN (0,3,9) AND ISNULL(b.oddsspread,0) <> 3)
-			)
+			AND 1 = CASE WHEN @Mode IN (10) AND ISNULL(b.oddsspread,0) = 3 THEN 1
+						 WHEN @Mode IN (0,9) THEN 1
+						 WHEN @Mode IN (3) AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+						 ELSE 0 END
             AND bm.bettype < 19000
 			AND NOT EXISTS(SELECT TOP 1 1 FROM #TmpBettype tb WHERE bm.bettype = tb.bettype)
         GROUP BY bm.bettype
