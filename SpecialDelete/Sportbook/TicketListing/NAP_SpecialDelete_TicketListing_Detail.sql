@@ -327,7 +327,9 @@ BEGIN
 			  FilterOddsId	   INT,
 			  FilterTransdesc  NVARCHAR(1000),
 			  FilterPlayerAndOdds NVARCHAR(1000),
-			  VendorMatchId	   VARCHAR(50)
+			  VendorMatchId	   VARCHAR(50),
+			  IsHybrid		   BIT DEFAULT(0),
+			  FinalOdds		   SMALLMONEY
              );
 
 	INSERT INTO @tmpBettypes (bettype)
@@ -546,7 +548,7 @@ BEGIN
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SubTransdesc,MOdds,WalletType,RefCode,BonusID,MainTransId, custid, srecommend
 											,FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, IsMarked
-											, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds)
+											, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds,SubTransID)
 				SELECT	b.username,
 						b.bettype,					
 						b.BetdaqId,
@@ -597,7 +599,8 @@ BEGIN
 						CASE 
 							WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc, '$.pid')
 							ELSE b.transdesc END AS FilterTransdesc,
-						b.oddsid AS FilterPlayerAndOdds
+						b.oddsid AS FilterPlayerAndOdds,
+						b.TransId AS SubTransId
 				FROM	Bettrans b WITH (NOLOCK)
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON b.transid = mt.TransId				
@@ -788,7 +791,8 @@ BEGIN
 					refno, TransDesc, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid, srecommend,
 					SubTransID, SubBetType, SubHdp1, SubHdp2, SubOdds, SubStake, SubBetTeam, SubBetCheck, SubLiveHomeScore,
 					SubLiveAwayScore, SubLiveIndicator, SubTransDesc,
-					FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds)	
+					FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, 
+					FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds,IsHybrid,FinalOdds)	
 			SELECT	b.username,
 					b.bettype,				
 					b.BetdaqId,
@@ -850,7 +854,9 @@ BEGIN
 					CASE 
 						WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.transdesc, '$.pid')
 						ELSE bm.transdesc END AS FilterTransdesc,
-					bm.oddsid AS FilterPlayerAndOdds
+					bm.oddsid AS FilterPlayerAndOdds,
+					CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid,
+					bm.finalodds AS FinalOdds
 			FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
 				INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
@@ -1207,7 +1213,9 @@ BEGIN
 			@SettlementStatus AS SettlementStatus,
 			IsMarked,
 			CASE WHEN si.SiteLabel = '777' THEN 1 ELSE 0 END IsSite777,
-			VendorMatchId
+			VendorMatchId,
+			IsHybrid,
+			FinalOdds
 	FROM #SpecialDeleteBets s
 		INNER JOIN dbo.Customer c WITH (NOLOCK) ON s.srecommend = c.custid
 		LEFT JOIN dbo.Site si WITH(NOLOCK) ON c.site = si.site
