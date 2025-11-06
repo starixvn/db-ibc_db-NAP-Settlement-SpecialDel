@@ -185,12 +185,21 @@ BEGIN
 					AND 17 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) IN (1, 16)
 					AND (rs.IsExistAP IS NULL or x.IsExistHoldResult = 1)
 					AND r.IsExistResultDetail IS NULL
+					AND m.SettlementStatus & 87 = 0
 	)t
 	WHERE	IsConfirmed > 0
 	ORDER BY t.kickofftime ASC, t.MatchId ASC, t.TypeId ASC
 
 	--TEMPORARY: Insert score into ProviderResultDetail for SourceId = 101 - Direct Autopayout
 	DECLARE @currTime DATETIME = GETDATE()
+
+	DELETE t 
+	FROM @tmpMatchAuto AS t
+	WHERE EXISTS (SELECT 1
+					  FROM dbo.ResultDetail AS r WITH(NOLOCK)
+					  WHERE r.matchid = matchid
+						AND r.ResourceId = ResourceId
+						AND (r.SettlementStatusID != 0 OR ISNULL(r.ResultSetting,0) & 1 != 0))
 
 	-- Return data 
 	SELECT t.MatchId,t.ParentID, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
