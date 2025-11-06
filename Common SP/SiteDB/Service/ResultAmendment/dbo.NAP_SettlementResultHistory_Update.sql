@@ -11,6 +11,7 @@ AS
 	
 	Revisions:
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
+		- 20251104@Hughie: Hotfix for FastMarket [Redmine: #243444]
 */
 BEGIN	
 	SET NOCOUNT ON
@@ -25,6 +26,7 @@ BEGIN
 	SET  h.StatusID = CASE WHEN @StatusID >= 0 THEN @StatusID
 						   WHEN @StatusID < 0 AND h.StatusID IS NULL THEN 0
 						   WHEN @StatusID < 0 AND h.StatusID = 100 THEN 1
+						   ELSE h.StatusID
 					  END 
 		,h.ModifiedDate = GETDATE()
 		,h.RepUpdateTime = SYSDATETIME()
