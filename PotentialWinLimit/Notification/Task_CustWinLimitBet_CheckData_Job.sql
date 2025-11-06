@@ -202,11 +202,11 @@ BEGIN
 
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '1. ' + ERROR_MESSAGE()
 	END CATCH
 
 	-----------------------------------------------------2 Check special cases based on predefined conditions.--------------------------------------------------------------------
-	BEGIN
+	BEGIN TRY
 		SET @transIds = ''
 		SET @UUStransIds = '' 
 		TRUNCATE TABLE #Result_tmp
@@ -251,8 +251,10 @@ BEGIN
 		BEGIN
 			SET @ErrorMessage = @ErrorMessage + '2. After a reset, the ticket status may change continuously, which could lead to incorrect data if the SQL job processes all commands in a single batch. This rule applies only to real accounts. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @transIds + @CRLF
 		END
-	END
-	
+	END TRY
+	BEGIN CATCH
+		 SELECT @ErrorMessage = '2. ' + ERROR_MESSAGE()
+	END CATCH
 	-----------------------------------------------------3 Check CustWinLimitBet.AccumToWin against Bettrans running tickets --------------------------------------------------------------------
 	DECLARE @StartRow INT 
 			, @StopRow INT 
@@ -395,7 +397,7 @@ BEGIN
 		END
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '3. ' + ERROR_MESSAGE()
 	END CATCH
 	
 	-----------------------------------------------------4 For members with isDaily = Yes -----------------------------------------------------
@@ -558,7 +560,7 @@ BEGIN
 		END
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '4. ' + ERROR_MESSAGE()
 	END CATCH
 
 	-----------------------------------------------------5 Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency -----------------------------------------------------
@@ -712,11 +714,11 @@ BEGIN
 		END
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '5. ' + ERROR_MESSAGE()
 	END CATCH
 	
 	-----------------------------------------------------6 Check TransIds exceeding the current potential setting ---------------------------------------------------------
-	BEGIN
+	BEGIN TRY
 		TRUNCATE TABLE #Result_tmp
 
 		;WITH CTE_Rule AS
@@ -726,7 +728,7 @@ BEGIN
 				--, h.id, h.AdjToWin, AdjWinloss, h.AdjToWin + AdjWinloss AS Potential
 				, h.ActionType
 				, h.transid
-				, SUM(h.AdjToWin + AdjWinloss) OVER(PARTITION BY h.custid ORDER BY h.id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS Potential_sum
+				, SUM(h.AdjToWin + AdjWinloss) OVER(PARTITION BY h.custid ORDER BY h.id ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS Potential_sum
 				, r.Currency
 				, h.repupdatetime
 			FROM #reset r --Re-use of rule 5
@@ -772,11 +774,14 @@ BEGIN
 				SET @ErrorMessage = @ErrorMessage + '6. Check TransIds exceeding the current potential setting for UUS currency. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + '. Top ' + CAST (@batch AS VARCHAR) +' transId(s): ' + @UUStransIds + @CRLF
 			END
 		END
-	END
+	END TRY
+	BEGIN CATCH
+		 SELECT @ErrorMessage = '6. ' + ERROR_MESSAGE()
+	END CATCH
 	-----------------------------------------------------7 Check for missing data reset record in table CustWinLimitBet_History ---------------------------------------------------------
 	
 	IF @CurrentTime >= '00:10:00' AND @CurrentTime < '00:20:00' --Maximum call 1 times because job interval 10 minute
-	BEGIN
+	BEGIN TRY
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
 
@@ -821,10 +826,13 @@ BEGIN
 		BEGIN
 			SET @ErrorMessage = @ErrorMessage + '7. Check missing data reset record in table CustWinLimitBet_History for UUS currency. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + '. Top ' + CAST (@batch AS VARCHAR) +  ' CustId(s): ' + @UUSCustIds + @CRLF
 		END
-	END
+	END TRY
+	BEGIN CATCH
+		 SELECT @ErrorMessage = '7. ' + ERROR_MESSAGE()
+	END CATCH
 
 	-----------------------------------------------------8 Check error in table CustWinLimitBet_Errors ---------------------------------------------------------
-	BEGIN
+	BEGIN TRY
 		DECLARE @Errors VARCHAR(MAX) = ''
 		SET @Errors = STUFF(( SELECT @CRLF + ErrName +': '+ STRING_AGG(ExtraInfo, ',') 
 									FROM dbo.CustWinLimitBet_Errors WITH (NOLOCK)
@@ -839,7 +847,10 @@ BEGIN
 			SET @ErrorMessage = @ErrorMessage + '8. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check error in table CustWinLimitBet_Errors. ' + @CRLF + @Errors
 		END
 
-	END
+	END TRY
+	BEGIN CATCH
+		 SELECT @ErrorMessage = '8. ' + ERROR_MESSAGE()
+	END CATCH
 
 	--Update value config
 	UPDATE c SET c.VValue =  CONVERT(VARCHAR(50), @MaxRepUpdateTime, 21)
