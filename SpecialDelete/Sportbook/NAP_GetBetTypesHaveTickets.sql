@@ -61,6 +61,7 @@ BEGIN
 		WHERE SiteDBGroupID = @SiteDBGroupID
 			AND bettype NOT IN (10,29,38,500)
 			AND bettype < 19000
+			AND @Mode <> 10
 		GROUP BY bettype
 		
 		INSERT INTO #TmpBettype(bettype)
