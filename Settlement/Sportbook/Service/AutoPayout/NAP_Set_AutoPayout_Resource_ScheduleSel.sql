@@ -12,6 +12,7 @@ AS
 		- 20250402@Hughie: Direct Payout- Soccer- Early PEN- Enhancement [Redmine:#222688]
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 		- 20250826@Louisa: Enhance code [Redmine: #237088]
+		- 20251028@Hughie: Retry the Auto/Direct Payout flow for these failed matches after untick hold key [Redmine:#240174]
 
 	Param's Explanation:
  
@@ -79,13 +80,19 @@ BEGIN
 			WHERE	sp.SportType = 1
 					AND sp.ResourceID =  rd.ResourceId
 		) ssp
+		OUTER APPLY (
+		SELECT TOP 1 1 AS IsExistHoldResult 
+		FROM f_Set_ExistFailedHoldResult(m.matchId) x 
+		WHERE m.matchId = x.matchid 
+				AND t.ResourceId = x.ResourceId
+				) x
 	WHERE	m.eventstatus = 'completed'
 			AND ISNULL(m.betstatus,'') NOT LIKE '%REFUND%'
 			AND ISNULL(m.betstatus,'') NOT LIKE '%ABANDONED%'
 			AND m.sporttype = 1
 			AND rd.ResultStatusID = 3 -- confirmed
 			AND ISNULL(rd.ResultSetting,0) & 1 = 0
-			AND ap.IsExistAP IS NULL
+			AND (ap.IsExistAP IS NULL OR x.IsExistHoldResult = 1)
 			AND m.eventdate BETWEEN @fromdate AND @todate 
 			AND GlobalShowTime <= @checktime					
 			AND 16 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) > 0
