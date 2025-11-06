@@ -18,15 +18,25 @@ AS
 	Param's explanation:		
 */
 BEGIN
-
 	SET NOCOUNT ON
 
-	DECLARE @batch INT = 100,
-			@transIds VARCHAR(MAX) = '' ,
-			@UUSTransIds VARCHAR(MAX) = '',
-			@CustIds VARCHAR(MAX) = '',
-			@UUSCustIds VARCHAR(MAX) = '',
-			@CRLF CHAR(2)
+	DECLARE @batch INT = 100
+		  , @transIds VARCHAR(MAX) = '' 
+		  , @UUSTransIds VARCHAR(MAX) = ''
+		  , @CustIds VARCHAR(MAX) = ''
+		  ,	@UUSCustIds VARCHAR(MAX) = ''
+		  ,	@CRLF CHAR(2)
+	      , @CurrentTime TIME = CONVERT(TIME, GETDATE())
+	      , @Today DATETIME 
+		  , @Nextday DATETIME
+
+	SET @Today = CAST(GETDATE() AS DATE)
+	SET @Nextday = DATEADD(DAY, 1, @Today)
+
+	DECLARE @StartRow INT 
+		  , @StopRow INT 
+		  , @MaxRow INT  -- Keep the total row of your data
+		  , @Threshold INT  -- the number of each batch
 
 	SET @ErrorMessage = ''
 	
@@ -194,16 +204,15 @@ BEGIN
 			END
 
 		END
-
-		--Update value config
-		UPDATE c SET c.VValue = @MaxTransId
-		FROM dbo.systemsettings c WITH (ROWLOCK, UPDLOCK)
-		WHERE c.VName = 'CustWinLimitBet_LastTransId'
-
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = '1. ' + ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '1. ' + ERROR_MESSAGE() + '. Transid > '+ CAST (@lastTransid AS VARCHAR) + ' AND Transid <= '  + CAST (@MaxTransId AS VARCHAR) + @CRLF
 	END CATCH
+
+	--Update value config
+	UPDATE c SET c.VValue = @MaxTransId
+	FROM dbo.systemsettings c WITH (ROWLOCK, UPDLOCK)
+	WHERE c.VName = 'CustWinLimitBet_LastTransId'
 
 	-----------------------------------------------------2 Check special cases based on predefined conditions.--------------------------------------------------------------------
 	BEGIN TRY
@@ -253,14 +262,10 @@ BEGIN
 		END
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = '2. ' + ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '2. ' + ERROR_MESSAGE() + '. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + @CRLF
 	END CATCH
+	
 	-----------------------------------------------------3 Check CustWinLimitBet.AccumToWin against Bettrans running tickets --------------------------------------------------------------------
-	DECLARE @StartRow INT 
-			, @StopRow INT 
-			, @MaxRow INT  -- Keep the total row of your data
-			, @Threshold INT  -- the number of each batch
-
 	BEGIN TRY
 		SET @CustIds = ''
 		SET @UUSCustIds = ''
@@ -397,19 +402,11 @@ BEGIN
 		END
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = '3. ' + ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '3. ' + ERROR_MESSAGE() + '. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + @CRLF
 	END CATCH
 	
 	-----------------------------------------------------4 For members with isDaily = Yes -----------------------------------------------------
 	/*Schedule a daily job (at 4:00 AM server time) to compare CustWinLimitBet.AccumWinLoss against the sum of settled tickets in Bettrans since the latest reset.*/
-
-	DECLARE @CurrentTime TIME = CONVERT(TIME, GETDATE());
-	DECLARE @Today		DATETIME 
-		   ,@Nextday    DATETIME
-
-	SET @Today = CAST(GETDATE() AS DATE)
-	SET @Nextday = DATEADD(DAY, 1, @Today)
-
 	IF @CurrentTime >= '03:59:00' AND @CurrentTime < '04:20:00' --Maximum call 2 times because job interval 10 minute
 	BEGIN TRY
 		SET @CustIds = ''
@@ -560,7 +557,7 @@ BEGIN
 		END
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = '4. ' + ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '4. ' + ERROR_MESSAGE() + '. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + @CRLF
 	END CATCH
 
 	-----------------------------------------------------5 Sum data from CustWinLimitBet_History after the most recent reset, Compare with ticket data from Bettrans to ensure consistency -----------------------------------------------------
@@ -714,7 +711,7 @@ BEGIN
 		END
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = '5. ' + ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '5. ' + ERROR_MESSAGE() + '. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + @CRLF
 	END CATCH
 	
 	-----------------------------------------------------6 Check TransIds exceeding the current potential setting ---------------------------------------------------------
@@ -776,10 +773,10 @@ BEGIN
 		END
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = '6. ' + ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '6. ' + ERROR_MESSAGE() + '. RepUpdateTime > '+ CAST (@LastRepUpdateTime AS VARCHAR) + ' AND RepUpdateTime <= '  + CAST (@MaxRepUpdateTime AS VARCHAR) + @CRLF
 	END CATCH
-	-----------------------------------------------------7 Check for missing data reset record in table CustWinLimitBet_History ---------------------------------------------------------
 	
+	-----------------------------------------------------7 Check for missing data reset record in table CustWinLimitBet_History ---------------------------------------------------------
 	IF @CurrentTime >= '00:10:00' AND @CurrentTime < '00:20:00' --Maximum call 1 times because job interval 10 minute
 	BEGIN TRY
 		SET @CustIds = ''
@@ -828,7 +825,7 @@ BEGIN
 		END
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = '7. ' + ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '7. ' + ERROR_MESSAGE() + '. RepUpdateTime >= '+ CONVERT(VARCHAR,@Today,23) + ' AND RepUpdateTime < '  + CONVERT(VARCHAR,@Nextday,23) + @CRLF
 	END CATCH
 
 	-----------------------------------------------------8 Check error in table CustWinLimitBet_Errors ---------------------------------------------------------
@@ -841,7 +838,7 @@ BEGIN
 									GROUP BY ErrName 
 								 FOR XML PATH(''), TYPE  
 							).value('.', 'NVARCHAR(MAX)'), 1, LEN(@CRLF), '');
-
+		SELECT @Errors
 		IF ISNULL(@Errors,'') <> ''
 		BEGIN
 			SET @ErrorMessage = @ErrorMessage + '8. With CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + '. Check error in table CustWinLimitBet_Errors. ' + @CRLF + @Errors
@@ -849,7 +846,7 @@ BEGIN
 
 	END TRY
 	BEGIN CATCH
-		 SELECT @ErrorMessage = '8. ' + ERROR_MESSAGE()
+		 SELECT @ErrorMessage = '8. ' + ERROR_MESSAGE() + '. CreatedDate > '+ CAST (@LastRepUpdateTime AS VARCHAR) + @CRLF
 	END CATCH
 
 	--Update value config
