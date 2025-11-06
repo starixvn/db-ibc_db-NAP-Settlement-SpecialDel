@@ -50,6 +50,7 @@ AS
 		- 20240425@Kathy: enhance parlay [Redmine:#199518]
 		- 20240521@Kathy: write log [Redmine:#199518]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
+		- 00000: Temp version for SIT
 
 
 	Param's Explanation:
@@ -127,7 +128,7 @@ BEGIN
 		SET @isWriteLog = CASE WHEN ISNULL(@ParlaySettlementProcessingId,0) <> 0 AND dbo.f_ParlaySettlement_WriteLog() = 1 THEN 1 ELSE 0 END
 	
 	INSERT INTO @transIDs (transid)
-	SELECT value
+	SELECT DISTINCT value
 	FROM STRING_SPLIT(@strXML, ',')
 	
 	INSERT INTO @tmpSetting(SiteId, FromOdds, ToOdds, Boost, isFirstOdds, isLastOdds)

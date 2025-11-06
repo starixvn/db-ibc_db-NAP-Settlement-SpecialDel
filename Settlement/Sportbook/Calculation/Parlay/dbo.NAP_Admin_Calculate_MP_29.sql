@@ -35,6 +35,7 @@ AS
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20240425@Kathy: enhance MaxPayout [Redmine:#199518]
+		- 00000: Temp version for SIT
 
 	Param's Explanation:
 */
@@ -81,7 +82,7 @@ BEGIN
         RETURN
 		
 	INSERT INTO @tmpRefno (refno, transid)
-	SELECT SUBSTRING(value,0,CHARINDEX('|', value)) as refno ,SUBSTRING(value,CHARINDEX('|', value) + 1, len(value)) as transid
+	SELECT DISTINCT SUBSTRING(value,0,CHARINDEX('|', value)) as refno ,SUBSTRING(value,CHARINDEX('|', value) + 1, len(value)) as transid
 	FROM STRING_SPLIT(@strxml,',')
 	
 	SELECT @minRefno = MIN(refno)
