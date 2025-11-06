@@ -215,12 +215,13 @@ BEGIN
 			,oddsspread, actual_stake, betteam, BetSiteID, eventdate
 		)
 		SELECT	[transid], [refno], [stake]
-				,CASE 
+				,CASE
 					WHEN oddsspread = 3 AND betteam = '1' THEN CAST(betid AS TINYINT) --Hybrid parlay
 					WHEN betcheck IS NOT NULL THEN CAST(hdp2 AS TINYINT) -- Combo Parlay - New format	
 					ELSE CAST(LEN(betteam) AS TINYINT)  -- Old format
 					END AS selection_cnt
-				,CASE 
+				,CASE
+					WHEN oddsspread = 3 AND betteam = '1' THEN CAST(betteam AS INT) --Hybrid parlay
 					WHEN betcheck IS NOT NULL THEN CAST(betteam AS INT) -- Combo Parlay	- New format	
 					ELSE CAST(hdp2/2 AS INT)  -- Old format
 					END AS bitmapR
