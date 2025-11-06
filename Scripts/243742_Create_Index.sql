@@ -8,4 +8,4 @@
 USE bodb02
 GO
 
-CREATE NONCLUSTERED INDEX IDX_TempVariableNumber_KeyValue_KeyID_KeyValue2 ON dbo.TempVariableNumber (KeyValue, KeyID, KeyValue2)
+CREATE NONCLUSTERED INDEX IX_TempVariableNumber_KeyValue_KeyID_KeyValue2 ON dbo.TempVariableNumber (KeyValue, KeyID, KeyValue2)
