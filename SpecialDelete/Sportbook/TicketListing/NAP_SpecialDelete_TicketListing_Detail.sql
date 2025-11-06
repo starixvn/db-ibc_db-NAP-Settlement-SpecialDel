@@ -101,6 +101,7 @@ AS;
 		- 20250724@July: Get Result Amendment for main parlay ticket of matchid input [Redmine: #233478]
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 		- 20250908@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251105@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -109,6 +110,7 @@ AS;
 		2: Virtual sports
 		3: Bet Builder
 		4: Bitcoin
+		5: Bet Builder+ (Hybrid Parlay)
 
 	- @LicenseeName:
 		ALL, IBC, 12bet, ...	
@@ -167,8 +169,8 @@ BEGIN
 	SET @p_bettypes = @BetTypes
 	SET @n = 2147483647
 
-	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
-	IF @Type <> 0 SELECT @LiveType = 2
+	---- If not sportbook or bet builder+ then don't care @livetype , so set @LiveType to 2 (All)
+	IF @Type NOT IN (0,5) SELECT @LiveType = 2
 	
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpMatchId TABLE (MatchId INT PRIMARY KEY)
@@ -602,6 +604,7 @@ BEGIN
 				LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
 				LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
 				WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
+					AND @Type <> 5
 					AND EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid)
 					AND 1 = CASE WHEN @LicenseeName <> 'Credit' AND @LicenseeName <> 'ALL'  
 									AND ds.custid IS NOT NULL AND ds.site = @LicenseeName THEN 1
@@ -854,7 +857,10 @@ BEGIN
 				INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
-				AND b.bettype = 29 AND b.matchID = 29
+				AND b.bettype = 29 
+				AND b.matchID = 29
+				AND ((@Type = 5 AND ISNULL(b.oddsspread,0) = 3)
+				 OR (@Type <> 5 AND ISNULL(b.oddsspread,0) <> 3))
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -882,7 +888,7 @@ BEGIN
 			WHERE ds.custid IS NOT NULL OR cs.CustId IS NOT NULL
 		END 
 
-		IF (@IsReSettled = 1 AND @Type IN (0,3))
+		IF (@IsReSettled = 1 AND @Type IN (0,3,5))
 		BEGIN
 			DELETE b
 			FROM #SpecialDeleteBets b

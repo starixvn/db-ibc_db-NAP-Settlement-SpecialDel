@@ -93,6 +93,7 @@ AS
 		- 20250428@Max: TVS- Search matchid got error on ticket listing [Redmine: #225671]
 		- 20250724@July: Get Result Amendment for main parlay ticket of matchid input [Redmine: #233478]
 		- 20250903@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251105@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -101,6 +102,7 @@ AS
 		2: Virtual sports
 		3: Bet Builder
 		4: Bitcoin
+		5: Bet Builder+ (Hybrid Parlay)
 		
 	- @LicenseeID:
 	  + =0: No Site filter
@@ -188,7 +190,7 @@ BEGIN
 	SELECT @SportType = sporttype FROM @tmpMatchId
 
 	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
-	IF @Type <> 0 SELECT @LiveType = 2
+	IF @Type NOT IN (0,5) SELECT @LiveType = 2
 
 	DECLARE @TmpTotal TABLE (
 		OrderNo			INT
@@ -496,6 +498,7 @@ BEGIN
 		FROM bettrans b WITH (NOLOCK)
 			INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 		WHERE EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid)
+			AND @Type <> 5
 			AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
 			AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE livehomescore END
@@ -726,6 +729,8 @@ BEGIN
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 29
 			AND b.matchid = 29
+			AND ((@Type = 5 AND ISNULL(b.oddsspread,0) = 3)
+				OR (@Type <> 5 AND ISNULL(b.oddsspread,0) <> 3))
 			AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -749,7 +754,7 @@ BEGIN
 								   ELSE 0 END)
 		END
 		
-		IF (@IsReSettled = 1 AND @Type IN (0,3))
+		IF (@IsReSettled = 1 AND @Type IN (0,3,5))
 		BEGIN
 			DELETE b
 			FROM #CTE_ParlayTickets b

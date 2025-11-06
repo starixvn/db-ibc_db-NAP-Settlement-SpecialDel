@@ -351,7 +351,7 @@ BEGIN
 		AND 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
 			         WHEN @FilterBy = 1 AND b.bettype = 29 AND b.betteam = '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
 					 WHEN @FilterBy = 2 AND b.bettype = 29 AND b.betteam <> '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
-					 WHEN @FilterBy = 4 AND b.bettype = 29 AND b.oddsspread = 3 THEN 1
+					 WHEN @FilterBy = 4 AND b.bettype = 29 AND ISNULL(b.oddsspread,0) = 3 THEN 1
 				     ELSE 0 END
 		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1
 					 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
@@ -449,7 +449,7 @@ BEGIN
 			AND 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
 			             WHEN @FilterBy = 1 AND b.bettype = 29 AND b.betteam = '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
 					     WHEN @FilterBy = 2 AND b.bettype = 29 AND b.betteam <> '1' AND ISNULL(b.oddsspread,0) <> 3 THEN 1
-						 WHEN @FilterBy = 4 AND b.bettype = 29 AND b.oddsspread = 3 THEN 1
+						 WHEN @FilterBy = 4 AND b.bettype = 29 AND ISNULL(b.oddsspread,0) = 3 THEN 1
 				         ELSE 0 END
 			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1
 						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmp_OnlineServerId) THEN 1  -- Get ticket sitedb down
