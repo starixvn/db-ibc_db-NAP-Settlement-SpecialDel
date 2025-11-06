@@ -14,9 +14,13 @@ AS
 		- 20251027@Max: Init new SP [Redmine: #241652]
 
 	Param's explanation:
+		@TransIds: Comma separated main parlay TransId list
 */
 BEGIN
 	SET NOCOUNT ON;
+
+	DECLARE @lDate DATETIME
+	SET @lDate = CAST(@Logdate AS DATETIME)	
 
 	DECLARE @tmpTransId AS TABLE (TransId BIGINT)
 
@@ -26,14 +30,14 @@ BEGIN
 		SELECT DISTINCT value
 		FROM string_split(@TransIds, ',')
 
-		SELECT @MatchId AS MatchId, t.TransId AS Betid, l.Odds
+		SELECT @MatchId AS MatchId, t.TransId, l.Odds
 		FROM @tmpTransId t
 		CROSS APPLY (
 				SELECT TOP 1 Odds
 				FROM dbo.BetBuilderHybridParlayLog l WITH (NOLOCK)
 				WHERE l.MatchId = @MatchId
 					AND l.TransId = t.TransId
-					AND l.Logdate >= @Logdate
+					AND l.Logdate >= @lDate
 				ORDER BY LogDate DESC
 		)l
 	END
@@ -43,10 +47,10 @@ BEGIN
 			SELECT l.MatchId, l.TransId, MAX(Logdate) AS maxLogDate
 			FROM dbo.BetBuilderHybridParlayLog l WITH (NOLOCK)
 			WHERE l.MatchId = @MatchId
-				AND l.LogDate >= @Logdate
+				AND l.LogDate >= @lDate
 			GROUP BY l.MatchID, l.TransId
 		)
-		SELECT t.MatchID, t.TransId AS Betid, l.Odds
+		SELECT t.MatchID, t.TransId, l.Odds
 		FROM cte t
 		CROSS APPLY (
 				SELECT TOP 1 Odds

@@ -17,8 +17,8 @@ AS
 		- 20251027@Max: Init new SP [Redmine: #241652]
 
 	Param's explanation:
-		@LegOddsJSON:  [{"MatchId": 987456,"BetId": 12,"Odds": 2.5},
-						{ "MatchId": 123456,"BetId": 13,"Odds": 1.5}]        
+		@LegOddsJSON:  [{"MatchId": 987456,"TransId": 12,"Odds": 2.5},
+						{ "MatchId": 123456,"TransId": 13,"Odds": 1.5}]        
 
 */
 BEGIN
@@ -49,8 +49,8 @@ BEGIN
 	INSERT INTO #tmpLegOddsInfo (MatchId, TransId, Odds, RefNo)
 	SELECT j.MatchId, j.TransId, j.Odds, b.refno
 	FROM (
-			SELECT js.MatchId AS MatchId, js.BetId AS TransId, js.Odds AS Odds
-			FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, BetId BIGINT, Odds MONEY) js
+			SELECT js.MatchId AS MatchId, js.TransId AS TransId, js.Odds AS Odds
+			FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds MONEY) js
 	)j
 	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = j.TransId
 	WHERE b.SiteDBGroupID = @SitedbgroupId
