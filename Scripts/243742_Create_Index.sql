@@ -3,6 +3,9 @@
 /*
 	20251106@Louisa: Create Index [Redmine:#243742]
 
+	Revisions:
+		20251106@Louisa: Create Index [Redmine:#243742]
+
 */
 
 USE bodb02
