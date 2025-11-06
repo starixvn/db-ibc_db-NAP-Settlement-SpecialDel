@@ -197,8 +197,12 @@ BEGIN
 	FROM @tmpMatchAuto AS t
 	WHERE EXISTS (SELECT 1
 					  FROM dbo.ResultDetail AS r WITH(NOLOCK)
-					  WHERE r.matchid = matchid
-						AND r.ResourceId = ResourceId
+					  WHERE r.matchid = t.MatchId					
+						AND 1 = CASE 
+										WHEN r.ResourceId = '00' AND t.TypeId = 2 THEN 1
+										WHEN r.ResourceId = '01' AND t.TypeId = 1 THEN 1
+										ELSE 0
+									END
 						AND (r.SettlementStatusID != 0 OR ISNULL(r.ResultSetting,0) & 1 != 0))
 
 	-- Return data 
