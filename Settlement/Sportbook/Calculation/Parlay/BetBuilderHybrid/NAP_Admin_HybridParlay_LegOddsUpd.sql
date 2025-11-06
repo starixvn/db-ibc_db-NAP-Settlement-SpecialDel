@@ -62,13 +62,13 @@ BEGIN
 	SELECT t.RefNo, t.MatchId, t.Odds, bm.MaxSubTransId
 	FROM #tmpLegOddsInfo t
 		CROSS APPLY (
-				SELECT COUNT(CASE WHEN bm.statuswinlost IS NOT NULL THEN 1 ELSE 0 END) AS cntSettled
-					,MAX(bm.transID) AS MaxSubTransId
+				SELECT --COUNT(CASE WHEN bm.statuswinlost IS NOT NULL THEN 1 ELSE 0 END) AS cntSettled,
+					MAX(bm.transID) AS MaxSubTransId
 				FROM dbo.bettransm bm WITH (NOLOCK)
 				WHERE bm.refno = t.RefNo
 					AND bm.matchid = t.MatchId
 		)bm
-	WHERE bm.cntSettled <> 0
+	--WHERE bm.cntSettled <> 0
 	
 	SET @totalRefNo = @@ROWCOUNT
 

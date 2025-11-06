@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_HybridParlayLog_Sel] 
 	@MatchId	INT
 	,@TransIds	VARCHAR(MAX) = ''
-	,@Logdate	DATETIME
+	,@Logdate	DATETIMEOFFSET
 AS
 /*
     Created by: Max
