@@ -28,6 +28,7 @@ BEGIN
 			WHERE bm.refno = b.refno
 				AND bm.matchid = @MatchId
 				AND bm.statuswinlost IS NOT NULL
+				AND bm.statusID IN (0,1)	
 		)bm
 		WHERE b.oddsspread = 3
 			AND b.matchid = 29

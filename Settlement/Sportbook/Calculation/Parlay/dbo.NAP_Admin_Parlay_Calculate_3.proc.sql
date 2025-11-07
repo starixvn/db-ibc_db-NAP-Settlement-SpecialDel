@@ -50,7 +50,7 @@ BEGIN
 			,@cntBetParlayDetailUpd INT = 0
 			,@TableName VARCHAR(128) 
 
-	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0), IsHybrid BIT DEFAULT(0))		
+	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0), IsHybrid BIT DEFAULT(0), isValidSettle BIT DEFAULT(0))		
 	DECLARE @tmpParlayOutput TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT,betcheck NVARCHAR(50), odds SMALLMONEY)		
 	
 	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
@@ -85,6 +85,10 @@ BEGIN
 		,ih BIT
 	)
 
+	UPDATE t SET t.isValidSettle = 1
+	FROM @tmpParlayTicket t 
+	CROSS APPLY (SELECT TOP 1 1 AS isValidSettle FROM @tmpParlayTicket p WHERE p.modds < - 0.25 AND t.refno = p.refno) p
+
 	IF(@@ROWCOUNT = 0) RETURN
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
@@ -98,7 +102,7 @@ BEGIN
 		SET 
 			@IsUpd_Void = CASE WHEN bm.statusID = 102 
 									OR t.IsMarked = 1 
-									OR (t.IsHybrid = 1 AND t.modds >= -0.25 AND t.modds <= 0.25) THEN 0 ELSE 1 END
+									OR (t.IsHybrid = 1 AND t.modds >= -0.25 AND t.modds <= 0.25 AND t.isValidSettle = 0) THEN 0 ELSE 1 END
 			,winlostdate = CASE 
 								WHEN @IsUpd_Void = 0 THEN winlostdate 
 								WHEN @matchdate < winlostdate THEN winlostdate 
