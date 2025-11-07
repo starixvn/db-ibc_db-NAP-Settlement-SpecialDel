@@ -98,8 +98,8 @@ BEGIN
 		WHERE p.IsCalculating = 0
 		ORDER BY CASE WHEN p.SportType = @pre_Sporttype THEN 1 ELSE 0 END
 			,p.TryCount DESC
-			,p.starttime
-			,p.keyid
+			,p.starttime ASC
+			,p.keyid ASC
 
 		IF ISNULL(@keyId,0) <> 0 AND ISNULL(@LockedByRefno,0) = 0 -- lock by systemsetting
 		BEGIN
