@@ -1,11 +1,11 @@
 /*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_ProviderExternalResultDetailSportsIns
 (
-@MatchId3rd	INT
-,@MatchId	INT = 0
-,@SourceId	SMALLINT
-,@Resources	VARCHAR(MAX)
-,@UserId	INT = 148
+ @MatchId3rd	INT
+,@MatchId		INT				= 0
+,@SourceId		SMALLINT
+,@Resources		VARCHAR(MAX)
+,@UserId		INT				= 148
 )
 AS
 /*
@@ -22,6 +22,7 @@ AS
 		- 20210818@Louisa: Add more Option [Redmine:#159307]
 		- 20210820@Louisa: Fix bug check ISNULL [Redmine:#159307]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20251107@Louisa: check @ExternalTable by setting [Redmine:#]
 
 	Param's Explanation:
 		@SourceId: 1  - SBO
@@ -37,13 +38,17 @@ AS
 */
 BEGIN
 	
-	DECLARE @Sporttype SMALLINT
+	DECLARE @Sporttype		SMALLINT
+			,@ExternalTable TINYINT
+
 	SELECT  @Sporttype = m.Sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
+		
+	SELECT @ExternalTable = r.ExternalResultTable FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) WHERE r.Sporttype = @Sporttype
 
 	IF ISNULL( @Sporttype,100) > 99 --- Not in Sportbook
 		RETURN
 
-	IF @Sporttype = 43 ---E-Sports
+	IF @ExternalTable = 3 ---E-Sports
 	BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailESIns
 		@MatchId3rd = @MatchId3rd
@@ -53,7 +58,7 @@ BEGIN
 		,@UserId	= @UserId
 	END
 
-	ELSE IF @Sporttype IN (1,2,3,4,6,18,19,24,25) ---Soccer + (1,2,3,4,6,18,19,24,25)
+	ELSE IF @ExternalTable = 1 ---Soccer + (1,2,3,4,6,18,19,24,25....)
 	BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailIns
 		@MatchId3rd = @MatchId3rd

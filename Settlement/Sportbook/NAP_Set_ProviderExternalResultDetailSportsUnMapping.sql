@@ -14,6 +14,7 @@ AS
 	Revisions:
 		- 20211223@Louisa: Cancel incorrect mapping between in-house and external match [Redmine:#166449]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
+		- 20251107@Louisa: check @ExternalTable by setting [Redmine:#]
 		
 	Param's Explanation:
 		@EnvFlag: -1: UAT, 0:PROD
@@ -23,12 +24,9 @@ BEGIN
 	
 	DECLARE @ExternalResultTable TINYINT
 	
-	SELECT  @ExternalResultTable = CASE WHEN ss.sporttype = 8 THEN 2 ELSE ss.ExternalResultTable END
+	SELECT  @ExternalResultTable = ss.ExternalResultTable
 	FROM dbo.SettlementResultTableSetting ss WITH(NOLOCK)
 	WHERE ss.Sporttype = @Sporttype
-
-	IF ISNULL(@Sporttype,1) = 1 OR @ExternalResultTable = 0 --exclude soccer and any sports not yet integrated ProviderResult
-	RETURN
 
 	IF @ExternalResultTable  = 1
 	EXEC NAP_Set_ProviderExternalResultDetailUnMapping
