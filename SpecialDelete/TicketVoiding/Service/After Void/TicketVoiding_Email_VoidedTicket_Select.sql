@@ -97,7 +97,7 @@ BEGIN
 		,subtransdesc	NVARCHAR(1000)
 		,SubStatus		NVARCHAR(10)
 		,Refno			BIGINT
-		,subTransId		BIGINT	
+		,SubTransId		BIGINT	
 		,VoidedTime		DATETIME
 		,MainTransId 	BIGINT
 		,IsCashOut		BIT DEFAULT(0)
@@ -130,7 +130,7 @@ BEGIN
 	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT, betid BIGINT)	
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID, winlostdate, IsCancelCashOut, zzzWinlost)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID, winlostdate, IsCancelCashOut, zzzWinlost, SubTransId)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -145,12 +145,13 @@ BEGIN
 			,z.winlostdate
 			,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCancelCashOut
 			,z.winlost
+			,z.transid AS SubTransId
 	FROM	dbo.zzzbettrans z WITH(NOLOCK)
 	WHERE	z.VoidingHistoryId = @VoidingHistoryId
 		AND z.SiteDBGroupID = @SiteDBGroupID
 
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, SubStatus, VoidedTime, custid, oddsid, SiteDBGroupID, winlostdate)
+	INSERT INTO #tmpTicket (SubTransId, matchid, Refno, SubStatus, VoidedTime, custid, oddsid, SiteDBGroupID, winlostdate)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
