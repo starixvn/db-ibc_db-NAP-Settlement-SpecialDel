@@ -839,6 +839,7 @@ BEGIN
 					CROSS APPLY (
 						SELECT CAST((SELECT	s2.transid AS 't'
 									,s2.refno AS 'r'
+									,s2.IsHybrid AS 'ih'
 						FROM	#tmpsubTransID s2         
 						WHERE	s2.modds IS NULL
 								AND s2.id/@batchNo = main.batchNo
