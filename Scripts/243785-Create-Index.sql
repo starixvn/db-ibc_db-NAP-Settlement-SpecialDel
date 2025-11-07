@@ -7,9 +7,8 @@
 USE [bodb02]
 GO
 
-CREATE NONCLUSTERED INDEX [IX_Parlay_Calculate_Queue_IsCalculating] ON [dbo].[Parlay_Calculate_Queue]
-(
-	IsCalculating ASC
-)
+CREATE NONCLUSTERED INDEX [IX_Parlay_Calculate_Queue_IsCalculating] ON [dbo].[Parlay_Calculate_Queue](IsCalculating)
+INCLUDE (sporttype, exectime)
+WITH ( ONLINE = ON )
 GO
 
