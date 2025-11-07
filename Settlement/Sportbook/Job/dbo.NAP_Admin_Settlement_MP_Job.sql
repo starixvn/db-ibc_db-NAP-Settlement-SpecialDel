@@ -23,6 +23,7 @@ AS
 		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		- 20251107@Louisa: Enhance performance [Redmine:#243785]
 		
 */
 BEGIN
@@ -44,7 +45,10 @@ BEGIN
 		,@BroadcastSessionId VARCHAR(50)
 		,@SSBStatus TINYINT = 0
 		,@SSBCommand NVARCHAR(MAX)
-		
+	
+	DECLARE @date DATETIME
+	SET @date = DATEADD (MINUTE, -10, GETDATE())
+
 	SELECT	@keyId = keyid
 			,@SSBStatus = ISNULL(SSBStatus,0)
 			,@SSBCommand = SSBCommand
@@ -80,10 +84,9 @@ BEGIN
 	ELSE
 	BEGIN
 		-- get sporttype of previous calculated match
-		SELECT TOP 1 @pre_Sporttype = m.SportType 
+		SELECT TOP 1 @pre_Sporttype = p.SportType 
 		FROM Parlay_Calculate_Queue p with(NOLOCK)
-		INNER JOIN match m WITH(NOLOCK) ON m.matchid = p.matchid
-		WHERE p.IsCalculating IN (2,3)
+		WHERE p.IsCalculating IN (2,3) AND starttime>= @date
 		ORDER BY p.execTime DESC
 
 		-- giving priority to calcualate the match which has sporttype <> previous calculated match
@@ -92,9 +95,8 @@ BEGIN
 			,@LockedByRefno = p.LockedByRefno
 			,@BroadcastSessionId = BroadcastSessionId
 		FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK)
-		INNER JOIN match m WITH(NOLOCK) ON m.matchid = p.matchid
 		WHERE p.IsCalculating = 0
-		ORDER BY CASE WHEN m.SportType = @pre_Sporttype THEN 1 ELSE 0 END
+		ORDER BY CASE WHEN p.SportType = @pre_Sporttype THEN 1 ELSE 0 END
 			,p.TryCount DESC
 			,p.starttime
 			,p.keyid
