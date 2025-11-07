@@ -96,7 +96,7 @@ BEGIN
 			,@BroadcastSessionId = BroadcastSessionId
 		FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK)
 		WHERE p.IsCalculating = 0
-		ORDER BY CASE WHEN p.SportType = @pre_Sporttype THEN 1 ELSE 0 END
+		ORDER BY CASE WHEN p.SportType = @pre_Sporttype THEN 1 ELSE 0 END ASC
 			,p.TryCount DESC
 			,p.starttime ASC
 			,p.keyid ASC
