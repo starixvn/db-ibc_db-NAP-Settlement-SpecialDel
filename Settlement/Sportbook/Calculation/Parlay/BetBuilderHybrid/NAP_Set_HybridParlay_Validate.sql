@@ -28,4 +28,18 @@ BEGIN
 			, @ErrMsg = 'No valid ticket found.'
 		RETURN
 	END
+	ELSE
+	BEGIN
+		SELECT DISTINCT TransId
+		FROM dbo.bettrans b WITH (NOLOCK)
+		CROSS APPLY (
+			SELECT TOP 1 1 AS valid
+			FROM bettransm bm WITH (NOLOCK)
+			WHERE bm.refno = b.refno
+				AND bm.matchid = @MatchId
+				AND bm.statuswinlost IS NOT NULL
+		)bm
+		WHERE b.oddsspread = 3
+			AND b.matchid = 29
+	END
 END
