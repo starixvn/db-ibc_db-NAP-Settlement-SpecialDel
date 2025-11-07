@@ -151,7 +151,7 @@ BEGIN
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	CREATE TABLE #tmpsubTransID (Id BIGINT IDENTITY(1,1),TransID BIGINT, refno BIGINT, modds SMALLMONEY, moddsSDT SMALLMONEY, IsSDT BIT DEFAULT(0), isFinish BIT, IsMarked BIT
-		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, betteam VARCHAR(10), IsHybrid BIT)
+		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, betteam VARCHAR(10), IsHybrid BIT DEFAULT(0))
 	CREATE TABLE #tmpRefnos (refno BIGINT)
 	----------------------------------------------------------------------------------------------------------------------
 
@@ -259,9 +259,8 @@ BEGIN
   	BEGIN
 		IF @sportType = 1 AND @Action <> 'CAL_EAR'
 		BEGIN
-			INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsHybrid)
+			INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
 			SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
-				, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 				CROSS APPLY (
 					SELECT	TOP 1 pfID, HomeValue, AwayValue
@@ -295,9 +294,8 @@ BEGIN
 			
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0)
 			BEGIN
-				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsHybrid)
+				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
-						, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
 						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
@@ -346,9 +344,8 @@ BEGIN
 		BEGIN
 			IF @DeterminedType = 0 AND ISNULL(@IsSDTEarly,0) = 0
 			BEGIN
-				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsHybrid)
+				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
-						, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
 											ELSE bm.betcheck
@@ -384,9 +381,8 @@ BEGIN
 			END
 			ELSE IF @sportType != 1 AND  ( @DeterminedType > 0 OR ISNULL(@IsSDTEarly,0) = 1)
 			BEGIN
-				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsInstHTFT, bettype, hdp1, hdp2, betteam, IsHybrid)
+				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsInstHTFT, bettype, hdp1, hdp2, betteam)
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked, sr.IsInstHTFT, bm.bettype, bm.hdp1, bm.hdp2, bm.betteam
-						, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
 						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, ISNULL(IsCalculated, 0) AS IsCalculated, MinusValue,AbandonedStatus, IsInstHTFT
@@ -441,9 +437,8 @@ BEGIN
 	END
 	ELSE IF @action LIKE 'UNDO%'
 	BEGIN
-		INSERT INTO #tmpsubTransID (TransID, refno, IsMarked, IsHybrid)
+		INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
 		SELECT	bm.transid, bm.refno , CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked 
-				, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 		FROM	dbo.bettransm bm WITH(NOLOCK)
 			CROSS APPLY (	SELECT CASE WHEN bm.BetType IN (675, 676, 678) THEN bm.betcheck + bm.betteam
 											ELSE bm.betcheck
@@ -478,9 +473,8 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0 OR ISNULL(@IsSDTEarly,0)  = 1)
 		BEGIN
-			INSERT INTO #tmpsubTransID (TransID, refno, IsMarked, IsHybrid)
+			INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
 			SELECT	bm.transid, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked 
-					, CASE WHEN ISNULL(b.oddsspread, 0) = 3 THEN 1 ELSE NULL END AS IsHybrid
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 				CROSS APPLY (
 					SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
@@ -618,6 +612,11 @@ BEGIN
 	
 	IF @totalSubParlay = 0
 		RETURN 
+
+	--Mark IsHybrid for subTransId
+	UPDATE t SET t.IsHybrid = 1
+	FROM #tmpsubTransID t
+		INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = t.refno AND b.matchid = 29 AND b.bettype = 29 AND b.oddsspread = 3 
 
 	--check settlement process
 	IF @LockedByRefno = 1

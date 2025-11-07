@@ -18,18 +18,8 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId AND p.IsCalculating IN (0,1))
-		OR NOT EXISTS (SELECT TOP 1 1 FROM bettransm bm WITH (NOLOCK)
-							WHERE bm.matchid = @MatchId
-								AND bm.statuswinlost IS NOT NULL
-					)
-	BEGIN
-		SELECT @ErrCode = 100
-			, @ErrMsg = 'No valid ticket found.'
-		RETURN
-	END
-	ELSE
-	BEGIN
+	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId AND p.IsCalculating IN (0,1))
+	BEGIN	
 		SELECT DISTINCT TransId
 		FROM dbo.bettrans b WITH (NOLOCK)
 		CROSS APPLY (
@@ -41,5 +31,12 @@ BEGIN
 		)bm
 		WHERE b.oddsspread = 3
 			AND b.matchid = 29
+			AND b.bettype = 29
+	END
+	ELSE
+	BEGIN
+		SELECT @ErrCode = 100
+			, @ErrMsg = 'No valid ticket found.'
+		
 	END
 END
