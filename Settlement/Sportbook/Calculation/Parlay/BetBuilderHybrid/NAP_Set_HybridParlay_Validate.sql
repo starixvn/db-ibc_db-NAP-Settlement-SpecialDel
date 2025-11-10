@@ -33,11 +33,17 @@ BEGIN
 		WHERE b.oddsspread = 3
 			AND b.matchid = 29
 			AND b.bettype = 29
+
+		IF @@ROWCOUNT = 0
+		BEGIN
+			SELECT @ErrCode = 101
+				, @ErrMsg = 'No valid ticket found.'
+		END
 	END
 	ELSE
 	BEGIN
 		SELECT @ErrCode = 100
-			, @ErrMsg = 'No valid ticket found.'
+			, @ErrMsg = 'The parlay queue has not been completed yet.'
 		
 	END
 END
