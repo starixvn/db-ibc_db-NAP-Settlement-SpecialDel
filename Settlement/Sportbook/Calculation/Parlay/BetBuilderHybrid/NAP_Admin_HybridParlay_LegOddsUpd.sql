@@ -24,7 +24,7 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	insert into UserLog_Settle (LogDate, Remark, ActionID, MatchID)
+	insert into bodb_customerlog.dbo.UserLog_Settle (LogDate, Remark, ActionID, MatchID)
 	select getdate(),convert(varchar(max), @LegOddsJSON) + OBJECT_NAME(@@PROCID), 9999, @MatchId
 
 	DECLARE @LogData			VARCHAR(MAX)
