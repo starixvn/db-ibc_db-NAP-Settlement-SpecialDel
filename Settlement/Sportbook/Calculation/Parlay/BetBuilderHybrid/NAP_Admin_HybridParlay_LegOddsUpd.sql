@@ -24,6 +24,9 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
+	insert into UserLog_Settle (LogDate, Remark, ActionID, MatchID)
+	select getdate(),convert(varchar(max), @LegOddsJSON) + OBJECT_NAME(@@PROCID), 9999, @MatchId
+
 	DECLARE @LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
 			,@Session			NVARCHAR(50)
@@ -46,6 +49,10 @@ BEGIN
 	SET @SB_Error = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
+	DECLARE @IsCentral BIT = 0	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	INSERT INTO #tmpLegOddsInfo (MatchId, TransId, Odds, RefNo)
 	SELECT j.MatchId, j.TransId, j.Odds, b.refno
 	FROM (
@@ -53,7 +60,7 @@ BEGIN
 			FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds MONEY) js
 	)j
 	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = j.TransId
-	WHERE b.SiteDBGroupID = @SitedbgroupId
+	WHERE AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		AND b.bettype = 29
 		AND b.matchid = 29
 		AND b.oddsspread = 3
