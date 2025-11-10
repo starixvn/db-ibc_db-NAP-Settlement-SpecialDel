@@ -20,7 +20,7 @@ AS
 */
 BEGIN
     DECLARE @Sporttype INT;		
-    DECLARE @TEMP TABLE (AutoPayoutResultId INT, ResourceID VARCHAR(20) NULL, TypeId INT NULL);
+    DECLARE @TEMP TABLE (AutoPayoutResultId INT, ResourceID VARCHAR(20) NULL, TypeId INT NULL, Remark VARCHAR(MAX));
     DECLARE @IsExistHoldResult INT = 0;
     DECLARE @ResourceID VARCHAR(20) = NULL;
 	DECLARE @TypeId INT = NULL
@@ -31,26 +31,24 @@ BEGIN
 
     IF @Sporttype = 1
     BEGIN
-        INSERT INTO @TEMP (AutoPayoutResultId, TypeId, ResourceID)
-        SELECT TOP 1 p.AutoPayoutResultId, p.CalculationType, p.ResourceId
+        INSERT INTO @TEMP (AutoPayoutResultId, TypeId, ResourceID, Remark)
+        SELECT TOP 1 p.AutoPayoutResultId, p.CalculationType, p.ResourceId, p.Remark
         FROM AutoPayoutResult p WITH (NOLOCK)
-        WHERE p.StatusId = 3
-          AND p.Remark LIKE '%HOLD%'
-          AND p.MatchId = @Matchid
+        WHERE p.MatchId = @Matchid
+			AND StatusId = 3
         ORDER BY p.AutoPayoutResultId DESC;
     END
     ELSE IF @Sporttype <> 1
     BEGIN
-        INSERT INTO @TEMP (AutoPayoutResultId, ResourceID)
-        SELECT TOP 1 p.AutoPayoutResultId, p.ResourceID
+        INSERT INTO @TEMP (AutoPayoutResultId, ResourceID, Remark)
+        SELECT TOP 1 p.AutoPayoutResultId, p.ResourceID, Remark
         FROM AutoPayoutResultOS p WITH (NOLOCK)
-        WHERE p.StatusId = 3
-          AND p.Remark LIKE '%HOLD%'
-          AND p.MatchId = @Matchid
+        WHERE p.MatchId = @Matchid
+			AND StatusId = 3
         ORDER BY p.AutoPayoutResultId DESC;
     END
 
-    IF EXISTS (SELECT 1 FROM @TEMP)
+    IF EXISTS (SELECT 1 FROM @TEMP WHERE Remark LIKE '%hold%')
     BEGIN
         SELECT TOP 1 
             @IsExistHoldResult = 1
