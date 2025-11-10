@@ -17,6 +17,7 @@ AS
 		- 20240614@Max: [TVS] Ticket Listing - Insert data to DB053 [Redmine: #206452]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20250122@July: Integrate - Change DB for sending data to OIC [Redmine: #216623]
+		- 20251110@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:	
 */   
@@ -40,7 +41,7 @@ BEGIN
 	DECLARE @tmpResultInfo TABLE (LicenseeName NVARCHAR(50), SessionID NVARCHAR(100), IsFinish BIT)
 	
 	INSERT INTO @tmpResultAmendment (TransID, CustID, Recommend, LicenseeName, SessionID)
-	SELECT t, c, re, ln, ssid
+	SELECT DISTINCT t, c, re, ln, ssid
 	FROM OPENJSON(@Decompress_TransInfoSendOICJson) 
 	WITH( t BIGINT, c INT, re INT, ln NVARCHAR(50), ssid NVARCHAR(100)
 	) tbl
