@@ -69,7 +69,7 @@ BEGIN
 		AND pt.BetType NOT IN  (10) --Outright
 	
 	CREATE TABLE #validTransId (
-		transid			BIGINT PRIMARY KEY
+		transid			BIGINT
 		,StatusId		INT
 		,bettype		SMALLINT
 		,matchid		INT

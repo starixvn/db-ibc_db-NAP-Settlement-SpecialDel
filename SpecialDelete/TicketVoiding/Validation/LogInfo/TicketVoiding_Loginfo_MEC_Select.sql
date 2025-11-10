@@ -1001,6 +1001,23 @@ BEGIN
 		SELECT TransId FROM #CTE_Ticket_SubParlay p
 			
 	END
+		
+	--Update odds support show betlist for Hybrid parlay
+	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsHybrid = 1) 
+	BEGIN
+		;WITH CTE_MaxSubOdds AS (
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #TVSTicketBets t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+			GROUP BY t.transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #TVSTicketBets AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+	END 
 
 	SET @LogInfoTicketsJson = COMPRESS((SELECT m.transid AS 'transid'
 			,m.refno AS 'refno'		
