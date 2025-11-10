@@ -51,7 +51,7 @@ BEGIN
 			,@TableName VARCHAR(128) 
 			,@IsUpd_runningHP BIT = 0
 
-	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0), IsHybrid BIT DEFAULT(0), isValidSettle BIT DEFAULT(0))		
+	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0), IsHybrid BIT DEFAULT(0), isValidSettle BIT DEFAULT(0), statuswinlost TINYINT, isBackToRunning BIT DEFAULT (0))		
 	DECLARE @tmpParlayOutput TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT,betcheck NVARCHAR(50), odds SMALLMONEY)		
 	
 	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
@@ -70,13 +70,20 @@ BEGIN
 								WHEN @Action LIKE 'UNDO%' THEN 'UNDO'
 							END
 
-	INSERT INTO @tmpParlayTicket (transid, refno, statusId, modds, IsMarked, IsHybrid)
+	INSERT INTO @tmpParlayTicket (transid, refno, statusId, modds, IsMarked, IsHybrid, statuswinlost)
 	SELECT t AS transid
 			,r AS refno
 			,s AS statusId
 			,m AS modds
 			,im AS IsMarked
 			,ih AS IsHybrid
+			,CASE 
+				WHEN m > 0.25 THEN 2 -- WON
+				WHEN m = 0.25 THEN 1 -- Half WON
+				WHEN m = - 0.25 THEN 3 -- Half LOSE
+				WHEN m < - 0.25 THEN 4 -- LOSE
+				ELSE CASE WHEN (@action = 'ABANDONED'  OR @Action LIKE 'REFUND%') THEN 6 ELSE 0 END -- CAL OR REFUND
+			END
 	FROM OPENJSON(@strTransIds) WITH (
 		t BIGINT
 		,r BIGINT
@@ -88,10 +95,27 @@ BEGIN
 
 	IF(@@ROWCOUNT = 0) RETURN
 
-	UPDATE t SET t.isValidSettle = 1
-	FROM @tmpParlayTicket t 
-	CROSS APPLY (SELECT TOP 1 1 AS isValidSettle FROM @tmpParlayTicket p WHERE p.modds < - 0.25 AND t.refno = p.refno AND p.IsHybrid = 1) p
-	WHERE t.IsHybrid = 1
+	-- Hybrid parlay: need back/keep to running and wait for get new leg odds for special case
+	IF @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' OR @Action LIKE 'CAL%'
+	BEGIN
+		UPDATE t SET t.isValidSettle = 1
+		FROM @tmpParlayTicket t 
+			CROSS APPLY (SELECT TOP 1 1 AS isValidSettle FROM @tmpParlayTicket p WHERE statuswinlost IN (4) AND t.refno = p.refno AND p.IsHybrid = 1) p
+		WHERE t.IsHybrid = 1
+
+		UPDATE t
+			SET isBackToRunning = CASE  WHEN bm.statuswinlost = 4 AND t.statuswinlost = 2 THEN 0 --before: LOSE, after: WON
+										WHEN bm.statuswinlost = 2 AND t.statuswinlost = 4 THEN 0 --before: WON, after: LOSE
+										WHEN bm.statuswinlost IN (0,6) AND t.statuswinlost IN (0,6) THEN 0 --before : DRAW/REFUND , after: DRAW/REFUND
+										WHEN t.statuswinlost <> bm.statuswinlost THEN 1
+										ELSE 0 END
+			--DRAW -> REFUND OR REFUND -> DRAW: can settle direct no need to wait new leg odds
+			,isValidSettle = CASE WHEN t.isValidSettle = 0 AND bm.statuswinlost IN (0,6) AND t.statuswinlost IN (0,6) THEN 1 ELSE isValidSettle END					
+		FROM @tmpParlayTicket t
+			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
+		WHERE t.IsHybrid = 1 AND (bm.statusID NOT IN (102) OR t.IsMarked = 0)
+
+	END
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
@@ -103,15 +127,14 @@ BEGIN
 		UPDATE bm
 		SET @IsUpd_Void = CASE WHEN bm.statusID = 102 
 									OR t.IsMarked = 1 
-									OR (t.IsHybrid = 1 AND t.modds >= -0.25 AND t.modds <= 0.25 AND t.isValidSettle = 0 )
-									OR (t.IsHybrid = 1 AND t.modds > 0.25 AND bm.statuswinlost NOT IN(4,2))
-											THEN 0 ELSE 1 END
+									OR (t.IsHybrid = 1 AND t.statuswinlost IN (1,3,6,0) AND t.isValidSettle = 0)  -- Half, Draw, Refund
+									THEN 0 ELSE 1 END
 			,winlostdate = CASE 
 								WHEN @IsUpd_Void = 0 THEN winlostdate 
 								WHEN @matchdate < winlostdate THEN winlostdate 
 								ELSE @matchdate 
 							END 
-			,[status] 	= CASE 
+			,[status] 	= CASE  WHEN t.isBackToRunning = 1 THEN N'running'
 								WHEN @IsUpd_Void = 0 THEN bm.[status] 
 								ELSE CASE 
 											WHEN t.modds = 0 THEN 'Refund'
@@ -120,8 +143,8 @@ BEGIN
 											ELSE bm.[status]
 									END
 							END
-			,statusID = CASE 
-							WHEN @IsUpd_Void = 0 THEN bm.statusID 
+			,statusID = CASE WHEN t.isBackToRunning = 1 THEN 0
+							 WHEN @IsUpd_Void = 0 THEN bm.statusID 
 							ELSE CASE 
 									WHEN t.modds = 0 THEN 103 
 									WHEN t.modds < 0 THEN 113
@@ -130,14 +153,8 @@ BEGIN
 								END
 							END
 			
-			,statuswinlost = CASE 
-								WHEN t.modds > 0.25 THEN 2 -- WON
-								WHEN t.modds = 0.25 THEN 1 -- Half WON
-								WHEN t.modds = - 0.25 THEN 3 -- Half LOSE
-								WHEN t.modds < - 0.25 THEN 4 -- LOSE
-								ELSE 6 -- REFUND
-							END
-			,ruben = 1
+			,statuswinlost = t.statuswinlost
+			,ruben = CASE WHEN t.isBackToRunning = 1 THEN 0 ELSE 1 END
 		OUTPUT INSERTED.transid
 				,INSERTED.refno
 				,INSERTED.statusID
@@ -177,9 +194,10 @@ BEGIN
 		SET 
 			@IsUpd_Void = CASE WHEN bm.statusID = 102 
 									OR t.IsMarked = 1 
-									OR (t.IsHybrid = 1 AND t.modds >= -0.25 AND t.modds <= 0.25) THEN 0 ELSE 1 END
-			,ruben = CASE 
-						WHEN @IsUpd_Void = 0 THEN ruben 
+									OR (t.IsHybrid = 1 AND t.statuswinlost IN (1,3,6,0) AND t.isValidSettle = 0)  -- Half, Draw, Refund
+									THEN 0 ELSE 1 END
+			,ruben = CASE WHEN t.isBackToRunning = 1 THEN 0
+						  WHEN @IsUpd_Void = 0 THEN ruben 
 						ELSE CASE 
 								WHEN t.modds IS NULL THEN 0
 								ELSE 1
@@ -192,8 +210,8 @@ BEGIN
 								ELSE @matchdate
 							END
 
-			,[status] = CASE 
-							WHEN @IsUpd_Void = 0 THEN [status] 
+			,[status] = CASE WHEN t.isBackToRunning = 1 THEN N'running'
+							 WHEN @IsUpd_Void = 0 THEN [status] 
 							ELSE CASE 
 									WHEN t.modds IS NULL THEN N'running'
 									WHEN t.modds = 0  THEN N'DRAW'
@@ -202,7 +220,7 @@ BEGIN
 								END
 							END
 							
-			,statusID = CASE 
+			,statusID = CASE	WHEN t.isBackToRunning = 1 THEN 0
 								WHEN @IsUpd_Void = 0 THEN bm.statusID 
 								ELSE CASE 
 										WHEN t.modds IS NULL THEN 0
@@ -211,13 +229,7 @@ BEGIN
 										WHEN t.modds > 0 THEN 112
 									END
 							END
-			,statuswinlost = CASE 
-								WHEN t.modds > 0.25 THEN 2 -- WON
-								WHEN t.modds = 0.25 THEN 1 -- Half WON
-								WHEN t.modds = - 0.25 THEN 3 -- Half LOSE
-								WHEN t.modds < - 0.25 THEN 4 -- LOSE
-								ELSE 0 -- DRAW
-							END
+			,statuswinlost = t.statuswinlost
 		OUTPUT INSERTED.transid
 				,INSERTED.refno
 				,INSERTED.statusID
