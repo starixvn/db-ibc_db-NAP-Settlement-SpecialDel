@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_HybridParlay]
 	,@Action		VARCHAR(20) = 'CAL'
 	,@creator		INT
 	,@IP			VARCHAR(15) = ''
+	,@TransIds		VARCHAR(MAX) = ''
 	,@ErrCode		INT = 0 OUTPUT
 	,@ErrMsg		NVARCHAR(200) = NULL OUTPUT
 )
@@ -95,6 +96,11 @@ BEGIN
 		RETURN
 	END
 
+	DECLARE @tmp_TransId TABLE (TransId BIGINT)
+	INSERT INTO @tmp_TransId (TransId)
+	SELECT DISTINCT value
+	FROM string_split(@TransIds, ',')
+
 	--Query all sub tickets to recover
 	INSERT INTO #tblHybridBet
 	(
@@ -116,8 +122,9 @@ BEGIN
 		,b.ruben
 		,b.oddsspread
 		,b.TransId
-	FROM dbo.bettransm AS bm WITH (NOLOCK) 
-	INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
+	FROM @tmp_TransId t
+	INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
+	INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno
 	LEFT JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON bm.TransId = mt.TransId AND mt.MatchId = @MatchId
 	WHERE bm.matchid = @MatchId
 		AND bm.SiteDBGroupID = @SiteDBGroupId
