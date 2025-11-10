@@ -96,44 +96,83 @@ BEGIN
 		RETURN
 	END
 
-	DECLARE @tmp_TransId TABLE (TransId BIGINT)
-	INSERT INTO @tmp_TransId (TransId)
-	SELECT DISTINCT value
-	FROM string_split(@TransIds, ',')
+	IF @TransIds <> ''
+	BEGIN
+		DECLARE @tmp_TransId TABLE (TransId BIGINT)
+		INSERT INTO @tmp_TransId (TransId)
+		SELECT DISTINCT j.TransId
+		FROM (
+				SELECT js.MatchId AS MatchId, js.TransId AS TransId, js.Odds AS Odds
+				FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds MONEY) js
+		)j
 
-	--Query all sub tickets to recover
-	INSERT INTO #tblHybridBet
-	(
-		TransId
-		,MatchId
-		,RefNo
-		,CustId
-		,Winlostdate
-		,Ruben
-		,Oddspread
-		,MainTransId
-	)
-	SELECT 
-		bm.TransId
-		,bm.matchid
-		,bm.refno
-		,b.custid
-		,bm.winlostdate
-		,b.ruben
-		,b.oddsspread
-		,b.TransId
-	FROM @tmp_TransId t
-	INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
-	INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno
-	LEFT JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON bm.TransId = mt.TransId AND mt.MatchId = @MatchId
-	WHERE bm.matchid = @MatchId
-		AND bm.SiteDBGroupID = @SiteDBGroupId
-		AND b.bettype = 29
-		AND b.oddsspread = 3
-		AND bm.statuswinlost IS NOT NULL
-		AND mt.TransId IS NULL
+		INSERT INTO #tblHybridBet
+		(
+			TransId
+			,MatchId
+			,RefNo
+			,CustId
+			,Winlostdate
+			,Ruben
+			,Oddspread
+			,MainTransId
+		)
+		SELECT 
+			bm.TransId
+			,bm.matchid
+			,bm.refno
+			,b.custid
+			,bm.winlostdate
+			,b.ruben
+			,b.oddsspread
+			,b.TransId
+		FROM @tmp_TransId t
+		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
+		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno
+		LEFT JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON bm.TransId = mt.TransId AND mt.MatchId = @MatchId
+		WHERE bm.matchid = @MatchId
+			AND bm.SiteDBGroupID = @SiteDBGroupId
+			AND b.bettype = 29
+			AND b.oddsspread = 3
+			AND bm.statuswinlost IS NOT NULL
+			AND mt.TransId IS NULL
 
-	SET @TotalSubParlay = @@ROWCOUNT
+		SET @TotalSubParlay = @@ROWCOUNT
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #tblHybridBet
+		(
+			TransId
+			,MatchId
+			,RefNo
+			,CustId
+			,Winlostdate
+			,Ruben
+			,Oddspread
+			,MainTransId
+		)
+		SELECT 
+			bm.TransId
+			,bm.matchid
+			,bm.refno
+			,b.custid
+			,bm.winlostdate
+			,b.ruben
+			,b.oddsspread
+			,b.TransId
+		FROM dbo.bettransm AS bm WITH (NOLOCK)
+		INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
+		LEFT JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON bm.TransId = mt.TransId AND mt.MatchId = @MatchId
+		WHERE bm.matchid = @MatchId
+			AND bm.SiteDBGroupID = @SiteDBGroupId
+			AND b.bettype = 29
+			AND b.oddsspread = 3
+			AND bm.statuswinlost IS NOT NULL
+			AND mt.TransId IS NULL
+
+		SET @TotalSubParlay = @@ROWCOUNT
+	END
 
 	INSERT INTO @tmpMainTransId (TransId)
 	SELECT DISTINCT MainTransId
