@@ -44,15 +44,23 @@ BEGIN
 		WHERE  1 = CASE WHEN sporttype NOT IN (50,8) AND matchid = @MatchId THEN 1
 						WHEN sporttype IN (50,8) AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1 -- Get main/child matchid
 						ELSE 0 END
-		UNION --VS5
-		SELECT Match3rdId
-		FROM dbo.Match3rd WITH(NOLOCK)
-		WHERE  Match3rdId = @MatchId
+		--VS5
+		IF NOT EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = @MatchId)
+		BEGIN
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT Match3rdId
+			FROM dbo.Match3rd WITH(NOLOCK)
+			WHERE  Match3rdId = @MatchId
+		END
 
-		UNION -- Virtual Horse Racing & Virtual Dog Racing
-		SELECT EventId
-		FROM dbo.VSRaceInfo WITH(NOLOCK)
-		WHERE  EventID = @MatchId
+		-- Virtual Horse Racing & Virtual Dog Racing
+		IF NOT EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = @MatchId)
+		BEGIN
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT EventId
+			FROM dbo.VSRaceInfo WITH(NOLOCK)
+			WHERE  EventID = @MatchId
+		END
 		
 		INSERT INTO #TmpBettype(bettype)
 		SELECT b.bettype
