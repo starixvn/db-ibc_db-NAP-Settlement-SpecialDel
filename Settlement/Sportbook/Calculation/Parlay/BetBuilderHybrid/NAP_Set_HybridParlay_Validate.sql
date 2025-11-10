@@ -18,14 +18,22 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	DECLARE @IsCalculating TINYINT
+	DECLARE @procName SYSNAME = OBJECT_NAME(@@procid)
+	DECLARE @IsCalculating TINYINT 
 	
-	--temp for testing
-	WAITFOR DELAY '00:00:02.000'
+	IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT[1-9]'
+	BEGIN
+		WAITFOR DELAY '00:00:10.000'
+	END	
+	ELSE 
+	BEGIN
+		--wait for temp for testing
+		WAITFOR DELAY '00:00:03.000'
 
-	SET @IsCalculating = (SELECT TOP 1 1 FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId ORDER BY Starttime DESC)
+		SET @IsCalculating = (SELECT TOP 1 1 FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId ORDER BY Starttime DESC)
+	END
 
-	IF @IsCalculating = 2
+	IF @IsCalculating = 2 OR @IsCalculating IS NULL
 	BEGIN	
 		SELECT DISTINCT TransId
 		FROM dbo.bettrans b WITH (NOLOCK)
