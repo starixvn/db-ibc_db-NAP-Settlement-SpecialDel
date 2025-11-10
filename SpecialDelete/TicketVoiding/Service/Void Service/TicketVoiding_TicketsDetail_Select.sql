@@ -3,7 +3,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TicketsDetail_Select]
 (
 	@TransIds		VARCHAR(MAX) = NULL
    ,@TicketType		TINYINT
-   ,@MatchId		INT = NULL
 )
 AS
 /*	
@@ -62,7 +61,7 @@ BEGIN
 		FROM @tmp_TransIds t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
-		WHERE b.SiteDBGroupID = @SiteDBGroupID AND bm.MatchId = @MatchId
+		WHERE b.SiteDBGroupID = @SiteDBGroupID
 
 		UPDATE r
 		SET r.SelectionCount = sc.SelectionCount
