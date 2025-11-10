@@ -24,9 +24,6 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	insert into bodb_customerlog.dbo.UserLog_Settle (LogDate, Remark, ActionID, MatchID)
-	select getdate(),convert(varchar(max), @LegOddsJSON) + OBJECT_NAME(@@PROCID), 9999, @MatchId
-
 	DECLARE @LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
 			,@Session			NVARCHAR(50)
@@ -192,6 +189,8 @@ BEGIN
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
+
+
 
 	/*Coming soon*/
 
