@@ -317,7 +317,9 @@ BEGIN
 
 	CREATE TABLE #CTE_ParlayTickets (
 		ParentTransId		BIGINT
+		,ChildTransId		BIGINT
 		,ParentBettype		SMALLINT
+		,ChildBettype		SMALLINT
 		,mLiveIndicator		BIT
 		,Refno				BIGINT
 		,Transdesc			NVARCHAR(2000)
@@ -336,6 +338,7 @@ BEGIN
 		,srecommend			INT
 		,ParentHdp2			SMALLMONEY --selection parlay
 		,FilterPlayerAndOdds NVARCHAR(1000)
+		,IsHybrid			BIT DEFAULT(0)
 	) 
 
 	CREATE TABLE #CTE_ParlayVSTickets (
@@ -679,7 +682,9 @@ BEGIN
 	BEGIN
 		INSERT INTO #CTE_ParlayTickets (
 				ParentTransId
+				,ChildTransId
 				,ParentBettype
+				,ChildBettype
 				,mLiveIndicator
 				,Refno
 				,Transdesc
@@ -698,9 +703,12 @@ BEGIN
 				,srecommend
 				,ParentHdp2
 				,FilterPlayerAndOdds
+				,IsHybrid
 			)
 		SELECT   b.transid
+				,bm.transid AS ChildTransId
 				,b.bettype
+				,bm.bettype AS ChildBettype
 				,bm.liveIndicator
 				,b.refno
 				,bm.transdesc
@@ -721,6 +729,7 @@ BEGIN
 				,b.srecommend
 				,b.hdp2 AS ParentHdp2
 				,bm.oddsid AS FilterPlayerAndOdds
+				,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
 		FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
 			INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
 			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
@@ -994,14 +1003,14 @@ BEGIN
 				)
 			SELECT 1 AS OrderNo
 				,COUNT(t.ParentTransId) AS TotalTrans
-				,t.ParentBettype
+				,CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.ChildBettype END
 				,0
 				,@LicenseeName AS LicenseeName
 				,@IsChinaView AS IsChinaView
 				,@SpecialPlatfrom AS SpecialPlatfrom
 			FROM #CTE_ParlayTickets AS t
 			WHERE EXISTS (SELECT 1 FROM dbo.Dep_CustSuper AS cs WITH (NOLOCK) WHERE site = @LicenseeName AND t.srecommend = cs.custid)
-			GROUP BY t.ParentBettype
+			GROUP BY CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.ChildBettype END
 				,t.mLiveIndicator
 			HAVING COUNT(t.Refno) > 0
 		  END
@@ -1075,8 +1084,8 @@ BEGIN
 				,SpecialPlatfrom
 				)
 			SELECT 0 AS OrderNo
-				,COUNT(DISTINCT t.ParentTransId) AS TotalTrans
-				,t.ParentBettype
+				,COUNT(DISTINCT CASE WHEN t.IsHybrid = 0 THEN t.ParentTransId ELSE t.ChildTransId END) AS TotalTrans
+				,CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.ChildBettype END
 				,0
 				,'Credit' AS LicenseeName
 				,0
@@ -1085,7 +1094,7 @@ BEGIN
 			LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON t.srecommend = ds.custid
 			LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON t.srecommend = cs.custid
 			WHERE ds.custid IS NULL AND cs.CustId IS NULL
-			GROUP BY t.ParentBettype
+			GROUP BY CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.ChildBettype END
 				,t.mLiveIndicator
 			HAVING COUNT(t.Refno) > 0
 		  END
@@ -1167,8 +1176,8 @@ BEGIN
 			SELECT  CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 0
 						 WHEN s.site IS NOT NULL AND (ISNULL(s.IsChinaView,0) = 1 OR s.SpecialPlatfrom = 2) THEN 2
 						ELSE 1 END
-				,COUNT(DISTINCT t.ParentTransId) AS TotalTrans
-				,t.ParentBettype
+				,COUNT(DISTINCT CASE WHEN t.IsHybrid = 0 THEN t.ParentTransId ELSE t.ChildTransId END) AS TotalTrans
+				,CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.ChildBettype END
 				,0
 				,CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit' ELSE s.site END AS LicenseeName
 				,ISNULL(s.IsChinaView,0)
@@ -1179,7 +1188,7 @@ BEGIN
 				LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON t.srecommend = cs.CustId
 			GROUP BY s.Site, s.IsChinaView, s.SpecialPlatfrom
 				,t.mLiveIndicator
-				,t.ParentBettype
+				,CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.ChildBettype END
 				,cs.CustId
 	   END
 
