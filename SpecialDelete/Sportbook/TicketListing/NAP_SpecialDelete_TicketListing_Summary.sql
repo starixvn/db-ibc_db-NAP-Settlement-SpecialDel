@@ -746,7 +746,9 @@ BEGIN
 			AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END
 							AND CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 THEN ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END	
-			AND (b.betid = 0 OR b.betid IS NULL )
+			AND 1 = CASE WHEN @Type = 5 THEN 1
+						 WHEN @Type <> 5 AND (b.betid = 0 OR b.betid IS NULL) THEN 1
+						 ELSE 0 END
 		OPTION(OPTIMIZE FOR (@n = 1))
 
 		IF @SelectionSubParlays <> ''
