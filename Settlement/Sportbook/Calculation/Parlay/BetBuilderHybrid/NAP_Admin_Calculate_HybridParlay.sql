@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_HybridParlay]
 	,@Action		VARCHAR(20) = 'CAL'
 	,@creator		INT
 	,@IP			VARCHAR(15) = ''
-	,@TransIds		VARCHAR(MAX) = ''
+	,@LegOddsJSON	NVARCHAR(MAX) = ''
 	,@ErrCode		INT = 0 OUTPUT
 	,@ErrMsg		NVARCHAR(200) = NULL OUTPUT
 )
@@ -96,7 +96,7 @@ BEGIN
 		RETURN
 	END
 
-	IF @TransIds <> ''
+	IF @LegOddsJSON <> ''
 	BEGIN
 		DECLARE @tmp_TransId TABLE (TransId BIGINT)
 		INSERT INTO @tmp_TransId (TransId)
