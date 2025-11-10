@@ -2,7 +2,8 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TicketsDetail_Select]
 (
 	@TransIds		VARCHAR(MAX) = NULL
-	,@TicketType	TINYINT
+   ,@TicketType		TINYINT
+   ,@MatchId		INT = NULL
 )
 AS
 /*	
@@ -26,6 +27,20 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmp_TransIds AS TABLE (TransId BIGINT)
+	DECLARE @tmp_Results TABLE (
+			MainTransId BIGINT,
+			CustId INT,
+			SubTransId BIGINT,
+			SubMatchId INT,
+			SubBettypeId SMALLINT,
+			SubHdp1 SMALLMONEY,
+			SubHdp2 SMALLMONEY,
+			Subbetcheck NVARCHAR(100),
+			SubBetteam NVARCHAR(100),
+			Transdesc NVARCHAR(1000),
+			Refno BIGINT,
+			SelectionCount INT
+		)
 
 	INSERT INTO @tmp_TransIds (TransId)
 	SELECT value
@@ -33,7 +48,8 @@ BEGIN
 
 	IF @TicketType = 0
 	BEGIN
-		SELECT b.TransId AS MainTransId, b.custid, NULL AS SubTransId, NULL AS SubMatchId, NULL AS SubBettypeId, NULL AS SubHdp1, NULL AS SubHdp2, NULL AS Subbetcheck, NULL AS SubBetteam, b.transdesc 
+		INSERT INTO @tmp_Results (MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, Transdesc)
+		SELECT b.TransId AS MainTransId, b.custid, NULL AS SubTransId, NULL AS SubMatchId, NULL AS SubBettypeId, NULL AS SubHdp1, NULL AS SubHdp2, NULL AS Subbetcheck, NULL AS SubBetteam, b.transdesc
 		FROM @tmp_TransIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransID = t.TransId AND b.matchid = 29 AND b.bettype = 29 AND b.oddsspread = 3
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
@@ -41,12 +57,27 @@ BEGIN
 
 	ELSE IF @TicketType = 1
 	BEGIN
-		SELECT b.TransId AS MainTransId, b.custid, t.TransId AS SubTransId, bm.matchid AS SubMatchId, bm.bettype AS SubBettypeId, bm.hdp1 AS SubHdp1, bm.hdp2 AS SubHdp2, bm.betcheck AS Subbetcheck, bm.betteam AS SubBetteam, b.transdesc 
+		INSERT INTO @tmp_Results (MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, transdesc, Refno)
+		SELECT b.TransId AS MainTransId, b.CustId, t.TransId AS SubTransId, bm.matchid AS SubMatchId, bm.bettype AS SubBettypeId, bm.hdp1 AS SubHdp1, bm.hdp2 AS SubHdp2, bm.betcheck AS Subbetcheck, bm.betteam AS SubBetteam, b.transdesc, bm.refno
 		FROM @tmp_TransIds t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
-			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
-		WHERE b.SiteDBGroupID = @SiteDBGroupID
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
+		WHERE b.SiteDBGroupID = @SiteDBGroupID AND bm.MatchId = @MatchId
+
+		UPDATE r
+		SET r.SelectionCount = sc.SelectionCount
+		FROM @tmp_Results r
+			CROSS APPLY 
+				( 
+					SELECT bm.refno, bm.matchid, COUNT(1) AS SelectionCount
+					FROM dbo.bettransm bm WITH (NOLOCK)
+					WHERE r.Refno = bm.refno AND r.SubMatchId = bm.matchid
+					GROUP BY bm.refno, bm.matchid
+				) sc
 	END
+	SELECT MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, transdesc, SelectionCount
+	FROM @tmp_Results
+	
 END
 GO
 
