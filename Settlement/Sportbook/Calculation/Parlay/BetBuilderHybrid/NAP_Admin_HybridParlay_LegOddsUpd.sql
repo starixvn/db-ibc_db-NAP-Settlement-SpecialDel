@@ -60,7 +60,7 @@ BEGIN
 			FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds MONEY) js
 	)j
 	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = j.TransId
-	WHERE AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+	WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		AND b.bettype = 29
 		AND b.matchid = 29
 		AND b.oddsspread = 3
