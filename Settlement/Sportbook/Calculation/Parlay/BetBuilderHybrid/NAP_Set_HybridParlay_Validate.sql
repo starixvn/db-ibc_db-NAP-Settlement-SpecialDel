@@ -18,7 +18,14 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId AND p.IsCalculating IN (0,1))
+	DECLARE @IsCalculating TINYINT
+	
+	--temp for testing
+	WAITFOR DELAY '00:00:02.000'
+
+	SET @IsCalculating = (SELECT TOP 1 1 FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId ORDER BY Starttime DESC)
+
+	IF @IsCalculating = 2
 	BEGIN	
 		SELECT DISTINCT TransId
 		FROM dbo.bettrans b WITH (NOLOCK)
@@ -40,10 +47,16 @@ BEGIN
 				, @ErrMsg = 'No valid ticket found.'
 		END
 	END
-	ELSE
+	ELSE IF @IsCalculating IN (0,1)
 	BEGIN
 		SELECT @ErrCode = 100
 			, @ErrMsg = 'The parlay queue has not been completed yet.'
+		
+	END
+	ELSE
+	BEGIN
+		SELECT @ErrCode = 99
+			, @ErrMsg = 'The parlay queue failed.'
 		
 	END
 END
