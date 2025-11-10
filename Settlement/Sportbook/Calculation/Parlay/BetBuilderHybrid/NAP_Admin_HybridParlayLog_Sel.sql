@@ -24,6 +24,9 @@ BEGIN
 
 	DECLARE @tmpTransId AS TABLE (TransId BIGINT)
 
+	insert into UserLog_Settle (LogDate, Remark, ActionID, MatchID)
+	select getdate(),convert(varchar(max), @lDate) + '-' + convert(varchar(max), @TransIds), 9999, @MatchId
+
 	IF @TransIds <> ''
 	BEGIN
 		INSERT INTO @tmpTransId (TransId)
@@ -40,6 +43,7 @@ BEGIN
 					AND l.Logdate >= @lDate
 				ORDER BY LogDate DESC
 		)l
+
 	END
 	ELSE
 	BEGIN
