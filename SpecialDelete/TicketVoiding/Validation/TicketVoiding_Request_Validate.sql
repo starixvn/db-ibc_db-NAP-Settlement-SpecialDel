@@ -77,9 +77,9 @@ BEGIN
 			DELETE m
 			FROM @tmpMarkTransId m 
 				INNER JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON m.TransId = mt.TransId
-			WHERE mt.MarkType = 0 -- For 0: SD, 1: TVS
+			WHERE mt.MarkType IN (0,2) -- For 0: SD, 1: TVS, 2: SD-HP, 3: TVS-HP
 
-			--For sub parlay
+			--For sub parlay (normal)
 			DELETE m
 			FROM @tmpMarkTransId m
 					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.TransId = bm.TransId
@@ -89,7 +89,19 @@ BEGIN
 						 FROM dbo.MarkedTransaction m WITH (NOLOCK) 
 						 WHERE b.TransId = m.TransId AND bm.matchid = m.MatchId -- Case main parlay for 2 match sub
 					 )mt
-			WHERE mt.MarkType = 0 -- For 0: SD, 1: TVS
+			WHERE mt.MarkType IN (0) -- For 0: SD
+
+			--For hybrid parlay
+			DELETE m
+			FROM @tmpMarkTransId m
+					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.TransId = bm.TransId
+					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno
+					CROSS APPLY (
+						 SELECT TOP 1 m.TransId, m.MarkType 
+						 FROM dbo.MarkedTransaction m WITH (NOLOCK) 
+						 WHERE bm.TransId = m.TransId AND bm.matchid = m.MatchId
+					 )mt
+			WHERE mt.MarkType IN (2) AND b.oddsspread = 3-- For 2: SD-HP
 		END
 
 		SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
@@ -105,7 +117,7 @@ BEGIN
 			DELETE m
 			FROM @tmpUnmarkTransId m 
 				INNER JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON m.TransId = mt.TransId
-			WHERE mt.MarkType = 0 -- For 0: SD, 1: TVS
+			WHERE mt.MarkType IN (0,2) -- For 0: SD, 1: TVS, 2: SD-HP, 3: TVS-HP
 
 			--For sub parlay
 			DELETE m
