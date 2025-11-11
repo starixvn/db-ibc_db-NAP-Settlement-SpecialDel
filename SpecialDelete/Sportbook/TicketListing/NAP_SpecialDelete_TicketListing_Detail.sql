@@ -329,6 +329,7 @@ BEGIN
 			  FilterPlayerAndOdds NVARCHAR(1000),
 			  VendorMatchId	   VARCHAR(50),
 			  IsHybrid		   BIT DEFAULT(0),
+			  MatchId		   INT,
 			  FinalOdds		   SMALLMONEY
              );
 
@@ -792,7 +793,7 @@ BEGIN
 					SubTransID, SubBetType, SubHdp1, SubHdp2, SubOdds, SubStake, SubBetTeam, SubBetCheck, SubLiveHomeScore,
 					SubLiveAwayScore, SubLiveIndicator, SubTransDesc,
 					FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, 
-					FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds,IsHybrid,FinalOdds)	
+					FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds,IsHybrid,FinalOdds,MatchId)	
 			SELECT	b.username,
 					b.bettype,				
 					b.BetdaqId,
@@ -856,7 +857,8 @@ BEGIN
 						ELSE bm.transdesc END AS FilterTransdesc,
 					bm.oddsid AS FilterPlayerAndOdds,
 					CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid,
-					bm.finalodds AS FinalOdds
+					bm.finalodds AS FinalOdds,
+					bm.matchid
 			FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
 				INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
@@ -1046,6 +1048,23 @@ BEGIN
 			)
 		END	
 	END 
+
+	--Update odds = legodds support show betlist for ticket Hybrid Parlay
+	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE IsHybrid = 1)
+	BEGIN
+		;WITH CTE_MaxSubOdds AS (
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #SpecialDeleteBets AS t
+				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.MatchId = bm.matchid
+			WHERE t.IsHybrid = 1
+			GROUP BY t.transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #SpecialDeleteBets AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.IsHybrid = 1
+	END
 
 	-- System parlay Virtual Sports
     IF EXISTS(SELECT 1 
