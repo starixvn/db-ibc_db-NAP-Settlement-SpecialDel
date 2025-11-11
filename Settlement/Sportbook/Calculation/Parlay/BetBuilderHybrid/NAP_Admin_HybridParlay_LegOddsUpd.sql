@@ -71,7 +71,7 @@ BEGIN
 			SELECT 
 				m AS OrgMatch,
 				o AS OrgOdds
-			FROM OPENJSON(t.transdesc)
+			FROM OPENJSON(t.transdesc, '$.legOdds')
 			WITH (
 				m BIGINT '$.m',
 				o MONEY '$.o'
