@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Sub]
 	@IP					VARCHAR(50),
 	@BetType			VARCHAR(100)		= 'All',
 	@MainTransIds		VARCHAR(MAX)	= '',
+	@SubTransIdsHP		VARCHAR(MAX)	= '',
 	@MatchId			INT	,
 	@IsCalledJackTimeHybridParlay BIT = 1
 AS
@@ -178,7 +179,9 @@ BEGIN
 	DECLARE @tblAfterBalance TABLE (custid INT PRIMARY KEY, balance MONEY)
 	
 	DECLARE @tblDebitPending TVP_BalanceList
-	DECLARE @tblCreditPending TVP_BalanceList					
+	DECLARE @tblCreditPending TVP_BalanceList	
+	
+	DECLARE @tblSubTransIdsHP TABLE (Subtransid BIGINT)
 	
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 
@@ -214,7 +217,14 @@ BEGIN
 		
 		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
 		RETURN
-	END		  
+	END		
+	
+	IF ISNULL(@SubTransIdsHP, '') <> ''
+	BEGIN
+		INSERT INTO @tblSubTransIdsHP (Subtransid)
+		SELECT DISTINCT value
+		FROM string_split (@SubTransIdsHP, ',')
+	END
 	
 	-- Apply new way to lock parlay tickets	
 	INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
@@ -261,7 +271,7 @@ BEGIN
 		RETURN		 
 	END 
 	
-	BEGIN TRY									
+	BEGIN TRY	
 		--> query all sub tickets to recover
 		INSERT INTO @tblRecoverBet(
 				 SubTransID			 
@@ -416,6 +426,11 @@ BEGIN
 			FROM @tblRecoverBet AS b
 			INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
 			WHERE b.oddsspread = 3
+
+			DELETE t
+			FROM @tblRecoverBet t
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tblSubTransIdsHP tmp WHERE tmp.Subtransid = t.SubTransID)
+				AND t.oddsspread = 3
 		END
 
 		--> get list of MainTranIds	

@@ -20,12 +20,11 @@ AS
 		- 20251027@Max: Init new SP [Redmine: #241652]
 
 	Param's explanation: 
+		@TransIds: List main transId. Ex: '455847161427394562,455847389060661250'
 
 */
 BEGIN
 	SET NOCOUNT ON
-
-	
 
 	DECLARE @refnos_29				VARCHAR(MAX) = ''
 			,@MatchDate				DATETIME
@@ -52,9 +51,7 @@ BEGIN
 			,TransId		BIGINT
 			,MatchId		INT
 			,RefNo			BIGINT
-			,CustId			INT
 			,Winlostdate	SMALLDATETIME
-			,Ruben			TINYINT
 			,Oddspread		MONEY
 			,IsFinish		BIT
 	)
@@ -64,12 +61,7 @@ BEGIN
 	(
 		TransId		BIGINT
 		,Refno		BIGINT
-		,CustId		INT
-		,Balance	MONEY
-		,Ruben		TINYINT
 	)
-
-	DECLARE @tmpMainTransId TABLE (TransId BIGINT) 
 	DECLARE @tmpTransIdBatch TABLE (TransId BIGINT)
 	DECLARE @tmpMatchId TABLE (MatchId INT, MatchDate DATETIME, IsFinish BIT)
 	DECLARE @tmpInputTransId TABLE (TransId BIGINT)
@@ -122,9 +114,7 @@ BEGIN
 			TransId
 			,MatchId
 			,RefNo
-			,CustId
 			,Winlostdate
-			,Ruben
 			,Oddspread
 			,MainTransId
 		)
@@ -132,9 +122,7 @@ BEGIN
 			bm.TransId
 			,bm.matchid
 			,bm.refno
-			,b.custid
 			,bm.winlostdate
-			,b.ruben
 			,b.oddsspread
 			,b.TransId
 		FROM @tmpInputTransId t
@@ -158,9 +146,7 @@ BEGIN
 			TransId
 			,MatchId
 			,RefNo
-			,CustId
 			,Winlostdate
-			,Ruben
 			,Oddspread
 			,MainTransId
 		)
@@ -168,9 +154,7 @@ BEGIN
 			bm.TransId
 			,bm.matchid
 			,bm.refno
-			,b.custid
 			,bm.winlostdate
-			,b.ruben
 			,b.oddsspread
 			,b.TransId
 		FROM dbo.bettransm AS bm WITH (NOLOCK)
@@ -187,18 +171,10 @@ BEGIN
 		SET @TotalSubParlay = @@ROWCOUNT
 	END
 
-	INSERT INTO @tmpMainTransId (TransId)
-	SELECT DISTINCT MainTransId
-	FROM #tblHybridBet
-
-	INSERT INTO #tblMainTicket(TransId, Refno, CustId, Balance, Ruben)
-	SELECT b.TransId
-		,b.refno
-		,b.custid
-		,b.winlost - b.actual_stake + b.playercomm AS balance
-		,b.ruben
-	FROM @tmpMainTransId AS t
-	INNER JOIN bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
+	INSERT INTO #tblMainTicket(TransId, Refno)
+	SELECT DISTINCT t.MainTransId
+		,t.RefNo
+	FROM #tblHybridBet AS t
 	
 	INSERT INTO #tblMatchParlayProcess(MatchId, RefNo)
 	SELECT DISTINCT t.matchid, t.refno

@@ -29,8 +29,7 @@ BEGIN
 			,@SB_Error			BIT
 			,@Session			NVARCHAR(50)
 		    ,@ThreadHold		INT = 0 -- over threadhold, the parlay process will be locked in systemsetting 
-		    ,@SPName			VARCHAR(500) = OBJECT_NAME(@@PROCID)			
-			,@SitedbgroupId		SMALLINT 
+		    ,@SPName			VARCHAR(500) = OBJECT_NAME(@@PROCID)			 
 			,@avaiableProcess	BIT
 			,@totalRefNo		INT = 0
 			,@strLegOdds		VARCHAR(MAX)
@@ -38,54 +37,73 @@ BEGIN
 			,@EndTime			DATETIME
 			,@ActionID			INT = 81067
 
-	CREATE TABLE #tmpLegOddsInfo (MatchId INT, TransId BIGINT, Odds MONEY, RefNo BIGINT, transdesc NVARCHAR(2000))
+	CREATE TABLE #tmpMainTransId (MatchId INT, TransId BIGINT, Odds MONEY, RefNo BIGINT, transdesc NVARCHAR(2000))
 	CREATE TABLE #tmpMaxTransIdUpdateLeg(TransId BIGINT, Refno BIGINT, MatchId INT, Odds MONEY, IsFinish BIT, OrgOdds MONEY, MainTransId BIGINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #tmpMaxTransIdProcessBatch (TransId BIGINT, Refno BIGINT, MatchId INT, Odds MONEY)
 
+	DECLARE @tmpLegOddsInfo TABLE (MatchId INT, TransId BIGINT, Odds MONEY)
+
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 	SET @StartTime = GETDATE()
 	SET @SB_Error = 0
-	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @IsCentral BIT = 0	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-	INSERT INTO #tmpLegOddsInfo (MatchId, TransId, Odds, RefNo, transdesc)
-	SELECT j.MatchId, j.TransId, j.Odds, b.refno, b.transdesc
-	FROM (
-			SELECT js.MatchId AS MatchId, js.TransId AS TransId, js.Odds AS Odds
-			FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds MONEY) js
-	)j
-	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = j.TransId
-	WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-		AND b.bettype = 29
-		AND b.matchid = 29
-		AND b.oddsspread = 3
+	INSERT INTO @tmpLegOddsInfo (MatchId, TransId, Odds)
+	SELECT js.MatchId AS MatchId, js.TransId AS TransId, js.Odds AS Odds
+	FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds MONEY) js
 
-	INSERT INTO #tmpMaxTransIdUpdateLeg (Refno, MatchId, Odds, TransId, OrgOdds, MainTransId)
-	SELECT t.RefNo, t.MatchId, t.Odds, bm.MaxSubTransId, j.OrgOdds, t.TransId AS MainTransId
-	FROM #tmpLegOddsInfo t
-	CROSS APPLY (
-			SELECT 
-				m AS OrgMatch,
-				o AS OrgOdds
-			FROM OPENJSON(t.transdesc, '$.legOdds')
-			WITH (
-				m BIGINT '$.m',
-				o MONEY '$.o'
-			)
-			WHERE m = @MatchId
-		 )j
+	INSERT INTO #tmpMainTransId (MatchId, TransId, Odds, RefNo, transdesc)
+	SELECT j.MatchId, j.TransId, j.Odds, b.refno, b.transdesc
+	FROM @tmpLegOddsInfo j
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = j.TransId
+	WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+
+	BEGIN TRY
+		INSERT INTO #tmpMaxTransIdUpdateLeg (Refno, MatchId, Odds, TransId, OrgOdds, MainTransId)
+		SELECT t.RefNo, t.MatchId, t.Odds, bm.MaxSubTransId, j.OrgOdds, t.TransId AS MainTransId
+		FROM #tmpMainTransId t
 		CROSS APPLY (
-				SELECT MAX(bm.transID) AS MaxSubTransId
-				FROM dbo.bettransm bm WITH (NOLOCK)
-				WHERE bm.refno = t.RefNo
-					AND bm.matchid = t.MatchId
-		)bm
-	
-	SET @totalRefNo = @@ROWCOUNT
+				SELECT 
+					m AS OrgMatch,
+					o AS OrgOdds
+				FROM OPENJSON(t.transdesc, '$.legOdds')
+				WITH (
+					m BIGINT '$.m',
+					o MONEY '$.o'
+				)
+				WHERE m = @MatchId
+				)j
+			CROSS APPLY (
+					SELECT MAX(bm.transID) AS MaxSubTransId
+					FROM dbo.bettransm bm WITH (NOLOCK)
+					WHERE bm.refno = t.RefNo
+						AND bm.matchid = t.MatchId
+			)bm
+
+			SET @totalRefNo = @@ROWCOUNT
+	END TRY
+	BEGIN CATCH
+		SELECT @ErrCode = ERROR_NUMBER()
+			,@ErrMsg = ERROR_MESSAGE()
+
+		SET @LogData = CAST((SELECT	'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
+								+ ' AffectedTransIds: ' + ISNULL(@AffectedTransIds, '')
+								+ ' ErrMsg: ' + @ErrMsg
+								AS '@LogData'
+					FOR XML PATH ('r'), ROOT ('root'), TYPE
+		) AS VARCHAR(MAX))
+
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+				@userid				= @creator
+				,@matchid			= @MatchId
+				,@actionid			= @ActionID
+				,@Remark			= @LogData
+				,@ip				= @ip
+	END CATCH
 
 	IF @totalRefNo = 0
 	BEGIN
@@ -100,7 +118,7 @@ BEGIN
 	   ,@ThreadHold = @ThreadHold OUTPUT
 
 	INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-	SELECT MatchId, refno
+	SELECT DISTINCT MatchId, refno
 	FROM #tmpMaxTransIdUpdateLeg
 
 	BEGIN TRY
@@ -194,6 +212,20 @@ BEGIN
 					@isExistParlay  = 1  
 					,@IsReleased  = 1 
 		END
+
+		SET @LogData = CAST((SELECT	'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
+								+ ' AffectedTransIds: ' + @AffectedTransIds
+								+ ' ErrMsg: ' + @ErrMsg
+								AS '@LogData'
+					FOR XML PATH ('r'), ROOT ('root'), TYPE
+		) AS VARCHAR(MAX))
+
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+				@userid				= @creator
+				,@matchid			= @MatchId
+				,@actionid			= @ActionID
+				,@Remark			= @LogData
+				,@ip				= @ip
 	END CATCH
 
 	SET @AffectedTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( m.MainTransId AS VARCHAR(20))
@@ -205,7 +237,7 @@ BEGIN
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ ' AffectedTransIds: ' + @AffectedTransIds
+								+ ' AffectedTransIds: ' + ISNULL(@AffectedTransIds, '')
 								+ ' ErrMsg: ' + @ErrMsg
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
@@ -219,7 +251,7 @@ BEGIN
 			,@ip				= @ip
 
 	DROP TABLE #tblMatchParlayProcess
-	DROP TABLE #tmpLegOddsInfo
+	DROP TABLE #tmpMainTransId
 	DROP TABLE #tmpMaxTransIdProcessBatch
 	DROP TABLE #tmpMaxTransIdUpdateLeg
 END
