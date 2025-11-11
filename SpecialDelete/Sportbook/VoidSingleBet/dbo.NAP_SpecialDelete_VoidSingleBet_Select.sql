@@ -361,7 +361,8 @@ BEGIN
 			  SiteDBGroupId		SMALLINT,
 			  SettlementStatus	TINYINT,
 			  eventstatus		NVARCHAR(50),
-			  finalodds			SMALLMONEY
+			  finalodds			SMALLMONEY,
+			  oddsspread_tmp	MONEY --Get main oddsspread for parlay
              );
 
 	CREATE TABLE #SpecialDeleteBetsm
@@ -874,6 +875,7 @@ BEGIN
 				,matchid
 				,modds
 				,finalodds
+				,oddsspread_tmp
 			)
 			SELECT
 				b.transid,
@@ -935,6 +937,7 @@ BEGIN
 				,bm.matchid
 				,b.modds
 				,bm.finalodds
+				,b.oddsspread AS oddsspread_tmp
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
@@ -955,9 +958,9 @@ BEGIN
 					FROM @tmpSelectionSubParlay sp
 					WHERE 1 = CASE 
 								WHEN sp.Id = '10 UP' AND 
-									 ((ISNULL(b.oddsspread,0) <> 3 AND b.hdp2 >= 10) OR (b.oddsspread = 3 AND b.betid >= 10)) THEN 1
+									 ((ISNULL(b.oddsspread_tmp,0) <> 3 AND b.hdp2 >= 10) OR (b.oddsspread_tmp = 3 AND b.betid >= 10)) THEN 1
 								WHEN sp.Id <> '10 UP' AND 
-									 ((ISNULL(b.oddsspread,0) <> 3 AND b.hdp2 = CAST(sp.Id AS SMALLMONEY)) OR (b.oddsspread = 3 AND b.betid = CAST(sp.Id AS SMALLMONEY))) THEN 1
+									 ((ISNULL(b.oddsspread_tmp,0) <> 3 AND b.hdp2 = CAST(sp.Id AS SMALLMONEY)) OR (b.oddsspread_tmp = 3 AND b.betid = CAST(sp.Id AS SMALLMONEY))) THEN 1
 								ELSE 0 
 							  END
 				);
