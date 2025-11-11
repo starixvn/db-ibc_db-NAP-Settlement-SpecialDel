@@ -1300,12 +1300,11 @@ BEGIN
 		,m.matchcode 
 		,m.sporttype
 		,b.matchid AS GroupName
-		,CASE WHEN b.IsHybrid = 1 THEN bm.transid ELSE b.transid END AS subtransid
+		,b.transid AS subtransid
 		,IIF(tmp.TransId IS NOT NULL, 1, 0) AS IsChecked
 		,b.IsCreditCashService
 		,b.IsHybrid
 	FROM #tmpTransInfo b
-		INNER HASH JOIN bettransm AS bm ON bm.refno = b.refno
 		INNER JOIN @tmp_MatchInfo m ON m.MatchId = b.matchid
 		LEFT JOIN #SelectedTrans tmp ON tmp.TransId = b.transid
 	WHERE b.IsSiteDBDown = 0
