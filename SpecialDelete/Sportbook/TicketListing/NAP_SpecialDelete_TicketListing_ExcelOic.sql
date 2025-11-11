@@ -624,15 +624,15 @@ BEGIN
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 29
 			AND b.matchid = 29
-			AND ((@Type = 5 AND ISNULL(b.oddsspread,0) = 3)
-			 OR (@Type <> 5 AND ISNULL(b.oddsspread,0) <> 3))
 			AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
 			AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END 
 								AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-			AND (b.betid = 0 OR b.betid IS NULL)
+			AND 1 = CASE WHEN @Type = 5 AND ISNULL(b.oddsspread,0) = 3 THEN 1
+						 WHEN @Type <> 5 AND (b.betid = 0 OR b.betid IS NULL) AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+						 ELSE 0 END
 		OPTION(OPTIMIZE FOR (@n = 1))
 
 		IF (@IsReSettled = 1 AND @Type IN (0,3,5))
