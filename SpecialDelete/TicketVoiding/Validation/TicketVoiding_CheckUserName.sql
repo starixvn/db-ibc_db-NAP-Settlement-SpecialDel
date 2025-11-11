@@ -187,6 +187,7 @@ BEGIN
 	  ,AdjustVoidLimit money
 	  ,IsCreditCashService BIT DEFAULT(0)
 	  ,IsSiteDBDown BIT DEFAULT(0)
+	  ,IsHybrid	BIT DEFAULT(0)
 	  ,id [int] IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -410,6 +411,7 @@ BEGIN
 		  ,IsCreditCashService
 		  ,IsDeposit
 		  ,IsSiteDBDown
+		  ,IsHybrid
 		)
 	SELECT matchid
 		  ,transid 
@@ -457,6 +459,7 @@ BEGIN
 		  ,CASE WHEN cs.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsCreditCashService
 		  ,0 AS IsDeposit
 		  ,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
+		  ,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
 		LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK) ON c.custid = cs.CustID AND cs.ServiceType = 1
@@ -538,6 +541,7 @@ BEGIN
 			  ,IsCreditCashService
 			  ,IsDeposit
 			  ,IsSiteDBDown
+			  ,IsHybrid
 			)
 		SELECT matchid
 			  ,transid 
@@ -585,6 +589,7 @@ BEGIN
 			  ,CASE WHEN cs.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsCreditCashService
 			  ,0 AS IsDeposit
 			  ,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
+			  ,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END
 		FROM dbo.bettrans14 b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
 			LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK) ON c.custid = cs.CustID AND cs.ServiceType = 1
@@ -1277,7 +1282,7 @@ BEGIN
 		,b.betdaqid
 		,b.custid        
 		,b.statusID
-		,ABS(winlost) AS winlost
+		,ABS(b.winlost) AS winlost
 		,b.IsVoid14
 		,b.matchid
 		,b.bettype
@@ -1295,10 +1300,12 @@ BEGIN
 		,m.matchcode 
 		,m.sporttype
 		,b.matchid AS GroupName
-		,b.transid AS subtransid
+		,CASE WHEN b.IsHybrid = 1 THEN bm.transid ELSE b.transid END AS subtransid
 		,IIF(tmp.TransId IS NOT NULL, 1, 0) AS IsChecked
 		,b.IsCreditCashService
+		,b.IsHybrid
 	FROM #tmpTransInfo b
+		INNER HASH JOIN bettransm AS bm ON bm.refno = b.refno
 		INNER JOIN @tmp_MatchInfo m ON m.MatchId = b.matchid
 		LEFT JOIN #SelectedTrans tmp ON tmp.TransId = b.transid
 	WHERE b.IsSiteDBDown = 0

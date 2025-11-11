@@ -75,7 +75,7 @@ BEGIN
 		INSERT INTO #TmpBettype(bettype)
         SELECT bm.bettype
         FROM dbo.bettransm bm WITH (NOLOCK)
-			INNER HASH JOIN bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+			INNER JOIN bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId
         WHERE bm.SiteDBGroupID = @SiteDBGroupID
             AND bm.bettype NOT IN (10,29,38,500)
