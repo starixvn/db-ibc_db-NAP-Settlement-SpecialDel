@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION dbo.f_Set_ExistFailedHoldResult(@Matchid INT)
 RETURNS @Result TABLE
 (
