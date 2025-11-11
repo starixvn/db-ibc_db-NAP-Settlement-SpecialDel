@@ -79,12 +79,10 @@ BEGIN
 			WHERE m = @MatchId
 		 )j
 		CROSS APPLY (
-				SELECT TOP 1 bm.transID AS MaxSubTransId
+				SELECT MAX(bm.transID) AS MaxSubTransId
 				FROM dbo.bettransm bm WITH (NOLOCK)
 				WHERE bm.refno = t.RefNo
 					AND bm.matchid = t.MatchId
-				ORDER BY bm.TransId DESC
-
 		)bm
 	
 	SET @totalRefNo = @@ROWCOUNT
