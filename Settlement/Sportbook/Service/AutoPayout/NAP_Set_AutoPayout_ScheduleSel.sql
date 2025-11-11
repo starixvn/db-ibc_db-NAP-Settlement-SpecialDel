@@ -199,7 +199,7 @@ BEGIN
 					  FROM dbo.ResultDetail AS r WITH(NOLOCK)
 					  WHERE r.matchid = t.MatchId					
 						AND 1 = CASE 
-										WHEN r.ResourceId = '00' AND t.TypeId = 2 THEN 1
+										WHEN r.ResourceId IN ('00','01') AND t.TypeId = 2 THEN 1
 										WHEN r.ResourceId = '01' AND t.TypeId = 1 THEN 1
 										ELSE 0
 									END
