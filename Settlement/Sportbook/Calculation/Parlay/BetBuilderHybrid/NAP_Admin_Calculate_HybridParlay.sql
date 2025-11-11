@@ -269,8 +269,11 @@ BEGIN
 		   , @AffectedTransIds = @MainParlay_MaxPO OUTPUT
 		
 		--Insert max payout queue
-		EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
-			@TransIds = @MainParlay_MaxPO
+		IF ISNULL(@MainParlay_MaxPO, '') <> ''
+		BEGIN
+			EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
+				@TransIds = @MainParlay_MaxPO
+		END
 		
 		--Release lock
 		IF @TotalSubParlay <= @ThreadHold

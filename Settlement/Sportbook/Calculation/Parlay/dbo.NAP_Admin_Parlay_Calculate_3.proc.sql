@@ -110,7 +110,7 @@ BEGIN
 										WHEN t.statuswinlost <> bm.statuswinlost THEN 1
 										ELSE 0 END
 			--DRAW -> REFUND OR REFUND -> DRAW: can settle direct no need to wait new leg odds
-			,isValidSettle = CASE WHEN t.isValidSettle = 0 AND bm.statuswinlost IN (0,6) AND t.statuswinlost IN (0,6) THEN 1 ELSE isValidSettle END					
+			,isValidSettle = CASE WHEN bm.statuswinlost IN (0,6) AND t.statuswinlost IN (0,6) THEN 1 ELSE isValidSettle END					
 		FROM @tmpParlayTicket t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 		WHERE t.IsHybrid = 1 
