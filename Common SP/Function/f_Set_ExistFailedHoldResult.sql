@@ -19,10 +19,10 @@ AS
  
 */
 BEGIN
-    DECLARE @Sporttype INT;		
-    DECLARE @TEMP TABLE (AutoPayoutResultId INT, ResourceID VARCHAR(20) NULL, TypeId INT NULL, Remark VARCHAR(MAX));
-    DECLARE @IsExistHoldResult INT = 0;
-    DECLARE @ResourceID VARCHAR(20) = NULL;
+    DECLARE @Sporttype INT	
+    DECLARE @TEMP TABLE (AutoPayoutResultId INT, ResourceID VARCHAR(20) NULL, TypeId INT NULL)
+    DECLARE @IsExistHoldResult INT = 0
+    DECLARE @ResourceID VARCHAR(20) = NULL
 	DECLARE @TypeId INT = NULL
 
     SELECT @Sporttype = m.sporttype
@@ -31,26 +31,60 @@ BEGIN
 
     IF @Sporttype = 1
     BEGIN
-        INSERT INTO @TEMP (AutoPayoutResultId, TypeId, ResourceID, Remark)
-        SELECT TOP 1 p.AutoPayoutResultId, p.CalculationType, p.ResourceId, p.Remark
-        FROM AutoPayoutResult p WITH (NOLOCK)
-        WHERE p.MatchId = @Matchid
-			AND StatusId = 3
-        ORDER BY p.AutoPayoutResultId DESC;
+        ;WITH LatestPerResource AS (
+			SELECT
+				p.AutoPayoutResultId
+				,p.MatchId
+				,p.ResourceID
+				,p.StatusId
+				,p.Remark
+				,p.CalculationType
+				,ROW_NUMBER() OVER (
+					PARTITION BY ( CASE WHEN p.CalculationType IN (1,2) THEN p.CalculationType ELSE p.ResourceID END)
+					ORDER BY p.AutoPayoutResultId DESC
+				) AS rn
+			FROM AutoPayoutResult p WITH (NOLOCK)
+			WHERE p.MatchId = @Matchid
+		)
+		INSERT INTO @TEMP (AutoPayoutResultId, ResourceID, TypeId)
+		SELECT
+			AutoPayoutResultId
+			,ResourceID
+			,CalculationType
+		FROM LatestPerResource
+		WHERE rn = 1
+		  AND StatusId = 3
+		  AND Remark LIKE '%HOLD%';
     END
     ELSE IF @Sporttype <> 1
     BEGIN
-        INSERT INTO @TEMP (AutoPayoutResultId, ResourceID, Remark)
-        SELECT TOP 1 p.AutoPayoutResultId, p.ResourceID, Remark
-        FROM AutoPayoutResultOS p WITH (NOLOCK)
-        WHERE p.MatchId = @Matchid
-			AND StatusId = 3
-        ORDER BY p.AutoPayoutResultId DESC;
+       ;WITH LatestPerResource AS (
+			SELECT
+				p.AutoPayoutResultId,
+				p.MatchId,
+				p.ResourceID,
+				p.StatusId,
+				p.Remark,
+				ROW_NUMBER() OVER (
+					PARTITION BY p.ResourceID
+					ORDER BY p.AutoPayoutResultId DESC
+				) AS rn
+			FROM AutoPayoutResultOS p WITH (NOLOCK)
+			WHERE p.MatchId = @Matchid
+		)
+		INSERT INTO @TEMP (AutoPayoutResultId, ResourceID)
+		SELECT
+			AutoPayoutResultId,
+			ResourceID
+		FROM LatestPerResource
+		WHERE rn = 1
+		  AND StatusId = 3
+		  AND Remark LIKE '%HOLD%';
     END
 
-    IF EXISTS (SELECT 1 FROM @TEMP WHERE Remark LIKE '%hold%')
+    IF EXISTS (SELECT 1 FROM @TEMP)
     BEGIN
-        SELECT TOP 1 
+        SELECT
             @IsExistHoldResult = 1
             ,@ResourceID = ResourceID
 			,@TypeId = TypeId
@@ -64,7 +98,8 @@ BEGIN
     END
 
     INSERT INTO @Result (matchid, IsExistHoldResult, ResourceID, TypeId)
-    VALUES (@Matchid, @IsExistHoldResult, @ResourceID, @TypeId);
+	SELECT @Matchid, @IsExistHoldResult, a.ResourceID, a.TypeId
+	FROM @TEMP a
 
     RETURN;
 END
