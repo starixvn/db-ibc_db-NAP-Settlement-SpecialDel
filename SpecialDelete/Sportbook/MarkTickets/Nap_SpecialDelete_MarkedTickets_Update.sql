@@ -97,7 +97,7 @@ BEGIN
 				IsFinish	BIT
 				);
 	
-	CREATE TABLE #Match(matchid INT, SportType TINYINT);
+	CREATE TABLE #Match(matchid INT, SportType SMALLINT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
 	-- Get tickets insert into transaction

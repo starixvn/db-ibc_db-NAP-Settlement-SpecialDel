@@ -81,7 +81,7 @@ AS;
 BEGIN
 	SET NOCOUNT ON
 
-    DECLARE @SportType		TINYINT= NULL
+    DECLARE @SportType		SMALLINT= NULL
 		   ,@ValueDefault	SMALLMONEY = 9999.00
 		   ,@SiteDBGroupID  SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()

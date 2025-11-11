@@ -66,7 +66,7 @@ BEGIN
 		MatchId INT
 		,UserId INT
 		,CreatedDate DATETIME
-		, HomeId INT, AwayId INT, SportType TINYINT, IsNeutral BIT
+		, HomeId INT, AwayId INT, SportType SMALLINT, IsNeutral BIT
 		);
 
 	CREATE TABLE #MarkedTransactionDeleted (

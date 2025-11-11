@@ -84,7 +84,7 @@ BEGIN
 
 	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
-	CREATE TABLE #Match(matchid INT, HomeId INT, AwayId INT, SportType TINYINT, IsNeutral BIT);
+	CREATE TABLE #Match(matchid INT, HomeId INT, AwayId INT, SportType SMALLINT, IsNeutral BIT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT);
 	DECLARE @tmpMarkTicketList AS TABLE (TransId BIGINT)
 
