@@ -35,19 +35,13 @@ BEGIN
 
 	IF @IsCalculating = 2 OR @IsCalculating IS NULL
 	BEGIN	
-		SELECT DISTINCT TransId
-		FROM dbo.bettrans b WITH (NOLOCK)
-		CROSS APPLY (
-			SELECT TOP 1 1 AS valid
-			FROM bettransm bm WITH (NOLOCK)
-			WHERE bm.refno = b.refno
-				AND bm.matchid = @MatchId
-				AND bm.statuswinlost IS NOT NULL
-				AND bm.statusID IN (0,1)	
-		)bm
+		SELECT DISTINCT b.TransId
+		FROM dbo.bettransm bm WITH (NOLOCK)
+			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
 		WHERE b.oddsspread = 3
 			AND b.matchid = 29
 			AND b.bettype = 29
+			AND bm.matchid = @MatchId
 
 		IF @@ROWCOUNT = 0
 		BEGIN

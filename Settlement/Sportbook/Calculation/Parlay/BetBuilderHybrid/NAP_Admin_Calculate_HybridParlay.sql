@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_HybridParlay]
 	,@Action		VARCHAR(20) = 'CAL'
 	,@creator		INT
 	,@IP			VARCHAR(15) = ''
-	,@LegOddsJSON	NVARCHAR(MAX) = ''
+	,@TransIds		VARCHAR(MAX) = ''
 	,@ErrCode		INT = 0 OUTPUT
 	,@ErrMsg		NVARCHAR(200) = NULL OUTPUT
 )
@@ -70,18 +70,19 @@ BEGIN
 	DECLARE @tmpMainTransId TABLE (TransId BIGINT) 
 	DECLARE @tmpTransIdBatch TABLE (TransId BIGINT)
 	DECLARE @tmpMatchId TABLE (MatchId INT, MatchDate DATETIME, IsFinish BIT)
+	DECLARE @tmpInputTransId TABLE (TransId BIGINT)
 
 	SELECT @SiteDBGroupId = dbo.f_Get_SiteDBGroupID()
+
+	DECLARE @IsCentral BIT = 0	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 	SET @StartTime = GETDATE()
 	SET @SB_Error = 0
 
-	SELECT @ActionID = CASE 
-							WHEN @Action LIKE 'CAL%' THEN 81028 -- new action Id
-							WHEN @Action LIKE 'REFUND%' THEN 81029 
-							WHEN @Action LIKE 'UNDO%' THEN IIF(@Action = 'UNDO-FT', 81041,81030)
-						END
+	SELECT @ActionID = 81068 --Calculate hybrid parlay
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MoveBetDate OUTPUT
 
@@ -96,15 +97,11 @@ BEGIN
 		RETURN
 	END
 
-	IF @LegOddsJSON <> ''
-	BEGIN
-		DECLARE @tmp_TransId TABLE (TransId BIGINT)
-		INSERT INTO @tmp_TransId (TransId)
-		SELECT DISTINCT j.TransId
-		FROM (
-				SELECT js.MatchId AS MatchId, js.TransId AS TransId, js.Odds AS Odds
-				FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds MONEY) js
-		)j
+	IF @TransIds <> ''
+	BEGIN	
+		INSERT INTO @tmpInputTransId (TransId)
+		SELECT DISTINCT value
+		FROM string_split (@TransIds, ',')
 
 		INSERT INTO #tblHybridBet
 		(
@@ -126,7 +123,7 @@ BEGIN
 			,b.ruben
 			,b.oddsspread
 			,b.TransId
-		FROM @tmp_TransId t
+		FROM @tmpInputTransId t
 		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.TransId = t.TransId
 		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno
 		LEFT JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON bm.TransId = mt.TransId AND mt.MatchId = @MatchId
@@ -135,6 +132,7 @@ BEGIN
 			AND b.bettype = 29
 			AND b.oddsspread = 3
 			AND bm.statuswinlost IS NOT NULL
+			AND bm.statusID IN (0,1)
 			AND mt.TransId IS NULL
 
 		SET @TotalSubParlay = @@ROWCOUNT
@@ -169,6 +167,7 @@ BEGIN
 			AND b.bettype = 29
 			AND b.oddsspread = 3
 			AND bm.statuswinlost IS NOT NULL
+			AND bm.statusID IN (0,1)
 			AND mt.TransId IS NULL
 
 		SET @TotalSubParlay = @@ROWCOUNT
@@ -315,12 +314,18 @@ BEGIN
 	--Write useraction log
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) 
+								+ ' AffectedTransIds: ' + @TransIds
+								+ ' ErrMsg: ' + @ErrMsg
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
 
-	/*Comming soon*/
+	EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+			@userid				= @creator
+			,@matchid			= @MatchId
+			,@actionid			= @ActionID
+			,@Remark			= @LogData
+			,@ip				= @ip
 
 	DROP TABLE #tblHybridBet
 	DROP TABLE #tblMatchParlayProcess
