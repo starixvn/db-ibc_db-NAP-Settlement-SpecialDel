@@ -87,6 +87,7 @@ BEGIN
 	
 	SET @totalRefNo = @@ROWCOUNT
 
+
 	IF @totalRefNo = 0
 	BEGIN
 		SELECT @ErrCode = 99  
@@ -158,7 +159,7 @@ BEGIN
 				,@mode  = 'updateleg'
 
 			--Insert history
-			INSERT INTO dbo.BetBuilderLegOddsHistory (MatchId, RefNo, TransId, Oddds)
+			INSERT INTO dbo.BetBuilderLegOddsHistory (MatchId, RefNo, TransId, Odds)
 			SELECT t.MatchId, t.Refno, t.TransId, Odds
 			FROM #tmpMaxTransIdProcessBatch t
 		END
