@@ -45,9 +45,10 @@ GO
 
 
 /****** Object:  Index [BetBuilderHybridParlayLog]    Script Date: 10/28/2025 4:31:52 PM ******/
-CREATE NONCLUSTERED INDEX [CIX_BetBuilderHybridParlayLog_MatchID] ON [dbo].[BetBuilderHybridParlayLog]
+CREATE NONCLUSTERED INDEX [IX_BetBuilderHybridParlayLog_MatchID] ON [dbo].[BetBuilderHybridParlayLog]
 (
-	[MatchID] ASC
+	[MatchID] ASC,
+	[TransId] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
 
