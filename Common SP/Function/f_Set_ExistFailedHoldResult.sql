@@ -40,7 +40,7 @@ BEGIN
 				,p.Remark
 				,p.CalculationType
 				,ROW_NUMBER() OVER (
-					PARTITION BY ( CASE WHEN p.CalculationType IN (1,2) THEN p.CalculationType ELSE p.ResourceID END)
+					PARTITION BY ( CASE WHEN p.CalculationType IN (1,2) THEN CAST(p.CalculationType AS VARCHAR(10)) ELSE p.ResourceID END)
 					ORDER BY p.AutoPayoutResultId DESC
 				) AS rn
 			FROM AutoPayoutResult p WITH (NOLOCK)
