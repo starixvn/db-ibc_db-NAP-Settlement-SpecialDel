@@ -948,11 +948,19 @@ BEGIN
 			FROM STRING_SPLIT(@SelectionSubParlays, ',')
 		
 			DELETE b
-			FROM  #SpecialDeleteBets b
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmpSelectionSubParlay sp 
-					WHERE 1 = CASE WHEN sp.Id = '10 UP' AND b.hdp2 >= 10 THEN 1
-								   WHEN sp.Id <> '10 UP' AND b.hdp2 = CAST (sp.Id AS SMALLMONEY) THEN 1
-								   ELSE 0 END)
+			FROM #SpecialDeleteBets b
+			WHERE IsMixParlay = 1
+			  AND NOT EXISTS (
+					SELECT TOP 1 1
+					FROM @tmpSelectionSubParlay sp
+					WHERE 1 = CASE 
+								WHEN sp.Id = '10 UP' AND 
+									 ((ISNULL(b.oddsspread,0) <> 3 AND b.hdp2 >= 10) OR (b.oddsspread = 3 AND b.betid >= 10)) THEN 1
+								WHEN sp.Id <> '10 UP' AND 
+									 ((ISNULL(b.oddsspread,0) <> 3 AND b.hdp2 = CAST(sp.Id AS SMALLMONEY)) OR (b.oddsspread = 3 AND b.betid = CAST(sp.Id AS SMALLMONEY))) THEN 1
+								ELSE 0 
+							  END
+				);
 		END
 	END
 
