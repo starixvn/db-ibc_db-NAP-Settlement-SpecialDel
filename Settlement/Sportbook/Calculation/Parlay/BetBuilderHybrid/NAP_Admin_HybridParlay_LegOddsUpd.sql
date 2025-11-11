@@ -39,7 +39,7 @@ BEGIN
 			,@ActionID			INT = 81067
 
 	CREATE TABLE #tmpLegOddsInfo (MatchId INT, TransId BIGINT, Odds MONEY, RefNo BIGINT, transdesc NVARCHAR(2000))
-	CREATE TABLE #tmpMaxTransIdUpdateLeg(TransId BIGINT, Refno BIGINT, MatchId INT, Odds MONEY, IsFinish BIT, OrgOdds MONEY)
+	CREATE TABLE #tmpMaxTransIdUpdateLeg(TransId BIGINT, Refno BIGINT, MatchId INT, Odds MONEY, IsFinish BIT, OrgOdds MONEY, MainTransId BIGINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #tmpMaxTransIdProcessBatch (TransId BIGINT, Refno BIGINT, MatchId INT, Odds MONEY)
 
@@ -64,8 +64,8 @@ BEGIN
 		AND b.matchid = 29
 		AND b.oddsspread = 3
 
-	INSERT INTO #tmpMaxTransIdUpdateLeg (Refno, MatchId, Odds, TransId, OrgOdds)
-	SELECT t.RefNo, t.MatchId, t.Odds, bm.MaxSubTransId, j.OrgOdds
+	INSERT INTO #tmpMaxTransIdUpdateLeg (Refno, MatchId, Odds, TransId, OrgOdds, MainTransId)
+	SELECT t.RefNo, t.MatchId, t.Odds, bm.MaxSubTransId, j.OrgOdds, t.TransId AS MainTransId
 	FROM #tmpLegOddsInfo t
 	CROSS APPLY (
 			SELECT 
@@ -86,7 +86,6 @@ BEGIN
 		)bm
 	
 	SET @totalRefNo = @@ROWCOUNT
-
 
 	IF @totalRefNo = 0
 	BEGIN
@@ -197,7 +196,7 @@ BEGIN
 		END
 	END CATCH
 
-	SET @AffectedTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( m.TransId AS VARCHAR(20))
+	SET @AffectedTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( m.MainTransId AS VARCHAR(20))
 								FROM #tmpMaxTransIdUpdateLeg m
 								WHERE m.Odds <= m.OrgOdds
 								FOR XML PATH ('')

@@ -25,6 +25,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	
+
 	DECLARE @refnos_29				VARCHAR(MAX) = ''
 			,@MatchDate				DATETIME
 			,@Sporttype				SMALLINT = NULL
@@ -83,6 +85,18 @@ BEGIN
 	SET @SB_Error = 0
 
 	SELECT @ActionID = 81068 --Calculate hybrid parlay
+
+	SET @LogData = CAST((SELECT	'Start: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
+								AS '@LogData'
+					FOR XML PATH ('r'), ROOT ('root'), TYPE
+	) AS VARCHAR(MAX))
+
+	EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+			@userid				= @creator
+			,@matchid			= @MatchId
+			,@actionid			= @ActionID
+			,@Remark			= @LogData
+			,@ip				= @ip
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MoveBetDate OUTPUT
 
