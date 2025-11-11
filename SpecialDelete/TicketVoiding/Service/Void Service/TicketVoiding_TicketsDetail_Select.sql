@@ -34,8 +34,8 @@ BEGIN
 			SubBettypeId SMALLINT,
 			SubHdp1 SMALLMONEY,
 			SubHdp2 SMALLMONEY,
-			Subbetcheck NVARCHAR(100),
-			SubBetteam NVARCHAR(100),
+			Subbetcheck NVARCHAR(50),
+			SubBetteam NVARCHAR(10),
 			Transdesc NVARCHAR(1000),
 			Refno BIGINT,
 			SelectionCount INT
@@ -56,7 +56,7 @@ BEGIN
 
 	ELSE IF @TicketType = 1
 	BEGIN
-		INSERT INTO @tmp_Results (MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, transdesc, Refno)
+		INSERT INTO @tmp_Results (MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, Transdesc, Refno)
 		SELECT b.TransId AS MainTransId, b.CustId, t.TransId AS SubTransId, bm.matchid AS SubMatchId, bm.bettype AS SubBettypeId, bm.hdp1 AS SubHdp1, bm.hdp2 AS SubHdp2, bm.betcheck AS Subbetcheck, bm.betteam AS SubBetteam, b.transdesc, bm.refno
 		FROM @tmp_TransIds t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
@@ -74,7 +74,8 @@ BEGIN
 					GROUP BY bm.refno, bm.matchid
 				) sc
 	END
-	SELECT MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, transdesc, SelectionCount
+	
+	SELECT MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, Transdesc, SelectionCount
 	FROM @tmp_Results
 	
 END
