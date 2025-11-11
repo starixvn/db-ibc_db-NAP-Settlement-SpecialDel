@@ -82,7 +82,7 @@ BEGIN
 				WHEN m = 0.25 THEN 1 -- Half WON
 				WHEN m = - 0.25 THEN 3 -- Half LOSE
 				WHEN m < - 0.25 THEN 4 -- LOSE
-				ELSE CASE WHEN (@action = 'ABANDONED'  OR @Action LIKE 'REFUND%') THEN 6 ELSE 0 END -- CAL OR REFUND
+				ELSE CASE WHEN (@action = 'ABANDONED' OR @Action LIKE 'REFUND%') THEN 6 ELSE 0 END -- CAL OR REFUND
 			END
 	FROM OPENJSON(@strTransIds) WITH (
 		t BIGINT
@@ -96,7 +96,7 @@ BEGIN
 	IF(@@ROWCOUNT = 0) RETURN
 
 	-- Hybrid parlay: need back/keep to running and wait for get new leg odds for special case
-	IF @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' OR @Action LIKE 'CAL%'
+	IF @action = 'ABANDONED' OR @Action LIKE 'REFUND%' OR @Action LIKE 'CAL%'
 	BEGIN
 		UPDATE t SET t.isValidSettle = 1
 		FROM @tmpParlayTicket t 
@@ -113,7 +113,9 @@ BEGIN
 			,isValidSettle = CASE WHEN t.isValidSettle = 0 AND bm.statuswinlost IN (0,6) AND t.statuswinlost IN (0,6) THEN 1 ELSE isValidSettle END					
 		FROM @tmpParlayTicket t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
-		WHERE t.IsHybrid = 1 AND (bm.statusID NOT IN (102) OR t.IsMarked = 0)
+		WHERE t.IsHybrid = 1 
+			AND (bm.statusID NOT IN (102) OR t.IsMarked = 0)
+			AND t.isValidSettle = 0
 
 	END
 
