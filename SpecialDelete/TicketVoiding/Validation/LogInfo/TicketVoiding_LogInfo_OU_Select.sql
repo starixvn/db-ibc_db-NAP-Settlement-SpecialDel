@@ -37,6 +37,7 @@ AS
 		- 20250723@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
 		- 20250916@July: HotFix - Remove check validate no bettype affect poolhouse [Redmine: #238982]
 		- 20250930@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251024@Lani: [TVS]  Wrong OU - Add more bet types to the filter (New Player Prop Basketball) [Redmine: #242269]
 
 	Param's explanation:
 		+ @OnlineServerId = '0,1,2,3'
@@ -257,7 +258,7 @@ BEGIN
 	INSERT INTO #FilterBetTypeTbl (Matchid, BetTypeId)
 	SELECT Matchid, f.VALUE
 	FROM #FilterInfo
-	CROSS APPLY STRING_SPLIT(FilterBetTypeId,',') AS f
+	CROSS APPLY STRING_SPLIT(FilterBetTypeId,',') AS f -- Support many bettypes use same bettype names
 
 	BEGIN -- Instant Settlement declaration
 		
@@ -488,11 +489,24 @@ BEGIN
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		LEFT JOIN #FilterBetTypeTbl fb ON fb.Matchid = d.matchid AND fb.BetTypeId = b.bettype
-		CROSS APPLY (
+		OUTER APPLY (
 			SELECT DISTINCT value AS WrongMarket
 			FROM STRING_SPLIT(d.WrongMarket, '&')
-			WHERE value <> ''				
-		)xHDPou
+			WHERE value <> ''
+				AND NOT EXISTS (
+					SELECT 1
+					FROM f_TVS_BettypesUsingBetteam() AS bt
+					WHERE bt.BetTypeId = b.bettype)
+		) AS xHDPou
+		OUTER APPLY (
+			SELECT DISTINCT value AS WrongMarket
+			FROM STRING_SPLIT(d.WrongMarket,'&')
+			WHERE value <> ''
+				AND EXISTS (
+					SELECT 1
+					FROM f_TVS_BettypesUsingBetteam() AS bt
+					WHERE bt.BetTypeId = b.bettype)
+		) AS xBTou
 		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = 6 AND b.bettype = f.BetType
 	WHERE b.betfrom <> 'P'
 		AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = b.SiteDBGroupID) THEN 1
@@ -503,7 +517,8 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
-		AND 1 = CASE WHEN b.bettype = fb.BetTypeId AND fb.BetTypeId IS NOT NULL AND b.hdp1 = xHDPou.WrongMarket AND b.matchid = fb.Matchid THEN 1
+		AND 1 = CASE WHEN b.bettype = fb.BetTypeId AND fb.BetTypeId IS NOT NULL AND b.hdp1 = xHDPou.WrongMarket AND b.matchid = fb.Matchid AND xHDPou.WrongMarket IS NOT NULL THEN 1
+					 WHEN b.bettype = fb.BetTypeId AND fb.BetTypeId IS NOT NULL AND b.betteam = xBTou.WrongMarket AND b.matchid = fb.Matchid AND xBTou.WrongMarket IS NOT NULL THEN 1
 					 WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1 --Only support soccer
 					 WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1 --Only support soccer 
 					 ELSE 0 END
@@ -650,11 +665,24 @@ BEGIN
 			 INNER LOOP JOIN dbo.bettransm sub ON d.MatchId_tmp = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 			 LEFT JOIN #FilterBetTypeTbl fb ON fb.Matchid = d.matchid AND sub.bettype = fb.BetTypeId
-			 CROSS APPLY (
+			 OUTER APPLY (
 			 	SELECT DISTINCT value AS WrongMarket
 			 	FROM STRING_SPLIT(d.WrongMarket, '&')
-			 	WHERE value <> ''				
-			 )xHDPou
+			 	WHERE value <> ''
+					AND NOT EXISTS (
+						SELECT 1
+						FROM f_TVS_BettypesUsingBetteam() AS bt
+						WHERE bt.BetTypeId = sub.bettype)
+			 ) AS xHDPou
+			 OUTER APPLY (
+				SELECT DISTINCT value AS WrongMarket
+				FROM STRING_SPLIT(d.WrongMarket,'&')
+				WHERE value <> ''
+					AND EXISTS (
+						SELECT 1
+						FROM f_TVS_BettypesUsingBetteam() AS bt
+						WHERE bt.BetTypeId = sub.bettype)
+			 ) AS xBTou
 			 LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = 6 AND sub.bettype = f.BetType
 		WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
@@ -666,7 +694,8 @@ BEGIN
 				AND 1 = CASE WHEN d.sporttype = 1 AND d.IsMainMatch = 'true' THEN 1
 				             WHEN d.sporttype <> 1 THEN 1 
 							 ELSE 0 END
-				AND 1 = CASE WHEN sub.bettype = fb.BetTypeId AND fb.BetTypeId IS NOT NULL AND sub.hdp1 = xHDPou.WrongMarket AND sub.matchid = fb.Matchid THEN 1
+				AND 1 = CASE WHEN sub.bettype = fb.BetTypeId AND fb.BetTypeId IS NOT NULL AND sub.hdp1 = xHDPou.WrongMarket AND sub.matchid = fb.Matchid AND xHDPou.WrongMarket IS NOT NULL THEN 1
+							 WHEN sub.bettype = fb.BetTypeId AND fb.BetTypeId IS NOT NULL AND sub.betteam = xBTou.WrongMarket AND sub.matchid = fb.Matchid AND xBTou.WrongMarket IS NOT NULL THEN 1
 							 WHEN d.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1
 							 WHEN d.sporttype = 1 AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1
 						ELSE 0 END

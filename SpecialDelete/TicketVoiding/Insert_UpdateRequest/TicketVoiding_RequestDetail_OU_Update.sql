@@ -26,6 +26,7 @@ AS
 		- 20250109@Lani: [TVS] Save new filter (FilterBetIdX, FilterBetIdY, FilterBetTypeId) of 'Wrong HDP' issue type [Redmine: #215545]
 		- 20250224@Lani: [TVS] Basketball - Integrate 6 new bet types (Change data type of inputted 'FilterBetTypeId' column) [Redmine: #217848]
 		- 20250311@July: [TVS] Enhance the Out-of-Memory [Redmine: #217771]
+		- 20251027@Lani: [TVS]  Wrong OU - Add more bet types to the filter (New Player Prop Basketball) [Redmine: #242269]
 
 	Param's explanation:
 */
@@ -112,7 +113,10 @@ BEGIN
 					+ ';PoolHouseSingleCount:' + CAST(t.c.value('@PoolHouseSingleCount','INT') AS VARCHAR(50))
 					+ ';PoolHouseMainParlayCount:' + CAST(t.c.value('@PoolHouseMainParlayCount','INT') AS VARCHAR(50)) AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,'<r WrongMarket="' + REPLACE(t.c.value('@WrongMarket','VARCHAR(50)') , '&', '&amp;') + '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
+			,'<r WrongMarket="' 
+					+ REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@WrongMarket','VARCHAR(50)'), '&', '&amp;'), '<', '&lt;'), '>', '&gt;'), '"', '&quot;')
+					+ '" ActualMarket="'
+					+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
 					+ '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') 
 					+ CASE WHEN t.c.value('@IsMainMatch','VARCHAR(10)') = 'False' 
 						THEN '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10)) 
