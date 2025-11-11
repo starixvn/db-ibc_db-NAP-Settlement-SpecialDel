@@ -21,6 +21,7 @@ AS
 		- 20250619@July: Not show table loginfo when invalid ticket [Redmine: #227162]
 		- 20250728@Lani: [TVS] ScaleOut DBTrans [Phase 4] - Reduced Over/Abandoned/Not Participate/Match Early Completed/Other Issues [Redmine: #232581]
 		- 20250923@Lani: [TVS] Log Info - Add Details for some issue types [Redmine: #238132]
+		- 20251022@Lani: [TVS] Not Participate - Add new bet types (Basketball player props) [Redmine: #241923]
 
 	Param's explanation:	
 		- @OnlineServerId = '0,1,3'
@@ -149,6 +150,8 @@ BEGIN
 	  ,GroupDisplay INT
 	  ,GroupBettype SMALLINT
 	  ,GroupTransdesc NVARCHAR(1000)
+	  ,GroupBetteam NVARCHAR(10)
+	  ,GroupOddsId INT
 	  ,ID INT IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -304,6 +307,8 @@ BEGIN
 			,GroupDisplay
 			,GroupBettype
 			,GroupTransdesc
+			,GroupOddsId
+			,GroupBetteam
 		)
 	SELECT @MatchId AS matchid
 		,b.TransId
@@ -362,12 +367,18 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
-		,b.transdesc AS FilterTransdesc
+		,CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+			  WHEN b.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(b.transdesc, '$.p[0].pid')-- Bettype Most of basketball
+			  ELSE b.transdesc END AS FilterTransdesc
 		,b.bettype AS FilterBettype
 		,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
 		,ISNULL(tb.ParentId,b.bettype) AS GroupDisplay
 		,b.bettype AS GroupBettype
-		,b.transdesc AS GroupTransdesc
+		,CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+			  WHEN b.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(b.transdesc, '$.p[0].pid')-- Bettype Most of basketball
+			  ELSE b.transdesc END AS GroupTransdesc
+		,b.oddsid AS GroupOddsId
+		,b.betteam AS GroupBetteam
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN @tmpMatchId m ON m.MatchId = b.matchid
 		INNER JOIN @bettype_tmp d ON b.bettype = d.bettype
@@ -462,6 +473,8 @@ BEGIN
 				,GroupDisplay
 				,GroupBettype
 				,GroupTransdesc
+				,GroupOddsId
+				,GroupBetteam
 			)
 		SELECT @MatchId AS matchid
 			,b.TransId
@@ -524,12 +537,18 @@ BEGIN
 			,sub.transdesc SubTransdesc  
 			,b.modds
 			,sub.SiteDBGroupID
-			,sub.transdesc AS FilterTransdesc
+			,CASE WHEN (sub.bettype BETWEEN 653 AND 688) AND (sub.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(sub.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+				  WHEN sub.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(sub.transdesc, '$.p[0].pid')-- Bettype Most of basketball
+				  ELSE sub.transdesc END AS FilterTransdesc
 			,sub.bettype AS FilterBettype
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
 			,ISNULL(tb.ParentId, sub.bettype) AS GroupDisplay
 			,sub.bettype AS GroupBettype
-			,sub.transdesc AS GroupTransdesc
+			,CASE WHEN (sub.bettype BETWEEN 653 AND 688) AND (sub.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(sub.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+				  WHEN sub.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(sub.transdesc, '$.p[0].pid')-- Bettype Most of basketball
+				  ELSE sub.transdesc END AS GroupTransdesc
+			,sub.oddsid
+			,sub.betteam
 		FROM @tmpMatchId d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -824,29 +843,45 @@ BEGIN
 		BEGIN
 			;WITH cte AS
 			(
-				SELECT s.transid, s.requestid, b.transdesc AS PlayerId, s.Bettype
+				SELECT s.transid
+					  ,s.requestid
+					  ,CASE WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+							WHEN b.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(b.transdesc, '$.p[0].pid')-- Bettype Most of basketball
+							ELSE b.transdesc END AS PlayerId
+					  ,s.Bettype
+					  ,CASE WHEN b.bettype BETWEEN 680 AND 684 THEN b.betteam + '$' + CONVERT(NVARCHAR(1000),b.oddsid)
+							ELSE NULL END AS PlayerAndOdds
 				FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single AS s WITH (NOLOCK)
 				INNER JOIN bettrans AS b WITH (NOLOCK) ON b.transid = s.transid
 				WHERE s.RequestId = @RequestId
 
 				UNION ALL 
 
-				SELECT sub.transid, sub.requestid, bm.transdesc AS PlayerId, bm.bettype
+				SELECT sub.transid
+					  ,sub.requestid
+					  ,CASE WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.transdesc,'$.pid') --36 new bettype basketball except bettype 'Most...'
+							WHEN bm.bettype BETWEEN 680 AND 684 THEN JSON_VALUE(bm.transdesc, '$.p[0].pid')-- Bettype Most of basketball
+							ELSE bm.transdesc END AS PlayerId
+					  ,bm.bettype
+					  ,CASE WHEN bm.bettype BETWEEN 680 AND 684 THEN bm.betteam + '$' + CONVERT(NVARCHAR(1000),bm.oddsid)
+							ELSE NULL END AS PlayerAndOdds
 				FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay AS sub WITH (NOLOCK)
 				INNER JOIN bettransm AS bm WITH (NOLOCK) ON bm.transid = sub.TransId
 				INNER JOIN bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno 
 				WHERE sub.RequestId =  @RequestId
 			)
-			SELECT b.typeid AS BetTypeId
+			SELECT ISNULL(t.ParentId,c.Bettype) AS BetTypeId
 				 , tm.teamname AS PlayerName
 				 , tm.teamid AS PlayerId
 				 , b.typenamee AS OriginalBetTypeName
 				 , NULL AS BetId
+				 , c.PlayerAndOdds AS PlayerAndOdds --Support group bettype Most 680->684 
 				 , COUNT(1) AS TicketsCount
 			FROM cte AS c
 				INNER JOIN dbo.bettype AS b WITH (NOLOCK) ON c.Bettype = b.typeid
 				INNER JOIN dbo.team AS tm WITH (NOLOCK) ON tm.teamid = TRY_CAST(c.PlayerId AS BIGINT)
-			GROUP BY b.typeid, b.typenamee, tm.teamid, tm.teamname
+				LEFT JOIN @tmpConsolidatedBettypes AS t ON c.Bettype = t.TypeId
+			GROUP BY ISNULL(t.ParentId,c.Bettype), b.typenamee, tm.teamid, tm.teamname, c.PlayerAndOdds
 		END	
 
 		RETURN;
@@ -997,13 +1032,24 @@ BEGIN
 		  ,CONVERT(BIGINT,b.GroupTransdesc) AS PlayerId
 		  ,t.teamname AS PlayerName
 		  ,NULL AS BetId
-		  ,NULL AS PlayerAndOdds
+		  ,CASE WHEN bt1.Bettype IS NOT NULL THEN b.GroupBetteam + '$' + CONVERT(NVARCHAR(1000),b.GroupOddsId)
+		        ELSE NULL END AS PlayerAndOdds
 		  ,COUNT(b.transid) AS TicketsCount
 	FROM #TVSTicketBets AS b
 	INNER JOIN dbo.bettype AS bt WITH (NOLOCK) ON b.GroupDisplay = bt.typeid
 	INNER JOIN dbo.Team AS t WITH (NOLOCK) ON t.teamid = TRY_CAST(b.GroupTransdesc AS BIGINT)
-	WHERE EXISTS (SELECT 1 FROM f_TVS_BettypesUsingTransdesc() t1 WHERE t1.bettype = b.GroupBettype AND t1.TypeId = 0) AND b.IsSiteDBDown = 0
-	GROUP BY b.GroupDisplay, bt.typenamee, CONVERT(BIGINT, b.grouptransdesc), t.teamname
+	OUTER APPLY ( --Support group bettype Most: 680 - 684
+		SELECT bettype
+		FROM f_TVS_BettypesUsingTransdesc() AS f
+		WHERE f.Bettype = b.GroupBettype AND f.TypeId = 1
+	) AS bt1
+	WHERE EXISTS (SELECT 1 FROM f_TVS_BettypesUsingTransdesc() t1 WHERE t1.bettype = b.GroupBettype) AND b.IsSiteDBDown = 0
+	GROUP BY b.GroupDisplay,
+	         bt.typenamee,
+			 CONVERT(BIGINT, b.grouptransdesc),
+			 t.teamname,
+			 CASE WHEN bt1.Bettype IS NOT NULL THEN b.GroupBetteam + '$' + CONVERT(NVARCHAR(1000),b.GroupOddsId)
+				  ELSE NULL END
 	ORDER BY b.GroupDisplay ASC, bt.typenamee ASC
 
 	DROP TABLE #TVSTicketBets

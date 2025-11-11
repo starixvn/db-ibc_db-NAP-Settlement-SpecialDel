@@ -21,6 +21,7 @@ AS
 		- 20240916@Max: [TVS] Support void wrong odds for Sportsbook [Redmine: #186029]
 		- 20241122@July: Wrong Market Offered - Enhance the way to add request & Update 'copy' message template [Redmine: #212928]
 		- 20250729@Lani: [TVS] ScaleOut DBTrans [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
+		- 20251022@Lani: [TVS] Not Participate - Add new bet types (Basketball player props) [Redmine: #241923]
     Param's Explanation:  
 	   - @OnlineServerId: '0,1,2,3'
 */
@@ -78,10 +79,21 @@ BEGIN
     -- Scan bettrans and bettransm to get bettype list
 	-- bettrans
     INSERT INTO #TmpBettype(bettype, transdesc)
-	SELECT bettype, transdesc
-	FROM dbo.bettrans b WITH(NOLOCK)
-		INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
-		LEFT JOIN @tmpTimeRange t ON b.matchid = t.MatchId
+	SELECT bettype,
+		   COALESCE(j1.PlayerId,j2.PlayerId,b.Transdesc) AS Transdesc
+	FROM dbo.bettrans AS b WITH(NOLOCK)
+		INNER JOIN @tmpMatchId AS m ON b.matchid = m.MatchId
+		LEFT JOIN @tmpTimeRange AS t ON b.matchid = t.MatchId
+		OUTER APPLY 
+		(
+			SELECT JSON_VALUE(b.transdesc,N'$.pid') AS PlayerId
+			WHERE (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684)
+		) AS j1
+		OUTER APPLY 
+		(
+			SELECT JSON_VALUE(b.transdesc,N'$.p[0].pid') AS PlayerId
+			WHERE b.bettype BETWEEN 680 AND 684
+		) AS j2
 	WHERE 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
 				   WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
 				   ELSE 0 END
@@ -90,14 +102,25 @@ BEGIN
 		AND 1 = CASE WHEN t.FromDate IS NULL AND t.ToDate IS NULL THEN 1 
 		             WHEN b.transdate BETWEEN t.FromDate AND t.ToDate THEN 1
 					 ELSE 0 END
-	GROUP BY bettype, transdesc
+	GROUP BY b.bettype, COALESCE(j1.PlayerId,j2.PlayerId,b.Transdesc)
 
     -- bettransm
     INSERT INTO #TmpBettype(bettype, transdesc)
-    SELECT bm.bettype, bm.transdesc
+    SELECT bm.bettype,
+		   COALESCE(j1.PlayerId,j2.PlayerId,bm.Transdesc) AS Transdesc
     FROM dbo.bettransm bm WITH(NOLOCK)
 		INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId
 		LEFT JOIN @tmpTimeRange t ON bm.matchid = t.MatchId
+		OUTER APPLY 
+		(
+			SELECT JSON_VALUE(bm.transdesc,N'$.pid') AS PlayerId
+			WHERE (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684)
+		) AS j1
+		OUTER APPLY 
+		(
+			SELECT JSON_VALUE(bm.transdesc,N'$.p[0].pid') AS PlayerId
+			WHERE bm.bettype BETWEEN 680 AND 684
+		) AS j2
    WHERE 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
 				  WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
 				  ELSE 0 END
@@ -106,7 +129,7 @@ BEGIN
 					 ELSE 0 END
 		AND NOT EXISTS(SELECT TOP 1 1
 					   FROM #TmpBettype tb WHERE bm.bettype = tb.bettype)
-    GROUP BY bm.bettype, bm.transdesc
+    GROUP BY bm.bettype, COALESCE(j1.PlayerId,j2.PlayerId,bm.Transdesc)
 
 	IF EXISTS( SELECT TOP 1 1 FROM @tmpTimeRange)--New issuetype WMO, Technical Error, WrongOdds SB
 	BEGIN
@@ -156,7 +179,7 @@ BEGIN
 		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = t.bettype
 		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = t.bettype
 	GROUP BY t.bettype, bt.typeid, bt.typenamee, t.transdesc, f.GroupName
-	ORDER BY f.GroupName, bt.typenamee
+	ORDER BY f.GroupName ASC, bt.typenamee ASC
 
     DROP TABLE #TmpBettype
 END
