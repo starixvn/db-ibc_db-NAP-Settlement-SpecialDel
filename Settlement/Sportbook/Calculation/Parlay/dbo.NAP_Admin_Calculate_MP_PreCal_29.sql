@@ -50,7 +50,7 @@ AS
 		- 20240425@Kathy: enhance parlay [Redmine:#199518]
 		- 20240521@Kathy: write log [Redmine:#199518]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
-		- 00000: Temp version for SIT
+		- 20251112@Max: Change code to release org for BetBuilder+ [Redmine: #243653]
 
 
 	Param's Explanation:
@@ -215,6 +215,7 @@ BEGIN
 		)
 		SELECT	[transid], [refno], [stake]
 				,CASE 
+					WHEN oddsspread = 3 AND betteam = '1' THEN CAST(betid AS TINYINT) --Hybrid parlay
 					WHEN betcheck IS NOT NULL THEN CAST(hdp2 AS TINYINT) -- Combo Parlay - New format	
 					ELSE CAST(LEN(betteam) AS TINYINT)  -- Old format
 					END AS selection_cnt
@@ -573,7 +574,7 @@ BEGIN
 								ELSE 0
 							END
 		)se
-	WHERE (@IsReSettledTickets = 1 AND p.relatedSerial = 1)
+	WHERE (@IsReSettledTickets = 1 AND p.relatedSerial >= 1)
 		OR ( @IsReSettledTickets = 0 
 				AND (	pr.statusID <>
 						CASE
