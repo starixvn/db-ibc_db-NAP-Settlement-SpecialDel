@@ -108,7 +108,7 @@ BEGIN
 	)
 
 	CREATE TABLE #transIdTemp (
-		transid		BIGINT PRIMARY KEY
+		transid		BIGINT
 	   ,MatchId     INT
 	   ,TicketType	TINYINT --1: single & main parlay(exclude cancel CO), 2: sub parlay, 3: cancel CO
 	) 
