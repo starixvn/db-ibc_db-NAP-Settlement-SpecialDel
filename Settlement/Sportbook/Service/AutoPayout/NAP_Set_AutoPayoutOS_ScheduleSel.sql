@@ -234,20 +234,9 @@ BEGIN
 							AND p.isActive = 1) AS pm
 			OUTER APPLY (
 				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM (
-					SELECT p.ResourceID
-					FROM (
-						SELECT p.ResourceID, p.StatusId, p.Remark,
-							ROW_NUMBER() OVER (
-								PARTITION BY p.ResourceID
-								ORDER BY p.AutoPayoutResultId DESC
-							) AS rn
-						FROM AutoPayoutResultOS p WITH (NOLOCK)
-						WHERE p.MatchId = m.matchid
-					) AS p
-					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
-				) AS x
-				WHERE r.ResourceId = x.ResourceID
+				FROM @HoldResults h
+				WHERE h.MatchId = m.matchid 
+					AND h.ResourceID = r.ResourceId
 			) x
 		WHERE  m.ExternalResultTable = 1
             AND r.SourceID < 1001
@@ -299,20 +288,9 @@ BEGIN
 							AND p.isActive = 1) AS pm
 			OUTER APPLY (
 				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM (
-					SELECT p.ResourceID
-					FROM (
-						SELECT p.ResourceID, p.StatusId, p.Remark,
-							ROW_NUMBER() OVER (
-								PARTITION BY p.ResourceID
-								ORDER BY p.AutoPayoutResultId DESC
-							) AS rn
-						FROM AutoPayoutResultOS p WITH (NOLOCK)
-						WHERE p.MatchId = m.matchid
-					) AS p
-					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
-				) AS x
-				WHERE r.ResourceId = x.ResourceID
+				FROM @HoldResults h
+				WHERE h.MatchId = m.matchid 
+					AND h.ResourceID = r.ResourceId
 			) x
 		WHERE m.ExternalResultTable = 2
 			AND r.SourceID < 1001
@@ -344,8 +322,8 @@ BEGIN
 								 AND IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) >= 1
 								 AND IIF(f.ResourceType = 1,m.AP_Main_TotalSource,m.AP_EAR_TotalSource) > 1
 								)
-							 THEN r.CreateDate
-						 ELSE NULL
+							THEN r.CreateDate
+						ELSE NULL
 					 END) AS CreatedDate
 			 ,MAX(IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)) AS AP_TotalSecondaryProvider
 		FROM ProviderExternalResultDetailES AS r WITH(NOLOCK)
@@ -365,24 +343,12 @@ BEGIN
 						 FROM dbo.ProviderGameTypeMapping AS p WITH(NOLOCK)
 						 WHERE p.sporttype = m.sporttype
 							AND p.SourceId = r.SourceID
-							AND p.isActive = 1
-							AND p.GameType = m.GameType) AS pm
+							AND p.isActive = 1) AS pm
 			OUTER APPLY (
 				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM (
-					SELECT p.ResourceID
-					FROM (
-						SELECT p.ResourceID, p.StatusId, p.Remark,
-							ROW_NUMBER() OVER (
-								PARTITION BY p.ResourceID
-								ORDER BY p.AutoPayoutResultId DESC
-							) AS rn
-						FROM AutoPayoutResultOS p WITH (NOLOCK)
-						WHERE p.MatchId = m.matchid
-					) AS p
-					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
-				) AS x
-				WHERE r.ResourceId = x.ResourceID
+				FROM @HoldResults h
+				WHERE h.MatchId = m.matchid 
+					AND h.ResourceID = r.ResourceId
 			) x
 		WHERE m.ExternalResultTable = 3
 			AND r.SourceID < 1001
@@ -446,20 +412,9 @@ BEGIN
 			)mr
 			OUTER APPLY (
 				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM (
-					SELECT p.ResourceID
-					FROM (
-						SELECT p.ResourceID, p.StatusId, p.Remark,
-							ROW_NUMBER() OVER (
-								PARTITION BY p.ResourceID
-								ORDER BY p.AutoPayoutResultId DESC
-							) AS rn
-						FROM AutoPayoutResultOS p WITH (NOLOCK)
-						WHERE p.MatchId = m.matchid
-					) AS p
-					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
-				) AS x
-				WHERE r.ResourceId = x.ResourceID
+				FROM @HoldResults h
+				WHERE h.MatchId = m.matchid 
+					AND h.ResourceID = r.ResourceId
 			) x
 		WHERE m.ResultTable = 0
 			AND m.eventstatus = 'running'
@@ -495,20 +450,9 @@ BEGIN
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
 			OUTER APPLY (
 				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM (
-					SELECT p.ResourceID
-					FROM (
-						SELECT p.ResourceID, p.StatusId, p.Remark,
-							ROW_NUMBER() OVER (
-								PARTITION BY p.ResourceID
-								ORDER BY p.AutoPayoutResultId DESC
-							) AS rn
-						FROM AutoPayoutResultOS p WITH (NOLOCK)
-						WHERE p.MatchId = m.matchid
-					) AS p
-					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
-				) AS x
-				WHERE r.ResourceID = x.ResourceID
+				FROM @HoldResults h
+				WHERE h.MatchId = m.matchid 
+					AND h.ResourceID = r.ResourceId
 			) x
 		WHERE m.ResultTable = 1
 			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
@@ -544,20 +488,9 @@ BEGIN
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
 			OUTER APPLY (
 				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM (
-					SELECT p.ResourceID
-					FROM (
-						SELECT p.ResourceID, p.StatusId, p.Remark,
-							ROW_NUMBER() OVER (
-								PARTITION BY p.ResourceID
-								ORDER BY p.AutoPayoutResultId DESC
-							) AS rn
-						FROM AutoPayoutResultOS p WITH (NOLOCK)
-						WHERE p.MatchId = m.matchid
-					) AS p
-					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
-				) AS x
-				WHERE r.ResourceID = x.ResourceID
+				FROM @HoldResults h
+				WHERE h.MatchId = m.matchid 
+					AND h.ResourceID = r.ResourceId
 			) x
 		WHERE m.ResultTable = 2
 			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
@@ -598,28 +531,17 @@ BEGIN
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
 			OUTER APPLY (
 				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM (
-					SELECT p.ResourceID
-					FROM (
-						SELECT p.ResourceID, p.StatusId, p.Remark,
-							ROW_NUMBER() OVER (
-								PARTITION BY p.ResourceID
-								ORDER BY p.AutoPayoutResultId DESC
-							) AS rn
-						FROM AutoPayoutResultOS p WITH (NOLOCK)
-						WHERE p.MatchId = m.matchid
-					) AS p
-					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
-				) AS x
-				WHERE r.ResourceID = x.ResourceID
+				FROM @HoldResults h
+				WHERE h.MatchId = m.matchid 
+					AND h.ResourceID = r.ResourceId
 			) x
 		WHERE m.ResultTable = 3
 			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
 			AND ss.IsExistsProfile IS NOT NULL
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
-			 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
-						 ELSE 0
-					END
+						 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
+									 ELSE 0
+								END
 			AND 1 = CASE WHEN m.AP_Check_R_CnfRefund = 1 AND ISNULL(r.ResultSetting,0) & 6 != 0 THEN 0
 						 WHEN m.AP_Check_R_Hold = 1 AND f.ResourceType = 2 AND ISNULL(r.ResultSetting,0) & 1 != 0 THEN 0
 						 WHEN m.AP_Check_R_MactchCompleted = 1 AND f.ResourceType = 1 AND m.eventstatus ='completed' THEN 0
@@ -723,4 +645,3 @@ END
 GO
 
 
- 
