@@ -202,7 +202,25 @@ BEGIN
 						WHERE AutoType = 10 AND ss.LeagueId = l.leagueid)
 		AND (ms.MatchId IS NOT NULL OR ss.leagueid IS NOT NULL)
 	
-		
+	DECLARE @HoldResults TABLE (
+		MatchId INT NOT NULL,
+		ResourceID VARCHAR(20) NOT NULL,
+		PRIMARY KEY (MatchId, ResourceID)
+	)
+
+	INSERT INTO @HoldResults (MatchId, ResourceID)
+	SELECT p.MatchId, p.ResourceID
+	FROM (
+		SELECT p.MatchId, p.ResourceID, p.StatusId, p.Remark,
+			ROW_NUMBER() OVER (
+				PARTITION BY p.MatchId, p.ResourceID
+				ORDER BY p.AutoPayoutResultId DESC
+			) AS rn
+		FROM AutoPayoutResultOS p WITH (NOLOCK)
+		WHERE p.MatchId IN (SELECT matchid FROM #Match)
+	) AS p
+	WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
+
 		INSERT INTO #MatchResource (matchId,ResourceId,ResourceType,TotalProvider,TotalPrimaryProvider,TotalSecondaryProvider,CreatedDate,AP_TotalSecondaryProvider)
 		SELECT m.matchId,r.ResourceId,f.ResourceType
 			 ,COUNT(DISTINCT r.SourceID) AS TotalProvider
