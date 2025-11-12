@@ -232,7 +232,23 @@ BEGIN
 						 WHERE p.sporttype = m.sporttype
 							AND p.SourceId = r.SourceID
 							AND p.isActive = 1) AS pm
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceId = x.ResourceId) x
+			OUTER APPLY (
+				SELECT TOP 1 1 AS IsExistHoldResult
+				FROM (
+					SELECT p.ResourceID
+					FROM (
+						SELECT p.ResourceID, p.StatusId, p.Remark,
+							ROW_NUMBER() OVER (
+								PARTITION BY p.ResourceID
+								ORDER BY p.AutoPayoutResultId DESC
+							) AS rn
+						FROM AutoPayoutResultOS p WITH (NOLOCK)
+						WHERE p.MatchId = m.matchid
+					) AS p
+					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
+				) AS x
+				WHERE r.ResourceId = x.ResourceID
+			) x
 		WHERE  m.ExternalResultTable = 1
             AND r.SourceID < 1001
 			AND r.SourceID NOT IN (98,99,100)
@@ -281,7 +297,23 @@ BEGIN
 						 WHERE p.sporttype = m.sporttype
 							AND p.SourceId = r.SourceID
 							AND p.isActive = 1) AS pm
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceId = x.ResourceId) x
+			OUTER APPLY (
+				SELECT TOP 1 1 AS IsExistHoldResult
+				FROM (
+					SELECT p.ResourceID
+					FROM (
+						SELECT p.ResourceID, p.StatusId, p.Remark,
+							ROW_NUMBER() OVER (
+								PARTITION BY p.ResourceID
+								ORDER BY p.AutoPayoutResultId DESC
+							) AS rn
+						FROM AutoPayoutResultOS p WITH (NOLOCK)
+						WHERE p.MatchId = m.matchid
+					) AS p
+					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
+				) AS x
+				WHERE r.ResourceId = x.ResourceID
+			) x
 		WHERE m.ExternalResultTable = 2
 			AND r.SourceID < 1001
 			AND r.SourceID NOT IN (98,99,100)
@@ -335,7 +367,23 @@ BEGIN
 							AND p.SourceId = r.SourceID
 							AND p.isActive = 1
 							AND p.GameType = m.GameType) AS pm
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceId = x.ResourceId) x
+			OUTER APPLY (
+				SELECT TOP 1 1 AS IsExistHoldResult
+				FROM (
+					SELECT p.ResourceID
+					FROM (
+						SELECT p.ResourceID, p.StatusId, p.Remark,
+							ROW_NUMBER() OVER (
+								PARTITION BY p.ResourceID
+								ORDER BY p.AutoPayoutResultId DESC
+							) AS rn
+						FROM AutoPayoutResultOS p WITH (NOLOCK)
+						WHERE p.MatchId = m.matchid
+					) AS p
+					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
+				) AS x
+				WHERE r.ResourceId = x.ResourceID
+			) x
 		WHERE m.ExternalResultTable = 3
 			AND r.SourceID < 1001
 			AND r.SourceID NOT IN (98,99,100)
@@ -396,7 +444,23 @@ BEGIN
 					WHERE r.matchid = m.matchId
 					AND r.IsHTCal = 0
 			)mr
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceId = x.ResourceId) x
+			OUTER APPLY (
+				SELECT TOP 1 1 AS IsExistHoldResult
+				FROM (
+					SELECT p.ResourceID
+					FROM (
+						SELECT p.ResourceID, p.StatusId, p.Remark,
+							ROW_NUMBER() OVER (
+								PARTITION BY p.ResourceID
+								ORDER BY p.AutoPayoutResultId DESC
+							) AS rn
+						FROM AutoPayoutResultOS p WITH (NOLOCK)
+						WHERE p.MatchId = m.matchid
+					) AS p
+					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
+				) AS x
+				WHERE r.ResourceId = x.ResourceID
+			) x
 		WHERE m.ResultTable = 0
 			AND m.eventstatus = 'running'
 			AND 1 = CASE WHEN r.ResourceID = '00' THEN 1
@@ -429,7 +493,23 @@ BEGIN
 								AND ISNULL(os.SourceID,0) = 0
 						) AS ap
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceID = x.ResourceID) x
+			OUTER APPLY (
+				SELECT TOP 1 1 AS IsExistHoldResult
+				FROM (
+					SELECT p.ResourceID
+					FROM (
+						SELECT p.ResourceID, p.StatusId, p.Remark,
+							ROW_NUMBER() OVER (
+								PARTITION BY p.ResourceID
+								ORDER BY p.AutoPayoutResultId DESC
+							) AS rn
+						FROM AutoPayoutResultOS p WITH (NOLOCK)
+						WHERE p.MatchId = m.matchid
+					) AS p
+					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
+				) AS x
+				WHERE r.ResourceID = x.ResourceID
+			) x
 		WHERE m.ResultTable = 1
 			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
@@ -462,7 +542,23 @@ BEGIN
 								AND ISNULL(os.SourceID,0) = 0
 						) AS ap
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceID = x.ResourceID) x
+			OUTER APPLY (
+				SELECT TOP 1 1 AS IsExistHoldResult
+				FROM (
+					SELECT p.ResourceID
+					FROM (
+						SELECT p.ResourceID, p.StatusId, p.Remark,
+							ROW_NUMBER() OVER (
+								PARTITION BY p.ResourceID
+								ORDER BY p.AutoPayoutResultId DESC
+							) AS rn
+						FROM AutoPayoutResultOS p WITH (NOLOCK)
+						WHERE p.MatchId = m.matchid
+					) AS p
+					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
+				) AS x
+				WHERE r.ResourceID = x.ResourceID
+			) x
 		WHERE m.ResultTable = 2
 			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
@@ -500,7 +596,23 @@ BEGIN
 								AND ISNULL(os.SourceID,0) = 0
 						) AS ap
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND r.ResourceID = x.ResourceID) x
+			OUTER APPLY (
+				SELECT TOP 1 1 AS IsExistHoldResult
+				FROM (
+					SELECT p.ResourceID
+					FROM (
+						SELECT p.ResourceID, p.StatusId, p.Remark,
+							ROW_NUMBER() OVER (
+								PARTITION BY p.ResourceID
+								ORDER BY p.AutoPayoutResultId DESC
+							) AS rn
+						FROM AutoPayoutResultOS p WITH (NOLOCK)
+						WHERE p.MatchId = m.matchid
+					) AS p
+					WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
+				) AS x
+				WHERE r.ResourceID = x.ResourceID
+			) x
 		WHERE m.ResultTable = 3
 			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
 			AND ss.IsExistsProfile IS NOT NULL

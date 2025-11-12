@@ -81,11 +81,22 @@ BEGIN
 					AND sp.ResourceID =  rd.ResourceId
 		) ssp
 		OUTER APPLY (
-		SELECT TOP 1 1 AS IsExistHoldResult 
-		FROM f_Set_ExistFailedHoldResult(m.matchId) x 
-		WHERE m.matchId = x.matchid 
-				AND t.ResourceId = x.ResourceId
-				) x
+			SELECT TOP 1 1 AS IsExistHoldResult
+			FROM (
+				SELECT p.ResourceID
+				FROM (
+					SELECT p.ResourceID, p.StatusId, p.Remark, p.CalculationType,
+						ROW_NUMBER() OVER (
+							PARTITION BY  p.ResourceID
+							ORDER BY p.AutoPayoutResultId DESC
+						) AS rn
+					FROM AutoPayoutResult p WITH (NOLOCK)
+					WHERE p.MatchId = m.matchid
+				) AS p
+				WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
+			) AS x
+			WHERE t.ResourceId = x.ResourceID
+		) x
 	WHERE	m.eventstatus = 'completed'
 			AND ISNULL(m.betstatus,'') NOT LIKE '%REFUND%'
 			AND ISNULL(m.betstatus,'') NOT LIKE '%ABANDONED%'

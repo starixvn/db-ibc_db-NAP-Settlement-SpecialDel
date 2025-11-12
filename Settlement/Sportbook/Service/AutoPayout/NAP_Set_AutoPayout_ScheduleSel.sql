@@ -158,7 +158,22 @@ BEGIN
 					FROM @tblLeague AS tl
 					WHERE l.LeagueId = tl.Leagueid
 				) ss 
-				OUTER APPLY (SELECT TOP 1 1 AS IsExistHoldResult FROM f_Set_ExistFailedHoldResult(m.matchId) x WHERE m.matchId = x.matchid AND x.TypeId = f.TypeId
+				OUTER APPLY (
+					SELECT TOP 1 1 AS IsExistHoldResult
+					FROM (
+						SELECT p.CalculationType AS TypeId
+						FROM (
+							SELECT p.CalculationType, p.StatusId, p.Remark,
+								ROW_NUMBER() OVER (
+									PARTITION BY p.CalculationType
+									ORDER BY p.AutoPayoutResultId DESC
+								) AS rn
+							FROM AutoPayoutResult p WITH (NOLOCK)
+							WHERE p.MatchId = m.matchid
+						) AS p
+						WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
+					) AS x
+					WHERE x.TypeId = f.TypeId
 				) x
 			WHERE	m.eventstatus = 'running' 
 					AND m.sporttype = 1
