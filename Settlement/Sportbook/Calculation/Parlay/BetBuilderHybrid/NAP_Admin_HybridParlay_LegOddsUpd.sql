@@ -6,13 +6,12 @@ ALTER PROCEDURE [dbo].[NAP_Admin_HybridParlay_LegOddsUpd]
 	,@IP			VARCHAR(15) = ''
 	,@ErrCode		INT = 0 OUTPUT
 	,@ErrMsg		NVARCHAR(200) = NULL OUTPUT
-	,@AffectedTransIds	VARCHAR(MAX) = NULL OUTPUT
 AS
 /*
     Created by: Max
 	Date 20251027
 	Task: [Settlement] - Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20251027@Max: Init new SP [Redmine: #241652]
@@ -36,6 +35,10 @@ BEGIN
 			,@StartTime			DATETIME
 			,@EndTime			DATETIME
 			,@ActionID			INT = 81067
+	
+	DECLARE @AffectedTransIds	VARCHAR(MAX) = ''
+		   ,@InvalidTransIds	VARCHAR(MAX) = ''
+		   ,@WrongOddsTransIds	VARCHAR(MAX) = ''
 
 	CREATE TABLE #tmpMainTransId (MatchId INT, TransId BIGINT, Odds MONEY, RefNo BIGINT, transdesc NVARCHAR(2000))
 	CREATE TABLE #tmpMaxTransIdUpdateLeg(TransId BIGINT, Refno BIGINT, MatchId INT, Odds MONEY, IsFinish BIT, OrgOdds MONEY, MainTransId BIGINT)
@@ -197,7 +200,7 @@ BEGIN
 	END TRY
 	BEGIN CATCH
 		SELECT @ErrCode = ERROR_NUMBER()
-			,@ErrMsg = ERROR_MESSAGE()
+			  ,@ErrMsg = ERROR_MESSAGE()
 
 		IF @totalRefNo <= @ThreadHold
 		BEGIN
@@ -212,20 +215,6 @@ BEGIN
 					@isExistParlay  = 1  
 					,@IsReleased  = 1 
 		END
-
-		SET @LogData = CAST((SELECT	'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ ' AffectedTransIds: ' + @AffectedTransIds
-								+ ' ErrMsg: ' + @ErrMsg
-								AS '@LogData'
-					FOR XML PATH ('r'), ROOT ('root'), TYPE
-		) AS VARCHAR(MAX))
-
-		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
-				@userid				= @creator
-				,@matchid			= @MatchId
-				,@actionid			= @ActionID
-				,@Remark			= @LogData
-				,@ip				= @ip
 	END CATCH
 
 	SET @AffectedTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( m.MainTransId AS VARCHAR(20))
@@ -234,10 +223,29 @@ BEGIN
 								FOR XML PATH ('')
 							),1,1,'')) 
 
+	SET @WrongOddsTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( m.MainTransId AS VARCHAR(20))
+								FROM #tmpMaxTransIdUpdateLeg m
+								WHERE m.Odds > m.OrgOdds
+								FOR XML PATH ('')
+							),1,1,'')) 
+
+	SET @WrongOddsTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( l.TransId AS VARCHAR(20))
+								FROM @tmpLegOddsInfo l
+								WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tmpMaxTransIdUpdateLeg m WHERE m.MainTransId = l.TransId)
+								FOR XML PATH ('')
+							),1,1,'')) 
+
+	--Return table 
+	SELECT  @AffectedTransIds AS AffectedTransIds
+		   ,@WrongOddsTransIds AS WrongOddsTransIds
+		   ,@InvalidTransIds AS InvalidTransIds
+			
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
 								+ ' AffectedTransIds: ' + ISNULL(@AffectedTransIds, '')
+								+ ' InvalidTransIds: ' + ISNULL(@InvalidTransIds, '')
+								+ ' WrongOddsTransIds: ' + ISNULL(@WrongOddsTransIds, '')
 								+ ' ErrMsg: ' + @ErrMsg
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
