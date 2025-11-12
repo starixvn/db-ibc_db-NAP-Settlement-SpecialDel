@@ -229,7 +229,7 @@ BEGIN
 								FOR XML PATH ('')
 							),1,1,'')) 
 
-	SET @WrongOddsTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( l.TransId AS VARCHAR(20))
+	SET @InvalidTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( l.TransId AS VARCHAR(20))
 								FROM @tmpLegOddsInfo l
 								WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tmpMaxTransIdUpdateLeg m WHERE m.MainTransId = l.TransId)
 								FOR XML PATH ('')
@@ -244,8 +244,8 @@ BEGIN
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
 								+ ' AffectedTransIds: ' + ISNULL(@AffectedTransIds, '')
-								+ ' InvalidTransIds: ' + ISNULL(@InvalidTransIds, '')
 								+ ' WrongOddsTransIds: ' + ISNULL(@WrongOddsTransIds, '')
+								+ ' InvalidTransIds: ' + ISNULL(@InvalidTransIds, '')
 								+ ' ErrMsg: ' + @ErrMsg
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
