@@ -486,26 +486,26 @@ IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam = '1
          UPDATE t
          SET t.stake = CAST (t.stake/t.selection AS FLOAT)
          FROM #temp_Ticket t
-         WHERE isparlay = 1 AND betteam = '1'
+         WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
      END
      
      IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1')
      BEGIN
           
-          ;WITH CTE_Sumstake AS(
+         ;WITH CTE_Sumstake AS(
             SELECT SUM((bp.stake / SUBSTRING(CAST(bp.Serial AS VARCHAR(20)), 2, 2))) AS Sumstake
                    ,bp.Refno
                    ,bp.TransId --Sub ticket
             FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) 
             WHERE EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket t
-                                           WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid)
+                                           WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid AND t.statusID = 102)
             GROUP BY Refno, TransId
             )
          UPDATE t
          SET t.stake = cte.Sumstake
          FROM #temp_Ticket t
              INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
-         WHERE IsParlay = 1 AND betteam <> '1'
+         WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
      END
      
 	UPDATE t
