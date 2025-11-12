@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_HybridParlay_LegOddsUpd]
 	,@IP			VARCHAR(15) = ''
 	,@ErrCode		INT = 0 OUTPUT
 	,@ErrMsg		NVARCHAR(200) = NULL OUTPUT
+	,@AffectedTransIds	VARCHAR(MAX) = NULL OUTPUT
 AS
 /*
     Created by: Max
@@ -36,9 +37,9 @@ BEGIN
 			,@EndTime			DATETIME
 			,@ActionID			INT = 81067
 	
-	DECLARE @AffectedTransIds	VARCHAR(MAX) = ''
-		   ,@InvalidTransIds	VARCHAR(MAX) = ''
-		   ,@WrongOddsTransIds	VARCHAR(MAX) = ''
+	--DECLARE @AffectedTransIds	VARCHAR(MAX) = ''
+	--	   ,@InvalidTransIds	VARCHAR(MAX) = ''
+	--	   ,@WrongOddsTransIds	VARCHAR(MAX) = ''
 
 	CREATE TABLE #tmpMainTransId (MatchId INT, TransId BIGINT, Odds MONEY, RefNo BIGINT, transdesc NVARCHAR(2000))
 	CREATE TABLE #tmpMaxTransIdUpdateLeg(TransId BIGINT, Refno BIGINT, MatchId INT, Odds MONEY, IsFinish BIT, OrgOdds MONEY, MainTransId BIGINT)
@@ -223,7 +224,7 @@ BEGIN
 								FOR XML PATH ('')
 							),1,1,'')) 
 
-	SET @WrongOddsTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( m.MainTransId AS VARCHAR(20))
+	/*SET @WrongOddsTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( m.MainTransId AS VARCHAR(20))
 								FROM #tmpMaxTransIdUpdateLeg m
 								WHERE m.Odds > m.OrgOdds
 								FOR XML PATH ('')
@@ -238,14 +239,14 @@ BEGIN
 	--Return table 
 	SELECT  @AffectedTransIds AS AffectedTransIds
 		   ,@WrongOddsTransIds AS WrongOddsTransIds
-		   ,@InvalidTransIds AS InvalidTransIds
+		   ,@InvalidTransIds AS InvalidTransIds*/
 			
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
 								+ ' AffectedTransIds: ' + ISNULL(@AffectedTransIds, '')
-								+ ' WrongOddsTransIds: ' + ISNULL(@WrongOddsTransIds, '')
-								+ ' InvalidTransIds: ' + ISNULL(@InvalidTransIds, '')
+								--+ ' WrongOddsTransIds: ' + ISNULL(@WrongOddsTransIds, '')
+								--+ ' InvalidTransIds: ' + ISNULL(@InvalidTransIds, '')
 								+ ' ErrMsg: ' + @ErrMsg
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
