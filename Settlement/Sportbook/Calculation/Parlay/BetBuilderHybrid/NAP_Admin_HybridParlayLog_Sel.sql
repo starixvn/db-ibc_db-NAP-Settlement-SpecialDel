@@ -1,4 +1,4 @@
-/*<info serverAlias="DBLOG-bodb_Customerlog" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_HybridParlayLog_Sel] 
 	@MatchId	INT
 	,@TransIds	VARCHAR(MAX) = ''
@@ -8,7 +8,7 @@ AS
     Created by: Max
 	Date 20251027
 	Task: [Settlement] - Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
-	DB: DBLOG-bodb_Customerlog
+	DB: DBCTG-bodb02
 	
 	Revisions: 
 		- 20251027@Max: Init new SP [Redmine: #241652]
@@ -23,9 +23,6 @@ BEGIN
 	SET @lDate = CAST(@Logdate AS DATETIME)	
 
 	DECLARE @tmpTransId AS TABLE (TransId BIGINT)
-
-	insert into UserLog_Settle (LogDate, Remark, ActionID, MatchID)
-	select getdate(),convert(varchar(max), @lDate, 121) + '-' + convert(varchar(max), @TransIds), 9999, @MatchId
 
 	IF @TransIds <> ''
 	BEGIN

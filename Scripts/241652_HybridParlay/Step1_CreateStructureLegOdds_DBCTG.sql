@@ -1,15 +1,15 @@
-/*<info serverAlias="DBLOG-bodb_Customerlog" executers="wsv_nap" viewers="" isFunction="0"></info>*/    
+/*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/    
 /*	
 	Created by: Max
 	Date 20251027
 	Task: [Settlement] - Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
-	DB: DBLOG-bodb_Customerlog
+	DB: DBCTG-bodb02
 	
 	Revisions: 
 		- 20251027@Max: Create table [Redmine: #241652]
 */
 
-USE [bodb_CustomerLog]
+USE [bodb02]
 GO
 
 /****** Object:  Table [dbo].[BetBuilderHybridParlayLog]    Script Date: 10/28/2025 4:29:14 PM ******/
