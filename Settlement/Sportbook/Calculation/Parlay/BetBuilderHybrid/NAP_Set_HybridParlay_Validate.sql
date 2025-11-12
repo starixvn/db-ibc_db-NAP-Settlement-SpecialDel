@@ -40,7 +40,9 @@ BEGIN
 			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
 		WHERE b.oddsspread = 3
 			AND b.matchid = 29
-			AND b.bettype = 29
+			AND b.bettype = 29	
+			AND b.statuswinlost IS NOT NULL
+			AND b.statusID IN (0,1)
 			AND bm.matchid = @MatchId
 
 		IF @@ROWCOUNT = 0
