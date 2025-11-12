@@ -25,7 +25,7 @@ BEGIN
 	DECLARE @tmpTransId AS TABLE (TransId BIGINT)
 
 	insert into UserLog_Settle (LogDate, Remark, ActionID, MatchID)
-	select getdate(),convert(varchar(max), @lDate) + '-' + convert(varchar(max), @TransIds), 9999, @MatchId
+	select getdate(),convert(varchar(max), @lDate, 121) + '-' + convert(varchar(max), @TransIds), 9999, @MatchId
 
 	IF @TransIds <> ''
 	BEGIN
