@@ -41,8 +41,8 @@ BEGIN
 		WHERE b.oddsspread = 3
 			AND b.matchid = 29
 			AND b.bettype = 29	
-			AND b.statuswinlost IS NOT NULL
-			AND b.statusID IN (0,1)
+			AND bm.statuswinlost IS NOT NULL
+			AND bm.statusID IN (0,1)
 			AND bm.matchid = @MatchId
 
 		IF @@ROWCOUNT = 0
