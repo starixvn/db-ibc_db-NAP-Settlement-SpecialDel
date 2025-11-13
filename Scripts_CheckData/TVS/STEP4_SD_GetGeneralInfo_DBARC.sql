@@ -3,7 +3,7 @@ USE bodb_archive
 GO
 
 DECLARE @from datetime, @to datetime																						
-SET @from = '2025-11-01'																									
+SET @from = '2025-11-10'																									
 SET @to = '2025-11-13'																									
 																									
 CREATE TABLE #message_tmp (messageID INT, reason VARCHAR(50), transid BIGINT, MessageContent varchar(max), matchid INT)																										
@@ -22,7 +22,6 @@ transid bigint
 , zzz_status NVARCHAR(100)
 , winlostdate SMALLDATETIME
 , currency TINYINT
-, actual_stake MONEY
 , statusId INT
 , actualrate FLOAT
 , stake MONEY
@@ -86,7 +85,7 @@ UNION ALL SELECT 'Restart'					, '%Due to%has been restart%considered%VOID%' --S
 
 /*Range archive*/																							
 INSERT INTO #message_tmp (messageID, reason, transid, MessageContent, matchid)																									
-SELECT   ms.MessageId																									
+SELECT DISTINCT  ms.MessageId																									
 		, COALESCE(v.Reason, 'Other Issues') AS Reason																		
 		, t.transid		
 		, ms.Content_en, ms.matchid
@@ -105,7 +104,7 @@ WHERE ms.CreateTime >= @from AND ms.CreateTime < @to
 
 /*Range active*/																							
 INSERT INTO #message_tmp (messageID, reason, transid, MessageContent, matchid)																									
-SELECT   ms.MessageId																									
+SELECT DISTINCT  ms.MessageId																									
 		, COALESCE(v.Reason, 'Other Issues') AS Reason																		
 		, t.transid		
 		, ms.Content_en, ms.matchid
@@ -122,9 +121,15 @@ WHERE ms.CreateTime >= @from AND ms.CreateTime < @to
 	AND ms.IsTest = 0																								
 	AND Content_en LIKE '%Due to%VOID%'	
 
+--Remove ticket void in TVS
 DELETE ms
 FROM #message_tmp ms WITH (NOLOCK)																									
 	INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.transid = ms.TransId	
+WHERE d.VoidingHistoryId IS NOT NULL
+    
+DELETE ms
+FROM #message_tmp ms WITH (NOLOCK)																									
+	INNER JOIN bodb02.dbo.zzzbettrans d WITH (NOLOCK) ON d.transid = ms.TransId	
 WHERE d.VoidingHistoryId IS NOT NULL
     
 /*Range archive*/
@@ -136,46 +141,50 @@ BEGIN
 		INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.transid = ms.TransId	
 	WHERE d.VoidingHistoryId IS NULL
 
+	UPDATE s
+	SET  s.currency = b.currency
+		, s.statusId = b.statusID
+		, s.stake = b.stake
+		, s.actualrate = b.actualrate
+		, s.winlostdate = b.winlostdate
+	FROM #temp_transid s
+		CROSS APPLY (
+			SELECT winlostdate, statusID, stake, actualrate, TransId, bettype, custid, currency
+			FROM dbo.bettrans_bk b WITH (NOLOCK) 
+			WHERE b.TransId = s.TransId
+		)b
+
+	DELETE ms
+	FROM #message_tmp ms WITH (NOLOCK)																									
+		INNER JOIN #temp_transid d WITH (NOLOCK) ON d.transid = ms.TransId
+
 	--parlay 
-	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, IsParlay, zzz_status, subtransid, currency, selection, betteam, refno, IsArchived)			
-	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, 1 AS IsParlay, d.status, d.transid as subtransid, b.currency
+	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, IsParlay, zzz_status, subtransid, selection, betteam, stake, refno, actualrate, tpositiontaking, currency, IsArchived)	
+	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, 1 AS IsParlay, d.status, d.transid AS subtransid
 	, CASE WHEN ISNULL(b.oddsspread,0) <> 3 THEN b.hdp2 --Mix/System parlay
 		   WHEN ISNULL(b.oddsspread,0) = 3 THEN b.betid --Hybrid parlay
 		   ELSE 0 END
-	, b.betteam, b.refno, 1 AS IsArchived	
+	, b.betteam, b.stake, b.refno, b.actualrate, b.tpositiontaking, b.currency, 1 AS IsArchived
 	FROM #message_tmp ms WITH (NOLOCK)																									
 		INNER JOIN dbo.bettrans_bk b WITH (NOLOCK) ON b.transid = ms.TransId	
 		INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.refno = b.refno AND ms.matchid = d.matchid	
 	WHERE d.VoidingHistoryId IS NULL
 
 	UPDATE s
-	SET   s.actual_stake = b.actual_stake
-		, s.currency = b.currency
-		, s.statusId = b.statusID
-		, s.stake = b.stake
-		, s.actualrate = b.actualrate
+	SET  s.statusId = b.statusID
 		, s.winlostdate = b.winlostdate
 	FROM #temp_transid s
 		CROSS APPLY (
-			SELECT winlostdate, statusID, stake, actualrate, actual_stake, TransId, bettype, custid, currency
-			FROM dbo.bettrans_bk b WITH (NOLOCK) 
-			WHERE b.TransId = s.TransId
-		)b
-	
-	UPDATE s
-	SET   s.actual_stake = b.actual_stake
-		, s.statusId = b.statusID
-		, s.stake = b.stake
-		, s.actualrate = b.actualrate
-		, s.winlostdate = b.winlostdate
-	FROM #temp_transid s
-		CROSS APPLY (
-			SELECT winlostdate, statusID, stake, actualrate, actual_stake, TransId, bettype, custid, currency
+			SELECT winlostdate, statusID, stake, actualrate, TransId, bettype, custid, currency
 			FROM dbo.bettransm bm WITH (NOLOCK) 
 			WHERE bm.transid = s.subtransid AND s.matchid = bm.matchid
 		)b
 END
 
+DELETE ms
+FROM #message_tmp ms WITH (NOLOCK)																									
+	INNER JOIN #temp_transid d WITH (NOLOCK) ON d.transid = ms.TransId
+    
 /*Range active*/
 BEGIN
 	--single
@@ -186,8 +195,7 @@ BEGIN
 	WHERE d.VoidingHistoryId IS NULL
 	
 	UPDATE s
-	SET   s.actual_stake = b.actual_stake
-		, s.currency = b.currency
+	SET  s.currency = b.currency
 		, s.statusId = b.statusID
 		, s.stake = b.stake
 		, s.actualrate = b.actualrate
@@ -195,27 +203,46 @@ BEGIN
 		, s.winlostdate = b.winlostdate
 	FROM #temp_transid s
 		CROSS APPLY (
-			SELECT winlostdate, statusID, stake, actualrate, actual_stake, TransId, bettype, custid, currency, tpositiontaking
+			SELECT winlostdate, statusID, stake, actualrate, TransId, bettype, custid, currency, tpositiontaking
 			FROM bodb02.dbo.bettrans b WITH (NOLOCK) 
 			WHERE b.TransId = s.TransId
 			UNION 
-			SELECT winlostdate, statusID, stake, actualrate, actual_stake, TransId, bettype, custid, currency, tpositiontaking
+			SELECT winlostdate, statusID, stake, actualrate, TransId, bettype, custid, currency, tpositiontaking
 			FROM bodb02.dbo.bettrans14 b WITH (NOLOCK) 
 			WHERE b.TransId = s.TransId
 		)b
 
+	DELETE ms
+	FROM #message_tmp ms WITH (NOLOCK)																									
+		INNER JOIN #temp_transid d WITH (NOLOCK) ON d.transid = ms.TransId
+
 	--parlay 
-	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, IsParlay, zzz_status, subtransid, selection, betteam, stake, refno)	
+	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, IsParlay, zzz_status, subtransid, selection, betteam, stake, refno, actualrate, tpositiontaking, currency)	
 	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, 1 AS IsParlay, d.status, d.transid AS subtransid
 	, CASE WHEN ISNULL(b.oddsspread,0) <> 3 THEN b.hdp2 --Mix/System parlay
 		   WHEN ISNULL(b.oddsspread,0) = 3 THEN b.betid --Hybrid parlay
 		   ELSE 0 END
-	, b.betteam, b.stake, b.refno
-	FROM #message_tmp ms WITH (NOLOCK)																									
+	, b.betteam, b.stake, b.refno, b.actualrate, b.tpositiontaking, b.currency	
+	FROM #message_tmp ms WITH (NOLOCK)																								
 		INNER JOIN bodb02.dbo.bettrans b WITH (NOLOCK) ON b.transid = ms.TransId	
 		INNER JOIN bodb02.dbo.zzzbettrans d WITH (NOLOCK) ON d.refno = b.refno AND d.custid = b.custid
-		INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = d.transid AND d.matchid = bm.matchid
 	WHERE d.VoidingHistoryId IS NULL
+
+	 UPDATE s
+	SET  s.statusId = b.statusID
+	   , s.winlostdate = b.winlostdate
+	FROM #temp_transid s
+		CROSS APPLY (
+			SELECT winlostdate, statusID, stake, actualrate, TransId, bettype, custid, currency
+			FROM bodb02.dbo.bettransm bm WITH (NOLOCK) 
+			WHERE bm.transid = s.subtransid AND s.matchid = bm.matchid
+			UNION ALL
+			SELECT winlostdate, statusID, stake, actualrate, TransId, bettype, custid, currency
+			FROM bodb02.dbo.bettransm14 bm WITH (NOLOCK) 
+			WHERE bm.transid = s.subtransid AND s.matchid = bm.matchid
+		)b
+	 select * from  #temp_transid where isparlay = 1
+  return;
 END
 
 DELETE ms
@@ -259,7 +286,7 @@ BEGIN
 		WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
 		 
 		--For main parlay status: Reject, sub parlay: VOID, table : BetParlayDetail (no data).
-		IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
+		IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
 		BEGIN
 		UPDATE t
 			SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
