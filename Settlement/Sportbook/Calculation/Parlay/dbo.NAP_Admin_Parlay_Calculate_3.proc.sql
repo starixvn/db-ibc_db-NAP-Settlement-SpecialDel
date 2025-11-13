@@ -103,14 +103,25 @@ BEGIN
 		FROM @tmpParlayTicket t
 			CROSS APPLY (SELECT COUNT(1) AS cnt
 						FROM bettransm bm WITH (NOLOCK)
-						WHERE bm.matchid = @matchid AND t.refno = bm.refno
+						WHERE bm.matchid = @matchid AND
+							t.refno = bm.refno
 						) AS tmp
 		WHERE t.IsHybrid = 1 AND tmp.cnt = 1
 
-		UPDATE t SET t.isValidSettle = 1
+		UPDATE t 
+			SET t.isValidSettle = 1
 		FROM @tmpParlayTicket t 
 			CROSS APPLY (SELECT TOP 1 1 AS isValidSettle FROM @tmpParlayTicket p WHERE statuswinlost IN (4) AND t.refno = p.refno AND p.IsHybrid = 1) p
 		WHERE t.IsHybrid = 1
+
+		UPDATE t 
+			SET t.isValidSettle = 1
+		FROM @tmpParlayTicket t 
+			CROSS APPLY (SELECT TOP (1) 1 AS valid
+						FROM bettransm bm WITH (NOLOCK)
+						WHERE t.refno = bm.refno AND bm.matchid <> @matchid AND bm.statusID = 113
+						) AS tmp
+		WHERE t.IsHybrid = 1 AND t.isValidSettle = 0
 
 		UPDATE t
 			SET isBackToRunning = CASE  WHEN bm.statuswinlost = 4 AND t.statuswinlost = 2 THEN 0 --before: LOSE, after: WON
