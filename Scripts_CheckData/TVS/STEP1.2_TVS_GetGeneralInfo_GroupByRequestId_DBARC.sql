@@ -182,16 +182,18 @@ BEGIN
         , Subbetteam = b.betteam
         , livehomescore  = CASE WHEN t.IsParlay = 0 THEN b.livehomescore ELSE t.livehomescore END
         , liveawayscore  = CASE WHEN t.IsParlay = 0 THEN b.liveawayscore ELSE t.liveawayscore END
-        , selection = CASE WHEN t.IsParlay = 1 THEN hdp2 ELSE NULL END
+        , selection = CASE WHEN t.IsParlay = 1 AND ISNULL(b.oddsspread,0) <> 3 THEN b.hdp2 --Mix/System parlay
+						   WHEN t.IsParlay = 1 AND ISNULL(b.oddsspread,0) = 3 THEN b.betid --Hybrid parlay
+						   ELSE 0 END
         , statusid = CASE WHEN t.IsParlay = 0 THEN b.statusid ELSE t.statusid END
         , refno = b.refno
     FROM #temp_Ticket t
 		CROSS APPLY (
-			SELECT liveindicator, transdate, stake, actualrate, tpositiontaking, winlostdate, TransId, bettype, betteam, livehomescore, liveawayscore, hdp2, statusid, refno
+			SELECT liveindicator, transdate, stake, actualrate, tpositiontaking, winlostdate, TransId, bettype, betteam, livehomescore, liveawayscore, hdp2, statusid, refno, oddsspread, betid
 			FROM bodb02.dbo.bettrans b WITH (NOLOCK) 
 			WHERE b.TransId = t.MainTransId
 			UNION 
-			SELECT liveindicator, transdate, stake, actualrate, tpositiontaking, winlostdate, TransId, bettype, betteam, livehomescore, liveawayscore, hdp2, statusid, refno
+			SELECT liveindicator, transdate, stake, actualrate, tpositiontaking, winlostdate, TransId, bettype, betteam, livehomescore, liveawayscore, hdp2, statusid, refno, oddsspread, betid
 			FROM bodb02.dbo.bettrans14 b WITH (NOLOCK) 
 			WHERE b.TransId = t.MainTransId
 		)b
@@ -204,7 +206,7 @@ BEGIN
          WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
      END
      
-     IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1')
+     IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102)
      BEGIN
           
           ;WITH CTE_Sumstake AS(
@@ -221,6 +223,12 @@ BEGIN
          FROM #temp_Ticket t
              INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
          WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
+
+		 IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
+		 BEGIN
+			SELECT 'ABC'
+		 END
+
      END
      
 	UPDATE t
@@ -449,19 +457,20 @@ INSERT INTO #temp_Ticket(
         , Subbetteam = b.betteam
         , livehomescore  = CASE WHEN t.IsParlay = 0 THEN b.livehomescore ELSE t.livehomescore END
         , liveawayscore  = CASE WHEN t.IsParlay = 0 THEN b.liveawayscore ELSE t.liveawayscore END
-        , selection = CASE WHEN t.IsParlay = 1 THEN hdp2 ELSE NULL END
+        , selection = CASE WHEN t.IsParlay = 1 AND ISNULL(b.oddsspread,0) <> 3 THEN b.hdp2 --Mix/System parlay
+						   WHEN t.IsParlay = 1 AND ISNULL(b.oddsspread,0) = 3 THEN b.betid --Hybrid parlay
+						   ELSE 0 END
         , statusid = CASE WHEN t.IsParlay = 0 THEN b.statusid ELSE t.statusid END
         , refno = b.refno
     FROM #temp_Ticket t
 		CROSS APPLY (
-			SELECT liveindicator, transdate, stake, actualrate, tpositiontaking, winlostdate, TransId, bettype, betteam, livehomescore, liveawayscore, hdp2, statusid, refno
+			SELECT liveindicator, transdate, stake, actualrate, tpositiontaking, winlostdate, TransId, bettype, betteam, livehomescore, liveawayscore, hdp2, statusid, refno, oddsspread, betid
 			FROM dbo.bettrans_bk b WITH (NOLOCK) 
 			WHERE b.TransId = t.MainTransId
             UNION 
-			SELECT liveindicator, transdate, stake, actualrate, tpositiontaking, winlostdate, TransId, bettype, betteam, livehomescore, liveawayscore, hdp2, statusid, refno
+			SELECT liveindicator, transdate, stake, actualrate, tpositiontaking, winlostdate, TransId, bettype, betteam, livehomescore, liveawayscore, hdp2, statusid, refno, oddsspread, betid
 			FROM bodb02.dbo.bettrans14 b WITH (NOLOCK) 
 			WHERE b.TransId = t.MainTransId
-            
 		)b
 
 ---Update for case MBU T5 not copy zzzbetrans_bk, T6 delete zzzbettrans => miss data 
@@ -507,7 +516,12 @@ IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam = '1
          FROM #temp_Ticket t
              INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
          WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
-     END
+		
+		 IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
+		 BEGIN
+			SELECT 'ABC'
+		 END
+	END
      
 	UPDATE t
 	SET t.TotalTicket = kq.TotalTicket
