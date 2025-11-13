@@ -94,19 +94,10 @@ BEGIN
 		SELECT @ErrCode = ERROR_NUMBER()
 			,@ErrMsg = ERROR_MESSAGE()
 
-		SET @LogData = CAST((SELECT	'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ ' AffectedTransIds: ' + ISNULL(@AffectedTransIds, '')
-								+ ' ErrMsg: ' + @ErrMsg
-								AS '@LogData'
-					FOR XML PATH ('r'), ROOT ('root'), TYPE
-		) AS VARCHAR(MAX))
-
-		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
-				@userid				= @creator
-				,@matchid			= @MatchId
-				,@actionid			= @ActionID
-				,@Remark			= @LogData
-				,@ip				= @ip
+		/*SELECT  @AffectedTransIds AS AffectedTransIds
+		         ,@WrongOddsTransIds AS WrongOddsTransIds
+		         ,@InvalidTransIds AS InvalidTransIds*/
+		RETURN
 	END CATCH
 
 	IF @totalRefNo = 0
@@ -114,6 +105,9 @@ BEGIN
 		SELECT @ErrCode = 99  
 				,@ErrMsg = 'No parlay ticket found.'  
 
+		/*SELECT  @AffectedTransIds AS AffectedTransIds
+		         ,@WrongOddsTransIds AS WrongOddsTransIds
+		         ,@InvalidTransIds AS InvalidTransIds*/
 		RETURN
 	END
 	
@@ -148,6 +142,9 @@ BEGIN
 
 		IF @avaiableProcess = 0 OR @ErrCode <> 0
 		BEGIN 
+			/*SELECT  @AffectedTransIds AS AffectedTransIds
+		             ,@WrongOddsTransIds AS WrongOddsTransIds
+		             ,@InvalidTransIds AS InvalidTransIds*/
 			RETURN
 		END
 
