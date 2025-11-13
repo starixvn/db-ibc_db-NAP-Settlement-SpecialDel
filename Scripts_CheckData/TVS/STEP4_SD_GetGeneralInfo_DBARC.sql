@@ -274,7 +274,7 @@ BEGIN
 		SELECT SUM((bp.stake / SUBSTRING(CAST(bp.Serial AS VARCHAR(20)), 2, 2))) AS Sumstake
 				,bp.Refno
 				,bp.TransId --Sub ticket
-		FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) 
+		FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) --BetParlayDetail keep about 1.5 months
 		WHERE EXISTS ( SELECT TOP 1 1 FROM #temp_transid t
 										WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.subtransid AND t.statusID = 102)
 		GROUP BY Refno, TransId
