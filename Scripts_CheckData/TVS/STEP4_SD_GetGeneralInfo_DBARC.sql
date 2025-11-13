@@ -241,9 +241,9 @@ BEGIN
 			FROM bodb02.dbo.bettransm14 bm WITH (NOLOCK) 
 			WHERE bm.transid = s.subtransid AND s.matchid = bm.matchid
 		)b
-	 select * from  #temp_transid where isparlay = 1
-  return;
+
 END
+
 
 DELETE ms
 FROM #message_tmp ms WITH (NOLOCK)																									
@@ -294,8 +294,7 @@ BEGIN
 			WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102 AND stake_tmp IS NULL
 		END
 	END
-	SELECT IsMissBetParlayDetail, refno, stake, stake_tmp, betteam, selection, * FROM #temp_transid WHERE isparlay = 1 and betteam <> '1'	
-    return;
+
 
 	UPDATE #temp_transid
 	SET stake = stake_tmp
@@ -400,7 +399,8 @@ BEGIN
             ON m.League3rdId = l.League3rdId																							
     WHERE l.isTest = 0	
 END
-	
+--SELECT * FROM #temp_transid
+--RETURN	
 SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' END IsMonthly																											
 	, 'SD' AS 'TVS/SD?', ms.winlostdate
 	, YEAR(ms.winlostdate) AS YEAR_winlostdate
@@ -425,7 +425,8 @@ FROM #temp_transid ms WITH (NOLOCK)
 WHERE ms.currency NOT IN (20,72)																							
 	AND ms.statusID = 102	
 	AND ms.winlostdate between  @from AND @to
-GROUP BY ms.winlostdate, ms.Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
+GROUP BY ms.winlostdate, ms.Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent								
+, ms.IsMissBetParlayDetail
 ORDER BY winlostdate ASC 
 
 DROP TABLE #message_tmp
