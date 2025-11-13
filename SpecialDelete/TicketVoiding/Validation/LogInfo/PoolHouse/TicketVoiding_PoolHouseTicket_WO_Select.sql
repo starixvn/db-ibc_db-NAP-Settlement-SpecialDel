@@ -24,6 +24,7 @@ AS
 		- 20240618@July: [TVS] Support void wrong odds of Home/Away or Over/Under at the same time [Redmine: #205558]
 		- 20241007@July: TVS - Wrong Odds - Wrongly converting odds to search ticket [Redmine: #211890]
 		- 20250319@Lani: [TVS] Enhance out of memory issue [Redmine: #217771]
+		- 20251113@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:
 
@@ -99,6 +100,8 @@ BEGIN
 		srecommend			  INT,
 		GroupName			  VARCHAR(50),
 		FilterOdds			  MONEY,
+		IsHybrid			  BIT DEFAULT(0),
+		FinalOdds			  SMALLMONEY,
 		ID 					  INT IDENTITY (1,1) PRIMARY KEY
 
 	)
@@ -326,6 +329,8 @@ BEGIN
 				,ExtraInfo
 				,winlostdate
 				,FilterOdds
+				,IsHybrid
+				,FinalOdds
 		)
 		SELECT DISTINCT  b.transid 
 				,bm.transid AS Subtransid
@@ -385,7 +390,9 @@ BEGIN
 				,bm.statusID AS SubstatusID
 				,b.ExtraInfo
 				,b.winlostdate
-				,bm.odds AS SubOdds
+				,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN bm.finalodds ELSE bm.odds END AS SubOdds
+				,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
+				,bm.finalodds AS FinalOdds
 			FROM @tmpMatch m
 				INNER LOOP JOIN dbo.bettransm AS bm WITH(NOLOCK) ON m.MatchId = bm.matchid
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON bm.refno =  b.refno
@@ -600,6 +607,23 @@ BEGIN
 		FROM CustDB.dbo.custInfo ci WITH(NOLOCK)
 			INNER JOIN CTE_CustIdAll ca ON ci.custid = ca.custid	
 
+	--Update odds support show betlist for Hybrid parlay
+	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsHybrid = 1) 
+	BEGIN
+		;WITH CTE_MaxSubOdds AS (
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #TVSTicketBets t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+			GROUP BY t.transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #TVSTicketBets AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+	END
+
 	--Return all PH tickets
 	SELECT s.transid
 		   ,s.MainTransId
@@ -656,6 +680,8 @@ BEGIN
 		   ,m.matchcode
 		   ,m.SettlementStatus
 		   ,m.sporttype
+		   ,s.IsHybrid
+		   ,s.FinalOdds
 	FROM #TVSTicketBets s
 		INNER JOIN dbo.match m WITH(NOLOCK) ON s.matchid = m.matchid
 		INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON s.creator = cr.custid
