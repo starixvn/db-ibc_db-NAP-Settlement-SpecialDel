@@ -131,6 +131,7 @@ BEGIN
 										ELSE 0 END
 			--DRAW -> REFUND OR REFUND -> DRAW OR singleLeg: can settle direct no need to wait new leg odds
 			,isValidSettle = CASE WHEN IsSingleSelectionHP = 1 THEN 1 
+									WHEN bm.statusID IN (0,1) AND bm.statuswinlost = t.statuswinlost THEN 0 -- bug: 244352
 									WHEN bm.statuswinlost IN (0,6) AND t.statuswinlost IN (0,6) THEN 1 ELSE isValidSettle END					
 		FROM @tmpParlayTicket t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
