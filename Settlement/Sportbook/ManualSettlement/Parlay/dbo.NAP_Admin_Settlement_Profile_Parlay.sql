@@ -277,9 +277,13 @@ BEGIN
 				OUTER APPLY (
 						SELECT TOP (1) mt.TransId
 						FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-						WHERE	mt.TransId = b.transId
-								AND mt.MatchId = @MatchID
+						WHERE	mt.MatchId = @MatchID
+							AND (
+									mt.TransId = b.transId
+								OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+								) 
 				) mt
+				
 			WHERE	bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 					AND bm.statusID NOT IN (101)
@@ -312,8 +316,11 @@ BEGIN
 					OUTER APPLY (
 							SELECT TOP (1) mt.TransId
 							FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-							WHERE	mt.TransId = b.transId
-									AND mt.MatchId = @MatchID
+							WHERE	mt.MatchId = @MatchID
+							AND (
+									mt.TransId = b.transId
+								OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+								) 
 					) mt
 				WHERE	bm.matchid = @MatchID
 						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
@@ -365,8 +372,11 @@ BEGIN
 					OUTER APPLY (
 							SELECT TOP (1) mt.TransId
 							FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-							WHERE	mt.TransId = b.transId
-									AND mt.MatchId = @MatchID
+							WHERE	mt.MatchId = @MatchID
+								AND (
+										mt.TransId = b.transId
+									OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+									) 
 					) mt
 				WHERE	bm.matchid = @MatchID
 						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
@@ -397,8 +407,11 @@ BEGIN
 					OUTER APPLY (
 							SELECT TOP (1) mt.TransId
 							FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-							WHERE	mt.TransId = b.transId
-									AND mt.MatchId = @MatchID
+							WHERE	mt.MatchId = @MatchID
+								AND (
+										mt.TransId = b.transId
+									OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+									) 
 					) mt
 				WHERE bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
@@ -458,8 +471,11 @@ BEGIN
 			OUTER APPLY (
 				SELECT	TOP (1) mt.TransId
 				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-				WHERE	mt.TransId = b.transid
-						AND mt.MatchId = @MatchID
+				WHERE	mt.MatchId = @MatchID
+					AND (
+							mt.TransId = b.transId
+						OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+						) 
 			) mt
 		WHERE	bm.matchid = @MatchID
 				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
@@ -491,8 +507,11 @@ BEGIN
 				OUTER APPLY (
 						SELECT TOP (1) mt.TransId
 						FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-						WHERE	mt.TransId = b.transId
-								AND mt.MatchId = @MatchID
+						WHERE	mt.MatchId = @MatchID
+							AND (
+									mt.TransId = b.transId
+								OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+								) 
 				) mt
 			WHERE	bm.matchid = @MatchID
 					AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
