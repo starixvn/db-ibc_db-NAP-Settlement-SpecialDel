@@ -198,42 +198,47 @@ BEGIN
 			WHERE b.TransId = t.MainTransId
 		)b
          
-     IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam = '1')
+	 IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam = '1')
      BEGIN
-         UPDATE t
-         SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
-         FROM #temp_Ticket t
-         WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
-     END
-     
-     IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102)
-     BEGIN
-          
-          ;WITH CTE_Sumstake AS(
-            SELECT SUM((bp.stake / SUBSTRING(CAST(bp.Serial AS VARCHAR(20)), 2, 2))) AS Sumstake
-                   ,bp.Refno
-                   ,bp.TransId --Sub ticket
-            FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) 
-            WHERE EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket t
-                                           WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid AND t.statusID = 102)
-            GROUP BY Refno, TransId
-            )
-         UPDATE t
-         SET t.stake_tmp = cte.Sumstake
-         FROM #temp_Ticket t
-             INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
-         WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
-
-		 --For main parlay status: Reject, sub parlay: VOID, table : BetParlayDetail (no data)
-		 IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
-		 BEGIN
+		 IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE betteam = '1')
+         BEGIN
 			 UPDATE t
 			 SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
 			 FROM #temp_Ticket t
-			 WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102 AND stake_tmp IS NULL
+			 WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
 		 END
+		 
+		 IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE betteam <> '1')
+		 BEGIN
+			 ;WITH CTE_Sumstake AS(
+				SELECT SUM((bp.stake / SUBSTRING(CAST(bp.Serial AS VARCHAR(20)), 2, 2))) AS Sumstake
+					   ,bp.Refno
+					   ,bp.TransId --Sub ticket
+				FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) 
+				WHERE EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket t
+											   WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid AND t.statusID = 102)
+				GROUP BY Refno, TransId
+				)
+			 UPDATE t
+			 SET t.stake_tmp = cte.Sumstake
+			 FROM #temp_Ticket t
+				 INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
+			 WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
+		 
+			 --For main parlay status: Reject, sub parlay: VOID, table : BetParlayDetail (no data).
+			 IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
+			 BEGIN
+				UPDATE t
+				 SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
+				 FROM #temp_Ticket t
+				 WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102 AND stake_tmp IS NULL
+			 END
+		END
 
-     END
+		 UPDATE #temp_Ticket
+		 SET stake = stake_tmp
+		 WHERE isparlay = 1  AND stake_tmp IS NOT NULL
+	END
      
 	UPDATE t
 	SET t.TotalTicket = kq.TotalTicket
@@ -396,6 +401,7 @@ AND r.CreatedDate >= @from AND r.CreatedDate < @to
 AND NOT EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE r.RequestId = RequestId)
 --and r.requestid = 159065
 
+TRUNCATE TABLE #temp_Ticket 
 INSERT INTO #temp_Ticket(
 		RequestId 
 		, matchid
@@ -495,41 +501,47 @@ WHERE IsArchived = 1
 	AND t.statusID = 102 --VOID
 
 ------------------------------------------------------------------------------------
-IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam = '1')
-     BEGIN
-         UPDATE t
-         SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
-         FROM #temp_Ticket t
-         WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
-     END
-     
-     IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1')
-     BEGIN
-          
-         ;WITH CTE_Sumstake AS(
-            SELECT SUM((bp.stake / SUBSTRING(CAST(bp.Serial AS VARCHAR(20)), 2, 2))) AS Sumstake
-                   ,bp.Refno
-                   ,bp.TransId --Sub ticket
-            FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) 
-            WHERE EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket t
-                                           WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid AND t.statusID = 102)
-            GROUP BY Refno, TransId
-            )
-         UPDATE t
-         SET t.stake_tmp = cte.Sumstake
-         FROM #temp_Ticket t
-             INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
-         WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
-		 
-		 --For main parlay status: Reject, sub parlay: VOID, table : BetParlayDetail (no data)
-		 IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
-		 BEGIN
+	IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam = '1')
+    BEGIN
+		IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE betteam = '1')
+        BEGIN
 			UPDATE t
-			 SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
-			 FROM #temp_Ticket t
-			 WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102 AND stake_tmp IS NULL
-		 END
+			SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
+			FROM #temp_Ticket t
+			WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
+		END
+		 
+		IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE betteam <> '1')
+		BEGIN
+			;WITH CTE_Sumstake AS(
+			SELECT SUM((bp.stake / SUBSTRING(CAST(bp.Serial AS VARCHAR(20)), 2, 2))) AS Sumstake
+					,bp.Refno
+					,bp.TransId --Sub ticket
+			FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) 
+			WHERE EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket t
+											WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid AND t.statusID = 102)
+			GROUP BY Refno, TransId
+			)
+			UPDATE t
+			SET t.stake_tmp = cte.Sumstake
+			FROM #temp_Ticket t
+				INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
+			WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
+		 
+			--For main parlay status: Reject, sub parlay: VOID, table : BetParlayDetail (no data).
+			IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
+			BEGIN
+			UPDATE t
+				SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
+				FROM #temp_Ticket t
+				WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102 AND stake_tmp IS NULL
+			END
 	END
+
+		UPDATE #temp_Ticket
+		SET stake = stake_tmp
+		WHERE isparlay = 1  AND stake_tmp IS NOT NULL
+END
      
 	UPDATE t
 	SET t.TotalTicket = kq.TotalTicket
