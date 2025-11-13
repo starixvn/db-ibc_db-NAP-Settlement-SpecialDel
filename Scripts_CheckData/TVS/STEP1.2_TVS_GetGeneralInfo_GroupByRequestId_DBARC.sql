@@ -79,6 +79,7 @@ CREATE TABLE #temp_Ticket (
     , zzz_status NVARCHAR(100)
     , statusid INT
     , refno BIGINT
+	, stake_tmp MONEY
 )
 DECLARE @RequestId INT, @ListBettype VARCHAR(MAX) = '', @ListBetteam VARCHAR(MAX) ='', @ListScore VARCHAR(MAX) = ''
 
@@ -198,9 +199,9 @@ BEGIN
      IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam = '1')
      BEGIN
          UPDATE t
-         SET t.stake = CAST (t.stake/t.selection AS FLOAT)
+         SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
          FROM #temp_Ticket t
-         WHERE isparlay = 1 AND betteam = '1'
+         WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
      END
      
      IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1')
@@ -212,14 +213,14 @@ BEGIN
                    ,bp.TransId --Sub ticket
             FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) 
             WHERE EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket t
-                                           WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid)
+                                           WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid AND t.statusID = 102)
             GROUP BY Refno, TransId
             )
          UPDATE t
-         SET t.stake = cte.Sumstake
+         SET t.stake_tmp = cte.Sumstake
          FROM #temp_Ticket t
              INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
-         WHERE IsParlay = 1 AND betteam <> '1'
+         WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
      END
      
 	UPDATE t
@@ -484,7 +485,7 @@ WHERE IsArchived = 1
 IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam = '1')
      BEGIN
          UPDATE t
-         SET t.stake = CAST (t.stake/t.selection AS FLOAT)
+         SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
          FROM #temp_Ticket t
          WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
      END
@@ -502,7 +503,7 @@ IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam = '1
             GROUP BY Refno, TransId
             )
          UPDATE t
-         SET t.stake = cte.Sumstake
+         SET t.stake_tmp = cte.Sumstake
          FROM #temp_Ticket t
              INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
          WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
