@@ -3,8 +3,8 @@ USE bodb_archive
 GO
 
 DECLARE @from datetime, @to datetime																						
-SET @from = '2025-10-01'																									
-SET @to = '2025-11-01'																									
+SET @from = '2025-11-01'																									
+SET @to = '2025-11-13'																									
 																									
 CREATE TABLE #message_tmp (messageID INT, reason VARCHAR(50), transid BIGINT, MessageContent varchar(max), matchid INT)																										
 CREATE TABLE #temp_transid (
@@ -33,6 +33,7 @@ transid bigint
 , refno BIGINT
 , IsArchived BIT DEFAULT(0)
 , stake_tmp MONEY
+, IsMissBetParlayDetail BIT DEFAULT(0)
 )
 
 CREATE TABLE #VoidReasonPattern (
@@ -230,42 +231,49 @@ BEGIN
         INNER JOIN bodb02.dbo.TicketVoiding_VoidedTransaction d WITH (NOLOCK) ON d.transid = ms.TransId	
 END
 
+IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1)
+BEGIN
+	IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE betteam = '1')
+    BEGIN
+		UPDATE t
+		SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
+		FROM #temp_transid t
+		WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
+	END
+		 
+	IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE betteam <> '1')
+	BEGIN
+		;WITH CTE_Sumstake AS(
+		SELECT SUM((bp.stake / SUBSTRING(CAST(bp.Serial AS VARCHAR(20)), 2, 2))) AS Sumstake
+				,bp.Refno
+				,bp.TransId --Sub ticket
+		FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) 
+		WHERE EXISTS ( SELECT TOP 1 1 FROM #temp_transid t
+										WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid AND t.statusID = 102)
+		GROUP BY Refno, TransId
+		)
+		UPDATE t
+		SET t.stake_tmp = cte.Sumstake
+		FROM #temp_transid t
+			INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
+		WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
+		 
+		--For main parlay status: Reject, sub parlay: VOID, table : BetParlayDetail (no data).
+		IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
+		BEGIN
+		UPDATE t
+			SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
+			FROM #temp_transid t
+			WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102 AND stake_tmp IS NULL
+		END
+	END
+	SELECT IsMissBetParlayDetail, refno, stake, stake_tmp, betteam, selection, * FROM #temp_transid WHERE isparlay = 1 and betteam <> '1'	
+    return;
 
-	 IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1 AND betteam = '1' AND statusID = 102)
-     BEGIN
-         UPDATE t
-         SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
-         FROM #temp_transid t
-         WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
-     END
-     
-     IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102)
-     BEGIN
-          
-          ;WITH CTE_Sumstake AS(
-            SELECT SUM((bp.stake / SUBSTRING(CAST(bp.Serial AS VARCHAR(20)), 2, 2))) AS Sumstake
-                   ,bp.Refno
-                   ,bp.TransId --Sub ticket
-            FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) 
-            WHERE EXISTS ( SELECT TOP 1 1 FROM #temp_transid t
-                                           WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid AND t.statusID = 102)
-            GROUP BY Refno, TransId
-            )
-         UPDATE t
-         SET t.stake_tmp = cte.Sumstake
-         FROM #temp_transid t
-             INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
-         WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
-
-		  --For main parlay status: Reject, sub parlay: VOID, table : BetParlayDetail (no data)
-		 IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
-		 BEGIN
-			UPDATE t
-			 SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
-			 FROM #temp_transid t
-			 WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102 AND stake_tmp IS NULL
-		 END
-     END
+	UPDATE #temp_transid
+	SET stake = stake_tmp
+	WHERE isparlay = 1  AND stake_tmp IS NOT NULL
+END
 
 UPDATE d
 SET d.sporttype =   m.sporttype
@@ -385,6 +393,7 @@ SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' E
 	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
 	, CASE WHEN MAX(CASE WHEN ms.zzz_status IN ('LOSE', 'DRAW','WON') THEN 1 ELSE 0 END) = 1 THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
+	, ms.IsMissBetParlayDetail
 FROM #temp_transid ms WITH (NOLOCK)																									
 WHERE ms.currency NOT IN (20,72)																							
 	AND ms.statusID = 102	
