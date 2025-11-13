@@ -12,7 +12,6 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:
 		- 20241028@Aries: Direct payout for early soccer [Redmine:#211079]
-		- 20251028@Hughie: Retry the Auto/Direct Payout flow for these failed matches after untick hold key [Redmine:#240174]
 
 	Param's Explanation:
 		@SelectedResources= '<Resources>
@@ -49,7 +48,7 @@ BEGIN
 							AND TARGET.CalculationType = @CalculationType 
 	WHEN MATCHED THEN
 		UPDATE SET   StatusId	  = @StatusId
-					,Remark		  = CASE WHEN @StatusId = 2 THEN '' ELSE ISNULL(@Remark,Remark) END
+					,Remark		  = ISNULL(@Remark,Remark)
 					,ModifiedDate = GETDATE()
 	WHEN NOT MATCHED BY TARGET THEN
 		INSERT ( MatchId, ResourceId, HomeValue, AwayValue, StatusId,CalculationType, SourceId, CreatedDate, ModifiedDate,Remark)

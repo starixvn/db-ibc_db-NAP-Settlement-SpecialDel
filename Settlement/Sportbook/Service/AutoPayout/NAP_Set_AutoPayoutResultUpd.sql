@@ -25,7 +25,6 @@ AS
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20241021@Aries: AutoPayout2 for Baseball AiO (Regular and Series Matches) [Redmine:#211632]
-		- 20251028@Hughie: Retry the Auto/Direct Payout flow for these failed matches after untick hold key [Redmine:#240174]
 		
 	Param's Explanation:
 		- @StatusId: 0: New
@@ -154,7 +153,6 @@ BEGIN
 			UPDATE dbo.AutoPayoutResult WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = @StatusId 
 			  , ModifiedDate = GETDATE()
-			  , Remark = CASE WHEN @StatusId = 2 THEN '' ELSE Remark END
 			WHERE MatchId = @MatchId 
 				AND CalculationType = @TypeId
 				AND StatusId <> @StatusId

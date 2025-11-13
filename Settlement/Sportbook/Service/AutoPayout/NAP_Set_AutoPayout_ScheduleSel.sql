@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_ScheduleSel] 
 AS
 /*	Creator: 20160303@Patrick
@@ -30,7 +30,6 @@ AS
 		- 20240731@Aries: Apply Direct Payout for SABA CLUB FRIENDLY and SABA ENGLISH PREMIER LEAGUE - Virtual FC 24 - 16 Mins Play [Redmine:#208347]
 		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
-		- 20251028@Hughie: Retry the Auto/Direct Payout flow for these failed matches after untick hold key [Redmine:#240174]
 
 	Param's Explanation:
  
@@ -158,23 +157,6 @@ BEGIN
 					FROM @tblLeague AS tl
 					WHERE l.LeagueId = tl.Leagueid
 				) ss 
-				OUTER APPLY (
-					SELECT TOP 1 1 AS IsExistHoldResult
-					FROM (
-						SELECT p.CalculationType AS TypeId
-						FROM (
-							SELECT p.CalculationType, p.StatusId, p.Remark,
-								ROW_NUMBER() OVER (
-									PARTITION BY p.CalculationType
-									ORDER BY p.AutoPayoutResultId DESC
-								) AS rn
-							FROM AutoPayoutResult p WITH (NOLOCK)
-							WHERE p.MatchId = m.matchid
-						) AS p
-						WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
-					) AS x
-					WHERE x.TypeId = f.TypeId
-				) x
 			WHERE	m.eventstatus = 'running' 
 					AND m.sporttype = 1
 					AND m.eventdate BETWEEN @fromdate AND @todate 
@@ -198,27 +180,14 @@ BEGIN
 								 ELSE 1
 							END
 					AND 17 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) IN (1, 16)
-					AND (rs.IsExistAP IS NULL or x.IsExistHoldResult = 1)
+					AND rs.IsExistAP IS NULL
 					AND r.IsExistResultDetail IS NULL
-					AND m.SettlementStatus & 87 = 0
 	)t
 	WHERE	IsConfirmed > 0
-	ORDER BY t.kickofftime ASC, t.MatchId ASC, t.TypeId ASC
+	ORDER BY t.kickofftime, t.MatchId, t.TypeId
 
 	--TEMPORARY: Insert score into ProviderResultDetail for SourceId = 101 - Direct Autopayout
 	DECLARE @currTime DATETIME = GETDATE()
-
-	DELETE t 
-	FROM @tmpMatchAuto AS t
-	WHERE EXISTS (SELECT 1
-					  FROM dbo.ResultDetail AS r WITH(NOLOCK)
-					  WHERE r.matchid = t.MatchId					
-						AND 1 = CASE 
-										WHEN r.ResourceId IN ('00','01') AND t.TypeId = 2 THEN 1
-										WHEN r.ResourceId = '01' AND t.TypeId = 1 THEN 1
-										ELSE 0
-									END
-						AND ISNULL(r.ResultSetting,0) & 1 != 0)
 
 	-- Return data 
 	SELECT t.MatchId,t.ParentID, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
