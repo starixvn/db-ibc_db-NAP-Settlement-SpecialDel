@@ -518,8 +518,8 @@ BEGIN
 	ORDER BY CASE WHEN s.GroupName IN ('1X2', '1H 1X2') AND s.transid = s.SubTransid THEN 1
 				  WHEN s.GroupName = 'AIO' AND s.transid = s.SubTransid THEN 2
 				  WHEN s.IsMixParlay = 1 AND s.GroupName <> 'Others' THEN 3
-				  ELSE 4 END
-			, ISNULL(s.MainTransId, s.transid)
+				  ELSE 4 END ASC
+			, ISNULL(s.MainTransId, s.transid) ASC
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
