@@ -136,7 +136,11 @@ BEGIN
 
 	--parlay 
 	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, IsParlay, zzz_status, subtransid, currency, selection, betteam, refno, IsArchived)			
-	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, 1 AS IsParlay, d.status, d.transid as subtransid, b.currency, b.hdp2, b.betteam, b.refno, 1 AS IsArchived	
+	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, 1 AS IsParlay, d.status, d.transid as subtransid, b.currency
+	, CASE WHEN ISNULL(b.oddsspread,0) <> 3 THEN b.hdp2 --Mix/System parlay
+		   WHEN ISNULL(b.oddsspread,0) = 3 THEN b.betid --Hybrid parlay
+		   ELSE 0 END
+	, b.betteam, b.refno, 1 AS IsArchived	
 	FROM #message_tmp ms WITH (NOLOCK)																									
 		INNER JOIN dbo.bettrans_bk b WITH (NOLOCK) ON b.transid = ms.TransId	
 		INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.refno = b.refno AND ms.matchid = d.matchid	
@@ -200,7 +204,11 @@ BEGIN
 
 	--parlay 
 	INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, IsParlay, zzz_status, subtransid, selection, betteam, stake, refno)	
-	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, 1 AS IsParlay, d.status, d.transid AS subtransid, b.hdp2, b.betteam, b.stake, b.refno
+	SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, 1 AS IsParlay, d.status, d.transid AS subtransid
+	, CASE WHEN ISNULL(b.oddsspread,0) <> 3 THEN b.hdp2 --Mix/System parlay
+		   WHEN ISNULL(b.oddsspread,0) = 3 THEN b.betid --Hybrid parlay
+		   ELSE 0 END
+	, b.betteam, b.stake, b.refno
 	FROM #message_tmp ms WITH (NOLOCK)																									
 		INNER JOIN bodb02.dbo.bettrans b WITH (NOLOCK) ON b.transid = ms.TransId	
 		INNER JOIN bodb02.dbo.zzzbettrans d WITH (NOLOCK) ON d.refno = b.refno AND d.custid = b.custid
@@ -222,15 +230,15 @@ BEGIN
 END
 
 
-	 IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1 AND betteam = '1')
+	 IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1 AND betteam = '1' AND statusID = 102)
      BEGIN
          UPDATE t
          SET t.stake = CAST (t.stake/t.selection AS FLOAT)
          FROM #temp_transid t
-         WHERE isparlay = 1 AND betteam = '1'
+         WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
      END
      
-     IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1 AND betteam <> '1')
+     IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102)
      BEGIN
           
           ;WITH CTE_Sumstake AS(
@@ -239,14 +247,14 @@ END
                    ,bp.TransId --Sub ticket
             FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) 
             WHERE EXISTS ( SELECT TOP 1 1 FROM #temp_transid t
-                                           WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid)
+                                           WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid AND t.statusID = 102)
             GROUP BY Refno, TransId
             )
          UPDATE t
          SET t.stake = cte.Sumstake
          FROM #temp_transid t
              INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
-         WHERE IsParlay = 1 AND betteam <> '1'
+         WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
      END
 
 UPDATE d
