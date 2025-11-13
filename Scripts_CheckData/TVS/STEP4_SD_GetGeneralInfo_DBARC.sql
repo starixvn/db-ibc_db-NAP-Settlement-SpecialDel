@@ -32,6 +32,7 @@ transid bigint
 , selection INT
 , refno BIGINT
 , IsArchived BIT DEFAULT(0)
+, stake_tmp MONEY
 )
 
 CREATE TABLE #VoidReasonPattern (
@@ -233,7 +234,7 @@ END
 	 IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1 AND betteam = '1' AND statusID = 102)
      BEGIN
          UPDATE t
-         SET t.stake = CAST (t.stake/t.selection AS FLOAT)
+         SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
          FROM #temp_transid t
          WHERE isparlay = 1 AND betteam = '1' AND t.statusID = 102
      END
@@ -251,10 +252,19 @@ END
             GROUP BY Refno, TransId
             )
          UPDATE t
-         SET t.stake = cte.Sumstake
+         SET t.stake_tmp = cte.Sumstake
          FROM #temp_transid t
              INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
          WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
+
+		  --For main parlay status: Reject, sub parlay: VOID, table : BetParlayDetail (no data)
+		 IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
+		 BEGIN
+			UPDATE t
+			 SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
+			 FROM #temp_transid t
+			 WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102 AND stake_tmp IS NULL
+		 END
      END
 
 UPDATE d

@@ -224,9 +224,13 @@ BEGIN
              INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
          WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
 
+		 --For main parlay status: Reject, sub parlay: VOID, table : BetParlayDetail (no data)
 		 IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
 		 BEGIN
-			SELECT 'ABC'
+			 UPDATE t
+			 SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
+			 FROM #temp_Ticket t
+			 WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102 AND stake_tmp IS NULL
 		 END
 
      END
@@ -516,10 +520,14 @@ IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam = '1
          FROM #temp_Ticket t
              INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
          WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
-		
+		 
+		 --For main parlay status: Reject, sub parlay: VOID, table : BetParlayDetail (no data)
 		 IF EXISTS ( SELECT TOP 1 1 FROM #temp_Ticket WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
 		 BEGIN
-			SELECT 'ABC'
+			UPDATE t
+			 SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
+			 FROM #temp_Ticket t
+			 WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102 AND stake_tmp IS NULL
 		 END
 	END
      
