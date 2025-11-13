@@ -293,7 +293,7 @@ BEGIN
 			,[status]   = CASE WHEN @IsUpd_Void = 0 THEN [status]
 								ELSE 'running'
 							END
-	        ,statuswinlost  = NULL
+	        ,statuswinlost  = CASE WHEN bm.statusID = 102 THEN NULL ELSE bm.statuswinlost END
 	        ,ruben          = CASE WHEN @IsUpd_Void = 0 THEN ruben
 								ELSE 0
 							END
@@ -319,7 +319,7 @@ BEGIN
 	    
 	    --update BetParlayDetail
 	    UPDATE pd
-	    SET statuswinlost   = NULL
+	    SET statuswinlost   = r.statuswinlost
 	        ,statusID       = 0
 			,odds			= r.odds
 	    FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
