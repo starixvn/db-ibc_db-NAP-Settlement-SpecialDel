@@ -711,6 +711,11 @@ SET Bet_cnt = NULL, t.Bet_cnt_Parlay = NULL, MemberTO_RM =NULL, House_TO_RM= NUL
 FROM #temp_transid t
 WHERE ISNULL(LastVoidedBy,0) = 0 
 
+IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE IsMissBetParlayDetail = 1)
+BEGIN
+	SELECT 'SELECT MISS BetParlayDetail DATA CHECK AGAIN'
+END
+
 /*************************************************************************************************************************************
 **************************************************************************************************************************************/
 SELECT DISTINCT 

@@ -33,6 +33,7 @@ transid bigint
 , IsArchived BIT DEFAULT(0)
 , stake_tmp MONEY
 , IsMissBetParlayDetail BIT DEFAULT(0)
+, IsMissData BIT DEFAULT(0)
 )
 
 CREATE TABLE #VoidReasonPattern (
@@ -244,7 +245,6 @@ BEGIN
 
 END
 
-
 DELETE ms
 FROM #message_tmp ms WITH (NOLOCK)																									
 	INNER JOIN #temp_transid d WITH (NOLOCK) ON d.transid = ms.TransId
@@ -252,8 +252,8 @@ FROM #message_tmp ms WITH (NOLOCK)
 ---Update for case MBU T5 not copy zzzbetrans_bk, T6 delete zzzbettrans => miss data 
 IF EXISTS ( SELECT TOP 1 1 FROM #message_tmp)
 BEGIN
-    INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, zzz_status)		
-    SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, d.status								
+    INSERT INTO #temp_transid (transid,reason,matchid, MessageContent, zzz_status, IsMissData)		
+    SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent, d.status, 1 AS IsMissData								
     FROM #message_tmp ms WITH (NOLOCK)																									
         INNER JOIN bodb02.dbo.TicketVoiding_VoidedTransaction d WITH (NOLOCK) ON d.transid = ms.TransId	
 END
@@ -276,25 +276,24 @@ BEGIN
 				,bp.TransId --Sub ticket
 		FROM DBTRANS.bodb02.dbo.BetParlayDetail bp (NOLOCK) 
 		WHERE EXISTS ( SELECT TOP 1 1 FROM #temp_transid t
-										WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.transid AND t.statusID = 102)
+										WHERE t.IsParlay = 1 AND t.betteam <> '1' AND bp.refno = t.refno AND bp.transid = t.subtransid AND t.statusID = 102)
 		GROUP BY Refno, TransId
 		)
 		UPDATE t
 		SET t.stake_tmp = cte.Sumstake
 		FROM #temp_transid t
-			INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.transid = cte.transid
+			INNER JOIN CTE_Sumstake cte ON t.refno = cte.refno AND t.subtransid = cte.transid
 		WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102
 		 
 		--For main parlay status: Reject, sub parlay: VOID, table : BetParlayDetail (no data).
 		IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE isparlay = 1 AND betteam <> '1' AND statusID = 102 AND stake_tmp IS NULL)
 		BEGIN
 		UPDATE t
-			SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT)
+			SET t.stake_tmp = CAST (t.stake/t.selection AS FLOAT), IsMissBetParlayDetail = 1
 			FROM #temp_transid t
 			WHERE IsParlay = 1 AND betteam <> '1' AND t.statusID = 102 AND stake_tmp IS NULL
 		END
 	END
-
 
 	UPDATE #temp_transid
 	SET stake = stake_tmp
@@ -399,8 +398,11 @@ BEGIN
             ON m.League3rdId = l.League3rdId																							
     WHERE l.isTest = 0	
 END
---SELECT * FROM #temp_transid
---RETURN	
+IF EXISTS ( SELECT TOP 1 1 FROM #temp_transid WHERE IsMissData = 1 OR IsMissBetParlayDetail = 1)
+BEGIN
+	SELECT 'SELECT MISS IN ZZZBETTRANS OR BetParlayDetail DATA CHECK AGAIN'
+END
+
 SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' END IsMonthly																											
 	, 'SD' AS 'TVS/SD?', ms.winlostdate
 	, YEAR(ms.winlostdate) AS YEAR_winlostdate
@@ -420,13 +422,11 @@ SELECT	DISTINCT CASE WHEN ms.Reason LIKE '%Abnormal Bet%' THEN 'No' ELSE 'Yes' E
 	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
 	, CASE WHEN MAX(CASE WHEN ms.zzz_status IN ('LOSE', 'DRAW','WON') THEN 1 ELSE 0 END) = 1 THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
-	, ms.IsMissBetParlayDetail
 FROM #temp_transid ms WITH (NOLOCK)																									
 WHERE ms.currency NOT IN (20,72)																							
 	AND ms.statusID = 102	
 	AND ms.winlostdate between  @from AND @to
 GROUP BY ms.winlostdate, ms.Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent								
-, ms.IsMissBetParlayDetail
 ORDER BY winlostdate ASC 
 
 DROP TABLE #message_tmp
