@@ -201,25 +201,6 @@ BEGIN
 		AND NOT EXISTS (SELECT TOP 1 1 FROM SettlementSetting ss WITH(NOLOCK)
 						WHERE AutoType = 10 AND ss.LeagueId = l.leagueid)
 		AND (ms.MatchId IS NOT NULL OR ss.leagueid IS NOT NULL)
-	
-	DECLARE @HoldResults TABLE (
-		MatchId INT NOT NULL,
-		ResourceID VARCHAR(20) NOT NULL,
-		PRIMARY KEY (MatchId, ResourceID)
-	)
-
-	INSERT INTO @HoldResults (MatchId, ResourceID)
-	SELECT p.MatchId, p.ResourceID
-	FROM (
-		SELECT p.MatchId, p.ResourceID, p.StatusId, p.Remark,
-			ROW_NUMBER() OVER (
-				PARTITION BY p.MatchId, p.ResourceID
-				ORDER BY p.AutoPayoutResultId DESC
-			) AS rn
-		FROM AutoPayoutResultOS p WITH (NOLOCK)
-		WHERE p.MatchId IN (SELECT matchid FROM #Match)
-	) AS p
-	WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
 
 		INSERT INTO #MatchResource (matchId,ResourceId,ResourceType,TotalProvider,TotalPrimaryProvider,TotalSecondaryProvider,CreatedDate,AP_TotalSecondaryProvider)
 		SELECT m.matchId,r.ResourceId,f.ResourceType
@@ -240,29 +221,25 @@ BEGIN
 		FROM ProviderExternalResultDetail AS r WITH(NOLOCK)
 			INNER JOIN #Match m ON m.matchId = r.MatchId
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) AS f
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
+			OUTER APPLY (SELECT TOP 1 os.Matchid, os.ResourceId, os.StatusId, os.Remark
 						 FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
 						 WHERE os.MatchId = r.matchid
 							AND os.ResourceId = r.ResourceID
-							AND ISNULL(os.SourceID,0) = 0) AS ap
+							AND ISNULL(os.SourceID,0) = 0
+							ORDER BY os.AutoPayoutResultId DESC
+			) AS ap
 			OUTER APPLY (SELECT TOP 1 1 AS IsMapped
 						 FROM dbo.ProviderGameTypeMapping AS p WITH(NOLOCK)
 						 WHERE p.sporttype = m.sporttype
 							AND p.SourceId = r.SourceID
 							AND p.isActive = 1) AS pm
-			OUTER APPLY (
-				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM @HoldResults h
-				WHERE h.MatchId = m.matchid 
-					AND h.ResourceID = r.ResourceId
-			) x
 		WHERE  m.ExternalResultTable = 1
             AND r.SourceID < 1001
 			AND r.SourceID NOT IN (98,99,100)
 			AND ISNULL(r.IsLive,0) = 0
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
-			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
+			AND (ap.ResourceID IS NULL OR (ap.StatusId = 3 AND ap.Remark LIKE '%HOLD%'))
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 			 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
 						 ELSE 0
@@ -294,29 +271,25 @@ BEGIN
 		FROM ProviderExternalResultDetailOS AS r WITH(NOLOCK)
 			INNER JOIN #Match AS m ON r.matchId = m.matchId
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) AS f
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
+			OUTER APPLY (SELECT TOP 1 os.Matchid, os.ResourceId, os.StatusId, os.Remark
 						 FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
 						 WHERE os.MatchId = r.matchid
 							AND os.ResourceId = r.ResourceID
-							AND ISNULL(os.SourceID,0) = 0) AS ap		
+							AND ISNULL(os.SourceID,0) = 0
+							ORDER BY os.AutoPayoutResultId DESC
+			) AS ap	
 			OUTER APPLY (SELECT TOP 1 1 AS IsMapped
 						 FROM dbo.ProviderGameTypeMapping AS p WITH(NOLOCK)
 						 WHERE p.sporttype = m.sporttype
 							AND p.SourceId = r.SourceID
 							AND p.isActive = 1) AS pm
-			OUTER APPLY (
-				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM @HoldResults h
-				WHERE h.MatchId = m.matchid 
-					AND h.ResourceID = r.ResourceId
-			) x
 		WHERE m.ExternalResultTable = 2
 			AND r.SourceID < 1001
 			AND r.SourceID NOT IN (98,99,100)
 			AND ISNULL(r.IsLive,0) = 0
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
-			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
+			AND (ap.ResourceID IS NULL OR (ap.StatusId = 3 AND ap.Remark LIKE '%HOLD%'))
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 			 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
 						 ELSE 0
@@ -352,29 +325,25 @@ BEGIN
 							AND s.SportType = m.sporttype
 			) AS ss
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) AS f
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
+			OUTER APPLY (SELECT TOP 1 os.Matchid, os.ResourceId, os.StatusId, os.Remark
 						 FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
 						 WHERE os.MatchId = r.matchid
 							AND os.ResourceId = r.ResourceID
-							AND ISNULL(os.SourceID,0) = 0) AS ap		
+							AND ISNULL(os.SourceID,0) = 0
+							ORDER BY os.AutoPayoutResultId DESC
+			) AS ap		
 			OUTER APPLY (SELECT TOP 1 1 AS IsMapped
 						 FROM dbo.ProviderGameTypeMapping AS p WITH(NOLOCK)
 						 WHERE p.sporttype = m.sporttype
 							AND p.SourceId = r.SourceID
 							AND p.isActive = 1) AS pm
-			OUTER APPLY (
-				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM @HoldResults h
-				WHERE h.MatchId = m.matchid 
-					AND h.ResourceID = r.ResourceId
-			) x
 		WHERE m.ExternalResultTable = 3
 			AND r.SourceID < 1001
 			AND r.SourceID NOT IN (98,99,100)
 			AND ISNULL(r.IsLive,0) = 0
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
-			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
+			AND (ap.ResourceID IS NULL OR (ap.StatusId = 3 AND ap.Remark LIKE '%HOLD%'))
 			AND ss.IsExistsProfile IS NOT NULL
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 						 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
@@ -401,12 +370,13 @@ BEGIN
 										ELSE 0
 									END
 			) AS r
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
+			OUTER APPLY (SELECT TOP 1 os.Matchid, os.ResourceId, os.StatusId, os.Remark
 						 FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
 						 WHERE os.MatchId = m.matchid
-								AND os.ResourceId = r.ResourceID
-								AND ISNULL(os.SourceID,0) = 0
-						) AS ap
+							AND os.ResourceId = r.ResourceID
+							AND ISNULL(os.SourceID,0) = 0
+							ORDER BY os.AutoPayoutResultId DESC
+			) AS ap
 			OUTER APPLY (
 					SELECT TOP 1 pr.ProviderExternalId AS LastProviderExternalId
 					FROM dbo.ProviderExternalResultDetailOS AS pr WITH(NOLOCK)
@@ -428,18 +398,12 @@ BEGIN
 					WHERE r.matchid = m.matchId
 					AND r.IsHTCal = 0
 			)mr
-			OUTER APPLY (
-				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM @HoldResults h
-				WHERE h.MatchId = m.matchid 
-					AND h.ResourceID = r.ResourceId
-			) x
 		WHERE m.ResultTable = 0
 			AND m.eventstatus = 'running'
 			AND 1 = CASE WHEN r.ResourceID = '00' THEN 1
 						WHEN r.ResourceID = '01' AND mr.IsHTCal = 0 THEN 1
 					ELSE 0 END
-			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
+			AND (ap.ResourceID IS NULL OR (ap.StatusId = 3 AND ap.Remark LIKE '%HOLD%'))
 			AND m.AP_Main_HasTrader = 1
 		
 		INSERT INTO #MatchResource(matchId,ResourceId,CreatedDate,ResourceType,IsTrader)
@@ -459,21 +423,16 @@ BEGIN
 		SELECT m.matchId,r.ResourceId,ISNULL(r.LastModifyDate,r.CreateDate),f.ResourceType,1 AS IsTrader
 		FROM #Match AS m
 			INNER JOIN dbo.ResultDetail AS r WITH(NOLOCK) ON r.MatchID = m.matchid AND r.ResultStatusID = 3			
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
+			OUTER APPLY (SELECT TOP 1 os.Matchid, os.ResourceId, os.StatusId, os.Remark
 						 FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
 						 WHERE os.MatchId = r.matchid
-								AND os.ResourceId = r.ResourceID
-								AND ISNULL(os.SourceID,0) = 0
-						) AS ap
+							AND os.ResourceId = r.ResourceID
+							AND ISNULL(os.SourceID,0) = 0
+							ORDER BY os.AutoPayoutResultId DESC
+							) AS ap
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
-			OUTER APPLY (
-				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM @HoldResults h
-				WHERE h.MatchId = m.matchid 
-					AND h.ResourceID = r.ResourceId
-			) x
 		WHERE m.ResultTable = 1
-			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
+			AND (ap.ResourceID IS NULL OR (ap.StatusId = 3 AND ap.Remark LIKE '%HOLD%'))
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 			 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
 						 ELSE 0
@@ -497,21 +456,16 @@ BEGIN
 		SELECT m.matchId,r.ResourceId,ISNULL(r.LastModifyDate,r.CreateDate),f.ResourceType,1 AS IsTrader
 		FROM #Match AS m
 			INNER JOIN dbo.ResultDetailOS AS r WITH(NOLOCK) ON r.MatchID = m.matchid AND r.ResultStatusID = 3			
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
+			OUTER APPLY (SELECT TOP 1 os.Matchid, os.ResourceId, os.StatusId, os.Remark
 						 FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
 						 WHERE os.MatchId = r.matchid
-								AND os.ResourceId = r.ResourceID
-								AND ISNULL(os.SourceID,0) = 0
-						) AS ap
+							AND os.ResourceId = r.ResourceID
+							AND ISNULL(os.SourceID,0) = 0
+							ORDER BY os.AutoPayoutResultId DESC
+							) AS ap
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
-			OUTER APPLY (
-				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM @HoldResults h
-				WHERE h.MatchId = m.matchid 
-					AND h.ResourceID = r.ResourceId
-			) x
 		WHERE m.ResultTable = 2
-			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
+			AND (ap.ResourceID IS NULL OR (ap.StatusId = 3 AND ap.Remark LIKE '%HOLD%'))
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 			 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
 						 ELSE 0
@@ -540,21 +494,16 @@ BEGIN
 						 WHERE s.ResourceID = r.ResourceID
 							AND s.SportType = m.sporttype
 			) AS ss
-			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
+			OUTER APPLY (SELECT TOP 1 os.Matchid, os.ResourceId, os.StatusId, os.Remark
 						 FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
 						 WHERE os.MatchId = r.matchid
-								AND os.ResourceId = r.ResourceID
-								AND ISNULL(os.SourceID,0) = 0
-						) AS ap
+							AND os.ResourceId = r.ResourceID
+							AND ISNULL(os.SourceID,0) = 0
+							ORDER BY os.AutoPayoutResultId DESC
+							) AS ap
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2) AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) f
-			OUTER APPLY (
-				SELECT TOP 1 1 AS IsExistHoldResult
-				FROM @HoldResults h
-				WHERE h.MatchId = m.matchid 
-					AND h.ResourceID = r.ResourceId
-			) x
 		WHERE m.ResultTable = 3
-			AND (ap.IsExistsAP IS NULL or x.IsExistHoldResult = 1)
+			AND (ap.ResourceID IS NULL OR (ap.StatusId = 3 AND ap.Remark LIKE '%HOLD%'))
 			AND ss.IsExistsProfile IS NOT NULL
 			AND 1 = CASE WHEN m.AP_Main = 1 AND f.ResourceType = 1 THEN 1
 						 WHEN m.AP_EAR = 1 AND f.ResourceType = 2 THEN 1
