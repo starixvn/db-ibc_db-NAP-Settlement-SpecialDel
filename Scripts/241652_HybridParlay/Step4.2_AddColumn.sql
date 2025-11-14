@@ -9,9 +9,6 @@
 USE bodb02
 GO
 
-DROP PROC Repl_GetSettlementResultHistory_TicketDetails
-GO
-
 ALTER TABLE dbo.SettlementResultHistory_TicketDetails DROP CONSTRAINT PK_SettlementResultHistory_TicketDetails
 GO 
 
@@ -21,3 +18,4 @@ ALTER TABLE dbo.SettlementResultHistory_TicketDetails ADD CONSTRAINT PK_Settleme
 GO
 
 CREATE CLUSTERED INDEX IDX_SettlementResultHistory_TicketDetails_SessionID_Transid ON SettlementResultHistory_TicketDetails (SessionID, Transid)
+---AFTER DONE THIS script  , Please  deploy package SP before run next script

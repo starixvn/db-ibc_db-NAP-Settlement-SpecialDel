@@ -15,12 +15,17 @@ WHERE [name] = 'SettlementResultHistory_TicketDetails'
 	AND [group] IN (3,4,5)
 GO
 
+--drop SP put
 DROP PROC Repl_PutSettlementResultHistory_TicketDetails
 GO
-
-DROP TYPE TVP_ReplSettlementResultHistory
+DROP PROC Repl_PutSettlementResultHistory_TicketDetails_UAT4
 GO
 
+--drop type
+DROP TYPE TVP_ReplSettlementResultHistory_TicketDetails
+GO
+
+---create type
 CREATE TYPE [dbo].[TVP_ReplSettlementResultHistory_TicketDetails] AS TABLE(
 	 ID					BIGINT
 	,SessionID			VARCHAR(50) 
@@ -35,4 +40,8 @@ CREATE TYPE [dbo].[TVP_ReplSettlementResultHistory_TicketDetails] AS TABLE(
 GO
 
 GRANT EXECUTE ON TYPE::[dbo].[TVP_ReplSettlementResultHistory_TicketDetails] TO [repl_ap] AS [dbo]
+GO
+
+---This table will ADD coumn Identity, so grant ALter first
+GRANT ALTER ON dbo.SettlementResultHistory_TicketDetails TO [repl_ap]
 GO
