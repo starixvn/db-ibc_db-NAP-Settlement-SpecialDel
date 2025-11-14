@@ -25,6 +25,7 @@ AS
 		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
 		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
 		- 20250822@Louisa: Basketball Player Prop [Redmine:#233012]
+		- 20251113@Louisa: Basketball Hybrid Parlay [Redmine: #241652]
 
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'
@@ -100,28 +101,23 @@ BEGIN
 	ELSE IF EXISTS(SELECT TOP 1 1
 				   FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			   			CROSS APPLY (
-			   				SELECT TOP 1 b.refno
-			   						,b.statusID
-			   						,b.matchid
-			   				FROM	dbo.bettrans b WITH(NOLOCK)
-			   				WHERE	b.transid = mt.TransId
-			   						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-			   						AND b.matchid = 29
-			   			) b							
-			   			CROSS APPLY (
 			   				SELECT TOP 1 bm.transid
 			   				FROM	dbo.bettransm bm WITH(NOLOCK)
+								INNER JOIN bettrans b WITH(NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
 			   				WHERE	bm.matchid = mt.matchid
-			   						AND bm.refno = b.refno
+			   						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			   						AND bm.statusID = 0
-			   						AND EXISTS (	SELECT TOP 1 1 FROM @tmpBettype t 
+									AND EXISTS (	SELECT TOP 1 1 FROM @tmpBettype t 
 													WHERE t.bettype = bm.bettype 
 														AND (t.BetId = 0 
 																OR (t.BetId = bm.betcheck AND bm.bettype NOT IN (675,676,678 )) 
 																OR (bm.bettype IN (675,676,678 ) AND t.BetID = bm.betcheck  AND bm.betteam = RIGHT(t.ResourceID, 2)) 
 															)
 												)
-			   			)bm
+								AND (  ( mt.MarkType IN (2,3) AND bm.TransId = mt.transid ) ---markType 2,3 is Hybrid Parlay
+										OR	b.TransId = mt.transId	
+									) 
+			   			) bm
 				   WHERE	mt.MatchId IN (SELECT tmp.MatchID FROM @tmpMatch AS tmp))
 	BEGIN
 		SET @isExistMarkedTicket = 1		

@@ -233,7 +233,8 @@ BEGIN
 			OUTER APPLY ( SELECT mt.TransId
 						  FROM #tmpMarkedTransaction mt
 						  WHERE  mt.matchid = bm.matchid
-							AND (   mt.MarkType IN (2,3) OR	b.TransId = mt.transId	) ---markType 2,3 is Hybrid Parlay
+							AND (   (mt.MarkType IN (2,3) AND mt.transId =bm.transId) ---markType 2,3 is Hybrid Parlay
+									OR b.TransId = mt.transId	) 
 						  )mt
 		WHERE   bm.matchID = @MatchID
 				AND b.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupId END
