@@ -64,7 +64,7 @@ BEGIN
 			;WITH cte AS (
 				SELECT refno, MAX(transid) AS MaxSubTransId
 							, SUM(CASE WHEN bm.statusID IN (0,1) THEN 1 ELSE 0 END) AS total_running
-							, SUM(CASE WHEN bm.statuswinlost IN (0,1,3) THEN 1 ELSE 0 END) AS total_getnewodds
+							, SUM(CASE WHEN bm.statuswinlost IN (0,1,3,6) THEN 1 ELSE 0 END) AS total_getnewodds
 							, SUM(CASE WHEN bm.statuswinlost IN (4) THEN 1 ELSE 0 END) AS total_lose
 				FROM dbo.bettransm bm WITH (NOLOCK)
 				WHERE bm.matchid = @MatchId
@@ -78,31 +78,25 @@ BEGIN
 				AND c.total_lose = 0
 				AND c.total_getnewodds > 0
 			
-			INSERT INTO @tmpMainTransIdResult (TransId)
-			SELECT DISTINCT b.TransId
-			FROM dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN @tmpRefNo c ON c.refno = b.refno
-				CROSS APPLY (
-								SELECT odds
-								FROM dbo.bettransm bm WITH (NOLOCK)
-								WHERE c.refno = bm.refno AND bm.TransId = c.MaxSubTransId
-						) AS t
-				CROSS APPLY (
-							SELECT o AS odds_transdesc
-							FROM OPENJSON(b.transdesc, '$.legOdds')
-							WITH (
-								m BIGINT '$.m',
-								o MONEY '$.o'
-							)
-							WHERE m = @MatchId
-						)j
-			WHERE b.oddsspread = 3
-				AND b.matchid = 29
-				AND b.bettype = 29	
-				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-				AND j.odds_transdesc = t.odds 
+			IF @@ROWCOUNT > 0
+			BEGIN
+				INSERT INTO @tmpMainTransIdResult (TransId)
+				SELECT DISTINCT b.TransId
+				FROM dbo.bettrans b WITH (NOLOCK)
+					INNER JOIN @tmpRefNo c ON c.refno = b.refno
+					OUTER APPLY (
+									SELECT odds
+									FROM dbo.BetBuilderLegOddsHistory bh WITH (NOLOCK)
+									WHERE bh.MatchID = @MatchId AND bh.TransId = c.MaxSubTransId
+							) AS t
+				WHERE b.oddsspread = 3
+					AND b.matchid = 29
+					AND b.bettype = 29	
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+					AND t.Odds IS NULL
 
-			SET @totalRowCount = @totalRowCount + @@ROWCOUNT
+				SET @totalRowCount = @totalRowCount + @@ROWCOUNT
+			END
 
 			IF @totalRowCount = 0
 			BEGIN
