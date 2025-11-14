@@ -29,6 +29,7 @@ BEGIN
 
 	DECLARE @tmpMainTransIdResult TABLE (TransId BIGINT)
 	DECLARE @tmpRefNo TABLE (refno BIGINT, MaxSubTransId BIGINT)
+	DECLARE @tmpRefNo_tmp TABLE (refno BIGINT, MaxSubTransId BIGINT)
 	
 	IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT[1-9]'
 	BEGIN
@@ -66,10 +67,12 @@ BEGIN
 							, SUM(CASE WHEN bm.statusID IN (0,1) THEN 1 ELSE 0 END) AS total_running
 							, SUM(CASE WHEN bm.statuswinlost IN (0,1,3,6) THEN 1 ELSE 0 END) AS total_getnewodds
 							, SUM(CASE WHEN bm.statuswinlost IN (4) THEN 1 ELSE 0 END) AS total_lose
+							, COUNT(1) AS totalselection
 				FROM dbo.bettransm bm WITH (NOLOCK)
 				WHERE bm.matchid = @MatchId
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				GROUP BY refno
+				HAVING COUNT(1) > 1 -- Hybrid parlay
 			)
 			INSERT INTO @tmpRefNo (refno, MaxSubTransId)
 			SELECT refno, MaxSubTransId 
@@ -80,20 +83,22 @@ BEGIN
 			
 			IF @@ROWCOUNT > 0
 			BEGIN
-				INSERT INTO @tmpMainTransIdResult (TransId)
-				SELECT DISTINCT b.TransId
-				FROM dbo.bettrans b WITH (NOLOCK)
-					INNER JOIN @tmpRefNo c ON c.refno = b.refno
+				INSERT INTO @tmpRefNo_tmp (refno)
+				SELECT c.refno
+				FROM @tmpRefNo c 
 					OUTER APPLY (
-									SELECT odds
-									FROM dbo.BetBuilderLegOddsHistory bh WITH (NOLOCK)
-									WHERE bh.MatchID = @MatchId AND bh.TransId = c.MaxSubTransId
+								SELECT TOP(1) 1 AS Isvalid
+								FROM dbo.BetBuilderLegOddsHistory bh WITH (NOLOCK)
+								WHERE bh.MatchID = @MatchId AND bh.TransId = c.MaxSubTransId
+								ORDER BY CreatedDate DESC
 							) AS t
-				WHERE b.oddsspread = 3
-					AND b.matchid = 29
-					AND b.bettype = 29	
-					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-					AND t.Odds IS NULL
+				WHERE t.Isvalid IS NULL
+
+				INSERT INTO @tmpMainTransIdResult (TransId)
+				SELECT b.TransId
+				FROM @tmpRefNo_tmp tmp
+					INNER JOIN bettrans b WITH (NOLOCK) ON tmp.refno = b.refno
+				WHERE b.matchid = 29 AND b.bettype = 29 AND b.oddsspread = 3
 
 				SET @totalRowCount = @totalRowCount + @@ROWCOUNT
 			END
