@@ -1,6 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_HybridParlay_Validate] 
-	@MatchId	INT
+	@MatchId		INT
+	,@Action		VARCHAR(20) = 'CAL'	
 	,@ErrCode		INT = 0 OUTPUT
 	,@ErrMsg		NVARCHAR(200) = NULL OUTPUT
 AS
@@ -27,28 +28,30 @@ BEGIN
 	END	
 	ELSE 
 	BEGIN
-		--wait for temp for testing
-		WAITFOR DELAY '00:00:03.000'
+		WAITFOR DELAY '00:00:02.000'
 
 		SET @IsCalculating = (SELECT TOP 1 1 FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId ORDER BY Starttime DESC)
 	END
 
 	IF @IsCalculating = 2 OR @IsCalculating IS NULL
 	BEGIN	
-		SELECT DISTINCT b.TransId
-		FROM dbo.bettransm bm WITH (NOLOCK)
-			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
-		WHERE b.oddsspread = 3
-			AND b.matchid = 29
-			AND b.bettype = 29	
-			AND bm.statuswinlost IS NOT NULL
-			AND bm.statusID IN (0,1)
-			AND bm.matchid = @MatchId
-
-		IF @@ROWCOUNT = 0
+		IF @Action NOT LIKE 'UNDO%'
 		BEGIN
-			SELECT @ErrCode = 101
-				, @ErrMsg = 'No valid ticket found.'
+			SELECT DISTINCT b.TransId
+			FROM dbo.bettransm bm WITH (NOLOCK)
+				INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
+			WHERE b.oddsspread = 3
+				AND b.matchid = 29
+				AND b.bettype = 29	
+				AND bm.statuswinlost IS NOT NULL
+				AND bm.statusID IN (0,1)
+				AND bm.matchid = @MatchId
+
+			IF @@ROWCOUNT = 0
+			BEGIN
+				SELECT @ErrCode = 101
+					, @ErrMsg = 'No valid ticket found.'
+			END
 		END
 	END
 	ELSE IF @IsCalculating IN (0,1)

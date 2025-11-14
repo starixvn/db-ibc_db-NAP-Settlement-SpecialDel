@@ -294,7 +294,8 @@ BEGIN
 			,[status]   = CASE WHEN @IsUpd_Void = 0 THEN [status]
 								ELSE 'running'
 							END
-	        ,statuswinlost  = CASE WHEN bm.statusID = 102 THEN NULL ELSE bm.statuswinlost END
+	        ,statuswinlost  = CASE WHEN t.IsHybrid = 1 AND @IsUpd_Void = 1 THEN bm.statuswinlost 
+									ELSE NULL END
 	        ,ruben          = CASE WHEN @IsUpd_Void = 0 THEN ruben
 								ELSE 0
 							END
