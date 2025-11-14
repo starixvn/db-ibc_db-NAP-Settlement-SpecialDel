@@ -20,7 +20,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
-	CREATE NONCLUSTERED INDEX IDX_refno ON #tblTrans (refno)
+	CREATE NONCLUSTERED INDEX IX_refno ON #tblTrans (refno)
 
 	DECLARE @Resource TABLE(ResourceID VARCHAR(20), SeqNo INT,PRIMARY KEY(ResourceID))
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
