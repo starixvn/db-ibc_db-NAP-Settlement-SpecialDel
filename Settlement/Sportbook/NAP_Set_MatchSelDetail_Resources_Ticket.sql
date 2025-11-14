@@ -16,6 +16,7 @@ AS
 		- 20240604@Aries: Support calculate interval child-matches for Table Tennis (SOP) [Redmine:#202100] 
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]
 		- 20250822@Louisa: New bettype Basketball Player Prop [Redmine:#233012]
+		- 20251113@Louisa: Basketball Hybrid Parlay [Redmine: #241652]
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -29,6 +30,7 @@ BEGIN
     DECLARE @tblReturnTable TABLE (	ResourceID VARCHAR(20),BetCount INT,InWaiting INT,InRunning INT,BetMarkedCount INT,BetSettledCount INT,BetRefundedCount INT, IsSpecialBettype TINYINT, OrdNo INT	)
 
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)   
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT, MarkType TINYINT)
     ---------------------------------------------------------------------------------------------
     IF @SportType = 0
 	BEGIN
@@ -43,9 +45,7 @@ BEGIN
 	FROM [dbo].[match_remark] WITH (NOLOCK) 
 	WHERE matchid = @matchid    
     ---------------------------------------------------------------------------------------------
-
-    --count ticket and group by Bettype and BetID
-	 IF @SportType IN (8, 50)
+	IF @SportType IN (8, 50)
 	BEGIN
 		INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId )
 		SELECT	@MatchId , @MatchId
@@ -55,13 +55,21 @@ BEGIN
 		WHERE	ISNULL(ParentID,0) =  @MatchId
 				AND ISNULL(m.ChildMatchType, 0) = 200
 				AND m.sporttype IN (8, 50)
-		
+	END
+
+	INSERT INTO #tmpMarkedTransaction (transId, matchId, MarkType)
+	SELECT	mt.TransId, mt.MatchId, mt.MarkType
+	FROM dbo.MarkedTransaction mt WITH(NOLOCK)
+
+    --count ticket and group by Bettype and BetID
+	IF @SportType IN (8, 50)
+	BEGIN
 		; WITH cte_bettrans AS (
 			SELECT  m.ParentId, m.MatchId, bt.StatusID , bt.Bettype,  bt.BetID, (CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS IsMark
 			FROM #tmpAllParentChildMatch m
 				INNER JOIN dbo.Bettrans bt WITH(NOLOCK)	
 					ON bt.MatchID = m.MatchID 
-				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+				LEFT JOIN #tmpMarkedTransaction mt
 					ON	bt.transid = mt.TransId
 			WHERE bt.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupId END
 				AND bt.statusID NOT IN (101, 102)
@@ -108,7 +116,7 @@ BEGIN
 				MAX(ISNULL(sp.SpecialType,0) & 1 ) AS IsSpecialBettype
 		FROM bettrans bt WITH (NOLOCK)
 			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
-			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+			LEFT JOIN #tmpMarkedTransaction mt
 				ON	bt.transid = mt.TransId
 		WHERE bt.matchid = @matchid
     		AND 1 =  CASE WHEN sp.Betid = 0 THEN 1
@@ -192,7 +200,7 @@ BEGIN
 				ON	b.matchid = 29		
 					AND b.bettype = 29
 					AND b.refno = bm.refno
-			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+			LEFT JOIN #tmpMarkedTransaction mt
 				ON	b.transid = mt.TransId
 					AND mt.matchid = bm.matchid
 		WHERE	sp.sporttype = @SportType
@@ -222,9 +230,11 @@ BEGIN
 				ON	b.matchid = 29
 					AND b.bettype = 29
 					AND b.refno = bm.refno
-			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
-				ON	b.transid = mt.TransId
-					AND mt.matchid = @matchid
+			OUTER APPLY ( SELECT mt.TransId
+						  FROM #tmpMarkedTransaction mt
+						  WHERE  mt.matchid = bm.matchid
+							AND (   mt.MarkType IN (2,3) OR	b.TransId = mt.transId	) ---markType 2,3 is Hybrid Parlay
+						  )mt
 		WHERE   bm.matchID = @MatchID
 				AND b.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupId END
 				AND bm.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupId END
