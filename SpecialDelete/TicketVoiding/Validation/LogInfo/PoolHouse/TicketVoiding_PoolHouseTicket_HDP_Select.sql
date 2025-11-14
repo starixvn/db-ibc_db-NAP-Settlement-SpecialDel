@@ -346,7 +346,7 @@ BEGIN
 					,bm.custid AS Subcustid				
 					,b.odds
 					,bm.odds AS SubOdds
-					,bm.oddsspread AS Suboddsspread
+					,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
 					,b.OddsType
 					,bm.transdate AS Subtransdate
 					,b.bettype
@@ -366,7 +366,7 @@ BEGIN
 					,b.currencyname				
 					,b.STATUS
 					,bm.status AS SubStatus
-					,bm.transdesc AS SubTransdesc
+					,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN b.transdesc ELSE bm.transdesc END AS SubTransdesc
 					,1 AS IsMixParlay
 					,b.modds
 					,b.transid AS MainTransId
