@@ -89,7 +89,7 @@ BEGIN
 					OUTER APPLY (
 								SELECT TOP(1) 1 AS Isvalid
 								FROM dbo.BetBuilderLegOddsHistory bh WITH (NOLOCK)
-								WHERE bh.MatchID = @MatchId AND bh.TransId = c.MaxSubTransId
+								WHERE bh.MatchID = @MatchId AND bh.RefNo = c.refno
 							) AS t
 				WHERE t.Isvalid IS NULL
 
