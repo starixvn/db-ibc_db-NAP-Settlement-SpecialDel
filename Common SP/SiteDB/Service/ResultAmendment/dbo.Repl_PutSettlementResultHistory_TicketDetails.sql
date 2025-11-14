@@ -14,13 +14,14 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 
+	SET IDENTITY_INSERT [dbo].[SettlementResultHistory_TicketDetails] ON;
+
     MERGE dbo.SettlementResultHistory_TicketDetails AS ht
         USING @tvp_param AS tvp
         ON ht.ID = tvp.ID
         WHEN MATCHED THEN
             UPDATE 
-            SET	 ht.ID					= tvp.ID
-				,ht.SessionID           = tvp.SessionID
+            SET	 ht.SessionID           = tvp.SessionID
                 ,ht.SeqNo               = tvp.SeqNo
                 ,ht.Transid             = tvp.Transid
                 ,ht.ExtraInfo_Before    = tvp.ExtraInfo_Before
@@ -47,4 +48,6 @@ BEGIN
                 ,tvp.RepUpdateTime
                 ,tvp.IsDeleted        
             );
+
+	SET IDENTITY_INSERT [dbo].[SettlementResultHistory_TicketDetails] OFF;
 END
