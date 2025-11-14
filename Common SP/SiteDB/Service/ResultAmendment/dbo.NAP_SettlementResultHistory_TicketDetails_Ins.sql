@@ -14,6 +14,7 @@ AS
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240528@Aries: Support new changes on Result Amendment [Redmine: #205688]
 		- 20241206@Aries: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
+		- 20251113@Louisa: Basketball Hybrid Parlay [Redmine: #241652]
 */
 BEGIN	
 	SET NOCOUNT ON
@@ -137,7 +138,7 @@ BEGIN
 								AND h.SessionId = @SessionId)
 
 		INSERT INTO SettlementResultHistory_TicketDetails(SessionID,Transid,SeqNo,ExtraInfo_Before,ExtraInfo_After)
-		SELECT  @SessionId
+		SELECT  DISTINCt @SessionId
 			   ,tp.transid
 			   ,tbl.SeqNo
 			   ,CONCAT('<root><r status="',	 CASE WHEN tp.bef_statusid = 1	 THEN 'WAITING' 
