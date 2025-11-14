@@ -9,7 +9,6 @@ AS
 	
 	Revisions:
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
-		- 20251113@Louisa: Basketball Hybrid Parlay [Redmine: #241652]
 */
 BEGIN	
 	SET NOCOUNT ON
@@ -18,12 +17,11 @@ BEGIN
 
     MERGE dbo.SettlementResultHistory_TicketDetails AS ht
         USING @tvp_param AS tvp
-        ON ht.ID = tvp.ID
+        ON ht.SessionID = tvp.SessionID AND ht.Transid = tvp.Transid 
 			AND ht.Transid = tvp.Transid
         WHEN MATCHED THEN
             UPDATE 
-            SET	 ht.ID					= tvp.ID
-				,ht.SessionID           = tvp.SessionID
+            SET	 ht.SessionID           = tvp.SessionID
                 ,ht.SeqNo               = tvp.SeqNo
                 ,ht.ExtraInfo_Before    = tvp.ExtraInfo_Before
                 ,ht.ExtraInfo_After     = tvp.ExtraInfo_After
@@ -31,8 +29,7 @@ BEGIN
                 ,ht.RepUpdateTime       = CASE WHEN tvp.RepUpdateTime > ht.RepUpdateTime THEN tvp.RepUpdateTime ELSE ht.RepUpdateTime END
         WHEN NOT MATCHED THEN
             INSERT (
-                 ID
-				,SessionID      
+                 SessionID      
                 ,SeqNo        
                 ,Transid			
                 ,ExtraInfo_Before   
@@ -40,8 +37,7 @@ BEGIN
                 ,RepUpdateTime  
                 ,IsDeleted		
             ) VALUES (
-                 tvp.ID
-				,tvp.SessionID
+                 tvp.SessionID
                 ,tvp.SeqNo
                 ,tvp.Transid
                 ,tvp.ExtraInfo_Before
