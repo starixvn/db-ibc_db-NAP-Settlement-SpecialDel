@@ -9,6 +9,9 @@
 USE bodb02
 GO
 
+DROP PROC Repl_GetSettlementResultHistory_TicketDetails
+GO
+
 ALTER TABLE dbo.SettlementResultHistory_TicketDetails DROP CONSTRAINT PK_SettlementResultHistory_TicketDetails
 GO 
 

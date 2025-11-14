@@ -22,7 +22,8 @@ BEGIN
 			AND ht.Transid = tvp.Transid
         WHEN MATCHED THEN
             UPDATE 
-            SET	 ht.SessionID           = tvp.SessionID
+            SET	 ht.ID					= tvp.ID
+				,ht.SessionID           = tvp.SessionID
                 ,ht.SeqNo               = tvp.SeqNo
                 ,ht.ExtraInfo_Before    = tvp.ExtraInfo_Before
                 ,ht.ExtraInfo_After     = tvp.ExtraInfo_After
