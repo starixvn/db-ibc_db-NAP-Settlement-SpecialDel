@@ -26,7 +26,7 @@ BEGIN
         SELECT TOP (@count) RepUpdateTime
             FROM dbo.SettlementResultHistory_TicketDetails WITH (NOLOCK, INDEX = IX_RepUpdateTime)
             WHERE RepUpdateTime > @start AND RepUpdateTime < @time_upperbound
-            ORDER BY RepUpdateTime
+            ORDER BY RepUpdateTime ASC
     )
     SELECT @time_end = ISNULL(MAX(RepUpdateTime), @start) FROM CTE_Timestamp;
 
@@ -45,6 +45,6 @@ BEGIN
                  ,SYSDATETIME() AS _FetchedTime
         FROM dbo.SettlementResultHistory_TicketDetails  WITH (NOLOCK, INDEX = IX_RepUpdateTime)
         WHERE repupdatetime > @time_start AND RepUpdateTime <= @time_end
-        ORDER BY repupdatetime;
+        ORDER BY repupdatetime ASC;
     END;
 END
