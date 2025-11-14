@@ -3,7 +3,6 @@ SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Update.sql
 SpecialDelete\TicketVoiding\Validation\LogInfo\TicketVoiding_LogInfo_Select.sql
 Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
 Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile.sql
-Common SP\SiteDB\Service\dbo.NAP_SettlementService_Calculation.sql
 Settlement\Sportbook\Service\ServiceBroker\DBTXN\dbo.SSB_ParlaySettlement_UpdateData.sql
 SpecialDelete\TicketVoiding\Service\VoidBet14\TicketVoiding_VoidHistorical_Update.sql
 SpecialDelete\TicketVoiding\Service\Void Service\TicketVoiding_SingleType_Update.sql
