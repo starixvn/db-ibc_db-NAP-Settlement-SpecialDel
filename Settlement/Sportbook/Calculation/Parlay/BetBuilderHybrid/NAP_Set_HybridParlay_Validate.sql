@@ -29,7 +29,7 @@ BEGIN
 
 	DECLARE @tmpMainTransIdResult TABLE (TransId BIGINT)
 	DECLARE @tmpRefNo TABLE (refno BIGINT, MaxSubTransId BIGINT)
-	DECLARE @tmpRefNo_tmp TABLE (refno BIGINT, MaxSubTransId BIGINT)
+	DECLARE @tmpRefNo_tmp TABLE (refno BIGINT)
 	
 	IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT[1-9]'
 	BEGIN
@@ -90,7 +90,6 @@ BEGIN
 								SELECT TOP(1) 1 AS Isvalid
 								FROM dbo.BetBuilderLegOddsHistory bh WITH (NOLOCK)
 								WHERE bh.MatchID = @MatchId AND bh.TransId = c.MaxSubTransId
-								ORDER BY CreatedDate DESC
 							) AS t
 				WHERE t.Isvalid IS NULL
 
