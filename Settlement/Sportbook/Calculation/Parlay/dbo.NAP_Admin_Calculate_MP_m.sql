@@ -380,7 +380,7 @@ BEGIN
 
             UPDATE pd
             SET odds = r.odds
-			OUTPUT inserted.transid, inserted.odds, NULL, NULL
+			OUTPUT inserted.transid, inserted.odds, inserted.winlostdate, inserted.statuswinlost
 			INTO #tmpOutputBetParlayDetail(transid, odds, winlostdate, statuswinlost)
 			FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
 			INNER JOIN @tmpOutputBettransmVoidRecover r
