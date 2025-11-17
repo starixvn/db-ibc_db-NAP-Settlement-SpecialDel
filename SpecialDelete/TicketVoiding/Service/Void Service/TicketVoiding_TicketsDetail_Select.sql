@@ -38,7 +38,8 @@ BEGIN
 			SubBetteam NVARCHAR(10),
 			Transdesc NVARCHAR(1000),
 			Refno BIGINT,
-			SelectionCount INT
+			SelectionCount INT,
+			StatusId TINYINT --Support case void sub but main statusid = VOID/LOSE => no call JT
 		)
 
 	INSERT INTO @tmp_TransIds (TransId)
@@ -56,8 +57,8 @@ BEGIN
 
 	ELSE IF @TicketType = 1
 	BEGIN
-		INSERT INTO @tmp_Results (MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, Transdesc, Refno)
-		SELECT b.TransId AS MainTransId, b.CustId, t.TransId AS SubTransId, bm.matchid AS SubMatchId, bm.bettype AS SubBettypeId, bm.hdp1 AS SubHdp1, bm.hdp2 AS SubHdp2, bm.betcheck AS Subbetcheck, bm.betteam AS SubBetteam, b.transdesc, bm.refno
+		INSERT INTO @tmp_Results (MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, Transdesc, Refno, StatusId)
+		SELECT b.TransId AS MainTransId, b.CustId, t.TransId AS SubTransId, bm.matchid AS SubMatchId, bm.bettype AS SubBettypeId, bm.hdp1 AS SubHdp1, bm.hdp2 AS SubHdp2, bm.betcheck AS Subbetcheck, bm.betteam AS SubBetteam, b.transdesc, bm.refno, b.statusID
 		FROM @tmp_TransIds t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
@@ -75,7 +76,7 @@ BEGIN
 				) sc
 	END
 	
-	SELECT MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, Transdesc, SelectionCount
+	SELECT MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, Transdesc, SelectionCount, StatusId
 	FROM @tmp_Results
 	
 END
