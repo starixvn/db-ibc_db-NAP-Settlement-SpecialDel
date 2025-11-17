@@ -50,6 +50,7 @@ AS
 		- 20240425@Kathy: enhance parlay [Redmine:#199518]
 		- 20240521@Kathy: write log [Redmine:#199518]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
+		- 20251112@Max: Change code to release org for BetBuilder+ [Redmine: #243653]
 
 
 	Param's Explanation:
@@ -127,16 +128,16 @@ BEGIN
 		SET @isWriteLog = CASE WHEN ISNULL(@ParlaySettlementProcessingId,0) <> 0 AND dbo.f_ParlaySettlement_WriteLog() = 1 THEN 1 ELSE 0 END
 	
 	INSERT INTO @transIDs (transid)
-	SELECT value
+	SELECT DISTINCT value
 	FROM STRING_SPLIT(@strXML, ',')
 	
 	INSERT INTO @tmpSetting(SiteId, FromOdds, ToOdds, Boost, isFirstOdds, isLastOdds)
 	SELECT	s.SiteId
 			,OverOdds AS FromOdds
-			,LEAD(OverOdds) OVER(PARTITION BY SiteID ORDER BY SiteId, OverOdds) AS ToOdds
+			,LEAD(OverOdds) OVER(PARTITION BY SiteID ORDER BY SiteId ASC, OverOdds ASC) AS ToOdds
 			,s.Boost
-			,CASE WHEN 1 = ROW_NUMBER() OVER (PARTITION BY SiteID ORDER BY SiteId, OverOdds) THEN 1 ELSE 0 END AS isFirstOdds
-			,CASE WHEN 1 = ROW_NUMBER() OVER (PARTITION BY SiteID ORDER BY SiteId, OverOdds DESC) THEN 1 ELSE 0 END AS isLastOdds
+			,CASE WHEN 1 = ROW_NUMBER() OVER (PARTITION BY SiteID ORDER BY SiteId ASC, OverOdds ASC) THEN 1 ELSE 0 END AS isFirstOdds
+			,CASE WHEN 1 = ROW_NUMBER() OVER (PARTITION BY SiteID ORDER BY SiteId ASC, OverOdds DESC) THEN 1 ELSE 0 END AS isLastOdds
 	FROM	(
 		SELECT	s AS SiteId, o AS OverOdds, b AS Boost
 		FROM	OPENJSON(@strSetting) WITH (
@@ -214,6 +215,7 @@ BEGIN
 		)
 		SELECT	[transid], [refno], [stake]
 				,CASE 
+					WHEN oddsspread = 3 AND betteam = '1' THEN CAST(betid AS TINYINT) --Hybrid parlay
 					WHEN betcheck IS NOT NULL THEN CAST(hdp2 AS TINYINT) -- Combo Parlay - New format	
 					ELSE CAST(LEN(betteam) AS TINYINT)  -- Old format
 					END AS selection_cnt
@@ -239,7 +241,7 @@ BEGIN
 					,bitmapR
 					,winlostdate
 					,selection_cnt
-					,ROW_NUMBER() OVER(PARTITION BY transid ORDER BY transid) as rn 
+					,ROW_NUMBER() OVER(PARTITION BY transid ORDER BY transid ASC) as rn 
 			FROM	@temp_bettrans
 		)
 		DELETE 
@@ -260,7 +262,7 @@ BEGIN
 		SELECT bm.refno, bm.transid, bm.winlostdate, b.winlostdate AS mainwinlostdate, bm.statuswinlost, bm.statusid, bm.matchid
 			,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
 			,bm.liveawayscore, bm.liveindicator, bm.betcheck, b.selection_cnt, b.bitmapR, bm.stake as SetStake, bm.transdesc
-			,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY m.mainmatch) --RN			
+			,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY m.mainmatch ASC, bm.transId ASC) --RN			
 		FROM @temp_bettrans b
 			INNER LOOP JOIN dbo.bettransm bm WITH(ROWLOCK)
 				ON b.refno = bm.refno
@@ -312,7 +314,7 @@ BEGIN
 			SELECT	refno, mainwinlostdate, COUNT(1)
 			FROM	#BetParlayDetail_pre
 			GROUP BY refno,mainwinlostdate
-			ORDER BY refno
+			ORDER BY refno	ASC
 
 			UPDATE #tmpBeingGeneratedRefno
 				SET runningTotal = @totalRow
@@ -572,7 +574,7 @@ BEGIN
 								ELSE 0
 							END
 		)se
-	WHERE (@IsReSettledTickets = 1 AND p.relatedSerial = 1)
+	WHERE (@IsReSettledTickets = 1 AND p.relatedSerial >= 1)
 		OR ( @IsReSettledTickets = 0 
 				AND (	pr.statusID <>
 						CASE
