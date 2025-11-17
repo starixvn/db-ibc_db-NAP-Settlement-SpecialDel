@@ -19,6 +19,7 @@ BEGIN
     MERGE dbo.SettlementResultHistory_TicketDetails AS ht
         USING @tvp_param AS tvp
         ON ht.ID = tvp.ID
+			AND ht.Transid = tvp.Transid
         WHEN MATCHED THEN
             UPDATE 
             SET	 ht.SessionID           = tvp.SessionID
