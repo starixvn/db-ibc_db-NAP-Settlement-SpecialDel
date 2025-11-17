@@ -8,7 +8,7 @@ USE bodb02;
 GO
 
 CREATE TABLE [dbo].[TicketVoiding_Remark](
-	[RemarkNo] [INT] IDENTITY(1,1) NOT FOR REPLICATION NOT NULL,
+	[RemarkId] [INT] IDENTITY(1,1) NOT FOR REPLICATION NOT NULL,
 	[MatchId] [INT] NULL,
 	[IsTest] [BIT] NULL,
 	[IsCheckedVar] [BIT] NULL,
@@ -27,7 +27,7 @@ CREATE TABLE [dbo].[TicketVoiding_Remark](
 
 	CONSTRAINT [PK_TicketVoiding_Remark_RemarkNo] PRIMARY KEY CLUSTERED 
 	(
-		[RemarkNo] ASC
+		[RemarkId] ASC
 	) WITH (
 		PAD_INDEX = OFF, 
 		STATISTICS_NORECOMPUTE = OFF, 
