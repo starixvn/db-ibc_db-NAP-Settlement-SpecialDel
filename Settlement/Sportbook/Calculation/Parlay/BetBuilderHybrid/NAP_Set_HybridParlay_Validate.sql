@@ -33,11 +33,11 @@ BEGIN
 	
 	IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT[1-9]'
 	BEGIN
-		WAITFOR DELAY '00:00:10.000'
+		WAITFOR DELAY '00:00:01.000'
 	END	
 	ELSE 
 	BEGIN
-		WAITFOR DELAY '00:00:02.000'
+		WAITFOR DELAY '00:00:01.000'
 
 		SET @IsCalculating = (SELECT TOP 1 IsCalculating FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId ORDER BY Starttime DESC)
 	END
