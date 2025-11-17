@@ -76,7 +76,7 @@ BEGIN
 					o AS OrgOdds
 				FROM OPENJSON(t.transdesc, '$.legOdds')
 				WITH (
-					m BIGINT '$.m',
+					m INT '$.m',
 					o SMALLMONEY '$.o'
 				)
 				WHERE m = @MatchId
