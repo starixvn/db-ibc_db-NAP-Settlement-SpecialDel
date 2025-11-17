@@ -41,12 +41,12 @@ BEGIN
 		   ,@InvalidTransIds	VARCHAR(MAX) = ''
 		   ,@WrongOddsTransIds	VARCHAR(MAX) = ''
 
-	CREATE TABLE #tmpMainTransId (MatchId INT, TransId BIGINT, Odds MONEY, RefNo BIGINT, transdesc NVARCHAR(2000))
-	CREATE TABLE #tmpMaxTransIdUpdateLeg(TransId BIGINT, Refno BIGINT, MatchId INT, Odds MONEY, IsFinish BIT, OrgOdds MONEY, MainTransId BIGINT)
+	CREATE TABLE #tmpMainTransId (MatchId INT, TransId BIGINT, Odds SMALLMONEY, RefNo BIGINT, transdesc NVARCHAR(2000))
+	CREATE TABLE #tmpMaxTransIdUpdateLeg(TransId BIGINT, Refno BIGINT, MatchId INT, Odds SMALLMONEY, IsFinish BIT, OrgOdds SMALLMONEY, MainTransId BIGINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
-	CREATE TABLE #tmpMaxTransIdProcessBatch (TransId BIGINT, Refno BIGINT, MatchId INT, Odds MONEY)
+	CREATE TABLE #tmpMaxTransIdProcessBatch (TransId BIGINT, Refno BIGINT, MatchId INT, Odds SMALLMONEY)
 
-	DECLARE @tmpLegOddsInfo TABLE (MatchId INT, TransId BIGINT, Odds MONEY)
+	DECLARE @tmpLegOddsInfo TABLE (MatchId INT, TransId BIGINT, Odds SMALLMONEY)
 
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 	SET @StartTime = GETDATE()
@@ -58,7 +58,7 @@ BEGIN
 
 	INSERT INTO @tmpLegOddsInfo (MatchId, TransId, Odds)
 	SELECT js.MatchId AS MatchId, js.TransId AS TransId, js.Odds AS Odds
-	FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds MONEY) js
+	FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds SMALLMONEY) js
 
 	INSERT INTO #tmpMainTransId (MatchId, TransId, Odds, RefNo, transdesc)
 	SELECT j.MatchId, j.TransId, j.Odds, b.refno, b.transdesc
@@ -77,7 +77,7 @@ BEGIN
 				FROM OPENJSON(t.transdesc, '$.legOdds')
 				WITH (
 					m BIGINT '$.m',
-					o MONEY '$.o'
+					o SMALLMONEY '$.o'
 				)
 				WHERE m = @MatchId
 				)j

@@ -23,7 +23,7 @@ CREATE TABLE [dbo].[BetBuilderLegOddsHistory](
 	[MatchID] [int] NOT NULL,
 	[RefNo] [bigint] NOT NULL,
 	[TransId] [bigint] NOT NULL,
-	[Odds] [money] NOT NULL,
+	[Odds] [smallmoney] NOT NULL,
 	[CreatedDate] [datetime2] NOT NULL
 ) ON [PRIMARY]
 GO

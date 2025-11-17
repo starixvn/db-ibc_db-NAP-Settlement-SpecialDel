@@ -91,7 +91,7 @@ BEGIN
 		,status VARCHAR(10), statusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, creator INT, winlostdate SMALLDATETIME, odds SMALLMONEY)
 	DECLARE @tmpTransIdsVoidRecover TABLE (transid BIGINT)
-	DECLARE @tmpSubTransHybrid TABLE (TransId BIGINT, MatchId INT, Refno BIGINT, Odds MONEY)
+	DECLARE @tmpSubTransHybrid TABLE (TransId BIGINT, MatchId INT, Refno BIGINT, Odds SMALLMONEY)
 	
 	------ process by batch for betparlaydetail
 	DECLARE @StartRow INT = 1
@@ -368,7 +368,7 @@ BEGIN
 
 			INSERT INTO @tmpSubTransHybrid (TransId, MatchId, Refno, Odds)
 			SELECT js.TransId AS TransId, js.MatchId AS MatchId, js.Refno AS Refno, js.Odds AS Odds
-			FROM OPENJSON(@strXML) WITH (TransId BIGINT, MatchId INT, Refno BIGINT, Odds MONEY) js
+			FROM OPENJSON(@strXML) WITH (TransId BIGINT, MatchId INT, Refno BIGINT, Odds SMALLMONEY) js
 
             UPDATE bm 
             SET odds = t.Odds

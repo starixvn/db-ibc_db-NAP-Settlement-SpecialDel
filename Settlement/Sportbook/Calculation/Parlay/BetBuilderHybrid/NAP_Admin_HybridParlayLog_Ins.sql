@@ -22,7 +22,7 @@ BEGIN
 	BEGIN TRY
 		INSERT INTO dbo.BetBuilderHybridParlayLog (MatchID, TransId, Odds, Offset, LogDate)
 		SELECT js.MatchId AS MatchId, js.TransId AS TransId, js.Odds AS Odds, @Offset AS Offset, GETDATE()
-		FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds MONEY) js
+		FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds SMALLMONEY) js
 	END TRY
 	BEGIN CATCH
 		SELECT @ErrCode = ERROR_NUMBER()

@@ -24,7 +24,7 @@ CREATE TABLE [dbo].[BetBuilderHybridParlayLog](
 	[LogDate] [datetime] NOT NULL,
 	[MatchID] [int] NOT NULL,
 	[TransId] [bigint] NOT NULL,
-	[Odds] [money] NOT NULL,
+	[Odds] [smallmoney] NOT NULL,
 	[Offset] [int] NOT NULL
  CONSTRAINT [PK_BetBuilderHybridParlayLog_ID] PRIMARY KEY NONCLUSTERED 
 (
