@@ -6,7 +6,7 @@
 
 	Parameter explanations: 
 		RequestType: 1 - Void func
-					   2 - Remark func
+					 2 - Remark func
 */
 USE bodb02
 GO
