@@ -40,7 +40,7 @@ BEGIN
 
 	--2.Parlay Settlement
 	UNION ALL
-	SELECT 'bodb02 : NAP Parlay Settlement'		, '00:01:00', 0
+	SELECT 'bodb02 : NAP Parlay Settlement'		, '00:01:00', 1
 
 	--3.Single Settlement 3rd
 	UNION ALL

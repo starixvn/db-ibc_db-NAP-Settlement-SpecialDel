@@ -32,7 +32,7 @@ BEGIN
 
 	---1.Auto FM Settlement
 	INSERT INTO @tmpSPInfo (SPName, WaitingTime, IsWaiting)
-	SELECT 'NAP_Admin_Settlement_Fast_Market_Auto_1s_Push', @WaitingTime, 1	
+	SELECT 'NAP_Admin_Settlement_Fast_Market_Auto_1s_Push', @WaitingTime, 0	
 	
 	UNION ALL
 	SELECT 'NAP_Admin_Settlement_Profile_Push', @WaitingTime, 0	
