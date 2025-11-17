@@ -7,7 +7,7 @@
 USE bodb02;
 GO
 
-CREATE TABLE [dbo].[TicketVoiding_RemarkRequest](
+CREATE TABLE [dbo].[TicketVoiding_Remark](
 	[RemarkNo] [INT] IDENTITY(1,1) NOT FOR REPLICATION NOT NULL,
 	[MatchId] [INT] NULL,
 	[IsTest] [BIT] NULL,
@@ -25,7 +25,7 @@ CREATE TABLE [dbo].[TicketVoiding_RemarkRequest](
 	[CreatedDate] [DATETIME] DEFAULT GETDATE() NOT NULL,
 	[ModifiedDate] [DATETIME] DEFAULT GETDATE() NOT NULL,
 
-	CONSTRAINT [PK_TicketVoiding_RemarkRequest_RemarkNo] PRIMARY KEY CLUSTERED 
+	CONSTRAINT [PK_TicketVoiding_Remark_RemarkNo] PRIMARY KEY CLUSTERED 
 	(
 		[RemarkNo] ASC
 	) WITH (
