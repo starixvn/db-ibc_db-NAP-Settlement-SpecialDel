@@ -14,7 +14,7 @@ GO
 
 ALTER TABLE SettlementResultHistory_TicketDetails ADD ID BIGINT IDENTITY(1,1)
 
-ALTER TABLE dbo.SettlementResultHistory_TicketDetails ADD CONSTRAINT PK_SettlementResultHistory_TicketDetails PRIMARY KEY NONCLUSTERED (ID ASC)
+ALTER TABLE dbo.SettlementResultHistory_TicketDetails ADD CONSTRAINT PK_SettlementResultHistory_TicketDetails PRIMARY KEY NONCLUSTERED (ID ASC, TransID ASC)
 GO
 
 CREATE CLUSTERED INDEX IX_SettlementResultHistory_TicketDetails_SessionID_Transid ON SettlementResultHistory_TicketDetails (SessionID ASC, Transid ASC)
