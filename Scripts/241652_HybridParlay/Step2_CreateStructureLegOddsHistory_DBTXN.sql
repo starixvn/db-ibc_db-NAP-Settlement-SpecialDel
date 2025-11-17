@@ -28,7 +28,7 @@ CREATE TABLE [dbo].[BetBuilderLegOddsHistory](
 ) ON [PRIMARY]
 GO
 
-ALTER TABLE [dbo].[BetBuilderLegOddsHistory] ADD  CONSTRAINT [DF_BetBuilderLegOddsHistory_CreatedDate]  DEFAULT (getdate()) FOR [CreatedDate]
+ALTER TABLE [dbo].[BetBuilderLegOddsHistory] ADD  CONSTRAINT [DF_BetBuilderLegOddsHistory_CreatedDate]  DEFAULT (sysdatetime()) FOR [CreatedDate]
 GO
 
 CREATE CLUSTERED INDEX [CIX_BetBuilderLegOddsHistory_CreatedDate] ON [dbo].[BetBuilderLegOddsHistory]
