@@ -15,6 +15,7 @@ CREATE TABLE [dbo].[TicketVoiding_Remark](
 	[MistakenBy] [NVARCHAR](200) NULL,
 	[DecidedBy] [NVARCHAR](200) NULL,
 	[PerformedBy] [NVARCHAR](200) NULL,
+	[CreatedBy] [NVARCHAR](200) NULL,
 	[TV_IPTV] [NVARCHAR](200) NULL,
 	[Provider] [NVARCHAR](200) NULL,
 	[Source] [NVARCHAR] (200) NULL,
