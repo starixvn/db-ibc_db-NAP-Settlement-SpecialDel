@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_DARC_Select]
 (	
 	 @RequestId			  INT = 0
@@ -671,7 +671,7 @@ BEGIN
 		FROM @Validation
 
 		-- 2. TransId in request table
-		SELECT CAST(TransId AS VARCHAR(MAX)) AS TransIds, RequestId, MatchId
+		SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 		FROM #TransidInRequest
 
 		/*Get log info for Void Page*/
@@ -841,19 +841,43 @@ BEGIN
 	-- 2. TransId exists in other request table
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 	BEGIN
-		SELECT RequestId,
-			STUFF((
-			SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-			FROM #TransidInRequest
-			WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-			ORDER BY TransId
-			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-			,1,2,'') AS TransIds
-			,MatchId
-			,c.username AS CreatedBy
-		FROM #TransidInRequest r
-			INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
-		GROUP BY r.RequestId, r.MatchId, c.username
+		;WITH ChildListCTE AS (
+				SELECT 
+					r.RequestId, 
+					r.MatchId, 
+					r.MainTransId, 
+					c.username AS CreatedBy,
+					COUNT(r.TransId) AS TotalCount,
+					MIN(CASE WHEN r.MainTransId = r.TransId THEN 1 ELSE 0 END) AS HasMainSelf,
+					STUFF((
+						SELECT ',' + CAST(r2.TransId AS VARCHAR(50))
+						FROM #TransidInRequest r2
+						WHERE r2.MainTransId = r.MainTransId
+						ORDER BY r2.TransId ASC 
+						FOR XML PATH(''), TYPE
+					).value('.', 'NVARCHAR(MAX)'), 1, 1, '') AS ChildList
+				FROM #TransidInRequest r
+				INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
+				GROUP BY r.RequestId, r.MatchId, r.MainTransId, c.username
+			)
+			SELECT 
+				r.RequestId, 
+				r.MatchId,
+				STUFF((
+					SELECT ', ' + 
+						CASE 
+							WHEN r2.TotalCount > 1 -- If MainTransId >=2 child → combine MainTransId(child1,child2,...) => hybrid parlay
+							THEN CAST(r2.MainTransId AS VARCHAR(50)) + '(' + REPLACE(r2.ChildList, CAST(r2.MainTransId AS VARCHAR(50)) + ',', '') + ')' 
+							ELSE CAST(r2.MainTransId AS VARCHAR(50))
+						END
+					FROM ChildListCTE r2
+					WHERE r2.RequestId = r.RequestId AND r2.MatchId = r.MatchId
+					ORDER BY r2.MainTransId ASC
+					FOR XML PATH(''), TYPE
+				).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS TransIds,
+				r.CreatedBy
+			FROM ChildListCTE r
+			GROUP BY r.RequestId, r.MatchId, r.CreatedBy;
 	END
 	ELSE
 	BEGIN

@@ -991,14 +991,8 @@ BEGIN
 		FROM @Validation
 
 		-- 2. TransId in request table
-		SELECT RequestId, MatchId, 
-			   STUFF((SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-				ORDER BY TransId ASC
-				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,'') AS TransIds
-		FROM #TransidInRequest r
-		GROUP BY r.RequestId, r.MatchId
+		SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+		FROM #TransidInRequest
 
 		/*Get log info for Void Page*/
 		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CashOutCount, SettleCount, InstantlySettleCount, PoolHouseCashOutCount, PoolHouseSettleCount, PoolHouseInstantlySettleCount)
@@ -1162,16 +1156,36 @@ BEGIN
 	-- 2. TransId exists in other request table
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 	BEGIN
-		SELECT RequestId,
+		;WITH ChildListCTE AS (
+			SELECT 
+				r.RequestId, r.MatchId, r.MainTransId, 
+				COUNT(r.TransId) AS TotalCount,
+				MIN(CASE WHEN r.MainTransId = r.TransId THEN 1 ELSE 0 END) AS HasMainSelf,
+				STUFF((
+					SELECT ',' + CAST(r2.TransId AS VARCHAR(50))
+					FROM #TransidInRequest r2
+					WHERE r2.MainTransId = r.MainTransId
+					ORDER BY r2.TransId ASC 
+					FOR XML PATH(''), TYPE
+				).value('.', 'NVARCHAR(MAX)'), 1, 1, '') AS ChildList
+			FROM #TransidInRequest r
+			GROUP BY r.RequestId, r.MatchId, r.MainTransId
+		)
+		SELECT 
+			r.RequestId, r.MatchId,
 			STUFF((
-			SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-			FROM #TransidInRequest
-			WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-			ORDER BY TransId ASC
-			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-			,1,2,'') AS TransIds
-			,MatchId
-		FROM #TransidInRequest r
+				SELECT ', ' + 
+					CASE 
+						WHEN r2.TotalCount > 1 -- If MainTransId >=2 child → combine MainTransId(child1,child2,...) => hybrid parlay
+						THEN CAST(r2.MainTransId AS VARCHAR(50)) + '(' + REPLACE(r2.ChildList, CAST(r2.MainTransId AS VARCHAR(50)) + ',', '') + ')' 
+						ELSE CAST(r2.MainTransId AS VARCHAR(50))
+					END
+				FROM ChildListCTE r2
+				WHERE r2.RequestId = r.RequestId AND r2.MatchId = r.MatchId
+				ORDER BY r2.MainTransId ASC
+				FOR XML PATH(''), TYPE
+			).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS TransIds
+		FROM ChildListCTE r
 		GROUP BY r.RequestId, r.MatchId
 	END
 	ELSE
