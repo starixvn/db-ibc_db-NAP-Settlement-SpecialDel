@@ -5,7 +5,7 @@
 	DB: DBCTG/bodb02
 
 	Parameter explanations: 
-		RequestTypeId: 1 - Void func
+		RequestType: 1 - Void func
 					   2 - Remark func
 */
 USE bodb02
