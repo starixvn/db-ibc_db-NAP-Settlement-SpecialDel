@@ -24,7 +24,6 @@ BEGIN
             UPDATE 
             SET	 ht.SessionID           = tvp.SessionID
                 ,ht.SeqNo               = tvp.SeqNo
-                ,ht.Transid             = tvp.Transid
                 ,ht.ExtraInfo_Before    = tvp.ExtraInfo_Before
                 ,ht.ExtraInfo_After     = tvp.ExtraInfo_After
                 ,ht.IsDeleted           = tvp.IsDeleted
