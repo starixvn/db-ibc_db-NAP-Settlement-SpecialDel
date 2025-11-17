@@ -11,6 +11,7 @@ AS
 	
 	Revisions:
 		- 20231214@Aries: Result Amendment Redmine: #196401
+		- 20251113@Louisa: Basketball Hybrid Parlay [Redmine: #241652]
 */
 BEGIN	
 	SET NOCOUNT ON;
@@ -33,7 +34,8 @@ BEGIN
 
     IF @time_end > @start
     BEGIN
-        SELECT    SessionID			
+        SELECT    ID
+				 ,SessionID			
                  ,SeqNo				
                  ,Transid			
                  ,ExtraInfo_Before	
