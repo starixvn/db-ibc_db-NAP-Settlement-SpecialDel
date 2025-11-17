@@ -14,12 +14,13 @@ AS
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240528@Aries: Support new changes on Result Amendment [Redmine: #205688]
 		- 20241206@Aries: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
+		- 20251113@Louisa: Basketball Hybrid Parlay [Redmine: #241652]
 */
 BEGIN	
 	SET NOCOUNT ON
 	
 	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
-	CREATE NONCLUSTERED INDEX IDX_refno ON #tblTrans (refno)
+	CREATE NONCLUSTERED INDEX IX_refno ON #tblTrans (refno)
 
 	DECLARE @Resource TABLE(ResourceID VARCHAR(20), SeqNo INT,PRIMARY KEY(ResourceID))
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
@@ -137,7 +138,7 @@ BEGIN
 								AND h.SessionId = @SessionId)
 
 		INSERT INTO SettlementResultHistory_TicketDetails(SessionID,Transid,SeqNo,ExtraInfo_Before,ExtraInfo_After)
-		SELECT  @SessionId
+		SELECT  DISTINCt @SessionId
 			   ,tp.transid
 			   ,tbl.SeqNo
 			   ,CONCAT('<root><r status="',	 CASE WHEN tp.bef_statusid = 1	 THEN 'WAITING' 

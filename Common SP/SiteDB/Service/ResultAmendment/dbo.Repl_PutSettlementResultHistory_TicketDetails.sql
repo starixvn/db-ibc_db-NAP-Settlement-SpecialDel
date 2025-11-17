@@ -9,25 +9,29 @@ AS
 	
 	Revisions:
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
+		- 20251113@Louisa: Basketball Hybrid Parlay [Redmine: #241652]
 */
 BEGIN	
 	SET NOCOUNT ON
 
+	SET IDENTITY_INSERT [dbo].[SettlementResultHistory_TicketDetails] ON;
+
     MERGE dbo.SettlementResultHistory_TicketDetails AS ht
         USING @tvp_param AS tvp
-        ON ht.SessionID = tvp.SessionID AND ht.Transid = tvp.Transid 
+        ON ht.ID = tvp.ID
+			AND ht.Transid = tvp.Transid
         WHEN MATCHED THEN
             UPDATE 
             SET	 ht.SessionID           = tvp.SessionID
                 ,ht.SeqNo               = tvp.SeqNo
-                ,ht.Transid             = tvp.Transid
                 ,ht.ExtraInfo_Before    = tvp.ExtraInfo_Before
                 ,ht.ExtraInfo_After     = tvp.ExtraInfo_After
                 ,ht.IsDeleted           = tvp.IsDeleted
                 ,ht.RepUpdateTime       = CASE WHEN tvp.RepUpdateTime > ht.RepUpdateTime THEN tvp.RepUpdateTime ELSE ht.RepUpdateTime END
         WHEN NOT MATCHED THEN
             INSERT (
-                 SessionID      
+                 ID
+				,SessionID      
                 ,SeqNo        
                 ,Transid			
                 ,ExtraInfo_Before   
@@ -35,7 +39,8 @@ BEGIN
                 ,RepUpdateTime  
                 ,IsDeleted		
             ) VALUES (
-                 tvp.SessionID
+                 tvp.ID
+				,tvp.SessionID
                 ,tvp.SeqNo
                 ,tvp.Transid
                 ,tvp.ExtraInfo_Before
@@ -43,4 +48,6 @@ BEGIN
                 ,tvp.RepUpdateTime
                 ,tvp.IsDeleted        
             );
+
+	SET IDENTITY_INSERT [dbo].[SettlementResultHistory_TicketDetails] OFF;
 END

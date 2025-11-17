@@ -11,6 +11,7 @@ AS
 	
 	Revisions:
 		- 20231214@Aries: Result Amendment Redmine: #196401
+		- 20251113@Louisa: Basketball Hybrid Parlay [Redmine: #241652]
 */
 BEGIN	
 	SET NOCOUNT ON;
@@ -25,7 +26,7 @@ BEGIN
         SELECT TOP (@count) RepUpdateTime
             FROM dbo.SettlementResultHistory_TicketDetails WITH (NOLOCK, INDEX = IX_RepUpdateTime)
             WHERE RepUpdateTime > @start AND RepUpdateTime < @time_upperbound
-            ORDER BY RepUpdateTime
+            ORDER BY RepUpdateTime ASC
     )
     SELECT @time_end = ISNULL(MAX(RepUpdateTime), @start) FROM CTE_Timestamp;
 
@@ -33,7 +34,8 @@ BEGIN
 
     IF @time_end > @start
     BEGIN
-        SELECT    SessionID			
+        SELECT    ID
+				 ,SessionID			
                  ,SeqNo				
                  ,Transid			
                  ,ExtraInfo_Before	
@@ -43,6 +45,6 @@ BEGIN
                  ,SYSDATETIME() AS _FetchedTime
         FROM dbo.SettlementResultHistory_TicketDetails  WITH (NOLOCK, INDEX = IX_RepUpdateTime)
         WHERE repupdatetime > @time_start AND RepUpdateTime <= @time_end
-        ORDER BY repupdatetime;
+        ORDER BY repupdatetime ASC;
     END;
 END
