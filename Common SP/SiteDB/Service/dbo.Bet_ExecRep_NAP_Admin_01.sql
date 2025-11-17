@@ -264,7 +264,7 @@ BEGIN
 
 						INSERT INTO @tmpTransId (TransID,modds,odds,oddsspread,statuswinlost,SettlementTime
 							,WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, Status, StatusID, ruben)
-						SELECT t, m, o, os, statuswl, st, w, aw, mw, sw, pc, c, ac, sc, s, sid, r
+						SELECT *
 						FROM OPENJSON(@Decompress_TransInfoJson)
 							WITH (
 							t   BIGINT
@@ -338,7 +338,7 @@ BEGIN
 								, hdp1 , hdp2 , livehomescore , liveawayscore , creator, betid, ExtraInfo		
 								,virtualrate	 
 							)
-							SELECT t, mid, wld, bdaq, m, o, oid, os, statuswl, st, w, aw, mw, sw, pc, c, ac, sc, s, sid, r, rut, hdp1, hdp2, lh, la, cr, bid, ex, v
+							SELECT *
 							FROM OPENJSON(@Decompress_TransInfoJson)
 								WITH (
 								t   BIGINT
@@ -475,7 +475,7 @@ BEGIN
 							,winlostdate, statuswinlost, refno, WinLost
 							, Status, StatusID, ruben, hdp1, hdp2, livehomescore, liveawayscore, Creator, odds
 						)
-						SELECT t, mid, wld, statuswl, ref, w, s, sid, r, hdp1, hdp2, lh, la, cr, o
+						SELECT *
 							FROM OPENJSON(@Decompress_TransInfoJson)
 								WITH (
 								t   BIGINT
@@ -501,7 +501,7 @@ BEGIN
 					BEGIN
 						INSERT INTO @tmpTransId (TransID, matchid
 							,winlostdate, statuswinlost, refno, WinLost
-							, Status, StatusID, ruben, hdp1, hdp2, livehomescore, liveawayscore, Creator, odds
+							, Status, StatusID, ruben, hdp1, hdp2, livehomescore, liveawayscore, Creator
 						)
 						SELECT	T.C.value('./@t', 'bigint') AS transid
 								,T.C.value('./@mid', 'INT') AS matchid
@@ -517,7 +517,6 @@ BEGIN
 								,T.C.value('./@lh', 'SMALLINT') AS livehomescore
 								,T.C.value('./@la', 'SMALLINT') AS liveawayscore	
 								,T.C.value('./@cr', 'INT') AS Creator
-								,T.C.value('./@o', 'SMALLMONEY') AS odds
 						FROM	@TransInfo.nodes('/root/r') AS T(C)
 						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
 
@@ -570,7 +569,7 @@ BEGIN
 													WHEN t.statuswinlost IS NULL THEN pd.statuswinlost
 													WHEN t.statuswinlost = '' THEN NULL
 													ELSE CAST(t.statuswinlost AS TINYINT)
-												END		
+												END	
 								,odds = CASE WHEN t.odds IS NULL THEN pd.odds ELSE t.odds END
 						FROM   @tmpTransId t
 							INNER JOIN dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
@@ -585,7 +584,7 @@ BEGIN
 						SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 						INSERT INTO @tmpTransId (TransID, matchid, winlostdate, statuswinlost, StatusID, odds)
-						SELECT t, mid, wld, statuswl, sid, o
+						SELECT *
 							FROM OPENJSON(@Decompress_TransInfoJson)
 								WITH (
 								t   BIGINT
@@ -599,7 +598,7 @@ BEGIN
 					ELSE -- @TransInfo IS NOT NULL (xml format)
 					BEGIN
 						INSERT INTO @tmpTransId (TransID, matchid
-							,winlostdate, statuswinlost, StatusID, odds
+							,winlostdate, statuswinlost, StatusID
 						)
 						SELECT	T.C.value('./@t', 'bigint') AS transid
 							,T.C.value('./@mid', 'INT') AS matchid
@@ -608,8 +607,7 @@ BEGIN
 									ELSE T.C.value('./@wld', 'SMALLDATETIME') 
 								END AS winlostdate
 								,T.C.value('./@statuswl', 'VARCHAR(1)')				
-								,T.C.value('./@sid', 'TINYINT') AS StatusID		
-								,T.C.value('./@o', 'SMALLMONEY') AS odds
+								,T.C.value('./@sid', 'TINYINT') AS StatusID									
 						FROM	@TransInfo.nodes('/root/r') AS T(C)
 						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
 					END
@@ -644,7 +642,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType)
-							SELECT t, mid, cust, btype, us, crdate, mt
+							SELECT *
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -687,7 +685,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid)
-							SELECT t, mid
+							SELECT *
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -713,7 +711,7 @@ BEGIN
 						SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 						INSERT INTO @tmpTransId (TransID ,matchid, MainMatchId)
-						SELECT t, mid, m_mid
+						SELECT *
 							FROM OPENJSON(@Decompress_TransInfoJson)
 								WITH (
 								t   BIGINT
@@ -739,7 +737,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid, Status, WinLost)
-							SELECT t, mid, s, w
+							SELECT *
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -779,7 +777,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid, transdate, comstatus)
-							SELECT t, mid, td, cst
+							SELECT *
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -815,7 +813,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid)
-							SELECT t, mid
+							SELECT *
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -849,7 +847,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid)
-							SELECT t, mid
+							SELECT *
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
@@ -917,7 +915,7 @@ BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 							INSERT INTO @tmpTransId (TransID ,matchid, MainMatchId)
-							SELECT t, mid, m_mid
+							SELECT *
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
