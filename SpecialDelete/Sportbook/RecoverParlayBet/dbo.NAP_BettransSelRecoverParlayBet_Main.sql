@@ -132,6 +132,7 @@ BEGIN
 	WHERE b.bettype = 29	
 		AND b.statusid = 102
 		AND (b.betfrom IS NULL OR b.betfrom <> 'p')
+		AND ISNULL(b.oddsspread,0) <> 3 
 		AND CASE
 				WHEN @BetType = 'All' THEN 1
 				WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' THEN 1

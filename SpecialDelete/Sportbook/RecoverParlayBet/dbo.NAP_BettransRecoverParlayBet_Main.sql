@@ -177,6 +177,7 @@ BEGIN
 			INNER JOIN bettrans b WITH(NOLOCK) ON s.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE b.matchid = 29 AND b.bettype = 29
 			AND b.statusid = 102
+			AND ISNULL(b.oddsspread,0) <> 3 
 			AND CASE
 					WHEN @BetType = 'All' THEN 1
 					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' THEN 1
