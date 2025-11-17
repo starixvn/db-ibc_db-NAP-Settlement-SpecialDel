@@ -2,7 +2,7 @@
 /*
 	Created: 20251113@Hughie
 	Task: Upgrade Sporttype 
-	DB: DBACC-bodb02,DBCTS-bodb02,DBTP-bodb02,DBSID-bodb02,DBCTG-bodb02
+	DB: DBSID-bodb02,DBSIC-bodb02,DBCTG-bodb02
 
 	Revisions: 
 		- 20251106@Hughie: Create [Redmine:#241262]
