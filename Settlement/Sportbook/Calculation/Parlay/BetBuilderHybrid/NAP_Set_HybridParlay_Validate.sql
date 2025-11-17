@@ -39,7 +39,7 @@ BEGIN
 	BEGIN
 		WAITFOR DELAY '00:00:02.000'
 
-		SET @IsCalculating = (SELECT TOP 1 1 FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId ORDER BY Starttime DESC)
+		SET @IsCalculating = (SELECT TOP 1 IsCalculating FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId ORDER BY Starttime DESC)
 	END
 
 	IF @IsCalculating = 2 OR @IsCalculating IS NULL

@@ -60,6 +60,7 @@ BEGIN
 	INSERT INTO #tmpMarkedTransaction (transId, matchId, MarkType)
 	SELECT	mt.TransId, mt.MatchId, mt.MarkType
 	FROM dbo.MarkedTransaction mt WITH(NOLOCK)
+	WHERE mt.MatchId = @matchid
 
     --count ticket and group by Bettype and BetID
 	IF @SportType IN (8, 50)
