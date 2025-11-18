@@ -625,6 +625,7 @@ BEGIN
 					,@UserId AS '@UserId'
 					,@IP AS '@IP'
 					,m.matchid AS '@MatchId'
+					,CASE WHEN ISNULL(@NegativeBalanceUsers, '') <> '' THEN @NegativeBalanceUsers ELSE '' END AS '@NegativeBalanceUsers'
 					,STUFF((
 							SELECT ',' + CAST(d.TransId AS NVARCHAR(100))
 							FROM #Tickets AS d
