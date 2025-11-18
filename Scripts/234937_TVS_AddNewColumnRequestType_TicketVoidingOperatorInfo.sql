@@ -11,4 +11,4 @@
 USE bodb02
 GO
 
-ALTER TABLE TicketVoiding_OperatorInfo ADD RequestType TINYINT;
+ALTER TABLE TicketVoiding_OperatorInfo ADD RemarkId INT;
