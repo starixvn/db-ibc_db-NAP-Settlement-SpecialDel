@@ -45,14 +45,10 @@ BEGIN
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	
 	INSERT INTO @tmpMarkTransId (TransId)
-	SELECT value
-	FROM STRING_SPLIT(@MarkTransIds, ',')
-	WHERE value <> ''
+	SELECT value FROM STRING_SPLIT(@MarkTransIds, ',') WHERE value <> ''
 
 	INSERT INTO @tmpUnmarkTransId (TransId)
-	SELECT value
-	FROM STRING_SPLIT(@UnMarkTransIds, ',')
-	WHERE value <> ''
+	SELECT value FROM STRING_SPLIT(@UnMarkTransIds, ',') WHERE value <> ''
 
 	SET @MarkTransIds = ''
 	SET @UnmarkTransIds = ''
@@ -89,8 +85,8 @@ BEGIN
 						FROM dbo.MarkedTransaction m WITH (NOLOCK) 
 						WHERE bm.matchid = m.MatchId 
 							AND  1 = CASE WHEN m.MarkType IN (0) AND m.TransId = b.TransId THEN 1 -- normal: Case main parlay for 2 match sub
-										WHEN m.MarkType IN (2) AND m.TransId = bm.TransId  AND b.oddsspread = 3 THEN 1 -- hybrid
-										ELSE 0 END
+										  WHEN m.MarkType IN (2) AND m.TransId = bm.TransId  AND b.oddsspread = 3 THEN 1 -- hybrid
+										  ELSE 0 END
 					)mt
 		END
 
@@ -119,8 +115,8 @@ BEGIN
 						FROM dbo.MarkedTransaction m WITH (NOLOCK) 
 						WHERE bm.matchid = m.MatchId 
 							AND  1 = CASE WHEN m.MarkType IN (0) AND m.TransId = b.TransId THEN 1 -- normal: Case main parlay for 2 match sub
-										WHEN m.MarkType IN (2) AND m.TransId = bm.TransId  AND b.oddsspread = 3 THEN 1 -- hybrid
-										ELSE 0 END
+										  WHEN m.MarkType IN (2) AND m.TransId = bm.TransId  AND b.oddsspread = 3 THEN 1 -- hybrid
+										  ELSE 0 END
 					)mt
 		END
 		
