@@ -12,8 +12,16 @@
 USE bodb02
 GO
 
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'CIX_SportType_RoundID' AND object_id = OBJECT_ID('LuckyDraw3rd_Log'))
+	DROP INDEX CIX_SportType_RoundID ON LuckyDraw3rd_Log
+GO
+
 ALTER TABLE LuckyDraw3rd_Log
 ALTER COLUMN Sporttype SMALLINT NULL
+GO
+
+CREATE CLUSTERED INDEX CIX_SportType_RoundID ON LuckyDraw3rd_Log (Sporttype, RoundID)
+GO
 
 ALTER TABLE Single_Calculate_Queue_3rd
 ALTER COLUMN Sporttype SMALLINT NULL
