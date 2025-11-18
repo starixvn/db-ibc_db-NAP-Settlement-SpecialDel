@@ -124,7 +124,6 @@ BEGIN
 				IsHybrid BIT DEFAULT(0),
 				SubTransId BIGINT,
 				statuswinlost TINYINT,
-				MainTransId BIGINT,
 				IsFinish	BIT
 				);
 	
@@ -141,7 +140,6 @@ BEGIN
 		,IsParlay
 		,SubTransId
 		,statuswinlost
-		,MainTransId
 		,IsHybrid
 		)
 	SELECT t.TransId
@@ -152,7 +150,6 @@ BEGIN
 		,CASE WHEN b.bettype = 29 THEN 1 ELSE 0 END AS IsParlay
 		,NULL
 		,b.statuswinlost
-		,b.TransId AS MainTransId
 		,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM #transIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
@@ -178,7 +175,6 @@ BEGIN
 			,SubTransId
 			,statuswinlost
 			,IsHybrid
-			,MainTransId
 			)
 		SELECT CASE WHEN b.oddsspread = 3 THEN bm.TransId ELSE b.TransId END AS TransId
 			,bm.matchid
@@ -189,7 +185,6 @@ BEGIN
 			,bm.transid
 			,bm.statuswinlost
 			,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
-			,b.TransId AS MainTransId
 		FROM #ParlayTransIds t
 			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
@@ -430,8 +425,8 @@ BEGIN
 			
 			INSERT INTO @tmpTransIdHybridParlay (TransId, MatchId)
 			SELECT b.TransId, b.MatchId
-			FROM #MarkedTransactionDeleted AS  b
-			WHERE IsHybrid = 1 AND statuswinlost IS NOT NULL
+			FROM #MarkedTransactionDeleted AS b
+			WHERE IsHybrid = 1 AND statuswinlost IS NOT NULL AND b.MatchId <> 29
 
 			INSERT INTO @tmpMatchId(MatchId, MatchDate)
 			SELECT DISTINCT m.MatchId, m.eventdate
