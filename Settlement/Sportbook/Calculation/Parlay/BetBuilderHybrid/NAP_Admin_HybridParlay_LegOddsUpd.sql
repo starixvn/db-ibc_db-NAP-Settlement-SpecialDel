@@ -6,7 +6,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_HybridParlay_LegOddsUpd]
 	,@IP			VARCHAR(15) = ''
 	,@ErrCode		INT = 0 OUTPUT
 	,@ErrMsg		NVARCHAR(200) = NULL OUTPUT
-	--,@AffectedTransIds	VARCHAR(MAX) = NULL OUTPUT
 AS
 /*
     Created by: Max
@@ -26,16 +25,12 @@ BEGIN
 	SET NOCOUNT ON;
 
 	DECLARE @LogData			VARCHAR(MAX)
-			,@SB_Error			BIT
 			,@Session			NVARCHAR(50)
 		    ,@ThreadHold		INT = 0 -- over threadhold, the parlay process will be locked in systemsetting 
 		    ,@SPName			VARCHAR(500) = OBJECT_NAME(@@PROCID)			 
 			,@avaiableProcess	BIT
 			,@totalRefNo		INT = 0
 			,@strLegOdds		VARCHAR(MAX)
-			,@StartTime			DATETIME
-			,@EndTime			DATETIME
-			,@ActionID			INT = 81067
 	
 	DECLARE @AffectedTransIds	VARCHAR(MAX) = ''
 		   ,@InvalidTransIds	VARCHAR(MAX) = ''
@@ -49,8 +44,6 @@ BEGIN
 	DECLARE @tmpLegOddsInfo TABLE (MatchId INT, TransId BIGINT, Odds SMALLMONEY)
 
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
-	SET @StartTime = GETDATE()
-	SET @SB_Error = 0
 
 	DECLARE @IsCentral BIT = 0	
 	EXEC dbo.NAP_Set_ServerInfo
@@ -237,24 +230,6 @@ BEGIN
 	SELECT  @AffectedTransIds AS AffectedTransIds
 		   ,@WrongOddsTransIds AS WrongOddsTransIds
 		   ,@InvalidTransIds AS InvalidTransIds
-			
-	-- Write Log
-	SET @EndTime = GETDATE()
-	SET @LogData = CAST((SELECT	'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ ' AffectedTransIds: ' + ISNULL(@AffectedTransIds, '')
-								+ ' WrongOddsTransIds: ' + ISNULL(@WrongOddsTransIds, '')
-								+ ' InvalidTransIds: ' + ISNULL(@InvalidTransIds, '')
-								+ ' ErrMsg: ' + @ErrMsg
-								AS '@LogData'
-					FOR XML PATH ('r'), ROOT ('root'), TYPE
-	) AS VARCHAR(MAX))
-
-	EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
-			@userid				= @creator
-			,@matchid			= @MatchId
-			,@actionid			= @ActionID
-			,@Remark			= @LogData
-			,@ip				= @ip
 
 	DROP TABLE #tblMatchParlayProcess
 	DROP TABLE #tmpMainTransId
