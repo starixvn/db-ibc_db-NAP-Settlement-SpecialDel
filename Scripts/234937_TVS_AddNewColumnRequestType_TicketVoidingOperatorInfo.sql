@@ -5,8 +5,8 @@
 	DB: DBCTG/bodb02
 
 	Parameter explanations: 
-		RequestType: 1 - Void func
-					 2 - Remark func
+		RemarkId: NOT NULL -> Remark func
+		RequestId: NOT NULL -> Void func
 */
 USE bodb02
 GO
