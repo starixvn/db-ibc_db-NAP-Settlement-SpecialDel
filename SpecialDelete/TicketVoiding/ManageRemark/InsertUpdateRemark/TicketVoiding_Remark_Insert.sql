@@ -14,9 +14,9 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Remark_Insert]
 	,@Remark			NVARCHAR(MAX) = NULL
 	,@Message			NVARCHAR(MAX) = NULL
 	,@Description		NVARCHAR(MAX) = NULL
-	,@Action			VARCHAR(20) = NULL
+	,@Action			VARCHAR(50) = NULL
 	,@UserId			INT
-	,@IP				VARCHAR(50)
+	,@IP				VARCHAR(50) = NULL
 	,@SessionTime		INT = 0
 AS
 /*	
@@ -61,7 +61,7 @@ BEGIN
 
 	SET @EndTime = GETDATE()
 	SET @LogData= CAST((
-		SELECT @RemarkId AS '@RemarkId'
+		SELECT @RemarkId AS '@RequestId'
 			  ,@MatchId AS '@MatchId'
 			  ,@LogActionId AS '@LogActionId'
 			  ,@UserId AS '@UserId'

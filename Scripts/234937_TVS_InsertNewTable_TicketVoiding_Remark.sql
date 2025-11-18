@@ -25,7 +25,7 @@ CREATE TABLE [dbo].[TicketVoiding_Remark](
 	[Description] [NVARCHAR] (MAX) NULL,
 	[Action] [VARCHAR](50) NULL,
 	[CreatedDate] [DATETIME] DEFAULT GETDATE() NOT NULL,
-	[ModifiedDate] [DATETIME] DEFAULT GETDATE() NOT NULL,
+	[LastModifiedDate] [DATETIME] DEFAULT GETDATE() NOT NULL,
 
 	CONSTRAINT [PK_TicketVoiding_Remark_RemarkId] PRIMARY KEY CLUSTERED 
 	(
