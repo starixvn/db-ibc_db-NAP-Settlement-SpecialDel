@@ -51,7 +51,7 @@ BEGIN
 			,@TableName VARCHAR(128) 
 			,@IsUpd_runningHP BIT = 0
 
-	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0), IsHybrid BIT DEFAULT(0), isValidSettle BIT DEFAULT(0), statuswinlost TINYINT, isBackToRunning BIT DEFAULT (0), IsSingleSelectionHP BIT DEFAULT (0))		
+	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0), IsHybrid BIT DEFAULT(0), isValidSettle BIT DEFAULT(0), statuswinlost TINYINT, isBackToRunning BIT DEFAULT (0), IsSingleSelectionHP BIT DEFAULT (0), MainStatusId INT)		
 	DECLARE @tmpParlayOutput TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT,betcheck NVARCHAR(50), odds SMALLMONEY)		
 	
 	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
@@ -70,7 +70,7 @@ BEGIN
 								WHEN @Action LIKE 'UNDO%' THEN 'UNDO'
 							END
 
-	INSERT INTO @tmpParlayTicket (transid, refno, statusId, modds, IsMarked, IsHybrid, statuswinlost)
+	INSERT INTO @tmpParlayTicket (transid, refno, statusId, modds, IsMarked, IsHybrid, statuswinlost, MainStatusId)
 	SELECT t AS transid
 			,r AS refno
 			,s AS statusId
@@ -84,6 +84,7 @@ BEGIN
 				WHEN m < - 0.25 THEN 4 -- LOSE
 				ELSE CASE WHEN (@action = 'ABANDONED' OR @Action LIKE 'REFUND%') THEN 6 ELSE 0 END -- CAL OR REFUND
 			END
+			,mst AS MainStatusId
 	FROM OPENJSON(@strTransIds) WITH (
 		t BIGINT
 		,r BIGINT
@@ -91,6 +92,7 @@ BEGIN
 		,m SMALLMONEY
 		,im BIT
 		,ih BIT
+		,mst INT
 	)
 
 	IF(@@ROWCOUNT = 0) RETURN
@@ -122,6 +124,13 @@ BEGIN
 						WHERE t.refno = bm.refno AND bm.matchid <> @matchid AND bm.statusID = 113
 						) AS tmp
 		WHERE t.IsHybrid = 1 AND t.isValidSettle = 0
+
+		UPDATE t 
+			SET t.isValidSettle = 1
+		FROM @tmpParlayTicket t 
+		WHERE t.IsHybrid = 1 
+			AND t.isValidSettle = 0
+			AND t.MainStatusId = 102
 
 		UPDATE t
 			SET isBackToRunning = CASE  WHEN bm.statuswinlost = 4 AND t.statuswinlost = 2 THEN 0 --before: LOSE, after: WON

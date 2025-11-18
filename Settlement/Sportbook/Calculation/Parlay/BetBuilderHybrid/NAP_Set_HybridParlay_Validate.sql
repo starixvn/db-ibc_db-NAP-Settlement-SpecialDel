@@ -42,7 +42,7 @@ BEGIN
 		SET @IsCalculating = (SELECT TOP 1 IsCalculating FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK) WHERE p.matchid = @MatchId ORDER BY Starttime DESC)
 	END
 
-	IF @IsCalculating = 2 OR @IsCalculating IS NULL
+	IF @IsCalculating = 2 OR (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT[1-9]')
 	BEGIN	
 		IF @Action NOT LIKE 'UNDO%'
 		BEGIN

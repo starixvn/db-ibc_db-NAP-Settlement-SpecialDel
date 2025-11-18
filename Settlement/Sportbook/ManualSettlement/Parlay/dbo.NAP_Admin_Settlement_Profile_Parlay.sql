@@ -151,7 +151,7 @@ BEGIN
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	CREATE TABLE #tmpsubTransID (Id BIGINT IDENTITY(1,1),TransID BIGINT, refno BIGINT, modds SMALLMONEY, moddsSDT SMALLMONEY, IsSDT BIT DEFAULT(0), isFinish BIT, IsMarked BIT
-		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, betteam VARCHAR(10), IsHybrid BIT DEFAULT(0))
+		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, betteam VARCHAR(10), IsHybrid BIT DEFAULT(0), mainStatusId INT)
 	CREATE TABLE #tmpRefnos (refno BIGINT)
 	----------------------------------------------------------------------------------------------------------------------
 
@@ -633,7 +633,7 @@ BEGIN
 		RETURN 
 
 	--Mark IsHybrid for subTransId
-	UPDATE t SET t.IsHybrid = 1
+	UPDATE t SET t.IsHybrid = 1, t.mainStatusId = b.statusID
 	FROM #tmpsubTransID t
 		INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = t.refno AND b.matchid = 29 AND b.bettype = 29 AND b.oddsspread = 3 
 
@@ -810,6 +810,7 @@ BEGIN
 									,s2.refno AS 'r'
 									,s2.IsMarked AS 'im'
 									,s2.IsHybrid AS 'ih'
+									,s2.mainStatusId AS 'mst'
 						FROM	#tmpsubTransID s2         
 						WHERE	s2.IsSDT = 1
 								AND s2.id/@batchNo = main.batchNo
@@ -859,6 +860,7 @@ BEGIN
 						SELECT CAST((SELECT	s2.transid AS 't'
 									,s2.refno AS 'r'
 									,s2.IsHybrid AS 'ih'
+									,s2.mainStatusId AS 'mst'
 						FROM	#tmpsubTransID s2         
 						WHERE	s2.modds IS NULL
 								AND s2.id/@batchNo = main.batchNo
@@ -909,6 +911,7 @@ BEGIN
 									,s2.refno AS 'r'
 									,s2.IsMarked AS 'im'
 									,s2.IsHybrid AS 'ih'
+									,s2.mainStatusId AS 'mst'
 						FROM	#tmpsubTransID s2         
 						WHERE	s2.moddsSDT IS NOT NULL
 								AND s2.id/@batchNo = main.batchNo
@@ -958,6 +961,7 @@ BEGIN
 								,s2.refno AS 'r'
 								,s2.IsMarked AS 'im'
 								,s2.IsHybrid AS 'ih'
+								,s2.mainStatusId AS 'mst'
 					FROM	#tmpsubTransID s2         
 					WHERE	s2.isFinish IS NULL
 							AND s2.id/@batchNo = main.batchNo
