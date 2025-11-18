@@ -902,7 +902,7 @@ BEGIN
 
 			IF @@ROWCOUNT = 0 BREAK;
 
-			SELECT @VoidFromTime = VoidToTime, @VoidToTime = VoidFromTime
+			SELECT @VoidFromTime = VoidFromTime, @VoidToTime = VoidToTime
 			FROM #logInfo
 			WHERE MatchId = @MatchId
 
