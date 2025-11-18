@@ -162,7 +162,6 @@ BEGIN
 					AND m.sporttype = 1
 					AND m.eventdate BETWEEN @fromdate AND @todate 
 					AND GlobalShowTime <= @checktime
-					--AND ISNULL(m.ChildMatchType,0) <> 201
 					AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND ss.AutoType = 8 AND f.TypeId = 2 THEN 1
 																						   ELSE 0
 																						   END								 
@@ -189,7 +188,7 @@ BEGIN
 					AND r.IsExistResultDetail IS NULL
 	)t
 	WHERE	IsConfirmed > 0
-	ORDER BY t.kickofftime, t.MatchId, t.TypeId
+	ORDER BY t.kickofftime ASC, t.MatchId ASC, t.TypeId ASC
 
 	--TEMPORARY: Insert score into ProviderResultDetail for SourceId = 101 - Direct Autopayout
 	DECLARE @currTime DATETIME = GETDATE()
