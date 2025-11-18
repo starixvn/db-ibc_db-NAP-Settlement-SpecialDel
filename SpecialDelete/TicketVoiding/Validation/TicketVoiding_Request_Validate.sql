@@ -73,35 +73,25 @@ BEGIN
 
 		--For case ticket marked function and then save request. Expect: NOT unmarked this ticket.
 		BEGIN
-			--For single
+			--For single/main parlay
 			DELETE m
 			FROM @tmpMarkTransId m 
 				INNER JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON m.TransId = mt.TransId
 			WHERE mt.MarkType IN (0,2) -- For 0: SD, 1: TVS, 2: SD-HP, 3: TVS-HP
 
-			--For sub parlay (normal)
+			--For sub parlay (normal & hybrid)
 			DELETE m
 			FROM @tmpMarkTransId m
-					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.TransId = bm.TransId
-					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno
-					CROSS APPLY (
-						 SELECT TOP 1 m.TransId, m.MarkType 
-						 FROM dbo.MarkedTransaction m WITH (NOLOCK) 
-						 WHERE b.TransId = m.TransId AND bm.matchid = m.MatchId -- Case main parlay for 2 match sub
-					 )mt
-			WHERE mt.MarkType IN (0) -- For 0: SD
-
-			--For hybrid parlay
-			DELETE m
-			FROM @tmpMarkTransId m
-					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.TransId = bm.TransId
-					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno
-					CROSS APPLY (
-						 SELECT TOP 1 m.TransId, m.MarkType 
-						 FROM dbo.MarkedTransaction m WITH (NOLOCK) 
-						 WHERE bm.TransId = m.TransId AND bm.matchid = m.MatchId
-					 )mt
-			WHERE mt.MarkType IN (2) AND b.oddsspread = 3-- For 2: SD-HP
+				INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.TransId = bm.TransId
+				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno
+				CROSS APPLY (
+						SELECT TOP 1 m.TransId, m.MarkType 
+						FROM dbo.MarkedTransaction m WITH (NOLOCK) 
+						WHERE bm.matchid = m.MatchId 
+							AND  1 = CASE WHEN m.MarkType IN (0) AND m.TransId = b.TransId THEN 1 -- normal: Case main parlay for 2 match sub
+										WHEN m.MarkType IN (2) AND m.TransId = bm.TransId  AND b.oddsspread = 3 THEN 1 -- hybrid
+										ELSE 0 END
+					)mt
 		END
 
 		SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
@@ -113,23 +103,25 @@ BEGIN
 	BEGIN
 		--For case ticket marked function and then save request. Expect: NOT marked this ticket.
 		BEGIN
-			--For single
+			--For single/main parlay
 			DELETE m
 			FROM @tmpUnmarkTransId m 
 				INNER JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON m.TransId = mt.TransId
 			WHERE mt.MarkType IN (0,2) -- For 0: SD, 1: TVS, 2: SD-HP, 3: TVS-HP
 
-			--For sub parlay
+			--For sub parlay (normal & hybrid)
 			DELETE m
 			FROM @tmpUnmarkTransId m
-					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.TransId = bm.TransId
-					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno
-					CROSS APPLY (
-						 SELECT TOP 1 m.TransId, m.MarkType 
-						 FROM dbo.MarkedTransaction m WITH (NOLOCK) 
-						 WHERE b.TransId = m.TransId AND bm.matchid = m.MatchId -- Case main parlay for 2 match sub
-					 )mt
-			WHERE mt.MarkType = 0 -- For 0: SD, 1: TVS
+				INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.TransId = bm.TransId
+				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno
+				CROSS APPLY (
+						SELECT TOP 1 m.TransId, m.MarkType 
+						FROM dbo.MarkedTransaction m WITH (NOLOCK) 
+						WHERE bm.matchid = m.MatchId 
+							AND  1 = CASE WHEN m.MarkType IN (0) AND m.TransId = b.TransId THEN 1 -- normal: Case main parlay for 2 match sub
+										WHEN m.MarkType IN (2) AND m.TransId = bm.TransId  AND b.oddsspread = 3 THEN 1 -- hybrid
+										ELSE 0 END
+					)mt
 		END
 		
 		--Mark again
