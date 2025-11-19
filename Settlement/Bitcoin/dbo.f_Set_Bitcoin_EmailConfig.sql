@@ -17,6 +17,7 @@ AS
 		- 20231026@Louisa: Update email domain from starixvn to starixsoft [Redmine:#195197]
 		- 20240710@Kathy: Change instance name [Redmine:#207768]
 		- 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
+		- 20251119@Max: Change instance name SITDBSITE [Redmine: #244703]
 		
 	Columns Explanation:    
     
@@ -101,7 +102,7 @@ RETURN (
 			, 'qa@starixsoft.com'
 			, 'qa@starixsoft.com'
 			, 'qa@starixsoft.com'
-			, 'SITDBSITEC2\INST2'
+			, 'SITDBSITEC2'
 			, 'SIT'
 
 		UNION ALL 
@@ -109,7 +110,7 @@ RETURN (
 			, 'qa@starixsoft.com'
 			, 'qa@starixsoft.com'
 			, 'qa@starixsoft.com'
-			, 'SITDBSITEC3\INST3'
+			, 'SITDBSITEC3'
 			, 'SIT'
 		UNION ALL 
 		SELECT 'NOTIFY'
@@ -237,13 +238,13 @@ RETURN (
 		UNION ALL 
 		SELECT 'ERROR'
 			, 'qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
-			, 'SITDBSITEC2\INST2'
+			, 'SITDBSITEC2'
 			, 'SIT'
 
 		UNION ALL 
 		SELECT 'ERROR'
 			, 'qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
-			, 'SITDBSITEC3\INST3'
+			, 'SITDBSITEC3'
 			, 'SIT'
 		UNION ALL 
 		SELECT 'ERROR'

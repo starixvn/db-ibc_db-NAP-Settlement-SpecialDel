@@ -26,6 +26,7 @@ AS
 		- 20231016@Aries: SIT env: remove mail  [Redmine:#195333]
 		- 20240710@Kathy: Change instance name [Redmine:#207768]
 		- 20250508@Aries: Change instance name DBTRANS [Redmine:#226591]
+		- 20251119@Max: Change instance name SITDBSITE [Redmine: #244703]
 
 	Columns Explanation:    
     
@@ -134,7 +135,7 @@ RETURN (
 			, 'lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw'
 			, 'qa@starixsoft.com'
 			, 'qa@starixsoft.com'
-			, 'SITDBSITEC2\INST2'
+			, 'SITDBSITEC2'
 			, 'SIT'
 
 		UNION ALL 
@@ -142,7 +143,7 @@ RETURN (
 			, 'lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw'
 			, 'qa@starixsoft.com'
 			, 'qa@starixsoft.com'
-			, 'SITDBSITEC3\INST3'
+			, 'SITDBSITEC3'
 			, 'SIT'
 		UNION ALL 
 		SELECT 'NOTIFY'
@@ -292,13 +293,13 @@ RETURN (
 		UNION ALL 
 		SELECT 'ERROR'
 			, 'qa@starixsoft.com;lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
-			, 'SITDBSITEC2\INST2'
+			, 'SITDBSITEC2'
 			, 'SIT'
 
 		UNION ALL 
 		SELECT 'ERROR'
 			, 'qa@starixsoft.com;lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
-			, 'SITDBSITEC3\INST3'
+			, 'SITDBSITEC3'
 			, 'SIT'	
 		UNION ALL 
 		SELECT 'ERROR'
