@@ -380,7 +380,7 @@ BEGIN
 
 			--Get list of maintransids
 			INSERT INTO #tblMainTicket(TransId, Refno, StatusId, CustId, Balance, Ruben, MatchId)
-			SELECT 
+			SELECT DISTINCT
 				b.TransId
 			   ,b.refno
 			   ,b.statusID
@@ -393,7 +393,7 @@ BEGIN
 				INNER JOIN bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
 			WHERE b.bettype = 29 AND t.IsHybrid = 1 AND t.statuswinlost IS NOT NULL
 			UNION ALL 
-			SELECT 
+			SELECT DISTINCT
 				b.TransId
 			   ,b.refno
 			   ,b.statusID
