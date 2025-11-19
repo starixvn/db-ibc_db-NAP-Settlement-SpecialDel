@@ -462,8 +462,8 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_MP_broker
 						@matchid = @MatchId
 						,@matchdate = @MatchDate
-						,@mode = 'RECOVER-RECAL' --Update bettransm + betparlaydetail
-						,@VoidTransId = @SubTransIds
+						,@mode = 'Hybrid_m' --Update bettransm + betparlaydetail
+						,@strTransIds = @SubTransIds
 				END
 
 				SELECT @Transids_29 = @Transids_29 + CONVERT(VARCHAR(50), TransId) + ','
