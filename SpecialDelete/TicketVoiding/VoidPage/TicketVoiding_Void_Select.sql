@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select]
     ,@RequestId			INT = NULL
     ,@IssueTypeId		INT = NULL
 	,@RequestDetailId   INT = NULL --Support WMO(12) issuetype
-	,@OnlineServerId	  VARCHAR(10) = NULL
+	,@OnlineServerId	VARCHAR(10) = NULL
 )
 AS
 /*	Created by: 20181212@Kathy
@@ -259,7 +259,6 @@ BEGIN
 				,RefCode
 				,BonusID
 				,WinLost
-				,IsMarked
 				,LiveIndicator
 				,mainstatusid
 				,ActualStake
@@ -309,7 +308,6 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,b.WinLost - b.actual_stake AS WinLost
-				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 				,b.actual_stake AS ActualStake
@@ -387,7 +385,6 @@ BEGIN
 				,RefCode
 				,BonusID
 				,WinLost
-				,IsMarked
 				,LiveIndicator
 				,mainstatusid
 				,ActualStake
@@ -437,7 +434,6 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,b.WinLost - b.actual_stake AS WinLost
-				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 				,b.actual_stake AS ActualStake
@@ -460,7 +456,6 @@ BEGIN
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.transid
 			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
 			LEFT JOIN dbo.CashOutSelling AS c WITH (NOLOCK) ON b.TransId = c.TransID
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON b.bettype = f.BetType AND f.IssueTypeId = @IssueTypeId
 			LEFT JOIN f_TVS_GroupBettypeIdDisplayActualMarket() g ON g.typeid = b.bettype
 		WHERE b.statusID NOT IN (101, 102, 103) -- reject, void, refund
@@ -508,7 +503,6 @@ BEGIN
 					,IsMixParlay
 					,modds
 					,WinLost
-					,IsMarked
 					,LiveIndicator
 					,mainstatusid
 					,ExtraInfo
@@ -556,7 +550,6 @@ BEGIN
 					,1 AS IsMixParlay
 					,b.modds
 					,b.winlost - b.actual_stake AS WinLost
-					,0
 					,bm.liveindicator AS Subliveindicator
 					,b.statusID AS mainstatusid
 					,b.ExtraInfo
@@ -630,7 +623,6 @@ BEGIN
 				,RefCode
 				,BonusID
 				,WinLost
-				,IsMarked
 				,LiveIndicator
 				,mainstatusid
 			    ,ActualStake
@@ -676,7 +668,6 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,b.WinLost - b.actual_stake AS WinLost
-				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 			    ,b.actual_stake AS ActualStake
@@ -687,7 +678,6 @@ BEGIN
 		FROM #TmpTransid AS d
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
 			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE b.statusID NOT IN (101, 102, 103) 
 			  AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
 						   WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
@@ -732,7 +722,6 @@ BEGIN
 					,IsMixParlay
 					,modds
 					,WinLost
-					,IsMarked
 					,LiveIndicator
 					,mainstatusid
 					,ExtraInfo
@@ -777,7 +766,6 @@ BEGIN
 					,1 AS IsMixParlay
 					,b.modds
 					,b.winlost - b.actual_stake AS WinLost
-					,0
 					,bm.liveindicator AS Subliveindicator
 					,b.statusID AS mainstatusid
 					,b.ExtraInfo
@@ -849,7 +837,6 @@ BEGIN
 			,IsMixParlay
 			,modds
 			,WinLost
-			,IsMarked
 			,LiveIndicator
 			,mainstatusid
 			,ExtraInfo
@@ -897,7 +884,6 @@ BEGIN
 				,1 AS IsMixParlay
 				,b.modds
 				,b.winlost - b.actual_stake AS WinLost
-				,0
 				,bm.liveindicator AS Subliveindicator
 				,b.statusID AS mainstatusid
 				,b.ExtraInfo
@@ -1065,7 +1051,7 @@ BEGIN
 		FROM #TVSTicketBets d
 		WHERE d.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 	END
-
+	
 	--- Remove invalid sporttype
 	DELETE 
 	FROM #TVSTicketBets
@@ -1093,6 +1079,18 @@ BEGIN
 	FROM	#TVSTicketBets al
 	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = al.srecommend)
 	
+	--Show highlight yellow for ticket marked transaction in betlist
+	UPDATE d
+	SET d.IsMarked = 1
+	FROM #TVSTicketBets d
+		CROSS APPLY (
+		SELECT TOP 1 m.TransId, m.MarkType 
+		FROM dbo.MarkedTransaction m WITH (NOLOCK) 
+		WHERE d.matchid = m.MatchId 
+			AND (m.TransId = d.SubTransid --Single/Subparlay for Hybrid
+					OR m.TransId = d.transid)--Subparlay for normal
+	)mt
+
 	BEGIN -- Instant Settlement declaration
 			
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
