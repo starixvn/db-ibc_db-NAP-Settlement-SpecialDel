@@ -116,7 +116,7 @@ BEGIN
               IsCashOut       BIT DEFAULT(0),
               MainTransId     BIGINT,
               BonusId         INT,
-              IsMarked        BIT,
+              IsMarked        BIT DEFAULT(0,
 			  LiveIndicator   BIT,
 			  ActualStake	  MONEY,
 			  oddsid		  INT,
@@ -623,11 +623,17 @@ BEGIN
 		WHERE d.bettype BETWEEN 11050 AND 11099 OR bettype BETWEEN 13000 AND 13199
 	END
 	
-	-- Update IsMarked
-	UPDATE t
-	SET t.IsMarked = CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END 
-	FROM #tmpTicket  t
-	LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON t.transid = m.TransId		
+	--Show highlight yellow for ticket marked transaction in betlist
+	UPDATE d
+	SET d.IsMarked = 1
+	FROM #tmpTicket d
+		CROSS APPLY (
+			SELECT TOP 1 m.TransId, m.MarkType 
+			FROM dbo.MarkedTransaction m WITH (NOLOCK) 
+			WHERE d.matchid = m.MatchId 
+				AND (m.TransId = d.SubTransid --Single/Subparlay for Hybrid
+						OR m.TransId = d.transid)--Subparlay for normal
+		)mt	
 
 	-- update Isdeposit
 	UPDATE al SET IsDeposit = 1

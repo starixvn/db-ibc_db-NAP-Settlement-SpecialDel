@@ -355,7 +355,7 @@ BEGIN
 			  FilterOddsId		 INT,
 			  FilterTransdesc	 NVARCHAR(2000),
 			  FilterOdds		 MONEY,
-			  IsMarked           BIT,
+			  IsMarked           BIT DEFAULT(0),
 			  ActualStake		 MONEY,
 			  OddsId			INT,
 			  SiteDBGroupId		SMALLINT,
@@ -470,7 +470,6 @@ BEGIN
 				,FilterOddsSpread
 				,FilterOddsId
 				,FilterTransdesc
-				,IsMarked
 				,ActualStake
 				,OddsId
 				,SiteDBGroupId
@@ -528,7 +527,6 @@ BEGIN
 				CASE 
 					WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc, '$.pid')
 					ELSE b.transdesc END AS FilterTransdesc,
-				CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
 				b.actual_stake AS ActualStake,
 				b.oddsid
 				,b.SiteDBGroupID
@@ -537,7 +535,6 @@ BEGIN
 				,b.modds
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
-				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
 			WHERE EXISTS (SELECT 1 FROM @tmpMatchId AS t WHERE t.matchid = b.matchid)
 				AND CASE
 						WHEN @TimeType = 0 THEN b.transdate
@@ -602,7 +599,6 @@ BEGIN
 				,FilterOddsSpread
 				,FilterOddsId
 				,FilterTransdesc
-				,IsMarked
 				,ActualStake
 				,OddsId
 				,SiteDBGroupId
@@ -660,7 +656,6 @@ BEGIN
 				CASE 
 					WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc, '$.pid')
 					ELSE b.transdesc END AS FilterTransdesc,
-				CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
 				b.actual_stake AS ActualStake,
 				b.oddsid
 				,b.SiteDBGroupID
@@ -1267,6 +1262,18 @@ BEGIN
 		DROP TABLE #CTE_match
 		DROP TABLE #CTE_isCal
 	END	
+	
+	--Show highlight yellow for ticket marked transaction in betlist
+	UPDATE d
+	SET d.IsMarked = 1
+	FROM #SpecialDeleteBets d
+		CROSS APPLY (
+			SELECT TOP 1 m.TransId, m.MarkType 
+			FROM dbo.MarkedTransaction m WITH (NOLOCK) 
+			WHERE d.matchid = m.MatchId 
+				AND (m.TransId = d.SubTransid --Single/Subparlay for Hybrid
+						OR m.TransId = d.transid)--Subparlay for normal
+		)mt	
 
 	;WITH CTE_OriginResult AS (
 		--1. For Normal bets

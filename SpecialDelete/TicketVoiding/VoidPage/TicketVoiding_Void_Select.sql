@@ -1084,12 +1084,12 @@ BEGIN
 	SET d.IsMarked = 1
 	FROM #TVSTicketBets d
 		CROSS APPLY (
-		SELECT TOP 1 m.TransId, m.MarkType 
-		FROM dbo.MarkedTransaction m WITH (NOLOCK) 
-		WHERE d.matchid = m.MatchId 
-			AND (m.TransId = d.SubTransid --Single/Subparlay for Hybrid
-					OR m.TransId = d.transid)--Subparlay for normal
-	)mt
+			SELECT TOP 1 m.TransId, m.MarkType 
+			FROM dbo.MarkedTransaction m WITH (NOLOCK) 
+			WHERE d.matchid = m.MatchId 
+				AND (m.TransId = d.SubTransid --Single/Subparlay for Hybrid
+						OR m.TransId = d.transid)--Subparlay for normal
+		)mt
 
 	BEGIN -- Instant Settlement declaration
 			
