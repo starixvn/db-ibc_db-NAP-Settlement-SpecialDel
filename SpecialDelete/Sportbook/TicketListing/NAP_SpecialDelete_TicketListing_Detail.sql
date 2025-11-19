@@ -1187,8 +1187,8 @@ BEGIN
 			SELECT TOP 1 m.TransId, m.MarkType 
 			FROM dbo.MarkedTransaction m WITH (NOLOCK) 
 			WHERE d.matchid = m.MatchId 
-				AND (m.TransId = d.SubTransid --Single/Subparlay for Hybrid
-						OR m.TransId = d.transid)--Subparlay for normal
+				AND (m.TransId = d.transid  --Single/Subparlay for normal 
+				 OR (m.TransId = d.SubTransid AND d.oddsspread = 3 AND d.IsParlay = 1)) --Subparlay for Hybrid
 		)mt
 
 	SELECT  s.username,
@@ -1255,7 +1255,6 @@ BEGIN
 				THEN CASE WHEN MainTransId IS NULL THEN 1
 					ELSE 2 END
 				ELSE transid END ASC
-	
 	
 	DROP TABLE #SpecialDeleteBets  
 	DROP TABLE #TmpBallSequence  
