@@ -563,7 +563,6 @@ BEGIN
 				FROM	#Balance
 				WHERE	Increased = 0
 			END		        
-			DROP TABLE #Balance
 		END
 	END TRY
 	BEGIN CATCH
@@ -664,6 +663,8 @@ BEGIN
 	DROP TABLE #ParlayTransIds
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tblMatchParlayProcess
+	DROP TABLE #tblMainTicket
+	DROP TABLE #Balance
 
 	SET NOCOUNT OFF;
 END
