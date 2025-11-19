@@ -320,7 +320,7 @@ BEGIN
               FilterValue      SMALLMONEY,
               FilterGoal       NVARCHAR(50),
               FilterBetOption  NVARCHAR(50),
-              IsMarked         BIT,
+              IsMarked         BIT DEFAULT(0),
 			  FilterHdp1	   SMALLMONEY,
 			  FilterHdp2	   SMALLMONEY,
 			  FilterOddsSpread MONEY,
@@ -548,8 +548,8 @@ BEGIN
 				INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SubTransdesc,MOdds,WalletType,RefCode,BonusID,MainTransId, custid, srecommend
-											,FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, IsMarked
-											, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds,SubTransID)
+											,FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption
+											, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds, SubTransID, MatchId)
 				SELECT	b.username,
 						b.bettype,					
 						b.BetdaqId,
@@ -592,7 +592,6 @@ BEGIN
 						b.hdp1 + b.hdp2 AS FilterValue,
 						ISNULL(CONVERT(NVARCHAR(50),b.betid), 0) AS FilterGoal,
 						CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
-						CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
 						b.hdp1 AS FilterHdp1,
 						b.hdp2 AS FilterHdp2,
 						b.oddsspread AS FilterOddsSpread,
@@ -601,10 +600,10 @@ BEGIN
 							WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc, '$.pid')
 							ELSE b.transdesc END AS FilterTransdesc,
 						b.oddsid AS FilterPlayerAndOdds,
-						b.TransId AS SubTransId
+						b.TransId AS SubTransId,
+						b.matchid
 				FROM	Bettrans b WITH (NOLOCK)
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
-				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON b.transid = mt.TransId				
 				LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
 				LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
 				WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
@@ -1179,6 +1178,18 @@ BEGIN
 					WHEN b.bettype IN (2770,2771,15500,15501) THEN 'VSRaceInfo'						
 				ELSE 'match' 
 			END = m.matchtype  
+
+	--Show highlight yellow for ticket marked transaction in betlist
+	UPDATE d
+	SET d.IsMarked = 1
+	FROM #SpecialDeleteBets d
+		CROSS APPLY (
+			SELECT TOP 1 m.TransId, m.MarkType 
+			FROM dbo.MarkedTransaction m WITH (NOLOCK) 
+			WHERE d.matchid = m.MatchId 
+				AND (m.TransId = d.SubTransid --Single/Subparlay for Hybrid
+						OR m.TransId = d.transid)--Subparlay for normal
+		)mt
 
 	SELECT  s.username,
 			bettype,		
