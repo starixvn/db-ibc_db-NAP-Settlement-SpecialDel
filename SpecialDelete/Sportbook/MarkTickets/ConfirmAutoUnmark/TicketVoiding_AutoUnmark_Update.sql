@@ -178,7 +178,7 @@ BEGIN
 								), 1,1,'')
 								
 			--Step 3: Unmark
-			INSERT INTO @tmpError (ErrorCode, ErrorMsg)
+			INSERT INTO @tmpError (ErrorCode, ErrorMsg, NegativeBalanceUsers)
 			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update 
 				 @TransIds = @UnmarkTransids
 				,@UserId = @UserId
