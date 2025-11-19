@@ -299,6 +299,7 @@ BEGIN
 		--Unmark + ReCalculate
 		BEGIN TRY
 			--Unmark
+			INSERT INTO @tmpError (ErrorCode, ErrorMsg, NegativeBalanceUsers)
 			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update 
 				@TransIds			= @TransIds,
 				@UserId				= @UserId,
@@ -342,9 +343,9 @@ BEGIN
 			ELSE IF @totalMainParlay > @ThreadHold
 			BEGIN
 				EXEC dbo.NAP_Admin_CheckingProcess
-					@isExistParlay 				= @isExistParlay
+					@isExistParlay 			= @isExistParlay
 					,@IsLockingByRefnoVS	= @IsExistParlayVS4
-					, @IsReleased				= 1
+					, @IsReleased			= 1
 			END
 		END
 		ELSE
