@@ -121,7 +121,7 @@ BEGIN
 		FROM @tmpParlayTicket t 
 			CROSS APPLY (SELECT TOP (1) 1 AS valid
 						FROM bettransm bm WITH (NOLOCK)
-						WHERE t.refno = bm.refno AND bm.matchid <> @matchid AND bm.statusID = 113
+						WHERE t.refno = bm.refno AND bm.statusID = 113
 						) AS tmp
 		WHERE t.IsHybrid = 1 AND t.isValidSettle = 0
 
