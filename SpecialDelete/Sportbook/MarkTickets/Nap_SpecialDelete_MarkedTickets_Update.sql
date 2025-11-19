@@ -76,7 +76,6 @@ BEGIN
 			,@MainParlay_MaxPO		VARCHAR(MAX) = NULL
 			,@CustIds				VARCHAR(MAX) = ''
 			,@ActionID				INT = 90999 --TVS - Agency Cash Service
-			,@NegativeBalanceUsers  VARCHAR(MAX) = NULL
 
 	DECLARE @ThreadHold		INT = 0 
 		   ,@totalParlay	INT = 0
@@ -531,15 +530,6 @@ BEGIN
 				INNER JOIN @tblAfterBalance a ON b.custid = a.custid
 			WHERE b.balance <> a.balance
 
-			--Build list of customer name with negative balance
-			SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20),custid)
-			FROM #Balance
-			WHERE Increased = 0
-
-			EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
-				@CustIds = @CustIds,
-				@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-
 			--> Add Agency Cash Service - Negative Balance into BalanceNegative table  [#225390]
 			IF OBJECT_ID('BalanceNegative','U') IS NOT NULL AND @SiteDBGroupID = 3 --Credit
 			BEGIN
@@ -624,7 +614,6 @@ BEGIN
 					,@UserId AS '@UserId'
 					,@IP AS '@IP'
 					,m.matchid AS '@MatchId'
-					,CASE WHEN ISNULL(@NegativeBalanceUsers, '') <> '' THEN @NegativeBalanceUsers ELSE '' END AS '@NegativeBalanceUsers'
 					,STUFF((
 							SELECT ',' + CAST(d.TransId AS NVARCHAR(100))
 							FROM #Tickets AS d
@@ -643,7 +632,6 @@ BEGIN
 	--1. Table return error code/ msg
 	SELECT @ErrCode AS ErrorCode
 		 , @ErrMsg AS ErrorMsg
-		 , @NegativeBalanceUsers AS NegativeBalanceUsers
 
 	-- Write useraction log	
 	BEGIN TRY
