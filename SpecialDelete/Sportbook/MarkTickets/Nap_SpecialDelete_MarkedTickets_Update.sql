@@ -74,7 +74,6 @@ BEGIN
 			,@refnos_29		VARCHAR(MAX) = ''
 			,@Transids_29	VARCHAR(MAX) = ''
 			,@MainParlay_MaxPO		VARCHAR(MAX) = NULL
-			,@CustIds				VARCHAR(MAX) = ''
 			,@ActionID				INT = 90999 --TVS - Agency Cash Service
 
 	DECLARE @ThreadHold		INT = 0 
@@ -147,7 +146,7 @@ BEGIN
 		,b.custid
 		,b.refno
 		,CASE WHEN b.bettype = 29 THEN 1 ELSE 0 END AS IsParlay
-		,NULL
+		,t.TransId AS SubTransId
 		,b.statuswinlost
 		,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM #transIds t
