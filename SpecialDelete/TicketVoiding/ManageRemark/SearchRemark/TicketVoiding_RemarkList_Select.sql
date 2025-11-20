@@ -1,7 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_RemarkList_Select]
-	 @FromTime			DATETIME	= NULL
-	,@ToTime			DATETIME	= NULL
+	 @FromDate			DATETIME	= NULL
+	,@ToDate			DATETIME	= NULL
 	,@MatchId			INT			= NULL
 	,@RemarkId			INT			= NULL
 	,@ActionIds			VARCHAR(50)	= NULL
@@ -28,8 +28,8 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE	@FilterBy	 TINYINT
-		   ,@TmpFromTime DATETIME
-		   ,@TmpToTime	 DATETIME
+		   ,@TmpFromDate DATETIME
+		   ,@TmpToDate	 DATETIME
 
 	DECLARE @TmpActionIds AS TABLE (ActionId INT)
 
@@ -48,12 +48,12 @@ BEGIN
 
 	SELECT @FilterBy = CASE WHEN @RemarkId IS NOT NULL THEN 1
 							WHEN @MatchId IS NOT NULL THEN 2
-							WHEN @FromTime IS NOT NULL AND @ToTime IS NOT NULL THEN 3
+							WHEN @FromDate IS NOT NULL AND @ToDate IS NOT NULL THEN 3
 					   END
 	
 	IF @FilterBy = 3
 	BEGIN
-		SELECT @TmpFromTime = @FromTime, @TmpToTime = @ToTime
+		SELECT @TmpFromDate = @FromDate, @TmpToDate = @ToDate
 	END
 
 	IF @FilterBy = 1
@@ -93,7 +93,7 @@ BEGIN
 			FROM dbo.match14 AS m14 WITH (NOLOCK)
 			WHERE m14.matchid = r.MatchId
 		) AS m
-		WHERE m.eventdate BETWEEN @TmpFromTime AND @TmpToTime
+		WHERE m.eventdate BETWEEN @TmpFromDate AND @TmpToDate
 	END
 
 	SELECT t.RemarkId
