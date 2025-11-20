@@ -116,22 +116,38 @@ BEGIN
 			CROSS APPLY (SELECT TOP 1 1 AS isValidSettle FROM @tmpParlayTicket p WHERE statuswinlost IN (4) AND t.refno = p.refno AND p.IsHybrid = 1) p
 		WHERE t.IsHybrid = 1
 
+		-- notes ky 2 con bug
 		UPDATE t 
 			SET t.isValidSettle = 1
 		FROM @tmpParlayTicket t 
 			CROSS APPLY (SELECT TOP (1) 1 AS valid
 						FROM bettransm bm WITH (NOLOCK)
-						WHERE t.refno = bm.refno AND bm.statusID = 113
+						WHERE t.refno = bm.refno AND bm.statusID = 113 AND bm.matchid <> @matchid
 						) AS tmp
 		WHERE t.IsHybrid = 1 AND t.isValidSettle = 0
+		-- notes ky 2 con bug
+		;WITH cte AS
+		(
+			SELECT DISTINCT bm.refno
+			FROM bettransm bm WITH (NOLOCK)
+			WHERE bm.matchid = @matchid AND bm.statusid = 113 
+				AND EXISTS (SELECT TOP (1) 1 FROM @tmpParlayTicket t WHERE bm.refno = t.refno AND t.IsHybrid = 1 AND t.isValidSettle = 0) -- filter refno
+				AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpParlayTicket pt WHERE bm.transid = pt.transid) -- filter transid
+		)
+		UPDATE t 
+			SET t.isValidSettle = 1
+		FROM @tmpParlayTicket t 
+			INNER JOIN cte r ON t.refno = r.refno
+		WHERE t.IsHybrid = 1 AND t.isValidSettle = 0
 
+		-- MAIN void --> no need to get JT odds
 		UPDATE t 
 			SET t.isValidSettle = 1
 		FROM @tmpParlayTicket t 
 		WHERE t.IsHybrid = 1 
 			AND t.isValidSettle = 0
 			AND t.MainStatusId = 102
-
+		
 		UPDATE t
 			SET isBackToRunning = CASE  WHEN bm.statuswinlost = 4 AND t.statuswinlost = 2 THEN 0 --before: LOSE, after: WON
 										WHEN bm.statuswinlost = 2 AND t.statuswinlost = 4 THEN 0 --before: WON, after: LOSE
