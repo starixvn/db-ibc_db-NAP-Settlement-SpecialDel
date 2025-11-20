@@ -27,7 +27,7 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT 
 
-	DECLARE @tmpMainTransIdResult TABLE (TransId BIGINT)
+	DECLARE @tmpMainTransIdResult TABLE (TransId BIGINT, CustId INT)
 	DECLARE @tmpRefNo TABLE (refno BIGINT, MaxSubTransId BIGINT)
 	DECLARE @tmpRefNo_tmp TABLE (refno BIGINT)
 	
@@ -47,8 +47,8 @@ BEGIN
 		IF @Action NOT LIKE 'UNDO%'
 		BEGIN
 			--Get list main transid running to update new legodds & settle
-			INSERT INTO @tmpMainTransIdResult (TransId)
-			SELECT DISTINCT b.TransId
+			INSERT INTO @tmpMainTransIdResult (TransId, CustId)
+			SELECT DISTINCT b.TransId, b.custid
 			FROM dbo.bettransm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
 			WHERE b.oddsspread = 3
@@ -93,8 +93,8 @@ BEGIN
 							) AS t
 				WHERE t.Isvalid IS NULL
 
-				INSERT INTO @tmpMainTransIdResult (TransId)
-				SELECT b.TransId
+				INSERT INTO @tmpMainTransIdResult (TransId, CustId)
+				SELECT b.TransId, b.custid
 				FROM @tmpRefNo_tmp tmp
 					INNER JOIN bettrans b WITH (NOLOCK) ON tmp.refno = b.refno
 				WHERE b.matchid = 29 AND b.bettype = 29 AND b.oddsspread = 3
@@ -109,8 +109,10 @@ BEGIN
 			END
 			ELSE
 			BEGIN
-				SELECT t.TransId
+				SELECT t.TransId, CASE WHEN cs.custid IS NULL THEN 1 ELSE 0 END AS IsCredit
 				FROM @tmpMainTransIdResult t
+					INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = t.CustId
+					LEFT JOIN CustDB.dbo.Dep_CustSuper cs WITH (NOLOCK) ON cs.custid = c.srecommend
 			END
 		END
 	END
