@@ -116,7 +116,7 @@ BEGIN
 			CROSS APPLY (SELECT TOP 1 1 AS isValidSettle FROM @tmpParlayTicket p WHERE statuswinlost IN (4) AND t.refno = p.refno AND p.IsHybrid = 1) p
 		WHERE t.IsHybrid = 1
 
-		-- notes ky 2 con bug
+		--Sub lose of other match -> no need to get JT odds
 		UPDATE t 
 			SET t.isValidSettle = 1
 		FROM @tmpParlayTicket t 
@@ -125,7 +125,8 @@ BEGIN
 						WHERE t.refno = bm.refno AND bm.statusID = 113 AND bm.matchid <> @matchid
 						) AS tmp
 		WHERE t.IsHybrid = 1 AND t.isValidSettle = 0
-		-- notes ky 2 con bug
+
+		--Exists sub lose off current match but not in part of data processing -> no need to get JT odds
 		;WITH cte AS
 		(
 			SELECT DISTINCT bm.refno
