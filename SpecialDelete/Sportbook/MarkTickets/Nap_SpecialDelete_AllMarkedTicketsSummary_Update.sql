@@ -629,7 +629,7 @@ BEGIN
 		, SportType
 		, IsNeutral
 	FROM #Tickets t
-		INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.MatchId
+		LEFT JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.MatchId
 
 	IF EXISTS ( SELECT TOP 1 1 FROM #Match WHERE SportType IN (50,8))
 	BEGIN
@@ -638,15 +638,6 @@ BEGIN
 		FROM #Tickets d
 			INNER JOIN dbo.match m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype IN (50,8) AND m.ChildMatchType = 200
 	END
-
-	------------------------------------------------------------------------------
-	--1. Table return error code/ msg
-	SELECT @ErrCode AS ErrorCode
-		 , @ErrMsg AS ErrorMsg
- 
-	--2. Table get match info
-	SELECT MatchId, HomeId, AwayId, SportType, IsNeutral
-	FROM #Match
 
 	-- Write Log
 	DECLARE @xmlLog VARCHAR(MAX);
@@ -668,6 +659,15 @@ BEGIN
 				) AS VARCHAR(MAX));
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @xmlLog, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log';
+
+	------------------------------------------------------------------------------
+	--1. Table return error code/ msg
+	SELECT @ErrCode AS ErrorCode
+		 , @ErrMsg AS ErrorMsg
+ 
+	--2. Table get match info
+	SELECT MatchId, HomeId, AwayId, SportType, IsNeutral
+	FROM #Match
 
 	-- Write useraction log	
 	BEGIN TRY
