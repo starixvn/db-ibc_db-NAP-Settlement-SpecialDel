@@ -170,9 +170,6 @@ BEGIN
 																						   WHEN ss.AutoType = 8 AND f.TypeId = 1 THEN 1
 																						   ELSE 0
 								  														   END
-								 WHEN  ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108) THEN CASE WHEN ISNULL(m.ChildMatchType,0) = 201 THEN 1 -- Child-Extra Time FOR REAL MATCH
-																								ELSE 0
-																								END
 								 WHEN (mr.SubType BETWEEN 2101 AND 2199 OR mr.SubType BETWEEN 2601 AND 2699) THEN IIF(f.TypeId = 2,1,0)  -- Child-match Next Corner
 								 WHEN ss.AutoType = 9 THEN 0 -- Exclude Fantasy Match
 								 ELSE 1
