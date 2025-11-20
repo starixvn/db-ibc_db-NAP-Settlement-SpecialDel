@@ -52,6 +52,7 @@ AS
 		- 20250620@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance - Abnormal Account [Redmine: #225390]
 		- 20250801@Lani: [TVS] ScaleOut DBTrans [Phase 5] - Abnormal Account/EKO/WKO/Wrong Offered Name [Redmine: #232582]
 		- 20251006@July: [TVS] Abnormal Account - Block void ticket after balance up date [Redmine: #238233]
+		- 20251120@July: Return column IsHybrid [Redmine: #241502]
 
 	Param's Explanation:
 */
