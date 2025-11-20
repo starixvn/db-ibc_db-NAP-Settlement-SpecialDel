@@ -14,7 +14,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Remark_Insert]
 	,@Remark			NVARCHAR(MAX) = NULL
 	,@Message			NVARCHAR(MAX) = NULL
 	,@Description		NVARCHAR(MAX) = NULL
-	,@Action			VARCHAR(50) = NULL
+	,@ActionId			TINYINT = NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50) = NULL
 	,@SessionTime		INT = 0
@@ -45,8 +45,8 @@ BEGIN
 	SET @LogActionId = 90506
 	SET @SB_Error = 0
 
-	INSERT INTO dbo.TicketVoiding_Remark (MatchId, IsTest, IsCheckedVar, MistakenBy, DecidedBy, PerformedBy, UserId, TV_IPTV, Provider, Source, Remark, Message, Description, Action, LastModifiedBy)
-	SELECT @MatchId, @IsTest, @IsCheckedVar, @MistakenBy, @DecidedBy, @PerformedBy, @UserId, @Iptv, @Provider, @Source, @Remark, @Message, @Description, @Action, @UserId
+	INSERT INTO dbo.TicketVoiding_Remark (MatchId, IsTest, IsCheckedVar, MistakenBy, DecidedBy, PerformedBy, UserId, TV_IPTV, Provider, Source, Remark, Message, Description, ActionId, LastModifiedBy)
+	SELECT @MatchId, @IsTest, @IsCheckedVar, @MistakenBy, @DecidedBy, @PerformedBy, @UserId, @Iptv, @Provider, @Source, @Remark, @Message, @Description, @ActionId, @UserId
 
 	SET @RemarkId = SCOPE_IDENTITY()
 
@@ -67,7 +67,7 @@ BEGIN
 			  ,@UserId AS '@UserId'
 			  ,@IP AS '@IP'
 			  ,'Duration: ' + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS VARCHAR(50)) + ' ms' 
-				+ ', Action: ' + @Action
+				+ ', ActionId: ' + @ActionId
 				+ ', MistakenBy: ' + ISNULL(@MistakenBy,'')
 				+ ', DecidedBy: ' + ISNULL(@DecidedBy,'')
 				+ ', Remark: ' + ISNULL(@Remark,'')

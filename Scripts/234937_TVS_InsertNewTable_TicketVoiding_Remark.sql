@@ -23,7 +23,7 @@ CREATE TABLE [dbo].[TicketVoiding_Remark](
 	[Remark] [NVARCHAR] (MAX) NULL,
 	[Message] [NVARCHAR] (MAX) NULL,
 	[Description] [NVARCHAR] (MAX) NULL,
-	[Action] [VARCHAR](50) NULL,
+	[ActionId] [TINYINT] NULL,
 	[CreatedDate] [DATETIME] DEFAULT GETDATE() NOT NULL,
 	[LastModifiedDate] [DATETIME] DEFAULT GETDATE() NOT NULL,
 

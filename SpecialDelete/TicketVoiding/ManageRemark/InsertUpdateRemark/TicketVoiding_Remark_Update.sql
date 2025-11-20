@@ -13,7 +13,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Remark_Update]
 	,@Remark			NVARCHAR(MAX) = NULL
 	,@Message			NVARCHAR(MAX) = NULL
 	,@Description		NVARCHAR(MAX) = NULL
-	,@Action			VARCHAR(50) = NULL
+	,@ActionId			VARCHAR(50) = NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50) = NULL
 AS
@@ -38,7 +38,7 @@ BEGIN
 		   ,@LogActionId	INT
 		   ,@LogData		NVARCHAR(MAX)
 		   ,@SB_Error		BIT
-		   ,@OldAction		VARCHAR(50)
+		   ,@OldActionId	VARCHAR(50)
 		   ,@OldMistakenBy	NVARCHAR(200)
 		   ,@OldDecidedBy	NVARCHAR(200)
 		   ,@OldProvider	NVARCHAR(200)
@@ -56,7 +56,7 @@ BEGIN
 	SET @LogActionId = 90507
 	SET @SB_Error = 0
 
-	SELECT @OldAction		= Action
+	SELECT @OldActionId		= ActionId
 		  ,@OldMistakenBy	= MistakenBy
 		  ,@OldDecidedBy	= DecidedBy
 		  ,@OldProvider		= Provider
@@ -78,7 +78,7 @@ BEGIN
 	   ,Remark			 = ISNULL(@Remark, Remark)
 	   ,Message			 = ISNULL(@Message, Message)
 	   ,Description		 = ISNULL(@Description, Description)
-	   ,Action			 = ISNULL(@Action, Action)
+	   ,ActionId		 = ISNULL(@ActionId, ActionId)
 	   ,LastModifiedBy	 = ISNULL(@UserId, LastModifiedBy)
 	   ,LastModifiedDate = GETDATE()
 	WHERE RemarkId = @RemarkId
@@ -116,7 +116,7 @@ BEGIN
 			  ,@UserId AS '@UserId'
 			  ,@IP AS '@IP'
 			  ,'Duration: ' + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS VARCHAR(50)) + ' ms' 
-				+ CASE WHEN @Action IS NOT NULL AND (ISNULL(@Action, '') <> ISNULL(@OldAction, '')) THEN ', Old Action: ' + ISNULL(@OldAction,'NULL') + ' New Action: ' + ISNULL(@Action,'NULL') ELSE '' END
+				+ CASE WHEN @ActionId IS NOT NULL AND (ISNULL(@ActionId, 0) <> ISNULL(@OldActionId, 0)) THEN ', Old ActionId: ' + CAST(@OldActionId AS VARCHAR(20)) + ' New ActionId: ' + CAST(@ActionId AS VARCHAR(20)) ELSE '' END
 				+ CASE WHEN @MistakenBy IS NOT NULL AND (ISNULL(@MistakenBy, '') <> ISNULL(@OldMistakenBy, '')) THEN ', Old MistakenBy: ' + ISNULL(@OldMistakenBy, 'NULL') + ' New MistakenBy: ' + ISNULL(@MistakenBy, 'NULL') ELSE '' END
 				+ CASE WHEN @DecidedBy IS NOT NULL AND ISNULL(@DecidedBy, '') <> ISNULL(@OldDecidedBy, '') THEN ', Old DecidedBy: ' + ISNULL(@OldDecidedBy, 'NULL') + ' New DecidedBy: ' + ISNULL(@DecidedBy, 'NULL') ELSE '' END
 				+ CASE WHEN @Remark IS NOT NULL AND (ISNULL(@Remark, '') <> ISNULL(@OldRemark, '')) THEN ', Old Remark: ' + ISNULL(@OldRemark, 'NULL') + ' New Remark: ' + ISNULL(@Remark, 'NULL') ELSE '' END
