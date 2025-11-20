@@ -13,7 +13,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Remark_Update]
 	,@Remark			NVARCHAR(MAX) = NULL
 	,@Message			NVARCHAR(MAX) = NULL
 	,@Description		NVARCHAR(MAX) = NULL
-	,@ActionId			VARCHAR(50) = NULL
+	,@ActionId			TINYINT = NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50) = NULL
 AS
@@ -38,7 +38,7 @@ BEGIN
 		   ,@LogActionId	INT
 		   ,@LogData		NVARCHAR(MAX)
 		   ,@SB_Error		BIT
-		   ,@OldActionId	VARCHAR(50)
+		   ,@OldActionId	TINYINT
 		   ,@OldMistakenBy	NVARCHAR(200)
 		   ,@OldDecidedBy	NVARCHAR(200)
 		   ,@OldProvider	NVARCHAR(200)

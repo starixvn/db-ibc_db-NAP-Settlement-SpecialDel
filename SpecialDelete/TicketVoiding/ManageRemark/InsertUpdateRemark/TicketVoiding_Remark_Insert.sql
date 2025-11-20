@@ -67,7 +67,7 @@ BEGIN
 			  ,@UserId AS '@UserId'
 			  ,@IP AS '@IP'
 			  ,'Duration: ' + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS VARCHAR(50)) + ' ms' 
-				+ ', ActionId: ' + @ActionId
+				+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
 				+ ', MistakenBy: ' + ISNULL(@MistakenBy,'')
 				+ ', DecidedBy: ' + ISNULL(@DecidedBy,'')
 				+ ', Remark: ' + ISNULL(@Remark,'')
