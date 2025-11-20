@@ -37,6 +37,7 @@ AS
 		- 20240308@Max: [TVS] Abnormal Bet - Support void archived tickets [Redmine: #196019]
 		- 20240424@Max: [TVS] Abnormal Bet - Remove some auto void actions & Remove AB (Real Member) issue type [Redmine: #202949]
 		- 20250609@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay - Call new sp [Redmine: #227829]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 	
 	Param's explanation:	
 		
@@ -44,7 +45,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF (@IssueTypeId = 17) OR (@IssueTypeId IN (11,13) AND @VoidingTypeId IN (5,6)) --Void 14
+	IF (@IssueTypeId = 17) OR (@IssueTypeId IN (11,13) AND @VoidingTypeId IN (5,6,22)) --Void 14
 	BEGIN
 		EXEC dbo.TicketVoiding_VoidHistorical_Update
 			@RequestId				= @RequestId
@@ -60,7 +61,7 @@ BEGIN
 			,@NegativeBalanceUsers  = @NegativeBalanceUsers	OUTPUT
 			,@MoveBetMatchIds		= @MoveBetMatchIds OUTPUT
 	END
-	ELSE IF (@VoidingTypeId IN (1,4) OR (@VoidingTypeId = 2 AND @IssueTypeId IN (11,13,20)))-- Single
+	ELSE IF (@VoidingTypeId IN (1,4,18) OR (@VoidingTypeId = 2 AND @IssueTypeId IN (11,13,20)))-- Single
 	BEGIN
 		EXEC dbo.TicketVoiding_SingleType_Update
 			@RequestId = @RequestId
@@ -76,7 +77,7 @@ BEGIN
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			,@MoveBetMatchIds = @MoveBetMatchIds OUTPUT
 	END
-	ELSE IF @VoidingTypeId = 2 -- subParlay
+	ELSE IF @VoidingTypeId IN (2,20) -- subParlay
 	BEGIN
 		EXEC dbo.TicketVoiding_ParlayType_Update
 			@RequestId = @RequestId
@@ -122,7 +123,7 @@ BEGIN
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
-	ELSE IF @VoidingTypeId IN (12) --Main parlay ticket
+	ELSE IF @VoidingTypeId IN (12,19) --Main parlay ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RecoverMainParlayType_Update
 			@RequestId = @RequestId
@@ -137,7 +138,7 @@ BEGIN
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
-	ELSE IF @VoidingTypeId IN (13) --Recover sub parlay ticket
+	ELSE IF @VoidingTypeId IN (13,21) --Recover sub parlay ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RecoverSubParlayType_Update
 			@RequestId = @RequestId
@@ -196,7 +197,7 @@ BEGIN
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
-	ELSE IF @VoidingTypeId IN (16) --Parlay14 ticket
+	ELSE IF @VoidingTypeId IN (16,23) --Parlay14 ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RecoverHistorical_MainParlay_Update
 			@RequestId = @RequestId

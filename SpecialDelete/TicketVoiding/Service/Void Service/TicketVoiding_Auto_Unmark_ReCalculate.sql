@@ -19,6 +19,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250828@July: Return output table [Redmine: #236438]
 		- 20250926@July: Some error with mark/unmark ticket [Redmine: #240106]
+		- 20251120@July: Insert table @tmpError [Redmine: #241502]
 
 	Param's explanation:	  
 		
@@ -299,6 +300,7 @@ BEGIN
 		--Unmark + ReCalculate
 		BEGIN TRY
 			--Unmark
+			INSERT INTO @tmpError (ErrorCode, ErrorMsg)
 			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update 
 				@TransIds			= @TransIds,
 				@UserId				= @UserId,
@@ -342,9 +344,9 @@ BEGIN
 			ELSE IF @totalMainParlay > @ThreadHold
 			BEGIN
 				EXEC dbo.NAP_Admin_CheckingProcess
-					@isExistParlay 				= @isExistParlay
+					@isExistParlay 			= @isExistParlay
 					,@IsLockingByRefnoVS	= @IsExistParlayVS4
-					, @IsReleased				= 1
+					, @IsReleased			= 1
 			END
 		END
 		ELSE

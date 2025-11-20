@@ -28,6 +28,7 @@ AS
 		- 20220831@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
 
 	Param's explanation:	
 		@TransInfo: <root><r mid="0" t="1" btype ="" us="" crdate="" mt="" bid=""/></root>
@@ -54,7 +55,7 @@ BEGIN
 		   ,MarkType
 		   ,betid
 	)
-	SELECT mid, t, btype, us, crdate, mt, bid
+	SELECT mid, t, btype, us, crdate, CASE WHEN mt IN (0,2) THEN 0 ELSE 1 END, bid
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -98,8 +99,8 @@ BEGIN
 		, m.kickofftime
 		, m.homeid
 		, m.awayid
-		, ISNULL(CAST(rdHT.hthomescore AS VARCHAR(10)) + '-' + CAST(rdHT.htawayscore AS VARCHAR(10)), '-') AS 'HTScore'
-		, ISNULL(CAST(rdFT.finalhomescore AS VARCHAR(10)) + '-' + CAST(rdFT.finalawayscore AS VARCHAR(10)), '-') AS 'FTScore'
+		, mr.HTScore
+		, mr.FTScore
 		, mt.bettype
 		, mt.MarkedTrans
 		, mt.UserId
@@ -111,18 +112,12 @@ BEGIN
 		, mt.betid
 	FROM #MarkedTransaction_tmp mt WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
-		OUTER APPLY (
-					SELECT TOP 1 m.hthomescore, m.htawayscore
-					FROM dbo.match_remark mr WITH (NOLOCK)
-					WHERE IsHTCal = 1 
-						AND mr.matchid = m.matchid			
-				)rdHT
-		OUTER APPLY (
-					SELECT TOP 1 m.finalhomescore, m.finalawayscore
-					FROM dbo.match_remark mr WITH (NOLOCK)
-					WHERE mr.calculate = 1 
-						AND mr.matchid = m.matchid			
-				)rdFT
+		 OUTER APPLY (
+						SELECT CASE WHEN mr.IsHTCal = 1 THEN CAST(m.hthomescore AS CHAR(10)) + '-' + CAST(m.htawayscore AS CHAR(10)) ELSE '-' END AS HTScore
+							  ,CASE WHEN mr.calculate = 1 THEN CAST(m.finalhomescore AS CHAR(10)) + '-' + CAST(m.finalawayscore AS CHAR(10)) ELSE '-' END AS FTScore
+						FROM dbo.match_remark mr WITH (NOLOCK)
+						WHERE mr.matchid = m.matchid	
+					)mr
 		OUTER APPLY (
 				SELECT TOP 1 CASE WHEN  mt.CreateDate > t.CreatedDate THEN 1 ELSE 0 END AS IsCheck
 				FROM TicketVoiding_AutoUnmarkSetting t WITH (NOLOCK)
@@ -134,11 +129,11 @@ BEGIN
 			)ta_tmp		
 		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = mt.bettype
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = mt.UserId	
-	ORDER BY m.kickofftime
-		, mt.MatchId
-		, mt.MarkType 
-		, mt.bettype
-		, f.GroupName
+	ORDER BY m.kickofftime ASC
+		, mt.MatchId ASC
+		, mt.MarkType ASC  
+		, mt.bettype ASC
+		, f.GroupName ASC
 		, ISNULL(ta_tmp.IsCheck, 1) DESC
 
 	DROP TABLE #MarkedTransaction_tmp

@@ -22,6 +22,7 @@ AS
 		- 20230427@July: [TVS] Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20250828@July: [TVS] ScaleOut DBTrans [Phase 7] Manage Request page [Redmine: #236438]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
 
 	Explanation's Param:
 */
@@ -65,6 +66,7 @@ BEGIN
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON mt.TransId = b.transid
 	WHERE ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
+		AND mt.MarkType IN (0,1) -- SD/TVS
 		AND 1 = CASE WHEN mt.MatchId = 29 THEN 0 --not support main parlay
 					 WHEN b.matchid <> 29 AND b.statusID NOT IN (0,1) THEN 0 
 				ELSE 1 END
@@ -79,6 +81,23 @@ BEGIN
 		LEFT JOIN dbo.bettransm AS bm WITH (NOLOCK, INDEX = IX_refno) ON m.refno = bm.refno AND m.matchid = bm.matchid
 	WHERE m.refno IS NOT NULL AND (bm.matchid IS NULL OR bm.statusID NOT IN (0,1))
 	
+	INSERT INTO #tmp_TransId (transid, matchid, userid, createddate, refno, statusID, SiteDBGroupID)
+	SELECT mt.TransId
+		,mt.MatchId
+		,mt.UserId
+		,mt.CreatedDate
+		,NULL AS refno
+		,bm.statusID
+		,bm.SiteDBGroupID
+	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
+		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON mt.TransId = bm.transid
+	WHERE ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
+		AND mt.MarkType IN (2,3) -- SD-HP/TVS-HP
+		AND bm.statusID IN (0,1)
+		AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1
+					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
+					 ELSE 0 END
+
 	INSERT INTO #Tickets
             (MatchId,
              UserId,

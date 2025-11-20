@@ -28,6 +28,7 @@ AS
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 		- 20250319@Lani: [TVS] Enhance out of memory issue [Redmine: #217771]
+		- 20251113@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:
 
@@ -89,6 +90,8 @@ BEGIN
 		IsDeposit			  BIT DEFAULT(0),
 		srecommend			  INT,
 		GroupName			  VARCHAR(50),
+		IsHybrid			  BIT DEFAULT (0),
+		FinalOdds			  SMALLMONEY,
 		ID 					  INT IDENTITY (1,1) PRIMARY KEY
 	)
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
@@ -283,6 +286,8 @@ BEGIN
 				,statusID
 				,ExtraInfo
 				,winlostdate
+				,IsHybrid
+				,FinalOdds
 		)
 		SELECT DISTINCT  b.transid 
 				,bm.transid AS Subtransid
@@ -290,7 +295,7 @@ BEGIN
 				,bm.custid AS Subcustid				
 				,b.odds
 				,bm.odds AS SubOdds
-				,bm.oddsspread AS Suboddsspread
+				,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
 				,b.OddsType
 				,bm.transdate AS Subtransdate
 				,b.bettype
@@ -310,7 +315,7 @@ BEGIN
 				,b.currencyname				
 				,b.status
 				,bm.status AS SubStatus
-				,bm.transdesc AS SubTransdesc
+				,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN b.transdesc ELSE bm.transdesc END AS SubTransdesc
 				,1 AS IsMixParlay
 				,b.modds
 				,b.transid AS MainTransId
@@ -326,6 +331,8 @@ BEGIN
 				,bm.statusID
 				,b.ExtraInfo
 				,b.winlostdate
+				,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
+				,bm.finalodds AS FinalOdds
 		FROM  @tmpMatch m
 			INNER LOOP JOIN dbo.bettransm AS bm WITH(NOLOCK) ON m.MatchId = bm.matchid
 			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno
@@ -429,6 +436,23 @@ BEGIN
 		FROM CustDB.dbo.custInfo ci WITH(NOLOCK)
 			INNER JOIN CTE_CustIdAll ca ON ci.custid = ca.custid
 
+	--Update odds support show betlist for Hybrid parlay
+	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsHybrid = 1) 
+	BEGIN
+		;WITH CTE_MaxSubOdds AS (
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #TVSTicketBets t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+			GROUP BY t.transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #TVSTicketBets AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+	END
+
 	--Return all PH tickets
 	SELECT s.transid
 		   ,s.MainTransId
@@ -485,6 +509,8 @@ BEGIN
 		   ,m.matchcode
 		   ,m.SettlementStatus
 		   ,m.sporttype
+		   ,s.IsHybrid
+		   ,s.FinalOdds
 	FROM #TVSTicketBets s
 		INNER JOIN dbo.match m WITH(NOLOCK) ON s.matchid = m.matchid
 		INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON s.creator = cr.custid
@@ -492,8 +518,8 @@ BEGIN
 	ORDER BY CASE WHEN s.GroupName IN ('1X2', '1H 1X2') AND s.transid = s.SubTransid THEN 1
 				  WHEN s.GroupName = 'AIO' AND s.transid = s.SubTransid THEN 2
 				  WHEN s.IsMixParlay = 1 AND s.GroupName <> 'Others' THEN 3
-				  ELSE 4 END
-			, ISNULL(s.MainTransId, s.transid)
+				  ELSE 4 END ASC
+			, ISNULL(s.MainTransId, s.transid) ASC
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

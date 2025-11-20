@@ -50,6 +50,7 @@ AS
 		- 20240425@Kathy: enhance parlay [Redmine:#199518]
 		- 20240521@Kathy: write log [Redmine:#199518]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026]   
+		- 20251020@Max: Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 		- 20251112@Max: Change code to release org for BetBuilder+ [Redmine: #243653]
 
 
@@ -120,6 +121,7 @@ BEGIN
 			
 	DECLARE @transIDs AS TABLE(transid BIGINT primary key)
 	DECLARE @tmpSetting AS TABLE (SiteId INT, FromOdds DECIMAL(9,4), ToOdds DECIMAL(9,4), Boost TINYINT, isFirstOdds BIT DEFAULT(0), isLastOdds BIT DEFAULT(0))
+	DECLARE @singleLeg AS TABLE (refno BIGINT, matchid INT)
 
 	SET @starttime = SYSDATETIME()
 	SET @NewID = NEWID()
@@ -214,12 +216,13 @@ BEGIN
 			,oddsspread, actual_stake, betteam, BetSiteID, eventdate
 		)
 		SELECT	[transid], [refno], [stake]
-				,CASE 
+				,CASE
 					WHEN oddsspread = 3 AND betteam = '1' THEN CAST(betid AS TINYINT) --Hybrid parlay
 					WHEN betcheck IS NOT NULL THEN CAST(hdp2 AS TINYINT) -- Combo Parlay - New format	
 					ELSE CAST(LEN(betteam) AS TINYINT)  -- Old format
 					END AS selection_cnt
-				,CASE 
+				,CASE
+					WHEN oddsspread = 3 AND betteam = '1' THEN CAST(betteam AS INT) --Hybrid parlay
 					WHEN betcheck IS NOT NULL THEN CAST(betteam AS INT) -- Combo Parlay	- New format	
 					ELSE CAST(hdp2/2 AS INT)  -- Old format
 					END AS bitmapR
@@ -314,7 +317,7 @@ BEGIN
 			SELECT	refno, mainwinlostdate, COUNT(1)
 			FROM	#BetParlayDetail_pre
 			GROUP BY refno,mainwinlostdate
-			ORDER BY refno	ASC
+			ORDER BY refno ASC
 
 			UPDATE #tmpBeingGeneratedRefno
 				SET runningTotal = @totalRow
@@ -412,6 +415,18 @@ BEGIN
 			INNER JOIN @tmpRefnoMaxEventDate s
 				ON t.refno = s.refno 
 
+	-- Leg with one selection, should settle like current basing on ticket statuswinlost
+	INSERT INTO @singleLeg (refno, matchid)
+	SELECT DISTINCT temp.refno,temp.matchid
+	FROM @temp_bettrans t
+		CROSS APPLY (SELECT  bm.refno, bm.matchid, COUNT(1) as cnt
+					 FROM bettransm bm WITH (NOLOCK)
+					 WHERE bm.refno = t.refno
+					 GROUP BY bm.refno, bm.matchid
+					 HAVING COUNT(1) = 1
+					 ) AS temp
+	WHERE t.oddsspread = 3 AND t.betteam = '1'
+
 	IF @isWriteLog = 1
 	BEGIN
 		INSERT INTO dbo.SSB_SettlementLogs(MessageId, matchid, SessionId, AffectedTicket, starttime, endtime, MessageBody)
@@ -433,7 +448,8 @@ BEGIN
 			,MAX(pd.winlostdate) as matchdate_max
 			,CAST(dbo.PRODUCT(pd.odds) AS MONEY) AS odds
 			,dbo.PRODUCT(
-				CASE WHEN pd.statusid = 102 THEN 1
+				CASE WHEN b.oddsspread = 3 AND sl.matchid IS NULL THEN pd.odds
+					WHEN pd.statusid = 102 THEN 1
 					WHEN pd.statusid = 0 THEN 1
 					ELSE
 						CASE pd.statuswinlost
@@ -449,6 +465,7 @@ BEGIN
 				,SUM(CASE WHEN pd.matchid = @matchid THEN 1 ELSE 0 END) AS relatedSerial
 		FROM dbo.BetParlayDetail pd WITH (NOLOCK)
 			INNER JOIN @temp_bettrans b ON pd.refno = b.refno
+			LEFT JOIN @singleLeg sl ON sl.refno = pd.RefNo AND pd.matchid = sl.matchid
 		GROUP BY pd.refno, pd.serial, b.eventdate
 		)
 	UPDATE pr			

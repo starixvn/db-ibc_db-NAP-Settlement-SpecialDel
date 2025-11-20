@@ -18,6 +18,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_RecoveredTicket_Select](
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250616@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
 
 	Param's explanation:	
 		
@@ -87,6 +88,7 @@ BEGIN
 		,IsSettled		BIT DEFAULT(0)
 		,IsDeposit		BIT DEFAULT(0) --1: Deposit/ 0: Credit
 		,modds			SMALLMONEY
+		,finalodds		SMALLMONEY
 	)
 
 	CREATE TABLE #transIdTemp (
@@ -387,6 +389,7 @@ BEGIN
 				,MainTransId
 				,IsCashOut
 				,modds
+				,finalodds
 			)
 			SELECT bm.matchid
 				,b.TransId
@@ -437,6 +440,7 @@ BEGIN
 				,b.transid AS MainTransId
 				,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 				,b.modds
+				,bm.finalodds
 			FROM #transIdTemp d
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = d.transid
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno
@@ -448,6 +452,23 @@ BEGIN
 			WHERE bm.statusID NOT IN (101, 102)
 				AND bm.SiteDBGroupID = @SiteDBGroupID
 				AND d.TicketType = 2
+		
+			--Update odds support show betlist for Hybrid parlay
+			IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMixParlay = 1 AND oddsspread = 3) 
+			BEGIN
+				;WITH CTE_MaxSubOdds AS (
+					SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+					FROM #TVSTicketBets t
+						INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+					WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+					GROUP BY t.transid
+				)
+				UPDATE b
+				SET b.SubOdds = x.Max_SubOdds
+				FROM #TVSTicketBets AS b
+				INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+				WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+			END 
 		END
 	END
 
@@ -680,6 +701,8 @@ BEGIN
 		   ,t.Srecommend
 		   ,t.mrecommend
 		   ,t.winlostdate
+		   ,t.finalodds
+		   ,CASE WHEN t.IsMixParlay = 1 AND t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM	#TVSTicketBets t
 		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.srecommend
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON t.custid = f.CustID
@@ -705,7 +728,7 @@ BEGIN
 								ELSE NULL
 							END AS GroupName) AS gr	
 	WHERE gr.GroupName IS NOT NULL
-	ORDER BY gr.GroupName, t.transid	
+	ORDER BY gr.GroupName ASC, t.transid ASC, t.SubTransid ASC	
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #TVSTicketBets;

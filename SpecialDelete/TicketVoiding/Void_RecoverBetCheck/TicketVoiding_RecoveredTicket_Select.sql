@@ -104,11 +104,11 @@ BEGIN
 		,username			VARCHAR(50)
 		,IsMove14			BIT DEFAULT(0)
 		,TicketType			TINYINT 
-		
+		,finalodds		    SMALLMONEY
 	)
 
 	CREATE TABLE #transIdTemp (
-		transid		BIGINT PRIMARY KEY
+		transid		BIGINT
 	   ,MatchId     INT
 	   ,TicketType	TINYINT --1: single & main parlay(exclude cancel CO), 2: sub parlay, 3: cancel CO
 	) 
@@ -457,6 +457,7 @@ BEGIN
 				,username
 				,MainTransId
 				,TicketType
+				,finalodds
 			)
 			SELECT 
 				bm.matchid
@@ -521,11 +522,28 @@ BEGIN
 				,b.Username
 				,b.TransId AS MainTransId
 				,t.TicketType
+				,bm.finalodds
 			FROM #transIdTemp AS t
-			INNER JOIN bettrans AS b WITH (NOLOCK) ON t.transid = b.TransId AND b.SiteDBGroupID = @SiteDBGroupID
-            INNER JOIN bettransm AS bm WITH (NOLOCK) ON b.refno = bm.refno AND b.SiteDBGroupID = bm.SiteDBGroupID AND t.MatchId = bm.matchid
+				INNER JOIN bettrans AS b WITH (NOLOCK) ON t.transid = b.TransId AND b.SiteDBGroupID = @SiteDBGroupID
+				INNER JOIN bettransm AS bm WITH (NOLOCK) ON b.refno = bm.refno AND b.SiteDBGroupID = bm.SiteDBGroupID AND t.MatchId = bm.matchid
 			WHERE bm.statusID NOT IN (101, 102)
 
+			--Update odds support show betlist for Hybrid parlay (for bettransm14)
+			IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMixParlay = 1 AND oddsspread = 3) 
+			BEGIN
+				;WITH CTE_MaxSubOdds AS (
+					SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+					FROM #TVSTicketBets t
+						INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+					WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+					GROUP BY t.transid
+				)
+				UPDATE b
+				SET b.SubOdds = x.Max_SubOdds
+				FROM #TVSTicketBets AS b
+				INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+				WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+			END 
 		END
 	END
 
@@ -742,6 +760,7 @@ BEGIN
 			   ,s.MainTransId
 			   ,s.modds
 			   ,s.IsDeposit
+			   ,s.finalodds
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -813,6 +832,7 @@ BEGIN
 			   ,s.MainTransId
 			   ,s.modds
 		       ,s.IsDeposit
+			   ,s.finalodds
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
@@ -880,6 +900,7 @@ BEGIN
 			   ,s.MainTransId
 			   ,s.modds
 			   ,s.IsDeposit
+			   ,s.finalodds
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -950,6 +971,7 @@ BEGIN
 		   ,s.MainTransId
 		   ,s.modds
 		   ,s.IsDeposit
+		   ,s.finalodds
 		FROM	#TVSTicketBets s
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -1014,6 +1036,8 @@ BEGIN
 		   ,s.IsDeposit
 		   ,s.MainTransId
 	       ,s.modds AS MasterOdds
+		   ,s.finalodds
+		   ,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
@@ -1027,13 +1051,14 @@ BEGIN
 				WHEN s.GroupName = 'Deposit (CO)' THEN 7
 				WHEN s.GroupName = 'Credit (Cancel CO)' THEN 8
 				WHEN s.GroupName = 'Deposit (Cancel CO)' THEN 9
-			 END
-		   , ISNULL(s.MainTransId, s.transid)
+			 END ASC
+		   , ISNULL(s.MainTransId, s.transid) ASC
 		   , CASE WHEN s.BonusID IS NOT NULL THEN 
 												CASE WHEN s.MainTransId IS NULL THEN 1
 													 ELSE 2 END
-				ELSE s.transid END
-	
+				ELSE s.transid END ASC
+		   , s.SubTransid ASC	
+
 	DROP TABLE #transIdTemp
 	DROP TABLE #TVSTicketBets
 	

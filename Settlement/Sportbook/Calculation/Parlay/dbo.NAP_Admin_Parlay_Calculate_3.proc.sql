@@ -32,6 +32,7 @@ AS
 		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 		- 20241113@Louisa: set priority of action MoveEvent higher than Settlement for WinlostDate value [Redmine:#213613]
 		- 20241206@Aries: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
+		- 20251020@Max: Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 
     Param's Explanation:
         
@@ -48,9 +49,10 @@ BEGIN
 			,@SettlementAction VARCHAR(20)
 			,@cntBetParlayDetailUpd INT = 0
 			,@TableName VARCHAR(128) 
+			,@IsUpd_runningHP BIT = 0
 
-	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
-	DECLARE @tmpParlayOutput TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT,betcheck NVARCHAR(50))		
+	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0), IsHybrid BIT DEFAULT(0), isValidSettle BIT DEFAULT(0), statuswinlost TINYINT, isBackToRunning BIT DEFAULT (0), IsSingleSelectionHP BIT DEFAULT (0), MainStatusId INT)		
+	DECLARE @tmpParlayOutput TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT,betcheck NVARCHAR(50), odds SMALLMONEY)		
 	
 	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
 	
@@ -68,21 +70,103 @@ BEGIN
 								WHEN @Action LIKE 'UNDO%' THEN 'UNDO'
 							END
 
-	INSERT INTO @tmpParlayTicket (transid, refno, statusId, modds, IsMarked)
+	INSERT INTO @tmpParlayTicket (transid, refno, statusId, modds, IsMarked, IsHybrid, statuswinlost, MainStatusId)
 	SELECT t AS transid
 			,r AS refno
 			,s AS statusId
 			,m AS modds
 			,im AS IsMarked
+			,ih AS IsHybrid
+			,CASE 
+				WHEN m > 0.25 THEN 2 -- WON
+				WHEN m = 0.25 THEN 1 -- Half WON
+				WHEN m = - 0.25 THEN 3 -- Half LOSE
+				WHEN m < - 0.25 THEN 4 -- LOSE
+				ELSE CASE WHEN (@action = 'ABANDONED' OR @Action LIKE 'REFUND%') THEN 6 ELSE 0 END -- CAL OR REFUND
+			END
+			,mst AS MainStatusId
 	FROM OPENJSON(@strTransIds) WITH (
 		t BIGINT
 		,r BIGINT
 		,s TINYINT
 		,m SMALLMONEY
 		,im BIT
+		,ih BIT
+		,mst INT
 	)
 
 	IF(@@ROWCOUNT = 0) RETURN
+
+	-- Hybrid parlay: need back/keep to running and wait for get new leg odds for special case
+	IF @action = 'ABANDONED' OR @Action LIKE 'REFUND%' OR @Action LIKE 'CAL%'
+	BEGIN
+		UPDATE t
+			SET IsSingleSelectionHP = 1
+		FROM @tmpParlayTicket t
+			CROSS APPLY (SELECT COUNT(1) AS cnt
+						FROM bettransm bm WITH (NOLOCK)
+						WHERE bm.matchid = @matchid AND
+							t.refno = bm.refno
+						) AS tmp
+		WHERE t.IsHybrid = 1 AND tmp.cnt = 1
+
+		UPDATE t 
+			SET t.isValidSettle = 1
+		FROM @tmpParlayTicket t 
+			CROSS APPLY (SELECT TOP 1 1 AS isValidSettle FROM @tmpParlayTicket p WHERE statuswinlost IN (4) AND t.refno = p.refno AND p.IsHybrid = 1) p
+		WHERE t.IsHybrid = 1
+
+		--Sub lose of other match -> no need to get JT odds
+		UPDATE t 
+			SET t.isValidSettle = 1
+		FROM @tmpParlayTicket t 
+			CROSS APPLY (SELECT TOP (1) 1 AS valid
+						FROM bettransm bm WITH (NOLOCK)
+						WHERE t.refno = bm.refno AND bm.statusID = 113 AND bm.matchid <> @matchid
+						) AS tmp
+		WHERE t.IsHybrid = 1 AND t.isValidSettle = 0
+
+		--Exists sub lose off current match but not in part of data processing -> no need to get JT odds
+		;WITH cte AS
+		(
+			SELECT DISTINCT bm.refno
+			FROM bettransm bm WITH (NOLOCK)
+			WHERE bm.matchid = @matchid AND bm.statusid = 113 
+				AND EXISTS (SELECT TOP (1) 1 FROM @tmpParlayTicket t WHERE bm.refno = t.refno AND t.IsHybrid = 1 AND t.isValidSettle = 0) -- filter refno
+				AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpParlayTicket pt WHERE bm.transid = pt.transid) -- filter transid
+		)
+		UPDATE t 
+			SET t.isValidSettle = 1
+		FROM @tmpParlayTicket t 
+			INNER JOIN cte r ON t.refno = r.refno
+		WHERE t.IsHybrid = 1 AND t.isValidSettle = 0
+
+		-- MAIN void --> no need to get JT odds
+		UPDATE t 
+			SET t.isValidSettle = 1
+		FROM @tmpParlayTicket t 
+		WHERE t.IsHybrid = 1 
+			AND t.isValidSettle = 0
+			AND t.MainStatusId = 102
+		
+		UPDATE t
+			SET isBackToRunning = CASE  WHEN bm.statuswinlost = 4 AND t.statuswinlost = 2 THEN 0 --before: LOSE, after: WON
+										WHEN bm.statuswinlost = 2 AND t.statuswinlost = 4 THEN 0 --before: WON, after: LOSE
+										WHEN bm.statuswinlost IN (0,6) AND t.statuswinlost IN (0,6) THEN 0 --before : DRAW/REFUND , after: DRAW/REFUND
+										WHEN t.statuswinlost <> bm.statuswinlost AND IsSingleSelectionHP = 0 THEN 1
+										WHEN bm.statusID NOT IN (0,1) AND t.statuswinlost IN (1,3,6,0) THEN 1 
+										ELSE 0 END
+			--DRAW -> REFUND OR REFUND -> DRAW OR singleLeg: can settle direct no need to wait new leg odds
+			,isValidSettle = CASE WHEN IsSingleSelectionHP = 1 THEN 1 
+									WHEN bm.statusID IN (0,1) AND bm.statuswinlost = t.statuswinlost THEN 0 -- bug: 244352
+									WHEN bm.statuswinlost IN (0,6) AND t.statuswinlost IN (0,6) THEN 1 ELSE isValidSettle END					
+		FROM @tmpParlayTicket t
+			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
+		WHERE t.IsHybrid = 1 
+			AND (bm.statusID NOT IN (102) OR t.IsMarked = 0)
+			AND t.isValidSettle = 0
+
+	END
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
@@ -92,14 +176,16 @@ BEGIN
 	BEGIN
 		--UPDATE bettransm
 		UPDATE bm
-		SET 
-			@IsUpd_Void = CASE WHEN bm.statusID = 102 OR t.IsMarked = 1 THEN 0 ELSE 1 END
+		SET @IsUpd_Void = CASE WHEN bm.statusID = 102 
+									OR t.IsMarked = 1 
+									OR (t.IsHybrid = 1 AND t.statuswinlost IN (1,3,6,0) AND t.isValidSettle = 0)  -- Half, Draw, Refund
+									THEN 0 ELSE 1 END
 			,winlostdate = CASE 
 								WHEN @IsUpd_Void = 0 THEN winlostdate 
 								WHEN @matchdate < winlostdate THEN winlostdate 
 								ELSE @matchdate 
 							END 
-			,[status] 	= CASE 
+			,[status] 	= CASE  WHEN t.isBackToRunning = 1 THEN N'running'
 								WHEN @IsUpd_Void = 0 THEN bm.[status] 
 								ELSE CASE 
 											WHEN t.modds = 0 THEN 'Refund'
@@ -108,8 +194,8 @@ BEGIN
 											ELSE bm.[status]
 									END
 							END
-			,statusID = CASE 
-							WHEN @IsUpd_Void = 0 THEN bm.statusID 
+			,statusID = CASE WHEN t.isBackToRunning = 1 THEN 0
+							 WHEN @IsUpd_Void = 0 THEN bm.statusID 
 							ELSE CASE 
 									WHEN t.modds = 0 THEN 103 
 									WHEN t.modds < 0 THEN 113
@@ -118,14 +204,8 @@ BEGIN
 								END
 							END
 			
-			,statuswinlost = CASE 
-								WHEN t.modds > 0.25 THEN 2 -- WON
-								WHEN t.modds = 0.25 THEN 1 -- Half WON
-								WHEN t.modds = - 0.25 THEN 3 -- Half LOSE
-								WHEN t.modds < - 0.25 THEN 4 -- LOSE
-								ELSE 6 -- REFUND
-							END
-			,ruben = 1
+			,statuswinlost = t.statuswinlost
+			,ruben = CASE WHEN t.isBackToRunning = 1 THEN 0 ELSE 1 END
 		OUTPUT INSERTED.transid
 				,INSERTED.refno
 				,INSERTED.statusID
@@ -136,7 +216,8 @@ BEGIN
 				,deleted.statusid	
 				,inserted.bettype
 				,inserted.betcheck
-		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status, ruben,bef_statusid,bettype,betcheck)
+				,inserted.odds
+		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status, ruben,bef_statusid,bettype,betcheck,odds)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpParlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -146,6 +227,7 @@ BEGIN
 		SET winlostdate 	= r.winlostdate
 			,statusid 		= r.statusId
 			,statuswinlost 	= r.statuswinlost
+			,odds			= r.odds
 		FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpParlayOutput r
 			ON pd.transid 	= r.transid
@@ -161,9 +243,12 @@ BEGIN
 		--UPDATE bettransm
 		UPDATE bm
 		SET 
-			@IsUpd_Void = CASE WHEN bm.statusID = 102 OR t.IsMarked = 1 THEN 0 ELSE 1 END
-			,ruben = CASE 
-						WHEN @IsUpd_Void = 0 THEN ruben 
+			@IsUpd_Void = CASE WHEN bm.statusID = 102 
+									OR t.IsMarked = 1 
+									OR (t.IsHybrid = 1 AND t.statuswinlost IN (1,3,6,0) AND t.isValidSettle = 0)  -- Half, Draw, Refund
+									THEN 0 ELSE 1 END
+			,ruben = CASE WHEN t.isBackToRunning = 1 THEN 0
+						  WHEN @IsUpd_Void = 0 THEN ruben 
 						ELSE CASE 
 								WHEN t.modds IS NULL THEN 0
 								ELSE 1
@@ -176,8 +261,8 @@ BEGIN
 								ELSE @matchdate
 							END
 
-			,[status] = CASE 
-							WHEN @IsUpd_Void = 0 THEN [status] 
+			,[status] = CASE WHEN t.isBackToRunning = 1 THEN N'running'
+							 WHEN @IsUpd_Void = 0 THEN [status] 
 							ELSE CASE 
 									WHEN t.modds IS NULL THEN N'running'
 									WHEN t.modds = 0  THEN N'DRAW'
@@ -186,7 +271,7 @@ BEGIN
 								END
 							END
 							
-			,statusID = CASE 
+			,statusID = CASE	WHEN t.isBackToRunning = 1 THEN 0
 								WHEN @IsUpd_Void = 0 THEN bm.statusID 
 								ELSE CASE 
 										WHEN t.modds IS NULL THEN 0
@@ -195,13 +280,7 @@ BEGIN
 										WHEN t.modds > 0 THEN 112
 									END
 							END
-			,statuswinlost = CASE 
-								WHEN t.modds > 0.25 THEN 2 -- WON
-								WHEN t.modds = 0.25 THEN 1 -- Half WON
-								WHEN t.modds = - 0.25 THEN 3 -- Half LOSE
-								WHEN t.modds < - 0.25 THEN 4 -- LOSE
-								ELSE 0 -- DRAW
-							END
+			,statuswinlost = t.statuswinlost
 		OUTPUT INSERTED.transid
 				,INSERTED.refno
 				,INSERTED.statusID
@@ -212,7 +291,8 @@ BEGIN
 				,deleted.statusid	
 				,INSERTED.bettype
 				,inserted.betcheck
-		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype,betcheck)
+				,inserted.odds
+		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype,betcheck,odds)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpParlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -222,6 +302,7 @@ BEGIN
 		SET winlostdate 	= r.winlostdate
 			,statusid 		= r.statusId
 			,statuswinlost 	= r.statuswinlost
+			,odds			= r.odds
 		FROM dbo.BetParlayDetail pd  WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpParlayOutput r
 			ON pd.transid 	= r.transid
@@ -240,7 +321,8 @@ BEGIN
 			,[status]   = CASE WHEN @IsUpd_Void = 0 THEN [status]
 								ELSE 'running'
 							END
-	        ,statuswinlost  = NULL
+	        ,statuswinlost  = CASE WHEN t.IsHybrid = 1 AND @IsUpd_Void = 1 THEN bm.statuswinlost 
+									ELSE NULL END
 	        ,ruben          = CASE WHEN @IsUpd_Void = 0 THEN ruben
 								ELSE 0
 							END
@@ -257,7 +339,8 @@ BEGIN
 				,deleted.statusid
 				,INSERTED.bettype
 				,inserted.betcheck
-		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype,betcheck)
+				,inserted.odds
+		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype,betcheck,odds)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpParlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid        
@@ -265,8 +348,9 @@ BEGIN
 	    
 	    --update BetParlayDetail
 	    UPDATE pd
-	    SET statuswinlost   = NULL
+	    SET statuswinlost   = r.statuswinlost
 	        ,statusID       = 0
+			,odds			= r.odds
 	    FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
 	        INNER JOIN @tmpParlayOutput r ON pd.transid = r.transid AND pd.RefNo = r.refno
 	    WHERE r.statusid NOT IN (102) 
@@ -291,6 +375,7 @@ BEGIN
 					,refno AS 'rf' 
 					,bettype AS 'bt' 
 					,betcheck AS 'bc'
+					,odds AS 'o'
                         FROM	@tmpParlayOutput
 			FOR JSON AUTO
 		)

@@ -34,6 +34,7 @@ AS
 		- 20230103@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20250926@July: Define logaction for confirm auto unmark [Redmine: #240106]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
 
 	Param's explanation:	
 		
@@ -83,7 +84,7 @@ BEGIN
 	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
-		AND mt.MarkType <> 2
+		AND mt.MarkType IN (0,1) --SD/TVS
 		AND NOT EXISTS (SELECT TOP 1 1 FROM #ValidRequestTransId WHERE TransId = mt.TransId )
 		AND b.statusID IN (0, 1)
 		AND (
@@ -103,7 +104,7 @@ BEGIN
 	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
-		AND mt.MarkType <> 2
+		AND mt.MarkType IN (0,1) --SD/TVS
 		AND bm.statusID IN (0, 1)
 		AND (
 			@Betid IS NULL
@@ -113,6 +114,30 @@ BEGIN
 				)
 			)
 	
+	--Get Hybrid Parlay
+	INSERT INTO #tmpTransid_unmark (
+		transid
+		,statuswinlost
+		,IsMixParlay
+		)
+	SELECT bm.TransId
+		,NULL
+		,1
+	FROM dbo.MarkedTransaction AS mt WITH (NOLOCK)
+		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.TransId = mt.TransId AND bm.matchid = mt.MatchId AND bm.SiteDBGroupID = @SiteDBGroupID
+	WHERE mt.MatchId = @Matchid
+		AND mt.bettype = @Bettype
+		AND mt.UserId = @MarkedBy
+		AND mt.MarkType IN (2,3) --SD-HP/TVS-HP
+		AND bm.statusID IN (0, 1)
+		AND (
+			@Betid IS NULL
+			OR (
+				@Betid IS NOT NULL
+				AND (bm.betcheck = CONVERT(NVARCHAR(100), @Betid) OR ISNULL(bm.betcheck,'') = '')
+				)
+			)
+
 	IF NOT EXISTS (SELECT TOP (1) 1 FROM #tmpTransid_unmark)
 	BEGIN
 		SELECT	@ErrCode = 111

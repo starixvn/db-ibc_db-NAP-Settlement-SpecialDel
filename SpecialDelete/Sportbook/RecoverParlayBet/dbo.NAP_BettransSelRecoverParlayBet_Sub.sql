@@ -1,13 +1,12 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Sub] 
-	@BetType		VARCHAR(20) = 'all'
+	@BetType		VARCHAR(100) = 'All'
 	,@MatchId		INT			= 0	
 	,@TransIds		VARCHAR(MAX)	= ''
 AS
 /*
-	Created: Kent
-	Date: 20161111
-	DB: DBTXN/bodb02
+	Created: 20161111@Kent
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 		
 		- 20161011@Kent: Select sub voided Parlay tickets [Redmine:#65531]
@@ -20,10 +19,11 @@ AS
 		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation:			
 			- @BetType:
-			'all': All
+			'All': All
 			'Mix Parlay': Mix Parlay
 			'System Parlay': System Parlay
 */
@@ -68,6 +68,9 @@ BEGIN
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
 		,modds					SMALLMONEY
+		,oddsspread				MONEY
+		,finalodds				SMALLMONEY
+		,matchid			    INT
 	)		
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
@@ -126,6 +129,9 @@ BEGIN
 			,ExtraInfo
 			,ActualStake
 			,modds
+			,oddsspread
+			,finalodds
+			,matchid
 		)
 	SELECT  bm.transid AS SubTransID			 
 			,bm.betcheck AS SubBetCheck	
@@ -164,6 +170,9 @@ BEGIN
 			,b.ExtraInfo
 			,b.actual_stake AS ActualStake	
 			,b.modds 
+			,b.oddsspread
+			,bm.finalodds
+			,bm.matchid
 	FROM @tblTransIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID		   
@@ -177,9 +186,9 @@ BEGIN
 			AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 			AND (m.sporttype BETWEEN 1 AND 99)		
 			AND CASE
-					WHEN @BetType = 'all' THEN 1
-					WHEN @BetType = 'Mix Parlay' THEN CASE WHEN b.betteam = 1 THEN 1 ELSE 0 END
-					WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
+					WHEN @BetType = 'All' THEN 1
+					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' THEN 1
+					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' THEN 1
 					ELSE 0
 				END	= 1													
 	
@@ -195,6 +204,23 @@ BEGIN
 		WHERE EventDate <= @MovebetDate
 	END
 		
+	--Update odds support show betlist for Hybrid parlay
+	IF EXISTS (SELECT TOP 1 1 FROM @tblRecoverBet WHERE oddsspread = 3) 
+	BEGIN
+		;WITH CTE_MaxSubOdds AS (
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM @tblRecoverBet t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			WHERE t.oddsspread = 3
+			GROUP BY t.transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM @tblRecoverBet AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.oddsspread = 3
+	END
+
 	SELECT	t.SubTransID     
 			 ,t.SubBetCheck  
 			 ,t.SubOdds      
@@ -229,6 +255,10 @@ BEGIN
 			 ,t.ActualStake
 			 ,@SiteDBGroupID AS SiteDBGroupID
 			 ,t.modds AS MasterOdds
+			 ,t.oddsspread
+			 ,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			 ,t.finalodds
+			 ,t.matchid
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID
@@ -254,7 +284,7 @@ BEGIN
 								ELSE NULL
 						    END AS GroupName) AS T1								
 	WHERE T1.GroupName IS NOT NULL
-	ORDER BY T1.GroupName, t.transid				
+	ORDER BY T1.GroupName ASC, t.transid ASC, t.SubTransID ASC 
 
 	--- invalid trans info
 	/*

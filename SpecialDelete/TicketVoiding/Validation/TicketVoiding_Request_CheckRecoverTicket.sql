@@ -18,6 +18,7 @@ AS
 		- 20240102@July: Create new SP [Redmine:#196020]
 		- 20240416@Max: [TVS] Recover Ticket - Recover full range of archived tickets [Redmine: #203754]
 		- 20250602@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
+		- 20251112@July: Invalid Hybrid Parlay – Processing in the next phase. [Redmine: #241652]
 		
 	Param's explanation:	
 		@FilterBy:	NULL - Single OR Main Parlay
@@ -45,7 +46,6 @@ BEGIN
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
-	
 
 	--Insert ProductId list into tmp table
 	INSERT INTO @ProductId_tmp (ProductId)
@@ -66,10 +66,10 @@ BEGIN
 		AND pt.SubProduct NOT IN ('MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') --, Metric Gaming, Bet trade (BT-)
 		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
-		AND pt.BetType NOT IN  (10) --Outright
+		AND pt.BetType NOT IN (10) --Outright
 	
 	CREATE TABLE #validTransId (
-		transid			BIGINT PRIMARY KEY
+		transid			BIGINT
 		,StatusId		INT
 		,bettype		SMALLINT
 		,matchid		INT
@@ -129,6 +129,7 @@ BEGIN
 			AND z.SiteDBGroupID = @SiteDBGroupId 
 			AND b.SiteDBGroupID = z.SiteDBGroupID
 			AND ISNULL(z.comstatus,'') <> 'CO'
+			AND ISNULL(b.oddsspread,0) <> 3
 
 		--Update Main MatchId for child match cricket/baseball (Sporttype In (50,8))
 		UPDATE d
@@ -188,6 +189,7 @@ BEGIN
 				AND b14.SiteDBGroupID = z.SiteDBGroupID
 				AND ISNULL(z.comstatus,'') <> 'CO'
 				AND 1 = CASE WHEN b14.bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) AND b14.statuswinlost IS NULL THEN 0 ELSE 1 END -- not support recover single tickets that don't have statuswinlost in range 14
+				AND ISNULL(b14.oddsspread,0) <> 3
 
 			--exclude main parlay with refno not exist in BetParlayResults and all combine not completed
 			DELETE t
@@ -269,6 +271,7 @@ BEGIN
 		WHERE b.bettype = 29
 			AND bm.statusID = 102
 			AND bm.betfrom <> 'p'
+			AND ISNULL(b.oddsspread,0) <> 3
 	END
 	
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #validTransId)

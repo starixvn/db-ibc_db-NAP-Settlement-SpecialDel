@@ -4,11 +4,10 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void14_Select]
     @RequestId			INT = NULL
    ,@MatchId			INT = NULL
    ,@RequestDetailId	INT = NULL --Support WMO(12) issuetype
-   ,@OnlineServerId	  VARCHAR(10) = NULL
+   ,@OnlineServerId	    VARCHAR(10) = NULL
 )
 AS
-/*	Created by: July
-	Date 20211123
+/*	Created by: 20211123@July
 	Task: TVS - Void Archived Tickets [Redmine:#140180]
 	DB: DBCTG/bodb02,DBSIC-bodb02,DBSID-bodb02
 	
@@ -26,6 +25,8 @@ AS
 		- 20241126@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250321@Lani: [TVS] Enhance out of memory issue [Redmine: #217771]
 		- 20250819@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
+		- 20251013@July: Support show ticket archive matchid no input [Redmine: #238233]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 		
 	Param's explanation:	
 		
@@ -217,8 +218,6 @@ BEGIN
 			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
 						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
 						 ELSE 0 END
-			AND b.bettype NOT IN (805, 806)
-			AND b.bettype NOT BETWEEN 901 AND 920
 			AND b.betfrom <> 'P'
 	END
 	
@@ -231,7 +230,7 @@ BEGIN
 	--Remove Invalid data
 	DELETE t
 	FROM #TVSTicketBets t
-	WHERE @MatchId IS NOT NULL AND t.matchid <> @MatchId
+	WHERE ISNULL(@MatchId,0) <> 0 AND t.matchid <> @MatchId
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))))
@@ -487,9 +486,6 @@ BEGIN
 			   ,s.IsCashOut
 			   ,s.SiteDBGroupID
 		FROM	#TVSTicketBets s 
-			--LEFT JOIN dbo.bettrans14 b WITH(NOLOCK)
-			--	ON	s.betid = b.transid
-			--		AND b.matchid = s.matchid	
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
 		--3. For Deposit
@@ -693,10 +689,12 @@ BEGIN
 		   ,s.statusID
 		   ,s.IsCashOut
 		   ,s.SiteDBGroupID
+		   ,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM CTE_OriginResult s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid
 		LEFT JOIN dbo.f_TVS_GetGroupId() f ON s.OriginGroupName = f.GroupName
-	
+	ORDER BY s.transid ASC
+
 	DROP TABLE #TVSTicketBets
 END
 

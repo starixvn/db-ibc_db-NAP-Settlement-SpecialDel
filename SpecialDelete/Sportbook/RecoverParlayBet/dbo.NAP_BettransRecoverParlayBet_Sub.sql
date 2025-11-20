@@ -2,14 +2,15 @@
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Sub] 
 	@UserId				INT,	
 	@IP					VARCHAR(50),
-	@BetType			VARCHAR(20)		= 'All',
+	@BetType			VARCHAR(100)		= 'All',
 	@MainTransIds		VARCHAR(MAX)	= '',
-	@MatchId			INT	
+	@SubTransIdsHP		VARCHAR(MAX)	= '',
+	@MatchId			INT	,
+	@IsCalledJackTimeHybridParlay BIT = 1
 AS
 /*
-	Created: Kent
-	Date: 20161111
-	DB: DBTXN/bodb02
+	Created: 20161111@Kent
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 		
 		- 20161019@Kent: Recover sub voided Parlay tickets [Redmine:#65531]
@@ -33,10 +34,11 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20250623@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation:			
 			- @BetType:
-			'all': All
+			'All': All
 			'Mix Parlay': Mix Parlay
 			'System Parlay': System Parlay
 */
@@ -143,6 +145,7 @@ BEGIN
 		,ruben					TINYINT
 		,oddsspread 			MONEY
 		,SiteID					INT
+		,finalodds				SMALLMONEY
 		,IsFinish				BIT
 	)	
 	
@@ -161,7 +164,7 @@ BEGIN
 	   ,SiteID		INT
 	   ,bettype		SMALLINT
 	)
-	CREATE CLUSTERED INDEX IDX_tblMainTicket_custid_transid ON #tblMainTicket(custid, transid)
+	CREATE CLUSTERED INDEX IX_tblMainTicket_custid_transid ON #tblMainTicket(custid, transid)
 
 	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, increased BIT)
 	
@@ -176,7 +179,9 @@ BEGIN
 	DECLARE @tblAfterBalance TABLE (custid INT PRIMARY KEY, balance MONEY)
 	
 	DECLARE @tblDebitPending TVP_BalanceList
-	DECLARE @tblCreditPending TVP_BalanceList					
+	DECLARE @tblCreditPending TVP_BalanceList	
+	
+	DECLARE @tblSubTransIdsHP TABLE (Subtransid BIGINT)
 	
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 
@@ -212,7 +217,14 @@ BEGIN
 		
 		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
 		RETURN
-	END		  
+	END		
+	
+	IF ISNULL(@SubTransIdsHP, '') <> ''
+	BEGIN
+		INSERT INTO @tblSubTransIdsHP (Subtransid)
+		SELECT DISTINCT value
+		FROM string_split (@SubTransIdsHP, ',')
+	END
 	
 	-- Apply new way to lock parlay tickets	
 	INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
@@ -259,7 +271,7 @@ BEGIN
 		RETURN		 
 	END 
 	
-	BEGIN TRY									
+	BEGIN TRY	
 		--> query all sub tickets to recover
 		INSERT INTO @tblRecoverBet(
 				 SubTransID			 
@@ -306,6 +318,7 @@ BEGIN
 				,oddsspread
 				,SiteID
 				,modds
+				,finalodds
 				)
 		SELECT  bm.transid AS SubTransID			 
 				,bm.betcheck AS SubBetCheck	
@@ -351,6 +364,7 @@ BEGIN
 				,b.oddsspread
 				,b.BetSiteID
 				,b.modds
+				,bm.finalodds
 		FROM @tblMainTransIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
@@ -364,11 +378,13 @@ BEGIN
 		  AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 		  AND (m.sporttype BETWEEN 1 AND 99)
 		  AND CASE
-					WHEN @BetType = 'all' THEN 1
-					WHEN @BetType = 'Mix Parlay' THEN CASE WHEN b.betteam = 1 THEN 1 ELSE 0 END
-					WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
+					WHEN @BetType = 'All' THEN 1
+					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' THEN 1
+					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' THEN 1
 					ELSE 0
 			  END	= 1	
+		 AND 1 = CASE WHEN @IsCalledJackTimeHybridParlay = 0 AND b.oddsspread = 3 THEN 0
+					ELSE 1 END
 				
 		IF @@ROWCOUNT = 0
 		BEGIN
@@ -387,12 +403,36 @@ BEGIN
 				   ,@IsReleased	= 1		
 			END	  			
 			
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
+			SELECT @ErrCode = 99
+				, @ErrMsg = CASE WHEN @IsCalledJackTimeHybridParlay = 0 THEN 'Failed to adjust odds, some tickets of Hybrid parlay have not been voided/recovered.' 
+								ELSE 'No ticket found.' END
 			
 			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
 			RETURN
 		END										
-	
+		
+		--Update odds support show betlist for Hybrid parlay
+		IF EXISTS (SELECT TOP 1 1 FROM @tblRecoverBet WHERE oddsspread = 3) 
+		BEGIN
+			;WITH CTE_MaxSubOdds AS (
+				SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+				FROM @tblRecoverBet t
+					INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+				WHERE t.oddsspread = 3
+				GROUP BY t.transid
+			)
+			UPDATE b
+			SET b.SubOdds = x.Max_SubOdds
+			FROM @tblRecoverBet AS b
+			INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+			WHERE b.oddsspread = 3
+
+			DELETE t
+			FROM @tblRecoverBet t
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tblSubTransIdsHP tmp WHERE tmp.Subtransid = t.SubTransID)
+				AND t.oddsspread = 3
+		END
+
 		--> get list of MainTranIds	
 		INSERT INTO #tblMainTicket(transid, refno, StatusId, custid, balance, ruben, matchid, srecommend, BetTeam, oddsspread, SiteID, bettype)
 		SELECT t.transid
@@ -512,7 +552,7 @@ BEGIN
 
 			DELETE @tmpBoostSetting
 			INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
-			EXEC (@sqlOpenqueryCommand)
+			EXEC sys.sp_executesql @sqlOpenqueryCommand
 
 			SET @strSetting = ''
 			SELECT @strSetting = CAST((
@@ -745,7 +785,7 @@ BEGIN
 			
 		--1. Table return error code/ msg
 		SELECT @ErrCode AS ErrorCode
-			  ,@ErrMsg AS ErrorMsg
+			  ,IIF(@IsCalledJackTimeHybridParlay = 1, 'Failed to adjust odds, some tickets of Hybrid parlay have not been voided/recovered.', @ErrMsg) AS ErrorMsg
 		      ,@SettledMainTranIds AS SettledMainTranIds
 			  ,@NegativeBalanceUsers AS NegativeBalanceUsers
 
@@ -798,6 +838,9 @@ BEGIN
 				 ,CURRENT_TIMESTAMP AS [DateTime]
 				 ,t.matchid
 				 ,t.modds AS MasterOdds 
+				 ,t.finalodds
+				 ,t.oddsspread
+				 ,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 		FROM @tblRecoverBet t
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				   ON t.custid = f.CustID
@@ -833,7 +876,8 @@ BEGIN
 						   AND c.roleid = 4 
 						   AND c.custid = t.srecommend) AS T3						   							    							
 		WHERE T1.GroupName IS NOT NULL
-		ORDER BY T1.GroupName, t.transid			 
+		ORDER BY T1.GroupName ASC, t.transid ASC, t.SubTransID ASC
+		
 	END TRY
 	BEGIN CATCH
 		IF @totalSubParlay <= @ThreadHold

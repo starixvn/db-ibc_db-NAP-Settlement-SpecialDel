@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_DARC_Select]
 (	
 	 @RequestId			  INT = 0
@@ -38,6 +38,7 @@ AS
 		- 20250715@Lani: [TVS] Enhance TVS in case 1 or many siteDBs down [Phase 2] - DA/RC/WC, Wrong Market Offered/Technical Error [Redmine: #232576]
 		- 20250814@July: Red card - Detect insufficient tickets [Redmine: #236096]
 		- 20250815@Lani: [TVS] Return both running and settle tickets of sitedbdown [Redmine: #232580]
+		- 20251117@July: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
@@ -554,7 +555,7 @@ BEGIN
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
 	WHERE b.IsCancelCashOut <> 1 AND b.IsSiteDBDown = 0 -- Not count ticket cancel CO
 	GROUP BY CAST(b.Sublivehomescore AS VARCHAR(2)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(2)), b.matchid
-	ORDER BY CAST(b.Sublivehomescore AS VARCHAR(2)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(2))
+	ORDER BY CAST(b.Sublivehomescore AS VARCHAR(2)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(2)) ASC
 
 	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsCancelCashOut = 1)
 	BEGIN
@@ -671,7 +672,7 @@ BEGIN
 		FROM @Validation
 
 		-- 2. TransId in request table
-		SELECT CAST(TransId AS VARCHAR(MAX)) AS TransIds, RequestId, MatchId
+		SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 		FROM #TransidInRequest
 
 		/*Get log info for Void Page*/
@@ -841,19 +842,43 @@ BEGIN
 	-- 2. TransId exists in other request table
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 	BEGIN
-		SELECT RequestId,
-			STUFF((
-			SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-			FROM #TransidInRequest
-			WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-			ORDER BY TransId
-			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-			,1,2,'') AS TransIds
-			,MatchId
-			,c.username AS CreatedBy
-		FROM #TransidInRequest r
-			INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
-		GROUP BY r.RequestId, r.MatchId, c.username
+		;WITH ChildListCTE AS (
+				SELECT 
+					r.RequestId, 
+					r.MatchId, 
+					r.MainTransId, 
+					c.username AS CreatedBy,
+					COUNT(r.TransId) AS TotalCount,
+					MIN(CASE WHEN r.MainTransId = r.TransId THEN 1 ELSE 0 END) AS HasMainSelf,
+					STUFF((
+						SELECT ',' + CAST(r2.TransId AS VARCHAR(50))
+						FROM #TransidInRequest r2
+						WHERE r2.MainTransId = r.MainTransId
+						ORDER BY r2.TransId ASC 
+						FOR XML PATH(''), TYPE
+					).value('.', 'NVARCHAR(MAX)'), 1, 1, '') AS ChildList
+				FROM #TransidInRequest r
+				INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
+				GROUP BY r.RequestId, r.MatchId, r.MainTransId, c.username
+			)
+			SELECT 
+				r.RequestId, 
+				r.MatchId,
+				STUFF((
+					SELECT ', ' + 
+						CASE 
+							WHEN r2.TotalCount > 1 -- If MainTransId >=2 child → combine MainTransId(child1,child2,...) => hybrid parlay
+							THEN CAST(r2.MainTransId AS VARCHAR(50)) + '(' + REPLACE(r2.ChildList, CAST(r2.MainTransId AS VARCHAR(50)) + ',', '') + ')' 
+							ELSE CAST(r2.MainTransId AS VARCHAR(50))
+						END
+					FROM ChildListCTE r2
+					WHERE r2.RequestId = r.RequestId AND r2.MatchId = r.MatchId
+					ORDER BY r2.MainTransId ASC
+					FOR XML PATH(''), TYPE
+				).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS TransIds,
+				r.CreatedBy
+			FROM ChildListCTE r
+			GROUP BY r.RequestId, r.MatchId, r.CreatedBy;
 	END
 	ELSE
 	BEGIN

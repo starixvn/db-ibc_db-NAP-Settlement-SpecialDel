@@ -52,6 +52,7 @@ AS
 		- 20250620@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance - Abnormal Account [Redmine: #225390]
 		- 20250801@Lani: [TVS] ScaleOut DBTrans [Phase 5] - Abnormal Account/EKO/WKO/Wrong Offered Name [Redmine: #232582]
 		- 20251006@July: [TVS] Abnormal Account - Block void ticket after balance up date [Redmine: #238233]
+		- 20251120@July: Return column IsHybrid [Redmine: #241502]
 
 	Param's Explanation:
 */
@@ -187,6 +188,7 @@ BEGIN
 	  ,AdjustVoidLimit money
 	  ,IsCreditCashService BIT DEFAULT(0)
 	  ,IsSiteDBDown BIT DEFAULT(0)
+	  ,IsHybrid	BIT DEFAULT(0)
 	  ,id [int] IDENTITY (1,1) PRIMARY KEY
 	)
 
@@ -410,6 +412,7 @@ BEGIN
 		  ,IsCreditCashService
 		  ,IsDeposit
 		  ,IsSiteDBDown
+		  ,IsHybrid
 		)
 	SELECT matchid
 		  ,transid 
@@ -457,6 +460,7 @@ BEGIN
 		  ,CASE WHEN cs.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsCreditCashService
 		  ,0 AS IsDeposit
 		  ,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
+		  ,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
 		LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK) ON c.custid = cs.CustID AND cs.ServiceType = 1
@@ -538,6 +542,7 @@ BEGIN
 			  ,IsCreditCashService
 			  ,IsDeposit
 			  ,IsSiteDBDown
+			  ,IsHybrid
 			)
 		SELECT matchid
 			  ,transid 
@@ -585,6 +590,7 @@ BEGIN
 			  ,CASE WHEN cs.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsCreditCashService
 			  ,0 AS IsDeposit
 			  ,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
+			  ,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END
 		FROM dbo.bettrans14 b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.custid = b.custid
 			LEFT JOIN CustDB.dbo.CustProductStatus cs WITH (NOLOCK) ON c.custid = cs.CustID AND cs.ServiceType = 1
@@ -1277,7 +1283,7 @@ BEGIN
 		,b.betdaqid
 		,b.custid        
 		,b.statusID
-		,ABS(winlost) AS winlost
+		,ABS(b.winlost) AS winlost
 		,b.IsVoid14
 		,b.matchid
 		,b.bettype
@@ -1298,6 +1304,7 @@ BEGIN
 		,b.transid AS subtransid
 		,IIF(tmp.TransId IS NOT NULL, 1, 0) AS IsChecked
 		,b.IsCreditCashService
+		,b.IsHybrid
 	FROM #tmpTransInfo b
 		INNER JOIN @tmp_MatchInfo m ON m.MatchId = b.matchid
 		LEFT JOIN #SelectedTrans tmp ON tmp.TransId = b.transid

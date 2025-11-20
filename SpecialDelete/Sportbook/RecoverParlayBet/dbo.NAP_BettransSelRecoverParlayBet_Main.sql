@@ -1,12 +1,11 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Main] 
-	@BetType		VARCHAR(20) = 'all'
+	@BetType		VARCHAR(100) = 'All'
 	,@TransIds		VARCHAR(MAX)	= ''
 AS
 /*
-	Created: Kent
-	Date: 20161111
-	DB: DBTXN/bodb02
+	Created: 20161111@Kent
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 
 	Revisions: 		
 		- 20161011@Kent: Select main voided Parlay tickets [Redmine:#65531]
@@ -18,12 +17,14 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation:			
 			- @BetType:
 			'all': All
 			'Mix Parlay': Mix Parlay
 			'System Parlay': System Parlay
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -54,6 +55,7 @@ BEGIN
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
 		,Winlostdate			DATETIME
+		,oddsspread				MONEY		
 	)	
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
@@ -91,6 +93,7 @@ BEGIN
 			,ExtraInfo
 			,ActualStake
 			,Winlostdate
+			,oddsspread
 			)
 	SELECT  z.custid AS custid
 			,case when EXISTS (select TOP 1 1 from custDB.dbo.Dep_CustSuper with(nolock) WHERE custid = b.srecommend) then 1 else 0 end AS isdeposit
@@ -117,6 +120,7 @@ BEGIN
 			,b.ExtraInfo
 			,b.actual_stake AS ActualStake
 			,b.winlostdate
+			,b.oddsspread
 	FROM @tblTransIds t
 		 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID	
@@ -128,12 +132,14 @@ BEGIN
 	WHERE b.bettype = 29	
 		AND b.statusid = 102
 		AND (b.betfrom IS NULL OR b.betfrom <> 'p')
+		AND ISNULL(b.oddsspread,0) <> 3 
 		AND CASE
-				WHEN @BetType = 'all' THEN 1
-				WHEN @BetType = 'Mix Parlay' THEN CASE WHEN b.betteam = 1 THEN 1 ELSE 0 END
-				WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
+				WHEN @BetType = 'All' THEN 1
+				WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' THEN 1
+				WHEN @BetType = 'System Parlay' AND b.betteam <> '1' THEN 1
 				ELSE 0
 			END	= 1			
+	
 	/*Modify the way to get move bet date*/
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -168,6 +174,9 @@ BEGIN
 			 ,t.ActualStake   
 			 ,@SiteDBGroupID AS SiteDBGroupID
 			 ,t.modds AS MasterOdds
+			 ,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			 ,t.oddsspread
+			 ,t.transid AS SubTransID
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID
@@ -193,7 +202,7 @@ BEGIN
 								ELSE NULL
 						    END AS GroupName) AS T1								
 	WHERE T1.GroupName IS NOT NULL
-	ORDER BY T1.GroupName, t.transid								
+	ORDER BY T1.GroupName ASC, t.transid ASC								
 
 	--- invalid trans info
 	SELECT t.transid AS InvalidTrans

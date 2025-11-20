@@ -101,6 +101,7 @@ AS;
 		- 20250724@July: Get Result Amendment for main parlay ticket of matchid input [Redmine: #233478]
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 		- 20250908@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251105@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -109,6 +110,7 @@ AS;
 		2: Virtual sports
 		3: Bet Builder
 		4: Bitcoin
+		5: Bet Builder+ (Hybrid Parlay)
 
 	- @LicenseeName:
 		ALL, IBC, 12bet, ...	
@@ -167,8 +169,8 @@ BEGIN
 	SET @p_bettypes = @BetTypes
 	SET @n = 2147483647
 
-	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
-	IF @Type <> 0 SELECT @LiveType = 2
+	---- If not sportbook or bet builder+ then don't care @livetype , so set @LiveType to 2 (All)
+	IF @Type NOT IN (0,5) SELECT @LiveType = 2
 	
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpMatchId TABLE (MatchId INT PRIMARY KEY)
@@ -318,14 +320,17 @@ BEGIN
               FilterValue      SMALLMONEY,
               FilterGoal       NVARCHAR(50),
               FilterBetOption  NVARCHAR(50),
-              IsMarked         BIT,
+              IsMarked         BIT DEFAULT(0),
 			  FilterHdp1	   SMALLMONEY,
 			  FilterHdp2	   SMALLMONEY,
 			  FilterOddsSpread MONEY,
 			  FilterOddsId	   INT,
 			  FilterTransdesc  NVARCHAR(1000),
 			  FilterPlayerAndOdds NVARCHAR(1000),
-			  VendorMatchId	   VARCHAR(50)
+			  VendorMatchId	   VARCHAR(50),
+			  IsHybrid		   BIT DEFAULT(0),
+			  MatchId		   INT,
+			  FinalOdds		   SMALLMONEY
              );
 
 	INSERT INTO @tmpBettypes (bettype)
@@ -543,8 +548,8 @@ BEGIN
 				INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SubTransdesc,MOdds,WalletType,RefCode,BonusID,MainTransId, custid, srecommend
-											,FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, IsMarked
-											, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds)
+											,FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption
+											, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds, SubTransID, MatchId)
 				SELECT	b.username,
 						b.bettype,					
 						b.BetdaqId,
@@ -587,7 +592,6 @@ BEGIN
 						b.hdp1 + b.hdp2 AS FilterValue,
 						ISNULL(CONVERT(NVARCHAR(50),b.betid), 0) AS FilterGoal,
 						CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
-						CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
 						b.hdp1 AS FilterHdp1,
 						b.hdp2 AS FilterHdp2,
 						b.oddsspread AS FilterOddsSpread,
@@ -595,13 +599,15 @@ BEGIN
 						CASE 
 							WHEN (b.bettype BETWEEN 653 AND 688) AND (b.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(b.transdesc, '$.pid')
 							ELSE b.transdesc END AS FilterTransdesc,
-						b.oddsid AS FilterPlayerAndOdds
+						b.oddsid AS FilterPlayerAndOdds,
+						b.TransId AS SubTransId,
+						b.matchid
 				FROM	Bettrans b WITH (NOLOCK)
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
-				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON b.transid = mt.TransId				
 				LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
 				LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
 				WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
+					AND @Type <> 5
 					AND EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid)
 					AND 1 = CASE WHEN @LicenseeName <> 'Credit' AND @LicenseeName <> 'ALL'  
 									AND ds.custid IS NOT NULL AND ds.site = @LicenseeName THEN 1
@@ -785,7 +791,8 @@ BEGIN
 					refno, TransDesc, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid, srecommend,
 					SubTransID, SubBetType, SubHdp1, SubHdp2, SubOdds, SubStake, SubBetTeam, SubBetCheck, SubLiveHomeScore,
 					SubLiveAwayScore, SubLiveIndicator, SubTransDesc,
-					FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds)	
+					FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, 
+					FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds,IsHybrid,FinalOdds,MatchId)	
 			SELECT	b.username,
 					b.bettype,				
 					b.BetdaqId,
@@ -847,21 +854,27 @@ BEGIN
 					CASE 
 						WHEN (bm.bettype BETWEEN 653 AND 688) AND (bm.bettype NOT BETWEEN 680 AND 684) THEN JSON_VALUE(bm.transdesc, '$.pid')
 						ELSE bm.transdesc END AS FilterTransdesc,
-					bm.oddsid AS FilterPlayerAndOdds
+					bm.oddsid AS FilterPlayerAndOdds,
+					CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid,
+					bm.finalodds AS FinalOdds,
+					bm.matchid
 			FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
 				INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 				INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
-				AND b.bettype = 29 AND b.matchID = 29
+				AND b.bettype = 29 
+				AND b.matchID = 29
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
 				AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END 
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-				AND (b.betid = 0 OR b.betid IS NULL)
+				AND 1 = CASE WHEN @Type = 5 AND ISNULL(b.oddsspread,0) = 3 THEN 1
+							 WHEN @Type <> 5 AND (b.betid = 0 OR b.betid IS NULL) AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+							 ELSE 0 END
 			OPTION(OPTIMIZE FOR (@n = 1))
 		END 	
 		
@@ -882,7 +895,7 @@ BEGIN
 			WHERE ds.custid IS NOT NULL OR cs.CustId IS NOT NULL
 		END 
 
-		IF (@IsReSettled = 1 AND @Type IN (0,3))
+		IF (@IsReSettled = 1 AND @Type IN (0,3,5))
 		BEGIN
 			DELETE b
 			FROM #SpecialDeleteBets b
@@ -1035,6 +1048,23 @@ BEGIN
 		END	
 	END 
 
+	--Update odds = legodds support show betlist for ticket Hybrid Parlay
+	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE IsHybrid = 1)
+	BEGIN
+		;WITH CTE_MaxSubOdds AS (
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #SpecialDeleteBets AS t
+				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.MatchId = bm.matchid
+			WHERE t.IsHybrid = 1
+			GROUP BY t.transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #SpecialDeleteBets AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.IsHybrid = 1
+	END
+
 	-- System parlay Virtual Sports
     IF EXISTS(SELECT 1 
 			  FROM @tmpBettypes AS r
@@ -1149,6 +1179,18 @@ BEGIN
 				ELSE 'match' 
 			END = m.matchtype  
 
+	--Show highlight yellow for ticket marked transaction in betlist
+	UPDATE d
+	SET d.IsMarked = 1
+	FROM #SpecialDeleteBets d
+		CROSS APPLY (
+			SELECT TOP 1 m.TransId, m.MarkType 
+			FROM dbo.MarkedTransaction m WITH (NOLOCK) 
+			WHERE d.matchid = m.MatchId 
+				AND (m.TransId = d.transid  --Single/Subparlay for normal 
+				 OR (m.TransId = d.SubTransid AND d.oddsspread = 3 AND d.IsParlay = 1)) --Subparlay for Hybrid
+		)mt
+
 	SELECT  s.username,
 			bettype,		
 			BetdaqId,
@@ -1201,7 +1243,9 @@ BEGIN
 			@SettlementStatus AS SettlementStatus,
 			IsMarked,
 			CASE WHEN si.SiteLabel = '777' THEN 1 ELSE 0 END IsSite777,
-			VendorMatchId
+			VendorMatchId,
+			IsHybrid,
+			FinalOdds
 	FROM #SpecialDeleteBets s
 		INNER JOIN dbo.Customer c WITH (NOLOCK) ON s.srecommend = c.custid
 		LEFT JOIN dbo.Site si WITH(NOLOCK) ON c.site = si.site
@@ -1211,7 +1255,6 @@ BEGIN
 				THEN CASE WHEN MainTransId IS NULL THEN 1
 					ELSE 2 END
 				ELSE transid END ASC
-	
 	
 	DROP TABLE #SpecialDeleteBets  
 	DROP TABLE #TmpBallSequence  

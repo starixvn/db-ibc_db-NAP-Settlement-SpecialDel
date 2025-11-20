@@ -93,6 +93,7 @@ AS
 		- 20250428@Max: TVS- Search matchid got error on ticket listing [Redmine: #225671]
 		- 20250724@July: Get Result Amendment for main parlay ticket of matchid input [Redmine: #233478]
 		- 20250903@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251105@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -101,6 +102,7 @@ AS
 		2: Virtual sports
 		3: Bet Builder
 		4: Bitcoin
+		5: Bet Builder+ (Hybrid Parlay)
 		
 	- @LicenseeID:
 	  + =0: No Site filter
@@ -188,7 +190,7 @@ BEGIN
 	SELECT @SportType = sporttype FROM @tmpMatchId
 
 	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
-	IF @Type <> 0 SELECT @LiveType = 2
+	IF @Type NOT IN (0,5) SELECT @LiveType = 2
 
 	DECLARE @TmpTotal TABLE (
 		OrderNo			INT
@@ -315,7 +317,9 @@ BEGIN
 
 	CREATE TABLE #CTE_ParlayTickets (
 		ParentTransId		BIGINT
+		,SubTransId			BIGINT
 		,ParentBettype		SMALLINT
+		,SubBettype			SMALLINT
 		,mLiveIndicator		BIT
 		,Refno				BIGINT
 		,Transdesc			NVARCHAR(2000)
@@ -334,6 +338,7 @@ BEGIN
 		,srecommend			INT
 		,ParentHdp2			SMALLMONEY --selection parlay
 		,FilterPlayerAndOdds NVARCHAR(1000)
+		,IsHybrid			BIT DEFAULT(0)
 	) 
 
 	CREATE TABLE #CTE_ParlayVSTickets (
@@ -496,6 +501,7 @@ BEGIN
 		FROM bettrans b WITH (NOLOCK)
 			INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 		WHERE EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid)
+			AND @Type <> 5
 			AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
 			AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE livehomescore END
@@ -676,7 +682,9 @@ BEGIN
 	BEGIN
 		INSERT INTO #CTE_ParlayTickets (
 				ParentTransId
+				,SubTransId
 				,ParentBettype
+				,SubBettype
 				,mLiveIndicator
 				,Refno
 				,Transdesc
@@ -695,9 +703,12 @@ BEGIN
 				,srecommend
 				,ParentHdp2
 				,FilterPlayerAndOdds
+				,IsHybrid
 			)
 		SELECT   b.transid
+				,bm.transid AS SubTransId
 				,b.bettype
+				,bm.bettype AS SubBettype
 				,bm.liveIndicator
 				,b.refno
 				,bm.transdesc
@@ -718,6 +729,7 @@ BEGIN
 				,b.srecommend
 				,b.hdp2 AS ParentHdp2
 				,bm.oddsid AS FilterPlayerAndOdds
+				,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
 		FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
 			INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
 			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
@@ -732,7 +744,9 @@ BEGIN
 			AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END
 							AND CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 THEN ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END	
-			AND (b.betid = 0 OR b.betid IS NULL )
+			AND 1 = CASE WHEN @Type = 5 AND ISNULL(b.oddsspread,0) = 3 THEN 1
+						 WHEN @Type <> 5 AND (b.betid = 0 OR b.betid IS NULL) AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+						 ELSE 0 END
 		OPTION(OPTIMIZE FOR (@n = 1))
 
 		IF @SelectionSubParlays <> ''
@@ -749,7 +763,7 @@ BEGIN
 								   ELSE 0 END)
 		END
 		
-		IF (@IsReSettled = 1 AND @Type IN (0,3))
+		IF (@IsReSettled = 1 AND @Type IN (0,3,5))
 		BEGIN
 			DELETE b
 			FROM #CTE_ParlayTickets b
@@ -989,14 +1003,14 @@ BEGIN
 				)
 			SELECT 1 AS OrderNo
 				,COUNT(t.ParentTransId) AS TotalTrans
-				,t.ParentBettype
+				,CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.SubBettype END
 				,0
 				,@LicenseeName AS LicenseeName
 				,@IsChinaView AS IsChinaView
 				,@SpecialPlatfrom AS SpecialPlatfrom
 			FROM #CTE_ParlayTickets AS t
 			WHERE EXISTS (SELECT 1 FROM dbo.Dep_CustSuper AS cs WITH (NOLOCK) WHERE site = @LicenseeName AND t.srecommend = cs.custid)
-			GROUP BY t.ParentBettype
+			GROUP BY CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.SubBettype END
 				,t.mLiveIndicator
 			HAVING COUNT(t.Refno) > 0
 		  END
@@ -1070,8 +1084,8 @@ BEGIN
 				,SpecialPlatfrom
 				)
 			SELECT 0 AS OrderNo
-				,COUNT(DISTINCT t.ParentTransId) AS TotalTrans
-				,t.ParentBettype
+				,COUNT(DISTINCT CASE WHEN t.IsHybrid = 0 THEN t.ParentTransId ELSE t.SubTransId END) AS TotalTrans
+				,CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.SubBettype END
 				,0
 				,'Credit' AS LicenseeName
 				,0
@@ -1080,7 +1094,7 @@ BEGIN
 			LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON t.srecommend = ds.custid
 			LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON t.srecommend = cs.custid
 			WHERE ds.custid IS NULL AND cs.CustId IS NULL
-			GROUP BY t.ParentBettype
+			GROUP BY CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.SubBettype END
 				,t.mLiveIndicator
 			HAVING COUNT(t.Refno) > 0
 		  END
@@ -1162,8 +1176,8 @@ BEGIN
 			SELECT  CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 0
 						 WHEN s.site IS NOT NULL AND (ISNULL(s.IsChinaView,0) = 1 OR s.SpecialPlatfrom = 2) THEN 2
 						ELSE 1 END
-				,COUNT(DISTINCT t.ParentTransId) AS TotalTrans
-				,t.ParentBettype
+				,COUNT(DISTINCT CASE WHEN t.IsHybrid = 0 THEN t.ParentTransId ELSE t.SubTransId END) AS TotalTrans
+				,CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.SubBettype END
 				,0
 				,CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit' ELSE s.site END AS LicenseeName
 				,ISNULL(s.IsChinaView,0)
@@ -1174,7 +1188,7 @@ BEGIN
 				LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON t.srecommend = cs.CustId
 			GROUP BY s.Site, s.IsChinaView, s.SpecialPlatfrom
 				,t.mLiveIndicator
-				,t.ParentBettype
+				,CASE WHEN t.IsHybrid = 0 THEN t.ParentBettype ELSE t.SubBettype END
 				,cs.CustId
 	   END
 

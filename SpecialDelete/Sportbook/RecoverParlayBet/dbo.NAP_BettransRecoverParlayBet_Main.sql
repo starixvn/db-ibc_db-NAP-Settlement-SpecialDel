@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Main] 
-	@BetType				VARCHAR(20)		= 'All',
+	@BetType				VARCHAR(100)	= 'All',
 	@TransIds				VARCHAR(MAX)	= '',
 	@UserId					INT, 
 	@IP						VARCHAR(50)
@@ -34,9 +34,10 @@ AS
 		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20250623@Lani: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation:			
-		- @BetType: 'all': All
+		- @BetType: 'All': All
 					'Mix Parlay': Mix Parlay
 					'System Parlay': System Parlay
 */
@@ -176,10 +177,11 @@ BEGIN
 			INNER JOIN bettrans b WITH(NOLOCK) ON s.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE b.matchid = 29 AND b.bettype = 29
 			AND b.statusid = 102
+			AND ISNULL(b.oddsspread,0) <> 3 
 			AND CASE
-					WHEN @BetType = 'all' THEN 1
-					WHEN @BetType = 'Mix Parlay' THEN CASE WHEN b.betteam = 1 THEN 1 ELSE 0 END
-					WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
+					WHEN @BetType = 'All' THEN 1
+					WHEN @BetType = 'Mix Parlay' AND b.betteam = '1' THEN 1
+					WHEN @BetType = 'System Parlay' AND b.betteam <> '1' THEN 1
 					ELSE 0
 				END	= 1	
 		
@@ -250,7 +252,7 @@ BEGIN
 			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid		
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY t.transid
-		HAVING COUNT(CASE WHEN m.eventstatus <> 'completed' THEN 1 ELSE NULL END) -- count running subs for each main ticket
+		HAVING SUM(CASE WHEN m.eventstatus <> 'completed' THEN 1 ELSE 0 END) -- count running subs for each main ticket
 			   = COUNT(*) -- count all subs for each main ticket
 			  
 		-- Get match list
@@ -265,7 +267,7 @@ BEGIN
 
 		-- Match list is auto settled
 		INSERT INTO @tblMatchIds (RowNumber, matchid, transid, refno)
-		SELECT	DENSE_RANK() OVER (ORDER BY t.matchid) AS RowNumber,
+		SELECT	DENSE_RANK() OVER (ORDER BY t.matchid ASC) AS RowNumber,
 				t.matchid, t.transid, t.refno
 		FROM	#tmpMatch t
 		WHERE RowNumber = 1
@@ -426,7 +428,7 @@ BEGIN
 
 			DELETE @tmpBoostSetting
 			INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
-			EXEC (@sqlOpenqueryCommand)
+			EXEC sys.sp_executesql @sqlOpenqueryCommand
 
 			SET @strSetting = ''
 			SELECT @strSetting = CAST((
@@ -650,6 +652,9 @@ BEGIN
 				,b.actual_stake AS ActualStake
 				,@SiteDBGroupID AS SiteDBGroupID
 				,b.modds AS MasterOdds 
+				,b.oddsspread 
+				,CASE WHEN t.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+				,t.transid AS SubTransID
 		FROM	#tblRecoverBet t
 				INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = t.transid AND b.SiteDBGroupID = @SiteDBGroupID
 				INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = b.srecommend
@@ -677,7 +682,7 @@ BEGIN
 										ELSE NULL
 									END AS GroupName) AS T1				
 		WHERE T1.GroupName IS NOT NULL
-		ORDER BY T1.GroupName, t.transid				
+		ORDER BY T1.GroupName ASC, t.transid ASC				
 	END TRY
 	BEGIN CATCH
 		IF @totalMainParlay <= @ThreadHold

@@ -79,6 +79,7 @@ AS;
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 		- 20250826@July: Integration - Saba Coins [Redmine: #236197]
 		- 20250909@July: Support Void Streamer Tips bets [Redmine: #237271]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation:
 
@@ -566,6 +567,8 @@ BEGIN
 		,@SiteDBGroupID AS SiteDBGroupID
 		,VendorMatchId
 		,d.SecAcceptFlag
+		,CASE WHEN d.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+		,d.transid AS SubTransId
 	FROM #SpecialDeleteBets d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.custid = c.custid
@@ -588,8 +591,8 @@ BEGIN
 		AND g.mrecommend 	NOT IN (105181, 118473, 105183) --MHC
 		AND d.recommend 	NOT IN (11196380) --Foobet
 		AND d.recommend 	NOT IN (13423967) --OneExchange
-	ORDER BY T.GroupName
-		   , ISNULL(d.MainTransId, d.transid)
+	ORDER BY T.GroupName ASC
+		   , ISNULL(d.MainTransId, d.transid) ASC
 		   , CASE 
 				WHEN d.BonusID IS NOT NULL
 						THEN CASE 
@@ -597,7 +600,7 @@ BEGIN
 								ELSE 2 
 							 END
 				ELSE d.transid
-			 END
+			 END ASC
 
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #transIdTemp

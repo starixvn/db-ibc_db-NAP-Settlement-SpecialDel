@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_WOName_Select]
 (	
 	 @RequestId			  INT = 0
@@ -21,6 +21,7 @@ AS
 		- 20250507@July: Fix bug miss filter SiteDBGroupID [Redmine: #226513]
 		- 20250729@Lani: [TVS] ScaleOut DBTrans [Phase 5] - Abnormal Account/EKO/WKO/Wrong Offered Name [Redmine: #232582]
 		- 20250930@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251104@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's explanation:	
 		- @WrongOfferedNameInfo: <root><r MatchId="" @CurrencyIds="" LicenseeNames="" /></root>
@@ -133,6 +134,8 @@ BEGIN
 	  ,GroupName VARCHAR(100)
 	  ,SettledType		 TINYINT -- 1: Instant Settlement, 2: Normal Settlement, 3: SABA Time Machine Settlement
 	  ,IsSiteDBDown BIT DEFAULT(0)
+	  ,IsHybrid BIT DEFAULT(0)
+	  ,FinalOdds SMALLMONEY
 	  ,ID INT IDENTITY (1,1) PRIMARY KEY
 	)
 	
@@ -491,6 +494,8 @@ BEGIN
 				,modds 
 				,SiteDBGroupID
 				,IsSiteDBDown
+				,IsHybrid
+				,FinalOdds
 			)
 		SELECT @MatchId AS matchid
 			,b.TransId
@@ -551,6 +556,8 @@ BEGIN
 			,b.modds
 			,sub.SiteDBGroupID
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
+			,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,sub.finalodds AS FinalOdds
 		FROM @tmpMatchId d
 			INNER JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -768,6 +775,23 @@ BEGIN
 			
 	END
 
+	--Update odds support show betlist for Hybrid parlay
+	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsHybrid = 1) 
+	BEGIN
+		;WITH CTE_MaxSubOdds AS (
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #TVSTicketBets t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+			GROUP BY t.transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #TVSTicketBets AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+	END 
+
 	SET @LogInfoTicketsJson = COMPRESS((SELECT m.transid AS 'transid'
 			,m.refno AS 'refno'		
 			,m.SubTransId AS 'SubTransId'	
@@ -814,6 +838,8 @@ BEGIN
 			,m.SettlementStatus AS 'SettlementStatus'
 			,m.sporttype AS 'sporttype'
 			,m.GroupName AS 'GroupName'
+			,m.IsHybrid AS 'IsHybrid'
+			,m.FinalOdds AS 'FinalOdds'
 	FROM @tmpLogInfoTickets s
 		INNER JOIN #TVSTicketBets m ON s.transid = m.Subtransid
 	FOR JSON PATH))
@@ -833,24 +859,8 @@ BEGIN
 		FROM @Validation
 
 		-- 2. TransId in request table
-		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
-		BEGIN
-			SELECT RequestId, MatchId,
-				STUFF((
-				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-				ORDER BY TransId ASC
-				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-				,1,2,'') AS TransIds
-			FROM #TransidInRequest r
-			GROUP BY r.RequestId, r.MatchId
-		END
-		ELSE
-		BEGIN
-			SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds 
-			FROM #TransidInRequest
-		END
+		SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds 
+		FROM #TransidInRequest
 
 		-- 3. Loginfo table 
 		SELECT MatchId, LogInfoTicketsJson
@@ -932,16 +942,36 @@ BEGIN
 	-- 2. TransId exists in other request table
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 	BEGIN
-		SELECT RequestId, MatchId,
+		;WITH ChildListCTE AS (
+			SELECT 
+				r.RequestId, r.MatchId, r.MainTransId, 
+				COUNT(r.TransId) AS TotalCount,
+				MIN(CASE WHEN r.MainTransId = r.TransId THEN 1 ELSE 0 END) AS HasMainSelf,
+				STUFF((
+					SELECT ',' + CAST(r2.TransId AS VARCHAR(50))
+					FROM #TransidInRequest r2
+					WHERE r2.MainTransId = r.MainTransId
+					ORDER BY r2.TransId ASC 
+					FOR XML PATH(''), TYPE
+				).value('.', 'NVARCHAR(MAX)'), 1, 1, '') AS ChildList
+			FROM #TransidInRequest r
+			GROUP BY r.RequestId, r.MatchId, r.MainTransId
+		)
+		SELECT 
+			r.RequestId, r.MatchId,
 			STUFF((
-			SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-			FROM #TransidInRequest
-			WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-			ORDER BY TransId ASC
-			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-			,1,2,'') AS TransIds
-			
-		FROM #TransidInRequest r
+				SELECT ', ' + 
+					CASE 
+						WHEN r2.TotalCount > 1 -- If MainTransId >=2 child → combine MainTransId(child1,child2,...) => hybrid parlay
+						THEN CAST(r2.MainTransId AS VARCHAR(50)) + '(' + REPLACE(r2.ChildList, CAST(r2.MainTransId AS VARCHAR(50)) + ',', '') + ')' 
+						ELSE CAST(r2.MainTransId AS VARCHAR(50))
+					END
+				FROM ChildListCTE r2
+				WHERE r2.RequestId = r.RequestId AND r2.MatchId = r.MatchId
+				ORDER BY r2.MainTransId ASC
+				FOR XML PATH(''), TYPE
+			).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS TransIds
+		FROM ChildListCTE r
 		GROUP BY r.RequestId, r.MatchId
 	END
 	ELSE

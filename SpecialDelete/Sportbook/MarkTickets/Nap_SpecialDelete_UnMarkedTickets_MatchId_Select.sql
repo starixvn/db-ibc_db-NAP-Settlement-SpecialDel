@@ -46,6 +46,7 @@ AS;
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250908@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -80,7 +81,7 @@ AS;
 BEGIN
 	SET NOCOUNT ON
 
-    DECLARE @SportType		TINYINT= NULL
+    DECLARE @SportType		SMALLINT= NULL
 		   ,@ValueDefault	SMALLMONEY = 9999.00
 		   ,@SiteDBGroupID  SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -355,7 +356,9 @@ BEGIN
 			  FilterTransdesc	    NVARCHAR(2000),
 			  FilterPlayerAndOdds	NVARCHAR(1000),
 			  ActualStake			MONEY,
-			  MatchId				INT
+			  MatchId				INT,
+			  finalodds				SMALLMONEY,
+			  IsHybrid				BIT DEFAULT(0)
              );
 
 	CREATE TABLE #ParlayTickets
@@ -380,6 +383,7 @@ BEGIN
 			  SubOddsSpread	 MONEY,
 			  MatchId		INT,
 			  SubOddsId		INT,
+			  finalodds		SMALLMONEY,
 			  SubTransDesc  NVARCHAR(2000)
              );
 
@@ -525,6 +529,7 @@ BEGIN
 			,MatchId
 			,SubOddsId
 			,SubTransDesc
+			,finalodds
 		)
 		SELECT
 			bm.custid, 
@@ -548,7 +553,8 @@ BEGIN
 			CASE WHEN bt.Id = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS SubOddsSpread, --229:SABA HDP Time Machine
 			bm.matchid,
 			bm.oddsid,
-			bm.transdesc
+			bm.transdesc,
+			bm.finalodds
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
 		WHERE EXISTS (SELECT 1 FROM @tmpMatchId WHERE MatchId = bm.matchid)
@@ -613,13 +619,15 @@ BEGIN
 			,ExtraInfo
 			,ActualStake
 			,MatchId
+			,IsHybrid
+			,finalodds
 		)
 		SELECT 
 			b.transid,
 			bm.custid,
 			b.odds,   
 			b.modds,
-			bm.oddsspread,
+			CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS oddsspread,
 			b.OddsType,  
 			bm.transdate,
 			b.bettype,
@@ -640,7 +648,7 @@ BEGIN
 			b.recommend,
 			b.betid,
 			b.betdaqid,
-			bm.transdesc,
+			CASE WHEN b.oddsspread = 3 THEN b.transdesc ELSE bm.transdesc END AS TransDesc,
 			bm.Refno,
 			b.WinLost - b.actual_stake AS WinLost,
 			1 AS IsMixParlay,
@@ -668,10 +676,12 @@ BEGIN
 			bm.SubOddsId AS FilterPlayerAndOdds,
 			b.ExtraInfo,
 			b.actual_stake AS ActualStake,
-			bm.MatchId
+			bm.MatchId,
+			CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid,
+			bm.finalodds
 		FROM #ParlayTickets AS bm
-		INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno AND b.SiteDBGroupID = @SiteDBGroupID
-		INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno AND b.SiteDBGroupID = @SiteDBGroupID
+			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
 	END
 
 	-- Filter Advanced Mode
@@ -816,6 +826,28 @@ BEGIN
 	DELETE t 
 	FROM #Tickets t
 		INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = t.transid AND t.MatchId = m.MatchId
+	
+	IF EXISTS ( SELECT TOP 1 1 FROM #Tickets WHERE IsHybrid = 1) 
+	BEGIN
+		DELETE t 
+		FROM #Tickets t
+			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = t.SubTransId AND t.MatchId = m.MatchId
+		WHERE t.IsHybrid = 1
+	
+		--Update odds support show betlist for Hybrid parlay
+		;WITH CTE_MaxSubOdds AS (
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #Tickets t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			WHERE t.IsHybrid = 1
+			GROUP BY t.transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #Tickets AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.IsHybrid = 1
+	END
 
 	UPDATE s
 	SET IsDeposit = 1
@@ -882,7 +914,9 @@ BEGIN
 		b.SubOdds,
 		b.ActualStake,
 		b.modds AS MasterOdds, 
-		@SiteDBGroupID AS SiteDBGroupID
+		@SiteDBGroupID AS SiteDBGroupID,
+		b.IsHybrid,
+		b.finalodds
 	FROM #Tickets b
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON b.custid = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
@@ -901,6 +935,7 @@ BEGIN
 		   , CASE WHEN b.BonusID IS NOT NULL
 				THEN CASE WHEN b.MainTransId IS NULL THEN 1
 				ELSE 2 END ELSE b.transid END ASC
+		   , b.SubTransId ASC
 
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail

@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
 (
 	@MatchId				INT,	
-	@Bet					VARCHAR(10)		= NULL,
+	@Bet					VARCHAR(100)		= NULL,
 	@TimeType	 			SMALLINT 		= 0,
 	@FromTransdate			DATETIME 		= NULL,
 	@ToTransdate			DATETIME 		= NULL,
@@ -20,7 +20,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
 	@SecondAcceptFlag		TINYINT			= 0 ,
 	@TransIds				VARCHAR(MAX)	= '',
 	@IsCheckTime			BIT				= 1,
-	@SelectionSubParlays	VARCHAR(200)    = ''
+	@SelectionSubParlays	VARCHAR(200)    = '',
+	@IsCalledJackTimeHybridParlay BIT = 1
 )
 AS
 	/*
@@ -146,6 +147,7 @@ AS
 		- 20250401@Neil: [TVS] Upgrade ExchangeID data type [Redmine:#222191]
 		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 		- 20250903@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -181,6 +183,12 @@ AS
 					 PlayerAndOdds = '01$404680660,02$404680660' -- Default : "All" ; Format: betteam$oddsid (Apply only for bettype Most 680 - 684 (basketball) and bettype Man Out 9662 -> 9667 (Cricket)
 			/>
 		 <BetTypes/>'
+		
+		- @Bet:
+		 + 'All': Search both single and parlay tickets.
+		 + 'Single': Search only single tickets.
+		 + 'Sub Parlay': Search only parlay tickets.
+
 		 - @SelectionSubParlays: 
 			+ IF @Bet: 'All' OR 'Single' => default : ''
 			+ IF @Bet: 'SubParlay' => value : '2,3,4,5,6,7,8,9,10 UP'
@@ -315,7 +323,7 @@ BEGIN
 
 	CREATE TABLE #SpecialDeleteBets (
 		grouptransid		BIGINT,
-		transid				BIGINT PRIMARY KEY, 
+		transid				BIGINT, 
 		custid				INT, 
 		recommend			INT, 
 		mrecommend			INT, 
@@ -388,7 +396,9 @@ BEGIN
 		SiteID				INT,
 		modds				SMALLMONEY,
 		mainoddsspread 		MONEY,
-		IsFinish			BIT
+		finalodds			SMALLMONEY,
+		IsFinish			BIT,
+		oddsspread_tmp		MONEY --Get main oddsspread for parlay
 	)
 
 	CREATE TABLE #SpecialDeleteBetsm (
@@ -414,6 +424,7 @@ BEGIN
 		SubOddsId			INT,
 		SiteDBGroupId		SMALLINT,
 		matchid				INT,
+		finalodds			SMALLMONEY,
 		IsFinish			BIT
 	)
 
@@ -998,7 +1009,7 @@ BEGIN
 	END
 
 	-- Search Parlay Tickets
-	IF @Bet = 'All' OR @Bet = 'Sub Parlay'	
+	IF @Bet = 'All' OR @Bet = 'Sub Parlay'
 	BEGIN
 		IF @IsCheckTime = 1 --checkbox for the time range
 		BEGIN
@@ -1025,6 +1036,7 @@ BEGIN
 				,SubOddsId
 				,SiteDBGroupId
 				,matchid
+				,finalodds
 			)
 			SELECT
 				 bm.custid 
@@ -1049,6 +1061,7 @@ BEGIN
 				,bm.oddsid
 				,bm.SiteDBGroupID
 				,bm.matchid
+				,bm.finalodds
 			FROM (SELECT TOP (@CountTransId) transid FROM #tblTransIds) t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 			WHERE EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = bm.matchid)
@@ -1089,6 +1102,7 @@ BEGIN
 				,SubOddsId
 				,SiteDBGroupId
 				,matchid
+				,finalodds
 			)
 			SELECT
 				 bm.custid 
@@ -1113,6 +1127,7 @@ BEGIN
 				,bm.oddsid
 				,bm.SiteDBGroupID
 				,bm.matchid
+				,bm.finalodds
 			FROM (SELECT TOP (@CountTransId) transid FROM #tblTransIds) t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 			WHERE EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = bm.matchid)
@@ -1187,13 +1202,15 @@ BEGIN
 				,SiteID
 				,mainoddsspread
 				,modds
+				,finalodds
+				,oddsspread_tmp
 			)
 			SELECT
 				b.transid AS grouptransid,
 				b.transid,
 				bm.custid,
 				b.odds,
-				bm.oddsspread,
+				CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END,
 				b.OddsType,
 				bm.transdate,
 				bm.checktime,
@@ -1246,16 +1263,20 @@ BEGIN
 				b.custid,
 				bm.SubOddsId
 				,bm.SiteDBGroupId
-				,bm.SubOdds AS FilterOdds
+				,CASE WHEN b.oddsspread = 3 THEN bm.finalodds ELSE bm.SubOdds END AS FilterOdds
 				,b.statusID
 				,bm.matchid
 				,b.BetSiteID
 				,b.oddsspread
 			    ,b.modds
+				,bm.finalodds
+				,b.oddsspread AS oddsspread_tmp
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
-			
+			WHERE 1 = CASE WHEN @IsCalledJackTimeHybridParlay = 0 AND b.oddsspread = 3 THEN 0
+					ELSE 1 END
+
 			IF @SelectionSubParlays <> ''
 			BEGIN
 				INSERT INTO @tmpSelectionSubParlay (Id)
@@ -1263,12 +1284,25 @@ BEGIN
 				FROM STRING_SPLIT(@SelectionSubParlays, ',')
 		
 				DELETE b
-				FROM  #SpecialDeleteBets b
-				WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmpSelectionSubParlay sp 
-						WHERE 1 = CASE WHEN sp.Id = '10 UP' AND b.hdp2 >= 10 THEN 1
-									   WHEN sp.Id <> '10 UP' AND b.hdp2 = CAST (sp.Id AS SMALLMONEY) THEN 1
-									   ELSE 0 END)
+				FROM #SpecialDeleteBets b
+				WHERE IsMixParlay = 1
+				  AND NOT EXISTS (
+						SELECT TOP 1 1
+						FROM @tmpSelectionSubParlay sp
+						WHERE 1 = CASE 
+									WHEN sp.Id = '10 UP' AND 
+										 ((ISNULL(b.oddsspread_tmp,0) <> 3 AND b.hdp2 >= 10) OR (b.oddsspread_tmp = 3 AND b.betid >= 10)) THEN 1
+									WHEN sp.Id <> '10 UP' AND 
+										 ((ISNULL(b.oddsspread_tmp,0) <> 3 AND b.hdp2 = CAST(sp.Id AS SMALLMONEY)) OR (b.oddsspread_tmp = 3 AND b.betid = CAST(sp.Id AS SMALLMONEY))) THEN 1
+									ELSE 0 
+								  END
+					);
 			END
+
+			--Remove sub invalid
+			DELETE bm
+			FROM #SpecialDeleteBetsm bm
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets b WHERE b.refno = bm.Refno) 
 		END
 	END
 	
@@ -1437,6 +1471,23 @@ BEGIN
 		END
 	END	
 
+	--Update odds support show betlist for Hybrid parlay
+	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE IsMixParlay = 1 AND oddsspread = 3) 
+	BEGIN
+		;WITH CTE_MaxSubOdds AS (
+			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
+			FROM #SpecialDeleteBets t
+				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
+			WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+			GROUP BY t.transid
+		)
+		UPDATE b
+		SET b.SubOdds = x.Max_SubOdds
+		FROM #SpecialDeleteBets AS b
+		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
+		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3;
+	END 
+
 	-- UPDATE eventtype = 1
 	IF(EXISTS
 		(SELECT TOP 1 1 
@@ -1489,7 +1540,8 @@ BEGIN
 	IF (NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets) AND NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBetsm))
 	BEGIN
 		SELECT 99 AS ErrorCode
-			, 'No ticket found.' AS ErrorMsg
+			, CASE WHEN @IsCalledJackTimeHybridParlay = 0 THEN 'Failed to adjust odds, some tickets of Hybrid parlay have not been voided/recovered.'
+				ELSE 'No ticket found.' END AS ErrorMsg
 			, @NegativeBalanceUsers AS NegativeBalanceUsers
 		
 		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
@@ -2103,7 +2155,7 @@ BEGIN
 
 		--1. Table return error code/ msg
 		SELECT @ErrCode AS ErrorCode
-			,@ErrMsg AS ErrorMsg
+			,IIF(@IsCalledJackTimeHybridParlay = 1, 'Failed to adjust odds, some tickets of Hybrid parlay have not been voided/recovered.', @ErrMsg) AS ErrorMsg
 			,@NegativeBalanceUsers AS NegativeBalanceUsers
 			,@SiteDBGroupID AS SiteDBGroupID
 		
@@ -2268,6 +2320,8 @@ BEGIN
 			,ISNULL(si.IsChinaView,0) AS IsChinaView
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 			,al.modds AS MasterOdds
+			,CASE WHEN al.IsMixParlay = 1 AND al.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+			,al.finalodds
 		FROM #SpecialDeleteBets al
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK) ON al.custid = ci.custid
 			INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON	al.creator = cr.custid	
@@ -2282,7 +2336,7 @@ BEGIN
 						ELSE 2 END
 					ELSE al.transid
 				 END ASC
-		DROP TABLE #CTE_CustInfo
+			   , al.SubTransId ASC
 	END	
 	
 	-- Write useraction log	
@@ -2320,5 +2374,6 @@ BEGIN
 	DROP TABLE #AfterUpd 
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #tblMatchParlayProcess
+	DROP TABLE #CTE_CustInfo
 
 END

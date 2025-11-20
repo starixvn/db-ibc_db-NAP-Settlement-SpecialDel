@@ -72,6 +72,7 @@ AS
 		- 20250428@Max: TVS- Search matchid got error on ticket listing [Redmine: #225671]
 		- 20250724@July: Get Result Amendment for main parlay ticket of matchid input [Redmine: #233478]
 		- 20250908@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
+		- 20251106@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -80,6 +81,7 @@ AS
 		2: Virtual sports
 		3: Bet Builder
 		4: Bitcoin
+		5: Bet Builder+ (Hybrid Parlay)
 
 	- @LicenseeName:
 		ALL, IBC, 12bet, ...	
@@ -211,8 +213,8 @@ BEGIN
 		FROM @AffectTickets.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@AffectTickets = NULL ))
 	END
-	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
-	IF @Type <> 0 SELECT @LiveType = 2
+	---- If not sportbook and bet builder+ then don't care @livetype , so set @LiveType to 2 (All)
+	IF @Type NOT IN (0,5) SELECT @LiveType = 2
 
 	CREATE TABLE #SpecialDeleteBets 
 	(
@@ -421,6 +423,7 @@ BEGIN
 				INNER JOIN @tmpLicenseeName s ON dc.site = s.LicenseeName
 			WHERE	b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
 				AND EXISTS (SELECT 1 FROM @tmpMatchId AS m WHERE m.MatchId = b.matchid )
+				AND @Type <> 5
 				AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 				AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
@@ -627,10 +630,12 @@ BEGIN
 			AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END 
 								AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-			AND (b.betid = 0 OR b.betid IS NULL)
+			AND 1 = CASE WHEN @Type = 5 AND ISNULL(b.oddsspread,0) = 3 THEN 1
+						 WHEN @Type <> 5 AND (b.betid = 0 OR b.betid IS NULL) AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+						 ELSE 0 END
 		OPTION(OPTIMIZE FOR (@n = 1))
 
-		IF (@IsReSettled = 1 AND @Type IN (0,3))
+		IF (@IsReSettled = 1 AND @Type IN (0,3,5))
 		BEGIN
 			DELETE b
 			FROM #SpecialDeleteBets b

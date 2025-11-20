@@ -1,12 +1,11 @@
-/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelDetailSpecialDel_MixParlay]  
 	@Refno BIGINT
 AS  
 /*  
-	Created by: Kathy
-	Date: 20131009
+	Created by: 20131009@Kathy
 	Task: Get tickets of mix parlay by Refno 
-	DB:  DBTXN/BODB02
+	DB:  DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	Original:   
    
 	Revisions:   
@@ -22,6 +21,7 @@ AS
 		- 20240304@July: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's Explanation:
 			
@@ -54,7 +54,11 @@ BEGIN
 		,betcheck		NVARCHAR(50)
 		,transdesc		NVARCHAR(1000)
 		,showtime		NVARCHAR(50)
-		,transdate		DATETIME		
+		,transdate		DATETIME
+		,status			NVARCHAR(20)
+		,eventdate		DATETIME
+		,refno			BIGINT
+		,IsFinish		BIT DEFAULT(0)
 		)			
 		
 	INSERT INTO @BetListMP	
@@ -80,7 +84,10 @@ BEGIN
 			,betcheck
 			,transdesc
 			,showtime
-			,transdate			
+			,transdate		
+			,status
+			,eventdate
+			,refno
 		)				
 	SELECT
 			b.transid		
@@ -104,15 +111,18 @@ BEGIN
 			,b.betcheck
 			,b.transdesc
 			,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
-			,b.transdate					
+			,b.transdate
+			,b.status
+			,m.eventdate
+			,b.refno
 	FROM	dbo.BettransM AS b WITH(NOLOCK)		
 		CROSS APPLY (
-			SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID
+			SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID, eventdate
 			FROM match AS m WITH(NOLOCK)
 			WHERE b.matchid=m.matchid	
 
 			UNION ALL
-			SELECT homeid, awayid, League3rdId, sporttype, 0, matchid, matchcode, StartTime, NULL, NULL
+			SELECT homeid, awayid, League3rdId, sporttype, 0, matchid, matchcode, StartTime, NULL, NULL, EventDate
 			FROM Match3rd AS m WITH(NOLOCK)
 			WHERE b.matchid=m.Match3rdId	
 		)m
@@ -123,7 +133,7 @@ BEGIN
 			OR m.sporttype = 147 --VS5
 			)
 			AND b.SiteDBGroupID = @SiteDBGroupID
-	ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END
+	ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END ASC
 		
 	IF EXISTS (
 			SELECT	TOP 1 1
@@ -154,7 +164,10 @@ BEGIN
 				,betcheck
 				,transdesc
 				,showtime
-				,transdate				
+				,transdate
+				,status
+				,eventdate
+				,refno
 			)				
 		SELECT
 				b.transid		
@@ -178,15 +191,18 @@ BEGIN
 				,b.betcheck
 				,b.transdesc
 				,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
-				,b.transdate						
+				,b.transdate
+				,b.status
+				,m.eventdate
+				,b.refno
 		FROM	dbo.BettransM14 AS b WITH(NOLOCK)		
 			CROSS APPLY (
-				SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID
+				SELECT homeid, awayid, leagueid, sporttype, IsNeutral, matchid, matchcode, kickofftime, ChildMatchType, ParentID, m.eventdate
 				FROM match14 AS m WITH(NOLOCK)
 				WHERE b.matchid=m.matchid	
 
 				UNION ALL
-				SELECT homeid, awayid, League3rdId, sporttype, 0, matchid, matchcode, StartTime, NULL, NULL
+				SELECT homeid, awayid, League3rdId, sporttype, 0, matchid, matchcode, StartTime, NULL, NULL, m.EventDate
 				FROM Match3rd14 AS m WITH(NOLOCK)
 				WHERE b.matchid=m.Match3rdId	
 			)m								
@@ -197,8 +213,22 @@ BEGIN
 				OR m.sporttype = 147 --VS5
 				)
 			AND b.SiteDBGroupID = @SiteDBGroupID
-		ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END
+		ORDER BY CASE WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID IS NOT NULL THEN 1 ELSE 2 END ASC
 	END	
+
+	UPDATE mp
+	SET mp.IsFinish = 1
+	   ,mp.transdesc = b.transdesc
+	FROM @BetListMP mp
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON mp.refno = b.refno
+	WHERE b.bettype = 29 AND b.oddsspread = 3
+
+	UPDATE mp
+	SET mp.IsFinish = 1
+	   ,mp.transdesc = b.transdesc
+	FROM @BetListMP mp
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON mp.refno = b.refno
+	WHERE b.bettype = 29 AND b.oddsspread = 3 AND mp.IsFinish = 0
 
 	SELECT TransID
 		  ,Bettype
@@ -221,7 +251,9 @@ BEGIN
 		  ,betcheck
 		  ,transdesc
 		  ,showtime
-		  ,transdate		
+		  ,transdate
+		  ,status
+		  ,eventdate
 	FROM @BetListMP	
 	
 END

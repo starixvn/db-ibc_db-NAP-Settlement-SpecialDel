@@ -56,8 +56,8 @@ AS
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
 		- 20240718@Kathy: Implement AiO for Baseball - 8 new bettypes [Redmine:#208026] 
 		- 20250829@Max: Basketball Player Prop [Redmine:#233012]
-
-		
+		- 20251020@Max: Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
+	
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
@@ -151,7 +151,7 @@ BEGIN
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	CREATE TABLE #tmpsubTransID (Id BIGINT IDENTITY(1,1),TransID BIGINT, refno BIGINT, modds SMALLMONEY, moddsSDT SMALLMONEY, IsSDT BIT DEFAULT(0), isFinish BIT, IsMarked BIT
-		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, betteam VARCHAR(10))
+		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, betteam VARCHAR(10), IsHybrid BIT DEFAULT(0), mainStatusId INT)
 	CREATE TABLE #tmpRefnos (refno BIGINT)
 	----------------------------------------------------------------------------------------------------------------------
 
@@ -277,9 +277,13 @@ BEGIN
 				OUTER APPLY (
 						SELECT TOP (1) mt.TransId
 						FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-						WHERE	mt.TransId = b.transId
-								AND mt.MatchId = @MatchID
+						WHERE	mt.MatchId = @MatchID
+							AND (
+									mt.TransId = b.transId
+								OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+								) 
 				) mt
+				
 			WHERE	bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 					AND bm.statusID NOT IN (101)
@@ -312,8 +316,11 @@ BEGIN
 					OUTER APPLY (
 							SELECT TOP (1) mt.TransId
 							FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-							WHERE	mt.TransId = b.transId
-									AND mt.MatchId = @MatchID
+							WHERE	mt.MatchId = @MatchID
+							AND (
+									mt.TransId = b.transId
+								OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+								) 
 					) mt
 				WHERE	bm.matchid = @MatchID
 						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
@@ -365,8 +372,11 @@ BEGIN
 					OUTER APPLY (
 							SELECT TOP (1) mt.TransId
 							FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-							WHERE	mt.TransId = b.transId
-									AND mt.MatchId = @MatchID
+							WHERE	mt.MatchId = @MatchID
+								AND (
+										mt.TransId = b.transId
+									OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+									) 
 					) mt
 				WHERE	bm.matchid = @MatchID
 						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
@@ -397,8 +407,11 @@ BEGIN
 					OUTER APPLY (
 							SELECT TOP (1) mt.TransId
 							FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-							WHERE	mt.TransId = b.transId
-									AND mt.MatchId = @MatchID
+							WHERE	mt.MatchId = @MatchID
+								AND (
+										mt.TransId = b.transId
+									OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+									) 
 					) mt
 				WHERE bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
@@ -458,8 +471,11 @@ BEGIN
 			OUTER APPLY (
 				SELECT	TOP (1) mt.TransId
 				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-				WHERE	mt.TransId = b.transid
-						AND mt.MatchId = @MatchID
+				WHERE	mt.MatchId = @MatchID
+					AND (
+							mt.TransId = b.transId
+						OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+						) 
 			) mt
 		WHERE	bm.matchid = @MatchID
 				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
@@ -491,8 +507,11 @@ BEGIN
 				OUTER APPLY (
 						SELECT TOP (1) mt.TransId
 						FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-						WHERE	mt.TransId = b.transId
-								AND mt.MatchId = @MatchID
+						WHERE	mt.MatchId = @MatchID
+							AND (
+									mt.TransId = b.transId
+								OR (mt.TransId = bm.TransId AND mt.MarkType IN (2,3))
+								) 
 				) mt
 			WHERE	bm.matchid = @MatchID
 					AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
@@ -612,6 +631,11 @@ BEGIN
 	
 	IF @totalSubParlay = 0
 		RETURN 
+
+	--Mark IsHybrid for subTransId
+	UPDATE t SET t.IsHybrid = 1, t.mainStatusId = b.statusID
+	FROM #tmpsubTransID t
+		INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = t.refno AND b.matchid = 29 AND b.bettype = 29 AND b.oddsspread = 3 
 
 	--check settlement process
 	IF @LockedByRefno = 1
@@ -764,20 +788,29 @@ BEGIN
 						,@strSetting
 						,@IsReSettledTickets					
 				FROM(
-					SELECT	s1.Id/@batchNo AS batchNo
-							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
-							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
-					FROM	#tmpsubTransID s1
-						LEFT JOIN #tmpMainTransId main
-							ON s1.refno = main.refno
-					WHERE	s1.IsSDT = 1
-					GROUP BY s1.id/@batchNo
-				) main
+						SELECT	batchNo AS batchNo
+								,STRING_AGG(CAST(TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+								,STRING_AGG(CASE WHEN statusId = 102 THEN NULL ELSE CAST(Refno AS VARCHAR(MAX)) + '|' + CAST(TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
+						FROM (
+								SELECT DISTINCT 
+									s1.Id/@batchNo AS batchNo,
+									main.TransId,
+									main.statusId,
+									main.Refno
+								FROM #tmpsubTransID s1
+								LEFT JOIN #tmpMainTransId main
+									ON s1.refno = main.refno
+								WHERE	s1.IsSDT = 1
+							) AS distinctData
+						GROUP BY batchNo
+					) main
 					CROSS APPLY (
 						SELECT CAST((SELECT	s2.transid AS 't'	
 									,s2.modds AS 'm'
 									,s2.refno AS 'r'
 									,s2.IsMarked AS 'im'
+									,s2.IsHybrid AS 'ih'
+									,s2.mainStatusId AS 'mst'
 						FROM	#tmpsubTransID s2         
 						WHERE	s2.IsSDT = 1
 								AND s2.id/@batchNo = main.batchNo
@@ -807,18 +840,27 @@ BEGIN
 						,@IsReSettledTickets						
 						,@BroadcastSessionId 
 				FROM(
-					SELECT	s1.Id/@batchNo AS batchNo
-							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
-							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
-					FROM	#tmpsubTransID s1
-						LEFT JOIN #tmpMainTransId main
-							ON s1.refno = main.refno
-					WHERE	s1.modds IS NULL
-					GROUP BY s1.id/@batchNo
-				) main
+						SELECT	batchNo AS batchNo
+								,STRING_AGG(CAST(TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+								,STRING_AGG(CASE WHEN statusId = 102 THEN NULL ELSE CAST(Refno AS VARCHAR(MAX)) + '|' + CAST(TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
+						FROM (
+								SELECT DISTINCT 
+									s1.Id/@batchNo AS batchNo,
+									main.TransId,
+									main.statusId,
+									main.Refno
+								FROM #tmpsubTransID s1
+								LEFT JOIN #tmpMainTransId main
+									ON s1.refno = main.refno
+								WHERE	s1.modds IS NULL
+							) AS distinctData
+						GROUP BY batchNo
+					) main
 					CROSS APPLY (
 						SELECT CAST((SELECT	s2.transid AS 't'
 									,s2.refno AS 'r'
+									,s2.IsHybrid AS 'ih'
+									,s2.mainStatusId AS 'mst'
 						FROM	#tmpsubTransID s2         
 						WHERE	s2.modds IS NULL
 								AND s2.id/@batchNo = main.batchNo
@@ -847,20 +889,29 @@ BEGIN
 						,@IsReSettledTickets
 						,@BroadcastSessionId
 				FROM(
-					SELECT	s1.Id/@batchNo AS batchNo
-							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
-							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
-					FROM	#tmpsubTransID s1
-						LEFT JOIN #tmpMainTransId main
-							ON s1.refno = main.refno
-					WHERE	s1.moddsSDT IS NOT NULL
-					GROUP BY s1.id/@batchNo
-				) main
+						SELECT	batchNo AS batchNo
+								,STRING_AGG(CAST(TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+								,STRING_AGG(CASE WHEN statusId = 102 THEN NULL ELSE CAST(Refno AS VARCHAR(MAX)) + '|' + CAST(TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
+						FROM (
+								SELECT DISTINCT 
+									s1.Id/@batchNo AS batchNo,
+									main.TransId,
+									main.statusId,
+									main.Refno
+								FROM #tmpsubTransID s1
+								LEFT JOIN #tmpMainTransId main
+									ON s1.refno = main.refno
+								WHERE	s1.moddsSDT IS NOT NULL
+							) AS distinctData
+						GROUP BY batchNo
+					) main
 					CROSS APPLY (
 						SELECT CAST((SELECT	s2.transid AS 't'
 									,s2.modds AS 'm'
 									,s2.refno AS 'r'
 									,s2.IsMarked AS 'im'
+									,s2.IsHybrid AS 'ih'
+									,s2.mainStatusId AS 'mst'
 						FROM	#tmpsubTransID s2         
 						WHERE	s2.moddsSDT IS NOT NULL
 								AND s2.id/@batchNo = main.batchNo
@@ -888,20 +939,29 @@ BEGIN
 					,@IsReSettledTickets
 					,@BroadcastSessionId
 			FROM(
-					SELECT	s1.Id/@batchNo AS batchNo
-							,STRING_AGG(CAST(main.TransId AS VARCHAR(MAX)),',') AS MainTransIds 
-							,STRING_AGG(CASE WHEN main.statusId = 102 THEN NULL ELSE CAST(main.Refno AS VARCHAR(MAX)) + '|' + CAST(main.TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds
-					FROM	#tmpsubTransID s1
-						LEFT JOIN #tmpMainTransId main
-							ON s1.refno = main.refno
-					WHERE	isFinish IS NULL
-					GROUP BY s1.id/@batchNo
+					SELECT	batchNo AS batchNo
+							,STRING_AGG(CAST(TransId AS VARCHAR(MAX)),',') AS MainTransIds 
+							,STRING_AGG(CASE WHEN statusId = 102 THEN NULL ELSE CAST(Refno AS VARCHAR(MAX)) + '|' + CAST(TransId AS VARCHAR(MAX)) END,',') AS RefnoMainTransIds							
+					FROM (
+							SELECT DISTINCT 
+								s1.Id/@batchNo AS batchNo,
+								main.TransId,
+								main.statusId,
+								main.Refno
+							FROM #tmpsubTransID s1
+							LEFT JOIN #tmpMainTransId main
+								ON s1.refno = main.refno
+							WHERE	isFinish IS NULL
+						) AS distinctData
+					GROUP BY batchNo
 				) main
 				CROSS APPLY (
 					SELECT CAST((SELECT	s2.transid AS 't'	
 								,s2.modds AS 'm'
 								,s2.refno AS 'r'
 								,s2.IsMarked AS 'im'
+								,s2.IsHybrid AS 'ih'
+								,s2.mainStatusId AS 'mst'
 					FROM	#tmpsubTransID s2         
 					WHERE	s2.isFinish IS NULL
 							AND s2.id/@batchNo = main.batchNo

@@ -9,21 +9,27 @@ AS
 /*	
 	Created by:20231227@Max
 	Task: [TVS] Recover Ticket issue type [Redmine: #196020]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,DBSIC-bodb02,DBSID-bodb02
 	
 	Revisions: 
 		- 20231227@Max: Create new SP [Redmine: #196020]
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250506@July: Change to remove step update isprocess call 2 times [Redmine: #219112]
 		- 20250605@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
+		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's explanation:
-		ValidationType => 21, 22 (recover + resettle)
-		ValidationType => 23,24 (recover + resettle main)
+		ValidationType => 21, 22 (recover + resettle single)
+		ValidationType => 23, 24 (recover + resettle main)
 		ValidationType => 25, 26 (recover + resettle sub)
-		ValidationType => 27, 28 (recover + resettle)
-		ValidationType => 29 (resettle)
-		ValidationType => 30 (resettle)
+		ValidationType => 27, 28 (recover + resettle Cricket)
+		ValidationType => 29 (recover single_14)
+		ValidationType => 30 (recover main_14)
+		ValidationType => 31 (recover sub - hybrid parlay) --call JT
+		ValidationType => 32 (resettle sub - hybrid parlay) --call JT
+		ValidationType => 33 (recover main - hybrid parlay) --call JT
+		ValidationType => 34 (resettle main - hybrid parlay) --call JT
+		ValidationType => 35 (recover main_14 - hybrid parlay) --call JT
 */
 BEGIN
 	SET NOCOUNT ON
@@ -121,7 +127,10 @@ BEGIN
 			,b.transdate
 			,b.winlostdate
 			,b.statusID
-			,CASE WHEN b.statuswinlost IS NOT NULL THEN 24 ELSE 23 END AS ValidationType
+			,CASE 
+				 WHEN b.oddsspread = 3 THEN IIF(b.statuswinlost IS NULL, 33, 34)
+				 ELSE IIF(b.statuswinlost IS NULL, 23, 24)
+			 END AS ValidationType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.TicketType = 2
@@ -134,9 +143,13 @@ BEGIN
 			  ,bm.transdate
 			  ,bm.winlostdate
 			  ,bm.statusID
-			  ,CASE WHEN bm.statuswinlost IS NOT NULL THEN 26 ELSE 25 END AS ValidationType
+			  ,CASE 
+				 WHEN b.oddsspread = 3 THEN IIF(bm.statuswinlost IS NULL, 31, 32)
+				 ELSE IIF(bm.statuswinlost IS NULL, 26, 25)
+				END AS ValidationType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
+			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
 		WHERE t.TicketType = 2
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpInputTransId t
@@ -162,7 +175,7 @@ BEGIN
 				,b.transdate
 				,b.winlostdate
 				,b.statusID
-				,30 AS ValidationType
+				,CASE WHEN b.oddsspread = 3 THEN 35 ELSE 30 END AS ValidationType
 			FROM #tmpInputTransId t
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1))
 		END
@@ -187,7 +200,6 @@ BEGIN
 	INSERT INTO #Ticket_Result(TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId, ValidationType)
 	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId, ValidationType FROM #ParlayTickets_14 --Parlay_14
 
-
 	SELECT TransId
 		  ,RequestId
 		  ,Matchid
@@ -197,7 +209,7 @@ BEGIN
 	      ,statusId
 	      ,ValidationType
 	FROM #Ticket_Result
-	ORDER BY ValidationType
+	ORDER BY ValidationType ASC
 
 	DROP TABLE #tmpInputTransId
 	DROP TABLE #tmpTransIds

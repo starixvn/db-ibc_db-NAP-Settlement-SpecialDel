@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Queue_Job]
 (
 	@QueueId INT
 	,@IsCalledNetPosition BIT = 1
+	,@IsCalledJackTimeHybridParlay BIT = 1
 )
 AS
 /*	
@@ -31,6 +32,7 @@ AS
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20241218@July: [TVS] Enhance the error message when voiding tickets are failed [Redmine: #213398]
 		- 20250422@July: Return more infor for case retry [Redmine: #224848]
+		- 20251028@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
 
 	Param's explanation:	
 		
@@ -93,6 +95,16 @@ BEGIN
 		SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())
 			,StatusId = 3
 			,ErrMsg = 'Failed to adjust Net Position of credit Members, consequently their ''Match Winner'' tickets have not been voided.'
+			,FailedTransIds =  q.TransIds
+		FROM	dbo.TicketVoiding_Queue q
+		WHERE q.QueueId = @QueueId 
+	END
+	ELSE IF @VoidingTypeId IN (18,19,20,21) AND @IsCalledJackTimeHybridParlay = 0
+	BEGIN
+		UPDATE	q WITH(ROWLOCK, UPDLOCK)
+		SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())
+			,StatusId = 3
+			,ErrMsg = 'Failed to adjust odds, some tickets of Hybrid parlay have not been voided/recovered.'
 			,FailedTransIds =  q.TransIds
 		FROM	dbo.TicketVoiding_Queue q
 		WHERE q.QueueId = @QueueId 
