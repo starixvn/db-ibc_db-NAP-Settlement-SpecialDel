@@ -51,7 +51,7 @@ BEGIN
 			,@TableName VARCHAR(128) 
 			,@IsUpd_runningHP BIT = 0
 
-	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0), IsHybrid BIT DEFAULT(0), isValidSettle BIT DEFAULT(0), statuswinlost TINYINT, isBackToRunning BIT DEFAULT (0), IsSingleSelectionHP BIT DEFAULT (0))		
+	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0), IsHybrid BIT DEFAULT(0), isValidSettle BIT DEFAULT(0), statuswinlost TINYINT, isBackToRunning BIT DEFAULT (0), IsSingleSelectionHP BIT DEFAULT (0), MainStatusId INT)		
 	DECLARE @tmpParlayOutput TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT,betcheck NVARCHAR(50), odds SMALLMONEY)		
 	
 	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
@@ -70,7 +70,7 @@ BEGIN
 								WHEN @Action LIKE 'UNDO%' THEN 'UNDO'
 							END
 
-	INSERT INTO @tmpParlayTicket (transid, refno, statusId, modds, IsMarked, IsHybrid, statuswinlost)
+	INSERT INTO @tmpParlayTicket (transid, refno, statusId, modds, IsMarked, IsHybrid, statuswinlost, MainStatusId)
 	SELECT t AS transid
 			,r AS refno
 			,s AS statusId
@@ -84,6 +84,7 @@ BEGIN
 				WHEN m < - 0.25 THEN 4 -- LOSE
 				ELSE CASE WHEN (@action = 'ABANDONED' OR @Action LIKE 'REFUND%') THEN 6 ELSE 0 END -- CAL OR REFUND
 			END
+			,mst AS MainStatusId
 	FROM OPENJSON(@strTransIds) WITH (
 		t BIGINT
 		,r BIGINT
@@ -91,6 +92,7 @@ BEGIN
 		,m SMALLMONEY
 		,im BIT
 		,ih BIT
+		,mst INT
 	)
 
 	IF(@@ROWCOUNT = 0) RETURN
@@ -123,12 +125,19 @@ BEGIN
 						) AS tmp
 		WHERE t.IsHybrid = 1 AND t.isValidSettle = 0
 
+		UPDATE t 
+			SET t.isValidSettle = 1
+		FROM @tmpParlayTicket t 
+		WHERE t.IsHybrid = 1 
+			AND t.isValidSettle = 0
+			AND t.MainStatusId = 102
+
 		UPDATE t
 			SET isBackToRunning = CASE  WHEN bm.statuswinlost = 4 AND t.statuswinlost = 2 THEN 0 --before: LOSE, after: WON
 										WHEN bm.statuswinlost = 2 AND t.statuswinlost = 4 THEN 0 --before: WON, after: LOSE
 										WHEN bm.statuswinlost IN (0,6) AND t.statuswinlost IN (0,6) THEN 0 --before : DRAW/REFUND , after: DRAW/REFUND
 										WHEN t.statuswinlost <> bm.statuswinlost AND IsSingleSelectionHP = 0 THEN 1
-										WHEN bm.statusID NOT IN (0,1) AND t.statuswinlost IN (1,3,6,0) THEN 1
+										WHEN bm.statusID NOT IN (0,1) AND t.statuswinlost IN (1,3,6,0) THEN 1 
 										ELSE 0 END
 			--DRAW -> REFUND OR REFUND -> DRAW OR singleLeg: can settle direct no need to wait new leg odds
 			,isValidSettle = CASE WHEN IsSingleSelectionHP = 1 THEN 1 
