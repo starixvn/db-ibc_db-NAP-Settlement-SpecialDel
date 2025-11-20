@@ -137,6 +137,7 @@ BEGIN
 										WHEN bm.statuswinlost = 2 AND t.statuswinlost = 4 THEN 0 --before: WON, after: LOSE
 										WHEN bm.statuswinlost IN (0,6) AND t.statuswinlost IN (0,6) THEN 0 --before : DRAW/REFUND , after: DRAW/REFUND
 										WHEN t.statuswinlost <> bm.statuswinlost AND IsSingleSelectionHP = 0 THEN 1
+										WHEN bm.statusID NOT IN (0,1) AND t.statuswinlost IN (1,3,6,0) THEN 1
 										ELSE 0 END
 			--DRAW -> REFUND OR REFUND -> DRAW OR singleLeg: can settle direct no need to wait new leg odds
 			,isValidSettle = CASE WHEN IsSingleSelectionHP = 1 THEN 1 
