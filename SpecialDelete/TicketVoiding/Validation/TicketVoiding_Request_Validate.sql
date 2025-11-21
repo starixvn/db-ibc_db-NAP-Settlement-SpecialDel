@@ -43,19 +43,19 @@ BEGIN
 
 	DECLARE @tmpListTransId AS TABLE (
 		TransId		BIGINT
-	  , MarkType	TINYINT --1: Mark, 2: UmMark
+	  , TicketType	TINYINT --1: Mark, 2: UmMark
 	)
 	
-	INSERT INTO @tmpListTransId (TransId, MarkType)
+	INSERT INTO @tmpListTransId (TransId, TicketType)
 	SELECT value, 1 AS MarkType FROM STRING_SPLIT(@MarkTransIds, ',') WHERE value <> ''
 
-	INSERT INTO @tmpListTransId (TransId, MarkType)
+	INSERT INTO @tmpListTransId (TransId, TicketType)
 	SELECT value, 2 AS MarkType FROM STRING_SPLIT(@UnMarkTransIds, ',') WHERE value <> ''
 
 	SET @MarkTransIds = ''
 	SET @UnmarkTransIds = ''
 
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpListTransId WHERE MarkType = 1)
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpListTransId WHERE TicketType = 1)
 	BEGIN
 		DELETE m
 		FROM @tmpListTransId m 
@@ -68,7 +68,7 @@ BEGIN
 						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 						WHERE RequestId = @RequestId AND m.TransId = TransId 
 					)um
-		WHERE MarkType = 1
+		WHERE TicketType = 1
 	END
 
 	--For case ticket marked function and then save request. Expect: NOT marked this ticket.
@@ -95,11 +95,11 @@ BEGIN
 	END
 	
 	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-										   FROM @tmpListTransId WHERE MarkType = 1
+										   FROM @tmpListTransId WHERE TicketType = 1
 										   FOR XML PATH('')), 1,1,''),'')	
 	--Mark again
 	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-										FROM @tmpListTransId WHERE MarkType = 2
+										FROM @tmpListTransId WHERE TicketType = 2
 										FOR XML PATH('')), 1,1,''),'')
 	
 	SELECT @MarkTransIds AS MarkTransIds
