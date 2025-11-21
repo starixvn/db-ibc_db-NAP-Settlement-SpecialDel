@@ -11,15 +11,37 @@ UPDATE b
 SET b.SPName = 'TicketVoiding_Remark_Insert'
    ,b.ActionNameEN = 'Insert remark'
    ,b.IsInternal = 0
+   ,b.ActionNameCS = NULL
+   ,b.ActionNameJP =  NULL
+   ,b.ActionNameTH = NULL
+   ,b.ActionNameKO = NULL
+   ,b.ActionNameVI = NULL
    ,b.ActionNameCH = 'Insert remark'
 FROM dbo.LogAction AS b WITH (UPDLOCK, ROWLOCK)
 WHERE b.ActionId = 90506;
-
 
 UPDATE b
 SET b.SPName = 'TicketVoiding_Remark_Update'
    ,b.ActionNameEN = 'Update remark'
    ,b.IsInternal = 0
+   ,b.ActionNameCS = NULL
+   ,b.ActionNameJP =  NULL
+   ,b.ActionNameTH = NULL
+   ,b.ActionNameKO = NULL
+   ,b.ActionNameVI = NULL
    ,b.ActionNameCH = 'Update remark'
 FROM dbo.LogAction AS b WITH (UPDLOCK, ROWLOCK)
 WHERE b.ActionId = 90507;
+
+UPDATE b
+SET b.SPName = 'TicketVoiding_Remark_Delete'
+   ,b.ActionNameEN = 'Delete remark'
+   ,b.IsInternal = 0
+   ,b.ActionNameCS = NULL
+   ,b.ActionNameJP =  NULL
+   ,b.ActionNameTH = NULL
+   ,b.ActionNameKO = NULL
+   ,b.ActionNameVI = NULL
+   ,b.ActionNameCH = 'Delete remark'
+FROM dbo.LogAction AS b WITH (UPDLOCK, ROWLOCK)
+WHERE b.ActionId = 90509;
