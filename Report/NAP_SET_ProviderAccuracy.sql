@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTP-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/ 
-CREATE PROCEDURE NAP_SET_ProviderAccuracy
+ALTER PROCEDURE NAP_SET_ProviderAccuracy
 	@date DATE --the date wanna to export data, YYYY-MM-DD
 AS
 /*
@@ -67,7 +67,7 @@ BEGIN
 
 	SELECT r.Sporttype
 		  , p.SourceName AS ProviderName
-		  ,(COUNT(pr.ResourceID)/@TotalResult)*100 AS Accuracy
+		  ,ROUND((COUNT(pr.ResourceID)/@TotalResult)*100 ,2) AS Accuracy
 	FROM #tmp_Settle r
 		INNER JOIN #tmp_ResultProvider pr
 			ON r.MatchID = pr.MatchID 
