@@ -1024,7 +1024,7 @@ BEGIN
 					).value('.', 'NVARCHAR(MAX)'), 1, 1, '') AS ChildList
 				FROM #TransidInRequest r
 				INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
-				GROUP BY r.RequestId, r.MatchId, r.MainTransId, c.username
+				GROUP BY r.ScoreId, r.RequestId, r.MatchId, r.MainTransId, c.username
 			)
 			SELECT 
 				r.ScoreId,
