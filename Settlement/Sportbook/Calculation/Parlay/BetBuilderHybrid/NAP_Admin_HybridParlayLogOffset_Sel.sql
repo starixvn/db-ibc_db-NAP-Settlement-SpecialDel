@@ -1,6 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_HybridParlayLogOffset_Sel] 
-	@MaxOffSet INT = 0 OUTPUT
+	@Environment VARCHAR(20) = ''
+	,@MaxOffSet INT = 0 OUTPUT
 AS
 /*
     Created by: Max
@@ -10,11 +11,12 @@ AS
 	
 	Revisions: 
 		- 20251027@Max: Init new SP [Redmine: #241652]
+		- 20251121@Max: Add Environment [Redmine: #243653]
 
 	Param's explanation:
 */
 BEGIN
 	SET NOCOUNT ON;
 
-	SELECT @MaxOffSet = (SELECT MAX(Offset) FROM dbo.BetBuilderHybridParlayLog l WITH (NOLOCK))
+	SELECT @MaxOffSet = (SELECT MAX(Offset) FROM dbo.BetBuilderHybridParlayLog l WITH (NOLOCK) WHERE Environment = @Environment)
 END

@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_HybridParlayLog_Ins] 
 	@LegOddsJSON	NVARCHAR(MAX)
 	,@Offset		INT	
+	,@Environment	VARCHAR(20) = ''
 	,@ErrCode		INT = 0 OUTPUT
 	,@ErrMsg		NVARCHAR(200) = NULL OUTPUT
 AS
@@ -13,6 +14,7 @@ AS
 	
 	Revisions: 
 		- 20251027@Max: Init new SP [Redmine: #241652]
+		- 20251121@Max: Add Environment [Redmine: #243653]
 
 	Param's explanation:
 */
@@ -20,8 +22,8 @@ BEGIN
 	SET NOCOUNT ON;
 
 	BEGIN TRY
-		INSERT INTO dbo.BetBuilderHybridParlayLog (MatchID, TransId, Odds, Offset, LogDate)
-		SELECT js.MatchId AS MatchId, js.TransId AS TransId, js.Odds AS Odds, @Offset AS Offset, GETDATE()
+		INSERT INTO dbo.BetBuilderHybridParlayLog (MatchID, TransId, Odds, Offset, LogDate, Environment)
+		SELECT js.MatchId AS MatchId, js.TransId AS TransId, js.Odds AS Odds, @Offset AS Offset, GETDATE(), @Environment
 		FROM OPENJSON(@LegOddsJSON) WITH (MatchId INT, TransId BIGINT, Odds SMALLMONEY) js
 	END TRY
 	BEGIN CATCH
