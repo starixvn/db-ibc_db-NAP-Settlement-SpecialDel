@@ -32,7 +32,7 @@ BEGIN
 		   ,@TmpToTime		DATETIME
 		   ,@TmpFromTimeArc DATETIME
 
-	DECLARE @TmpActionIds AS TABLE (ActionId INT)
+	DECLARE @TmpActionIds AS TABLE (ActionId TINYINT)
 
 	CREATE TABLE #TmpListRemark (
 		RemarkId		INT
@@ -67,9 +67,8 @@ BEGIN
 	ELSE IF @FilterBy = 2
 	BEGIN
 		INSERT INTO #TmpListRemark (RemarkId, MatchId)
-		SELECT r.RemarkId, m.MatchId
+		SELECT r.RemarkId, r.MatchId
 		FROM DBCTG.bodb02.dbo.TicketVoiding_Remark AS r WITH (NOLOCK)
-		INNER JOIN dbo.match_bk AS m WITH (NOLOCK) ON r.MatchId = m.MatchId
 		WHERE r.MatchId = @MatchId
 	END
 	ELSE IF @FilterBy = 3
