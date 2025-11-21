@@ -17,7 +17,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Remark_Insert]
 	,@ActionId			TINYINT = NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50) = NULL
-	,@SessionTime		INT = 0
 AS
 /*	
 	Created by: 20251117@Lani
@@ -72,7 +71,7 @@ BEGIN
 				+ ', DecidedBy: ' + ISNULL(@DecidedBy,'')
 				+ ', Remark: ' + ISNULL(@Remark,'')
 				+ ', IsTest: ' + CASE WHEN @IsTest = 1 THEN 'True' ELSE 'False' END
-				+ ', SessionTime: ' +  CAST(@SessionTime AS VARCHAR(50)) AS '@LogData'
+				AS '@LogData'
 		FOR XML PATH ('r'), ROOT('root'), TYPE
 	) AS NVARCHAR(MAX))
 

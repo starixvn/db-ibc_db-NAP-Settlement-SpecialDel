@@ -8,14 +8,14 @@ USE bodb02;
 GO
 
 CREATE TABLE [dbo].[TicketVoiding_Remark](
-	[RemarkId] [INT] IDENTITY(1,1) NOT FOR REPLICATION NOT NULL,
+	[RemarkId] [INT] IDENTITY(1,1) NOT NULL,
 	[MatchId] [INT] NULL,
 	[IsTest] [BIT] NULL,
 	[IsCheckedVar] [BIT] NULL,
 	[MistakenBy] [NVARCHAR](200) NULL,
 	[DecidedBy] [NVARCHAR](200) NULL,
 	[PerformedBy] [NVARCHAR](200) NULL,
-	[UserId] [NVARCHAR](200) NULL,
+	[UserId] [INT] NULL,
 	[LastModifiedBy] [INT] NULL,
 	[TV_IPTV] [NVARCHAR](200) NULL,
 	[Provider] [NVARCHAR](200) NULL,

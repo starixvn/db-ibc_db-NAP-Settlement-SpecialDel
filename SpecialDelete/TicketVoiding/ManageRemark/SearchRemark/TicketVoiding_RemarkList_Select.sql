@@ -31,7 +31,7 @@ BEGIN
 		   ,@TmpFromDate DATETIME
 		   ,@TmpToDate	 DATETIME
 
-	DECLARE @TmpActionIds AS TABLE (ActionId INT)
+	DECLARE @TmpActionIds AS TABLE (ActionId TINYINT)
 
 	CREATE TABLE #TmpListRemark (
 		RemarkId		INT
@@ -66,17 +66,8 @@ BEGIN
 	ELSE IF @FilterBy = 2
 	BEGIN
 		INSERT INTO #TmpListRemark (RemarkId, MatchId)
-		SELECT r.RemarkId, m.MatchId
+		SELECT r.RemarkId, r.MatchId
 		FROM TicketVoiding_Remark AS r WITH (NOLOCK)
-		CROSS APPLY (
-			SELECT m.matchid
-			FROM dbo.match AS m WITH (NOLOCK)
-			WHERE m.matchid = r.MatchId
-			UNION ALL
-			SELECT m14.matchid
-			FROM dbo.match14 AS m14 WITH (NOLOCK)
-			WHERE m14.matchid = r.MatchId
-		) AS m
 		WHERE r.MatchId = @MatchId
 	END
 	ELSE IF @FilterBy = 3

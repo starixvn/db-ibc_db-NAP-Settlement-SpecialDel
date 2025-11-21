@@ -22,7 +22,7 @@ BEGIN
 			,@LogDataContent	 NVARCHAR(MAX)
 			,@LogActionId		 INT = 90509
 			,@MatchId			 INT = 0
-			,@ActionId			 INT = 0
+			,@ActionId			 TINYINT = 0
 
 	IF (EXISTS (SELECT TOP 1 1 FROM TicketVoiding_Remark WITH (NOLOCK) WHERE RemarkId = @RemarkId))
 	BEGIN
