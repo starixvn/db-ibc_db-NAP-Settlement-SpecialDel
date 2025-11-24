@@ -57,8 +57,8 @@ BEGIN
 	   ,Iptv		 NVARCHAR(200)
 	   ,Provider	 NVARCHAR(200)
 	   ,Source		 NVARCHAR(200)
-	   ,Remark		 NVARCHAR(200)
-	   ,Message		 NVARCHAR(200)
+	   ,Remark		 NVARCHAR(MAX)
+	   ,Message		 NVARCHAR(MAX)
 	   ,Description  NVARCHAR(MAX)
 	   ,ActionId	 TINYINT
 	)
