@@ -505,7 +505,7 @@ BEGIN
 				,b.hdp2
 				,sub.hdp1 AS SubHdp1
 				,sub.hdp2 AS SubHdp2
-				,sub.betcheck
+				,b.betcheck
 				,sub.checktime AS Subchecktime
 				,b.transdesc
 				,b.WalletType

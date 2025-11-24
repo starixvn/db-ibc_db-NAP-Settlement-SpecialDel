@@ -605,7 +605,7 @@ BEGIN
 				,sub.odds AS Subodds
 				,b.oddsspread
 				,b.oddstype
-				,sub.betcheck
+				,b.betcheck
 				,sub.checktime AS Subchecktime
 				,b.transdesc
 				,b.WalletType
