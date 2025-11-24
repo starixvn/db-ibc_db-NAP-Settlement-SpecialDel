@@ -53,6 +53,7 @@ AS
 		- 20250801@Lani: [TVS] ScaleOut DBTrans [Phase 5] - Abnormal Account/EKO/WKO/Wrong Offered Name [Redmine: #232582]
 		- 20251006@July: [TVS] Abnormal Account - Block void ticket after balance up date [Redmine: #238233]
 		- 20251120@July: Return column IsHybrid [Redmine: #241502]
+		- 20251124@July: Exclude mark/unmark transid from function SD [Redmine:#238929]
 
 	Param's Explanation:
 */
@@ -89,6 +90,7 @@ BEGIN
 			,@UserNameSiteDBDown	  VARCHAR(MAX) = ''
 			,@BeingBalanceUpDate	  VARCHAR(255)
 			,@UsernamesOfBalanceUp    VARCHAR(MAX) = ''
+			,@TotalMarkedTickets	  INT = 0
 
 	DECLARE @SiteDBGroupID			 SMALLINT
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -103,6 +105,8 @@ BEGIN
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
+	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @AdjustVoidLimit_tmp AS TABLE (CustId INT, AdjustLimit MONEY)
@@ -844,14 +848,10 @@ BEGIN
 
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
-		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-									FROM #tmpTransInfo t
-									WHERE t.StatusId IN (0,1) 
-										AND t.bettype NOT IN (9,29,10)
-										AND t.IsVoid14 = 0
-										AND t.IsSiteDBDown = 0
-									FOR XML PATH('')), 1, 1, '')
-									, '')
+		INSERT INTO @tmpMarkTransId (TransId)
+		SELECT transid
+		FROM #tmpTransInfo t
+		WHERE t.StatusId IN (0,1) AND t.IsVoid14 = 0 AND t.IsSiteDBDown = 0
 	END
 	ELSE IF @RequestId <> 0 
 	BEGIN
@@ -860,51 +860,69 @@ BEGIN
 		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Edit from to time of Abnormal account issue -> unmark ticket change void time
-			;WITH CTE AS (
-					SELECT rdt.transid
-					FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH (NOLOCK)
-					WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo tp WHERE rdt.TransId = tp.transid)
-						  AND rdt.RequestId = @RequestId 
-					      AND rdt.SiteDBGroupID = @SiteDBGroupID
-					      AND rdt.bettype NOT IN (9,29,10)
-				)
-				SELECT @UnmarkTransIds =
-					ISNULL(STUFF((
-						SELECT ',' + CAST(transid AS VARCHAR(50))
-						FROM CTE
-						FOR XML PATH('')), 1, 1, ''),'')
-
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT rdt.transid
+			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH (NOLOCK)
+			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo tp WHERE rdt.TransId = tp.transid)
+					AND rdt.RequestId = @RequestId 
+					AND rdt.SiteDBGroupID = @SiteDBGroupID
+					AND rdt.bettype NOT IN (9,29,10)
 			
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
-			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-											FROM #tmpTransInfo t
-											WHERE t.StatusId IN (0,1) AND t.bettype NOT IN (9,29,10)
-												AND t.IsVoid14 = 0
-												AND t.IsSiteDBDown = 0
-											FOR XML PATH('')), 1, 1, '')
-									, '')
+			INSERT INTO @tmpMarkTransId (TransId)
+			SELECT transid
+			FROM #tmpTransInfo t
+			WHERE t.StatusId IN (0,1) AND t.IsVoid14 = 0 AND t.IsSiteDBDown = 0
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
-			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-									FROM #tmpTransInfo t
-									WHERE t.StatusId IN (0,1) 
-										AND t.bettype NOT IN (9,29,10)
-										AND t.IsVoid14 = 0
-										AND t.IsSiteDBDown = 0
-									FOR XML PATH('')), 1, 1, '')
-									, '')
+			INSERT INTO @tmpMarkTransId (TransId)
+			SELECT transid
+			FROM #tmpTransInfo t
+			WHERE t.StatusId IN (0,1) AND t.IsVoid14 = 0 AND t.IsSiteDBDown = 0
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId
 		BEGIN
-			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CONVERT(VARCHAR(50), rdt.transid)
-											FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
-												AND rdt.bettype NOT IN (9,29,10)
-											FOR XML PATH('')), 1, 1, '')
-										,'')
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT rdt.transid
+			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+			WHERE rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
+				AND rdt.bettype NOT IN (9,29,10)
 		END
 	END
+
+	--For case ticket marked function and then save request. Expect: NOT marked this ticket.
+	BEGIN
+		--For single
+		DELETE m
+		FROM @tmpMarkTransId m
+		WHERE EXISTS (
+				SELECT TOP 1 1 
+				FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
+				WHERE mt.TransId = m.TransId
+			)
+	END
+
+	--For case Unmark ticket when edit request and then save request.
+	BEGIN
+		--For single
+		DELETE m
+		FROM @tmpUnmarkTransId m
+		WHERE NOT EXISTS (
+				SELECT TOP 1 1 
+				FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
+				WHERE mt.TransId = m.TransId
+			)
+
+	END	
+
+	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM @tmpMarkTransId
+											FOR XML PATH('')), 1,1,''),'')
+
+	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM @tmpUnmarkTransId
+											FOR XML PATH('')), 1,1,''),'')
 
 	--Get list match
 	SELECT @MatchIDs = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
@@ -941,6 +959,7 @@ BEGIN
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
 		  ,@UserNameSiteDBDown AS SiteDBDownUserNames
 		  ,@UsernamesOfBalanceUp AS UsernamesOfBalanceUp
+		  ,@TotalMarkedTickets AS TotalMarkedTickets
 
 	--2. List TransId for case auto void with policy
 	IF @ActionId = 10

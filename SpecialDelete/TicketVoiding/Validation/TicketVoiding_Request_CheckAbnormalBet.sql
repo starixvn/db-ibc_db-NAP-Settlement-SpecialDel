@@ -110,6 +110,7 @@ BEGIN
 			,@SiteDBGroupID				 SMALLINT
 			,@BeingBalanceUpDate		 VARCHAR(255)
 			,@BalanceUpTransIds			 VARCHAR(MAX) = ''
+			,@TotalMarkedTickets		 INT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -874,6 +875,33 @@ BEGIN
 		END
 	END
 
+	SELECT @TotalMarkedTickets = COUNT(1) FROM @tmpMarkTransId
+	
+	--For case ticket marked function and then save request. Expect: NOT marked this ticket.
+	BEGIN
+		--For single
+		DELETE m
+		FROM @tmpMarkTransId m
+		WHERE EXISTS (
+				SELECT TOP 1 1 
+				FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
+				WHERE mt.TransId = m.TransId
+			)
+	END
+
+	--For case Unmark ticket when edit request and then save request.
+	BEGIN
+		--For single
+		DELETE m
+		FROM @tmpUnmarkTransId m
+		WHERE NOT EXISTS (
+				SELECT TOP 1 1 
+				FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
+				WHERE mt.TransId = m.TransId
+			)
+
+	END	
+
 	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM @tmpMarkTransId
 											FOR XML PATH('')), 1,1,''),'')
@@ -939,7 +967,8 @@ BEGIN
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson 
 		  ,@SingleCountSiteDBDown AS SingleCount
 		  ,@ParlayCountSiteDBDown AS ParlayCount
-	
+		  ,@TotalMarkedTickets AS TotalMarkedTickets
+
 	--5. Export Ticket that the user inputs table [#194133]
 	SELECT  t.transid 
 		,t.RemarkId 
