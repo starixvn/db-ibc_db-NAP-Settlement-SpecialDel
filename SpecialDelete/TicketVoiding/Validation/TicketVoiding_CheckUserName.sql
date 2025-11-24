@@ -90,7 +90,7 @@ BEGIN
 			,@UserNameSiteDBDown	  VARCHAR(MAX) = ''
 			,@BeingBalanceUpDate	  VARCHAR(255)
 			,@UsernamesOfBalanceUp    VARCHAR(MAX) = ''
-			,@TotalMarkedTickets	  INT = 0
+			,@TotalMarkTickets	  INT = 0 --Support show total count mark for notification
 
 	DECLARE @SiteDBGroupID			 SMALLINT
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -959,7 +959,7 @@ BEGIN
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
 		  ,@UserNameSiteDBDown AS SiteDBDownUserNames
 		  ,@UsernamesOfBalanceUp AS UsernamesOfBalanceUp
-		  ,@TotalMarkedTickets AS TotalMarkedTickets
+		  ,@TotalMarkTickets AS TotalMarkTickets
 
 	--2. List TransId for case auto void with policy
 	IF @ActionId = 10

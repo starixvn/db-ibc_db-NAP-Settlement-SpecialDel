@@ -67,7 +67,7 @@ BEGIN
 	DECLARE	@DARCInfoInfoXML		XML = NULL
 		   ,@TransInfoJson			VARBINARY(MAX) = NULL
 		   ,@SiteDBDownInfoJson		VARBINARY(MAX) = NULL
-		   ,@TotalMarkedTickets		INT = 0
+		   ,@TotalMarkTickets		INT = 0 --Support show total count mark for notification
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -1018,7 +1018,7 @@ BEGIN
 
 	END
 
-	SELECT @TotalMarkedTickets = COUNT(1) FROM @tmpMarkTransId
+	SELECT @TotalMarkTickets = COUNT(1) FROM @tmpMarkTransId
 	
 	--For case ticket marked function and then save request. Expect: NOT marked this ticket.
 	BEGIN
@@ -1222,7 +1222,7 @@ BEGIN
 		  ,@SingleCountSiteDBDown AS SingleCount
 		  ,@ParlayCountSiteDBDown AS ParlayCount
 		  ,@CancelCashOutCountSiteDBDown AS CancelCashOutCount
-		  ,@TotalMarkedTickets AS TotalMarkedTickets
+		  ,@TotalMarkTickets AS TotalMarkTickets
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

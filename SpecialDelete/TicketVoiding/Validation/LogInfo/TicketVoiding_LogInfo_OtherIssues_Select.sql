@@ -44,7 +44,7 @@ BEGIN
 		    ,@AdvancedExtraInfo	NVARCHAR(MAX)
 		    ,@MatchId				INT	= 0
 			,@SiteDBDownInfoJson	  VARBINARY(MAX) = NULL
-			,@TotalMarkedTickets	  INT = 0
+			,@TotalMarkTickets	  INT = 0 --Support show total count mark for notification
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	
@@ -1125,7 +1125,7 @@ BEGIN
 
 	END
 
-	SELECT @TotalMarkedTickets = COUNT(1) FROM @tmpMarkTransId
+	SELECT @TotalMarkTickets = COUNT(1) FROM @tmpMarkTransId
 	
 	--For case ticket marked function and then save request. Expect: NOT marked this ticket.
 	BEGIN
@@ -1281,7 +1281,7 @@ BEGIN
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
 		  ,@SingleCountSiteDBDown AS SingleCount
 		  ,@ParlayCountSiteDBDown AS ParlayCount
-		  ,@TotalMarkedTickets AS TotalMarkedTickets
+		  ,@TotalMarkTickets AS TotalMarkTickets
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
