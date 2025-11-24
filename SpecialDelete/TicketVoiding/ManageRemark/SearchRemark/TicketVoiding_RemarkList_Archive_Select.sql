@@ -28,9 +28,6 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE	@FilterBy		TINYINT
-		   ,@TmpFromTime	DATETIME
-		   ,@TmpToTime		DATETIME
-		   ,@TmpFromTimeArc DATETIME
 
 	DECLARE @TmpActionIds AS TABLE (ActionId TINYINT)
 
@@ -52,11 +49,6 @@ BEGIN
 							WHEN @FromDate IS NOT NULL AND @ToDate IS NOT NULL THEN 3
 					   END
 	
-	IF @FilterBy = 3
-	BEGIN
-		SELECT @TmpFromTime = @FromDate, @TmpToTime = @ToDate, @TmpFromTimeArc = DATEADD(MONTH,-3,@FromDate)
-	END
-
 	IF @FilterBy = 1
 	BEGIN
 		INSERT INTO #TmpListRemark(RemarkId, MatchId)
@@ -77,7 +69,7 @@ BEGIN
 		SELECT r.RemarkId, m.matchid
 		FROM DBCTG.bodb02.dbo.TicketVoiding_Remark AS r WITH (NOLOCK)
 		INNER JOIN dbo.match_bk AS m WITH (NOLOCK) ON r.MatchId = m.MatchId
-		WHERE (m.eventdate BETWEEN @TmpFromTime AND @TmpToTime) AND r.CreatedDate >= @TmpFromTimeArc
+		WHERE m.eventdate BETWEEN @FromDate AND @ToDate
 	END
 
 	SELECT t.RemarkId

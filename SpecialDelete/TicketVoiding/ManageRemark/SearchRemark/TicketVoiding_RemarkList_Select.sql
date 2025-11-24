@@ -28,8 +28,6 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE	@FilterBy	 TINYINT
-		   ,@TmpFromDate DATETIME
-		   ,@TmpToDate	 DATETIME
 
 	DECLARE @TmpActionIds AS TABLE (ActionId TINYINT)
 
@@ -50,11 +48,6 @@ BEGIN
 							WHEN @MatchId IS NOT NULL THEN 2
 							WHEN @FromDate IS NOT NULL AND @ToDate IS NOT NULL THEN 3
 					   END
-	
-	IF @FilterBy = 3
-	BEGIN
-		SELECT @TmpFromDate = @FromDate, @TmpToDate = @ToDate
-	END
 
 	IF @FilterBy = 1
 	BEGIN
@@ -84,7 +77,7 @@ BEGIN
 			FROM dbo.match14 AS m14 WITH (NOLOCK)
 			WHERE m14.matchid = r.MatchId
 		) AS m
-		WHERE m.eventdate BETWEEN @TmpFromDate AND @TmpToDate
+		WHERE m.eventdate BETWEEN @FromDate AND @ToDate
 	END
 
 	SELECT t.RemarkId
