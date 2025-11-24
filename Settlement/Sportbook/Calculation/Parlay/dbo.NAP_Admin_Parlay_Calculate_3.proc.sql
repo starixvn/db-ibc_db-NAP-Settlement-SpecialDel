@@ -33,6 +33,7 @@ AS
 		- 20241113@Louisa: set priority of action MoveEvent higher than Settlement for WinlostDate value [Redmine:#213613]
 		- 20241206@Aries: Integration - Result Amendment for Basketball and eSports [Redmine:#209656]
 		- 20251020@Max: Basketball Main Bettype Hybrid Parlay [Redmine: #241652]
+		- 20251124@Max: Hybrid Parlay - Part 3 [Redmine: #244275]
 
     Param's Explanation:
         
@@ -113,7 +114,13 @@ BEGIN
 		UPDATE t 
 			SET t.isValidSettle = 1
 		FROM @tmpParlayTicket t 
-			CROSS APPLY (SELECT TOP 1 1 AS isValidSettle FROM @tmpParlayTicket p WHERE statuswinlost IN (4) AND t.refno = p.refno AND p.IsHybrid = 1) p
+			CROSS APPLY (
+				SELECT TOP 1 1 AS isValidSettle 
+				FROM @tmpParlayTicket p 
+					INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = p.transid
+				WHERE p.statuswinlost IN (4) AND t.refno = p.refno AND p.IsHybrid = 1 
+					AND (bm.statusID NOT IN (102) OR p.IsMarked = 0)
+				) p
 		WHERE t.IsHybrid = 1
 
 		--Sub lose of other match -> no need to get JT odds
