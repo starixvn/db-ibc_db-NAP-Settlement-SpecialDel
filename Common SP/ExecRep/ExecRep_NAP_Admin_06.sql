@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/  
+/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/  
 ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_06]
 /*
 	Created by: 20201006@Louisa
@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_06]
 	Revisions:
 		- 20240626@Kathy: update winlostdate
 		- 20251105@Louisa: issue ticket on DBTrans does not move to bettrans14 even SiteDB was moved [Redmine:#243637]
+		- 20251125@Helen: running ticket for parlay, sub already move to 14  [Redmine:#0000]
 
 	Param's Explanation:
 		- ExecRep SP: DBTrans_ExecRep
@@ -16,66 +17,47 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
------1. copy bettrans to bettrans 14, chage winlostdate from '2025-11-02' to '2025-11-01'
-
-IF @@SERVERNAME NOT LIKE 'DB04%'
-	AND @@SERVERNAME NOT IN ('DB054', 'DB054C2\DB054', 'DB055', 'SITDB055')
-	AND @@SERVERNAME NOT LIKE 'SITDB04%'
-BEGIN 
-	IF EXISTS ( SELECT TOP 1 1 FROM bettrans WITH(NOLOCK) WHERE transid = 452766162334253075 )
-	BEGIN
-		INSERT INTO bettrans14 
-		(	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status, winlost, awinlost, mwinlost
-			,	playercomm, comm, acomm, apositiontaking, mpositiontaking, tpositiontaking, playerdiscount
-			,	discount, adiscount, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus
-			,	winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
-			,	ruben, betid, statuswinlost, modds, bettype, betdaqid, actual_stake, currency, ip, transdesc
-			,	sdiscount, scomm, spositiontaking, swinlost, srecommend, virtualrate, Username, CurrencyName
-			,	oddstype, statusID, currency2, balance, SecAcceptFlag, transid2, ExtraInfo, WalletType, BonusID
-			,	RefCode, SettlementTime, epositiontaking, ReasonID, sort, SiteDBGroupId, DeviceType
-		)
-		SELECT	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status, winlost, awinlost, mwinlost
-			,	playercomm, comm, acomm, apositiontaking, mpositiontaking, tpositiontaking, playerdiscount
-			,	discount, adiscount, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus
-			,	'2025-11-01' AS winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
-			,	ruben, betid, statuswinlost, modds, bettype, betdaqid, actual_stake, currency, ip, transdesc
-			,	sdiscount, scomm, spositiontaking, swinlost, srecommend, virtualrate, Username, CurrencyName
-			,	oddstype, statusID, currency2, balance, SecAcceptFlag, transid2, ExtraInfo, WalletType, BonusID
-			,	RefCode, SettlementTime, epositiontaking, ReasonID, sort, SiteDBGroupId, DeviceType
-		FROM bettrans WITH(NOLOCK)
-		WHERE transid = 452766162334253075
-	END
-	-------------------------------------------------------------------------------------------
-	IF EXISTS ( SELECT TOP 1 1 FROM bettrans WITH(NOLOCK) WHERE transid = 452750339678928897 )
-	BEGIN
-		INSERT INTO bettrans14 
-		(	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status, winlost, awinlost, mwinlost
-			,	playercomm, comm, acomm, apositiontaking, mpositiontaking, tpositiontaking, playerdiscount
-			,	discount, adiscount, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus
-			,	winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
-			,	ruben, betid, statuswinlost, modds, bettype, betdaqid, actual_stake, currency, ip, transdesc
-			,	sdiscount, scomm, spositiontaking, swinlost, srecommend, virtualrate, Username, CurrencyName
-			,	oddstype, statusID, currency2, balance, SecAcceptFlag, transid2, ExtraInfo, WalletType, BonusID
-			,	RefCode, SettlementTime, epositiontaking, ReasonID, sort, SiteDBGroupId, DeviceType
-		)
-		SELECT	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status, winlost, awinlost, mwinlost
-			,	playercomm, comm, acomm, apositiontaking, mpositiontaking, tpositiontaking, playerdiscount
-			,	discount, adiscount, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus
-			,	'2025-11-01' AS winlostdate, betfrom, betcheck, checktime, oddsspread, actualrate, matchid, recommend, mrecommend
-			,	ruben, betid, statuswinlost, modds, bettype, betdaqid, actual_stake, currency, ip, transdesc
-			,	sdiscount, scomm, spositiontaking, swinlost, srecommend, virtualrate, Username, CurrencyName
-			,	oddstype, statusID, currency2, balance, SecAcceptFlag, transid2, ExtraInfo, WalletType, BonusID
-			,	RefCode, SettlementTime, epositiontaking, ReasonID, sort, SiteDBGroupId, DeviceType
-		FROM bettrans WITH(NOLOCK)
-		WHERE transid = 452750339678928897
-	END
-
-	---2. Delete bettrans ---------------------------------	
+	IF OBJECT_ID (N'BetParlayResult', N'U') IS NULL 
+		RETURN
 	
-		DELETE
-		FROM bettrans
-		WHERE transid IN ( 452766162334253075, 452750339678928897 )
-	---------------------------------------
+	IF @@SERVERNAME NOT LIKE 'DB04%'
+		AND @@SERVERNAME NOT IN ('DB054', 'DB054C2\DB054', 'DB055', 'SITDB055')
+		AND @@SERVERNAME NOT LIKE 'SITDB04%'
+	BEGIN 
 
+		DECLARE @refnos_29				VARCHAR(MAX) = '',
+				@MainParlay_MaxPO		VARCHAR(MAX) = NULL
+		
+		CREATE TABLE #tblMainTicket
+		(
+			TransId		BIGINT
+			,Refno		BIGINT
+		)
+		INSERT INTO #tblMainTicket (transid, refno)
+		SELECT 457368430245314578, 28585526890070019
+
+		SELECT @refnos_29 = @refnos_29 + CONVERT(VARCHAR(50),refno) + '|' + CONVERT(VARCHAR(50),transid) + ','
+		FROM #tblMainTicket
+	
+		-- Update BetparlayResult
+		UPDATE r	
+			SET statusid = 113, awinlost = 9.2000
+		FROM betparlayresult r WITH (ROWLOCK,UPDLOCK)
+		WHERE refno= 28585526890070019 AND r.serial = 4030001
+
+		--Call cal_29: resettle for main ticket
+		EXEC dbo.NAP_Admin_Calculate_MP_broker
+			@matchdate = '2025-11-24' -- main transid + refno: refno|transid,refno|transid...
+			, @strXML	   = @refnos_29
+			, @mode	   = '29'
+			, @IsCalculateBalance = 1
+			, @AffectedTransIds = @MainParlay_MaxPO OUTPUT
+		
+		--Insert max payout queue
+		IF ISNULL(@MainParlay_MaxPO, '') <> ''
+		BEGIN
+			EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
+				@TransIds = @MainParlay_MaxPO
+		END
 	END
 END
