@@ -233,8 +233,12 @@ BEGIN
 	INSERT INTO @Validation (MatchId)
 	SELECT MatchId
 	FROM #FilterInfo d
-
+	
 	BEGIN -- Instant Settlement declaration
+		DECLARE @SupportInstantSettleSABABettype TABLE (bettype SMALLINT);
+		INSERT INTO @SupportInstantSettleSABABettype (bettype)
+		VALUES (228) --SABA OU Time Machine
+			 , (229) --SABA HDP Time Machine
 
 		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)	
 		DECLARE @MatchIds VARCHAR(MAX)

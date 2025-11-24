@@ -225,8 +225,12 @@ BEGIN
 	WHERE 1 = CASE WHEN m.matchid = @MatchId THEN 1
 				   WHEN m.sporttype IN (50,8) AND m.ChildMatchType = 200 AND m.ParentID = @MatchId THEN 1
 			       ELSE 0 END
-
+	
 	BEGIN -- Instant Settlement declaration
+		DECLARE @SupportInstantSettleSABABettype TABLE (bettype SMALLINT);
+		INSERT INTO @SupportInstantSettleSABABettype (bettype)
+		VALUES (228) --SABA OU Time Machine
+			 , (229) --SABA HDP Time Machine
 
 		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)	
 		DECLARE @MatchIds VARCHAR(MAX)
