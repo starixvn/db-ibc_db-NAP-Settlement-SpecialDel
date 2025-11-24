@@ -105,8 +105,10 @@ BEGIN
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
-	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
-	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tmpListTransId AS TABLE (
+	          TransId BIGINT
+			, TicketType TINYINT --1: Mark, 2: UnMark
+	)
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @AdjustVoidLimit_tmp AS TABLE (CustId INT, AdjustLimit MONEY)
@@ -848,8 +850,8 @@ BEGIN
 
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
-		INSERT INTO @tmpMarkTransId (TransId)
-		SELECT transid
+		INSERT INTO @tmpListTransId (TransId, TicketType)
+		SELECT TransId, 1 AS TicketType
 		FROM #tmpTransInfo t
 		WHERE t.StatusId IN (0,1) AND t.IsVoid14 = 0 AND t.IsSiteDBDown = 0
 	END
@@ -860,8 +862,8 @@ BEGIN
 		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Edit from to time of Abnormal account issue -> unmark ticket change void time
-			INSERT INTO @tmpUnmarkTransId (TransId)
-			SELECT rdt.transid
+			INSERT INTO @tmpListTransId (TransId, TicketType)
+			SELECT rdt.TransId, 2 AS TicketType
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH (NOLOCK)
 			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo tp WHERE rdt.TransId = tp.transid)
 					AND rdt.RequestId = @RequestId 
@@ -869,59 +871,45 @@ BEGIN
 					AND rdt.bettype NOT IN (9,29,10)
 			
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
-			INSERT INTO @tmpMarkTransId (TransId)
-			SELECT transid
+			INSERT INTO @tmpListTransId (TransId, TicketType)
+			SELECT TransId, 1 AS TicketType
 			FROM #tmpTransInfo t
 			WHERE t.StatusId IN (0,1) AND t.IsVoid14 = 0 AND t.IsSiteDBDown = 0
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
-			INSERT INTO @tmpMarkTransId (TransId)
-			SELECT transid
+			INSERT INTO @tmpListTransId (TransId, TicketType)
+			SELECT TransId, 1 AS TicketType
 			FROM #tmpTransInfo t
 			WHERE t.StatusId IN (0,1) AND t.IsVoid14 = 0 AND t.IsSiteDBDown = 0
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId
 		BEGIN
-			INSERT INTO @tmpUnmarkTransId (TransId)
-			SELECT rdt.transid
+			INSERT INTO @tmpListTransId (TransId, TicketType)
+			SELECT rdt.TransId, 2 AS TicketType
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 			WHERE rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
 				AND rdt.bettype NOT IN (9,29,10)
 		END
 	END
 
-	--For case ticket marked function and then save request. Expect: NOT marked this ticket.
-	BEGIN
-		--For single
-		DELETE m
-		FROM @tmpMarkTransId m
-		WHERE EXISTS (
-				SELECT TOP 1 1 
-				FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
-				WHERE mt.TransId = m.TransId
-			)
-	END
-
-	--For case Unmark ticket when edit request and then save request.
-	BEGIN
-		--For single
-		DELETE m
-		FROM @tmpUnmarkTransId m
-		WHERE NOT EXISTS (
-				SELECT TOP 1 1 
-				FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
-				WHERE mt.TransId = m.TransId
-			)
-
-	END	
+	SELECT @TotalMarkTickets = COUNT(1) FROM @tmpListTransId WHERE TicketType = 1
+	
+	--For case ticket marked/unmarked function and then save request. Expect: NOT get this ticket
+	DELETE m
+	FROM @tmpListTransId m
+	WHERE EXISTS (
+			SELECT TOP 1 1 
+			FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
+			WHERE mt.TransId = m.TransId
+		)
 
 	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM @tmpMarkTransId
+											FROM @tmpListTransId WHERE TicketType = 1
 											FOR XML PATH('')), 1,1,''),'')
 
 	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM @tmpUnmarkTransId
+											FROM @tmpListTransId WHERE TicketType = 2
 											FOR XML PATH('')), 1,1,''),'')
 
 	--Get list match
