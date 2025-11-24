@@ -148,6 +148,7 @@ AS
 		- 20250617@July: [TVS] Integrate - Agency Cash Service - Negative Balance [Redmine:#225390]
 		- 20250903@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
+		- 20251124@July: Hybrid Parlay - Fix case main oddsspread is null & sub oddsspread = 3  [Redmine: #245116]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -395,10 +396,9 @@ BEGIN
 		eventstatus			NVARCHAR(50),
 		SiteID				INT,
 		modds				SMALLMONEY,
-		mainoddsspread 		MONEY,
+		SubOddsspread 		MONEY,
 		finalodds			SMALLMONEY,
 		IsFinish			BIT,
-		oddsspread_tmp		MONEY --Get main oddsspread for parlay
 	)
 
 	CREATE TABLE #SpecialDeleteBetsm (
@@ -798,6 +798,7 @@ BEGIN
 				,FilterOdds
 				,matchid
 				,modds
+				,SubOddsspread
 			)
 			SELECT	
 				b.transid
@@ -817,7 +818,7 @@ BEGIN
 				,b.betteam
 				,b.betcheck
 				,b.odds
-				,b.oddsspread
+				,ISNULL(b.oddsspread,0)
 				,b.oddstype
 				,b.transdate
 				,b.checktime
@@ -858,6 +859,7 @@ BEGIN
 				,b.odds AS FilterOdds
 				,b.matchid
 				,b.modds
+				,ISNULL(b.oddsspread,0) AS SubOddsspread
 			FROM (SELECT TOP (@CountTransId) transid FROM #tblTransIds) t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 			WHERE EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = b.matchid)	
@@ -934,6 +936,7 @@ BEGIN
 				,FilterOdds
 				,matchid
 				,modds
+				,SubOddsspread
 			)
 			SELECT	
 				b.transid
@@ -953,7 +956,7 @@ BEGIN
 				,b.betteam
 				,b.betcheck
 				,b.odds
-				,b.oddsspread
+				,ISNULL(b.oddsspread,0)
 				,b.oddstype
 				,b.transdate
 				,b.checktime
@@ -994,6 +997,7 @@ BEGIN
 				,b.odds AS FilterOdds
 				,b.matchid
 				,b.modds
+				,ISNULL(b.oddsspread,0) AS SubOddsspread
 			FROM (SELECT TOP (@CountTransId) transid FROM #tblTransIds) t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 			WHERE	EXISTS (SELECT 1 FROM @tmpMatchId m WHERE m.matchid = b.matchid)
@@ -1200,17 +1204,16 @@ BEGIN
 				,statusID
 				,matchid
 				,SiteID
-				,mainoddsspread
 				,modds
 				,finalodds
-				,oddsspread_tmp
+				,SubOddsspread
 			)
 			SELECT
 				b.transid AS grouptransid,
 				b.transid,
 				bm.custid,
 				b.odds,
-				CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END,
+				ISNULL(b.oddsspread,0),
 				b.OddsType,
 				bm.transdate,
 				bm.checktime,
@@ -1267,10 +1270,9 @@ BEGIN
 				,b.statusID
 				,bm.matchid
 				,b.BetSiteID
-				,b.oddsspread
 			    ,b.modds
 				,bm.finalodds
-				,b.oddsspread AS oddsspread_tmp
+				,bm.SubOddsSpread AS SubOddsspread
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
@@ -1291,9 +1293,9 @@ BEGIN
 						FROM @tmpSelectionSubParlay sp
 						WHERE 1 = CASE 
 									WHEN sp.Id = '10 UP' AND 
-										 ((ISNULL(b.oddsspread_tmp,0) <> 3 AND b.hdp2 >= 10) OR (b.oddsspread_tmp = 3 AND b.betid >= 10)) THEN 1
+										 ((b.oddsspread <> 3 AND b.hdp2 >= 10) OR (b.oddsspread = 3 AND b.betid >= 10)) THEN 1
 									WHEN sp.Id <> '10 UP' AND 
-										 ((ISNULL(b.oddsspread_tmp,0) <> 3 AND b.hdp2 = CAST(sp.Id AS SMALLMONEY)) OR (b.oddsspread_tmp = 3 AND b.betid = CAST(sp.Id AS SMALLMONEY))) THEN 1
+										 ((b.oddsspread <> 3 AND b.hdp2 = CAST(sp.Id AS SMALLMONEY)) OR (b.oddsspread = 3 AND b.betid = CAST(sp.Id AS SMALLMONEY))) THEN 1
 									ELSE 0 
 								  END
 					);
@@ -1876,7 +1878,7 @@ BEGIN
 					FROM	#SpecialDeleteBets t
 					WHERE	bettype = 29  AND matchid = @MatchId
 						AND t.betteam = '1' -- mix parlay
-						AND t.mainoddsspread = 2 -- offer parlay bonus
+						AND t.oddsspread = 2 -- offer parlay bonus
 						AND NOT EXISTS (SELECT 	TOP 1 1 
 									FROM 	dbo.bettransm bm WITH(NOLOCK) 
 									WHERE 	t.refno = bm.refno 

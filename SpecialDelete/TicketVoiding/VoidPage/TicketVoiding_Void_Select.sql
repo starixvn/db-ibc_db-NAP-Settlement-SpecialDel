@@ -73,6 +73,7 @@ AS
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 		- 20250819@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
 		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
+		- 20251124@July: Hybrid Parlay - Fix case main oddsspread is null & sub oddsspread = 3  [Redmine: #245116]
 
 	Param's explanation:	
 		
@@ -174,6 +175,7 @@ BEGIN
 		GroupPHaffected		  TINYINT, --  0: both 1X2 and AIO are NOT affected, 1:  only 1X2 is affected , 2: only AIO is affected
 		VendorMatchId		  VARCHAR(50),
 		GroupBettypeId		  SMALLINT,
+		main_oddsspread		  MONEY, --Get main oddsspread for parlay
 		finalodds			  SMALLMONEY	 
     )
 
@@ -270,6 +272,7 @@ BEGIN
 				,oddsid
 				,IsMixParlay
 				,statusID
+				,main_oddsspread
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -319,6 +322,7 @@ BEGIN
 				,b.oddsid
 				,CASE WHEN b.bettype IN (SELECT bettype FROM f_TVS_SpeciallyBettypes() WHERE TypeId IN (0,1)) THEN 1 ELSE 0 END AS IsMixParlay
 				,b.statusID
+				,ISNULL(b.oddsspread,0) AS main_oddsspread
 		FROM #TmpTransid AS d
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
@@ -396,6 +400,7 @@ BEGIN
 				,CheckTimeCashOut
 				,GroupPHaffected
 				,GroupBettypeId
+				,main_oddsspread
 			)
 		SELECT DISTINCT
 				b.transid AS GroupID
@@ -452,6 +457,7 @@ BEGIN
 				,CASE WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NOT NULL THEN g.GroupBettypeId
 					  WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NULL THEN b.bettype 
 					  ELSE NULL END AS GroupBettypeId
+				,ISNULL(b.oddsspread,0) AS main_oddsspread
 		FROM	#TmpTransid AS d
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.transid
 			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
@@ -514,6 +520,7 @@ BEGIN
 					,GroupPHaffected
 					,GroupBettypeId
 					,finalodds
+					,main_oddsspread
 				)
 			SELECT DISTINCT
 					b.transid AS GroupID
@@ -523,7 +530,7 @@ BEGIN
 					,b.custid				
 					,b.odds
 					,bm.odds AS SubOdds
-					,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
+					,bm.oddsspread AS Suboddsspread
 					,b.OddsType
 					,bm.transdate AS Subtransdate
 					,b.bettype
@@ -568,6 +575,7 @@ BEGIN
 						  WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NULL THEN bm.bettype
 					      ELSE NULL END AS GroupBettypeId
 					,bm.finalodds
+				    ,ISNULL(b.oddsspread,0) AS main_oddsspread
 			FROM	#TmpTransid AS d
 					INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
 					INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
@@ -630,6 +638,7 @@ BEGIN
 				,SiteDBGroupID
 				,statuswinlost
 				,modds
+				,main_oddsspread
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -675,6 +684,7 @@ BEGIN
 				,b.SiteDBGroupID
 				,b.statuswinlost
 				,b.modds
+				,ISNULL(b.oddsspread,0) AS main_oddsspread
 		FROM #TmpTransid AS d
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON d.TransId = b.TransId
 			INNER JOIN @tmpMatchId tm ON tm.matchid = b.matchid
@@ -730,6 +740,7 @@ BEGIN
 					,SiteDBGroupID
 					,statuswinlost
 					,finalodds
+					,main_oddsspread
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -739,7 +750,7 @@ BEGIN
 					,bm.custid AS Subcustid				
 					,b.odds
 					,bm.odds AS SubOdds
-					,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
+					,bm.oddsspread AS Suboddsspread
 					,b.OddsType
 					,bm.transdate AS Subtransdate
 					,b.bettype
@@ -774,6 +785,7 @@ BEGIN
 					,bm.SiteDBGroupID
 					,b.statuswinlost
 					,bm.finalodds
+					,ISNULL(b.oddsspread,0) AS main_oddsspread
 			FROM	#TmpTransid AS d
 					INNER JOIN bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
 					INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON bm.refno = b.refno
@@ -848,6 +860,7 @@ BEGIN
 			,GroupPHaffected
 			,GroupBettypeId
 			,finalodds
+			,main_oddsspread
 		)
 		SELECT DISTINCT
 				b.transid AS GroupID
@@ -857,7 +870,7 @@ BEGIN
 				,b.custid				
 				,b.odds
 				,bm.odds AS SubOdds
-				,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
+				,bm.oddsspread AS Suboddsspread
 				,b.OddsType
 				,bm.transdate AS Subtransdate
 				,b.bettype
@@ -902,6 +915,7 @@ BEGIN
 						WHEN @IssueTypeId IN (25) AND g.GroupBettypeId IS NULL THEN bm.bettype
 						ELSE NULL END AS GroupBettypeId
 				,bm.finalodds
+				,ISNULL(b.oddsspread,0) AS main_oddsspread
 		FROM	@tmp_MissingTransId AS d
 				INNER LOOP JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.TransId = bm.TransId
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
@@ -941,20 +955,20 @@ BEGIN
 	END
 
 	--Update odds support show betlist for Hybrid parlay
-	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMixParlay = 1 AND oddsspread = 3) 
+	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMixParlay = 1 AND main_oddsspread = 3) 
 	BEGIN
 		;WITH CTE_MaxSubOdds AS (
 			SELECT t.transid, MAX(bm.odds) AS Max_SubOdds
 			FROM #TVSTicketBets t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.Refno = bm.Refno AND t.matchid = bm.matchid
-			WHERE t.IsMixParlay = 1 AND t.oddsspread = 3
+			WHERE t.IsMixParlay = 1 AND t.main_oddsspread = 3
 			GROUP BY t.transid
 		)
 		UPDATE b
 		SET b.SubOdds = x.Max_SubOdds
 		FROM #TVSTicketBets AS b
 		INNER JOIN CTE_MaxSubOdds AS x ON b.transid = x.transid
-		WHERE b.IsMixParlay = 1 AND b.oddsspread = 3
+		WHERE b.IsMixParlay = 1 AND b.main_oddsspread = 3
 	END 
 
 	-- UPDATE eventtype = 1
@@ -1088,7 +1102,7 @@ BEGIN
 			FROM dbo.MarkedTransaction m WITH (NOLOCK) 
 			WHERE d.matchid = m.MatchId 
 				AND (m.TransId = d.transid  --Single/Subparlay for normal 
-				 OR (m.TransId = d.SubTransid AND d.oddsspread = 3 AND d.IsMixParlay = 1)) --Subparlay for Hybrid
+				 OR (m.TransId = d.SubTransid AND d.main_oddsspread = 3 AND d.IsMixParlay = 1)) --Subparlay for Hybrid
 		)mt
 
 	BEGIN -- Instant Settlement declaration
@@ -1227,6 +1241,7 @@ BEGIN
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
 			   ,s.finalodds
+			   ,s.main_oddsspread
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1315,6 +1330,7 @@ BEGIN
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
 			   ,s.finalodds
+			   ,s.main_oddsspread
 		FROM	#TVSTicketBets s 
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
@@ -1393,6 +1409,7 @@ BEGIN
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
 			   ,s.finalodds
+			   ,s.main_oddsspread
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1479,6 +1496,7 @@ BEGIN
 		   ,s.VendorMatchId
 		   ,s.GroupBettypeId
 		   ,s.finalodds
+		   ,s.main_oddsspread
 		FROM	#TVSTicketBets s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1565,6 +1583,7 @@ BEGIN
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
 			   ,s.finalodds
+			   ,s.main_oddsspread
 			   ,CASE WHEN s.eventstatus <> @eventstatus_completed AND s.mainstatusid IN (111, 112, 113) AND ISNULL(s.betdaqid,0) <> -2
 						THEN CASE WHEN s.SportType = 1 AND
 													EXISTS (SELECT TOP 1 1
@@ -1649,7 +1668,7 @@ BEGIN
 		   ,s.GroupPHaffected -- Affect isuetype : HDP,OU,ODDS
 		   ,s.VendorMatchId
 	       ,s.GroupBettypeId
-		   ,CASE WHEN s.IsMixParlay = 1 AND s.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
+		   ,CASE WHEN s.IsMixParlay = 1 AND s.main_oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 		   ,s.finalodds
 	FROM CTE_InstantSettlementSubgrouping s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.custid = c.custid

@@ -25,7 +25,7 @@ AS
 		- 20240527@July: [TVS] Scaleout DBCUST [Redmine: #205629]
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
-
+		- 20251124@July: Hybrid Parlay - Fix case main oddsspread is null & sub oddsspread = 3  [Redmine: #245116]
 	Explanation's Param:
 */
 BEGIN
@@ -207,7 +207,7 @@ BEGIN
 			,b.hdp1
 			,b.hdp2
 			,b.odds
-			,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END
+			,bm.oddsspread
 			,b.OddsType
 			,CASE WHEN b.STATUS = 'running'
 					AND ISNULL(b.SecAcceptFlag, 0) = 1
@@ -306,7 +306,7 @@ BEGIN
 				,b.hdp1
 				,b.hdp2
 				,b.odds
-				,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END
+				,bm.oddsspread
 				,b.OddsType
 				,CASE WHEN b.STATUS = 'running'
 						AND ISNULL(b.SecAcceptFlag, 0) = 1
