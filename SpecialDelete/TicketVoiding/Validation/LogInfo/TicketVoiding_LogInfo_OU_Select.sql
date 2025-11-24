@@ -67,7 +67,6 @@ BEGIN
 			,@LogInfoTicketsJson      VARBINARY(MAX) = NULL
 			,@SiteDBGroupID			  SMALLINT
 			,@SiteDBDownInfoJson	  VARBINARY(MAX) = NULL
-			,@eventstatus_completed   NVARCHAR(50) = 'completed'
 			,@TotalMarkedTickets	  INT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -693,7 +692,7 @@ BEGIN
 		-- update get instant/settle
 		UPDATE b
 		SET  b.SettledType = CASE 
-								WHEN ISNULL(b.eventstatus, '') <> @eventstatus_completed
+								WHEN ISNULL(b.eventstatus, '') <> 'completed'
 									THEN CASE
 											WHEN b.sporttype = 1 AND EXISTS (
 												SELECT TOP 1 1

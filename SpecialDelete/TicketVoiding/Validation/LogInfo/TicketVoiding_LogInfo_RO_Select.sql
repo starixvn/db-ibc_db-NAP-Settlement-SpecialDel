@@ -253,34 +253,17 @@ BEGIN
 	SELECT @MatchId	
 
 	BEGIN -- Instant Settlement declaration
-		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
-		CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT)	
 
-		--> Get status of match
-		;WITH cte_match AS
-		(
-			SELECT DISTINCT t.matchid
-			FROM #FilterInfo t
-				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
-		)
-		,cte_isCalHT AS
-		(
-			SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
-			FROM cte_match m
-				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
-		)
-		--> Build bettype list supported for instant settlement based on settlement status of match
-		INSERT INTO #InstantSettlementBettypes (matchid, bettype)
-		SELECT c.matchid,  f.bettype
-		FROM cte_isCalHT c
-			CROSS APPLY (
-					SELECT bettype
-					FROM dbo.f_TVS_GetInstantBettypes() 
-					WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
-								   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
-							       ELSE 0 END
-			)f	 	
-	END	
+		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)	
+		DECLARE @MatchIds VARCHAR(MAX)
+		SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR), ',') 
+		FROM #FilterInfo
+		
+		INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
+		SELECT matchid, bettype, betid 
+		FROM dbo.f_TVS_GetInstantSettlementBettypes(@MatchIds);
+		
+	END
 
 	INSERT INTO @tmpMatchId (MatchId)
 	SELECT MatchId
