@@ -199,7 +199,6 @@ BEGIN
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT, MainTransId BIGINT, IsMixParlay BIT DEFAULT(0))
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, MainTransId BIGINT, IsMixParlay BIT DEFAULT(0))
 	DECLARE @tmpLogInfoTickets TABLE (Id INT, TransId BIGINT, IsCancelCashOut BIT)
-	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
 
 	DECLARE @tmpConsolidatedBettypes TABLE (
         parentid        INT
@@ -223,14 +222,6 @@ BEGIN
 		,FilterOddsSpread	MONEY --Support bettype 228,229
 		,Performance		VARCHAR(500) -- Support bettype 675, 676
 	)
-
-	IF ISNULL(@OnlineServerId, '') <> ''
-	BEGIN
-		INSERT INTO @tmpOnlineServerId (ServerId)
-		SELECT value AS ServerId
-		FROM STRING_SPLIT(@OnlineServerId, ',')
-		WHERE value <> ''
-	END
 
     INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
     SELECT f.GroupTypeId AS parentid
@@ -516,6 +507,7 @@ BEGIN
 		LEFT JOIN @tmpConsolidatedBettypes tb ON  tb.typeid = b.bettype
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.betfrom <> 'P'
+		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,b.SiteDBGroupID,@OnlineServerId) = 1
 		AND 1 = CASE 
 					WHEN d.FilterFromTransTime IS NULL AND d.FilterToTransTime IS NULL THEN 1
 					WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
@@ -523,9 +515,7 @@ BEGIN
 					WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
 					ELSE 0 END
 			END
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
-					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1  -- Get ticket sitedb down
-					 ELSE 0 END
+		
 
 	-- Fix case: WMO 2 range time: Original range time 1, Canel CO: range time 2
 	DECLARE @tmpRemoveDuplCancelCO TABLE (TransId BIGINT)
@@ -552,10 +542,8 @@ BEGIN
 				  			       WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   				   ELSE 0 END
 						AND bm.betfrom <> 'P' 
-						AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1
-									 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = bm.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
-									 ELSE 0 END
-									)
+						AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,bm.SiteDBGroupID,@OnlineServerId) = 1
+			)
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
 				matchid 
@@ -732,9 +720,7 @@ BEGIN
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29 AND b.bettype = 29
 			AND b.SiteDBGroupID = sub.SiteDBGroupID
-			AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sub.SiteDBGroupID) THEN 1
-						 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = sub.SiteDBGroupID) THEN 1  -- Get ticket sitedb down
-						 ELSE 0 END
+			AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,sub.SiteDBGroupID,@OnlineServerId) = 1
 			AND (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 					OR (d.FilterFromTransTime IS NULL AND d.FilterToTransTime IS NULL)
 				)
@@ -960,18 +946,14 @@ BEGIN
 	SELECT RequestId, MatchId, TransId, Bettype, IsCancelCO, RequestDetailId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
-					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1  -- Get ticket sitedb down
-					 ELSE 0 END
+		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,SiteDBGroupID,@OnlineServerId) = 1						
 	SET @cnt_s = @@ROWCOUNT
 
 	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId, RequestDetailId, MainTransId)
 	SELECT RequestId, MatchId, TransId, RequestDetailId, MainTransId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1
-					 WHEN NOT EXISTS(SELECT 1 FROM @tmpOnlineServerId WHERE ServerId = SiteDBGroupID) THEN 1  -- Get ticket sitedb down
-					 ELSE 0 END 
+		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,SiteDBGroupID,@OnlineServerId) = 1	
 	SET @cnt_p = @@ROWCOUNT
 
 	IF @IsShowLogOnly = 0

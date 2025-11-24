@@ -80,16 +80,6 @@ BEGIN
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT, MainTransId BIGINT, IsMixParlay BIT DEFAULT(0))
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, MainTransId BIGINT, IsMixParlay BIT DEFAULT(0))
 	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
-	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
-
-	IF ISNULL(@OnlineServerId, '') <> ''
-	BEGIN
-		INSERT INTO @tmpOnlineServerId (ServerId)
-		SELECT value AS ServerId
-		FROM STRING_SPLIT(@OnlineServerId, ',')
-		WHERE value <> ''
-	END
-
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
 	CREATE TABLE #TVSTicketBets(
 	   matchid INT
@@ -326,9 +316,7 @@ BEGIN
 						ELSE 0 END
 			AND b.liveindicator = 0
 			AND b.betfrom <> 'P'
-			AND 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-						 WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-						 ELSE 0 END
+			AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,b.SiteDBGroupID,@OnlineServerId) = 1
 						
 	---get sub ticket of a mix parlay	
 	IF EXISTS (
@@ -339,9 +327,7 @@ BEGIN
 				  			   WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 				   			   ELSE 0 END
 					AND bm.betfrom <> 'P' 
-					AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-								 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-								 ELSE 0 END
+					AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,bm.SiteDBGroupID,@OnlineServerId) = 1
 			 )
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
@@ -478,9 +464,7 @@ BEGIN
 				AND sub.betfrom <> 'P'
 				AND b.statusID NOT IN (101, 102, 103)
 				AND b.SiteDBGroupID = sub.SiteDBGroupID
-				AND 1 = CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND sub.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-							 WHEN sub.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-							 ELSE 0 END
+				AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,sub.SiteDBGroupID,@OnlineServerId) = 1
 	END 
 
 	---UPDATE column show loginfo details
@@ -675,18 +659,14 @@ BEGIN
 	SELECT RequestId, MatchId, TransId, Bettype
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
 	WHERE RequestId = @RequestId
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					 ELSE 0 END
+		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,SiteDBGroupID,@OnlineServerId) = 1
 	SET @cnt_s = @@ROWCOUNT
 
 	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId, MainTransId)
 	SELECT RequestId, MatchId, TransId, MainTransId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
-		AND 1 = CASE WHEN SiteDBGroupID = @SiteDBGroupID AND SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					 WHEN SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					 ELSE 0 END 
+		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,SiteDBGroupID,@OnlineServerId) = 1
 	SET @cnt_p = @@ROWCOUNT
 
 	IF @IsShowLogOnly = 0
