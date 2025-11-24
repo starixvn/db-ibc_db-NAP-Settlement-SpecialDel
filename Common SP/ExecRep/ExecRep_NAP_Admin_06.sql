@@ -27,7 +27,11 @@ BEGIN
 
 		DECLARE @refnos_29				VARCHAR(MAX) = '',
 				@MainParlay_MaxPO		VARCHAR(MAX) = NULL
-		
+				,@IsSiteDB			BIT = 0
+			
+		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			SET @IsSiteDB = 1
+
 		CREATE TABLE #tblMainTicket
 		(
 			TransId		BIGINT
@@ -44,20 +48,23 @@ BEGIN
 			SET statusid = 113, awinlost = 9.2000
 		FROM betparlayresult r WITH (ROWLOCK,UPDLOCK)
 		WHERE refno= 28585526890070019 AND r.serial = 4030001
-
+	    
 		--Call cal_29: resettle for main ticket
-		EXEC dbo.NAP_Admin_Calculate_MP_broker
-			@matchdate = '2025-11-24' -- main transid + refno: refno|transid,refno|transid...
-			, @strXML	   = @refnos_29
-			, @mode	   = '29'
-			, @IsCalculateBalance = 1
-			, @AffectedTransIds = @MainParlay_MaxPO OUTPUT
-		
-		--Insert max payout queue
-		IF ISNULL(@MainParlay_MaxPO, '') <> ''
+		IF @IsSiteDB = 1
 		BEGIN
-			EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
-				@TransIds = @MainParlay_MaxPO
+			EXEC dbo.NAP_Admin_Calculate_MP_broker
+				@matchdate = '2025-11-24' -- main transid + refno: refno|transid,refno|transid...
+				, @strXML	   = @refnos_29
+				, @mode	   = '29'
+				, @IsCalculateBalance = 1
+				, @AffectedTransIds = @MainParlay_MaxPO OUTPUT
+		
+			--Insert max payout queue
+			IF ISNULL(@MainParlay_MaxPO, '') <> ''
+			BEGIN
+				EXEC dbo.NAP_Set_CustLimitBetQueue_Insert_Parlay
+					@TransIds = @MainParlay_MaxPO
+			END
 		END
 	END
 END
