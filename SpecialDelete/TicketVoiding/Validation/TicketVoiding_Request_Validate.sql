@@ -41,24 +41,26 @@ BEGIN
 	BEGIN CATCH
 	END CATCH 
 
-	DECLARE @tmpListTransId AS TABLE (
-		TransId		BIGINT
-	  , TicketType	TINYINT --1: Mark, 2: UmMark
-	)
+	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	
-	INSERT INTO @tmpListTransId (TransId, TicketType)
-	SELECT value, 1 AS MarkType FROM STRING_SPLIT(@MarkTransIds, ',') WHERE value <> ''
+	INSERT INTO @tmpMarkTransId (TransId)
+	SELECT value
+	FROM STRING_SPLIT(@MarkTransIds, ',')
+	WHERE value <> ''
 
-	INSERT INTO @tmpListTransId (TransId, TicketType)
-	SELECT value, 2 AS MarkType FROM STRING_SPLIT(@UnMarkTransIds, ',') WHERE value <> ''
+	INSERT INTO @tmpUnmarkTransId (TransId)
+	SELECT value
+	FROM STRING_SPLIT(@UnMarkTransIds, ',')
+	WHERE value <> ''
 
 	SET @MarkTransIds = ''
 	SET @UnmarkTransIds = ''
 
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpListTransId WHERE TicketType = 1)
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMarkTransId)
 	BEGIN
 		DELETE m
-		FROM @tmpListTransId m 
+		FROM @tmpMarkTransId m 
 		CROSS APPLY ( 
 						SELECT RequestId, MatchId, TransId
 						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
@@ -68,39 +70,19 @@ BEGIN
 						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 						WHERE RequestId = @RequestId AND m.TransId = TransId 
 					)um
-		WHERE TicketType = 1
+
+		SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM @tmpMarkTransId
+											FOR XML PATH('')), 1,1,''),'')
 	END
 
-	--For case ticket marked function and then save request. Expect: NOT marked this ticket.
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpUnmarkTransId)
 	BEGIN
-		--For single/main parlay
-		DELETE m
-		FROM @tmpListTransId m 
-			INNER JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON m.TransId = mt.TransId
-		WHERE mt.MarkType IN (0,2) -- For 0: SD, 1: TVS, 2: SD-HP, 3: TVS-HP
-
-		--For sub parlay (normal & hybrid)
-		DELETE m
-		FROM @tmpListTransId m
-			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.TransId = bm.TransId
-			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno
-			CROSS APPLY (
-					SELECT TOP 1 m.TransId, m.MarkType 
-					FROM dbo.MarkedTransaction m WITH (NOLOCK) 
-					WHERE bm.matchid = m.MatchId 
-						AND  1 = CASE WHEN m.MarkType IN (0) AND m.TransId = b.TransId THEN 1 -- normal: Case main parlay for 2 match sub
-									  WHEN m.MarkType IN (2) AND m.TransId = bm.TransId  AND b.oddsspread = 3 THEN 1 -- hybrid
-									  ELSE 0 END
-				)mt
+		--Mark again
+		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM @tmpUnmarkTransId
+											FOR XML PATH('')), 1,1,''),'')
 	END
-	
-	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-										   FROM @tmpListTransId WHERE TicketType = 1
-										   FOR XML PATH('')), 1,1,''),'')	
-	--Mark again
-	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-										FROM @tmpListTransId WHERE TicketType = 2
-										FOR XML PATH('')), 1,1,''),'')
 	
 	SELECT @MarkTransIds AS MarkTransIds
 	     , @UnmarkTransIds AS UnmarkTransIds
