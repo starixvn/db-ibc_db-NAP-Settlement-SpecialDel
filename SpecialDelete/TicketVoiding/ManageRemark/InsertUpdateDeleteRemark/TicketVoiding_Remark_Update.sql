@@ -38,13 +38,7 @@ BEGIN
 		   ,@LogActionId	INT
 		   ,@LogData		NVARCHAR(MAX)
 		   ,@SB_Error		BIT
-		   ,@OldActionId	TINYINT
-		   ,@OldMistakenBy	NVARCHAR(200)
-		   ,@OldDecidedBy	NVARCHAR(200)
-		   ,@OldProvider	NVARCHAR(200)
-		   ,@OldSource		NVARCHAR(200)
-		   ,@OldRemark		NVARCHAR(MAX)
-		   ,@OldIsTest		BIT
+		   ,@LogDataContent NVARCHAR(MAX) = ''
 	
 	DECLARE @OperatorInfo AS TABLE (
 		RemarkId		INT NOT NULL
@@ -52,19 +46,25 @@ BEGIN
 	   ,OperatorTypeId	TINYINT NOT NULL
 	)
 
+	DECLARE @LogDataInfo AS TABLE 
+	(
+		IsTest		 BIT
+	   ,IsCheckedVar BIT
+	   ,Operators	 NVARCHAR(200)
+	   ,MistakenBy	 NVARCHAR(200)
+	   ,DecidedBy	 NVARCHAR(200)
+	   ,PerformedBy  NVARCHAR(200)
+	   ,Iptv		 NVARCHAR(200)
+	   ,Provider	 NVARCHAR(200)
+	   ,Source		 NVARCHAR(200)
+	   ,Remark		 NVARCHAR(200)
+	   ,Message		 NVARCHAR(200)
+	   ,Description  NVARCHAR(MAX)
+	   ,ActionId	 TINYINT
+	)
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90507
 	SET @SB_Error = 0
-
-	SELECT @OldActionId		= ActionId
-		  ,@OldMistakenBy	= MistakenBy
-		  ,@OldDecidedBy	= DecidedBy
-		  ,@OldProvider		= Provider
-		  ,@OldSource		= Source
-		  ,@OldRemark		= Remark
-		  ,@OldIsTest		= IsTest
-	FROM dbo.TicketVoiding_Remark WITH (NOLOCK)
-	WHERE RemarkId = @RemarkId
 
 	UPDATE dbo.TicketVoiding_Remark WITH (UPDLOCK, ROWLOCK)
 	SET	IsTest			 = ISNULL(@IsTest,IsTest)
@@ -81,6 +81,8 @@ BEGIN
 	   ,ActionId		 = ISNULL(@ActionId, ActionId)
 	   ,LastModifiedBy	 = ISNULL(@UserId, LastModifiedBy)
 	   ,LastModifiedDate = GETDATE()
+	OUTPUT deleted.IsTest, deleted.IsCheckedVar, deleted.MistakenBy, deleted.DecidedBy, deleted.PerformedBy, deleted.TV_IPTV, deleted.Provider, deleted.Source, deleted.Remark, deleted.Message, deleted.Description, deleted.ActionId
+	INTO @LogDataInfo (IsTest, IsCheckedVar, MistakenBy, DecidedBy, PerformedBy, Iptv, Provider, Source, Remark, Message, Description, ActionId)
 	WHERE RemarkId = @RemarkId
 
 	IF @Operators IS NOT NULL
@@ -91,8 +93,8 @@ BEGIN
 			  ,t.c.value('@Type', 'TINYINT') AS OperatorTypeId
 		FROM @Operators.nodes('/r') AS t(c)
 
-		DELETE O
-		FROM TicketVoiding_OperatorInfo AS o WITH (NOLOCK)
+		DELETE o
+		FROM TicketVoiding_OperatorInfo AS o
 		WHERE o.RemarkId = @RemarkId 
 			AND NOT EXISTS ( 
 				SELECT TOP 1 1 
@@ -110,18 +112,27 @@ BEGIN
 
 	--Write log
 	SET @EndTime = GETDATE()
+
+	SELECT @LogDataContent += ' IsTest: ' + CASE WHEN IsTest = 1 THEN 'True' ELSE 'False' END
+						   + ', IsCheckedVar: ' +  CASE WHEN IsCheckedVar = 1 THEN 'True' ELSE 'False' END
+						   + ', MistakenBy: ' + MistakenBy
+						   + ', DecidedBy: ' + DecidedBy
+						   + ', PerformedBy: ' +  PerformedBy
+						   + ', TV_IPTV: ' + Iptv
+						   + ', Provider: ' + Provider
+						   + ', Source: ' + Source
+						   + ', Remark: ' + Remark
+						   + ', Message: ' +  Message
+						   + ', Description: ' +  Description
+						   + ', ActionId: ' + CAST(ActionId AS VARCHAR(20))
+						   FROM @LogDataInfo
+
 	SET @LogData= CAST((
 		SELECT @RemarkId AS '@RequestId'
 			  ,@LogActionId AS '@LogActionId'
 			  ,@UserId AS '@UserId'
 			  ,@IP AS '@IP'
-			  ,'Duration: ' + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS VARCHAR(50)) + ' ms' 
-				+ CASE WHEN @ActionId IS NOT NULL AND (ISNULL(@ActionId, 0) <> ISNULL(@OldActionId, 0)) THEN ', Old ActionId: ' + CAST(@OldActionId AS VARCHAR(20)) + ' New ActionId: ' + CAST(@ActionId AS VARCHAR(20)) ELSE '' END
-				+ CASE WHEN @MistakenBy IS NOT NULL AND (ISNULL(@MistakenBy, '') <> ISNULL(@OldMistakenBy, '')) THEN ', Old MistakenBy: ' + ISNULL(@OldMistakenBy, 'NULL') + ' New MistakenBy: ' + ISNULL(@MistakenBy, 'NULL') ELSE '' END
-				+ CASE WHEN @DecidedBy IS NOT NULL AND ISNULL(@DecidedBy, '') <> ISNULL(@OldDecidedBy, '') THEN ', Old DecidedBy: ' + ISNULL(@OldDecidedBy, 'NULL') + ' New DecidedBy: ' + ISNULL(@DecidedBy, 'NULL') ELSE '' END
-				+ CASE WHEN @Remark IS NOT NULL AND (ISNULL(@Remark, '') <> ISNULL(@OldRemark, '')) THEN ', Old Remark: ' + ISNULL(@OldRemark, 'NULL') + ' New Remark: ' + ISNULL(@Remark, 'NULL') ELSE '' END
-				+ CASE WHEN @IsTest IS NOT NULL AND (ISNULL(@IsTest, 0) <> ISNULL(@OldIsTest, 0)) THEN ', Old IsTest: ' + CASE WHEN @OldIsTest = 1 THEN 'True' ELSE 'False' END + ' New IsTest: ' + CASE WHEN @IsTest = 1 THEN 'True' ELSE 'False' END ELSE '' END
-				AS '@LogData'
+			  ,'Duration: ' + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS VARCHAR(50)) + ' ms' + @LogDataContent
 		FOR XML PATH ('r'), ROOT('root'), TYPE
 	) AS NVARCHAR(MAX))
 

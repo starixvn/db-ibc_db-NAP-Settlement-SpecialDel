@@ -69,8 +69,15 @@ BEGIN
 				+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
 				+ ', MistakenBy: ' + ISNULL(@MistakenBy,'')
 				+ ', DecidedBy: ' + ISNULL(@DecidedBy,'')
+				+ ', PerformedBy: ' + ISNULL(@PerformedBy, '')
+				+ ', TV_IPTV: ' + ISNULL(@Iptv, '')
+				+ ', Provider: ' + ISNULL(@Provider, '')
+				+ ', Source: ' + ISNULL(@Source, '')
+				+ ', Message: ' + ISNULL(@Message, '')
 				+ ', Remark: ' + ISNULL(@Remark,'')
+				+ ', Description: ' + ISNULL(@Description, '')
 				+ ', IsTest: ' + CASE WHEN @IsTest = 1 THEN 'True' ELSE 'False' END
+				+ ', IsCheckedVar: ' + CASE WHEN @IsCheckedVar = 1 THEN 'True' ELSE 'False' END
 				AS '@LogData'
 		FOR XML PATH ('r'), ROOT('root'), TYPE
 	) AS NVARCHAR(MAX))
