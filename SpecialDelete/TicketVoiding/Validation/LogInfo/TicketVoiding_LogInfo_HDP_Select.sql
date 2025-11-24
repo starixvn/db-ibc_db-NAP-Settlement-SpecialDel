@@ -1203,7 +1203,6 @@ BEGIN
 					SELECT TransId, MainTransId, 1 AS IsMixParlay FROM #CTE_Ticket_SubParlay p
 				)um
 		END
-
 	END
 
 	SELECT @TotalMarkTickets = COUNT(1) FROM @tmpListTransId WHERE TicketType = 1
