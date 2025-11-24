@@ -9,6 +9,7 @@
 	
 	Revisions:
 		- 20251022@Hughie: Enhance Outright phase 3 [Redmine:#241793]
+		- 20251124@Hughie: Enhance Outright phase 4 [Redmine:#244634]
 		
 	Param's Explanation:	
 
@@ -25,7 +26,6 @@ BEGIN
 	FROM dbo.outright o WITH(NOLOCK)
 		CROSS APPLY (SELECT TOP 1 1 AS valid FROM dbo.ResultDetailOutright r WITH (NOLOCK) WHERE r.orid = o.orid AND r.ResultStatusId =3) AS temp
 	WHERE o.oddsstatus <> 'completed'
-			AND DATEDIFF(mi, ISNULL(o.changetime, GETDATE()), GETDATE()) > 60
 	
 	IF @@ROWCOUNT > 0
 	BEGIN	
