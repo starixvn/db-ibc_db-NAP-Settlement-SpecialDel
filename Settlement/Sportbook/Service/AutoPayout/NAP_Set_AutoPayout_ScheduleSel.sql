@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_ScheduleSel] 
 AS
 /*	Creator: 20160303@Patrick
@@ -30,6 +30,7 @@ AS
 		- 20240731@Aries: Apply Direct Payout for SABA CLUB FRIENDLY and SABA ENGLISH PREMIER LEAGUE - Virtual FC 24 - 16 Mins Play [Redmine:#208347]
 		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
+		- 20250617@Hughie: Direct Payout- Soccer- Support More Match Types ＆ New rule for Score Source [Redmine:#227275]
 
 	Param's Explanation:
  
@@ -161,14 +162,14 @@ BEGIN
 					AND m.sporttype = 1
 					AND m.eventdate BETWEEN @fromdate AND @todate 
 					AND GlobalShowTime <= @checktime
-					AND ISNULL(m.ChildMatchType,0) <> 201
 					AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND ss.AutoType = 8 AND f.TypeId = 2 THEN 1
 																						   ELSE 0
 																						   END								 
-								 WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74, 108) THEN CASE WHEN f.TypeId = 2 THEN 1
-																							WHEN ss.AutoType = 8 AND f.TypeId = 1 THEN 1
-																							ELSE 0
-								  															END
+								WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74, 108) THEN CASE WHEN ISNULL(m.ChildMatchType,0) = 201 THEN CASE when ss.AutoType = 8 THEN 1 ELSE 0 END --EXTRA TIME FOR SABA 3
+																						   WHEN f.TypeId = 2 THEN 1
+																						   WHEN ss.AutoType = 8 AND f.TypeId = 1 THEN 1
+																						   ELSE 0
+								  														   END
 								 WHEN (mr.SubType BETWEEN 2101 AND 2199 OR mr.SubType BETWEEN 2601 AND 2699) THEN IIF(f.TypeId = 2,1,0)  -- Child-match Next Corner
 								 WHEN ss.AutoType = 9 THEN 0 -- Exclude Fantasy Match
 								 ELSE 1
@@ -184,7 +185,7 @@ BEGIN
 					AND r.IsExistResultDetail IS NULL
 	)t
 	WHERE	IsConfirmed > 0
-	ORDER BY t.kickofftime, t.MatchId, t.TypeId
+	ORDER BY t.kickofftime ASC, t.MatchId ASC, t.TypeId ASC
 
 	--TEMPORARY: Insert score into ProviderResultDetail for SourceId = 101 - Direct Autopayout
 	DECLARE @currTime DATETIME = GETDATE()
