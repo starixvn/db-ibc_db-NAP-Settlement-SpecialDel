@@ -120,6 +120,7 @@ BEGIN
 	WHERE (r.UserId = @CreatedBy OR @CreatedBy = 0)
 		AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 		AND EXISTS (SELECT TOP 1 1 FROM @TmpActionIds AS a WHERE a.ActionId = r.ActionId)
+	ORDER BY RemarkId ASC
 
 	DROP TABLE #TmpListRemark
 END
