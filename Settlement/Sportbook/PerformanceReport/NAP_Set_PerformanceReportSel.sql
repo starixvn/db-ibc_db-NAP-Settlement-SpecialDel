@@ -25,6 +25,7 @@ AS
 		- 20250514@Hughie: Pingoal Soccer Marble [Redmine:#220002]
 		- 20250722@Max: Integration - Settlement Time Dashboard report [Redmine:#232227]
 		- 20250729@Max: Fix issue wrong DB [Redmine:#232227]
+		- 20251125@Max: Support hourly data on the Settlement Dashboard instead of daily data [Redmine: #244628]
 
 	Param's explaination:
 		@UserGroup: 0-send to internal
@@ -90,7 +91,7 @@ BEGIN
 				, MIN(CreatedDate) AS CreatedDate
 				, Sporttype, IsHold, rn
 		FROM (
-			SELECT ROW_NUMBER() OVER(PARTITION BY ISNULL(sitedbgroupid,0), matchid, action, actionid, homescore, awayscore ORDER BY starttime ) AS rn
+			SELECT ROW_NUMBER() OVER(PARTITION BY ISNULL(sitedbgroupid,0), matchid, action, actionid, homescore, awayscore ORDER BY starttime ASC) AS rn
 				,ISNULL(SiteDBGroupId,0) AS SiteDBGroupId
 				,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, ActionId, IsAuto
 				,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Starttime, Exectime, Duration, CreatedDate, Sporttype, IsHold
@@ -105,7 +106,7 @@ BEGIN
 	)
 	, cteSuspenderConfirm
 	AS(
-		SELECT ROW_NUMBER() OVER(PARTITION BY matchid, actionid ORDER BY logdate ) AS rn
+		SELECT ROW_NUMBER() OVER(PARTITION BY matchid, actionid ORDER BY logdate ASC ) AS rn
 				,ROW_NUMBER() OVER(PARTITION BY matchid, actionid ORDER BY logdate DESC ) AS rnDESC
 				,u.matchid
 				,u.ActionID
@@ -255,7 +256,7 @@ BEGIN
 			INNER JOIN #tmpData m 
 				ON 	s.matchid = m.matchid
 
-	IF @Mode = 'Daily'
+	IF @Mode = 'Hourly'
 	BEGIN
 		INSERT INTO #tmpResult(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
 		SELECT t.sporttype
@@ -277,12 +278,12 @@ BEGIN
 			INSERT INTO DBWH.bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
 			SELECT t.SportType, t.SportName, t.LeagueID, t.LeagueName, t.EventDate, t.WaitforKeyscore, t.WaitingTimeInQueue, t.SiteDBSettleDuration, t.TotalDuration, t.CreatedDate 
 			FROM #tmpResult t
-			ORDER BY EventDate, [sporttype],[SportName],LeagueID, LeagueName
+			ORDER BY EventDate ASC, [sporttype] ASC,[SportName] ASC, LeagueID ASC, LeagueName ASC
 
 			INSERT INTO DBSTAGING.bodb_account.dbo.SettlementPerformanceReport(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
 			SELECT t.SportType, t.SportName, t.LeagueID, t.LeagueName, t.EventDate, t.WaitforKeyscore, t.WaitingTimeInQueue, t.SiteDBSettleDuration, t.TotalDuration, t.CreatedDate 
 			FROM #tmpResult t
-			ORDER BY EventDate, [sporttype],[SportName],LeagueID, LeagueName
+			ORDER BY EventDate ASC, [sporttype] ASC,[SportName] ASC, LeagueID ASC, LeagueName ASC
 		END TRY
 		BEGIN CATCH
 			SELECT ERROR_MESSAGE()
@@ -450,7 +451,7 @@ BEGIN
 				WHERE sporttype = 1
 					AND @UserGroup = 0 --internal
 				group by [sporttype],[SportName],GroupID, GroupName, [Month],[year]
-				order by [sporttype],[SportName],[Year], [Month], GroupName
+				order by [sporttype] ASC, [SportName] ASC, [Year] ASC, [Month] ASC, GroupName ASC
 
 			---- sheet 5: AVG OS
 			SELECT  
@@ -467,7 +468,7 @@ BEGIN
 			WHERE sporttype IN ( 50,5,18,9,6) 
 				AND @UserGroup = 0
 			group by [sporttype],[SportName],GroupName, [Month],[year]
-			order by [sporttype],[SportName],[Year], [Month],GroupName
+			order by [sporttype] ASC, [SportName] ASC, [Year] ASC, [Month] ASC, GroupName ASC
 
 			---- sheet 6: AVG Basketball
 			SELECT  
@@ -484,7 +485,7 @@ BEGIN
 			WHERE sporttype = 2
 				AND @UserGroup = 0
 			group by [sporttype],[SportName],GroupName, [Month],[year]
-			order by [sporttype],[SportName],[Year], [Month],GroupName
+			order by [sporttype] ASC, [SportName] ASC, [Year] ASC, [Month] ASC, GroupName ASC
 	
 		END
 	END
