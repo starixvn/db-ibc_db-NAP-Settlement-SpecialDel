@@ -134,48 +134,14 @@ BEGIN
 			)m
 	END	
 	
-	IF EXISTS (SELECT TOP 1 1 FROM #CTE_match WHERE sporttype = 1) --Soccer	 
-	BEGIN
-		INSERT INTO #CTE_isCal (matchid, IsHTCal)
-		SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
-		FROM #CTE_match m
-			LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
-		WHERE m.sporttype = 1
+	DECLARE @MatchIds VARCHAR(MAX)
+	SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR(MAX)),',')
+	FROM #CTE_match
 
-		INSERT INTO #InstantSettlementBettypes (matchid, bettype)
-		SELECT c.matchid,  f.bettype
-		FROM #CTE_isCal c
-			CROSS APPLY (
-					SELECT bettype
-					FROM dbo.f_TVS_GetInstantBettypes() 
-					WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
-								   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
-							ELSE 0 END
-			)f	
-	END
-	IF EXISTS (SELECT TOP 1 1 FROM #CTE_match WHERE sporttype = 2) --Basketball
-	BEGIN
-		INSERT INTO #CTE_isCal (matchid, ResourceId)
-		SELECT m.matchid, rd.ResourceId
-		FROM #CTE_match m
-			LEFT JOIN DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
-				ON rd.matchid = m.matchid
-				AND ResultStatusID IN (2,5) AND (ResourceId LIKE 'Q[1-4]' OR ResourceId IN ('01','OT')) 
-		WHERE m.sporttype = 2
-
-		INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
-		SELECT DISTINCT c.matchid, f.bettype, f.betid
-		FROM #CTE_isCal c
-			CROSS APPLY (
-					SELECT bettype, betid
-					FROM dbo.f_TVS_GetInstantBettypes()
-					WHERE InstantType IS NULL
-					AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
-								 WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal) THEN 1
-								 ELSE 0 END
-			)f	 	
-	END
-
+	INSERT INTO #InstantSettlementBettypes (matchid,bettype,betid)
+	SELECT matchid, bettype, betid
+	FROM dbo.f_TVS_GetInstantSettlementBettypes(@MatchIds);
+		
 	UPDATE t
 	SET t.eventstatus = m.eventstatus
 	   ,t.sporttype = m.sporttype
