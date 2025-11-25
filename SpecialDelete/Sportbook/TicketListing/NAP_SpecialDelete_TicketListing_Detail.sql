@@ -873,7 +873,7 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND 1 = CASE WHEN @Type = 5 AND ISNULL(b.oddsspread,0) = 3 THEN 1
-							 WHEN @Type <> 5 AND (b.betid = 0 OR b.betid IS NULL) AND ISNULL(b.oddsspread,0) <> 3 THEN 1
+							 WHEN @Type <> 5 AND ISNULL(b.oddsspread,0) <> 3 THEN 1
 							 ELSE 0 END
 			OPTION(OPTIMIZE FOR (@n = 1))
 		END 	
