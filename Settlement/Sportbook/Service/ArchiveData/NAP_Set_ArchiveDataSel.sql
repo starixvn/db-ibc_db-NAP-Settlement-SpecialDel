@@ -99,7 +99,7 @@ BEGIN
 					, s.execTime AS 'et'
 					, s.duration AS 'd'
 			FROM	#tmpJson s
-			ORDER BY keyid
+			ORDER BY keyid ASC
 			FOR JSON PATH 
 		))
 	END
@@ -154,7 +154,7 @@ BEGIN
 					, p.execTime AS 'et'
 					, p.duration AS 'd'
 			FROM	#tmpJson p
-			ORDER BY keyid
+			ORDER BY keyid ASC
 			FOR JSON PATH
 		))
 	END
