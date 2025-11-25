@@ -83,7 +83,7 @@ BEGIN
 							,@LogActionId AS '@LogActionId'
 							,@UserId AS '@UserId'							
 							,@IP AS '@IP'						
-							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
+							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms,' 
 							+ @LogDataContent
 						AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
