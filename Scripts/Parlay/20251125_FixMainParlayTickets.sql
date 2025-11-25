@@ -28,3 +28,5 @@ BEGIN
 	    
 	END
 END
+-- Step 2: Execute SP on sitedb1 and dbtrans
+EXEC dbo.ExecRep_NAP_Admin_06
