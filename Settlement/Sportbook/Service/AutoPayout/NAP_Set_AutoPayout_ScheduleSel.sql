@@ -31,6 +31,7 @@ AS
 		- 20241002@Aries: Support a tool to add leagues for Direct Payout [Redmine:#211265]
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 		- 20250617@Hughie: Direct Payout- Soccer- Support More Match Types ＆ New rule for Score Source [Redmine:#227275]
+		- 20251125@Hughie: Retry the Auto/Direct Payout flow for these failed matches after untick hold key_Part 2: Soccer [Redmine:#244286]
 
 	Param's Explanation:
  
@@ -136,13 +137,6 @@ BEGIN
 						WHERE l.LeagueId = ls.Leagueid
 				) ls
 				OUTER APPLY (
-					SELECT TOP 1 1 AS IsExistAP 
-					FROM	dbo.AutoPayoutResult rs WITH(NOLOCK) 
-					WHERE	rs.MatchId = m.matchid 
-							AND f.TypeId = rs.CalculationType 
-							AND rs.StatusId IN (1, 2, 3)
-				)rs
-				OUTER APPLY (
 					SELECT	TOP 1 1 AS IsExistResultDetail
 					FROM	dbo.ResultDetail r WITH(NOLOCK)
 					WHERE	r.MatchId = m.matchid
@@ -158,23 +152,13 @@ BEGIN
 					FROM @tblLeague AS tl
 					WHERE l.LeagueId = tl.Leagueid
 				) ss 
-				OUTER APPLY (
-					SELECT TOP 1 1 AS IsExistHoldResult
-					FROM (
-						SELECT p.CalculationType AS TypeId
-						FROM (
-							SELECT p.CalculationType, p.StatusId, p.Remark,
-								ROW_NUMBER() OVER (
-									PARTITION BY p.CalculationType
-									ORDER BY p.AutoPayoutResultId DESC
-								) AS rn
-							FROM AutoPayoutResult p WITH (NOLOCK)
-							WHERE p.MatchId = m.matchid
-						) AS p
-						WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
-					) AS x
-					WHERE x.TypeId = f.TypeId
-				) x
+				OUTER APPLY (SELECT TOP 1 rs.Matchid, rs.CalculationType, rs.StatusId, rs.Remark
+						 FROM dbo.AutoPayoutResult AS rs WITH(NOLOCK)
+						 WHERE rs.MatchId = m.matchid
+							AND f.TypeId = rs.CalculationType 
+							AND rs.StatusId IN (1, 2, 3)
+							ORDER BY rs.AutoPayoutResultId DESC
+				) AS rs
 			WHERE	m.eventstatus = 'running' 
 					AND m.sporttype = 1
 					AND m.eventdate BETWEEN @fromdate AND @todate 
@@ -198,7 +182,7 @@ BEGIN
 								 ELSE 1
 							END
 					AND 17 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) IN (1, 16)
-					AND (rs.IsExistAP IS NULL or x.IsExistHoldResult = 1)
+					AND (rs.CalculationType IS NULL OR (rs.StatusId = 3 AND rs.Remark LIKE '%HOLD%'))
 					AND r.IsExistResultDetail IS NULL
 					AND m.SettlementStatus & 87 = 0
 	)t

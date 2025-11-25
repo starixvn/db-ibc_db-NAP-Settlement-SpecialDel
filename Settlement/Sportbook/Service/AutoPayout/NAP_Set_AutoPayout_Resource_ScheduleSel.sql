@@ -12,7 +12,7 @@ AS
 		- 20250402@Hughie: Direct Payout- Soccer- Early PEN- Enhancement [Redmine:#222688]
 		- 20241223@Aries: Support Auto Refund for Soccer's Early Results [Redmine:#214410]
 		- 20250826@Louisa: Enhance code [Redmine: #237088]
-		- 20251113@Hughie: Retry the Auto/Direct Payout flow for these failed matches after untick hold key - Soccer [Redmine:#244286]
+		- 20251125@Hughie: Retry the Auto/Direct Payout flow for these failed matches after untick hold key - Soccer [Redmine:#244286]
 
 	Param's Explanation:
  
@@ -61,12 +61,13 @@ BEGIN
 		INNER JOIN @tmpResourceIds t
 			ON t.ResourceId = rd.ResourceId
 		OUTER APPLY (
-			SELECT TOP 1 1 AS IsExistAP 
-			FROM	dbo.AutoPayoutResult ap WITH(NOLOCK) 
-			WHERE	ap.MatchId = m.matchid 
-					AND ap.ResourceId = rd.ResourceId
-					AND ap.CalculationType = 5 -- Early result
-		)ap		
+			SELECT TOP 1 ap.Matchid, ap.ResourceId, ap.StatusId, ap.Remark
+			FROM dbo.AutoPayoutResult AS ap WITH(NOLOCK)
+			WHERE ap.MatchId = m.matchid
+					AND ap.ResourceId = rd.ResourceID
+					AND ap.CalculationType = 5
+			ORDER BY ap.AutoPayoutResultId DESC
+		) AS ap	
 		OUTER APPLY(
 			SELECT TOP 1 ss.WaitingTime
 			FROM	dbo.SettlementSetting ss WITH (NOLOCK)
@@ -80,30 +81,13 @@ BEGIN
 			WHERE	sp.SportType = 1
 					AND sp.ResourceID =  rd.ResourceId
 		) ssp
-		OUTER APPLY (
-			SELECT TOP 1 1 AS IsExistHoldResult
-			FROM (
-				SELECT p.ResourceID
-				FROM (
-					SELECT p.ResourceID, p.StatusId, p.Remark, p.CalculationType,
-						ROW_NUMBER() OVER (
-							PARTITION BY  p.ResourceID
-							ORDER BY p.AutoPayoutResultId DESC
-						) AS rn
-					FROM AutoPayoutResult p WITH (NOLOCK)
-					WHERE p.MatchId = m.matchid
-				) AS p
-				WHERE p.rn = 1 AND p.StatusId = 3 AND p.Remark LIKE '%HOLD%'
-			) AS x
-			WHERE t.ResourceId = x.ResourceID
-		) x
 	WHERE	m.eventstatus = 'completed'
 			AND ISNULL(m.betstatus,'') NOT LIKE '%REFUND%'
 			AND ISNULL(m.betstatus,'') NOT LIKE '%ABANDONED%'
 			AND m.sporttype = 1
 			AND rd.ResultStatusID = 3 -- confirmed
 			AND ISNULL(rd.ResultSetting,0) & 1 = 0
-			AND (ap.IsExistAP IS NULL OR x.IsExistHoldResult = 1)
+			AND (ap.ResourceId IS NULL OR (ap.StatusId = 3 AND ap.Remark LIKE '%HOLD%'))
 			AND m.eventdate BETWEEN @fromdate AND @todate 
 			AND GlobalShowTime <= @checktime					
 			AND 16 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) > 0
