@@ -45,7 +45,7 @@ BEGIN
 	
 		-- Update BetparlayResult
 		UPDATE r	
-			SET statusid = 113, awinlost = 9.2000 , odds = 8.0280
+			SET statusid = 113, awinlost = 9.2000 , odds = 8.0280, winlostdate = '2025-11-24'
 		FROM betparlayresult r WITH (ROWLOCK,UPDLOCK)
 		WHERE refno= 28585526890070019 AND r.serial = 4030001
 	    
