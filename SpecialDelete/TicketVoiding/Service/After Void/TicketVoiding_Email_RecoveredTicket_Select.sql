@@ -19,6 +19,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_RecoveredTicket_Select](
 		- 20240718@Max: [TVS] Integrate Virtual Sports 5 (Virtually Sports) [Redmine: #207545]
 		- 20250616@Lani: [TVS] Recover Ticket - Support Recover More Products - Sub Parlay [Redmine: #227829]
 		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
+		- 20251125@July: Return SubOddsSpread [Redmine: #245116]
 
 	Param's explanation:	
 		
@@ -61,6 +62,7 @@ BEGIN
 		,IsMixParlay	BIT DEFAULT (0)
 		,subbetcheck	NVARCHAR(50)
 		,subOdds		SMALLMONEY
+		,subOddsSpread 	MONEY
 		,subbetteam		NVARCHAR(10)
 		,subbettype		SMALLINT
 		,subhdp1		SMALLMONEY
@@ -139,6 +141,7 @@ BEGIN
 				,odds 
 				,Subodds 
 				,oddsspread 
+				,subOddsSpread
 				,oddstype 
 				,betcheck 
 				,Subbetcheck 
@@ -189,6 +192,7 @@ BEGIN
 				,b.odds 
 				,b.odds AS Subodds 
 				,b.oddsspread
+				,b.oddsspread AS subOddsSpread
 				,b.oddstype 
 				,b.betcheck 
 				,b.betcheck AS Subbetcheck 
@@ -251,6 +255,7 @@ BEGIN
 				,odds 
 				,Subodds 
 				,oddsspread 
+				,subOddsSpread
 				,oddstype 
 				,betcheck 
 				,Subbetcheck 
@@ -302,6 +307,7 @@ BEGIN
 				,b.odds 
 				,b.odds AS Subodds 
 				,b.oddsspread
+				,b.oddsspread AS subOddsSpread
 				,b.oddstype 
 				,b.betcheck 
 				,b.betcheck AS Subbetcheck 
@@ -368,6 +374,7 @@ BEGIN
 				,odds 
 				,Subodds 
 				,oddsspread 
+				,subOddsSpread
 				,oddstype 
 				,betcheck 
 				,Subbetcheck 
@@ -419,6 +426,7 @@ BEGIN
 				,b.odds 
 				,bm.odds AS Subodds 
 				,b.oddsspread
+				,bm.oddsspread AS subOddsSpread 
 				,b.oddstype 
 				,b.betcheck 
 				,bm.betcheck AS Subbetcheck 
@@ -694,6 +702,7 @@ BEGIN
 		   ,t.IsMixParlay
 		   ,t.subbetcheck
 		   ,t.subOdds
+		   ,t.subOddsSpread
 		   ,t.subbetteam
 		   ,t.subbettype
 		   ,t.SubStatus

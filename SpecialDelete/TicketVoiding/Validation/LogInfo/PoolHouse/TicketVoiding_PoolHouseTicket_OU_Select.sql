@@ -29,6 +29,7 @@ AS
 		- 20240506@July: [TVS] Separate Parlay group of the Bet list [Redmine: #203654]
 		- 20250319@Lani: [TVS] Enhance out of memory issue [Redmine: #217771]
 		- 20251113@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
+		- 20251125@July: Return SubOddsSpread [Redmine: #245116]
 
 	Param's explanation:
 
@@ -49,7 +50,8 @@ BEGIN
         odds                  SMALLMONEY,
         SubOdds               SMALLMONEY,
         oddsspread            MONEY,
-        OddsType              INT,
+        Suboddsspread         MONEY,
+		OddsType              INT,
         transdate             DATETIME,
         bettype               SMALLINT,
         SubBetType			  SMALLINT,
@@ -133,6 +135,7 @@ BEGIN
 		,odds			
 		,SubOdds	
 		,oddsspread			
+		,Suboddsspread
 		,OddsType		
 		,transdate		
 		,bettype 		
@@ -175,7 +178,8 @@ BEGIN
 			,b.custid
 			,b.odds
 			,b.odds AS SubOdds
-			,b.oddsspread			
+			,ISNULL(b.oddsspread,0)
+			,ISNULL(b.oddsspread,0) AS SubOddsSpread	
 			,b.OddsType
 			,b.transdate
 			,b.bettype
@@ -254,6 +258,7 @@ BEGIN
 				,odds			
 				,SubOdds	
 				,oddsspread
+				,Suboddsspread
 				,OddsType		
 				,transdate		
 				,bettype		
@@ -295,7 +300,8 @@ BEGIN
 				,bm.custid AS Subcustid				
 				,b.odds
 				,bm.odds AS SubOdds
-				,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
+				,ISNULL(b.oddsspread,0)
+				,ISNULL(bm.oddsspread,0) AS SubOddsSpread
 				,b.OddsType
 				,bm.transdate AS Subtransdate
 				,b.bettype
@@ -467,6 +473,7 @@ BEGIN
 		   ,s.odds
 		   ,s.SubOdds
 		   ,s.oddsspread
+		   ,s.Suboddsspread
 		   ,s.OddsType
 		   ,s.bettype
 		   ,s.SubBettype

@@ -45,6 +45,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20241001@Max: [TVS] Virtual Sports 2 (Betradar) - Virtual Horse Racing & Virtual Dog Racing [Redmine: #211105]
 		- 20250328@Lani: [TVS] Upgrade ExchangeID data type [Redmine: #222191]
 		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
+		- 20251125@July: Return SubOddsSpread [Redmine: #245116]
 
 	Param's explanation:	
 		
@@ -90,6 +91,7 @@ BEGIN
 		,IsMixParlay	BIT DEFAULT (0)
 		,subbetcheck	NVARCHAR(50)
 		,subOdds		SMALLMONEY
+		,subOddsSpread 	MONEY
 		,subbetteam		NVARCHAR(10)
 		,subbettype		SMALLINT
 		,subhdp1		SMALLMONEY
@@ -302,6 +304,7 @@ BEGIN
 			,IsMixParlay = 1
 			,subbetcheck = bm.betcheck
 			,subOdds = bm.odds
+			,subOddsSpread = bm.oddsspread
 			,subbetteam = bm.betteam
 			,subbettype = bm.bettype
 			,subhdp1 = bm.hdp1
@@ -614,6 +617,7 @@ BEGIN
 			,t.subTransId
 			,t.subbetcheck
 			,t.subOdds
+			,t.subOddsSpread
 			,t.subbetteam
 			,t.subbettype
 			,t.subhdp1

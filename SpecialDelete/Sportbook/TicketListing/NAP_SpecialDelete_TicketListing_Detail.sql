@@ -304,6 +304,7 @@ BEGIN
               SubHdp1          SMALLMONEY,
               SubHdp2          SMALLMONEY,
               SubOdds          SMALLMONEY,
+			  SubOddsSpread    MONEY,
               SubStake         MONEY,
               SubBetTeam       NVARCHAR(20),
               SubBetCheck      NVARCHAR(50),
@@ -790,7 +791,7 @@ BEGIN
 					liveawayscore, IsLiveIndicator, OddsType, CurrencyName, winlost, betid, IsParlay, SecAcceptFlag,
 					refno, TransDesc, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid, srecommend,
 					SubTransID, SubBetType, SubHdp1, SubHdp2, SubOdds, SubStake, SubBetTeam, SubBetCheck, SubLiveHomeScore,
-					SubLiveAwayScore, SubLiveIndicator, SubTransDesc,
+					SubLiveAwayScore, SubLiveIndicator, SubTransDesc, SubOddsSpread,
 					FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, 
 					FilterOddsSpread, FilterOddsId, FilterTransdesc, FilterPlayerAndOdds,IsHybrid,FinalOdds,MatchId)	
 			SELECT	b.username,
@@ -840,6 +841,7 @@ BEGIN
 					bm.liveawayscore SubLiveAwayScore,
 					bm.liveindicator SubLiveIndicator,
 					bm.transdesc SubTransDesc,
+					bm.oddsspread AS SubOddsSpread,
 					bm.bettype AS FilterBetType,
 					bm.betteam AS FilterBetTeam,
 					bm.betcheck AS FilterSet,
@@ -1078,7 +1080,7 @@ BEGIN
 					liveawayscore, IsLiveIndicator, OddsType, CurrencyName, winlost, betid, IsParlay, SecAcceptFlag,
 					refno, TransDesc, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid, srecommend,
 					SubTransID, SubBetType, SubHdp1, SubHdp2, SubOdds, SubStake, SubBetTeam, SubBetCheck, SubLiveHomeScore,
-					SubLiveAwayScore, SubLiveIndicator, SubTransDesc)
+					SubLiveAwayScore, SubLiveIndicator, SubTransDesc, SubOddsSpread)
 			SELECT	b.username,
 					b.bettype,				
 					b.BetdaqId,
@@ -1125,7 +1127,8 @@ BEGIN
 					bm.livehomescore SubLiveHomeScore,
 					bm.liveawayscore SubLiveAwayScore,
 					bm.liveindicator SubLiveIndicator,
-					bm.transdesc SubTransDesc
+					bm.transdesc SubTransDesc,
+					bm.oddsspread AS SubOddsSpread
 			FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
 				INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
@@ -1244,7 +1247,8 @@ BEGIN
 			CASE WHEN si.SiteLabel = '777' THEN 1 ELSE 0 END IsSite777,
 			VendorMatchId,
 			IsHybrid,
-			FinalOdds
+			FinalOdds,
+			SubOddsSpread
 	FROM #SpecialDeleteBets s
 		INNER JOIN dbo.Customer c WITH (NOLOCK) ON s.srecommend = c.custid
 		LEFT JOIN dbo.Site si WITH(NOLOCK) ON c.site = si.site
