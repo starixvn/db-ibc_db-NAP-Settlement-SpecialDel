@@ -196,14 +196,13 @@ BEGIN
 			,LogInfoTicketsJson VARCHAR(MAX)
 		    ,IsFinish				 BIT
 		)
+	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
 	DECLARE @tmpListTransId AS TABLE (
 	          TransId BIGINT
 			, MainTransId BIGINT
 			, IsMixParlay BIT DEFAULT(0)
 			, TicketType TINYINT --1: Mark, 2: UnMark
 	)
-	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
-
 	SET @Wrong1stOUInfoXML = CONVERT(XML, @Wrong1stOUInfo)
 	INSERT INTO #FilterInfo(
 			MatchId
@@ -238,6 +237,7 @@ BEGIN
 	BEGIN -- Instant Settlement declaration
 		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)	
 		DECLARE @MatchIds VARCHAR(MAX)
+		
 		SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR(MAX)), ',') 
 		FROM #FilterInfo
 
@@ -321,6 +321,16 @@ BEGIN
 			,srecommend 
 			,statuswinlost 
 			,IsMixParlay 
+			,Status
+			,SubStatus 
+			,Subbetteam  
+			,Suboddsspread 
+			,SubTransdesc  
+			,modds 
+			,SiteDBGroupID
+			,SubIssueTypeId
+			,GroupName
+			,IsSiteDBDown
 			,odds 
 			,Subodds 
 			,oddsspread 
@@ -333,16 +343,6 @@ BEGIN
 			,ExtraInfo 
 			,winlost        
 			,actual_stake 
-			,Status
-			,SubStatus 
-			,Subbetteam  
-			,Suboddsspread 
-			,SubTransdesc  
-			,modds 
-			,SiteDBGroupID
-			,SubIssueTypeId
-			,GroupName
-			,IsSiteDBDown
 		)
 	SELECT DISTINCT d.MatchId
 		,b.TransId
@@ -381,18 +381,6 @@ BEGIN
 		,b.srecommend 
 		,b.statuswinlost 
 		,0 AS IsMixParlay 
-		,b.odds 
-		,b.odds AS Subodds 
-		,b.oddsspread
-		,b.oddstype 
-		,b.betcheck 
-		,b.betcheck AS Subbetcheck 
-		,b.stake 
-		,b.CurrencyName 
-		,b.Transdesc 
-		,b.ExtraInfo 
-		,b.winlost        
-		,b.actual_stake 
 		,b.Status
 		,b.status AS SubStatus 
 		,b.betteam AS Subbetteam  
@@ -406,6 +394,18 @@ BEGIN
 				WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 THEN 'PH' --AIO
 		END AS GroupName
 		,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
+		,b.odds 
+		,b.odds AS Subodds 
+		,b.oddsspread
+		,b.oddstype 
+		,b.betcheck 
+		,b.betcheck AS Subbetcheck 
+		,b.stake 
+		,b.CurrencyName 
+		,b.Transdesc 
+		,b.ExtraInfo 
+		,b.winlost        
+		,b.actual_stake 
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId_tmp = b.matchid
 		CROSS APPLY (
@@ -476,18 +476,6 @@ BEGIN
 				,srecommend 
 				,statuswinlost 
 				,IsMixParlay 
-				,odds 
-				,Subodds 
-				,oddsspread 
-				,oddstype 
-				,betcheck 
-				,Subbetcheck 
-				,stake 
-				,CurrencyName 
-				,Transdesc 
-				,ExtraInfo 
-				,winlost        
-				,actual_stake 
 				,Status
 				,SubStatus 
 				,Subbetteam  
@@ -500,6 +488,18 @@ BEGIN
 				,IsSiteDBDown
 				,IsHybrid
 				,FinalOdds
+				,odds 
+				,Subodds 
+				,oddsspread 
+				,oddstype 
+				,betcheck 
+				,Subbetcheck 
+				,stake 
+				,CurrencyName 
+				,Transdesc 
+				,ExtraInfo 
+				,winlost        
+				,actual_stake 
 			)
 		SELECT DISTINCT d.MatchId
 			,b.TransId
@@ -538,18 +538,6 @@ BEGIN
 			,b.srecommend 
 			,b.statuswinlost 
 			,1 AS IsMixParlay 
-			,b.odds 
-			,Sub.odds AS Subodds 
-			,b.oddsspread
-			,b.oddstype 
-			,b.betcheck 
-			,sub.betcheck AS Subbetcheck 
-			,b.stake 
-			,b.CurrencyName 
-			,b.Transdesc 
-			,b.ExtraInfo 
-			,b.winlost        
-			,b.actual_stake 
 			,b.Status
 			,sub.status AS SubStatus 
 			,sub.betteam AS Subbetteam  
@@ -562,6 +550,18 @@ BEGIN
 			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
 			,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
 			,sub.finalodds AS FinalOdds
+			,b.odds 
+			,Sub.odds AS Subodds 
+			,b.oddsspread
+			,b.oddstype 
+			,b.betcheck 
+			,sub.betcheck AS Subbetcheck 
+			,b.stake 
+			,b.CurrencyName 
+			,b.Transdesc 
+			,b.ExtraInfo 
+			,b.winlost        
+			,b.actual_stake 
 		FROM #FilterInfo d
 			 INNER LOOP JOIN dbo.bettransm sub ON d.MatchId_tmp = sub.matchid
 			 INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno

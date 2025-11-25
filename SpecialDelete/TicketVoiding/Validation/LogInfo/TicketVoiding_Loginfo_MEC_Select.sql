@@ -170,6 +170,12 @@ BEGIN
 	  ,ID INT IDENTITY (1,1) PRIMARY KEY
 	)
 
+	DECLARE @tmpListTransId AS TABLE (
+	          TransId BIGINT
+			, MainTransId BIGINT
+			, IsMixParlay BIT DEFAULT(0)
+			, TicketType TINYINT --1: Mark, 2: UnMark
+	)
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 	DECLARE @Validation AS TABLE (
 			 IsInValidTotalTickets   BIT DEFAULT(0) 
@@ -179,12 +185,6 @@ BEGIN
 			,MatchId                 INT
 			,LogInfoTicketsJson		 NVARCHAR(MAX)
 		)
-	DECLARE @tmpListTransId AS TABLE (
-	          TransId BIGINT
-			, MainTransId BIGINT
-			, IsMixParlay BIT DEFAULT(0)
-			, TicketType TINYINT --1: Mark, 2: UnMark
-	)
 	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT)
 	DECLARE @tmpConsolidatedBettypes TABLE (
         parentid        INT
@@ -235,7 +235,8 @@ BEGIN
 
 		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)	
 		DECLARE @MatchIds VARCHAR(MAX)
-		SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR), ',') 
+		
+		SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR(MAX)),',')
 		FROM #FilterInfo
 		
 		INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
@@ -370,6 +371,15 @@ BEGIN
 			,srecommend 
 			,statuswinlost 
 			,IsMixParlay 
+			,Status
+			,SubStatus 
+			,Subbetteam  
+			,Suboddsspread 
+			,SubTransdesc  
+			,modds 
+			,SiteDBGroupID
+			,SubIssueTypeId
+			,IsSiteDBDown
 			,odds 
 			,Subodds 
 			,oddsspread 
@@ -383,15 +393,6 @@ BEGIN
 			,BonusID 
 			,winlost        
 			,actual_stake 
-			,Status
-			,SubStatus 
-			,Subbetteam  
-			,Suboddsspread 
-			,SubTransdesc  
-			,modds 
-			,SiteDBGroupID
-			,SubIssueTypeId
-			,IsSiteDBDown
 			--For Advanced Mode
 			,FilterBettype	
 			,FilterBetteam 
@@ -450,6 +451,15 @@ BEGIN
 		,b.srecommend 
 		,b.statuswinlost 
 		,0 AS IsMixParlay 
+		,b.Status
+		,b.status AS SubStatus 
+		,b.betteam AS Subbetteam  
+		,b.oddsspread AS Suboddsspread 
+		,b.transdesc AS SubTransdesc  
+		,b.modds 
+		,b.SiteDBGroupID
+		,d.SubIssueTypeId
+		,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
 		,b.odds 
 		,b.odds AS Subodds 
 		,b.oddsspread
@@ -463,15 +473,6 @@ BEGIN
 		,b.BonusID 
 		,b.winlost        
 		,b.actual_stake 
-		,b.Status
-		,b.status AS SubStatus 
-		,b.betteam AS Subbetteam  
-		,b.oddsspread AS Suboddsspread 
-		,b.transdesc AS SubTransdesc  
-		,b.modds 
-		,b.SiteDBGroupID
-		,d.SubIssueTypeId
-		,CASE WHEN b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END IsSiteDBDown
 		,b.bettype AS FilterBettype	
 		,b.betteam AS FilterBetteam 
 		,b.hdp1 AS FilterHdp1 
@@ -550,6 +551,15 @@ BEGIN
 				,srecommend 
 				,statuswinlost 
 				,IsMixParlay 
+				,Status
+				,SubStatus 
+				,Subbetteam  
+				,Suboddsspread 
+				,SubTransdesc  
+				,modds 
+				,SiteDBGroupID
+				,SubIssueTypeId
+				,IsSiteDBDown
 				,odds 
 				,Subodds 
 				,oddsspread 
@@ -563,15 +573,6 @@ BEGIN
 				,BonusID 
 				,winlost        
 				,actual_stake 
-				,Status
-				,SubStatus 
-				,Subbetteam  
-				,Suboddsspread 
-				,SubTransdesc  
-				,modds 
-				,SiteDBGroupID
-				,SubIssueTypeId
-				,IsSiteDBDown
 				,IsHybrid
 				,FinalOdds
 				--For Advanced Mode
@@ -633,6 +634,15 @@ BEGIN
 			,b.srecommend 
 			,b.statuswinlost 
 			,1 AS IsMixParlay 
+			,b.Status
+			,sub.status AS SubStatus 
+			,sub.betteam AS Subbetteam  
+			,sub.oddsspread AS Suboddsspread 
+			,sub.transdesc AS SubTransdesc  
+			,b.modds
+			,sub.SiteDBGroupID
+			,d.SubIssueTypeId
+			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
 			,b.odds 
 			,Sub.odds AS Subodds 
 			,b.oddsspread
@@ -646,15 +656,6 @@ BEGIN
 			,b.BonusID 
 			,b.winlost        
 			,b.actual_stake 
-			,b.Status
-			,sub.status AS SubStatus 
-			,sub.betteam AS Subbetteam  
-			,sub.oddsspread AS Suboddsspread 
-			,sub.transdesc AS SubTransdesc  
-			,b.modds
-			,sub.SiteDBGroupID
-			,d.SubIssueTypeId
-			,CASE WHEN sub.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID THEN 0 ELSE 1 END AS IsSiteDBDown
 			,CASE WHEN ISNULL(b.oddsspread,0) = 3 THEN 1 ELSE 0 END AS IsHybrid
 			,sub.finalodds AS FinalOdds
 			,sub.bettype AS FilterBettype	

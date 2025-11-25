@@ -241,7 +241,7 @@ BEGIN
 		
 		INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
 		SELECT matchid, bettype, betid 
-		FROM dbo.f_TVS_GetInstantSettlementBettypes(@MatchIds)
+		FROM dbo.f_TVS_GetInstantSettlementBettypes(@MatchIds);
 		
 	END
 
