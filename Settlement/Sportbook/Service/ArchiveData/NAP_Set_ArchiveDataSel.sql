@@ -81,7 +81,7 @@ BEGIN
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON s.matchid = m.matchid
 		WHERE s.keyid <= @maxValue AND s.keyid > @LastRow
-			AND CONVERT(DATE, Starttime) <= @ArchiveDate
+			AND Starttime <= @ArchiveDate
 		ORDER BY s.keyid ASC
 
 		SET @JsonInfo = COMPRESS((
@@ -137,7 +137,7 @@ BEGIN
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON p.matchid = m.matchid
 		WHERE p.keyid <= @maxValue AND p.keyid > @LastRow
-			AND CONVERT(DATE, Starttime) <= @ArchiveDate
+			AND Starttime <= @ArchiveDate
 		ORDER BY p.keyid ASC
 
 		SET @JsonInfo = COMPRESS((
