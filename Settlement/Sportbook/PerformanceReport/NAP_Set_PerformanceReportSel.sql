@@ -196,7 +196,7 @@ BEGIN
 		LEFT JOIN bodb02.dbo.custinfo ci with(nolock)
 			on ci.custid = s.AdminId
 		OUTER APPLY
-			(SELECT *
+			(SELECT u.matchid, u.logdate
 			FROM	cteSuspenderConfirm u
 			WHERE	s.MatchId = u.matchid
 					AND u.ActionID = s.ActionId
@@ -336,7 +336,7 @@ BEGIN
 			,[GroupName] DESC
 			,[leaguename] DESC
 			,[matchid] DESC
-			,[ConfirmDate]
+			,[ConfirmDate] ASC
 			,[hometeam] DESC
 			,[awayteam] DESC
 			,[GlobalShowTime] DESC
@@ -382,7 +382,7 @@ BEGIN
 			,[GroupName] DESC
 			,[leaguename] DESC
 			,[matchid] DESC
-			,[ConfirmDate]
+			,[ConfirmDate] ASC
 			,[hometeam] DESC
 			,[awayteam] DESC
 			,[GlobalShowTime] DESC
@@ -428,7 +428,7 @@ BEGIN
 				,[GroupName] DESC
 				,[leaguename] DESC
 				,[matchid] DESC
-				,[ConfirmDate]
+				,[ConfirmDate] ASC
 				,[hometeam] DESC
 				,[awayteam] DESC
 				,[GlobalShowTime] DESC
