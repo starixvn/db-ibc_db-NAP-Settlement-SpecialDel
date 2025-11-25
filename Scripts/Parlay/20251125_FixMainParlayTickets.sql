@@ -41,8 +41,8 @@ BEGIN
 	
 		-- Update BetparlayResult
 		UPDATE r	
-			SET statusid = 113, awinlost = 9.2000
-		FROM betparlayresult r WITH (ROWLOCK,UPDLOCK)
+			SET statusid = 113, awinlost = 9.2000, odds = 8.0280
+		FROM BetparlayResult r WITH (ROWLOCK,UPDLOCK)
 		WHERE refno= 28585526890070019 AND r.serial = 4030001
 	    
 		--Call cal_29: resettle for main ticket
