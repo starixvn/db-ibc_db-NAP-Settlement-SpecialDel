@@ -1088,6 +1088,7 @@ BEGIN
 			   ,m.odds AS 'odds'	
 			   ,m.SubOdds AS 'SubOdds'
 			   ,m.oddsspread AS 'oddsspread'	
+			   ,m.Suboddsspread AS 'Suboddsspread'
 			   ,m.OddsType AS 'OddsType'
 			   ,m.bettype AS 'bettype'
 			   ,m.SubBettype AS 'SubBettype'

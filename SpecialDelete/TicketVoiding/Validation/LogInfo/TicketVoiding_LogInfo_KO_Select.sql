@@ -170,7 +170,8 @@ BEGIN
 
 		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)	
 		DECLARE @MatchIds VARCHAR(MAX)
-		SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR), ',') 
+		
+		SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR(MAX)),',') 
 		FROM #FilterInfo
 		
 		INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
@@ -726,6 +727,7 @@ BEGIN
 			,m.odds AS 'odds'	
 			,m.SubOdds AS 'SubOdds'
 			,m.oddsspread AS 'oddsspread'	
+			,m.Suboddsspread AS 'Suboddsspread'
 			,m.OddsType AS 'OddsType'
 			,m.bettype AS 'bettype'
 			,m.SubBettype AS 'SubBettype'

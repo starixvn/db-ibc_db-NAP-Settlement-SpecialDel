@@ -108,6 +108,7 @@ BEGIN
 			Odds				  SMALLMONEY,
 			SubOdds				  SMALLMONEY,
 			Oddsspread			  MONEY,	
+			Suboddsspread		  MONEY,
 			Oddstype			  TINYINT,
 			Betteam				  NVARCHAR(10),
 			SubBetteam			  NVARCHAR(10),
@@ -234,6 +235,7 @@ BEGIN
 
 		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)	
 		DECLARE @MatchIds VARCHAR(MAX)
+		
 		SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR(MAX)),',') 
 		FROM #FilterInfo
 		
@@ -301,6 +303,7 @@ BEGIN
 			,Odds
 			,SubOdds
 			,Oddsspread	
+			,Suboddsspread
 			,Oddstype
 			,Status
 			,SubStatus
@@ -351,7 +354,8 @@ BEGIN
 			,b.stake
 			,b.odds
 			,b.odds AS Subodds
-			,b.oddsspread
+			,ISNULL(b.oddsspread,0)			
+			,ISNULL(b.oddsspread,0) AS Suboddsspread
 			,b.oddstype
 			,b.status
 			,b.status AS SubStatus
@@ -415,6 +419,7 @@ BEGIN
 			,Odds
 			,SubOdds
 			,Oddsspread	
+			,Suboddsspread
 			,Oddstype
 			,Status
 			,SubStatus
@@ -463,7 +468,8 @@ BEGIN
 			,b.stake
 			,b.odds
 			,b.odds AS Subodds
-			,b.oddsspread
+			,ISNULL(b.oddsspread,0)			
+			,ISNULL(b.oddsspread,0) AS Suboddsspread
 			,b.oddstype
 			,b.status
 			,b.status AS SubStatus
@@ -557,6 +563,7 @@ BEGIN
 				,Odds
 				,SubOdds
 				,Oddsspread	
+				,Suboddsspread
 				,Oddstype
 				,Betcheck
 				,SubCheckTime
@@ -609,7 +616,8 @@ BEGIN
 				,b.stake
 				,b.odds
 				,sub.odds AS Subodds
-				,b.oddsspread
+				,ISNULL(b.oddsspread,0)			
+				,ISNULL(sub.oddsspread,0) AS Suboddsspread
 				,b.oddstype
 				,b.betcheck
 				,sub.checktime AS Subchecktime
@@ -950,6 +958,7 @@ BEGIN
 					  ,Odds AS 'Odds'
 					  ,SubOdds AS 'SubOdds'
 					  ,Oddsspread AS 'Oddsspread'
+					  ,Suboddsspread AS 'Suboddsspread'
 					  ,OddsType AS 'OddsType'
 					  ,Bettype AS 'Bettype'
 					  ,Subbettype AS 'Subbettype'
