@@ -20,8 +20,8 @@ BEGIN
 			,@sql			NVARCHAR(MAX);
 
 	CREATE TABLE #tmp_Matchid (MatchID INT, eventdate DATE, SportType SMALLINT, SportName NVARCHAR(100), leaguename  NVARCHAR(1000),LeagueGroupName NVARCHAR(400), HomeName NVARCHAR(200), AwayName  NVARCHAR(200) )
-	CREATE TABLE #tmp_Settle (MatchID INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), SportType SMALLINT, Score VARCHAR(100), ResourceName VARCHAR(200), OtherInfo VARCHAR(100)  )
-	CREATE TABLE #tmp_ResultProvider ( SourceID INT, MatchId INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ProviderName VARCHAR(50), Score VARCHAR(100) )	
+	CREATE TABLE #tmp_Settle (MatchID INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), SportType SMALLINT, Score VARCHAR(100), ResourceName VARCHAR(200), OtherInfo VARCHAR(100), LastUpdateTime DATETIME  )
+	CREATE TABLE #tmp_ResultProvider ( SourceID INT, MatchId INT, ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ProviderName VARCHAR(50), Score VARCHAR(100), LastUpdateTime DATETIME )	
 	
 	CREATE TABLE #tmp_ProviderInfo (SourceID INT, SourceName VARCHAR(50) )
 	
@@ -77,13 +77,10 @@ BEGIN
 	AND l.isTest = 0
 	AND l.LeagueGroupID <>  122
 
-	INSERT INTO #tmp_Settle (sporttype,MatchID, ResourceID, HomeValue, AwayValue, Score, OtherInfo )
+	INSERT INTO #tmp_Settle (sporttype,MatchID, ResourceID, HomeValue, AwayValue, OtherInfo, LastUpdateTime )
 	SELECT m.sporttype, r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
-			,CASE	WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') = '' THEN ''
-					WHEN ISNULL(r.AwayValue,'') = '' THEN r.HomeValue
-					ELSE ISNULL(r.HomeValue,'') + '-' + ISNULL(r.AwayValue,'')
-				END AS Score
 			,PARSENAME(REPLACE(r.OtherInfo, ',', '.'), 2)  ---- PlayerId
+			,r.LastModifyDate
 	FROM ResultDetail r WITH(NOLOCK)
 		INNER JOIN #tmp_Matchid m ON r.MatchId = m.MatchID
 	WHERE r.ResultStatusID IN (2, 5)
@@ -105,69 +102,36 @@ BEGIN
 	SELECT SourceID, SourceName
 	FROM DBPRO.bodb02.dbo.ProviderInfo p WITH(NOLOCK)
 	WHERE SourceID < 1001
-
-	;WITH cte_ResultProvider ( SourceId, MatchId, ResourceID, HomeValue, AwayValue, rk) AS
-	(
-		SELECT pr.SourceId, pr.matchid, pr.ResourceId, pr.HomeValue, pr.AwayValue
-				,ROW_NUMBER() OVER( PARTITION BY pr.SourceId, pr.matchid, pr.ResourceId ORDER BY pr.ProviderExternalID DESC ) AS rk
-		FROM ProviderExternalResultDetail pr WITH(NOLOCK)
-			INNER JOIN	#tmp_Matchid m  
-				ON pr.matchid = m.matchid 
+  
+	INSERT INTO #tmp_ResultProvider ( MatchId, SourceId, ResourceID, HomeValue, AwayValue, ProviderName, LastUpdateTime)
+	SELECT  pr.MatchId, pr.SourceId, ResourceID, HomeValue, AwayValue, p.SourceName, pr.LastModifyDate
+	FROM ProviderExternalResultDetail pr WITH(NOLOCK)
+		INNER JOIN	#tmp_Matchid m ON pr.matchid = m.matchid 
+		INNER JOIN #tmp_ProviderInfo p ON pr.SourceId = p.SourceID
 		WHERE pr.SourceId < 1001
 			AND pr.SourceID NOT IN ( 97,98,99,100)
 			AND pr.IsLive = 0
-	)
-  
-	INSERT INTO #tmp_ResultProvider ( MatchId, SourceId, ResourceID, HomeValue, AwayValue, ProviderName, Score)
-	SELECT  r.MatchId, r.SourceId, ResourceID, HomeValue, AwayValue, p.SourceName
-			,CASE	WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') = '' THEN ''
-					WHEN ISNULL(r.AwayValue,'') = '' THEN r.HomeValue
-					ELSE ISNULL(r.HomeValue,'') + '-' + ISNULL(r.AwayValue,'')
-				END AS Score
-	FROM cte_ResultProvider r
-		INNER JOIN #tmp_ProviderInfo p ON r.SourceId = p.SourceID
-	WHERE rk = 1
-
-	SELECT @TotalResult =  (SELECT COUNT(1) FROM #tmp_Settle)
 
 	----Send email
-	SELECT	@columns =isnull(@columns + ',', '') + quotename(ProviderName)
-	FROM	(	SELECT		DISTINCT ProviderName
-				FROM		#tmp_ResultProvider pr
-			) AS s;
-
-	SELECT	@ReplaceColumn = ISNULL(@ReplaceColumn + ',','')  + 'ISNULL(' + quotename(ProviderName)+ ', ''No Data'') AS ' +quotename(ProviderName)
-	FROM	(	SELECT		DISTINCT ProviderName
-				FROM		#tmp_ResultProvider pr
-			) AS s;
- 
-	SET @sql=N'
-	SELECT MatchID, EventDate, SportName, LeagueName, LeagueGroupName, HomeName, AwayName,
-			ResourceID, ResourceName, Settled,' + @ReplaceColumn 
-	+ '
-	FROM
-	(
-	  SELECT  r.MatchID, m.eventdate, m.SportName, m.leaguename, m.LeagueGroupName, m.HomeName, m.AwayName
-			, pr.ProviderName, r.ResourceID, r.ResourceName, r.Score AS [Settled], pr.Score
-	   FROM #tmp_Settle r
+	SELECT r.MatchID, m.eventdate, m.SportName, m.leaguename, m.LeagueGroupName, m.HomeName, m.AwayName,
+			r.ProviderName, r.ResourceID, r.ResourceName, r.HomeValue, r.AwayValue, LastUpdateTime
+	FROM (
+			SELECT  r.MatchID , NULL AS ProviderName, r.ResourceID, r.ResourceName, r.HomeValue, r.AwayValue, LastUpdateTime
+			FROM #tmp_Settle r
+			UNION ALL
+			SELECT  pr.MatchID , pr.ProviderName, pr.ResourceID, r.ResourceName, pr.HomeValue, pr.AwayValue, pr.LastUpdateTime
+			FROM #tmp_Settle r
+			INNER JOIN #tmp_ResultProvider pr ON r.MatchID = pr.MatchID AND r.ResourceID = pr.ResourceID
+		 )r
 		CROSS APPLY ( SELECT TOP 1 MatchID, eventdate, SportName, leaguename,LeagueGroupName, HomeName, AwayName
-					 FROM #tmp_Matchid m
-					 WHERE m.MatchID = r.MatchID
-					 ) m
-		LEFT JOIN #tmp_ResultProvider pr
-			ON r.MatchID = pr.MatchID 
-				AND r.ResourceID = pr.ResourceID
-	) AS j
-	PIVOT
-	(
-	  MAX(j.Score) FOR ProviderName IN (' + @columns+')
-	) AS p';
-
-
-	----Send email
-	EXEC sp_executesql @sql;
+						FROM #tmp_Matchid m
+						WHERE m.MatchID = r.MatchID
+						) m
+    ORDER BY  matchid,  ResourceID, ProviderName, LastUpdateTime
 	
 	----Send Letstalk
+	SELECT @TotalResult =  (SELECT COUNT(1) FROM #tmp_Settle)
+
 	SELECT r.Sporttype
 		  , pr.ProviderName
 		  ,ROUND((COUNT(pr.ResourceID)/@TotalResult)*100 ,2) AS Accuracy
