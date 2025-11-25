@@ -105,7 +105,8 @@ BEGIN
 			Stake				  MONEY,
 			Odds				  SMALLMONEY,
 			SubOdds				  SMALLMONEY,
-			Oddsspread			  MONEY,	
+			Oddsspread			  MONEY,
+			SubOddsspread		  MONEY,	
 			Oddstype			  TINYINT,
 			Status				  NVARCHAR(10),
 			SubStatus			  NVARCHAR(10),
@@ -288,6 +289,7 @@ BEGIN
 			,Odds
 			,SubOdds
 			,Oddsspread	
+			,SubOddsspread
 			,Oddstype
 			,Status
 			,SubStatus
@@ -349,7 +351,8 @@ BEGIN
 			,b.stake
 			,b.odds
 			,b.odds AS Subodds
-			,b.oddsspread
+			,ISNULL(b.oddsspread,0)
+			,ISNULL(b.oddsspread,0) AS SubOddsSpread
 			,b.oddstype
 			,b.status
 			,b.status AS SubStatus
@@ -442,6 +445,7 @@ BEGIN
 				,Odds
 				,SubOdds
 				,Oddsspread	
+				,SubOddsspread
 				,Oddstype
 				,Status
 				,SubStatus
@@ -500,7 +504,8 @@ BEGIN
 				,b.stake
 				,b.odds
 				,sub.odds AS Subodds
-				,b.oddsspread
+				,ISNULL(b.oddsspread,0)
+				,ISNULL(sub.oddsspread,0) AS SubOddsSpread
 				,b.oddstype
 				,b.status
 				,sub.status AS SubStatus
@@ -803,6 +808,7 @@ BEGIN
 					  ,Odds AS 'Odds'
 					  ,SubOdds AS 'SubOdds'
 					  ,Oddsspread AS 'Oddsspread'
+					  ,Suboddsspread AS 'Suboddsspread'	
 					  ,OddsType AS 'OddsType'
 					  ,Bettype AS 'Bettype'
 					  ,Subbettype AS 'Subbettype'
