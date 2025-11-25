@@ -127,7 +127,7 @@ BEGIN
 						FROM #tmp_Matchid m
 						WHERE m.MatchID = r.MatchID
 						) m
-    ORDER BY  matchid,  ResourceID, ProviderName, LastUpdateTime
+    ORDER BY  matchid ASC,  ResourceID ASC, ProviderName ASC, LastUpdateTime ASC
 	
 	----Send Letstalk
 	SELECT @TotalResult =  (SELECT COUNT(1) FROM #tmp_Settle)
