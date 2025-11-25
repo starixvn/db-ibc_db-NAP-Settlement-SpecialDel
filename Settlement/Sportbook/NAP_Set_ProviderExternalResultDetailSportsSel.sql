@@ -21,7 +21,7 @@ AS
 		- 20211223@Louisa: mapping between in-house and external match [Redmine:#166449]
 		- 20220222@Louisa : Task: Integrate result for Soccer Corner matches [Redmine:#168854]
 		- 20241212@Aries: Support to add a parameter to the new Live column for Provider Tables [Redmine:#215143]
-		- 20251107@Louisa: check @ExternalTable by setting [Redmine:#]
+		- 20251107@Louisa: check @ExternalTable by setting [Redmine:#243860]
 */
 BEGIN
 	

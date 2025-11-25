@@ -22,7 +22,7 @@ AS
 		- 20210818@Louisa: Add more Option [Redmine:#159307]
 		- 20210820@Louisa: Fix bug check ISNULL [Redmine:#159307]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
-		- 20251107@Louisa: check @ExternalTable by setting [Redmine:#]
+		- 20251107@Louisa: check @ExternalTable by setting [Redmine:#243860]
 
 	Param's Explanation:
 		@SourceId: 1  - SBO

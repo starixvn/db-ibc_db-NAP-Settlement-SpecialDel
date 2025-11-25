@@ -14,7 +14,7 @@ AS
 	Revisions:
 		- 20211223@Louisa: Cancel incorrect mapping between in-house and external match [Redmine:#166449]
 		- 20240718@Kathy: Implement AiO for Baseball [Redmine:#206154]
-		- 20251107@Louisa: check @ExternalTable by setting [Redmine:#]
+		- 20251107@Louisa: check @ExternalTable by setting [Redmine:#234860]
 		
 	Param's Explanation:
 		@EnvFlag: -1: UAT, 0:PROD
