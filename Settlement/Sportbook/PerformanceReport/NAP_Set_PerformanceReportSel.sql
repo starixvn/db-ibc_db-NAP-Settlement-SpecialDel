@@ -208,7 +208,7 @@ BEGIN
 					AND s.rn = 1
 			)u
 		WHERE	s.rn = 1
-				AND m.eventdate >= @FromDate  and m.eventdate <= @ToDate
+				 AND m.eventdate >= CAST(@FromDate AS DATE)  and m.eventdate <= CAST(@ToDate AS DATE)
 				AND 1 = CASE WHEN lg.GroupID = 42 THEN 0 --Virtual
 						 WHEN sp.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --pingoal
 						 WHEN sp.sporttype = 2 AND lg.GroupID = 122 THEN 0 --pingoal
