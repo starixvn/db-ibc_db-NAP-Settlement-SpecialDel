@@ -115,15 +115,15 @@ BEGIN
 
 	SELECT @LogDataContent += ' IsTest: ' + CASE WHEN IsTest = 1 THEN 'True' ELSE 'False' END
 						   + ', IsCheckedVar: ' +  CASE WHEN IsCheckedVar = 1 THEN 'True' ELSE 'False' END
-						   + ', MistakenBy: ' + MistakenBy
-						   + ', DecidedBy: ' + DecidedBy
-						   + ', PerformedBy: ' +  PerformedBy
-						   + ', TV_IPTV: ' + Iptv
-						   + ', Provider: ' + Provider
-						   + ', Source: ' + Source
-						   + ', Remark: ' + Remark
-						   + ', Message: ' +  Message
-						   + ', Description: ' +  Description
+						   + ', MistakenBy: ' + ISNULL(MistakenBy,'')
+						   + ', DecidedBy: ' + ISNULL(DecidedBy,'')
+						   + ', PerformedBy: ' +  ISNULL(PerformedBy,'')
+						   + ', TV_IPTV: ' + ISNULL(Iptv,'')
+						   + ', Provider: ' + ISNULL(Provider,'')
+						   + ', Source: ' + ISNULL(Source,'')
+						   + ', Remark: ' + ISNULL(Remark,'')
+						   + ', Message: ' +  ISNULL(Message,'')
+						   + ', Description: ' +  ISNULL(Description,'')
 						   + ', ActionId: ' + CAST(ActionId AS VARCHAR(20))
 						   FROM @LogDataInfo
 
@@ -132,7 +132,7 @@ BEGIN
 			  ,@LogActionId AS '@LogActionId'
 			  ,@UserId AS '@UserId'
 			  ,@IP AS '@IP'
-			  ,'Duration: ' + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS VARCHAR(50)) + ' ms' + @LogDataContent
+			  ,'Duration: ' + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS VARCHAR(50)) + ' ms' + @LogDataContent AS '@LogData'
 		FOR XML PATH ('r'), ROOT('root'), TYPE
 	) AS NVARCHAR(MAX))
 
