@@ -233,7 +233,7 @@ BEGIN
 	BEGIN -- Instant Settlement declaration
 		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)	
 		DECLARE @MatchIds VARCHAR(MAX)
-		SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR), ',') 
+		SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR(MAX)), ',') 
 		FROM #FilterInfo
 
 		INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
