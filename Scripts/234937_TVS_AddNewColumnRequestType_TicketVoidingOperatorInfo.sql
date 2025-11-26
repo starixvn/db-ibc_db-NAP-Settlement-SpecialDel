@@ -12,3 +12,7 @@ USE bodb02
 GO
 
 ALTER TABLE TicketVoiding_OperatorInfo ADD RemarkId INT;
+GO
+
+ALTER TABLE TicketVoiding_OperatorInfo ALTER COLUMN RequestId INT NULL;
+GO
