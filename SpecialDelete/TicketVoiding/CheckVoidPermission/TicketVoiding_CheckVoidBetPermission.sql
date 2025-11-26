@@ -6,7 +6,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckVoidBetPermission]
 	,@IsHostVoidSettledTickets			BIT = 0
 	,@IsHostVoidInstantlySettledTickets BIT = 0
 	,@IsHostVoidUnsettledTickets		BIT = 0
-	,@IsHostUUSTickets					BIT = 0
+	,@IsHostVoidRealTickets 			BIT = 0
+	,@IsHostVoidUusTickets 				BIT = 0
 	,@IsCheckForTVS						BIT = 0
 	,@ErrCode							INT = 0 OUTPUT
 	,@ErrMsg							NVARCHAR(200) = '' OUTPUT
@@ -44,7 +45,8 @@ BEGIN
 			,@IsExistsSettledCashOutTickets BIT = 0
 			,@IsExistsSettledCancelCashOutTickets BIT = 0
 			,@IsExistsInstantlySettledSABATickets BIT = 0
-			,@IsHasUUSTickets BIT = 0
+			,@IsExistsRealTickets BIT = 0
+			,@IsExistsUusTickets BIT = 0
 
 	DECLARE @SupportInstantSettleSABABettype  TABLE (bettype SMALLINT);
 
@@ -103,12 +105,12 @@ BEGIN
 		) tbl
 	WHERE f.value <> ''
 
-	SET @IsHasUUSTickets = (SELECT TOP 1 1 FROM #tmpTransInfo WHERE currency IN (20,72))
+	SET @IsExistsRealTickets = (SELECT TOP 1 1 FROM #tmpTransInfo WHERE currency NOT IN (20,72))
+	SET @IsExistsUusTickets = (SELECT TOP 1 1 FROM #tmpTransInfo WHERE currency IN (20,72))
 
 	-- Instant Settlement declaration
 	DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
 	CREATE TABLE #CTE_match (matchid INT, sporttype SMALLINT, eventstatus NVARCHAR(50))
-	CREATE TABLE #CTE_isCal (matchid INT, IsHTCal BIT, ResourceId VARCHAR(20))
 
 	IF @MatchId IS NOT NULL
 	BEGIN
@@ -234,15 +236,19 @@ BEGIN
 		RETURN
 	END
 
-	IF @IsHostUUSTickets = 0 AND @IsHasUUSTickets = 1 
+	IF @IsHostVoidUusTickets = 1 AND @IsExistsRealTickets = 1 
 	BEGIN
 		SELECT @ErrCode = 1 ,@ErrMsg = 'You do not have enough permission to void/cancel cash out REAL tickets of this request.'
+		RETURN
 	END
-
+	IF @IsHostVoidRealTickets = 1 AND @IsExistsUusTickets = 1 
+	BEGIN
+		SELECT @ErrCode = 1 ,@ErrMsg = 'You do not have enough permission to void/cancel cash out UUS tickets of this request.'
+		RETURN
+	END
 
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #tmpTransInfo
 	DROP TABLE #tmpTransIdSettledType
 	DROP TABLE #CTE_match
-	DROP TABLE #CTE_isCal
 END

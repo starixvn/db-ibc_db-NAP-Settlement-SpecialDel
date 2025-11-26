@@ -31,16 +31,6 @@ BEGIN
 	DECLARE @SiteDBGroupID SMALLINT = 0 
 		   ,@TransInfoJson VARBINARY(MAX)
 
-	DECLARE @tmpOnlineServerId AS TABLE (ServerId SMALLINT)
-
-	IF ISNULL(@OnlineServerId, '') <> ''
-	BEGIN
-		INSERT INTO @tmpOnlineServerId (ServerId)
-		SELECT value AS ServerId
-		FROM STRING_SPLIT(@OnlineServerId, ',')
-		WHERE value <> ''
-	END
-
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @TransIdTemp TABLE (transid BIGINT PRIMARY KEY, IsCancelCashOut BIT DEFAULT(0))
@@ -110,16 +100,12 @@ BEGIN
 		,b.currency
 	FROM @TransIdTemp t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
-	WHERE 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-				   WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-				   ELSE 0 END
+	WHERE dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID, b.SiteDBGroupID, @OnlineServerId) = 1
 
 	--Search tickets parlay
 	IF EXISTS (SELECT TOP(1) 1 FROM @TransIdTemp t
 					INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = t.transid 
-																AND 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-																			 WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-																			 ELSE 0 END
+					WHERE dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID, bm.SiteDBGroupID, @OnlineServerId) = 1
 			)
 	BEGIN
 		INSERT INTO #TransInfo(
@@ -155,17 +141,13 @@ BEGIN
 		FROM @TransIdTemp t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.transid
 			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
-		WHERE 1 = CASE WHEN bm.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					   WHEN bm.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					   ELSE 0 END
+		WHERE dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID, bm.SiteDBGroupID, @OnlineServerId) = 1
 	END
 
 	--Search tickets 14
 	IF EXISTS (SELECT TOP(1) 1 FROM @TransIdTemp t
 					INNER JOIN dbo.bettrans14 b14 WITH (NOLOCK) ON b14.transid = t.transid 
-																AND 1 = CASE WHEN b14.SiteDBGroupID = @SiteDBGroupID AND b14.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-																			 WHEN b14.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-																			 ELSE 0 END
+					WHERE dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID, b14.SiteDBGroupID, @OnlineServerId) = 1
 			)
 	BEGIN
 		INSERT INTO #TransInfo(
@@ -200,9 +182,7 @@ BEGIN
 			,b.currency
 		FROM @TransIdTemp t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
-		WHERE 1 = CASE WHEN b.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1
-					   WHEN b.SiteDBGroupID NOT IN (SELECT ServerId FROM @tmpOnlineServerId) THEN 1  -- Get ticket sitedb down
-					   ELSE 0 END
+		WHERE dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID, b.SiteDBGroupID, @OnlineServerId) = 1
 	END
 
 	--RETURN DATA
