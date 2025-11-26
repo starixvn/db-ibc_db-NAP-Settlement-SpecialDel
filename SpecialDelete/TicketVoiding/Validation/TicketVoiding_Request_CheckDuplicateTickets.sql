@@ -178,7 +178,7 @@ BEGIN
 		SET @InvalidTransIds = @TransIds
 		SELECT @InvalidTransIds AS InvalidTransIds
 
-		SELECT * FROM @tmp_Result
+		SELECT MatchId, Sporttype, TransInfoJson, MarkTransIds, UnmarkTransIds, SiteDBAffected, ISNULL(TotalMarkTickets,0) FROM @tmp_Result
 		RETURN;
 	END
 
@@ -296,7 +296,7 @@ BEGIN
 		
 		)
 	SELECT  CASE WHEN @IsAutoAddRequest = 1 THEN DENSE_RANK() OVER ( 
-				ORDER BY b.custid,b.bettype,b.winlostdate,b.balance,b.stake,b.odds,b.refnoGroup,b.matchid,b.ip,b.WalletType,b.betteam,b.oddsid
+				ORDER BY b.custid ASC ,b.bettype ASC ,b.winlostdate ASC ,b.balance ASC ,b.stake ASC ,b.odds ASC ,b.refnoGroup ASC ,b.matchid ASC ,b.ip ASC ,b.WalletType ASC ,b.betteam ASC ,b.oddsid ASC
 			)
 			ELSE 0 END
 			,b.transid
@@ -331,7 +331,10 @@ BEGIN
 	IF @ActionId = 4
 	BEGIN
 		;WITH t AS (
-			  SELECT t.*, ROW_NUMBER() OVER (PARTITION BY t.FilterGroup ORDER BY t.FilterGroup, transdate) AS seqnum
+			  SELECT t.matchid, t.balance, t.betfrom, t.betteam, t.bettype, t.custId, t.DuplicateGroup, t.FilterBy, t.FilterGroup
+				    ,t.ip, t.IsAutoAddRequest, t.IsFinish, t.isInMatch, t.IsOrg, t.odds, t.oddsid, t.refnoGroup, t.SiteDBGroupID, t.sporttype, t.stake, t.StatusId
+					,t.transdate, t.transid, t.WalletType, t.winlostdate
+				    , ROW_NUMBER() OVER (PARTITION BY t.FilterGroup ORDER BY t.FilterGroup ASC, transdate ASC) AS seqnum
 			  FROM #validTransId t
 		)
 		, cte AS (
