@@ -15,6 +15,7 @@ AS
 		- 20230308@Kathy: create SP [Redmine:#184726]   
 		- 20250718@Max: Support Daily Settlement Report for Vega project [Redmine: #233410]
 		- 20250918@Max: Fix the issue where the daily KPI report for Soccer sent incorrect data on Sep 17 [Redmine: #239282]
+		- 20251125@Max: Support hourly data on the Settlement Dashboard instead of daily data [Redmine: #244628]
 		
 	 Param's Explanation:  
     
@@ -22,11 +23,11 @@ AS
 BEGIN  
 	SET NOCOUNT ON  
 
-	DECLARE @ArchiveDate DATE
+	DECLARE @ArchiveDate DATETIME
 		, @maxValue BIGINT
 		, @LastRow	BIGINT
 
-	SET @ArchiveDate = DATEADD(DAY, -1, GETDATE())
+	SET @ArchiveDate = DATEADD(HOUR, -1, GETDATE())
 
 	CREATE TABLE #tmpJson (
 		keyid INT
@@ -80,7 +81,7 @@ BEGIN
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON s.matchid = m.matchid
 		WHERE s.keyid <= @maxValue AND s.keyid > @LastRow
-			AND CONVERT(DATE, Starttime) = @ArchiveDate
+			AND Starttime <= @ArchiveDate
 		ORDER BY s.keyid ASC
 
 		SET @JsonInfo = COMPRESS((
@@ -98,7 +99,7 @@ BEGIN
 					, s.execTime AS 'et'
 					, s.duration AS 'd'
 			FROM	#tmpJson s
-			ORDER BY keyid
+			ORDER BY keyid ASC
 			FOR JSON PATH 
 		))
 	END
@@ -136,7 +137,7 @@ BEGIN
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON p.matchid = m.matchid
 		WHERE p.keyid <= @maxValue AND p.keyid > @LastRow
-			AND CONVERT(DATE, Starttime) = @ArchiveDate
+			AND Starttime <= @ArchiveDate
 		ORDER BY p.keyid ASC
 
 		SET @JsonInfo = COMPRESS((
@@ -153,7 +154,7 @@ BEGIN
 					, p.execTime AS 'et'
 					, p.duration AS 'd'
 			FROM	#tmpJson p
-			ORDER BY keyid
+			ORDER BY keyid ASC
 			FOR JSON PATH
 		))
 	END
