@@ -20,6 +20,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
+		- 20251125@July: Return SubOddsSpread [Redmine: #245116]
 
 	Param's Explanation:			
 			- @BetType:
@@ -34,6 +35,7 @@ BEGIN
 		SubTransID				BIGINT		 
 		,SubBetCheck			NVARCHAR(50)
 		,SubOdds				SMALLMONEY   
+		,SubOddsSpread 			MONEY   
 		,SubBetTeam				NVARCHAR(20)  
 		,SubBetType				INT  
 		,SubHdp1				SMALLMONEY   
@@ -95,6 +97,7 @@ BEGIN
 			 SubTransID			 
 			,SubBetCheck	
 			,SubOdds
+			,SubOddsSpread
 			,SubBetTeam	
 			,SubBetType
 			,SubHdp1		
@@ -136,6 +139,7 @@ BEGIN
 	SELECT  bm.transid AS SubTransID			 
 			,bm.betcheck AS SubBetCheck	
 			,bm.odds AS SubOdds
+			,bm.oddsspread AS SubOddsSpread
 			,bm.betteam AS SubBetTeam	
 			,bm.bettype AS SubBetType
 			,bm.hdp1 AS SubHdp1		
@@ -224,6 +228,7 @@ BEGIN
 	SELECT	t.SubTransID     
 			 ,t.SubBetCheck  
 			 ,t.SubOdds      
+			 ,t.SubOddsSpread
 			 ,t.SubBetTeam  
 			 ,t.SubBetType     
 			 ,t.SubHdp1       

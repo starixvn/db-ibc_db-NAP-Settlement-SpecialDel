@@ -47,6 +47,7 @@ AS;
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250908@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
+		- 20251124@July: Hybrid Parlay - Fix case main oddsspread is null & sub oddsspread = 3  [Redmine: #245116]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -342,6 +343,7 @@ BEGIN
               SubHdp1				SMALLMONEY,
               SubHdp2				SMALLMONEY,
               SubOdds				MONEY,	
+			  SubOddsspread			MONEY,
               FilterBettype         SMALLINT,
               FilterBetTeam         NVARCHAR(10),
               FilterSet             VARCHAR(50),
@@ -444,7 +446,7 @@ BEGIN
 			b.custid,
 			b.odds,   
 			b.modds,
-			b.oddsspread,
+			ISNULL(b.oddsspread,0),
 			b.OddsType,  
 			b.transdate,
 			b.bettype,
@@ -533,7 +535,7 @@ BEGIN
 		)
 		SELECT
 			bm.custid, 
-			bm.oddsspread,
+			ISNULL(bm.oddsspread,0),
 			bm.transdate,
 			bm.checktime,
 			bm.liveindicator,
@@ -604,6 +606,7 @@ BEGIN
 			,SubHdp1
 			,SubHdp2
 			,SubOdds
+			,SubOddsspread
 			,FilterBettype
 			,FilterBetTeam
 			,FilterSet
@@ -627,7 +630,7 @@ BEGIN
 			bm.custid,
 			b.odds,   
 			b.modds,
-			CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS oddsspread,
+			ISNULL(b.oddsspread,0),
 			b.OddsType,  
 			bm.transdate,
 			b.bettype,
@@ -660,6 +663,7 @@ BEGIN
 			bm.SubHdp1,
 			bm.SubHdp2,
 			bm.SubOdds,
+			bm.SubOddsspread,
 			bm.SubBetType AS FilterBetType,
 			bm.SubBetTeam AS FilterBetTeam,
 			bm.SubBetCheck AS FilterSet,
@@ -912,6 +916,7 @@ BEGIN
 		b.SubHdp1,
 		b.SubHdp2,
 		b.SubOdds,
+		b.SubOddsspread,
 		b.ActualStake,
 		b.modds AS MasterOdds, 
 		@SiteDBGroupID AS SiteDBGroupID,

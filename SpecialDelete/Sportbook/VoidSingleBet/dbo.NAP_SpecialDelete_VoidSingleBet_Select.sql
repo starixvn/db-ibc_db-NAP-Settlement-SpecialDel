@@ -106,6 +106,7 @@ AS
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns, serverAlias [Redmine: #213451]
 		- 20250903@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
+		- 20251124@July: Hybrid Parlay - Fix case main oddsspread is null & sub oddsspread = 3  [Redmine: #245116]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -342,6 +343,7 @@ BEGIN
               SubHdp1            SMALLMONEY,
               SubHdp2            SMALLMONEY,
               SubOdds            SMALLMONEY,
+			  SubOddsspread      MONEY,
               FilterBettype      SMALLINT,
               FilterBetTeam      NVARCHAR(10),
               FilterSet          VARCHAR(50),
@@ -362,7 +364,6 @@ BEGIN
 			  SettlementStatus	TINYINT,
 			  eventstatus		NVARCHAR(50),
 			  finalodds			SMALLMONEY,
-			  oddsspread_tmp	MONEY --Get main oddsspread for parlay
              );
 
 	CREATE TABLE #SpecialDeleteBetsm
@@ -482,7 +483,7 @@ BEGIN
 				b.transid,
 				b.custid,
 				b.odds,   
-				b.oddsspread,
+				ISNULL(b.oddsspread,0),
 				b.OddsType,  
 				b.transdate,
 				b.checktime,
@@ -870,14 +871,14 @@ BEGIN
 				,matchid
 				,modds
 				,finalodds
-				,oddsspread_tmp
+				,SubOddsspread
 			)
 			SELECT
 				b.transid,
 				b.transid,
 				bm.custid,
 				b.odds,   
-				CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END,
+				ISNULL(b.oddsspread,0),
 				b.OddsType,  
 				bm.transdate,
 				bm.checktime,
@@ -932,7 +933,7 @@ BEGIN
 				,bm.matchid
 				,b.modds
 				,bm.finalodds
-				,b.oddsspread AS oddsspread_tmp
+				,bm.SubOddsspread
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
@@ -953,9 +954,9 @@ BEGIN
 					FROM @tmpSelectionSubParlay sp
 					WHERE 1 = CASE 
 								WHEN sp.Id = '10 UP' AND 
-									 ((ISNULL(b.oddsspread_tmp,0) <> 3 AND b.hdp2 >= 10) OR (b.oddsspread_tmp = 3 AND b.betid >= 10)) THEN 1
+									 ((b.oddsspread <> 3 AND b.hdp2 >= 10) OR (b.oddsspread = 3 AND b.betid >= 10)) THEN 1
 								WHEN sp.Id <> '10 UP' AND 
-									 ((ISNULL(b.oddsspread_tmp,0) <> 3 AND b.hdp2 = CAST(sp.Id AS SMALLMONEY)) OR (b.oddsspread_tmp = 3 AND b.betid = CAST(sp.Id AS SMALLMONEY))) THEN 1
+									 ((b.oddsspread <> 3 AND b.hdp2 = CAST(sp.Id AS SMALLMONEY)) OR (b.oddsspread = 3 AND b.betid = CAST(sp.Id AS SMALLMONEY))) THEN 1
 								ELSE 0 
 							  END
 				);
@@ -1334,6 +1335,7 @@ BEGIN
 			   ,s.SettlementStatus
 			   ,s.modds
 			   ,s.finalodds
+			   ,s.SubOddsspread
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN #SpecialDeleteBets sub ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1404,6 +1406,7 @@ BEGIN
 			   ,s.SettlementStatus
 			   ,s.modds
 			   ,s.finalodds
+			   ,s.SubOddsspread
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON s.betid = b.transid AND b.matchid = s.matchid
 		WHERE	s.recommend IN (52466, 5707545)
@@ -1467,6 +1470,7 @@ BEGIN
 			   ,s.SettlementStatus
 			   ,s.modds
 			   ,s.finalodds
+			   ,s.SubOddsspread
 		FROM #SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1540,6 +1544,7 @@ BEGIN
 			   ,s.SettlementStatus
 		       ,s.modds
 			   ,s.finalodds
+			   ,s.SubOddsspread
 		FROM #SpecialDeleteBets s
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1614,6 +1619,7 @@ BEGIN
 			   ,s.SettlementStatus
 			   ,s.modds
 			   ,s.finalodds
+			   ,s.SubOddsspread
 			   ,CASE WHEN s.eventstatus <> @eventstatus_completed AND s.mainstatusid IN (111, 112, 113) AND ISNULL(s.betdaqid,0) <> -2
 						THEN CASE WHEN s.SportType = 1 AND
 													EXISTS (SELECT TOP 1 1
@@ -1687,6 +1693,7 @@ BEGIN
 			   ,s.modds
 			   ,s.SubGroupName
 			   ,s.finalodds
+			   ,s.SubOddsspread
 		FROM CTE_InstantSettlementSubgrouping s
 		WHERE CASE
 					WHEN @SettledType = 'All' THEN 1

@@ -48,6 +48,7 @@ AS;
 		- 20241125@Lani: [TVS] Change join type on 'recommend' and 'custid' columns [Redmine: #213451]
 		- 20250908@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 		- 20251028@July: [TVS] Integration - Jacktime - Basketball Main Bettype Hybrid Parlay [Redmine: #241502]
+		- 20251124@July: Hybrid Parlay - Fix case main oddsspread is null & sub oddsspread = 3  [Redmine: #245116]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -344,7 +345,8 @@ BEGIN
         SubBetType			SMALLINT DEFAULT(0),
         SubHdp1				SMALLMONEY,
         SubHdp2				SMALLMONEY,
-        SubOdds				MONEY,			
+        SubOdds				MONEY,	
+		SubOddsspread		MONEY,
 		FilterBettype		SMALLINT,
 		FilterBetTeam		NVARCHAR(10), 
 		FilterSet			VARCHAR(50),
@@ -539,13 +541,14 @@ BEGIN
 			,ActualStake
 			,matchid
 			,modds
+			,SubOddsspread
 		)
 		SELECT 
 			b.transid,
 			b.transid,
 			bm.custid,
 			b.odds,   
-			bm.oddsspread,
+			ISNULL(b.oddsspread,0),
 			b.OddsType,  
 			bm.transdate,
 			b.bettype,
@@ -596,6 +599,7 @@ BEGIN
 			b.actual_stake AS ActualStake,
 			bm.matchid
 			,b.modds
+			,ISNULL(bm.oddsspread,0) AS SubOddsspread
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
 			INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = bm.bettype
@@ -668,13 +672,14 @@ BEGIN
 				,modds
 				,IsHybrid
 				,finalodds
+				,SubOddsspread
 			)
 			SELECT 
 				b.transid,
 				b.transid,
 				bm.custid,
 				b.odds,   
-				CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END,
+				bm.oddsspread,
 				b.OddsType,  
 				bm.transdate,
 				b.bettype,
@@ -727,6 +732,7 @@ BEGIN
 				,b.modds
 				,CASE WHEN b.oddsspread = 3 THEN 1 ELSE 0 END AS IsHybrid
 				,bm.finalodds
+				,ISNULL(bm.oddsspread,0) AS SubOddsspread
 			FROM dbo.MarkedTransaction m WITH(NOLOCK)
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON m.TransId = bm.transid AND m.MatchId = bm.matchid
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
@@ -965,6 +971,7 @@ BEGIN
 		,b.modds AS MasterOdds
 		,b.IsHybrid
 		,b.finalodds
+		,b.SubOddsspread
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.custid = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 

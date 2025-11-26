@@ -73,6 +73,7 @@ AS
 		- 20250814@July: Integration - Virtual Sport 6 (Betby) - 8 new bet types [Redmine: #235396]
 		- 20250819@Lani: [TVS] ScaleOut DBTrans [Phase 3] - Wrong HDP/1st HDP/OU/1st OU/Wrong Odds/Wrong Odds (Sportsbook) [Redmine: #232580]
 		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
+		- 20251124@July: Hybrid Parlay - Fix case main oddsspread is null & sub oddsspread = 3  [Redmine: #245116]
 
 	Param's explanation:	
 		
@@ -113,6 +114,7 @@ BEGIN
         odds                  SMALLMONEY,
         SubOdds               SMALLMONEY,
         oddsspread            MONEY,
+		Suboddsspread         MONEY,
         OddsType              INT,
         transdate             DATETIME,
         bettype               SMALLINT,
@@ -231,6 +233,7 @@ BEGIN
 				,odds			
 				,SubOdds	
 				,oddsspread			
+				,Suboddsspread
 				,OddsType		
 				,transdate		
 				,bettype 		
@@ -279,7 +282,8 @@ BEGIN
 				,b.custid
 				,b.odds
 				,b.odds AS SubOdds
-				,b.oddsspread			
+				,ISNULL(b.oddsspread,0)			
+				,ISNULL(b.oddsspread,0) AS Suboddsspread
 				,b.OddsType
 				,b.transdate
 				,b.bettype
@@ -357,6 +361,7 @@ BEGIN
 				,odds			
 				,SubOdds	
 				,oddsspread			
+				,Suboddsspread
 				,OddsType		
 				,transdate		
 				,bettype 		
@@ -405,7 +410,8 @@ BEGIN
 				,b.custid
 				,b.odds
 				,b.odds AS SubOdds
-				,b.oddsspread			
+				,ISNULL(b.oddsspread,0)			
+				,ISNULL(b.oddsspread,0) AS Suboddsspread
 				,b.OddsType
 				,b.transdate
 				,b.bettype
@@ -477,6 +483,7 @@ BEGIN
 					,odds			
 					,SubOdds	
 					,oddsspread
+					,Suboddsspread
 					,OddsType		
 					,transdate		
 					,bettype		
@@ -523,7 +530,8 @@ BEGIN
 					,b.custid				
 					,b.odds
 					,bm.odds AS SubOdds
-					,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
+					,b.oddsspread
+					,bm.oddsspread AS Suboddsspread
 					,b.OddsType
 					,bm.transdate AS Subtransdate
 					,b.bettype
@@ -595,6 +603,7 @@ BEGIN
 				,odds			
 				,SubOdds	
 				,oddsspread			
+				,Suboddsspread
 				,OddsType		
 				,transdate		
 				,bettype 		
@@ -639,7 +648,8 @@ BEGIN
 				,b.custid
 				,b.odds
 				,b.odds AS SubOdds
-				,b.oddsspread			
+				,ISNULL(b.oddsspread,0)				
+				,ISNULL(b.oddsspread,0) AS Suboddsspread
 				,b.OddsType
 				,b.transdate
 				,b.bettype
@@ -696,6 +706,7 @@ BEGIN
 					,odds			
 					,SubOdds	
 					,oddsspread
+					,Suboddsspread
 					,OddsType		
 					,transdate		
 					,bettype		
@@ -739,7 +750,8 @@ BEGIN
 					,bm.custid AS Subcustid				
 					,b.odds
 					,bm.odds AS SubOdds
-					,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
+					,ISNULL(b.oddsspread,0)	
+					,ISNULL(bm.oddsspread,0) AS Suboddsspread
 					,b.OddsType
 					,bm.transdate AS Subtransdate
 					,b.bettype
@@ -811,6 +823,7 @@ BEGIN
 			,odds			
 			,SubOdds	
 			,oddsspread
+			,Suboddsspread
 			,OddsType		
 			,transdate		
 			,bettype		
@@ -857,7 +870,8 @@ BEGIN
 				,b.custid				
 				,b.odds
 				,bm.odds AS SubOdds
-				,CASE WHEN b.oddsspread = 3 THEN b.oddsspread ELSE bm.oddsspread END AS Suboddsspread
+				,ISNULL(b.oddsspread,0)	
+				,ISNULL(bm.oddsspread,0) AS Suboddsspread
 				,b.OddsType
 				,bm.transdate AS Subtransdate
 				,b.bettype
@@ -1227,6 +1241,7 @@ BEGIN
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
 			   ,s.finalodds
+			   ,s.Suboddsspread
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1315,6 +1330,7 @@ BEGIN
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
 			   ,s.finalodds
+			   ,s.Suboddsspread
 		FROM	#TVSTicketBets s 
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
@@ -1393,6 +1409,7 @@ BEGIN
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
 			   ,s.finalodds
+			   ,s.Suboddsspread
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1479,6 +1496,7 @@ BEGIN
 		   ,s.VendorMatchId
 		   ,s.GroupBettypeId
 		   ,s.finalodds
+		   ,s.Suboddsspread
 		FROM	#TVSTicketBets s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1565,6 +1583,7 @@ BEGIN
 			   ,s.VendorMatchId
 			   ,s.GroupBettypeId
 			   ,s.finalodds
+			   ,s.Suboddsspread
 			   ,CASE WHEN s.eventstatus <> @eventstatus_completed AND s.mainstatusid IN (111, 112, 113) AND ISNULL(s.betdaqid,0) <> -2
 						THEN CASE WHEN s.SportType = 1 AND
 													EXISTS (SELECT TOP 1 1
@@ -1591,6 +1610,7 @@ BEGIN
 		   ,s.odds
 		   ,s.SubOdds
 		   ,s.oddsspread
+		   ,s.Suboddsspread
 		   ,s.OddsType
 		   ,s.bettype
 		   ,s.STATUS

@@ -104,6 +104,7 @@ BEGIN
               IsMixParlay     BIT DEFAULT(0),
               subbetcheck     NVARCHAR(50),
               subOdds         SMALLMONEY,
+			  SubOddsSpread	  MONEY,
               subbetteam      NVARCHAR(10),
               subbettype      SMALLINT,
               subhdp1         SMALLMONEY,
@@ -369,6 +370,7 @@ BEGIN
 				,winlost = b.winlost - b.actual_stake
 				,subbetcheck = bm.betcheck
 				,subOdds = bm.odds
+				,SubOddsSpread = bm.oddsspread
 				,subbetteam = bm.betteam
 				,subbettype = bm.bettype
 				,subhdp1 = bm.hdp1
@@ -470,6 +472,7 @@ BEGIN
 				,winlost = b.winlost - b.actual_stake
 				,subbetcheck = bm.betcheck
 				,subOdds = bm.odds
+				,SubOddsSpread = bm.oddsspread
 				,subbetteam = bm.betteam
 				,subbettype = bm.bettype
 				,subhdp1 = bm.hdp1
@@ -517,6 +520,7 @@ BEGIN
 					,winlost = b.winlost - b.actual_stake
 					,subbetcheck = bm.betcheck
 					,subOdds = bm.odds
+					,SubOddsSpread = bm.oddsspread
 					,subbetteam = bm.betteam
 					,subbettype = bm.bettype
 					,subhdp1 = bm.hdp1
@@ -655,6 +659,7 @@ BEGIN
 			   ,s.odds
 			   ,s.SubOdds
 			   ,s.oddsspread
+			   ,s.SubOddsSpread
 			   ,s.OddsType
 			   ,s.bettype
 			   ,s.STATUS
@@ -734,6 +739,7 @@ BEGIN
 			   ,s.odds
 			   ,s.SubOdds
 			   ,s.oddsspread
+			   ,s.SubOddsSpread
 			   ,s.OddsType
 			   ,s.bettype
 			   ,s.STATUS
@@ -803,6 +809,7 @@ BEGIN
 			   ,s.odds
 			   ,s.SubOdds
 			   ,s.oddsspread
+			   ,s.SubOddsSpread
 			   ,s.OddsType
 			   ,s.bettype
 			   ,s.STATUS
@@ -879,6 +886,7 @@ BEGIN
 		   ,s.odds
 		   ,s.SubOdds
 		   ,s.oddsspread
+		   ,s.SubOddsSpread
 		   ,s.OddsType
 		   ,s.bettype
 		   ,s.STATUS
@@ -948,6 +956,7 @@ BEGIN
 		   ,s.odds
 		   ,s.SubOdds
 		   ,s.oddsspread
+		   ,s.SubOddsSpread
 		   ,s.OddsType
 		   ,s.bettype
 		   ,s.STATUS
