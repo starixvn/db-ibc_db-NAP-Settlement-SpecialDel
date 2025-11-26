@@ -267,7 +267,7 @@ BEGIN
 	IF @Mode = 'Hourly'
 	BEGIN
 		INSERT INTO #tmpResult(sporttype, sportname, LeagueID, LeagueName, EventDate, WaitforKeyscore, WaitingTimeInQueue, SiteDBSettleDuration, TotalDuration, CreatedDate)
-		SELECT t.sporttype
+		SELECT DISTINCT t.sporttype
 				,t.sportname
 				,t.LeagueID
 				,t.LeagueName
