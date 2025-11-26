@@ -82,6 +82,21 @@ BEGIN
 		,CreatedDate DATETIME
 	)
 
+	CREATE TABLE #tmp_Match (matchid INT, homeid INT, awayid INT, leagueid INT, eventdate DATETIME, GlobalShowTime SMALLDATETIME, ParentID INT, ChildMatchType INT)
+
+	DECLARE @fDate DATETIME = CONVERT(DATE, @fromdate)
+		,@tDate DATETIME = CONVERT(DATE, @todate)
+
+	INSERT INTO #tmp_Match (matchid, homeid, awayid, leagueid, eventdate, GlobalShowTime, ParentID, ChildMatchType)
+	SELECT matchid, homeid, awayid, leagueid, eventdate, GlobalShowTime, ParentID, ChildMatchType
+	FROM bodb_account.dbo.match m WITH (NOLOCK)
+	WHERE m.eventdate >= @fDate AND m.eventdate <= @tDate
+	UNION
+	SELECT matchid, homeid, awayid, leagueid, eventdate, GlobalShowTime, ParentID, ChildMatchType
+	FROM bodb_archive.dbo.match mt WITH (NOLOCK)
+	WHERE mt.eventdate >= @fDate AND mt.eventdate <= @tDate
+
+
 	;WITH cteSettlementPerformanceLog
 	AS (
 		
@@ -181,13 +196,7 @@ BEGIN
 				AS Interval 
 			WHERE	s.ActionId > 100 
 		)itv
-		INNER JOIN
-			(SELECT matchid, homeid, awayid, leagueid, eventdate, GlobalShowTime, ParentID, ChildMatchType
-			FROM bodb_account.dbo.match m with(nolock)
-			UNION
-			select matchid, homeid, awayid, leagueid, eventdate, GlobalShowTime, ParentID, ChildMatchType
-			from bodb_archive.dbo.match  with(nolock)
-		) m
+		INNER JOIN #tmp_Match m
 			on s.matchid = m.matchid
 		INNER JOIN bodb02.dbo.team h with(nolock)
 			on h.teamid = m.homeid
@@ -208,7 +217,6 @@ BEGIN
 					AND s.rn = 1
 			)u
 		WHERE	s.rn = 1
-				 AND m.eventdate >= CAST(@FromDate AS DATE)  and m.eventdate <= CAST(@ToDate AS DATE)
 				AND 1 = CASE WHEN lg.GroupID = 42 THEN 0 --Virtual
 						 WHEN sp.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --pingoal
 						 WHEN sp.sporttype = 2 AND lg.GroupID = 122 THEN 0 --pingoal
@@ -239,7 +247,7 @@ BEGIN
 		
 		INSERT INTO #MatchLive(matchid)
 		SELECT	s.matchid
-		FROM	bodb_account.dbo.FactSiteWinloss s (NOLOCK)
+		FROM	bodb_account.dbo.fn_FactSiteWinloss(1) s
 		WHERE	[RptDate] >= CAST(@FromDate AS DATE) 
 				AND [RptDate] <= CAST(@ToDate AS DATE)
 				AND [CurrencyID] NOT IN (20,27,28)
@@ -494,6 +502,7 @@ BEGIN
 	DROP TABLE #tmpData
 	DROP TABLE #MatchLive
 	DROP TABLE #tmpResult
+	DROP TABLE #tmp_Match
 		
 END
     
