@@ -13,6 +13,7 @@ AS
 	
 	Revisions: 
 		- 20251027@Max: Init new SP [Redmine: #241502]
+		- 20251126@July: Enhancement for Bet Builder +: Void DRAW sub parlay ticket shall not call JackTime [Redmine: #245239]
 
 	Param's explanation:
 		@TicketType: 
@@ -29,6 +30,10 @@ BEGIN
 	DECLARE @tmp_Results TABLE (
 			MainTransId BIGINT,
 			CustId INT,
+			Transdesc NVARCHAR(1000),
+			Refno BIGINT,
+			SelectionCount INT,
+			StatusId TINYINT, --Support case void sub but main statusid = VOID/LOSE => no call JT
 			SubTransId BIGINT,
 			SubMatchId INT,
 			SubBettypeId SMALLINT,
@@ -36,10 +41,7 @@ BEGIN
 			SubHdp2 SMALLMONEY,
 			Subbetcheck NVARCHAR(50),
 			SubBetteam NVARCHAR(10),
-			Transdesc NVARCHAR(1000),
-			Refno BIGINT,
-			SelectionCount INT,
-			StatusId TINYINT --Support case void sub but main statusid = VOID/LOSE => no call JT
+			SubStatusId TINYINT --Support case void sub but sub statusid = DRAW => no call JT
 		)
 
 	INSERT INTO @tmp_TransIds (TransId)
@@ -57,8 +59,9 @@ BEGIN
 
 	ELSE IF @TicketType = 1
 	BEGIN
-		INSERT INTO @tmp_Results (MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, Transdesc, Refno, StatusId)
-		SELECT b.TransId AS MainTransId, b.CustId, t.TransId AS SubTransId, bm.matchid AS SubMatchId, bm.bettype AS SubBettypeId, bm.hdp1 AS SubHdp1, bm.hdp2 AS SubHdp2, bm.betcheck AS Subbetcheck, bm.betteam AS SubBetteam, b.transdesc, bm.refno, b.statusID
+		INSERT INTO @tmp_Results (MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, Transdesc, Refno, StatusId, SubStatusId)
+		SELECT b.TransId AS MainTransId, b.CustId, t.TransId AS SubTransId, bm.matchid AS SubMatchId, bm.bettype AS SubBettypeId, bm.hdp1 AS SubHdp1, bm.hdp2 AS SubHdp2, bm.betcheck AS Subbetcheck, bm.betteam AS SubBetteam
+			 , b.transdesc, bm.refno, b.statusID, bm.statusID AS SubStatusId
 		FROM @tmp_TransIds t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.TransId
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
@@ -76,7 +79,8 @@ BEGIN
 				) sc
 	END
 	
-	SELECT MainTransId, CustId, SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, Transdesc, SelectionCount, StatusId
+	SELECT MainTransId, CustId, Transdesc, SelectionCount, StatusId
+		 , SubTransId, SubMatchId, SubBettypeId, SubHdp1, SubHdp2, Subbetcheck, SubBetteam, SubStatusId
 	FROM @tmp_Results
 	
 END
