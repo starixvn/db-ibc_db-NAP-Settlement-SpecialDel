@@ -27,6 +27,7 @@ AS
 		- 20241129@July: Hint - Error 'maximum recursion 100 has been exhausted'  [Redmine: #211913]
 		- 20250324@Max: [TVS] Virtual Sports 7 (Kiron Virtual Sports) [Redmine: #219045]
 		- 20250602@July: Enhance TVS in case 1 or many siteDBs down - Void services [Redmine: #224490]
+		- 20251124@July: Exclude mark/unmark transid from function SD [Redmine:#238929]
 
 	Param's explanation:
 */
@@ -52,13 +53,14 @@ BEGIN
 			,@SiteDBGroupId				SMALLINT = NULL
 			,@bettype					SMALLINT = NULL
 			,@batch_no					SMALLINT = 0
+			,@TotalMarkTickets			INT = 0 --Support show total count mark for notification
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT, Matchid INT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT, MatchId INT, bettype SMALLINT, betteam NVARCHAR(10))
 
 	DECLARE @tmpMatchId AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), VendorMatchId VARCHAR(50), RaceId VARCHAR(10), IsFinish BIT)
-	DECLARE @tmp_Result AS TABLE (MatchId INT, Sporttype INT, TransInfoJson VARCHAR(MAX), MarkTransIds VARCHAR(MAX), UnmarkTransIds VARCHAR(MAX), SiteDBAffected VARCHAR(20))
+	DECLARE @tmp_Result AS TABLE (MatchId INT, Sporttype INT, TransInfoJson VARCHAR(MAX), MarkTransIds VARCHAR(MAX), UnmarkTransIds VARCHAR(MAX), SiteDBAffected VARCHAR(20), TotalMarkTickets INT)
 	DECLARE @tmp_transid AS TABLE (TransId BIGINT)
 	DECLARE @tmp_OnlineServerId AS TABLE (ServerId SMALLINT)
 	
@@ -609,10 +611,18 @@ BEGIN
 					WHERE t.matchid = @MatchId
 					FOR JSON PATH))
 
+					SELECT @TotalMarkTickets = COUNT(1) FROM @tmpMarkTransId t
+												INNER JOIN @tmp_transid tmp ON tmp.TransId = t.transid
+												WHERE Matchid = @MatchId
+
 					SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50)) 
 														FROM @tmpMarkTransId t
 															INNER JOIN @tmp_transid tmp ON tmp.TransId = t.transid
 														WHERE Matchid = @MatchId
+														 AND NOT EXISTS (
+																	SELECT TOP 1 1 
+																	FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
+																	WHERE mt.TransId = t.TransId)
 														FOR XML PATH('')), 1,1,'')
 														,'')
 
@@ -620,6 +630,10 @@ BEGIN
 																FROM @tmpUnmarkTransId t
 																	INNER JOIN @tmp_transid tmp ON tmp.TransId = t.transid
 																WHERE Matchid = @MatchId
+																AND NOT EXISTS (
+																	SELECT TOP 1 1 
+																	FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
+																	WHERE mt.TransId = t.TransId)
 																FOR XML PATH('')), 1,1,'')
 																,'')
 
@@ -631,14 +645,14 @@ BEGIN
 														FOR XML PATH('')), 1,1,'')
 														,'')
 
-					INSERT INTO @tmp_Result (MatchId, Sporttype, TransInfoJson, MarkTransIds, UnmarkTransIds, SiteDBAffected)
-					SELECT @MatchId, @Sporttype, CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1), @MarkTransIds, @UnmarkTransIds, @SiteDBAffected
+					INSERT INTO @tmp_Result (MatchId, Sporttype, TransInfoJson, MarkTransIds, UnmarkTransIds, SiteDBAffected, TotalMarkTickets)
+					SELECT @MatchId, @Sporttype, CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1), @MarkTransIds, @UnmarkTransIds, @SiteDBAffected, @TotalMarkTickets
 				END
 			END
 		END
 	END
 		
-	SELECT MatchId, Sporttype, TransInfoJson, MarkTransIds, UnmarkTransIds, SiteDBAffected FROM @tmp_Result
+	SELECT MatchId, Sporttype, TransInfoJson, MarkTransIds, UnmarkTransIds, SiteDBAffected, ISNULL(TotalMarkTickets,0) FROM @tmp_Result
 
 	DROP TABLE #inputTransid
 	DROP TABLE #validTransId
