@@ -113,18 +113,28 @@ BEGIN
 	--Write log
 	SET @EndTime = GETDATE()
 
-	SELECT @LogDataContent += ' IsTest: ' + CASE WHEN IsTest = 1 THEN 'True' ELSE 'False' END
-						   + ', IsCheckedVar: ' +  CASE WHEN IsCheckedVar = 1 THEN 'True' ELSE 'False' END
-						   + ', MistakenBy: ' + ISNULL(MistakenBy,'')
-						   + ', DecidedBy: ' + ISNULL(DecidedBy,'')
-						   + ', PerformedBy: ' +  ISNULL(PerformedBy,'')
-						   + ', TV_IPTV: ' + ISNULL(Iptv,'')
-						   + ', Provider: ' + ISNULL(Provider,'')
-						   + ', Source: ' + ISNULL(Source,'')
-						   + ', Remark: ' + ISNULL(Remark,'')
-						   + ', Message: ' +  ISNULL(Message,'')
-						   + ', Description: ' +  ISNULL(Description,'')
-						   + ', ActionId: ' + CAST(ActionId AS VARCHAR(20))
+	SELECT @LogDataContent += CASE 
+									WHEN @IsTest IS NOT NULL AND @IsTest <> IsTest THEN
+										', Old IsTest: ' + CASE WHEN IsTest = 0 THEN 'False' ELSE 'True' END 
+										+ ', New IsTest: ' + CASE WHEN @IsTest = 0 THEN 'False' ELSE 'True' END  
+									ELSE '' 
+							  END
+						    + CASE 
+									WHEN @IsCheckedVar IS NOT NULL AND @IsCheckedVar <> IsCheckedVar THEN 
+										', Old IsCheckedVar: ' +  CASE WHEN IsCheckedVar = 0 THEN 'False' ELSE 'True' END 
+										+ ', New IsCheckedVar: '  + CASE WHEN @IsCheckedVar = 0 THEN 'False' ELSE 'True' END
+									ELSE ''
+							  END
+						    + CASE WHEN @MistakenBy IS NOT NULL AND @MistakenBy <> ISNULL(MistakenBy,'') THEN ', Old MistakenBy: ' +  ISNULL(MistakenBy,'NULL') + ', New MistakenBy: ' + @MistakenBy ELSE '' END
+							+ CASE WHEN @DecidedBy IS NOT NULL AND @DecidedBy <> ISNULL(DecidedBy,'') THEN ', Old DecidedBy: ' + ISNULL(DecidedBy,'NULL') + ', New DecidedBy: ' + @DecidedBy ELSE '' END
+						    + CASE WHEN @PerformedBy IS NOT NULL AND @PerformedBy <> ISNULL(PerformedBy,'') THEN ', Old PerformedBy: ' + ISNULL(PerformedBy,'NULL') + ', New PerformedBy: ' + @PerformedBy ELSE '' END
+							+ CASE WHEN @Iptv IS NOT NULL AND @Iptv <> ISNULL(Iptv,'') THEN ', Old TV_IPTV: ' + ISNULL(Iptv,'NULL') + ', New TV_IPTVS: ' + @Iptv ELSE '' END
+							+ CASE WHEN @Provider IS NOT NULL AND @Provider <> ISNULL(Provider,'') THEN ', Old Provider: ' + ISNULL(Provider,'NULL') + ', New Provider: ' + @Provider ELSE '' END
+							+ CASE WHEN @Source IS NOT NULL AND @Source <> ISNULL(Source,'') THEN ', Old Source: ' +  ISNULL(Source,'NULL') + ', New Source: ' + Source ELSE '' END
+						    + CASE WHEN @Remark IS NOT NULL AND @Remark <> ISNULL(Remark,'') THEN ', Old Remark: ' + ISNULL(Remark,'NULL') + ', New Remark: ' + Remark ELSE '' END
+							+ CASE WHEN @Message IS NOT NULL AND @Message <> ISNULL(Message,'') THEN ', Old Message: ' + ISNULL(Message,'NULL') + ', New Message: ' + @Message ELSE '' END
+							+ CASE WHEN @Description IS NOT NULL AND @Description <> ISNULL(Description,'') THEN ', Old Description: ' + ISNULL(Description,'NULL') + ', New Description' + @Description ELSE '' END
+						    + CASE WHEN @ActionId IS NOT NULL AND @ActionId <> ActionId THEN ', Old ActionId: ' + CAST(ActionId AS VARCHAR(20)) + ', New ActionId: ' + CAST(@ActionId AS VARCHAR(20)) ELSE '' END
 						   FROM @LogDataInfo
 
 	SET @LogData= CAST((
@@ -132,7 +142,7 @@ BEGIN
 			  ,@LogActionId AS '@LogActionId'
 			  ,@UserId AS '@UserId'
 			  ,@IP AS '@IP'
-			  ,'Duration: ' + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS VARCHAR(50)) + ' ms,' + @LogDataContent AS '@LogData'
+			  ,'Duration: ' + CAST(DATEDIFF(MILLISECOND,@StartTime,@EndTime) AS VARCHAR(50)) + ' ms' + @LogDataContent AS '@LogData'
 		FOR XML PATH ('r'), ROOT('root'), TYPE
 	) AS NVARCHAR(MAX))
 
