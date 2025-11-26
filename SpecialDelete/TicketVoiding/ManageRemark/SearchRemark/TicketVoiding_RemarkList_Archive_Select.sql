@@ -17,7 +17,7 @@ AS
 		- 20251119@Lani: [TVS] Create new SP [Redmine: #234937]
 
 	Parameters Explanation: 
-		- @ActionIds:
+		- @ActionIds (only have value when search by matchid or timerange):
 			+ ActionId = 0: Refund
 			+ ActionId = 1: Waiting
 			+ ActionId = 2: Take note
@@ -119,7 +119,9 @@ BEGIN
 	) AS o
 	WHERE (r.UserId = @CreatedBy OR @CreatedBy = 0)
 		AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
-		AND EXISTS (SELECT TOP 1 1 FROM @TmpActionIds AS a WHERE a.ActionId = r.ActionId)
+		AND 1 = CASE WHEN @FilterBy IN (2,3) AND EXISTS (SELECT TOP 1 1 FROM @TmpActionIds AS a WHERE a.ActionId = r.ActionId) THEN 1
+					 WHEN @FilterBy = 1 THEN 1
+					 ELSE 0 END
 	ORDER BY RemarkId DESC
 
 	DROP TABLE #TmpListRemark
