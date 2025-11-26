@@ -237,7 +237,8 @@ BEGIN
 
 		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)	
 		DECLARE @MatchIds VARCHAR(MAX)
-		SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR), ',') 
+		
+		SELECT @MatchIds = STRING_AGG(CAST(MatchId AS VARCHAR(MAX)),',') 
 		FROM #FilterInfo
 		
 		INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
@@ -734,7 +735,7 @@ BEGIN
 		--Update check instant settled
 		UPDATE b
 		SET  b.SettledType = CASE 
-								WHEN ISNULL(m.eventstatus, '') <> @eventstatus_completed
+								WHEN ISNULL(m.eventstatus, '') <> 'completed'
 									THEN CASE
 											WHEN m.sporttype = 1 AND EXISTS (
 												SELECT TOP 1 1
