@@ -133,7 +133,7 @@ BEGIN
 							+ CASE WHEN @Source IS NOT NULL AND @Source <> ISNULL(Source,'') THEN ', Old Source: ' +  ISNULL(Source,'NULL') + ', New Source: ' + Source ELSE '' END
 						    + CASE WHEN @Remark IS NOT NULL AND @Remark <> ISNULL(Remark,'') THEN ', Old Remark: ' + ISNULL(Remark,'NULL') + ', New Remark: ' + Remark ELSE '' END
 							+ CASE WHEN @Message IS NOT NULL AND @Message <> ISNULL(Message,'') THEN ', Old Message: ' + ISNULL(Message,'NULL') + ', New Message: ' + @Message ELSE '' END
-							+ CASE WHEN @Description IS NOT NULL AND @Description <> ISNULL(Description,'') THEN ', Old Description: ' + ISNULL(Description,'NULL') + ', New Description' + @Description ELSE '' END
+							+ CASE WHEN @Description IS NOT NULL AND @Description <> ISNULL(Description,'') THEN ', Old Description: ' + ISNULL(Description,'NULL') + ', New Description: ' + @Description ELSE '' END
 						    + CASE WHEN @ActionId IS NOT NULL AND @ActionId <> ActionId THEN ', Old ActionId: ' + CAST(ActionId AS VARCHAR(20)) + ', New ActionId: ' + CAST(@ActionId AS VARCHAR(20)) ELSE '' END
 						   FROM @LogDataInfo
 
