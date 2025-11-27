@@ -75,6 +75,7 @@ AS
 		- 20251007@July: [TVS] Update rules Send Letstalk [Redmine: #240950]
 		- 20251006@July: [TVS] Abnormal Bet - Block void ticket after balance up date [Redmine: #238233]
 		- 20251104@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
+		- 20251124@July: Exclude mark transid from function SD [Redmine:#238929]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -110,7 +111,6 @@ BEGIN
 			,@SiteDBGroupID				 SMALLINT
 			,@BeingBalanceUpDate		 VARCHAR(255)
 			,@BalanceUpTransIds			 VARCHAR(MAX) = ''
-			,@TotalMarkTickets		 INT = 0 --Support show total count mark for notification
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -120,10 +120,8 @@ BEGIN
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @tmpListTransId AS TABLE (
-	          TransId BIGINT
-			, TicketType TINYINT --1: Mark, 2: UnMark
-	)
+	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT)
 	DECLARE @tmpMatchId_Info AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), eventdate DATETIME)
 	DECLARE	@Letstalk_Info AS TABLE (MatchId INT, IsAllUUSTickets BIT, ListBettype VARCHAR(MAX),ListBetteam VARCHAR(MAX))
@@ -833,8 +831,8 @@ BEGIN
 
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
-		INSERT INTO @tmpListTransId (TransId, TicketType)
-		SELECT TransId, 1 AS TicketType
+		INSERT INTO @tmpMarkTransId (TransId)
+		SELECT transid
 		FROM #validTransId WHERE StatusId IN (0,1)		
 	END
 	ELSE IF @RequestId <> 0
@@ -844,56 +842,54 @@ BEGIN
 		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Remove transid from request => unmark ticket & re-cal ticket
-			INSERT INTO @tmpListTransId (TransId, TicketType)
-			SELECT TransId, 2 AS TicketType
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT transid 
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 			WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
 					AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
 					AND rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
 			
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
-			INSERT INTO @tmpListTransId (TransId, TicketType)
-			SELECT TransId, 1 AS TicketType
+			INSERT INTO @tmpMarkTransId (TransId)
+			SELECT transid 
 			FROM #validTransId v
 			WHERE v.StatusId IN (0,1) 
 				AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = v.TransId)-- exist in # request
-				AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpListTransId um WHERE um.TransId = v.transid AND TicketType = 2)
+				AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpUnmarkTransId um WHERE um.TransId = v.transid)
 
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
-			INSERT INTO @tmpListTransId (TransId, TicketType)
-			SELECT TransId, 1 AS TicketType
+			INSERT INTO @tmpMarkTransId (TransId)
+			SELECT transid
 			FROM #validTransId WHERE StatusId IN (0,1)
 
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
 		BEGIN
-			INSERT INTO @tmpListTransId (TransId, TicketType)
-			SELECT rdt.TransId, 2 AS TicketType
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT rdt.TransId
 			FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 			WHERE rdt.RequestId = @RequestId AND rdt.SiteDBGroupID = @SiteDBGroupID
 
 		END
 	END
 
-	SELECT @TotalMarkTickets = COUNT(1) FROM @tmpListTransId WHERE TicketType = 1
-	
-	--For case ticket marked/unmarked function and then save request. Expect: NOT get this ticket
+	--For case ticket marked function and then save request. Expect: NOT get this ticket
 	DELETE m
-	FROM @tmpListTransId m
+	FROM @tmpMarkTransId m
 	WHERE EXISTS (
 			SELECT TOP 1 1 
 			FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
-			WHERE mt.TransId = m.TransId
+			WHERE mt.TransId = m.TransId AND mt.MarkType IN (0,2) --SD/SD/HP
 		)
 
 	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM @tmpListTransId WHERE TicketType = 1
+											FROM @tmpMarkTransId
 											FOR XML PATH('')), 1,1,''),'')
 
 	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM @tmpListTransId WHERE TicketType = 2
+											FROM @tmpUnmarkTransId
 											FOR XML PATH('')), 1,1,''),'')
 
 	IF @UnmarkTransIds <> ''
@@ -953,8 +949,7 @@ BEGIN
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson 
 		  ,@SingleCountSiteDBDown AS SingleCount
 		  ,@ParlayCountSiteDBDown AS ParlayCount
-		  ,@TotalMarkTickets AS TotalMarkTickets
-
+	
 	--5. Export Ticket that the user inputs table [#194133]
 	SELECT  t.transid 
 		,t.RemarkId 

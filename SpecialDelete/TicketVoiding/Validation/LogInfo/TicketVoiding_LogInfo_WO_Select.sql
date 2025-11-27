@@ -33,7 +33,7 @@ AS
 		- 20250930@Lani: [TVS] Basketball AIO - Integrate new bet types for Basketball Player Props [Redmine: #234941]
 		- 20251021@Lani: [TVS] Refactor Code [Redmine: #236067]
 		- 20251104@Lani: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine:#241502]
-		- 20251124@July: Exclude mark/unmark transid from function SD [Redmine:#238929]
+		- 20251124@July: Exclude mark transid from function SD [Redmine:#238929]
 
 	Param's explanation:
 		+ @OnlineServerId = '0,1,2,3'
@@ -59,7 +59,6 @@ BEGIN
 			,@LogInfoTicketsJson	  VARBINARY(MAX) = NULL
 		    ,@SiteDBGroupID			  SMALLINT
 			,@SiteDBDownInfoJson		VARBINARY(MAX) = NULL
-			,@TotalMarkTickets	      INT = 0 --Support show total count mark for notification
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -206,12 +205,8 @@ BEGIN
 			,LogInfoTicketsJson		 VARCHAR(MAX)
 		    ,IsFinish				 BIT
 		)
-	DECLARE @tmpListTransId AS TABLE (
-	          TransId BIGINT
-			, MainTransId BIGINT
-			, IsMixParlay BIT DEFAULT(0)
-			, TicketType TINYINT --1: Mark, 2: UnMark
-	)
+	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpLogInfoTickets TABLE (TransId BIGINT, IsOtherTicket BIT DEFAULT(0))
 	DECLARE @tmpOtherTicket AS TABLE (TransId BIGINT, sporttype SMALLINT, IsMixParlay BIT)
 
@@ -995,7 +990,7 @@ BEGIN
 
 	CREATE TABLE #CTE_RequestDetail (RequestId INT, MatchId INT, Sporttype SMALLINT, TransIds VARCHAR(MAX), IssueDetail NVARCHAR(MAX), VoidFromTime DATETIME, VoidToTime DATETIME, MainParlayCount INT, ActionId TINYINT)
 	CREATE TABLE #CTE_Ticket_Single (RequestId INT, MatchId INT, TransId BIGINT, Bettype SMALLINT, SubIssueTypeId INT)
-	CREATE TABLE #CTE_Ticket_SubParlay (RequestId INT, MatchId INT, TransId BIGINT, MainTransId BIGINT)
+	CREATE TABLE #CTE_Ticket_SubParlay (RequestId INT, MatchId INT, TransId BIGINT)
 
 	DECLARE @cnt_s INT , @cnt_p INT	
 
@@ -1012,8 +1007,8 @@ BEGIN
 		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,SiteDBGroupID,@OnlineServerId) = 1 
 	SET @cnt_s = @@ROWCOUNT
 
-	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId, MainTransId)
-	SELECT RequestId, MatchId, TransId, MainTransId
+	INSERT INTO #CTE_Ticket_SubParlay (RequestId, MatchId, TransId)
+	SELECT RequestId, MatchId, TransId
 	FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH(NOLOCK)
 	WHERE RequestId = @RequestId 
 		AND dbo.f_TVS_CheckIsSiteDbDown(@SiteDBGroupID,SiteDBGroupID,@OnlineServerId) = 1  
@@ -1233,7 +1228,7 @@ BEGIN
 			INNER JOIN @Validation v ON rd.MatchId = v.MatchId
 
 		-- 4. Unmark/Transinfo table (No need -> return table)
-		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpListTransId
+		SELECT TransId AS UnmarkTransIds, @TransInfoJson AS TransInfoJson FROM @tmpUnmarkTransId
 
 		RETURN;
 	END
@@ -1251,8 +1246,8 @@ BEGIN
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		--Mark ticket when add request
-		INSERT INTO @tmpListTransId (TransId, MainTransId, IsMixParlay, TicketType)
-		SELECT tp.SubTransid, tp.Transid, tp.IsMixParlay, 1 AS TicketType
+		INSERT INTO @tmpMarkTransId (TransId)
+		SELECT tp.SubTransid
 		FROM #TVSTicketBets tp
 		WHERE tp.SubStatusId IN (0,1) AND tp.IsSiteDBDown = 0
 	END
@@ -1263,78 +1258,73 @@ BEGIN
 		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Edit request filter on UI -> unmark ticket 
-			INSERT INTO @tmpListTransId (TransId, MainTransId, IsMixParlay, TicketType)
-			SELECT um.TransId, um.MainTransId, um.IsMixParlay, 2 AS TicketType
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT um.TransId
 			FROM ( 
-					SELECT TransId, TransId AS MainTransId, 0 AS IsMixParlay FROM #CTE_Ticket_Single s
+					SELECT TransId FROM #CTE_Ticket_Single s
 					UNION ALL 
-					SELECT TransId, MainTransId, 1 AS IsMixParlay FROM #CTE_Ticket_SubParlay p
+					SELECT TransId FROM #CTE_Ticket_SubParlay p
 				)um
 				LEFT JOIN #TVSTicketBets tp ON um.TransId = tp.SubTransid AND tp.IsSiteDBDown = 0
 			WHERE tp.TransId IS NULL 
 
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
-			INSERT INTO @tmpListTransId (TransId, MainTransId, IsMixParlay, TicketType)
-			SELECT tp.SubTransid, tp.Transid, tp.IsMixParlay, 1 AS TicketType
+			INSERT INTO @tmpMarkTransId (TransId)
+			SELECT tp.SubTransid
 			FROM #TVSTicketBets tp
 			WHERE tp.SubStatusId IN (0,1) AND tp.IsSiteDBDown = 0
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
 			--Mark ticket when add request
-			INSERT INTO @tmpListTransId (TransId, MainTransId, IsMixParlay, TicketType)
-			SELECT tp.SubTransid, tp.Transid, tp.IsMixParlay, 1 AS TicketTypey
+			INSERT INTO @tmpMarkTransId (TransId)
+			SELECT tp.SubTransid
 			FROM #TVSTicketBets tp
 			WHERE tp.SubStatusId IN (0,1) AND tp.IsSiteDBDown = 0
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId -- Take note
 		BEGIN
 			--Unmark ticket 
-			INSERT INTO @tmpListTransId (TransId, MainTransId, IsMixParlay, TicketType)
-			SELECT um.TransId, um.MainTransId, um.IsMixParlay, 2 AS TicketType
-			FROM ( 
-					SELECT TransId, TransId AS MainTransId, 0 AS IsMixParlay FROM #CTE_Ticket_Single s
-					UNION ALL 
-					SELECT TransId, MainTransId, 1 AS IsMixParlay FROM #CTE_Ticket_SubParlay p
-				)um
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT TransId FROM #CTE_Ticket_Single s
+			UNION ALL 
+			SELECT TransId FROM #CTE_Ticket_SubParlay p
 		END
 
 	END
-
-	SELECT @TotalMarkTickets = COUNT(1) FROM @tmpListTransId WHERE TicketType = 1
 	
-	--For case ticket marked/unmarked function and then save request. Expect: NOT get this ticket
+	--For case ticket marked function and then save request. Expect: NOT marked this ticket.
 	BEGIN
 		--For single
 		DELETE m
-		FROM @tmpListTransId m
-		WHERE m.IsMixParlay = 0
-			AND EXISTS (
+		FROM @tmpMarkTransId m
+		WHERE EXISTS (
 				SELECT TOP 1 1 
 				FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
-				WHERE mt.TransId = m.TransId
+				WHERE mt.TransId = m.TransId AND mt.MarkType IN (0,2) --SD/SD-HP
 			)
 
 		--For sub parlay (normal & hybrid)
 		DELETE m
-		FROM @tmpListTransId m
+		FROM @tmpMarkTransId m
 			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.TransId = bm.TransId
-		WHERE m.IsMixParlay = 1
-			AND EXISTS (
+			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno
+		WHERE EXISTS (
 				SELECT TOP 1 1 
 				FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
 				WHERE bm.matchid = mt.MatchId 
-					AND (mt.TransId = m.MainTransId -- normal
+					AND mt.MarkType IN (0,2) --SD/SD-HP
+					AND (mt.TransId = b.TransId -- normal
 					OR   mt.TransId = m.TransId) -- hybrid
 			)
 	END
 
 	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM @tmpListTransId WHERE TicketType = 1
+											FROM @tmpMarkTransId
 											FOR XML PATH('')), 1,1,''),'')
 
 	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM @tmpListTransId WHERE TicketType = 2
+											FROM @tmpUnmarkTransId
 											FOR XML PATH('')), 1,1,''),'')
 
 	/*****************Return table **************************/
@@ -1440,7 +1430,6 @@ BEGIN
 		  ,CONVERT(VARCHAR(MAX), @SiteDBDownInfoJson, 1) AS SiteDBDownInfoJson
 		  ,@SingleCountSiteDBDown AS SingleCount
 		  ,@ParlayCountSiteDBDown AS ParlayCount
-		  ,@TotalMarkTickets AS TotalMarkTickets
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
