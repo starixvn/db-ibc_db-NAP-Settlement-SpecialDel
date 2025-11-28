@@ -20,7 +20,7 @@ AS
 		- 20240327@July: [TVS] Show Half Won - Half Lost on the bet list [Redmine: #202267]
 		- 20240822@Max: [TVS] Integrate new bet type of Baseball AiO - Phase 2 [Redmine: #209441]
 		- 20251027@Max: [TVS] Integrate Hybrid Parlay from Jacktime for Basketball sport [Redmine: #241502]
-		- 20251125@July: Return SubOddsSpread [Redmine: #245116]
+		- 20251125@July: Return SubOddsSpread - Hybird Parlay SubTransdesc get main transdesc show betlist [Redmine: #245116]
 
 	Param's Explanation:			
 			- @BetType:
@@ -40,7 +40,7 @@ BEGIN
 		,SubBetType				INT  
 		,SubHdp1				SMALLMONEY   
 		,SubHdp2				SMALLMONEY	
-		,SubTransDesc			NVARCHAR(200)	
+		,SubTransDesc			NVARCHAR(2000)	
 		,SubLivehomescore		SMALLINT 
 		,SubLiveawayscore		SMALLINT 
 		,SubLiveindicator		BIT	
@@ -144,7 +144,7 @@ BEGIN
 			,bm.bettype AS SubBetType
 			,bm.hdp1 AS SubHdp1		
 			,bm.hdp2 AS SubHdp2	
-			,bm.transdesc AS SubTransDesc	
+			,CASE WHEN b.oddsspread = 3 THEN b.transdesc ELSE bm.transdesc END AS SubTransDesc	
 			,bm.livehomescore AS SubLivehomescore 
 			,bm.liveawayscore AS SubLiveawayscore 
 			,bm.liveindicator AS SubLiveindicator
