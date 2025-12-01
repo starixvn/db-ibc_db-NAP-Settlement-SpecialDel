@@ -79,7 +79,7 @@ RETURN
 								 WHEN fm = 0	THEN 0
 								 WHEN fm = -0.25 THEN 0.25
 								 WHEN fm < -0.25 THEN 1
-								 ELSE -1
+								 ELSE -1	
 								 END
 					ELSE -1 END	
 			WHEN @pfID = 20 THEN --Moneyline
